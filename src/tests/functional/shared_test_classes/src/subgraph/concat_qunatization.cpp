@@ -29,7 +29,7 @@ void ConcatQuantization::SetUp() {
     std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto params = ngraph::builder::makeParams(ngPrc, {{1, 160}});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 160})};
 
     std::vector<size_t> outFormShapes1 = { 1, 5, 32 };
     auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 3 }, outFormShapes1);

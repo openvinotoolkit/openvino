@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
+
 #include <gtest/gtest.h>
 
-#include <openvino/opsets/opset10.hpp>
-#include <transformations/common_optimizations/reverse_shape_and_type_infer.hpp>
-
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset12.hpp"
 
 using namespace testing;
@@ -398,6 +398,41 @@ TEST_F(TransformationTestsF, SqueezeReverseInfer) {
     {
         auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(6));
         auto axes = opset10::Constant::create(element::i32, Shape{2}, {0, 1});
+        auto squeeze = std::make_shared<opset10::Squeeze>(data, axes);
+        auto weights =
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
+        auto conv = std::make_shared<opset10::Convolution>(squeeze,
+                                                           weights,
+                                                           Strides{2, 2},
+                                                           CoordinateDiff{3, 3},
+                                                           CoordinateDiff{3, 3},
+                                                           Strides{1, 1});
+        auto result = std::make_shared<opset10::Result>(conv);
+        model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, SqueezeAxesReverseInfer) {
+    auto dyn = Dimension::dynamic();
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape{1, dyn, 1, dyn, dyn, dyn});
+        auto squeeze = std::make_shared<opset10::Squeeze>(data);
+        // Convolution is needed to produce static rank
+        auto weights =
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
+        auto conv = std::make_shared<opset10::Convolution>(squeeze,
+                                                           weights,
+                                                           Strides{2, 2},
+                                                           CoordinateDiff{3, 3},
+                                                           CoordinateDiff{3, 3},
+                                                           Strides{1, 1});
+        auto result = std::make_shared<opset10::Result>(conv);
+        model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+        manager.register_pass<pass::ReverseShapeAndTypeInfer>();
+    }
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{1, dyn, 1, dyn, dyn, dyn});
+        auto axes = opset10::Constant::create(element::i64, Shape{2}, {0, 2});
         auto squeeze = std::make_shared<opset10::Squeeze>(data, axes);
         auto weights =
             opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));

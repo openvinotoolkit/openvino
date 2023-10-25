@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include <openvino/frontend/manager.hpp>
+#include "openvino/frontend/manager.hpp"
 
 using FuzzyOpTestParam = std::tuple<std::string,   // FrontEnd name
                                     std::string,   // Base path to models

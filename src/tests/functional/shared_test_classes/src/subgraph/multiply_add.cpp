@@ -4,37 +4,43 @@
 
 #include "shared_test_classes/subgraph/multiply_add.hpp"
 
-namespace SubgraphTestsDefinitions {
-std::string MultiplyAddLayerTest::getTestCaseName(const testing::TestParamInfo<MultiplyAddParamsTuple> &obj) {
-    std::vector<size_t> inputShapes;
-    InferenceEngine::Precision netPrecision;
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+
+namespace ov {
+namespace test {
+
+std::string MultiplyAddLayerTest::getTestCaseName(const testing::TestParamInfo<MultiplyAddParamsTuple>& obj) {
+    ov::Shape inputShapes;
+    ov::element::Type element_type;
     std::string targetName;
-    std::tie(inputShapes, netPrecision, targetName) = obj.param;
+    std::tie(inputShapes, element_type, targetName) = obj.param;
     std::ostringstream results;
 
     results << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
-    results << "netPRC=" << netPrecision.name() << "_";
+    results << "ET=" << element_type << "_";
     results << "targetDevice=" << targetName << "_";
     return results.str();
 }
 
 void MultiplyAddLayerTest::SetUp() {
-    std::vector<size_t> inputShape;
-    auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
-    std::tie(inputShape, netPrecision, targetDevice) = this->GetParam();
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    ov::Shape inputShape;
+    ov::element::Type element_type;
+    std::tie(inputShape, element_type, targetDevice) = this->GetParam();
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(element_type, ov::PartialShape(inputShape))};
+    auto paramOuts =
+        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
 
     std::vector<size_t> constShape(inputShape.size(), 1);
     constShape[1] = inputShape[1];
 
-    auto const_mul = ngraph::builder::makeConstant<float>(ngPrc, constShape, {}, true);
-    auto mul = std::make_shared<ngraph::opset3::Multiply>(paramOuts[0], const_mul);
-    auto const_add = ngraph::builder::makeConstant<float>(ngPrc, constShape, {}, true);
-    auto add = std::make_shared<ngraph::opset3::Add>(mul, const_add);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(add)};
-    function = std::make_shared<ngraph::Function>(results, params, "multiplyAdd");
+    auto const_mul = ngraph::builder::makeConstant<float>(element_type, constShape, {}, true);
+    auto mul = std::make_shared<ov::op::v1::Multiply>(paramOuts[0], const_mul);
+    auto const_add = ngraph::builder::makeConstant<float>(element_type, constShape, {}, true);
+    auto add = std::make_shared<ov::op::v1::Add>(mul, const_add);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(add)};
+    function = std::make_shared<ov::Model>(results, params, "multiplyAdd");
 }
-} // namespace SubgraphTestsDefinitions
+
+}  // namespace test
+}  // namespace ov

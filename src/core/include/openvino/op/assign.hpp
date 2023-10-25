@@ -63,11 +63,9 @@ public:
         OPENVINO_ASSERT(m_variable, "Variable is not initialized. Variable_id is unavailable");
         return m_variable->get_info().variable_id;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs,
-                  const HostTensorVector& inputs,
+    bool evaluate(TensorVector& outputs,
+                  const TensorVector& inputs,
                   const EvaluationContext& evaluation_context) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
 };

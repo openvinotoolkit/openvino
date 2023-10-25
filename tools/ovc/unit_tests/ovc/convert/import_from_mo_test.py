@@ -7,7 +7,6 @@ from pathlib import Path
 
 from generator import generator, generate
 from openvino.runtime import serialize
-from openvino.tools.ovc import InputCutInfo
 
 from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from unit_tests.ovc.convert.utils import create_onnx_model, save_to_onnx
@@ -56,8 +55,7 @@ class ConvertImportMOTest(UnitTestWithMockedTelemetry):
         return onnx_net
 
     @generate(*[
-        ({}),
-        ({'input': InputCutInfo(name='LeakyRelu_out', shape=None, type=None, value=None)}),
+        ({})
     ])
     # Checks convert import from openvino.tools.mo
     def test_import(self, params):

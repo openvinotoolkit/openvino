@@ -5,10 +5,9 @@
 #include "transformations/op_conversions/mvn6_decomposition.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
@@ -17,15 +16,16 @@
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::MVN6Decomposition::MVN6Decomposition() {
     MATCHER_SCOPE(MVN6Decomposition);
     // Decomposes MVN(x, axes) op if normalize_variance is false into sub-graph
     // x - ReduceMean(x, axes), if normalize_variance is true into sub-graph
     // (x - ReduceMean(x, axes)) / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
-    auto mvn = ngraph::pattern::wrap_type<ov::op::v6::MVN>();
+    auto mvn = ov::pass::pattern::wrap_type<ov::op::v6::MVN>();
 
-    matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto mvn_node = std::dynamic_pointer_cast<ov::op::v6::MVN>(pattern_to_output.at(mvn).get_node_shared_ptr());
 
@@ -42,17 +42,17 @@ ov::pass::MVN6Decomposition::MVN6Decomposition() {
 
         if (!mvn_node->get_normalize_variance()) {
             mean_normalization->set_friendly_name(mvn_node->get_friendly_name());
-            ngraph::copy_runtime_info(mvn_node, {mean, mean_normalization});
-            ngraph::replace_node(mvn_node, mean_normalization);
+            ov::copy_runtime_info(mvn_node, {mean, mean_normalization});
+            ov::replace_node(mvn_node, mean_normalization);
         } else {
             // (x - ReduceMean(x, axes)) ^ 2
-            auto sqr_const = ov::op::v0::Constant::create(data.get_element_type(), ngraph::Shape{1}, {2});
+            auto sqr_const = ov::op::v0::Constant::create(data.get_element_type(), ov::Shape{1}, {2});
             auto sqr = std::make_shared<ov::op::v1::Power>(mean_normalization, sqr_const);
             // ReduceMean((x - ReduceMean(x, axes)) ^ 2)
             auto mean2 = std::make_shared<ov::op::v1::ReduceMean>(sqr, axes, true);
 
             auto eps = mvn_node->get_eps();
-            auto eps_node = ov::op::v0::Constant::create(data.get_element_type(), ngraph::Shape{1}, {eps});
+            auto eps_node = ov::op::v0::Constant::create(data.get_element_type(), ov::Shape{1}, {eps});
             auto eps_mode = mvn_node->get_eps_mode();
 
             std::shared_ptr<ov::op::v1::Add> eps_add;
@@ -76,12 +76,12 @@ ov::pass::MVN6Decomposition::MVN6Decomposition() {
             }
 
             div->set_friendly_name(mvn_node->get_friendly_name());
-            ngraph::copy_runtime_info(mvn_node, {mean, mean_normalization, sqr, mean2, eps_node, eps_add, sqrt, div});
-            ngraph::replace_node(mvn_node, div);
+            ov::copy_runtime_info(mvn_node, {mean, mean_normalization, sqr, mean2, eps_node, eps_add, sqrt, div});
+            ov::replace_node(mvn_node, div);
         }
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mvn, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(mvn, matcher_name);
     register_matcher(m, callback);
 }

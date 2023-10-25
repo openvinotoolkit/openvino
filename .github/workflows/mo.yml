@@ -20,9 +20,8 @@ jobs:
   Pylint-UT:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: recursive
+      - name: Clone OpenVINO
+        uses: actions/checkout@v4
 
       - name: Setup Python
         uses: actions/setup-python@v4

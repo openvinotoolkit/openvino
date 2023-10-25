@@ -228,8 +228,9 @@ enum ColumnOfProcessorTypeTable {
  * @brief      Definition of CPU_MAP_USED_FLAG column in CPU mapping table.
  */
 enum ProcessorUseStatus {
-    NOT_USED = -1,  //!< Processor is not bound to thread
-    CPU_USED = 1,   //!< CPU is in using
+    CPU_BLOCKED = -100,  //!< Processor is blocked to use
+    NOT_USED = -1,       //!< Processor is not bound to thread
+    CPU_USED = 1,        //!< CPU is in using
 };
 
 /**

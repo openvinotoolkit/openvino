@@ -40,12 +40,12 @@ public:
     // Return shape if inputs has torch::Tensor type in the original model, otherwise returns the shape [] of a scalar
     virtual PartialShape get_input_shape(size_t index) const = 0;
 
+    // Return strides if inputs has torch::Tensor type in original model, otherwise return [].
+    virtual const std::vector<size_t>& get_input_strides(size_t index) const = 0;
+
     // Return element::Type when it the original type can be represented, otherwise returns PT-specific data type object
     // (see custom_type.hpp)
     virtual Any get_input_type(size_t index) const = 0;
-
-    // TODO: Consider deleting this method, probably it doesn't make sence outside Torch JIT execution
-    virtual const std::vector<size_t>& get_input_transpose_order(size_t index) const = 0;
 
     // Return debug name of the input tensor
     virtual const std::string& get_output_debug_name(size_t index) const = 0;
@@ -56,9 +56,6 @@ public:
     // Return element::Type when it the original type can be represented, otherwise returns PT-specific data type object
     // (see custom_type.hpp)
     virtual Any get_output_type(size_t index) const = 0;
-
-    // TODO: Consider deleting this method, probably it doesn't make sence outside Torch JIT execution
-    virtual const std::vector<size_t>& get_output_transpose_order(size_t index) const = 0;
     // ------------------------------
 
     // TODO: required? can be implemented in the context of a single node?
@@ -113,6 +110,9 @@ public:
     /// Returns new nodes for inputs inlined in the op itself
     // Used in Torch.FX decoder
     virtual OutputVector inlined_inputs(size_t start_index) const = 0;
+
+    /// Returns the id of the deccoder type (0: TorchFX, 1: TorchScript)
+    virtual const std::string& decoder_type_name() const = 0;
 };
 
 }  // namespace pytorch

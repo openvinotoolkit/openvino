@@ -8,7 +8,7 @@
 #include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
-#include "ngraph/runtime/reference/gelu.hpp"
+#include "openvino/reference/gelu.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -110,7 +110,7 @@ inline bool evaluate(const HostTensorPtr& arg0,
                      op::GeluApproximationMode mode,
                      const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::gelu<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), mode, count);
+    ov::reference::gelu<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), mode, count);
     return true;
 }
 
@@ -120,8 +120,8 @@ bool evaluate_gelu(const HostTensorPtr& arg0, const HostTensorPtr& out, op::Gelu
     out->set_unary(arg0);
 
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_gelu, f16, arg0, out, mode, count);
-        NGRAPH_TYPE_CASE(evaluate_gelu, f32, arg0, out, mode, count);
+        OPENVINO_TYPE_CASE(evaluate_gelu, f16, arg0, out, mode, count);
+        OPENVINO_TYPE_CASE(evaluate_gelu, f32, arg0, out, mode, count);
     default:
         rc = false;
         break;
@@ -134,7 +134,7 @@ bool evaluate_gelu(const HostTensorPtr& arg0, const HostTensorPtr& out, op::Gelu
 bool op::v7::Gelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v7_Gelu_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
     return gelu::evaluate_gelu(inputs[0], outputs[0], m_approximation_mode);
 }

@@ -5,18 +5,10 @@
 #include "transformations/common_optimizations/common_optimizations.hpp"
 
 #include <memory>
-#include <ngraph/pass/constant_folding.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <transformations/common_optimizations/moc_transformations.hpp>
-#include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
-#include <transformations/common_optimizations/transpose_reshape_elimination_for_matmul.hpp>
-#include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
-#include <transformations/control_flow/unroll_if.hpp>
-#include <transformations/op_conversions/normalize_l2_decomposition.hpp>
-#include <transformations/op_conversions/softmax_decomposition.hpp>
-#include <transformations/op_conversions/softsign_decomposition.hpp>
 
 #include "itt.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/batch_to_space_fusion.hpp"
 #include "transformations/common_optimizations/binarize_weights.hpp"
@@ -41,6 +33,7 @@
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/common_optimizations/matmul_multiply_fusion.hpp"
+#include "transformations/common_optimizations/moc_transformations.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
@@ -53,6 +46,7 @@
 #include "transformations/common_optimizations/reduce_merge.hpp"
 #include "transformations/common_optimizations/relu_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/remove_filtering_boxes_by_size.hpp"
+#include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 #include "transformations/common_optimizations/skip_gather_before_transpose_and_reshape.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
 #include "transformations/common_optimizations/softplus_fusion.hpp"
@@ -61,8 +55,11 @@
 #include "transformations/common_optimizations/split_squeeze_concat_fusion.hpp"
 #include "transformations/common_optimizations/strides_optimization.hpp"
 #include "transformations/common_optimizations/swish_fusion.hpp"
+#include "transformations/common_optimizations/transpose_reshape_elimination_for_matmul.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"
+#include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
+#include "transformations/control_flow/unroll_if.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/init_node_info.hpp"
@@ -100,24 +97,26 @@
 #include "transformations/op_conversions/detection_output_upgrade.hpp"
 #include "transformations/op_conversions/einsum_decomposition.hpp"
 #include "transformations/op_conversions/eye_decomposition.hpp"
-#include "transformations/op_conversions/gather_normalize_negative_indices.hpp"
 #include "transformations/op_conversions/gelu7_downgrade.hpp"
 #include "transformations/op_conversions/group_normalization_decomposition.hpp"
 #include "transformations/op_conversions/hsigmoid_decomposition.hpp"
 #include "transformations/op_conversions/hswish_decomposition.hpp"
 #include "transformations/op_conversions/log_softmax_decomposition.hpp"
 #include "transformations/op_conversions/mvn6_decomposition.hpp"
+#include "transformations/op_conversions/normalize_l2_decomposition.hpp"
 #include "transformations/op_conversions/reduce_l1_decomposition.hpp"
 #include "transformations/op_conversions/reduce_l2_decomposition.hpp"
 #include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
+#include "transformations/op_conversions/softmax_decomposition.hpp"
+#include "transformations/op_conversions/softsign_decomposition.hpp"
 #include "transformations/op_conversions/unique_decomposition.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(CommonOptimizations);
-    ngraph::pass::Manager manager(get_pass_config());
+    ov::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
 
-    using namespace ngraph::pass;
     using namespace ov::pass;
     REGISTER_PASS(manager, DisableDecompressionConvertConstantFolding)
 
@@ -138,7 +137,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(common_fusions, InterpolateSequenceFusion)
     ADD_MATCHER(common_fusions, SkipGatherBeforeTransposeAndReshape)
     ADD_MATCHER(common_fusions, ReduceMerge)
-    common_fusions->set_name("ngraph::pass::CommonFusions");
+    common_fusions->set_name("ov::pass::CommonFusions");
 
     manager.register_pass<ConcatReduceFusion>();
     REGISTER_DISABLED_PASS(manager, ConvertPadToGroupConvolution)
@@ -170,12 +169,11 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(decomp, EinsumDecomposition)
     decomp->add_matcher<SoftmaxDecomposition, false>();
     ADD_MATCHER(decomp, SoftSignDecomposition)
-    ADD_MATCHER(decomp, GatherNegativeConstIndicesNormalize)
     ADD_MATCHER(decomp, DropoutWithRandomUniformReplacer)
     ADD_MATCHER(decomp, TransposeReshapeEliminationForMatmul)
     ADD_MATCHER(decomp, EyeDecomposition)
     ADD_MATCHER(decomp, UniqueDecomposition)
-    decomp->set_name("ngraph::pass::CommonDecompositions");
+    decomp->set_name("ov::pass::CommonDecompositions");
 
     // CF is required after all decompositions
     REGISTER_PASS(manager, ConstantFolding)
@@ -194,7 +192,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(multiply_fusions, MultiplyConvolutionBackpropDataFusion)
     ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionBackpropDataFusion)
     ADD_MATCHER(multiply_fusions, MatMulMultiplyFusion)
-    multiply_fusions->set_name("ngraph::pass::MultiplyFusions");
+    multiply_fusions->set_name("ov::pass::MultiplyFusions");
 
     REGISTER_PASS(manager, ConstantFolding)
     REGISTER_PASS(manager, ConvertGather8ToGather7)  // not plugins implemented gather8
@@ -226,12 +224,13 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(fq_fusions, ReluFakeQuantizeFusion)
     ADD_MATCHER(fq_fusions, AddFakeQuantizeFusion)
     ADD_MATCHER(fq_fusions, MulFakeQuantizeFusion)
-    fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
+    fq_fusions->set_name("ov::pass::FakeQuantizeFusions");
 
     // StridesOptimization should be at the very end
     // because we cannot insert any MaxPools since they may prevent
     // other optimizations
-    manager.register_pass<StridesOptimization>();
+    REGISTER_PASS(manager, StridesOptimization)
+    REGISTER_PASS(manager, SymbolicOptimizations)
     REGISTER_PASS(manager, Validate)
     manager.run_passes(f);
 

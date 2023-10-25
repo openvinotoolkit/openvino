@@ -14,7 +14,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "lpt_ngraph_functions/shuffle_channels_function.hpp"
+#include "ov_lpt_models/shuffle_channels.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -22,7 +22,7 @@ std::string ShuffleChannelsTransformation::getTestCaseName(const testing::TestPa
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ShuffleChannelsTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
@@ -35,7 +35,7 @@ std::string ShuffleChannelsTransformation::getTestCaseName(const testing::TestPa
 void ShuffleChannelsTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     ShuffleChannelsTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
 

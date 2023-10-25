@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/cum_sum.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <string>
 
 using namespace ngraph;
@@ -59,7 +59,10 @@ protected:
 
         init_input_shapes({shapes});
 
-        auto params = ngraph::builder::makeDynamicParams(inputPrecision, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(inputPrecision, shape));
+        }
         auto axisNode = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{}, std::vector<int64_t>{axis})->output(0);
         auto cumSum = std::make_shared<opset3::CumSum>(params[0], axisNode, exclusive, reverse);
 

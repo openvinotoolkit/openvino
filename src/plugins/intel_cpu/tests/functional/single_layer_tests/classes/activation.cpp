@@ -121,10 +121,10 @@ void ActivationLayerCPUTest::SetUp() {
     init_input_shapes(inputShapes);
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeDynamicParams(ngPrc, {inputDynamicShapes.front()});
-    auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType, activationShapes, constantsValue);
+    auto params = std::make_shared<ov::op::v0::Parameter>(ngPrc, inputDynamicShapes.front());
+    auto activation = ngraph::builder::makeActivation(params, ngPrc, activationType, activationShapes, constantsValue);
     activation->get_rt_info() = getCPUInfo();
-    function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params, "Activation");
+    function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, ov::ParameterVector{params}, "Activation");
 }
 
 TEST_P(ActivationLayerCPUTest, CompareWithRefs) {

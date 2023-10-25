@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 #include "shared_test_classes/single_layer/pooling.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -78,8 +78,10 @@ protected:
 
         init_input_shapes({inputShapes});
 
-        auto params = ngraph::builder::makeDynamicParams(inPrc, inputDynamicShapes);
-
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(inPrc, shape));
+        }
         std::shared_ptr<ngraph::Node> poolInput = params[0];
 
         std::shared_ptr<ngraph::Node> pooling = ngraph::builder::makePooling(poolInput,

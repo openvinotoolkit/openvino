@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/scatter_ND_update.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include <string>
 
@@ -14,30 +14,38 @@ using namespace InferenceEngine;
 using namespace ov::test;
 
 namespace GPULayerTestsDefinitions {
-using ScatterNDUpdateShapes = std::vector<InputShape>;
+using ScatterUpdateShapes = std::vector<InputShape>;
 using IndicesValues = std::vector<std::int64_t>;
 
-struct ScatterNDUpdateLayerParams {
-    ScatterNDUpdateShapes inputShapes;
+enum class Scatterupdate_type {
+    Basic,
+    ND,
+    Elements
+};
+
+struct ScatterUpdateLayerParams {
+    ScatterUpdateShapes inputShapes;
     IndicesValues indicesValues;
+    Scatterupdate_type  scType; // scatter update type
 };
 
 typedef std::tuple<
-    ScatterNDUpdateLayerParams,
+    ScatterUpdateLayerParams,
     ElementType,        // input precision
     ElementType         // indices precision
 > ScatterUpdateParams;
 
-class ScatterNDUpdateLayerGPUTest : public testing::WithParamInterface<ScatterUpdateParams>,
+class ScatterUpdateLayerGPUTest : public testing::WithParamInterface<ScatterUpdateParams>,
                                     virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ScatterUpdateParams> obj) {
-        ScatterNDUpdateLayerParams scatterParams;
+        ScatterUpdateLayerParams scatterParams;
         ElementType inputPrecision;
         ElementType idxPrecision;
         std::tie(scatterParams, inputPrecision, idxPrecision) = obj.param;
         const auto inputShapes = scatterParams.inputShapes;
         const auto indicesValues = scatterParams.indicesValues;
+        const auto scType = scatterParams.scType;
 
         std::ostringstream result;
         result << inputPrecision << "_IS=";
@@ -54,6 +62,18 @@ public:
         }
         result << "indices_values=" << ov::test::utils::vec2str(indicesValues);
         result << "_idx_precision=" << idxPrecision;
+        result << "_scatter_mode=";
+        switch (scType) {
+            case Scatterupdate_type::ND:
+                result << "ScatterNDUpdate_";
+                break;
+            case Scatterupdate_type::Elements:
+                result << "ScatterElementsUpdate_";
+                break;
+            case Scatterupdate_type::Basic:
+            default:
+                result << "ScatterUpdate_";
+        }
         result << "trgDev=GPU";
         return result.str();
     }
@@ -96,23 +116,43 @@ protected:
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
-        ScatterNDUpdateLayerParams scatterParams;
+        ScatterUpdateLayerParams scatterParams;
         ElementType inputPrecision;
         ElementType idxPrecision;
         std::tie(scatterParams, inputPrecision, idxPrecision) = this->GetParam();
         const auto inputShapes = scatterParams.inputShapes;
+        const auto scType = scatterParams.scType;
 
-        init_input_shapes(inputShapes);
+        init_input_shapes({inputShapes[0], inputShapes[1], inputShapes[2]});
 
-        auto dataParams = ngraph::builder::makeDynamicParams(inputPrecision, { inputDynamicShapes[0], inputDynamicShapes[2] });
-        auto indicesParam = ngraph::builder::makeDynamicParams(idxPrecision, { inputDynamicShapes[1] });
+
+        ov::ParameterVector dataParams{std::make_shared<ov::op::v0::Parameter>(inputPrecision, inputDynamicShapes[0]),
+                                   std::make_shared<ov::op::v0::Parameter>(inputPrecision, inputDynamicShapes[2])};
+
+        auto indicesParam = std::make_shared<ov::op::v0::Parameter>(idxPrecision, inputDynamicShapes[1]);
         dataParams[0]->set_friendly_name("Param_1");
-        indicesParam[0]->set_friendly_name("Param_2");
+        indicesParam->set_friendly_name("Param_2");
         dataParams[1]->set_friendly_name("Param_3");
 
-        auto scatter = std::make_shared<ngraph::opset4::ScatterNDUpdate>(dataParams[0], indicesParam[0], dataParams[1]);
+        std::shared_ptr<ov::Node> scatter;
+        switch (scType) {
+            case Scatterupdate_type::ND: {
+                scatter = std::make_shared<ngraph::opset4::ScatterNDUpdate>(dataParams[0], indicesParam, dataParams[1]);
+                break;
+            }
+            case Scatterupdate_type::Elements: {
+                auto axis = ov::op::v0::Constant::create(ov::element::i32, inputShapes[3].first.get_shape(), inputShapes[3].second[0]);
+                scatter = std::make_shared<ngraph::opset4::ScatterElementsUpdate>(dataParams[0], indicesParam, dataParams[1], axis);
+                break;
+            }
+            case Scatterupdate_type::Basic:
+            default: {
+                auto axis = ov::op::v0::Constant::create(ov::element::i32, inputShapes[3].first.get_shape(), inputShapes[3].second[0]);
+                scatter = std::make_shared<ngraph::opset4::ScatterUpdate>(dataParams[0], indicesParam, dataParams[1], axis);
+            }
+        }
 
-        ngraph::ParameterVector allParams{ dataParams[0], indicesParam[0], dataParams[1] };
+        ngraph::ParameterVector allParams{ dataParams[0], indicesParam, dataParams[1] };
 
         auto makeFunction = [](ParameterVector &params, const std::shared_ptr<Node> &lastNode) {
             ResultVector results;
@@ -120,51 +160,88 @@ protected:
             for (size_t i = 0; i < lastNode->get_output_size(); i++)
                 results.push_back(std::make_shared<opset1::Result>(lastNode->output(i)));
 
-            return std::make_shared<Function>(results, params, "ScatterNDUpdateLayerGPUTest");
+            return std::make_shared<Function>(results, params, "ScatterUpdateLayerGPUTest");
         };
         function = makeFunction(allParams, scatter);
     }
 };
 
-TEST_P(ScatterNDUpdateLayerGPUTest, CompareWithRefs) {
+TEST_P(ScatterUpdateLayerGPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
 }
 
 namespace ScatterNDUpdate {
 
-const std::vector<ScatterNDUpdateLayerParams> scatterParams = {
-    ScatterNDUpdateLayerParams{
-        ScatterNDUpdateShapes{
+const std::vector<ScatterUpdateLayerParams> scatterNDParams = {
+    ScatterUpdateLayerParams{
+        ScatterUpdateShapes{
             {{-1, -1, -1, -1, -1}, {{10, 9, 10, 9, 10}, {10, 1, 11, 2, 5}, {10, 15, 8, 1, 7}}},
             {{2, 2, 1}, {{2, 2, 1}, {2, 2, 1}, {2, 2, 1}}},
             {{-1, -1, -1, -1, -1, -1}, {{2, 2, 9, 10, 9, 10}, {2, 2, 1, 11, 2, 5}, {2, 2, 15, 8, 1, 7}}},
         },
-        IndicesValues{ 5, 6, 2, 8 }
+        IndicesValues{ 5, 6, 2, 8 },
+        Scatterupdate_type::ND
     },
-    ScatterNDUpdateLayerParams{
-        ScatterNDUpdateShapes{
+    ScatterUpdateLayerParams{
+        ScatterUpdateShapes{
             {{-1, -1, -1, -1}, {{ 10, 9, 9, 11 }, { 7, 5, 3, 12 }, { 3, 4, 9, 8 }}},
             {{2, 3}, {{2, 3}, {2, 3}, {2, 3}}},
             {{-1, -1}, {{2, 11}, {2, 12}, {2, 8}}}
         },
-        IndicesValues{ 0, 1, 1, 2, 2, 2 }
+        IndicesValues{ 0, 1, 1, 2, 2, 2 },
+        Scatterupdate_type::ND
     },
-    ScatterNDUpdateLayerParams{
-        ScatterNDUpdateShapes{
+    ScatterUpdateLayerParams{
+        ScatterUpdateShapes{
             {{{3, 10}, -1, {3, 9}, -1}, {{ 10, 9, 9, 11 }, { 7, 5, 3, 12 }, { 3, 4, 9, 8 }}},
             {{2, 3}, {{2, 3}, {2, 3}, {2, 3}}},
             {{{2, 4}, -1}, {{2, 11}, {2, 12}, {2, 8}}}
         },
-        IndicesValues{ 0, 1, 1, 2, 2, 2 }
+        IndicesValues{ 0, 1, 1, 2, 2, 2 },
+        Scatterupdate_type::ND
     },
-    ScatterNDUpdateLayerParams{
-        ScatterNDUpdateShapes{
+    ScatterUpdateLayerParams{
+        ScatterUpdateShapes{
             {{{3, 10}, {4, 11}, {3, 9}, {8, 15}}, {{ 10, 9, 9, 11 }, { 7, 5, 3, 12 }, { 3, 4, 9, 8 }}},
             {{2, 3}, {{2, 3}, {2, 3}, {2, 3}}},
             {{{2, 4}, -1}, {{2, 11}, {2, 12}, {2, 8}}}
         },
-        IndicesValues{ 0, 1, 1, 2, 2, 2 }
+        IndicesValues{ 0, 1, 1, 2, 2, 2 },
+        Scatterupdate_type::ND
+    },
+};
+
+const std::vector<ScatterUpdateLayerParams> scatterElementsParams = {
+    ScatterUpdateLayerParams{
+        ScatterUpdateShapes{
+            {{-1, -1, -1, -1, -1}, {{10, 9, 10, 9, 10}, {10, 5, 11, 4, 5}, {10, 15, 8, 1, 7}}},
+            {{-1, -1, -1, -1, -1 }, {{3, 2, 1, 2, 1}, {3, 2, 1, 2, 1}, {3, 2, 1, 2, 1}}},
+            {{-1, -1, -1, -1, -1 }, {{3, 2, 1, 2, 1}, {3, 2, 1, 2, 1}, {3, 2, 1, 2, 1}}},
+            {{1}, {{1}}}
+        },
+        IndicesValues{ 5, 6, 2, 8, 5, 6, 2, 8, 5, 6, 2, 8 },
+        Scatterupdate_type::Elements
+    },
+    ScatterUpdateLayerParams{
+        ScatterUpdateShapes{
+            {{-1, -1, -1, -1}, {{ 10, 9, 9, 11 }, { 7, 5, 3, 12 }, { 3, 4, 9, 8 }}},
+            {{-1, -1, -1, -1}, {{3, 1, 2, 3}, {3, 1, 2, 3}, {3, 1, 2, 3}}},
+            {{-1, -1, -1, -1}, {{3, 1, 2, 3}, {3, 1, 2, 3}, {3, 1, 2, 3}}},
+            {{1}, {{1}}}
+        },
+        IndicesValues{ 0, 1, 1, 2, 2, 2, 0, 1, 1, 2, 2, 2, 0, 1, 1, 2, 2, 2 },
+        Scatterupdate_type::Elements
+    },
+    ScatterUpdateLayerParams{
+        ScatterUpdateShapes{
+            {{{3, 10}, -1, {3, 9}, -1}, {{ 10, 9, 9, 11 }, { 7, 5, 3, 12 }, { 3, 4, 9, 8 }}},
+            {{2, -1, 3, -1}, {{2, 1, 3, 1}, {2, 1, 3, 1}, {2, 1, 3, 1}}},
+            {{2, -1, 3, -1}, {{2, 1, 3, 1}, {2, 1, 3, 1}, {2, 1, 3, 1}}},
+            {{1}, {{1}}}
+        },
+        IndicesValues{ 0, 1, 1, 2, 2, 2 },
+        Scatterupdate_type::Elements
     },
 };
 
@@ -176,12 +253,78 @@ const std::vector<ElementType> constantPrecisions = {
     ElementType::i32,
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_scatterndupdate_CompareWithRefs_dynamic, ScatterNDUpdateLayerGPUTest,
+const std::vector<ScatterUpdateLayerParams> scatterUpdate_EmptyInput1_2Params = {
+    ScatterUpdateLayerParams{
+        ScatterUpdateShapes{
+            {{-1, -1, -1, -1}, {{ 100, 256, 14, 14 }}},
+            {{-1}, {{ 0 }}},
+            {{-1, 256, 14, 14}, {{ 0, 256, 14, 14 }}},
+            {{1}, {{0}}}
+        },
+        IndicesValues{ 0 },
+        Scatterupdate_type::Basic
+    },
+};
+
+const std::vector<ScatterUpdateLayerParams> scatterNDUpdate_EmptyInput1_2Params = {
+    ScatterUpdateLayerParams{
+        ScatterUpdateShapes{
+            {{-1, -1, -1, -1}, {{ 100, 256, 14, 14 }}},
+            {{-1, 1}, {{ 0, 1 }}},
+            {{-1, 256, 14, 14}, {{ 0, 256, 14, 14 }}}
+        },
+        IndicesValues{ 0 },
+        Scatterupdate_type::ND
+    },
+};
+
+const std::vector<ScatterUpdateLayerParams> scatterElementsUpdate_EmptyInput1_2Params = {
+    ScatterUpdateLayerParams{
+        ScatterUpdateShapes{
+            {{-1, -1, -1, -1}, {{ 100, 256, 14, 14 }}},
+            {{-1, -1, 14, 14}, {{ 0, 256, 14, 14 }}},
+            {{-1, 256, 14, 14}, {{ 0, 256, 14, 14 }}},
+            {{1}, {{0}}}
+        },
+        IndicesValues{ 0 },
+        Scatterupdate_type::Elements
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterNDUpdate_CompareWithRefs_dynamic, ScatterUpdateLayerGPUTest,
     ::testing::Combine(
-        ::testing::ValuesIn(scatterParams),
+        ::testing::ValuesIn(scatterNDParams),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(constantPrecisions)),
-    ScatterNDUpdateLayerGPUTest::getTestCaseName);
+    ScatterUpdateLayerGPUTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterElementsUpdate_CompareWithRefs_dynamic, ScatterUpdateLayerGPUTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(scatterElementsParams),
+        ::testing::ValuesIn(inputPrecisions),
+        ::testing::ValuesIn(constantPrecisions)),
+    ScatterUpdateLayerGPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate_EmptyInput1_2_CompareWithRefs_dynamic, ScatterUpdateLayerGPUTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(scatterUpdate_EmptyInput1_2Params),
+        ::testing::ValuesIn(inputPrecisions),
+        ::testing::ValuesIn(constantPrecisions)),
+    ScatterUpdateLayerGPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterNDUpdate_EmptyInput1_2_CompareWithRefs_dynamic, ScatterUpdateLayerGPUTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(scatterNDUpdate_EmptyInput1_2Params),
+        ::testing::ValuesIn(inputPrecisions),
+        ::testing::ValuesIn(constantPrecisions)),
+    ScatterUpdateLayerGPUTest::getTestCaseName);
+
+// ScatterELementsUpdate doesn't support dynamic shape yet. Need to enable when it supports.
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterElementsUpdate_EmptyInput1_2_CompareWithRefs_dynamic, ScatterUpdateLayerGPUTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(scatterElementsUpdate_EmptyInput1_2Params),
+        ::testing::ValuesIn(inputPrecisions),
+        ::testing::ValuesIn(constantPrecisions)),
+    ScatterUpdateLayerGPUTest::getTestCaseName);
 } // namespace ScatterNDUpdate
 } // namespace GPULayerTestsDefinitions

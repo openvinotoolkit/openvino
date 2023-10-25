@@ -29,7 +29,7 @@ std::vector<CPUSpecificParams> memForm4D_dynamic = {
     CPUSpecificParams({nhwc}, {nhwc}, {}, expectedPrimitiveType()),
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_Dynamic, ConvertCPULayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_4D_Dynamic, ConvertCPULayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes_4D_dynamic()),
                                 ::testing::ValuesIn(precisions()),
@@ -42,7 +42,7 @@ std::vector<CPUSpecificParams> memForm4D_static_common = {
     CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest, ConvertCPULayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_4D_Static, ConvertCPULayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes_4D_static()),
                                 ::testing::ValuesIn(precisions()),

@@ -9,7 +9,7 @@
 #include "ngraph/op/log.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/power.hpp"
+#include "openvino/reference/power.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -22,12 +22,12 @@ bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
               const HostTensorPtr& out,
               const op::AutoBroadcastSpec& broadcast_spec) {
-    runtime::reference::power(arg0->get_data_ptr<ET>(),
-                              arg1->get_data_ptr<ET>(),
-                              out->get_data_ptr<ET>(),
-                              arg0->get_shape(),
-                              arg1->get_shape(),
-                              broadcast_spec);
+    ov::reference::power(arg0->get_data_ptr<ET>(),
+                         arg1->get_data_ptr<ET>(),
+                         out->get_data_ptr<ET>(),
+                         arg0->get_shape(),
+                         arg1->get_shape(),
+                         broadcast_spec);
     return true;
 }
 
@@ -38,13 +38,13 @@ bool evaluate_power(const HostTensorPtr& arg0,
     bool rc = true;
     out->set_broadcast(broadcast_spec, arg0, arg1);
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_power, i32, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_power, i64, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_power, u32, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_power, u64, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_power, f16, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_power, f32, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_power, bf16, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_power, i32, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_power, i64, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_power, u32, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_power, u64, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_power, f16, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_power, f32, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_power, bf16, arg0, arg1, out, broadcast_spec);
     default:
         rc = false;
         break;

@@ -5,25 +5,25 @@
 #include "transformations/common_optimizations/split_squeeze_concat_fusion.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <numeric>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
     MATCHER_SCOPE(SplitSqueezeConcatFusion);
     // Detect only concat, because we don't know how many inputs will go into concat
-    auto concat_pattern = ngraph::pattern::wrap_type<ov::op::v0::Concat>();
+    auto concat_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Concat>();
 
-    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto concat =
             std::dynamic_pointer_cast<ov::op::v0::Concat>(pattern_to_output.at(concat_pattern).get_node_shared_ptr());
@@ -45,14 +45,28 @@ ov::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
 
             nodes_to_delete.push_back(squeeze);
 
-            auto split_to_check =
-                std::dynamic_pointer_cast<ov::op::v1::Split>(squeeze->input_value(0).get_node_shared_ptr());
-            auto squeeze_axes =
-                std::dynamic_pointer_cast<ov::op::v0::Constant>(squeeze->input_value(1).get_node_shared_ptr());
-            if (!squeeze_axes || !split_to_check)
+            auto split_to_check = std::dynamic_pointer_cast<ov::op::v1::Split>(squeeze->get_input_node_shared_ptr(0));
+            if (!split_to_check)
                 return false;
+            std::vector<int64_t> squeeze_axes_vec;
+            if (squeeze->get_input_size() < 2) {
+                const auto& shape = squeeze->get_input_partial_shape(0);
+                if (shape.is_dynamic()) {
+                    return false;
+                }
+                for (size_t i = 0; i < shape.size(); i++) {
+                    if (shape[i].get_length() == 1)
+                        squeeze_axes_vec.push_back(static_cast<int64_t>(i));
+                }
 
-            auto squeeze_axes_vec = squeeze_axes->cast_vector<int64_t>();
+            } else {
+                auto squeeze_axes =
+                    std::dynamic_pointer_cast<ov::op::v0::Constant>(squeeze->get_input_node_shared_ptr(1));
+                if (!squeeze_axes)
+                    return false;
+                squeeze_axes_vec = squeeze_axes->cast_vector<int64_t>();
+            }
+
             if (squeeze_axes_vec.size() != 1)
                 return false;
 
@@ -98,11 +112,11 @@ ov::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
         auto reshape = std::make_shared<ov::op::v1::Reshape>(transpose, shape_after, false);
 
         reshape->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info(nodes_to_delete, {transpose, reshape});
-        ngraph::replace_node(m.get_match_root(), reshape);
+        ov::copy_runtime_info(nodes_to_delete, {transpose, reshape});
+        ov::replace_node(m.get_match_root(), reshape);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(concat_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(concat_pattern, matcher_name);
     register_matcher(m, callback);
 }

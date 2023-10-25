@@ -34,6 +34,7 @@ struct kernel_impl_params {
 
     bool has_runtime_layouts = false;
     const program *prog;
+    cldnn::device_type dev_type;
     stream::ptr strm;
     std::shared_ptr<const primitive> desc;
     size_t unique_id;
@@ -63,9 +64,11 @@ struct kernel_impl_params {
     std::vector<size_t> output_size;
     std::vector<size_t> img_size;
 
-    kernel_impl_params() : prog(nullptr), strm(nullptr), desc(nullptr), unique_id(0) {}
+    kernel_impl_params() : prog(nullptr), dev_type(cldnn::device_type::integrated_gpu), strm(nullptr), desc(nullptr), unique_id(0) {
+    }
 
     kernel_impl_params(program& _prog,
+                       cldnn::device_type _dev_type,
                        stream::ptr _strm,
                        std::shared_ptr<const primitive> _desc,
                        size_t _uid,
@@ -74,8 +77,9 @@ struct kernel_impl_params {
                        const std::vector<cldnn::fused_primitive_desc>& _fused_descs)
                        : has_runtime_layouts(true)
                        , prog(&_prog)
-                       , strm(_strm)
-                       , desc(_desc)
+                       , dev_type(_dev_type)
+                       , strm(std::move(_strm))
+                       , desc(std::move(_desc))
                        , unique_id(_uid)
                        , input_layouts(_in_layouts)
                        , output_layouts(_out_layouts)
@@ -114,10 +118,10 @@ struct kernel_impl_params {
     }
 
     bool is_dynamic() const {
-        for (auto i : input_layouts)
+        for (auto& i : input_layouts)
             if (i.is_dynamic())
                 return true;
-        for (auto i : output_layouts)
+        for (auto& i : output_layouts)
             if (i.is_dynamic())
                 return true;
         return false;
@@ -135,7 +139,7 @@ struct kernel_impl_params {
         return std::static_pointer_cast<const PType>(desc)->type == PType::type_id();
     }
 
-virtual primitive_type_id type() const { return desc->type; }
+    virtual primitive_type_id type() const { return desc->type; }
 
     void save(BinaryOutputBuffer& ob) const;
     void load(BinaryInputBuffer& ib);

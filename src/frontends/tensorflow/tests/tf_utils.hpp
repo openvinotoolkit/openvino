@@ -14,7 +14,7 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace tests {
-static const std::string TF_FE = "tf";
+extern const std::string TF_FE;
 
 // a wrapper to create TensorFlow Frontend and configure the conversion pipeline
 // by registering new translator via extension, specifying (new) inputs, their shapes and types
@@ -24,7 +24,8 @@ std::shared_ptr<Model> convert_model(const std::string& model_path,
                                      const std::vector<ov::element::Type>& input_types = {},
                                      const std::vector<ov::PartialShape>& input_shapes = {},
                                      const std::vector<std::string>& input_names_to_freeze = {},
-                                     const std::vector<void*>& freeze_values = {});
+                                     const std::vector<void*>& freeze_values = {},
+                                     const bool disable_mmap = false);
 
 }  // namespace tests
 }  // namespace tensorflow

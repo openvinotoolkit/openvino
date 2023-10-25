@@ -25,7 +25,8 @@ class PytorchLayerTest:
         "int64": Type.i64,
         "int16": Type.i16,
         "int8": Type.i8,
-        "uint8": Type.u8
+        "uint8": Type.u8,
+        "float16": Type.f16
     }
 
     @staticmethod
@@ -44,7 +45,6 @@ class PytorchLayerTest:
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
                                                        Example: "transform_1,transform_2"
         """
-        import torch
         if 'kwargs_to_prepare_input' in kwargs and kwargs['kwargs_to_prepare_input']:
             inputs = self._prepare_input(**kwargs['kwargs_to_prepare_input'])
         else:
@@ -77,19 +77,20 @@ class PytorchLayerTest:
         if use_torch_compile_backend():
             self.torch_compile_backend_test(model, torch_inputs, custom_eps)
         else:
+            trace_model = kwargs.get('trace_model', False)
+            freeze_model = kwargs.get('freeze_model', True)
             with torch.no_grad():
-                model.eval()
-                trace_model = kwargs.get('trace_model', False)
-                freeze_model = kwargs.get('freeze_model', True)
-                model, converted_model = self.convert_directly_via_frontend(model, torch_inputs, trace_model, dynamic_shapes, ov_inputs, freeze_model)
-                graph = model.inlined_graph
+                if kwargs.get('use_convert_model', False):
+                    smodel, converted_model = self.convert_via_mo(model, torch_inputs, trace_model, dynamic_shapes, ov_inputs, freeze_model)
+                else:
+                    smodel, converted_model = self.convert_directly_via_frontend(model, torch_inputs, trace_model, dynamic_shapes, ov_inputs, freeze_model)
 
-                if kind is not None and not isinstance(kind, (tuple, list)):
-                    kind = [kind]
-                if kind is not None:
-                    for op in kind:
-                        assert self._check_kind_exist(
-                            graph, op), f"Operation {op} type doesn't exist in provided graph"
+            if kind is not None and not isinstance(kind, (tuple, list)):
+                kind = [kind]
+            if kind is not None:
+                for op in kind:
+                    assert self._check_kind_exist(
+                        smodel.inlined_graph, op), f"Operation {op} type doesn't exist in provided graph"
             # OV infer:
             core = Core()
             compiled = core.compile_model(converted_model, ie_device)
@@ -100,7 +101,7 @@ class PytorchLayerTest:
                 return
 
             # Framework infer:
-            fw_res = model(*deepcopy(torch_inputs))
+            fw_res = smodel(*deepcopy(torch_inputs))
 
             if not isinstance(fw_res, (tuple)):
                 fw_res = (fw_res,)
@@ -123,8 +124,8 @@ class PytorchLayerTest:
                         continue
                     assert ov_type == fw_type, f"dtype validation failed: {ov_type} != {fw_type}"
                     continue
-                assert torch.tensor(np.array(
-                    ov_tensor)).dtype == fw_tensor.dtype, f"dtype validation failed: {torch.tensor(np.array(ov_tensor)).dtype} != {fw_tensor.dtype}"
+                ov_tensor_fw_format =  torch.tensor(np.array(ov_tensor))
+                assert ov_tensor_fw_format.dtype == fw_tensor.dtype, f"dtype validation failed: {ov_tensor_fw_format.dtype} != {fw_tensor.dtype}"
 
             # Compare Ie results with Framework results
             fw_eps = custom_eps if precision == 'FP32' else 5e-2
@@ -136,7 +137,7 @@ class PytorchLayerTest:
                     assert 'quant_size' in kwargs, "quant size must be specified for quantized_ops flag"
                     quant_size = kwargs['quant_size']
             for i in range(len(infer_res)):
-                cur_fw_res = flatten_fw_res[i].to(memory_format=torch.contiguous_format).numpy(
+                cur_fw_res = flatten_fw_res[i].contiguous().numpy(
                 ) if isinstance(flatten_fw_res[i], torch.Tensor) else flatten_fw_res[i]
                 if np.array(cur_fw_res).size == 0:
                     continue
@@ -155,55 +156,45 @@ class PytorchLayerTest:
                         n_is_not_close, max_diff, int(np.log10(cur_fw_res.size)), quant_size + fw_eps))
                 else:
                     print("Accuracy validation successful!\n")
-                    print("absolute eps: {}, relative eps: {}".format(
-                        fw_eps, fw_eps))
+                    print("absolute eps: {}, relative eps: {}, errors: {}".format(
+                        fw_eps, fw_eps, n_is_not_close))
             assert is_ok, "Accuracy validation failed"
 
     # Each model should specify inputs
     def _prepare_input(self):
         raise RuntimeError("Please provide inputs generation function")
 
-    def convert_via_mo(self, model, example_input, trace_model, dynamic_shapes, ov_inputs):
-        import torch
-        from openvino.tools.ovc import convert_model
-        kwargs = {"example_input": example_input if len(
-            example_input) > 1 else example_input[0], "compress_to_fp16": False}
-        with torch.no_grad():
-            if trace_model:
-                model = torch.jit.trace(model, example_input)
-            else:
-                model = torch.jit.script(model)
-            model = torch.jit.freeze(model)
-            print(model)
-            if not dynamic_shapes:
-                input_shapes = [inp.shape for inp in ov_inputs]
-                kwargs["input_shape"] = input_shapes
-            om = convert_model(model, **kwargs)
+    def convert_via_mo(self, model, example_input, trace_model, dynamic_shapes, ov_inputs, freeze_model):
+        from openvino import convert_model, PartialShape
+        if trace_model:
+            decoder = TorchScriptPythonDecoder(model, example_input=example_input, skip_freeze=not freeze_model)
+            kwargs = {"example_input": example_input if len(example_input) > 1 else example_input[0]}
+        else:
+            decoder = TorchScriptPythonDecoder(model, skip_freeze=not freeze_model)
+            kwargs = {"input": [(i.dtype, PartialShape([-1] * len(i.shape))) for i in example_input]}
+        smodel = decoder.pt_module
+        print(smodel.inlined_graph)
+        if not dynamic_shapes:
+            input_shapes = [inp.shape for inp in ov_inputs]
+            kwargs["input"] = input_shapes
+        om = convert_model(decoder, **kwargs)
         self._resolve_input_shape_dtype(om, ov_inputs, dynamic_shapes)
-        return model, om
+        return smodel, om
 
     def convert_directly_via_frontend(self, model, example_input, trace_model, dynamic_shapes, ov_inputs, freeze_model):
-        import torch
-
         fe_manager = FrontEndManager()
         fe = fe_manager.load_by_framework('pytorch')
 
-        model.eval()
-        with torch.no_grad():
-            if trace_model:
-                model = torch.jit.trace(model, example_input)
-            else:
-                model = torch.jit.script(model)
-        if freeze_model:
-            _model = torch.jit.freeze(model)
+        if trace_model:
+            decoder = TorchScriptPythonDecoder(model, example_input=example_input, skip_freeze=not freeze_model)
         else:
-            _model = model
-        print(_model.inlined_graph)
-        decoder = TorchScriptPythonDecoder(_model)
+            decoder = TorchScriptPythonDecoder(model, skip_freeze=not freeze_model)
+        smodel = decoder.pt_module
+        print(smodel.inlined_graph)
         im = fe.load(decoder)
         om = fe.convert(im)
         self._resolve_input_shape_dtype(om, ov_inputs, dynamic_shapes)
-        return model, om
+        return smodel, om
 
     def _resolve_input_shape_dtype(self, om, ov_inputs, dynamic_shapes):
         params = list(om.inputs)
@@ -286,8 +277,6 @@ def get_params(ie_device=None, precision=None):
 
     test_args = []
     for element in itertools.product(ie_device_params, precision_params):
-        if element[0] == 'CPU' and element[1] == 'FP16':
-            continue
         test_args.append(element)
     return test_args
 

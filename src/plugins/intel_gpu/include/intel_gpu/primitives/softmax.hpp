@@ -20,8 +20,6 @@ struct softmax : public primitive_base<softmax> {
 
     softmax() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs softmax primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -41,7 +39,7 @@ struct softmax : public primitive_base<softmax> {
     /// - when softmax dimension is set to 2 (y dim) each input column is normalized independently,
     /// - when softmax dimension is set to 3 (x dim) each input row is normalized independently.
 
-    int64_t dimension;
+    int64_t dimension = 1;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

@@ -15,6 +15,10 @@
 #include "gather_inst.h"
 #include "border_inst.h"
 #include "reshape_inst.h"
+#include "strided_slice_inst.h"
+#include "batch_to_space_inst.h"
+#include "permute_inst.h"
+#include "concatenation_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 
@@ -132,8 +136,8 @@ TEST(reorder_inputs, mixed_ranks_gather) {
                              ov::CoordinateDiff{0, 0},
                              false));
     topology.add(border("pad", { input_info("conv") }, 0, ov::CoordinateDiff{0, 0, 1, 1}, ov::CoordinateDiff{0, 0, 1, 1}));
-    topology.add(gather("gather1", input_info("pad"), input_info("data1"), 2, { 1, 2, 3, 128, 57 }, 0, false));
-    topology.add(gather("gather2", input_info("gather1"), input_info("data2"), 4, { 1, 2, 3, 128, 3, 55 }, 0, false));
+    topology.add(gather("gather1", input_info("pad"), input_info("data1"), 2, 4, { 1, 2, 3, 128, 57 }, 0, false));
+    topology.add(gather("gather2", input_info("gather1"), input_info("data2"), 4, 5, { 1, 2, 3, 128, 3, 55 }, 0, false));
     topology.add(permute("permute", input_info("gather2"), {0, 1, 2, 4, 3, 5}));
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -151,10 +155,10 @@ TEST(reorder_inputs, mixed_ranks_gather) {
     auto& gather1_node = prog_impl->get_node("gather1");
     auto& gather2_node = prog_impl->get_node("gather2");
 
-    ASSERT_EQ(gather1_node.get_input_layouts()[0].format, format::bfzyx);
+    ASSERT_EQ(gather1_node.get_input_layouts()[0].format, format::bfyx);
     ASSERT_EQ(gather1_node.get_output_layout().format, format::bfzyx);
 
-    ASSERT_EQ(gather2_node.get_input_layouts()[0].format, format::bfwzyx);
+    ASSERT_EQ(gather2_node.get_input_layouts()[0].format, format::bfzyx);
     ASSERT_EQ(gather2_node.get_output_layout().format, format::bfwzyx);
 }
 
@@ -295,6 +299,66 @@ TEST(reorder_inputs, no_add_reorder_infront_of_reshape) {
 
     ov::PartialShape expected_out_shape{1, 14, 14, 384};
     ASSERT_EQ(reshape_layout_out.get_partial_shape(), expected_out_shape);
+}
+
+TEST(reorder_inputs, no_need_of_reorder_for_strided_slice) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+    auto in_layout1 = layout{ ov::PartialShape{1080, 1920, 1, 2}, data_types::f32, format::bfyx };
+    auto in_layout2 = layout{ ov::PartialShape{4, 540, 960, 1, 1}, data_types::f32, format::bfzyx };
+    auto data_1 = engine.allocate_memory({ov::PartialShape{5}, data_types::i32, format::bfyx});
+    auto data_2 = engine.allocate_memory({ov::PartialShape{5}, data_types::i32, format::bfyx});
+    auto data_3 = engine.allocate_memory({ov::PartialShape{5}, data_types::i32, format::bfyx});
+
+    topology topology(
+        input_layout("input1", in_layout1),
+        input_layout("input2", in_layout2),
+        permute("permute1", input_info("input1"), {0, 1, 2, 3}),
+        batch_to_space("batch_to_space1",
+            input_info("input2"),
+            tensor{1, 1, 4, 1, 1},
+            tensor{0, 0, 1, 0, 0},
+            tensor{0, 0, 1, 0, 0},
+            tensor{1, 1080, 1920, 1, 2}),
+        batch_to_space("batch_to_space2",
+            input_info("input2"),
+            tensor{1, 1, 4, 1, 1},
+            tensor{0, 0, 1, 0, 0},
+            tensor{0, 0, 1, 0, 0},
+            tensor{1, 1080, 1920, 1, 2}),
+        data("data_1", data_1),
+        data("data_2", data_2),
+        data("data_3", data_3),
+        strided_slice("strided_slice1",
+            input_info("batch_to_space1"),
+            input_info("data_1"),
+            input_info("data_2"),
+            input_info("data_3"),
+            {}, {}, {}, {}, {}, {1080, 1920, 1, 2}),
+        strided_slice("strided_slice2",
+            input_info("batch_to_space2"),
+            input_info("data_1"),
+            input_info("data_2"),
+            input_info("data_3"),
+            {}, {}, {}, {}, {}, {1080, 1920, 1, 2}),
+        concatenation("concat", {input_info("permute1"), input_info("strided_slice1"), input_info("strided_slice2")}, 2),
+        permute("result", input_info("concat"), {3, 0, 1, 2})
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    auto program = program::build_program(engine, topology, config, false, true);
+    layout_optimizer lo(true);
+    reorder_factory rf;
+    program_wrapper::apply_opt_pass<reorder_inputs>(*program, lo, rf);
+
+    ASSERT_NE(program, nullptr);
+
+    auto& result = program->get_node("result");
+    auto in_order = format::get_default_format(result.get_input_layout(0).get_rank()).order();
+    auto out_shape = result.get_output_layout(0).get_shape();
+    ASSERT_EQ(in_order.size(), out_shape.size());
 }
 
 // TODO Not yet implemented

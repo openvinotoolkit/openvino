@@ -4,7 +4,7 @@
 
 #include <shared_test_classes/single_layer/tensor_iterator.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
 using namespace InferenceEngine;
@@ -54,7 +54,10 @@ protected:
 
         const size_t sequence_axis = 1;
         auto tensor_iterator = std::make_shared<ngraph::opset5::TensorIterator>();
-        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
+        }
 
         ngraph::ParameterVector body_params;
         for (size_t i = 0; i < shapes.size(); i++) {

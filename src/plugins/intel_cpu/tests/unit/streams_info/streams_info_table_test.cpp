@@ -61,9 +61,13 @@ StreamsCalculationTestCase _2sockets_104cores_latency_platform_1 = {
                                                                 // simulation
     {{208, 104, 0, 104, -1, -1},
      {104, 52, 0, 52, 0, 0},
-     {104, 52, 0, 52, 1, 1}},            // param[in]: the proc_type_table in this simulation
-    {{1, MAIN_CORE_PROC, 208, -1, -1}},  // param[expected out]: the expected result of streams_info_table in this
-                                         // simulation
+     {104, 52, 0, 52, 1, 1}},  // param[in]: the proc_type_table in this simulation
+    {{1, ALL_PROC, 208, -1, -1},
+     {0, MAIN_CORE_PROC, 52, 0, 0},
+     {0, MAIN_CORE_PROC, 52, 1, 1},
+     {0, HYPER_THREADING_PROC, 52, 0, 0},
+     {0, HYPER_THREADING_PROC, 52, 1, 1}},  // param[expected out]: the expected result of streams_info_table in this
+                                            // simulation
 };
 
 StreamsCalculationTestCase _2sockets_104cores_latency_platform_2 = {
@@ -75,7 +79,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_platform_2 = {
     "LATENCY",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
     {{104, 104, 0, 0, -1, -1}, {52, 52, 0, 0, 0, 0}, {52, 52, 0, 0, 1, 1}},
-    {{1, MAIN_CORE_PROC, 104, -1, -1}},
+    {{1, ALL_PROC, 104, -1, -1}, {0, MAIN_CORE_PROC, 52, 0, 0}, {0, MAIN_CORE_PROC, 52, 1, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_latency_platform_3 = {
     1,
@@ -90,7 +94,15 @@ StreamsCalculationTestCase _2sockets_104cores_latency_platform_3 = {
      {52, 26, 0, 26, 1, 0},
      {52, 26, 0, 26, 2, 1},
      {52, 26, 0, 26, 3, 1}},
-    {{1, MAIN_CORE_PROC, 208, -1, -1}},
+    {{1, ALL_PROC, 208, -1, -1},
+     {0, MAIN_CORE_PROC, 26, 0, 0},
+     {0, MAIN_CORE_PROC, 26, 1, 0},
+     {0, MAIN_CORE_PROC, 26, 2, 1},
+     {0, MAIN_CORE_PROC, 26, 3, 1},
+     {0, HYPER_THREADING_PROC, 26, 0, 0},
+     {0, HYPER_THREADING_PROC, 26, 1, 0},
+     {0, HYPER_THREADING_PROC, 26, 2, 1},
+     {0, HYPER_THREADING_PROC, 26, 3, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_latency_platform_4 = {
     1,
@@ -100,8 +112,12 @@ StreamsCalculationTestCase _2sockets_104cores_latency_platform_4 = {
     0,
     "LATENCY",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
-    {{104, 104, 0, 0, -1, -1}, {26, 13, 0, 0, 0, 0}, {26, 13, 0, 0, 1, 0}, {26, 13, 0, 0, 2, 1}, {26, 13, 0, 0, 3, 1}},
-    {{1, MAIN_CORE_PROC, 104, -1, -1}},
+    {{104, 104, 0, 0, -1, -1}, {26, 26, 0, 0, 0, 0}, {26, 26, 0, 0, 1, 0}, {26, 26, 0, 0, 2, 1}, {26, 26, 0, 0, 3, 1}},
+    {{1, ALL_PROC, 104, -1, -1},
+     {0, MAIN_CORE_PROC, 26, 0, 0},
+     {0, MAIN_CORE_PROC, 26, 1, 0},
+     {0, MAIN_CORE_PROC, 26, 2, 1},
+     {0, MAIN_CORE_PROC, 26, 3, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_latency_socket_1 = {
     1,
@@ -112,7 +128,12 @@ StreamsCalculationTestCase _2sockets_104cores_latency_socket_1 = {
     "LATENCY",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
-    {{1, MAIN_CORE_PROC, 104, 0, 0}, {1, MAIN_CORE_PROC, 104, 1, 1}},
+    {{1, ALL_PROC, 104, 0, 0},
+     {0, MAIN_CORE_PROC, 52, 0, 0},
+     {0, HYPER_THREADING_PROC, 52, 0, 0},
+     {1, ALL_PROC, 104, 1, 1},
+     {0, MAIN_CORE_PROC, 52, 1, 1},
+     {0, HYPER_THREADING_PROC, 52, 1, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_latency_socket_2 = {
     1,
@@ -138,7 +159,16 @@ StreamsCalculationTestCase _2sockets_104cores_latency_socket_3 = {
      {52, 26, 0, 26, 1, 0},
      {52, 26, 0, 26, 2, 1},
      {52, 26, 0, 26, 3, 1}},
-    {{1, MAIN_CORE_PROC, 104, -1, 0}, {1, MAIN_CORE_PROC, 104, -1, 1}},
+    {{1, ALL_PROC, 104, -1, 0},
+     {0, MAIN_CORE_PROC, 26, 0, 0},
+     {0, MAIN_CORE_PROC, 26, 1, 0},
+     {0, HYPER_THREADING_PROC, 26, 0, 0},
+     {0, HYPER_THREADING_PROC, 26, 1, 0},
+     {1, ALL_PROC, 104, -1, 1},
+     {0, MAIN_CORE_PROC, 26, 2, 1},
+     {0, MAIN_CORE_PROC, 26, 3, 1},
+     {0, HYPER_THREADING_PROC, 26, 2, 1},
+     {0, HYPER_THREADING_PROC, 26, 3, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_latency_socket_4 = {
     1,
@@ -148,8 +178,13 @@ StreamsCalculationTestCase _2sockets_104cores_latency_socket_4 = {
     0,
     "LATENCY",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
-    {{104, 104, 0, 0, -1, -1}, {26, 13, 0, 0, 0, 0}, {26, 13, 0, 0, 1, 0}, {26, 13, 0, 0, 2, 1}, {26, 13, 0, 0, 3, 1}},
-    {{1, MAIN_CORE_PROC, 52, -1, 0}, {1, MAIN_CORE_PROC, 52, -1, 1}},
+    {{104, 104, 0, 0, -1, -1}, {26, 26, 0, 0, 0, 0}, {26, 26, 0, 0, 1, 0}, {26, 26, 0, 0, 2, 1}, {26, 26, 0, 0, 3, 1}},
+    {{1, ALL_PROC, 52, -1, 0},
+     {0, MAIN_CORE_PROC, 26, 0, 0},
+     {0, MAIN_CORE_PROC, 26, 1, 0},
+     {1, ALL_PROC, 52, -1, 1},
+     {0, MAIN_CORE_PROC, 26, 2, 1},
+     {0, MAIN_CORE_PROC, 26, 3, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_latency_socket_5 = {
     1,
@@ -160,7 +195,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_socket_5 = {
     "LATENCY",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
     {{60, 60, 0, 0, -1, -1}, {10, 10, 0, 0, 0, 0}, {10, 10, 0, 0, 1, 0}, {20, 20, 0, 0, 2, 1}, {20, 20, 0, 0, 3, 1}},
-    {{1, MAIN_CORE_PROC, 40, -1, 1}},
+    {{1, ALL_PROC, 40, -1, 1}, {0, MAIN_CORE_PROC, 20, 2, 1}, {0, MAIN_CORE_PROC, 20, 3, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_latency_socket_6 = {
     1,
@@ -171,7 +206,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_socket_6 = {
     "LATENCY",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
     {{60, 60, 0, 0, -1, -1}, {10, 10, 0, 0, 0, 0}, {20, 20, 0, 0, 1, 1}, {10, 10, 0, 0, 2, 0}, {20, 20, 0, 0, 3, 1}},
-    {{1, MAIN_CORE_PROC, 40, -1, 1}},
+    {{1, ALL_PROC, 40, -1, 1}, {0, MAIN_CORE_PROC, 20, 1, 1}, {0, MAIN_CORE_PROC, 20, 3, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_latency_socket_7 = {
     1,
@@ -181,8 +216,12 @@ StreamsCalculationTestCase _2sockets_104cores_latency_socket_7 = {
     0,
     "LATENCY",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
-    {{104, 104, 0, 0, -1, -1}, {26, 13, 0, 0, 0, 0}, {26, 13, 0, 0, 1, 0}, {26, 13, 0, 0, 2, 1}, {26, 13, 0, 0, 3, 1}},
-    {{1, MAIN_CORE_PROC, 104, -1, -1}},
+    {{104, 104, 0, 0, -1, -1}, {26, 26, 0, 0, 0, 0}, {26, 26, 0, 0, 1, 0}, {26, 26, 0, 0, 2, 1}, {26, 26, 0, 0, 3, 1}},
+    {{1, ALL_PROC, 104, -1, -1},
+     {0, MAIN_CORE_PROC, 26, 0, 0},
+     {0, MAIN_CORE_PROC, 26, 1, 0},
+     {0, MAIN_CORE_PROC, 26, 2, 1},
+     {0, MAIN_CORE_PROC, 26, 3, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_latency_node_1 = {
     1,
@@ -193,7 +232,12 @@ StreamsCalculationTestCase _2sockets_104cores_latency_node_1 = {
     "LATENCY",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_NUMA_NODE,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
-    {{1, MAIN_CORE_PROC, 104, 0, 0}, {1, MAIN_CORE_PROC, 104, 1, 1}},
+    {{1, ALL_PROC, 104, 0, 0},
+     {0, MAIN_CORE_PROC, 52, 0, 0},
+     {0, HYPER_THREADING_PROC, 52, 0, 0},
+     {1, ALL_PROC, 104, 1, 1},
+     {0, MAIN_CORE_PROC, 52, 1, 1},
+     {0, HYPER_THREADING_PROC, 52, 1, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_latency_node_2 = {
     1,
@@ -219,10 +263,18 @@ StreamsCalculationTestCase _2sockets_104cores_latency_node_3 = {
      {52, 26, 0, 26, 1, 0},
      {52, 26, 0, 26, 2, 1},
      {52, 26, 0, 26, 3, 1}},
-    {{1, MAIN_CORE_PROC, 52, 0, 0},
-     {1, MAIN_CORE_PROC, 52, 1, 0},
-     {1, MAIN_CORE_PROC, 52, 2, 1},
-     {1, MAIN_CORE_PROC, 52, 3, 1}},
+    {{1, ALL_PROC, 52, 0, 0},
+     {0, MAIN_CORE_PROC, 26, 0, 0},
+     {0, HYPER_THREADING_PROC, 26, 0, 0},
+     {1, ALL_PROC, 52, 1, 0},
+     {0, MAIN_CORE_PROC, 26, 1, 0},
+     {0, HYPER_THREADING_PROC, 26, 1, 0},
+     {1, ALL_PROC, 52, 2, 1},
+     {0, MAIN_CORE_PROC, 26, 2, 1},
+     {0, HYPER_THREADING_PROC, 26, 2, 1},
+     {1, ALL_PROC, 52, 3, 1},
+     {0, MAIN_CORE_PROC, 26, 3, 1},
+     {0, HYPER_THREADING_PROC, 26, 3, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_latency_node_4 = {
     1,
@@ -232,7 +284,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_node_4 = {
     0,
     "LATENCY",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_NUMA_NODE,
-    {{104, 104, 0, 0, -1, -1}, {26, 13, 0, 0, 0, 0}, {26, 13, 0, 0, 1, 0}, {26, 13, 0, 0, 2, 1}, {26, 13, 0, 0, 3, 1}},
+    {{104, 104, 0, 0, -1, -1}, {26, 26, 0, 0, 0, 0}, {26, 26, 0, 0, 1, 0}, {26, 26, 0, 0, 2, 1}, {26, 26, 0, 0, 3, 1}},
     {{1, MAIN_CORE_PROC, 26, 0, 0},
      {1, MAIN_CORE_PROC, 26, 1, 0},
      {1, MAIN_CORE_PROC, 26, 2, 1},
@@ -246,8 +298,12 @@ StreamsCalculationTestCase _2sockets_104cores_latency_node_5 = {
     0,
     "LATENCY",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_NUMA_NODE,
-    {{104, 104, 0, 0, -1, -1}, {26, 13, 0, 0, 0, 0}, {26, 13, 0, 0, 1, 0}, {26, 13, 0, 0, 2, 1}, {26, 13, 0, 0, 3, 1}},
-    {{1, MAIN_CORE_PROC, 104, -1, -1}},
+    {{104, 104, 0, 0, -1, -1}, {26, 26, 0, 0, 0, 0}, {26, 26, 0, 0, 1, 0}, {26, 26, 0, 0, 2, 1}, {26, 26, 0, 0, 3, 1}},
+    {{1, ALL_PROC, 104, -1, -1},
+     {0, MAIN_CORE_PROC, 26, 0, 0},
+     {0, MAIN_CORE_PROC, 26, 1, 0},
+     {0, MAIN_CORE_PROC, 26, 2, 1},
+     {0, MAIN_CORE_PROC, 26, 3, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_latency_1 = {
     1,
@@ -280,7 +336,11 @@ StreamsCalculationTestCase _2sockets_104cores_latency_3 = {
     "LATENCY",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
-    {{1, MAIN_CORE_PROC, 208, -1, -1}},
+    {{1, ALL_PROC, 208, -1, -1},
+     {0, MAIN_CORE_PROC, 52, 0, 0},
+     {0, MAIN_CORE_PROC, 52, 1, 1},
+     {0, HYPER_THREADING_PROC, 52, 0, 0},
+     {0, HYPER_THREADING_PROC, 52, 1, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_latency_4 = {
     1,
@@ -313,7 +373,11 @@ StreamsCalculationTestCase _2sockets_104cores_latency_6 = {
     "LATENCY",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
-    {{1, MAIN_CORE_PROC, 208, -1, -1}},
+    {{1, ALL_PROC, 208, -1, -1},
+     {0, MAIN_CORE_PROC, 52, 0, 0},
+     {0, MAIN_CORE_PROC, 52, 1, 1},
+     {0, HYPER_THREADING_PROC, 52, 0, 0},
+     {0, HYPER_THREADING_PROC, 52, 1, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_tput_1 = {
     1,
@@ -338,7 +402,12 @@ StreamsCalculationTestCase _2sockets_104cores_tput_2 = {
     "THROUGHPUT",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
-    {{1, MAIN_CORE_PROC, 104, 0, 0}, {1, MAIN_CORE_PROC, 104, 1, 1}},
+    {{1, ALL_PROC, 104, 0, 0},
+     {0, MAIN_CORE_PROC, 52, 0, 0},
+     {0, HYPER_THREADING_PROC, 52, 0, 0},
+     {1, ALL_PROC, 104, 1, 1},
+     {0, MAIN_CORE_PROC, 52, 1, 1},
+     {0, HYPER_THREADING_PROC, 52, 1, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_tput_3 = {
     1,
@@ -403,8 +472,12 @@ StreamsCalculationTestCase _2sockets_104cores_tput_7 = {
      {6, MAIN_CORE_PROC, 8, 1, 1},
      {6, HYPER_THREADING_PROC, 8, 0, 0},
      {6, HYPER_THREADING_PROC, 8, 1, 1},
-     {1, MAIN_CORE_PROC, 8, -1, -1},
-     {1, HYPER_THREADING_PROC, 8, -1, -1}},
+     {1, ALL_PROC, 8, -1, -1},
+     {0, MAIN_CORE_PROC, 4, 0, 0},
+     {0, MAIN_CORE_PROC, 4, 1, 1},
+     {1, ALL_PROC, 8, -1, -1},
+     {0, HYPER_THREADING_PROC, 4, 0, 0},
+     {0, HYPER_THREADING_PROC, 4, 1, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_tput_7_1 = {
     26,
@@ -419,8 +492,12 @@ StreamsCalculationTestCase _2sockets_104cores_tput_7_1 = {
      {6, MAIN_CORE_PROC, 8, 1, 1},
      {6, HYPER_THREADING_PROC, 8, 0, 0},
      {6, HYPER_THREADING_PROC, 8, 1, 1},
-     {1, MAIN_CORE_PROC, 8, -1, -1},
-     {1, HYPER_THREADING_PROC, 8, -1, -1}},
+     {1, ALL_PROC, 8, -1, -1},
+     {0, MAIN_CORE_PROC, 4, 0, 0},
+     {0, MAIN_CORE_PROC, 4, 1, 1},
+     {1, ALL_PROC, 8, -1, -1},
+     {0, HYPER_THREADING_PROC, 4, 0, 0},
+     {0, HYPER_THREADING_PROC, 4, 1, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_tput_7_2 = {
     1,
@@ -435,18 +512,13 @@ StreamsCalculationTestCase _2sockets_104cores_tput_7_2 = {
      {52, 26, 0, 26, 1, 0},
      {52, 26, 0, 26, 2, 1},
      {52, 26, 0, 26, 3, 1}},
-    {{6, MAIN_CORE_PROC, 4, 0, 0},
-     {6, MAIN_CORE_PROC, 4, 1, 0},
-     {6, MAIN_CORE_PROC, 4, 2, 1},
-     {6, MAIN_CORE_PROC, 4, 3, 1},
-     {6, HYPER_THREADING_PROC, 4, 0, 0},
-     {6, HYPER_THREADING_PROC, 4, 1, 0},
-     {6, HYPER_THREADING_PROC, 4, 2, 1},
-     {6, HYPER_THREADING_PROC, 4, 3, 1},
-     {1, MAIN_CORE_PROC, 4, -1, 0},
-     {1, MAIN_CORE_PROC, 4, -1, 1},
-     {1, HYPER_THREADING_PROC, 4, -1, 0},
-     {1, HYPER_THREADING_PROC, 4, -1, 1}},
+    {{6, MAIN_CORE_PROC, 4, 0, 0},       {6, MAIN_CORE_PROC, 4, 1, 0},       {6, MAIN_CORE_PROC, 4, 2, 1},
+     {6, MAIN_CORE_PROC, 4, 3, 1},       {6, HYPER_THREADING_PROC, 4, 0, 0}, {6, HYPER_THREADING_PROC, 4, 1, 0},
+     {6, HYPER_THREADING_PROC, 4, 2, 1}, {6, HYPER_THREADING_PROC, 4, 3, 1}, {1, ALL_PROC, 4, -1, 0},
+     {0, MAIN_CORE_PROC, 2, 0, 0},       {0, MAIN_CORE_PROC, 2, 1, 0},       {1, ALL_PROC, 4, -1, 1},
+     {0, MAIN_CORE_PROC, 2, 2, 1},       {0, MAIN_CORE_PROC, 2, 3, 1},       {1, ALL_PROC, 4, -1, 0},
+     {0, HYPER_THREADING_PROC, 2, 0, 0}, {0, HYPER_THREADING_PROC, 2, 1, 0}, {1, ALL_PROC, 4, -1, 1},
+     {0, HYPER_THREADING_PROC, 2, 2, 1}, {0, HYPER_THREADING_PROC, 2, 3, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_tput_8 = {
     1,
@@ -481,7 +553,12 @@ StreamsCalculationTestCase _2sockets_104cores_tput_10 = {
     "THROUGHPUT",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
-    {{1, MAIN_CORE_PROC, 104, 0, 0}, {1, MAIN_CORE_PROC, 104, 1, 1}},
+    {{1, ALL_PROC, 104, 0, 0},
+     {0, MAIN_CORE_PROC, 52, 0, 0},
+     {0, HYPER_THREADING_PROC, 52, 0, 0},
+     {1, ALL_PROC, 104, 1, 1},
+     {0, MAIN_CORE_PROC, 52, 1, 1},
+     {0, HYPER_THREADING_PROC, 52, 1, 1}},
 };
 
 StreamsCalculationTestCase _2sockets_104cores_tput_11 = {
@@ -493,7 +570,12 @@ StreamsCalculationTestCase _2sockets_104cores_tput_11 = {
     "THROUGHPUT",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
-    {{1, MAIN_CORE_PROC, 104, 0, 0}, {1, MAIN_CORE_PROC, 104, 1, 1}},
+    {{1, ALL_PROC, 104, 0, 0},
+     {0, MAIN_CORE_PROC, 52, 0, 0},
+     {0, HYPER_THREADING_PROC, 52, 0, 0},
+     {1, ALL_PROC, 104, 1, 1},
+     {0, MAIN_CORE_PROC, 52, 1, 1},
+     {0, HYPER_THREADING_PROC, 52, 1, 1}},
 };
 
 StreamsCalculationTestCase _2sockets_104cores_tput_12 = {
@@ -505,7 +587,12 @@ StreamsCalculationTestCase _2sockets_104cores_tput_12 = {
     "THROUGHPUT",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
-    {{1, MAIN_CORE_PROC, 104, 0, 0}, {1, MAIN_CORE_PROC, 104, 1, 1}},
+    {{1, ALL_PROC, 104, 0, 0},
+     {0, MAIN_CORE_PROC, 52, 0, 0},
+     {0, HYPER_THREADING_PROC, 52, 0, 0},
+     {1, ALL_PROC, 104, 1, 1},
+     {0, MAIN_CORE_PROC, 52, 1, 1},
+     {0, HYPER_THREADING_PROC, 52, 1, 1}},
 };
 
 StreamsCalculationTestCase _2sockets_104cores_tput_13 = {
@@ -565,7 +652,11 @@ StreamsCalculationTestCase _2sockets_104cores_tput_17 = {
     "THROUGHPUT",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
     {{104, 104, 0, 0, -1, -1}, {52, 52, 0, 0, 0, 0}, {52, 52, 0, 0, 1, 1}},
-    {{6, MAIN_CORE_PROC, 8, 0, 0}, {6, MAIN_CORE_PROC, 8, 1, 1}, {1, MAIN_CORE_PROC, 8, -1, -1}},
+    {{6, MAIN_CORE_PROC, 8, 0, 0},
+     {6, MAIN_CORE_PROC, 8, 1, 1},
+     {1, ALL_PROC, 8, -1, -1},
+     {0, MAIN_CORE_PROC, 4, 0, 0},
+     {0, MAIN_CORE_PROC, 4, 1, 1}},
 };
 
 StreamsCalculationTestCase _2sockets_104cores_tput_18 = {
@@ -613,7 +704,7 @@ StreamsCalculationTestCase _2sockets_48cores_latency_1 = {
     "LATENCY",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
-    {{1, MAIN_CORE_PROC, 48, -1, -1}},
+    {{1, ALL_PROC, 48, -1, -1}, {0, MAIN_CORE_PROC, 24, 0, 0}, {0, MAIN_CORE_PROC, 24, 1, 1}},
 };
 
 StreamsCalculationTestCase _2sockets_48cores_tput_1 = {
@@ -697,7 +788,7 @@ StreamsCalculationTestCase _1sockets_14cores_latency_3 = {
     "LATENCY",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
-    {{1, MAIN_CORE_PROC, 12, 0, 0}},
+    {{1, ALL_PROC, 12, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, HYPER_THREADING_PROC, 6, 0, 0}},
 };
 
 StreamsCalculationTestCase _1sockets_14cores_latency_4 = {
@@ -814,7 +905,7 @@ StreamsCalculationTestCase _1sockets_14cores_latency_12 = {
     "LATENCY",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
-    {{1, MAIN_CORE_PROC, 12, 0, 0}},
+    {{1, ALL_PROC, 12, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, HYPER_THREADING_PROC, 6, 0, 0}},
 };
 
 StreamsCalculationTestCase _1sockets_14cores_latency_13 = {
@@ -931,7 +1022,7 @@ StreamsCalculationTestCase _1sockets_14cores_tput_3 = {
     "THROUGHPUT",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
-    {{2, MAIN_CORE_PROC, 3, 0, 0}, {2, EFFICIENT_CORE_PROC, 3, 0, 0}},
+    {{1, MAIN_CORE_PROC, 4, 0, 0}, {2, EFFICIENT_CORE_PROC, 4, 0, 0}, {1, HYPER_THREADING_PROC, 4, 0, 0}},
 };
 
 StreamsCalculationTestCase _1sockets_14cores_tput_4 = {
@@ -1003,7 +1094,7 @@ StreamsCalculationTestCase _1sockets_14cores_tput_9 = {
     "THROUGHPUT",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
-    {{2, MAIN_CORE_PROC, 3, 0, 0}, {2, EFFICIENT_CORE_PROC, 3, 0, 0}},
+    {{1, MAIN_CORE_PROC, 4, 0, 0}, {2, EFFICIENT_CORE_PROC, 4, 0, 0}, {1, HYPER_THREADING_PROC, 4, 0, 0}},
 };
 
 StreamsCalculationTestCase _1sockets_14cores_tput_10 = {
@@ -1015,7 +1106,7 @@ StreamsCalculationTestCase _1sockets_14cores_tput_10 = {
     "THROUGHPUT",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
     {{20, 6, 8, 6, 0, 0}},
-    {{2, MAIN_CORE_PROC, 3, 0, 0}, {2, EFFICIENT_CORE_PROC, 3, 0, 0}},
+    {{1, MAIN_CORE_PROC, 4, 0, 0}, {2, EFFICIENT_CORE_PROC, 4, 0, 0}, {1, HYPER_THREADING_PROC, 4, 0, 0}},
 };
 
 StreamsCalculationTestCase _1sockets_14cores_tput_11 = {
@@ -1090,6 +1181,18 @@ StreamsCalculationTestCase _1sockets_14cores_tput_16 = {
     {{6, MAIN_CORE_PROC, 1, 0, 0}, {4, EFFICIENT_CORE_PROC, 2, 0, 0}, {1, HYPER_THREADING_PROC, 1, 0, 0}},
 };
 
+StreamsCalculationTestCase _1sockets_14cores_tput_17 = {
+    1,
+    true,
+    14,
+    0,
+    6,
+    "LATENCY",
+    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    {{20, 6, 8, 6, 0, 0}},
+    {{1, ALL_PROC, 14, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
+};
+
 StreamsCalculationTestCase _1sockets_10cores_latency_1 = {
     1,
     false,
@@ -1126,7 +1229,7 @@ StreamsCalculationTestCase _1sockets_10cores_latency_3 = {
     "LATENCY",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
     {{12, 2, 8, 2, 0, 0}},
-    {{1, MAIN_CORE_PROC, 4, 0, 0}},
+    {{1, ALL_PROC, 4, 0, 0}, {0, MAIN_CORE_PROC, 2, 0, 0}, {0, HYPER_THREADING_PROC, 2, 0, 0}},
 };
 
 StreamsCalculationTestCase _1sockets_10cores_latency_4 = {
@@ -1291,7 +1394,7 @@ StreamsCalculationTestCase _1sockets_8cores_latency_3 = {
     "LATENCY",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
     {{12, 4, 4, 4, 0, 0}},
-    {{1, MAIN_CORE_PROC, 8, 0, 0}},
+    {{1, ALL_PROC, 8, 0, 0}, {0, MAIN_CORE_PROC, 4, 0, 0}, {0, HYPER_THREADING_PROC, 4, 0, 0}},
 };
 
 StreamsCalculationTestCase _1sockets_8cores_latency_4 = {
@@ -1450,7 +1553,7 @@ StreamsCalculationTestCase _1sockets_6cores_latency_1 = {
     "LATENCY",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
     {{12, 6, 0, 6, 0, 0}},
-    {{1, MAIN_CORE_PROC, 12, 0, 0}},
+    {{1, ALL_PROC, 12, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, HYPER_THREADING_PROC, 6, 0, 0}},
 };
 
 StreamsCalculationTestCase _1sockets_6cores_latency_2 = {
@@ -1462,7 +1565,7 @@ StreamsCalculationTestCase _1sockets_6cores_latency_2 = {
     "LATENCY",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
     {{12, 6, 0, 6, 0, 0}},
-    {{1, MAIN_CORE_PROC, 12, 0, 0}},
+    {{1, ALL_PROC, 12, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, HYPER_THREADING_PROC, 6, 0, 0}},
 };
 
 StreamsCalculationTestCase _1sockets_6cores_latency_3 = {
@@ -1570,7 +1673,7 @@ StreamsCalculationTestCase _1sockets_ecores_latency_4 = {
     "LATENCY",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
     {{16, 0, 16, 0, 0, 0}},
-    {{1, EFFICIENT_CORE_PROC, 4, 0, 0}},
+    {{1, EFFICIENT_CORE_PROC, 16, 0, 0}},
 };
 
 StreamsCalculationTestCase _1sockets_ecores_tput_1 = {
@@ -1732,6 +1835,7 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _1sockets_14cores_tput_14,
                                          _1sockets_14cores_tput_15,
                                          _1sockets_14cores_tput_16,
+                                         _1sockets_14cores_tput_17,
                                          _1sockets_10cores_latency_1,
                                          _1sockets_10cores_latency_2,
                                          _1sockets_10cores_latency_3,

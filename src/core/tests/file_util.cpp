@@ -2,117 +2,112 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/file_util.hpp"
+#include "openvino/util/file_util.hpp"
+
+#include <gtest/gtest.h>
 
 #include <random>
 #include <sstream>
 #include <string>
 #include <vector>
 
-#include "gtest/gtest.h"
-#include "openvino/util/file_util.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(file_util, path_join) {
     {
         string s1 = "";
         string s2 = "";
 
-        EXPECT_STREQ("", file_util::path_join(s1, s2).c_str());
+        EXPECT_STREQ("", ov::util::path_join({s1, s2}).c_str());
     }
     {
         string s1 = "";
         string s2 = "/test1/test2";
 
-        EXPECT_STREQ("/test1/test2", file_util::path_join(s1, s2).c_str());
+        EXPECT_STREQ("/test1/test2", ov::util::path_join({s1, s2}).c_str());
     }
     {
         string s1 = "";
         string s2 = "/test1/test2/";
 
-        EXPECT_STREQ("/test1/test2/", file_util::path_join(s1, s2).c_str());
+        EXPECT_STREQ("/test1/test2/", ov::util::path_join({s1, s2}).c_str());
     }
     {
         string s1 = "";
         string s2 = "test1/test2";
 
-        EXPECT_STREQ("test1/test2", file_util::path_join(s1, s2).c_str());
+        EXPECT_STREQ("test1/test2", ov::util::path_join({s1, s2}).c_str());
     }
 
     {
         string s1 = "/x1/x2";
         string s2 = "";
 
-        EXPECT_STREQ("/x1/x2", file_util::path_join(s1, s2).c_str());
+        EXPECT_STREQ("/x1/x2", ov::util::path_join({s1, s2}).c_str());
     }
     {
         string s1 = "/x1/x2/";
         string s2 = "/";
 
-        EXPECT_STREQ("/", file_util::path_join(s1, s2).c_str());
+        EXPECT_STREQ("/", ov::util::path_join({s1, s2}).c_str());
     }
     {
         string s1 = "/x1/x2";
         string s2 = "/test1/test2";
 
-        EXPECT_STREQ("/test1/test2", file_util::path_join(s1, s2).c_str());
+        EXPECT_STREQ("/test1/test2", ov::util::path_join({s1, s2}).c_str());
     }
     {
         string s1 = "/x1/x2/";
         string s2 = "test1/test2";
 
-        EXPECT_STREQ("/x1/x2/test1/test2", file_util::path_join(s1, s2).c_str());
+        EXPECT_STREQ("/x1/x2/test1/test2", ov::util::path_join({s1, s2}).c_str());
     }
     {
         string s1 = "/x1/x2";
         string s2 = "test1/test2";
 
 #ifndef _WIN32
-        EXPECT_STREQ("/x1/x2/test1/test2", file_util::path_join(s1, s2).c_str());
+        EXPECT_STREQ("/x1/x2/test1/test2", ov::util::path_join({s1, s2}).c_str());
 #else
-        EXPECT_STREQ("/x1/x2\\test1/test2", file_util::path_join(s1, s2).c_str());
+        EXPECT_STREQ("/x1/x2\\test1/test2", ov::util::path_join({s1, s2}).c_str());
 #endif
     }
     {
         string s1 = "/";
         string s2 = "test1/test2";
 
-        EXPECT_STREQ("/test1/test2", file_util::path_join(s1, s2).c_str());
+        EXPECT_STREQ("/test1/test2", ov::util::path_join({s1, s2}).c_str());
     }
 }
 
 TEST(file_util, sanitize_path) {
     {
         string path = "../../tensor.data";
-        EXPECT_STREQ("tensor.data", file_util::sanitize_path(path).c_str());
+        EXPECT_STREQ("tensor.data", ov::util::sanitize_path(path).c_str());
     }
     {
         string path = "/../tensor.data";
-        EXPECT_STREQ("tensor.data", file_util::sanitize_path(path).c_str());
+        EXPECT_STREQ("tensor.data", ov::util::sanitize_path(path).c_str());
     }
     {
         string path = "..";
-        EXPECT_STREQ("", file_util::sanitize_path(path).c_str());
+        EXPECT_STREQ("", ov::util::sanitize_path(path).c_str());
     }
     {
         string path = "workspace/data/tensor.data";
-        EXPECT_STREQ("workspace/data/tensor.data", file_util::sanitize_path(path).c_str());
+        EXPECT_STREQ("workspace/data/tensor.data", ov::util::sanitize_path(path).c_str());
     }
     {
         string path = "..\\..\\tensor.data";
-        EXPECT_STREQ("tensor.data", file_util::sanitize_path(path).c_str());
+        EXPECT_STREQ("tensor.data", ov::util::sanitize_path(path).c_str());
     }
     {
         string path = "C:\\workspace\\tensor.data";
-        EXPECT_STREQ("workspace\\tensor.data", file_util::sanitize_path(path).c_str());
+        EXPECT_STREQ("workspace\\tensor.data", ov::util::sanitize_path(path).c_str());
     }
 }
-
-NGRAPH_SUPPRESS_DEPRECATED_END
 
 using namespace testing;
 

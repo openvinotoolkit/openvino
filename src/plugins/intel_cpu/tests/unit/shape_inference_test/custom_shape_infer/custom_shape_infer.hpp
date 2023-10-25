@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cpu_types.h"
-#include <shape_inference/shape_inference_cpu.hpp>
-#include <shape_inference/static_shape.hpp>
-#include <common_test_utils/common_utils.hpp>
 #include <gtest/gtest.h>
+
+#include "common_test_utils/common_utils.hpp"
+#include "cpu_types.h"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/static_shape.hpp"
 
 #pragma once
 
@@ -14,9 +15,9 @@ namespace ov {
 namespace intel_cpu {
 namespace unit_test {
 void cpu_test_shape_infer(ov::Node* op,
-                     const std::vector<StaticShape>& input_shapes,
-                     std::vector<StaticShape>& output_shapes,
-                     const std::map<size_t, HostTensorPtr>& constant_data = {});
+                          const std::vector<StaticShape>& input_shapes,
+                          std::vector<StaticShape>& output_shapes,
+                          const std::unordered_map<size_t, ov::Tensor>& constant_data = {});
 
 using ShapeVector = std::vector<ov::intel_cpu::StaticShape>;
 

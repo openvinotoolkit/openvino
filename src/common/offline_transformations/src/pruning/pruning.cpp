@@ -5,13 +5,13 @@
 #include "pruning.hpp"
 
 #include <algorithm>
-#include <ngraph/log.hpp>
-#include <ngraph/pass/constant_folding.hpp>
-#include <ngraph/pass/visualize_tree.hpp>
 
 #include "mask_attribute.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/visualize_tree.hpp"
+#include "openvino/util/log.hpp"
 
-bool ngraph::pass::Pruning::run_on_model(const std::shared_ptr<Function>& f) {
+bool ov::pass::Pruning::run_on_model(const std::shared_ptr<ov::Model>& f) {
     Manager manager(get_pass_config());
 
     // Initialize masks only for Convolutions/GroupConvolutions weights (needed to init mask in source Constant of

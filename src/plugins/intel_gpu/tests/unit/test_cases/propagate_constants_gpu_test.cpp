@@ -51,9 +51,9 @@ void test_copy_dependecies_from_nodes(bool is_caching_test) {
 }
 
 TEST(propagate_constants, copy_dependecies_from_nodes) {
-    test_copy_dependecies_from_nodes<FLOAT16>(false);
+    test_copy_dependecies_from_nodes<ov::float16>(false);
 }
 
 TEST(propagate_constants, copy_dependecies_from_nodes_cached) {
-    test_copy_dependecies_from_nodes<FLOAT16>(true);
+    test_copy_dependecies_from_nodes<ov::float16>(true);
 }

@@ -4,7 +4,7 @@ Quantization of Image Classification Models
 This tutorial demonstrates how to apply ``INT8`` quantization to Image
 Classification model using
 `NNCF <https://github.com/openvinotoolkit/nncf>`__. It uses the
-Mobilenet V2 model, trained on Cifar10 dataset. The code is designed to
+MobileNet V2 model, trained on Cifar10 dataset. The code is designed to
 be extendable to custom models and datasets. The tutorial uses OpenVINO
 backend for performing model quantization in NNCF, if you interested how
 to apply quantization on PyTorch model, please check this
@@ -19,6 +19,28 @@ This tutorial consists of the following steps:
 - Compare performance of the original and quantized models.
 - Compare results on one picture.
 
+**Table of contents:**
+
+- `Prepare the Model <#prepare-the-model>`__
+- `Prepare Dataset <#prepare-dataset>`__
+- `Perform Quantization <#perform-quantization>`__
+
+  - `Create Dataset for Validation <#create-dataset-for-validation>`__
+
+- `Run nncf.quantize for Getting an Optimized Model <#run-nncf.quantize-for-getting-an-optimized-model>`__
+- `Serialize an OpenVINO IR model <#serialize-an-openvino-ir-model>`__
+- `Compare Accuracy of the Original and Quantized Models <#compare-accuracy-of-the-original-and-quantized-models>`__
+
+  - `Select inference device <#select-inference-device>`__
+
+- `Compare Performance of the Original and Quantized Models <#compare-performance-of-the-original-and-quantized-models>`__
+- `Compare results on four pictures <#compare-results-on-four-pictures>`__
+
+.. code:: ipython3
+
+    # Install openvino package
+    !pip install -q "openvino==2023.1.0.dev20230811"
+
 .. code:: ipython3
 
     from pathlib import Path
@@ -32,13 +54,14 @@ This tutorial consists of the following steps:
     MODEL_DIR.mkdir(exist_ok=True)
 
 Prepare the Model
------------------
+###############################################################################################################################
 
 Model preparation stage has the following steps:
 
-- Download a PyTorch model
-- Convert model to OpenVINO Intermediate Representation format (IR) using Model Optimizer Python API
-- Serialize converted model on disk
+-  Download a PyTorch model
+-  Convert model to OpenVINO Intermediate Representation format (IR)
+   using model conversion Python API
+-  Serialize converted model on disk
 
 .. code:: ipython3
 
@@ -55,10 +78,10 @@ Model preparation stage has the following steps:
     Cloning into 'pytorch-cifar-models'...
     remote: Enumerating objects: 282, done.[K
     remote: Counting objects: 100% (281/281), done.[K
-    remote: Compressing objects: 100% (95/95), done.[K
-    remote: Total 282 (delta 136), reused 269 (delta 129), pack-reused 1[K
-    Receiving objects: 100% (282/282), 9.22 MiB | 4.20 MiB/s, done.
-    Resolving deltas: 100% (136/136), done.
+    remote: Compressing objects: 100% (96/96), done.[K
+    remote: Total 282 (delta 135), reused 269 (delta 128), pack-reused 1[K
+    Receiving objects: 100% (282/282), 9.22 MiB | 3.92 MiB/s, done.
+    Resolving deltas: 100% (135/135), done.
 
 
 .. code:: ipython3
@@ -67,31 +90,49 @@ Model preparation stage has the following steps:
     
     model = cifar10_mobilenetv2_x1_0(pretrained=True)
 
-OpenVINO support PyTorch models via conversion to OpenVINO Intermediate
-Representation format. Model Optimizer Python API should be used for
-conversion. ``mo.convert_model`` accept PyTorch model instance and
-convert it into ``openvino.runtime.Model`` representation of model in
-OpenVINO. Optionally, you may specify ``example_input`` which serves as
-helper for model tracing and ``input_shape`` for conversion model with
-static shape. Conveted model is ready to be loaded on device for
-inference and can be saved on disk for next usage via ``serialize``
-function. More details about Model Optimizer Python API can be found on
-this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Python_API.html>`__.
+OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
+Representation format using model conversion Python API.
+``ov.convert_model`` accept PyTorch model instance and convert it into
+``openvino.runtime.Model`` representation of model in OpenVINO.
+Optionally, you may specify ``example_input`` which serves as a helper
+for model tracing and ``input_shape`` for converting the model with
+static shape. The converted model is ready to be loaded on a device for
+inference and can be saved on a disk for next usage via the
+``save_model`` function. More details about model conversion Python API
+can be found on this
+`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
 
 .. code:: ipython3
 
-    from openvino.tools import mo
-    from openvino.runtime import serialize
+    import openvino as ov
     
     model.eval()
     
-    ov_model = mo.convert_model(model, input_shape=[1,3,32,32])
+    ov_model = ov.convert_model(model, input=[1,3,32,32])
     
-    serialize(ov_model, MODEL_DIR / "mobilenet_v2.xml") 
+    ov.save_model(ov_model, MODEL_DIR / "mobilenet_v2.xml") 
+
+
+.. parsed-literal::
+
+    2023-09-08 23:00:34.215999: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-09-08 23:00:34.251815: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2023-09-08 23:00:34.795978: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
+
+.. parsed-literal::
+
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
+
+
+.. parsed-literal::
+
+    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+
 
 Prepare Dataset
----------------
+###############################################################################################################################
 
 We will use `CIFAR10 <https://www.cs.toronto.edu/~kriz/cifar.html>`__
 dataset from
@@ -133,21 +174,21 @@ Preprocessing for model obtained from training
 
 
 Perform Quantization
---------------------
+###############################################################################################################################
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
 OpenVINO with minimal accuracy drop. We will use 8-bit quantization in
 post-training mode (without the fine-tuning pipeline) to optimize
-MobilenetV2. The optimization process contains the following steps:
+MobileNetV2. The optimization process contains the following steps:
 
 1. Create a Dataset for quantization.
 2. Run ``nncf.quantize`` for getting an optimized model.
-3. Serialize an OpenVINO IR model, using the
-   ``openvino.runtime.serialize`` function.
+3. Serialize an OpenVINO IR model, using the ``openvino.save_model``
+   function.
 
-Create Datset for Validation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Create Dataset for Validation
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 NNCF is compatible with ``torch.utils.data.DataLoader`` interface. For
 performing quantization it should be passed into ``nncf.Dataset`` object
@@ -165,14 +206,8 @@ model during quantization, in our case, to pick input tensor from pair
     
     quantization_dataset = nncf.Dataset(val_loader, transform_fn)
 
-
-.. parsed-literal::
-
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-
-
 Run nncf.quantize for Getting an Optimized Model
-------------------------------------------------
+###############################################################################################################################
 
 ``nncf.quantize`` function accepts model and prepared quantization
 dataset for performing basic quantization. Optionally, additional
@@ -188,23 +223,23 @@ about supported parameters can be found on this
 
 .. parsed-literal::
 
-    Statistics collection: 100%|██████████| 300/300 [00:08<00:00, 35.03it/s]
-    Biases correction: 100%|██████████| 36/36 [00:01<00:00, 23.98it/s]
+    Statistics collection: 100%|██████████| 300/300 [00:08<00:00, 35.19it/s]
+    Biases correction: 100%|██████████| 36/36 [00:01<00:00, 21.91it/s]
 
 
 Serialize an OpenVINO IR model
-------------------------------
+###############################################################################################################################
 
-Similar to ``mo.convert_model``, quantized model is
-``openvino.runtime.Model`` object which ready to be loaded into device
-and can be serialized on disk using ``openvino.runtime.serialize``.
+Similar to ``ov.convert_model``, quantized model is ``ov.Model`` object
+which ready to be loaded into device and can be serialized on disk using
+``ov.save_model``.
 
 .. code:: ipython3
 
-    serialize(quant_ov_model, MODEL_DIR / "quantized_mobilenet_v2.xml")
+    ov.save_model(quant_ov_model, MODEL_DIR / "quantized_mobilenet_v2.xml")
 
 Compare Accuracy of the Original and Quantized Models
------------------------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -222,17 +257,15 @@ Compare Accuracy of the Original and Quantized Models
         return correct / total
 
 Select inference device
-~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    from openvino.runtime import Core
     
-    
-    core = Core()
+    core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
@@ -253,9 +286,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    from openvino.runtime import Core
-    
-    core = Core()
+    core = ov.Core()
     compiled_model = core.compile_model(ov_model, device.value)
     optimized_compiled_model = core.compile_model(quant_ov_model, device.value)
     
@@ -284,18 +315,20 @@ select device from dropdown list for running inference using OpenVINO
 .. parsed-literal::
 
     Accuracy of the original model: 93.61%
-    Accuracy of the optimized model: 93.51%
+    Accuracy of the optimized model: 93.54%
 
 
 Compare Performance of the Original and Quantized Models
---------------------------------------------------------
+###############################################################################################################################
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
 Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 - an inference performance measurement tool in OpenVINO.
 
-   **NOTE**: For more accurate performance, it is recommended to run
+.. note::
+    
+   For more accurate performance, it is recommended to run
    benchmark_app in a terminal/command prompt after closing other
    applications. Run ``benchmark_app -m model.xml -d CPU`` to benchmark
    async inference on CPU for one minute. Change CPU to GPU to benchmark
@@ -310,75 +343,7 @@ Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_
 
 .. parsed-literal::
 
-    [Step 1/11] Parsing and validating input arguments
-    [ INFO ] Parsing input parameters
-    [Step 2/11] Loading OpenVINO Runtime
-    [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
-    [ INFO ] 
-    [ INFO ] Device info:
-    [ INFO ] AUTO
-    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
-    [ INFO ] 
-    [ INFO ] 
-    [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
-    [Step 4/11] Reading model files
-    [ INFO ] Loading model files
-    [ INFO ] Read model took 7.88 ms
-    [ INFO ] Original model I/O parameters:
-    [ INFO ] Model inputs:
-    [ INFO ]     x.1 , x , 1 (node: Parameter_2) : f32 / [...] / [1,3,32,32]
-    [ INFO ] Model outputs:
-    [ INFO ]     223 (node: aten::linear_928) : f32 / [...] / [1,10]
-    [Step 5/11] Resizing model to match image sizes and given batch
-    [ INFO ] Model batch size: 1
-    [Step 6/11] Configuring input of the model
-    [ INFO ] Model inputs:
-    [ INFO ]     x.1 , x , 1 (node: Parameter_2) : u8 / [N,C,H,W] / [1,3,32,32]
-    [ INFO ] Model outputs:
-    [ INFO ]     223 (node: aten::linear_928) : f32 / [...] / [1,10]
-    [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 164.70 ms
-    [Step 8/11] Querying optimal runtime parameters
-    [ INFO ] Model:
-    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
-    [ INFO ]   NETWORK_NAME: Model0
-    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
-    [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
-    [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
-    [ INFO ]   CPU:
-    [ INFO ]     CPU_BIND_THREAD: YES
-    [ INFO ]     CPU_THREADS_NUM: 0
-    [ INFO ]     CPU_THROUGHPUT_STREAMS: 12
-    [ INFO ]     DEVICE_ID: 
-    [ INFO ]     DUMP_EXEC_GRAPH_AS_DOT: 
-    [ INFO ]     DYN_BATCH_ENABLED: NO
-    [ INFO ]     DYN_BATCH_LIMIT: 0
-    [ INFO ]     ENFORCE_BF16: NO
-    [ INFO ]     EXCLUSIVE_ASYNC_REQUESTS: NO
-    [ INFO ]     NETWORK_NAME: Model0
-    [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
-    [ INFO ]     PERFORMANCE_HINT: THROUGHPUT
-    [ INFO ]     PERFORMANCE_HINT_NUM_REQUESTS: 0
-    [ INFO ]     PERF_COUNT: NO
-    [ INFO ]   EXECUTION_DEVICES: ['CPU']
-    [Step 9/11] Creating infer requests and preparing input tensors
-    [ WARNING ] No input files were given for input '1'!. This input will be filled with random values!
-    [ INFO ] Fill input '1' with random values 
-    [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
-    [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 3.15 ms
-    [Step 11/11] Dumping statistics report
-    [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            89880 iterations
-    [ INFO ] Duration:         15002.85 ms
-    [ INFO ] Latency:
-    [ INFO ]    Median:        1.80 ms
-    [ INFO ]    Average:       1.82 ms
-    [ INFO ]    Min:           1.13 ms
-    [ INFO ]    Max:           7.45 ms
-    [ INFO ] Throughput:   5990.86 FPS
+    /bin/bash: benchmark_app: command not found
 
 
 .. code:: ipython3
@@ -389,79 +354,11 @@ Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_
 
 .. parsed-literal::
 
-    [Step 1/11] Parsing and validating input arguments
-    [ INFO ] Parsing input parameters
-    [Step 2/11] Loading OpenVINO Runtime
-    [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
-    [ INFO ] 
-    [ INFO ] Device info:
-    [ INFO ] AUTO
-    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
-    [ INFO ] 
-    [ INFO ] 
-    [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
-    [Step 4/11] Reading model files
-    [ INFO ] Loading model files
-    [ INFO ] Read model took 15.06 ms
-    [ INFO ] Original model I/O parameters:
-    [ INFO ] Model inputs:
-    [ INFO ]     1 , x.1 , x (node: Parameter_2) : f32 / [...] / [1,3,32,32]
-    [ INFO ] Model outputs:
-    [ INFO ]     223 (node: aten::linear_928) : f32 / [...] / [1,10]
-    [Step 5/11] Resizing model to match image sizes and given batch
-    [ INFO ] Model batch size: 1
-    [Step 6/11] Configuring input of the model
-    [ INFO ] Model inputs:
-    [ INFO ]     1 , x.1 , x (node: Parameter_2) : u8 / [N,C,H,W] / [1,3,32,32]
-    [ INFO ] Model outputs:
-    [ INFO ]     223 (node: aten::linear_928) : f32 / [...] / [1,10]
-    [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 314.58 ms
-    [Step 8/11] Querying optimal runtime parameters
-    [ INFO ] Model:
-    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
-    [ INFO ]   NETWORK_NAME: Model0
-    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
-    [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
-    [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
-    [ INFO ]   CPU:
-    [ INFO ]     CPU_BIND_THREAD: YES
-    [ INFO ]     CPU_THREADS_NUM: 0
-    [ INFO ]     CPU_THROUGHPUT_STREAMS: 12
-    [ INFO ]     DEVICE_ID: 
-    [ INFO ]     DUMP_EXEC_GRAPH_AS_DOT: 
-    [ INFO ]     DYN_BATCH_ENABLED: NO
-    [ INFO ]     DYN_BATCH_LIMIT: 0
-    [ INFO ]     ENFORCE_BF16: NO
-    [ INFO ]     EXCLUSIVE_ASYNC_REQUESTS: NO
-    [ INFO ]     NETWORK_NAME: Model0
-    [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
-    [ INFO ]     PERFORMANCE_HINT: THROUGHPUT
-    [ INFO ]     PERFORMANCE_HINT_NUM_REQUESTS: 0
-    [ INFO ]     PERF_COUNT: NO
-    [ INFO ]   EXECUTION_DEVICES: ['CPU']
-    [Step 9/11] Creating infer requests and preparing input tensors
-    [ WARNING ] No input files were given for input '1'!. This input will be filled with random values!
-    [ INFO ] Fill input '1' with random values 
-    [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
-    [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 1.86 ms
-    [Step 11/11] Dumping statistics report
-    [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            181056 iterations
-    [ INFO ] Duration:         15001.51 ms
-    [ INFO ] Latency:
-    [ INFO ]    Median:        0.93 ms
-    [ INFO ]    Average:       0.96 ms
-    [ INFO ]    Min:           0.62 ms
-    [ INFO ]    Max:           3.36 ms
-    [ INFO ] Throughput:   12069.19 FPS
+    /bin/bash: benchmark_app: command not found
 
 
 Compare results on four pictures
---------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -551,5 +448,5 @@ Compare results on four pictures
 
 
 
-.. image:: 113-image-classification-quantization-with-output_files/113-image-classification-quantization-with-output_28_2.png
+.. image:: 113-image-classification-quantization-with-output_files/113-image-classification-quantization-with-output_30_2.png
 

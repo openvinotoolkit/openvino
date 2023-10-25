@@ -28,7 +28,6 @@ WHEEL_LIBS_PACKAGE = "openvino.libs"
 PYTHON_VERSION = f"python{sys.version_info.major}.{sys.version_info.minor}"
 
 LIBS_DIR = "bin" if platform.system() == "Windows" else "lib"
-CONFIG = "Release" if platform.system() in {"Windows", "Darwin"} else ""
 
 machine = platform.machine()
 if machine == "x86_64" or machine == "AMD64":
@@ -47,6 +46,7 @@ BUILD_BASE = f"{WORKING_DIR}/build_{PYTHON_VERSION}"
 OPENVINO_SOURCE_DIR = SCRIPT_DIR.parents[3]
 OPENVINO_BINARY_DIR = os.getenv("OPENVINO_BINARY_DIR")
 OPENVINO_PYTHON_BINARY_DIR = os.getenv("OPENVINO_PYTHON_BINARY_DIR", "python_build")
+CONFIG = os.getenv("BUILD_TYPE", "Release")
 OV_RUNTIME_LIBS_DIR = os.getenv("OV_RUNTIME_LIBS_DIR", f"runtime/{LIBS_DIR}/{ARCH}/{CONFIG}")
 TBB_LIBS_DIR = os.getenv("TBB_LIBS_DIR", f"runtime/3rdparty/tbb/{LIBS_DIR}")
 PUGIXML_LIBS_DIR = os.getenv("PUGIXML_LIBS_DIR", f"runtime/3rdparty/pugixml/{LIBS_DIR}")
@@ -199,6 +199,7 @@ class PrebuiltExtension(Extension):
             nln = "\n"
             raise DistutilsSetupError(f"PrebuiltExtension can accept only one source, but got: {nln}{nln.join(sources)}")
         super().__init__(name, sources, *args, **kwargs)
+        self._needs_stub = False
 
 
 class CustomBuild(build):
@@ -252,9 +253,9 @@ class CustomBuild(build):
                     binary_dir = os.path.join(self.build_temp, binary_dir)
                     self.announce(f"Configuring {comp} cmake project", level=3)
                     self.spawn(["cmake", f"-DOpenVINODeveloperPackage_DIR={OPENVINO_BINARY_DIR}",
-                                         f"-DPYTHON_EXECUTABLE={sys.executable}",
+                                         f"-DPython3_EXECUTABLE={sys.executable}",
                                          f"-DCPACK_GENERATOR={CPACK_GENERATOR}",
-                                         "-DCMAKE_BUILD_TYPE=Release",
+                                         f"-DCMAKE_BUILD_TYPE={CONFIG}",
                                          "-DENABLE_WHEEL=OFF",
                                          self.cmake_args,
                                          "-S", source_dir,
@@ -262,13 +263,13 @@ class CustomBuild(build):
 
                     self.announce(f"Building {comp} project", level=3)
                     self.spawn(["cmake", "--build", binary_dir,
-                                         "--config", "Release",
+                                         "--config", CONFIG,
                                          "--parallel", str(self.jobs)])
 
                 self.announce(f"Installing {comp}", level=3)
                 self.spawn(["cmake", "--install", binary_dir,
                                      "--prefix", prefix,
-                                     "--config", "Release",
+                                     "--config", CONFIG,
                                      "--strip",
                                      "--component", cpack_comp_name])
 
@@ -511,7 +512,7 @@ def set_rpath(rpath, binary):
                 log.warn(f"WARNING: {binary}: missed ELF header")
                 return
         rpath_tool = "patchelf"
-        cmd = [rpath_tool, "--set-rpath", rpath, binary]
+        cmd = [rpath_tool, "--set-rpath", rpath, binary, "--force-rpath"]
     elif sys.platform == "darwin":
         rpath_tool = "install_name_tool"
         cmd = [rpath_tool, "-add_rpath", rpath, binary]
@@ -615,6 +616,10 @@ def concat_files(input_files, output_file):
 
 OPENVINO_VERSION = WHEEL_VERSION = os.getenv("WHEEL_VERSION", "0.0.0")
 PACKAGE_DIR = get_package_dir(PY_INSTALL_CFG)
+# need to create package dir, because since https://github.com/pypa/wheel/commit/e43f2fcb296c2ac63e8bac2549ab596ab79accd0
+# egg_info command works in this folder, because it's being created automatically
+os.makedirs(PACKAGE_DIR, exist_ok=True)
+
 packages = find_namespace_packages(PACKAGE_DIR)
 package_data: typing.Dict[str, list] = {}
 ext_modules = find_prebuilt_extensions(get_install_dirs_list(PY_INSTALL_CFG))

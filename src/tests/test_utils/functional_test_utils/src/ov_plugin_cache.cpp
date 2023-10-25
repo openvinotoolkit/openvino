@@ -3,8 +3,6 @@
 //
 
 #include "functional_test_utils/ov_plugin_cache.hpp"
-#include "common_test_utils/file_utils.hpp"
-#include "openvino/util/file_util.hpp"
 
 #include <gtest/gtest.h>
 
@@ -12,13 +10,16 @@
 #include <ie_plugin_config.hpp>
 #include <unordered_map>
 
+#include "common_test_utils/file_utils.hpp"
+#include "openvino/util/file_util.hpp"
+
 namespace ov {
 namespace test {
 namespace utils {
 namespace {
 class TestListener : public testing::EmptyTestEventListener {
 public:
-    void OnTestEnd(const testing::TestInfo &testInfo) override {
+    void OnTestEnd(const testing::TestInfo& testInfo) override {
         if (auto testResult = testInfo.result()) {
             if (testResult->Failed()) {
                 PluginCache::get().reset();
@@ -28,12 +29,12 @@ public:
 };
 }  // namespace
 
-PluginCache &PluginCache::get() {
+PluginCache& PluginCache::get() {
     static PluginCache instance;
     return instance;
 }
 
-std::shared_ptr<ov::Core> PluginCache::core(const std::string &deviceToCheck) {
+std::shared_ptr<ov::Core> PluginCache::core(const std::string& deviceToCheck) {
     std::lock_guard<std::mutex> lock(g_mtx);
     if (std::getenv("DISABLE_PLUGIN_CACHE") != nullptr) {
 #ifndef NDEBUG
@@ -54,20 +55,20 @@ std::shared_ptr<ov::Core> PluginCache::core(const std::string &deviceToCheck) {
     }
     assert(0 != ov_core.use_count());
 
-    // register template plugin if it is needed
-    try {
-        std::string pluginName = "openvino_template_plugin";
-        pluginName += IE_BUILD_POSTFIX;
-        ov_core->register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(), pluginName), "TEMPLATE");
-    } catch (...) {
+    // Register Template plugin as a reference provider
+    const auto devices = ov_core->get_available_devices();
+    if (std::find(devices.begin(), devices.end(), std::string(ov::test::utils::DEVICE_TEMPLATE)) == devices.end()) {
+        ov_core->register_plugin(
+            ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                               std::string(ov::test::utils::TEMPLATE_LIB) + OV_BUILD_POSTFIX),
+            ov::test::utils::DEVICE_TEMPLATE);
     }
 
     if (!deviceToCheck.empty()) {
         auto properties = ov_core->get_property(deviceToCheck, ov::supported_properties);
 
         if (std::find(properties.begin(), properties.end(), ov::available_devices) != properties.end()) {
-            auto availableDevices =
-                    ov_core->get_property(deviceToCheck, ov::available_devices);
+            const auto availableDevices = ov_core->get_property(deviceToCheck, ov::available_devices);
 
             if (availableDevices.empty()) {
                 std::cerr << "No available devices for " << deviceToCheck << std::endl;
@@ -77,7 +78,7 @@ std::shared_ptr<ov::Core> PluginCache::core(const std::string &deviceToCheck) {
 #ifndef NDEBUG
             std::cout << "Available devices for " << deviceToCheck << ":" << std::endl;
 
-            for (const auto &device : availableDevices) {
+            for (const auto& device : availableDevices) {
                 std::cout << "    " << device << std::endl;
             }
 #endif
@@ -97,7 +98,7 @@ void PluginCache::reset() {
 }
 
 PluginCache::PluginCache() {
-    auto &listeners = testing::UnitTest::GetInstance()->listeners();
+    auto& listeners = testing::UnitTest::GetInstance()->listeners();
     listeners.Append(new TestListener);
 }
 }  // namespace utils

@@ -90,7 +90,7 @@ static std::set<std::string> get_element_type_names() {
     return result;
 }
 
-static auto unique_ops = FuncTestUtils::get_unique_ops();
+static auto unique_ops = ov::test::utils::get_unique_ops();
 static auto element_type_names = get_element_type_names();
 
 inline std::string get_ref_path(const std::string& model_path) {

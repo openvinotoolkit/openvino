@@ -14,8 +14,6 @@ struct experimental_detectron_roi_feature_extractor : public primitive_base<expe
 
     experimental_detectron_roi_feature_extractor() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs experimental_detectron_roi_feature_extractor primitive
     /// @param id This primitive id
     /// @param inputs Inputs for primitive id (ROIs, {pyramid levels, ...}, second_output)

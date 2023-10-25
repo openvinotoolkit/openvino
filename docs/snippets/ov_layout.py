@@ -1,10 +1,11 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-import openvino.runtime as ov
+import openvino as ov
+import openvino.runtime.opset12 as ops
 
 # ! [ov:layout:simple]
-from openvino.runtime import Layout
+from openvino import Layout
 layout = Layout('NCHW')
 # ! [ov:layout:simple]
 # ! [ov:layout:complex]
@@ -61,12 +62,12 @@ def create_simple_model():
     # Parameter--->Multiply--->Add--->Result
     #    Constant---'          /
     #              Constant---'
-    data = ov.opset8.parameter([3, 1, 2], ov.Type.f32)
-    mul_constant = ov.opset8.constant([1.5], ov.Type.f32)
-    mul = ov.opset8.multiply(data, mul_constant)
-    add_constant = ov.opset8.constant([0.5], ov.Type.f32)
-    add = ov.opset8.add(mul, add_constant)
-    res = ov.opset8.result(add)
+    data = ops.parameter([3, 1, 2], ov.Type.f32, name="input_tensor_name")
+    mul_constant = ops.constant([1.5], ov.Type.f32)
+    mul = ops.multiply(data, mul_constant)
+    add_constant = ops.constant([0.5], ov.Type.f32)
+    add = ops.add(mul, add_constant)
+    res = ops.result(add)
     return ov.Model([res], [data], "model")
 
 model = create_simple_model()

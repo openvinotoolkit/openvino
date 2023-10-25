@@ -1,11 +1,13 @@
 The attention center model with OpenVINO™
 =========================================
 
+
+
 This notebook demonstrates how to use the `attention center
 model <https://github.com/google/attention-center/tree/main>`__ with
 OpenVINO. This model is in the `TensorFlow Lite
 format <https://www.tensorflow.org/lite>`__, which is supported in
-OpenVINO now by TFlite frontend.
+OpenVINO now by TFLite frontend.
 
 Eye tracking is commonly used in visual neuroscience and cognitive
 science to answer related questions such as visual attention and
@@ -16,7 +18,7 @@ output. This 2D point is the predicted center of human attention on the
 image i.e. the most salient part of images, on which people pay
 attention fist to. This allows find the most visually salient regions
 and handle it as early as possible. For example, it could be used for
-the latest generatipon image format(such as `JPEG
+the latest generation image format (such as `JPEG
 XL <https://github.com/libjxl/libjxl>`__), which supports encoding the
 parts that you pay attention to fist. It can help to improve user
 experience, image will appear to load faster.
@@ -37,22 +39,33 @@ attention center. And then an operator (the Einstein summation operator
 in our case) can be applied to compute the (gravity) center from the
 weighting map. An L2 norm between the predicted attention center and the
 ground-truth attention center can be computed as the training loss.
-Source: `google AI
-blogpost <https://opensource.googleblog.com/2022/12/open-sourcing-attention-center-model.html>`__.
+Source: `Google AI blog
+post <https://opensource.googleblog.com/2022/12/open-sourcing-attention-center-model.html>`__.
 
-.. image:: https://camo.githubusercontent.com/6fabb912edba4b321f2ffff55235e68f8d8ccb8d90373126788ddad25fe79708/68747470733a2f2f626c6f676765722e676f6f676c6575736572636f6e74656e742e636f6d2f696d672f622f523239765a32786c2f4156765873456a784c43444a487a4a4e6a425f766f6e2d76466c7138544a4a4641343161423835542d5145335a4e7857386b7368416633484f457949454a34756767586a624a6d5a6873646a376a3669366d76766d5874796178584a506d334a48754b494c4e5254506658394b7649436246425244384b4e7544566d4c41427a597568516369334254324271562d774d35344978616f415631594442626e704a433932555a6645424776616b4c757369714e44324161507057507232674a56312f73313630302f696d616765342e706e67
+.. figure:: https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjxLCDJHzJNjB_von-vFlq8TJJFA41aB85T-QE3ZNxW8kshAf3HOEyIEJ4uggXjbJmZhsdj7j6i6mvvmXtyaxXJPm3JHuKILNRTPfX9KvICbFBRD8KNuDVmLABzYuhQci3BT2BqV-wM54IxaoAV1YDBbnpJC92UZfEBGvakLusiqND2AaPpWPr2gJV1/s1600/image4.png
+   :alt: drawing
+
+   drawing
 
 The attention center model has been trained with images from the `COCO
 dataset <https://cocodataset.org/#home>`__ annotated with saliency from
-the `salicon dataset <http://salicon.net/>`__.
+the `SALICON dataset <http://salicon.net/>`__.
 
-The tutorial consists of the following steps: 
-* Downloading the model
-* Loading the model and make inference with OpenVINO API 
-* Running Live Attention Center Detection
+**Table of contents**:
 
-Imports
--------
+- `Imports <#imports>`__
+- `Download the attention-center model <#download-the-attention-center-model>`__
+
+  - `Convert Tensorflow Lite model to OpenVINO IR format <#convert-tensorflow-lite-model-to-openvino-ir-format>`__
+
+- `Select inference device <#select-inference-device>`__
+- `Prepare image to use with attention-center model <#prepare-image-to-use-with-attention-center-model>`__
+- `Load input image <#load-input-image>`__
+- `Get result with OpenVINO IR model <#get-result-with-openvino-ir-model>`__
+
+Imports 
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -69,14 +82,15 @@ Imports
 
 .. parsed-literal::
 
-    2023-07-11 23:09:56.206795: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-07-11 23:09:56.240689: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-08-15 23:14:52.395540: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-08-15 23:14:52.429075: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-07-11 23:09:56.780351: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-08-15 23:14:52.969814: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-Download the attention-center model
------------------------------------
+Download the attention-center model 
+###############################################################################################################################
+
 
 Download the model as part of `attention-center
 repo <https://github.com/google/attention-center/tree/main>`__. The repo
@@ -95,21 +109,22 @@ include model in folder ``./model``.
     remote: Counting objects: 100% (168/168), done.[K
     remote: Compressing objects: 100% (132/132), done.[K
     remote: Total 168 (delta 73), reused 114 (delta 28), pack-reused 0[K
-    Receiving objects: 100% (168/168), 26.22 MiB | 4.23 MiB/s, done.
+    Receiving objects: 100% (168/168), 26.22 MiB | 4.18 MiB/s, done.
     Resolving deltas: 100% (73/73), done.
 
 
-Convert Tensorflow Lite model to OpenVINO IR format
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Convert Tensorflow Lite model to OpenVINO IR format 
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The attention-center model is pre-trained model in TensorFlow Lite
 format. In this Notebook the model will be converted to OpenVINO IR
 format with Model Optimizer. This step will be skipped if the model have
 already been converted. For more information about Model Optimizer,
 please, see the `Model Optimizer Developer
-Guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
+Guide <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
 
-Also TFLite models format is supported in OpenVINO by TFlite frontend,
+Also TFLite models format is supported in OpenVINO by TFLite frontend,
 so the model can be passed directly to ``core.read_model()``. You can
 find example in
 `002-openvino-api <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/002-openvino-api>`__.
@@ -129,9 +144,6 @@ find example in
     else:
         print("Read IR model from {}".format(ir_model_path))
         model = core.read_model(ir_model_path)
-    
-    device = "CPU"
-    compiled_model = core.compile_model(model=model, device_name=device)
 
 
 .. parsed-literal::
@@ -139,8 +151,41 @@ find example in
     IR model saved to model/ir_center_model.xml
 
 
-Prepare image to use with attention-center model
-------------------------------------------------
+Select inference device 
+###############################################################################################################################
+
+
+Select device from dropdown list for running inference using OpenVINO:
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
+    compiled_model = core.compile_model(model=model, device_name=device.value)
+
+Prepare image to use with attention-center model 
+###############################################################################################################################
+
 
 The attention-center model takes an RGB image with shape (480, 640) as
 input.
@@ -190,8 +235,9 @@ input.
     
             plt.imshow(cv2.cvtColor(image_to_print, cv2.COLOR_BGR2RGB))
 
-Load input image
-----------------
+Load input image 
+###############################################################################################################################
+
 
 Upload input image using file loading button
 
@@ -229,16 +275,17 @@ Upload input image using file loading button
 
 .. parsed-literal::
 
-    2023-07-11 23:10:08.360269: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
+    2023-08-15 23:15:04.645356: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
     Skipping registering GPU devices...
 
 
 
-.. image:: 216-attention-center-with-output_files/216-attention-center-with-output_11_1.png
+.. image:: 216-attention-center-with-output_files/216-attention-center-with-output_14_1.png
 
 
-Get result with OpenVINO IR model
----------------------------------
+Get result with OpenVINO IR model 
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -258,5 +305,5 @@ Get result with OpenVINO IR model
 
 
 
-.. image:: 216-attention-center-with-output_files/216-attention-center-with-output_13_1.png
+.. image:: 216-attention-center-with-output_files/216-attention-center-with-output_16_1.png
 

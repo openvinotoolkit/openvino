@@ -55,6 +55,44 @@ TEST(handle_reshape, dont_remove_reshape_that_changes_rank) {
     ASSERT_TRUE(prog->get_node("reshape").can_be_optimized());
 }
 
+TEST(handle_reshape, dont_remove_reshape_that_changes_rank_chain) {
+    auto& engine = get_test_engine();
+    auto data0_layout = engine.allocate_memory({ ov::PartialShape{1, 1}, data_types::f16, format::bfyx });
+    auto data1_layout = engine.allocate_memory({ ov::PartialShape{1, 1, 1}, data_types::f16, format::bfyx });
+    auto in_layout = layout{ ov::PartialShape{2, 4}, data_types::f16, format::bfyx };
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(data("data0", data0_layout));
+    topology.add(data("data1", data1_layout));
+    topology.add(eltwise("e1", input_info("input"), input_info("data0"), eltwise_mode::sum));
+    topology.add(reshape("reshape1", input_info("e1"), false, {2, 1, 4}, {2, 1, 4})); // 2d -> 3d
+    topology.add(reshape("reshape2", input_info("reshape1"), true, {1, 2, 0}, {1, 2, 0})); // swap 0 and 1 axis and keep 2nd axis as is
+    topology.add(eltwise("e2", input_info("reshape2"), input_info("data1"), eltwise_mode::sum));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    layout_optimizer lo(true);
+
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+    program_wrapper::apply_opt_pass<handle_reshape>(*prog);
+    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, lo);
+
+    for (auto& n : prog->get_processing_order()) {
+        n->recalc_output_layout(true);
+    }
+
+    ASSERT_NE(prog, nullptr);
+    ASSERT_TRUE(has_node(*prog, "reshape1"));
+    ASSERT_TRUE(has_node(*prog, "reshape2"));
+
+    ASSERT_TRUE(prog->get_node("reshape1").can_be_optimized());
+    ASSERT_TRUE(prog->get_node("reshape2").can_be_optimized());
+}
+
 TEST(handle_reshape, skip_reorder_node_to_split_when_onndnn_not_support) {
     // Onednn FC does not support fp32 input, fp16 weight. In such case, we need to ignore reorder_split from handle_reshape pass
     auto& engine = get_test_engine();
@@ -191,11 +229,11 @@ TEST(handle_reshape, reshape_input_reorder) {
     auto in1_layout = layout{ ov::PartialShape{-1, 16, 64, 64}, data_types::f16, format::bfyx };
     auto in1_memory = engine.allocate_memory({ ov::PartialShape{2, 16, 64, 64}, data_types::f16, format::bfyx });
 
-    auto in0 = rg.generate_random_1d<FLOAT16>(in0_memory->count(), -10, 10);
-    auto in1 = rg.generate_random_1d<FLOAT16>(in1_memory->count(), -10, 10);
-    set_values<FLOAT16>(in0_memory, in0);
+    auto in0 = rg.generate_random_1d<ov::float16>(in0_memory->count(), -10, 10);
+    auto in1 = rg.generate_random_1d<ov::float16>(in1_memory->count(), -10, 10);
+    set_values<ov::float16>(in0_memory, in0);
     set_values<int32_t>(shape_memory, {1, 2, 16, 64, 64});
-    set_values<FLOAT16>(in1_memory, in1);
+    set_values<ov::float16>(in1_memory, in1);
 
     topology topology;
     topology.add(input_layout("input0", in0_layout));

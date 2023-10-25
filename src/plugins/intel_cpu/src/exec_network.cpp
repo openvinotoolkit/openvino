@@ -176,13 +176,11 @@ ExecNetwork::GraphGuard::Lock ExecNetwork::GetGraph() const {
                 {
                     std::lock_guard<std::mutex> lock{*_mutex.get()};
                     // disable weights caching if graph was created only once
-                    // "socketId != -1" is the WA for MacOS, will remove later
-                    auto weightsCache =
-                        (_cfg.streamExecutorConfig._streams != 1 && socketId != -1) ? _socketWeights[socketId] : nullptr;
+                    auto weightsCache = _cfg.streamExecutorConfig._streams != 1 ? _socketWeights[socketId] : nullptr;
 
                     auto isQuantizedFlag =
                         (_cfg.lpTransformsMode == Config::On) &&
-                        ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(_network.getFunction());
+                        ov::pass::low_precision::LowPrecision::isFunctionQuantized(_network.getFunction());
 
                     ctx = std::make_shared<GraphContext>(_cfg, extensionManager, weightsCache, isQuantizedFlag);
                 }

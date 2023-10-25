@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "rt_info_deserializer.hpp"
+
 #include <pugixml.hpp>
-#include <rt_info_deserializer.hpp>
-#include <transformations/rt_info/attributes.hpp>
 
 #include "openvino/frontend/exception.hpp"
 

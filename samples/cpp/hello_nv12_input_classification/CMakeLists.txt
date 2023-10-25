@@ -2,6 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-ie_add_sample(NAME hello_nv12_input_classification
+ov_add_sample(NAME hello_nv12_input_classification
               SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
               DEPENDENCIES format_reader ie_samples_utils)

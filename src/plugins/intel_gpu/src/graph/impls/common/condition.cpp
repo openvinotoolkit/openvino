@@ -13,7 +13,7 @@ namespace cldnn {
 namespace common {
 
 struct condition_impl : typed_primitive_impl<condition> {
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::common::condition_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<condition_impl>(*this);
@@ -39,6 +39,7 @@ struct condition_impl : typed_primitive_impl<condition> {
         auto pred = condition_inst::get_pred_from_memory(instance.pred_memory_ptr(), instance.get_network().get_stream());
         network::ptr executed_net = pred? instance.get_net_true() : instance.get_net_false();
         auto branch = pred? instance.get_branch_true() : instance.get_branch_false();
+        GPU_DEBUG_LOG << "predicate: " << (pred ? "True" : "False") << std::endl;
 
         // Set input memory of inner network before its execution
         for (size_t mem_idx = 0; mem_idx < instance.inputs_memory_count(); mem_idx++) {
@@ -48,6 +49,7 @@ struct condition_impl : typed_primitive_impl<condition> {
                 const primitive_id& input_internal_id = iter->second;
                 auto mem_ptr = instance.input_memory_ptr(mem_idx);
                 executed_net->set_input_data(input_internal_id, mem_ptr);
+                GPU_DEBUG_LOG << "Inner net - Inputs[" << mem_idx << "]" << mem_ptr->get_layout().to_short_string() << std::endl;
             }
         }
 
@@ -62,6 +64,7 @@ struct condition_impl : typed_primitive_impl<condition> {
             auto inner_out_id = out_mem_map.second;
             auto mem_ptr = executed_net->get_output(inner_out_id).get_memory();
             instance.set_output_memory(mem_ptr, false, out_mem_idx);
+            GPU_DEBUG_LOG << "Inner net - Outputs[" << out_mem_idx << "]" << mem_ptr->get_layout().to_short_string() << std::endl;
         }
 
         ev->set();

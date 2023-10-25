@@ -147,9 +147,7 @@ private:
 
     std::shared_ptr<ov::threading::ExecutorManager> m_executor_manager;
     mutable std::unordered_set<std::string> opsetNames;
-    // TODO: make extensions to be optional with conditional compilation
-    mutable std::vector<InferenceEngine::IExtensionPtr> extensions;
-    mutable std::vector<ov::Extension::Ptr> ov_extensions;
+    mutable std::vector<ov::Extension::Ptr> extensions;
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
 
@@ -311,12 +309,6 @@ public:
      *        Such extensions can be used for both CNNNetwork readers and device plugins
      */
     void AddExtension(const InferenceEngine::IExtensionPtr& extension);
-
-    /**
-     * @brief Provides a list of extensions
-     * @return A list of registered extensions
-     */
-    const std::vector<InferenceEngine::IExtensionPtr>& GetExtensions() const;
 
     bool DeviceSupportsModelCaching(const std::string& deviceName) const override;
 

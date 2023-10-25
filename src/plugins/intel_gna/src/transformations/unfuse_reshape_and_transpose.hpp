@@ -34,7 +34,7 @@ namespace pass {
  *         |
  *    Convolution
  */
-class Unfuse2dto4dReshapeAndTranspose : public ngraph::pass::MatcherPass {
+class Unfuse2dto4dReshapeAndTranspose : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("Unfuse2dto4dReshapeAndTranspose", "0");
     Unfuse2dto4dReshapeAndTranspose();
@@ -65,7 +65,7 @@ public:
  *      [N, HW]
  *
  */
-class Unfuse4dto2dReshapeAndTranspose : public ngraph::pass::MatcherPass {
+class Unfuse4dto2dReshapeAndTranspose : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("Unfuse4dto2dReshapeAndTranspose", "0");
     Unfuse4dto2dReshapeAndTranspose();

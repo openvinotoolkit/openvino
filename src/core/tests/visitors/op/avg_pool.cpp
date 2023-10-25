@@ -2,21 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/visitor.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset8.hpp"
+#include "openvino/op/avg_pool.hpp"
+
+#include <gtest/gtest.h>
+
+#include "openvino/op/parameter.hpp"
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
 
 TEST(attributes, avg_pool_op) {
-    NodeBuilder::get_ops().register_factory<opset1::AvgPool>();
-    auto data = make_shared<op::Parameter>(element::f32, Shape{64, 3, 5});
+    ov::test::NodeBuilder::get_ops().register_factory<op::v1::AvgPool>();
+    auto data = make_shared<op::v0::Parameter>(element::f32, Shape{64, 3, 5});
 
     auto strides = Strides{2};
     auto pads_begin = Shape{1};
@@ -27,13 +25,13 @@ TEST(attributes, avg_pool_op) {
     auto auto_pad = op::PadType::EXPLICIT;
 
     auto avg_pool =
-        make_shared<opset1::AvgPool>(data, strides, pads_begin, pads_end, kernel, exclude_pad, rounding_mode, auto_pad);
+        make_shared<op::v1::AvgPool>(data, strides, pads_begin, pads_end, kernel, exclude_pad, rounding_mode, auto_pad);
 
     avg_pool->set_pads_begin(pads_begin);
     avg_pool->set_pads_end(pads_end);
 
-    NodeBuilder builder(avg_pool, {data});
-    auto g_avg_pool = ov::as_type_ptr<opset1::AvgPool>(builder.create());
+    ov::test::NodeBuilder builder(avg_pool, {data});
+    auto g_avg_pool = ov::as_type_ptr<op::v1::AvgPool>(builder.create());
 
     EXPECT_EQ(g_avg_pool->get_strides(), avg_pool->get_strides());
     EXPECT_EQ(g_avg_pool->get_pads_begin(), avg_pool->get_pads_begin());
@@ -44,8 +42,8 @@ TEST(attributes, avg_pool_op) {
 }
 
 TEST(attributes, avg_pool_op_valid) {
-    NodeBuilder::get_ops().register_factory<opset1::AvgPool>();
-    auto data = make_shared<op::Parameter>(element::f32, Shape{64, 3, 5});
+    ov::test::NodeBuilder::get_ops().register_factory<op::v1::AvgPool>();
+    auto data = make_shared<op::v0::Parameter>(element::f32, Shape{64, 3, 5});
 
     auto strides = Strides{2};
     auto pads_begin = Shape{1};
@@ -56,10 +54,10 @@ TEST(attributes, avg_pool_op_valid) {
     auto auto_pad = op::PadType::VALID;
 
     auto avg_pool =
-        make_shared<opset1::AvgPool>(data, strides, pads_begin, pads_end, kernel, exclude_pad, rounding_mode, auto_pad);
+        make_shared<op::v1::AvgPool>(data, strides, pads_begin, pads_end, kernel, exclude_pad, rounding_mode, auto_pad);
 
-    NodeBuilder builder(avg_pool, {data});
-    auto g_avg_pool = ov::as_type_ptr<opset1::AvgPool>(builder.create());
+    ov::test::NodeBuilder builder(avg_pool, {data});
+    auto g_avg_pool = ov::as_type_ptr<op::v1::AvgPool>(builder.create());
 
     EXPECT_EQ(g_avg_pool->get_strides(), avg_pool->get_strides());
     EXPECT_EQ(g_avg_pool->get_pads_begin(), avg_pool->get_pads_begin());
@@ -70,8 +68,8 @@ TEST(attributes, avg_pool_op_valid) {
 }
 
 TEST(attributes, avg_pool_v8_op) {
-    NodeBuilder::get_ops().register_factory<opset8::AvgPool>();
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{1, 3, 37, 37});
+    ov::test::NodeBuilder::get_ops().register_factory<op::v1::AvgPool>();
+    const auto data = make_shared<op::v0::Parameter>(element::i32, Shape{1, 3, 37, 37});
 
     const auto strides = Strides{1, 1};
     const auto pads_begin = Shape{1, 1};
@@ -82,9 +80,9 @@ TEST(attributes, avg_pool_v8_op) {
     const auto auto_pad = op::PadType::EXPLICIT;
 
     const auto avg_pool =
-        make_shared<opset8::AvgPool>(data, strides, pads_begin, pads_end, kernel, exclude_pad, rounding_mode, auto_pad);
-    NodeBuilder builder(avg_pool, {data});
-    auto g_avg_pool = ov::as_type_ptr<opset8::AvgPool>(builder.create());
+        make_shared<op::v1::AvgPool>(data, strides, pads_begin, pads_end, kernel, exclude_pad, rounding_mode, auto_pad);
+    ov::test::NodeBuilder builder(avg_pool, {data});
+    auto g_avg_pool = ov::as_type_ptr<op::v1::AvgPool>(builder.create());
 
     EXPECT_EQ(g_avg_pool->get_strides(), avg_pool->get_strides());
     EXPECT_EQ(g_avg_pool->get_pads_begin(), avg_pool->get_pads_begin());

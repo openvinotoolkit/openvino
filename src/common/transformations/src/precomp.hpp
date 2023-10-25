@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <ngraph/ngraph.hpp>
-#include <ngraph/ops.hpp>
+#include "openvino/core/core.hpp"
+#include "openvino/op/ops.hpp"
 
 #include <algorithm>
 #include <functional>

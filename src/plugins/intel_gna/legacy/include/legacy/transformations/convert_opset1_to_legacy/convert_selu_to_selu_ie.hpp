@@ -19,7 +19,7 @@ class ConvertSeluToSeluIEMatcher;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertSeluToSeluIEMatcher : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertSeluToSeluIEMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertSeluToSeluIEMatcher", "0");
     ConvertSeluToSeluIEMatcher();

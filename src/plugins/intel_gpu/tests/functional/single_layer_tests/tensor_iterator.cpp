@@ -14,8 +14,8 @@
 #include "common_test_utils/test_constants.hpp"
 #include "ie_api.h"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 using namespace InferenceEngine;
 using Config = std::pair<std::string, std::map<std::string, std::string>>;
@@ -132,11 +132,15 @@ protected:
                     // swap batch and seq_lengths
                     std::swap(inputShapes[0][0], inputShapes[0][1]);
                 }
-                auto outer_params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1], inputShapes[2]});
+                ov::ParameterVector outer_params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
+                                                 std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[1])),
+                                                 std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[2]))};
 
                 // 1. Create TensorIterator body.
                 inputShapes[0][sequence_axis] = 1; // sliced dimension
-                auto body_params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1], inputShapes[2]});
+                ov::ParameterVector body_params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
+                                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[1])),
+                                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[2]))};
                 auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(body_params[0], axis);
                 std::vector<ngraph::Shape> WRB = {inputShapes[3], inputShapes[4], inputShapes[5]};
                 ngraph::OutputVector out_vector = {squeeze, body_params[1], body_params[2]};
@@ -178,11 +182,13 @@ protected:
                     // swap batch and seq_lengths
                     std::swap(inputShapes[0][0], inputShapes[0][1]);
                 }
-                auto outer_params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
+                ov::ParameterVector outer_params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
+                                                 std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[1]))};
 
                 // 1. Create TensorIterator body.
                 inputShapes[0][sequence_axis] = 1; // sliced dimension
-                auto body_params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
+                ov::ParameterVector body_params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
+                                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[1]))};
                 std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
                 auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(body_params[0], axis);
                 ngraph::OutputVector out_vector = {squeeze, body_params[1]};
@@ -222,11 +228,13 @@ protected:
                     // swap batch and seq_lengths
                     std::swap(inputShapes[0][0], inputShapes[0][1]);
                 }
-                auto outer_params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
+                ov::ParameterVector outer_params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
+                                                 std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[1]))};
 
                 // 1. Create TensorIterator body.
                 inputShapes[0][sequence_axis] = 1; // sliced dimension
-                auto body_params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
+                ov::ParameterVector body_params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
+                                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[1]))};
                 std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
                 auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(body_params[0], axis);
                 ngraph::OutputVector out_vector = {squeeze, body_params[1]};

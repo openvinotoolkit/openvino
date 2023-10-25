@@ -15,13 +15,14 @@ calibration_dataset = nncf.Dataset(calibration_loader, transform_fn)
 #! [dataset]
 
 #! [quantization]
-model = ... # tensorflow.Module object
+import tensorflow as tf
+model = tf.saved_model.load("model_path")
 
 quantized_model = nncf.quantize(model, calibration_dataset)
 #! [quantization]
 
 #! [inference]
-import openvino.runtime as ov
+import openvino as ov
 from openvino.tools.mo import convert_model
 
 # convert TensorFlow model to OpenVINO model

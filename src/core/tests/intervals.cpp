@@ -4,14 +4,13 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ngraph/interval.hpp"
+#include "openvino/core/interval.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ::testing::Return;
+using namespace ov;
 
 TEST(intervals, size) {
-    EXPECT_TRUE(Interval().size() > 0);
+    EXPECT_TRUE(ov::Interval().size() > 0);
     EXPECT_TRUE(Interval(2).size() == 1);
     EXPECT_TRUE(Interval(1, 5).size() == 5);
     EXPECT_TRUE(Interval(3, 2).size() == 0);

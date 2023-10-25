@@ -21,7 +21,7 @@ namespace pass {
 class OPENVINO_API Manager {
 public:
     Manager();
-    ~Manager();
+    virtual ~Manager();
 
     //// \brief Construct Manager with shared PassConfig instance
     explicit Manager(std::shared_ptr<PassConfig> pass_config);

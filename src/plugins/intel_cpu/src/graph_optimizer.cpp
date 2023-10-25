@@ -95,6 +95,10 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
     FuseFCAndConvertOnWeights(graph);
     graph.RemoveDroppedNodes();
 
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndTransposeOnWeights");
+    FuseFCAndTransposeOnWeights(graph);
+    graph.RemoveDroppedNodes();
+
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseDeconvolutionAndSimpleOperation");
     FuseDeconvolutionAndSimpleOperation(graph);
     graph.RemoveDroppedNodes();
@@ -282,7 +286,8 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
 }
 
 void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
-    const std::set<InferenceEngine::Precision> supportedWeightsPrecisions{InferenceEngine::Precision::U8};
+    std::set<InferenceEngine::Precision> supportedWeightsPrecisions{InferenceEngine::Precision::U8, InferenceEngine::Precision::NF4};
+    const std::set<InferenceEngine::Precision> supportedDataPrecisions{InferenceEngine::Precision::FP32, InferenceEngine::Precision::BF16};
     auto expectedNode = [](NodePtr node, Type expectedType) {
         return node->getType() == expectedType && node->getChildEdges().size() == 1;
     };
@@ -296,11 +301,19 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         if (fcNode == nullptr)
             continue;
 
-        const auto parent = fcNode->getParentEdgesAtPort(1)[0]->getParent();
+        auto parent = fcNode->getParentEdgesAtPort(1)[0]->getParent();
         const bool withTranspose = parent->getType() == Type::Transpose;
         const NodePtr transposeNode = withTranspose ? parent : nullptr;
+        if (transposeNode)
+            parent = transposeNode->getParentEdgesAtPort(0)[0]->getParent();
 
-        const auto multiplyNode = withTranspose ? parent->getParentEdgesAtPort(0)[0]->getParent() : parent;
+        const bool withReshape = parent->getType() == Type::Reshape;
+        const auto reshapeNode = withReshape ? parent : nullptr;
+        if (reshapeNode) {
+            parent = reshapeNode->getParentEdgesAtPort(0)[0]->getParent();
+        }
+
+        const auto multiplyNode = parent;
         if (!expectedNode(multiplyNode, Type::Eltwise) || multiplyNode->getAlgorithm() != Algorithm::EltwiseMultiply ||
             !multiplyNode->isConstant())
             continue;
@@ -330,28 +343,62 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
             continue;
 
         // Precision limitations
-        if (fcNode->getOriginalInputPrecisionAtPort(0) != Precision::FP32)
-            continue;
         if (multiplyConstNode->getOriginalOutputPrecisionAtPort(0) != Precision::FP32)
             continue;
-        if (supportedWeightsPrecisions.find(weightsNode->getOriginalOutputPrecisionAtPort(0)) == supportedWeightsPrecisions.end())
-            continue;
         if (withSubtract && subtractConstNode->getOriginalOutputPrecisionAtPort(0) != Precision::FP32)
+            continue;
+        if (supportedDataPrecisions.find(fcNode->getOriginalInputPrecisionAtPort(0)) == supportedDataPrecisions.end())
+            continue;
+        if (supportedWeightsPrecisions.find(weightsNode->getOriginalOutputPrecisionAtPort(0)) == supportedWeightsPrecisions.end())
             continue;
 
         // Shape limitations
         const auto weightsShape = weightsNode->getOutputShapeAtPort(0);
-        const auto fcInputWeightsShape = multiplyNode->getOutputShapeAtPort(0);
-        if (weightsShape != fcInputWeightsShape)
+        if (weightsShape != multiplyNode->getOutputShapeAtPort(0))
+            continue;
+        if (reshapeNode && (reshapeNode->getInputShapeAtPort(0).getRank() != 3 || reshapeNode->getOutputShapeAtPort(0).getRank() != 2))
             continue;
 
-        const auto expectedDims = withTranspose ? VectorDims{1, weightsShape.getDims()[1]}
-                                                 : VectorDims{weightsShape.getDims()[0], 1};
-        if (multiplyConstNode->getOutputShapeAtPort(0).getDims() != expectedDims)
+        VectorDims decompressionConstShape;
+        const auto fcInputWeightsShape = fcNode->getInputShapeAtPort(1);
+        // Ordinary case: one decompression group
+        if (fcInputWeightsShape.getRank() == weightsShape.getRank()) {
+            const auto& out_channels = fcInputWeightsShape.getDims()[0];
+            decompressionConstShape = withTranspose ? VectorDims{1, out_channels} : VectorDims{out_channels, 1};
+        } else {
+            // Group decompression case: last 3 dimension (there could be also prepending '1's in the beginning) of weights shape must be:
+            // [N, G, O], if transpose = true
+            // [O, N, G], otherwise.
+            // O - output channels
+            // N - number of groups
+            // G - group size
+            const auto& weights_dims = weightsShape.getStaticDims();
+            const auto& N = withTranspose ? *(weights_dims.rbegin() + 2) : *(weights_dims.rbegin() + 1);
+            const auto& O = withTranspose ? *weights_dims.rbegin() : *(weights_dims.rbegin() + 2);
+            // Group decompression is applied by O and N dims
+            decompressionConstShape = withTranspose ? VectorDims{N, 1, O} : VectorDims{O, N, 1};
+        }
+        if (multiplyConstNode->getOutputShapeAtPort(0).getDims() != decompressionConstShape)
             continue;
-        if (withSubtract && subtractConstNode->getOutputShapeAtPort(0).getDims() != expectedDims)
+        if (withSubtract && subtractConstNode->getOutputShapeAtPort(0).getDims() != decompressionConstShape)
             continue;
 
+        // HW specific shape limitations
+        if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx)) {
+            // OneDNN AMX IP implementation has limited shapes support due to performance considerations. As a current solution conditions below are copied
+            // from OneDNN to make sure correct IP impl will be used since fallback one doesn't support weights decompression feature.
+            size_t OC = fcInputWeightsShape.getDims()[0];
+            size_t IC = fcInputWeightsShape.getDims()[1];
+            size_t simdWidth = 16;
+            size_t vnniFactor = 2;
+            size_t maxSize = 512;
+            auto amxRow = vnniFactor * simdWidth;
+
+            if ((IC <= amxRow && OC <= amxRow) || (IC <= maxSize && OC <= maxSize && IC % amxRow != 0))
+                continue;
+        }
+
+        // Fusion processing
         fcNode->fuseDecompressionMultiply(multiplyConstNode);
         if (withSubtract)
             fcNode->fuseDecompressionSubtract(subtractConstNode);
@@ -376,6 +423,10 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         if (withTranspose) {
             transposeNode->setOriginalInputPrecisionAtPort(0, weightsPrecision);
             transposeNode->setOriginalOutputPrecisionAtPort(0, weightsPrecision);
+        }
+        if (withReshape) {
+            reshapeNode->setOriginalInputPrecisionAtPort(0, weightsPrecision);
+            reshapeNode->setOriginalOutputPrecisionAtPort(0, weightsPrecision);
         }
         fcNode->setOriginalInputPrecisionAtPort(1, weightsPrecision);
     }
@@ -805,14 +856,49 @@ void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
     // (e.g. fuse conversion with weights reordering)
     auto& graphNodes = graph.GetNodes();
 
+    auto isSuitablePattern = [](NodePtr parent) {
+        bool res = true && parent->getType() == Type::Convert
+                        && parent->getChildEdges().size() == 1
+                        && parent->getChildEdgeAt(0)->getOutputNum() == 1
+                        && parent->getChildEdgeAt(0)->getChild()->getType() == Type::FullyConnected
+                        && one_of(parent->getOriginalInputPrecisionAtPort(0), Precision::FP16)
+                        && one_of(parent->getOriginalOutputPrecisionAtPort(0), Precision::FP32, Precision::BF16)
+                        && parent->isConstant();
+        return res;
+    };
+
     for (auto parent : graphNodes) {
-        if (parent->getType() == Type::Convert && parent->isConstant() && parent->getChildEdgeAt(0)->getChild()->getType() == Type::FullyConnected
-                && parent->getOriginalInputPrecisionAtPort(0) == Precision::FP16
-                && one_of(parent->getOriginalOutputPrecisionAtPort(0), Precision::FP32, Precision::BF16)) {
+        if (isSuitablePattern(parent)) {
+            CPU_GRAPH_OPTIMIZER_SCOPE(FuseFCAndConvertOnWeights);
             auto childNode = parent->getChildEdgeAt(0)->getChild();
             // set correct weight precision
             childNode->setOriginalInputPrecisionAtPort(1, parent->getOriginalInputPrecisionAtPort(0));
             graph.DropNode(parent);
+        }
+    }
+}
+
+void GraphOptimizer::FuseFCAndTransposeOnWeights(Graph& graph) {
+    // This optimization allows us to avoid transposing the weights in Transpose node and do it directly along with reordering in FC node
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSuitablePattern = [](NodePtr parent) {
+        bool res = true && parent->getType() == Type::Transpose
+                        && parent->getChildEdges().size() == 1
+                        && parent->getChildEdgeAt(0)->getOutputNum() == 1
+                        && parent->getChildEdgeAt(0)->getChild()->getType() == Type::FullyConnected
+                        && parent->getOutputShapeAtPort(0).getRank() == 2
+                        && parent->isConstant();
+        return res;
+    };
+
+    for (auto parent : graphNodes) {
+        if (isSuitablePattern(parent)) {
+            CPU_GRAPH_OPTIMIZER_SCOPE(FuseFCAndTransposeOnWeights);
+            auto fcNode = std::dynamic_pointer_cast<FullyConnected>(parent->getChildEdgeAt(0)->getChild());
+            fcNode->keepWeightsNonTransposed(true);
+            auto transposeNode = std::dynamic_pointer_cast<Transpose>(parent);
+            transposeNode->setOptimized(true);
         }
     }
 }

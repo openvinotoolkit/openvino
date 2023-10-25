@@ -1,11 +1,11 @@
-# OpenVINO™ Runtime
+# OpenVINO™ 
 
 <!--- The note below is intended for master branch only for pre-release purpose. Remove it for official releases. --->
 > **NOTE**: This version is pre-release software and has not undergone full release validation or qualification. No support is offered on pre-release software and APIs/behavior are subject to change. It should NOT be incorporated into any production software/solution and instead should be used only for early testing and integration while awaiting a final release version of this software.
 
 Intel® Distribution of OpenVINO™ toolkit is an open-source toolkit for optimizing and deploying AI inference. It can be used to develop applications and solutions based on deep learning tasks, such as: emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, etc. It provides high-performance and rich deployment options, from edge to cloud.
 
-If you have already finished developing your models and converting them to the OpenVINO model format, you can install OpenVINO Runtime to deploy your applications on various devices. The [OpenVINO™ Runtime](https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_OV_Runtime_User_Guide.html) Python package includes a set of libraries for an easy inference integration with your products.
+If you have already finished developing your models and converting them to the OpenVINO model format, you can install OpenVINO Runtime to deploy your applications on various devices. The [OpenVINO™](https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_OV_Runtime_User_Guide.html) Python package includes a set of libraries for an easy inference integration with your products.
 
 ## System Requirements
 
@@ -15,7 +15,7 @@ Before you start the installation, check the supported operating systems and req
 
 > **NOTE**: This package can be installed on other versions of Linux and Windows OSes, but only the specific versions above are fully validated.
 
-## Install the OpenVINO™ Runtime Package
+## Install OpenVINO™ 
 
 ### Step 1. Set Up Python Virtual Environment
 
@@ -37,13 +37,14 @@ python3 -m venv openvino_env
 
 ### Step 2. Activate Virtual Environment
 
-On Linux and macOS:
-```sh
-source openvino_env/bin/activate
-```
 On Windows:
 ```sh
 openvino_env\Scripts\activate
+```
+
+On Linux and macOS:
+```sh
+source openvino_env/bin/activate
 ```
 
 ### Step 3. Set Up and Update PIP to the Highest Version
@@ -70,9 +71,17 @@ python -c "from openvino.runtime import Core; print(Core().available_devices)"
 
 If installation was successful, you will see the list of available devices.
 
+## What's in the Package
+
+| Component        | Content                                                                  | Description                                                                                                                                                                                                                                                                                                   |
+|------------------|---------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [OpenVINO Runtime](https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_OV_Runtime_User_Guide.html) | `openvino package` |**OpenVINO Runtime**  is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice. Use the OpenVINO Runtime API to read PyTorch\*, TensorFlow\*, TensorFlow Lite\*, ONNX\*, and PaddlePaddle\* models and execute them on preferred devices. OpenVINO Runtime uses a plugin architecture and includes the following plugins: [CPU](https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_CPU.html), [GPU](https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_GPU.html), [Auto Batch](https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_Automatic_Batching.html), [Auto](https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_AUTO.html), [Hetero](https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_Hetero_execution.html).       
+| [OpenVINO Model Converter (OVC)](https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html#convert-a-model-in-cli-ovc) | `ovc` |**OpenVINO Model Converter**  converts models that were trained in popular frameworks to a format usable by OpenVINO components. <br>Supported frameworks include ONNX\*, TensorFlow\*, TensorFlow Lite\*, and PaddlePaddle\*.                                    |
+| [Benchmark Tool](https://docs.openvino.ai/2023.1/openvino_inference_engine_tools_benchmark_tool_README.html)| `benchmark_app` | **Benchmark Application** allows you to estimate deep learning inference performance on supported devices for synchronous and asynchronous modes.                                              |
+
 ## Troubleshooting
 
-For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](https://docs.openvino.ai/2023.0/openvino_docs_get_started_guide_troubleshooting.html). The following sections also provide explanations to several error messages. 
+For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](https://docs.openvino.ai/2023.1/openvino_docs_get_started_guide_troubleshooting.html). The following sections also provide explanations to several error messages. 
 
 ### Errors with Installing via PIP for Users in China
 
@@ -89,11 +98,11 @@ Users in China might encounter errors while downloading sources via PIP during O
 
 On Windows*, some libraries are necessary to run OpenVINO. To resolve this issue, install the [C++ redistributable (.exe)](https://aka.ms/vs/17/release/vc_redist.x64.exe). You can also view a full download list on the [official support page](https://docs.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist).
 
-### ImportError: libpython3.7m.so.1.0: cannot open shared object file: No such file or directory
+### ImportError: libpython3.8.so.1.0: cannot open shared object file: No such file or directory
 
 To resolve missing external dependency on Ubuntu*, execute the following command:
 ```sh
-sudo apt-get install libpython3.7
+sudo apt-get install libpython3.8
 ```
 
 ## Additional Resources

@@ -3,12 +3,13 @@
 //
 
 #include <gtest/gtest.h>
-#include <ie_iextension.h>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph/pass/serialize.hpp"
+#include "common_test_utils/graph_comparator.hpp"
+#include "ie_iextension.h"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
 
 class CustomOpsSerializationTest : public ::testing::Test {

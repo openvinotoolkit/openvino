@@ -4,6 +4,7 @@
 
 #include "utils.hpp"
 
+#include "helper_ops/align_types.hpp"
 #include "op_table.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
@@ -117,11 +118,7 @@ std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id) {
     return context.mark_node(std::make_shared<opset10::Range>(start, reduced_rank, step, element::i32));
 };
 
-std::shared_ptr<Node> normalize_axis(const NodeContext& context,
-                                     const Output<Node>& axis,
-                                     const Output<Node>& input_node) {
-    Output<Node> rank;
-    std::tie(std::ignore, rank) = get_shape_rank(context, input_node);
+Output<Node> normalize_axis(const NodeContext& context, const Output<Node>& axis, const Output<Node>& rank) {
     auto axis_rank = context.mark_node(std::make_shared<opset10::Add>(axis, rank));
     auto is_less = context.mark_node(std::make_shared<opset10::Less>(axis_rank, rank));
     auto new_axis = context.mark_node(std::make_shared<opset10::Select>(is_less, axis_rank, axis));
@@ -185,7 +182,7 @@ Output<Node> concat_list_construct(const Output<Node>& input) {
         OutputVector node_vector;
         auto zero = opset10::Constant::create(element::i32, Shape{}, {0});
         for (size_t i = 0; i < list_inputs.size(); i++) {
-            auto node = concat_list_construct(list_inputs[i].get_node_shared_ptr());
+            auto node = concat_list_construct(list_inputs[i]);
             auto unsqueezed_node = std::make_shared<opset10::Unsqueeze>(node, zero);
             node_vector.push_back(unsqueezed_node);
         }
@@ -385,6 +382,80 @@ std::unordered_map<size_t, element::Type> bit_to_int{
 };
 }  // namespace
 
+element::Type infer_types(const Output<Node>& lhs, const Output<Node>& rhs, bool align_scalars) {
+    const auto& lhs_type = lhs.get_element_type();
+    const auto& rhs_type = rhs.get_element_type();
+    if (lhs_type.is_dynamic() || rhs_type.is_dynamic()) {
+        return element::dynamic;
+    }
+
+    // Both types are static, align types. If float and int types are used convert int type to f32, after that align
+    // to the largest bitness, if both float or both int, just align bitness
+    if (lhs_type == rhs_type)
+        return lhs_type;
+
+    // if one of operands is scalar, the resulting type is taken from the other operand except when scalar is float
+    // type and other operand is int, in that case BOTH operands get fp32 type
+    const auto& lhs_rank = lhs.get_partial_shape().rank();
+    const auto& rhs_rank = rhs.get_partial_shape().rank();
+    // consider dynamic rank as non scalar
+    const auto is_lhs_scalar = lhs_rank.is_static() && lhs_rank.get_length() == 0;
+    const auto is_rhs_scalar = rhs_rank.is_static() && rhs_rank.get_length() == 0;
+    auto lhs_dst_type = lhs_type;
+    auto rhs_dst_type = rhs_type;
+    if (is_lhs_scalar && lhs_type.is_real() && !rhs_type.is_real()) {
+        // if div we need to also align float types to highest bitness regardless of scalar
+        if (!align_scalars)
+            lhs_dst_type = element::f32;
+        rhs_dst_type = lhs_type;
+    } else if (is_rhs_scalar && !lhs_type.is_real() && rhs_type.is_real()) {
+        lhs_dst_type = rhs_type;
+        // if div we need to also align float types to highest bitness regardless of scalar
+        if (!align_scalars)
+            rhs_dst_type = element::f32;
+    } else if (is_lhs_scalar && rhs_type != element::boolean) {
+        return rhs_type;
+    } else if (is_rhs_scalar && lhs_type != element::boolean) {
+        return lhs_type;
+    }
+
+    if (!lhs_dst_type.is_real() && rhs_dst_type.is_real()) {
+        lhs_dst_type = rhs_dst_type;
+    } else if (lhs_dst_type.is_real() && !rhs_dst_type.is_real()) {
+        rhs_dst_type = lhs_dst_type;
+    }
+    // Align bool to other type
+    if (lhs_dst_type == element::boolean) {
+        lhs_dst_type = rhs_dst_type;
+    } else if (rhs_dst_type == element::boolean) {
+        rhs_dst_type = lhs_dst_type;
+    }
+    // At this point we either have both floating point type or both integer type. Align bitness to higher
+    if (lhs_dst_type != rhs_dst_type) {
+        auto dst_bitness = std::max(lhs_dst_type.bitwidth(), rhs_dst_type.bitwidth());
+        // If integer type are mixed signed+unsigned align to next bitness
+        if (dst_bitness < 64 && lhs_dst_type.is_integral() && lhs_dst_type.is_integral() &&
+            lhs_dst_type.bitwidth() == rhs_dst_type.bitwidth() && lhs_dst_type != rhs_dst_type) {
+            dst_bitness *= 2;
+        }
+        if (lhs_dst_type.bitwidth() != dst_bitness) {
+            if (lhs_dst_type.is_real()) {
+                lhs_dst_type = bit_to_float.at(dst_bitness);
+            } else {
+                lhs_dst_type = bit_to_int.at(dst_bitness);
+            }
+        }
+        if (rhs_dst_type.bitwidth() != dst_bitness) {
+            if (rhs_dst_type.is_real()) {
+                rhs_dst_type = bit_to_float.at(dst_bitness);
+            } else {
+                rhs_dst_type = bit_to_int.at(dst_bitness);
+            }
+        }
+    }
+    return lhs_dst_type;
+}
+
 void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Output<Node>& rhs, bool align_scalars) {
     const auto& lhs_type = lhs.get_element_type();
     const auto& rhs_type = rhs.get_element_type();
@@ -401,74 +472,20 @@ void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Ou
             return;
         }
     }
-    if (lhs_type.is_dynamic() || rhs_type.is_dynamic()) {
-        // if any of types is not known, align to lhs type.
-        // TODO: can be fixed with special operation?
-        rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));
+    auto dst_type = infer_types(lhs, rhs, align_scalars);
+    if (dst_type.is_dynamic()) {
+        // We can't decide the type at this point, create a special operation
+        auto at = std::make_shared<AlignTypes>(lhs, rhs, align_scalars);
+        lhs = at->output(0);
+        rhs = at->output(1);
         return;
     }
-
-    // Both types are static, align types. If float and int types are used convert int type to f32, after that align
-    // to the largest bitness, if both float or both int, just align bitness
-    if (lhs_type == rhs_type)
-        return;
-
-    // if one of operands is scalar, the resulting type is taken from the other operand except when scalar is float
-    // type and other operand is int, in that case BOTH operands get fp32 type
-    const auto& lhs_rank = lhs.get_partial_shape().rank();
-    const auto& rhs_rank = rhs.get_partial_shape().rank();
-    // consider dynamic rank as non scalar
-    const auto is_lhs_scalar = lhs_rank.is_static() && lhs_rank.get_length() == 0;
-    const auto is_rhs_scalar = rhs_rank.is_static() && rhs_rank.get_length() == 0;
-    auto lhs_dst_type = lhs_type;
-    auto rhs_dst_type = rhs_type;
-    if (is_lhs_scalar && lhs_type.is_real() && !rhs_type.is_real()) {
-        // if div we need to also align float types to highest bitness regardless of scalar
-        if (!align_scalars)
-            lhs_dst_type = element::f32;
-        rhs_dst_type = element::f32;
-    } else if (is_rhs_scalar && !lhs_type.is_real() && rhs_type.is_real()) {
-        lhs_dst_type = element::f32;
-        // if div we need to also align float types to highest bitness regardless of scalar
-        if (!align_scalars)
-            rhs_dst_type = element::f32;
-    } else if (is_lhs_scalar) {
-        lhs = context.mark_node(std::make_shared<opset10::ConvertLike>(lhs, rhs));
-        return;
-    } else if (is_rhs_scalar) {
-        rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));
-        return;
+    // Cast to destination type
+    if (dst_type != lhs_type) {
+        lhs = context.mark_node(std::make_shared<opset10::Convert>(lhs, dst_type));
     }
-
-    if (lhs_dst_type == element::boolean || rhs_dst_type == element::boolean) {
-        // Do nothing with bool
-        return;
-    }
-
-    if (!lhs_dst_type.is_real() && rhs_dst_type.is_real()) {
-        lhs_dst_type = element::f32;
-    } else if (lhs_dst_type.is_real() && !rhs_dst_type.is_real()) {
-        rhs_dst_type = element::f32;
-    }
-    // Align bitness to higher
-    if (lhs_dst_type.bitwidth() != rhs_dst_type.bitwidth()) {
-        const auto dst_bitness = std::max(lhs_dst_type.bitwidth(), rhs_dst_type.bitwidth());
-        element::Type* type_to_align = &lhs_dst_type;
-        if (rhs_dst_type.bitwidth() < dst_bitness)
-            type_to_align = &rhs_dst_type;
-        if (type_to_align->is_real()) {
-            *type_to_align = bit_to_float.at(dst_bitness);
-        } else {
-            *type_to_align = bit_to_int.at(dst_bitness);
-        }
-    }
-
-    // Cast to destination types
-    if (lhs_dst_type != lhs_type) {
-        lhs = context.mark_node(std::make_shared<opset10::Convert>(lhs, lhs_dst_type));
-    }
-    if (rhs_dst_type != rhs_type) {
-        rhs = context.mark_node(std::make_shared<opset10::Convert>(rhs, rhs_dst_type));
+    if (dst_type != rhs_type) {
+        rhs = context.mark_node(std::make_shared<opset10::Convert>(rhs, dst_type));
     }
 }
 

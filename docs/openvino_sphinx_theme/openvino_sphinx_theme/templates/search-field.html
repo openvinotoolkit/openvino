@@ -1,16 +1,6 @@
-<form style="padding: 0 0.5rem;" class="d-flex align-items-center" action="{{ pathto('search') }}" method="get">
-  <div style="width:100%;" class="textfield textfield-q textfield-size-m left-slot">
-    <div class="slot left-slot-container">
-      <span class="icon fas fa-search"></span>
-    </div>
-    <input 
-      class="input input-quiet input-size-m" 
-      type="search" 
-      name="q" 
-      id="search-input" 
-      placeholder="{{ _(theme_search_bar_text) }}" 
-      aria-label="{{ theme_search_bar_text }}" 
-      autocomplete="off"
-    >
-  </div>
-</form>
+<div>
+<atomic-search-interface id="sa-search">
+  <atomic-search-box redirection-url="search.html">
+  </atomic-search-box>
+</atomic-search-interface>
+</div>

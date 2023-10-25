@@ -21,7 +21,7 @@ struct tile_impl : public typed_primitive_impl<tile> {
 
     std::shared_ptr<ov::op::v0::Tile> op;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::tile_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<tile_impl>(*this);
@@ -75,7 +75,7 @@ struct tile_impl : public typed_primitive_impl<tile> {
             if (repeats.empty())
                 OPENVINO_THROW("[GPU] Unexpected configuration of tile impl");
 
-            auto repeats_tensor = ov::Tensor(data_type_to_element_type(data_types::i64), {repeats.size()}, repeats.data());
+            auto repeats_tensor = ov::Tensor(ov::element::i64, {repeats.size()}, repeats.data());
             input_host_tensors.push_back(repeats_tensor);
         }
 

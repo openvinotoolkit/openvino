@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/region_yolo.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include <string>
 
@@ -75,7 +75,10 @@ protected:
 
         init_input_shapes({ inputShape });
 
-        auto paramRegionYolo = ngraph::builder::makeDynamicParams(inPrc, inputDynamicShapes);
+        ov::ParameterVector paramRegionYolo;
+        for (auto&& shape : inputDynamicShapes) {
+            paramRegionYolo.push_back(std::make_shared<ov::op::v0::Parameter>(inPrc, shape));
+        }
 
         const auto region_yolo = std::make_shared<ngraph::op::v0::RegionYolo>(paramRegionYolo[0],
                                                                               attributes.coordinates, attributes.classes, attributes.num_regions,

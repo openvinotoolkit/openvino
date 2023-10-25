@@ -14,6 +14,7 @@
 #include "helper_transforms/embedding_segments_feature_fusing.hpp"
 #include "helper_transforms/gru_block_cell_replacer.hpp"
 #include "helper_transforms/saved_model_unused_remover.hpp"
+#include "helper_transforms/tensor_array_v3_replacer.hpp"
 #include "input_model.hpp"
 #include "op_table.hpp"
 #include "openvino/core/so_extension.hpp"
@@ -189,6 +190,8 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
     // Last boolean flag in `variants` (if presented) is reserved for FE configuration
     size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
+    // Enable mmap by default
+    bool mmap_enabled = variants[variants.size() - 1].is<bool>() ? variants[variants.size() - 1].as<bool>() : true;
 
     // For TF1 models it can be a case of two input variants: input model and v1 checkpoints
     FRONT_END_GENERAL_CHECK(
@@ -203,7 +206,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
             return std::make_shared<InputModel>(std::make_shared<GraphIteratorProto>(model_path), m_telemetry);
         } else if (GraphIteratorSavedModel::is_supported(model_path)) {
             std::shared_ptr<GraphIteratorSavedModel> graph_iterator;
-            graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, std::string("serve"));
+            graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, std::string("serve"), mmap_enabled);
             return std::make_shared<InputModel>(graph_iterator,
                                                 m_telemetry,
                                                 graph_iterator->get_variables_index(),
@@ -212,7 +215,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 nullptr,
                                                 true);
         } else if (GraphIteratorMeta::is_supported(model_path)) {
-            auto graph_iterator = std::make_shared<GraphIteratorMeta>(model_path);
+            auto graph_iterator = std::make_shared<GraphIteratorMeta>(model_path, mmap_enabled);
             return std::make_shared<InputModel>(graph_iterator,
                                                 m_telemetry,
                                                 graph_iterator->get_variables_index(),
@@ -257,7 +260,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         auto saved_model_tags = paths[1];
         if (GraphIteratorSavedModel::is_supported(model_path)) {
             std::shared_ptr<GraphIteratorSavedModel> graph_iterator;
-            graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, saved_model_tags);
+            graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, saved_model_tags, mmap_enabled);
             return std::make_shared<InputModel>(graph_iterator,
                                                 m_telemetry,
                                                 graph_iterator->get_variables_index(),
@@ -275,7 +278,9 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
             return std::make_shared<InputModel>(std::make_shared<GraphIteratorProto>(model_path), m_telemetry);
         } else if (GraphIteratorSavedModel::is_supported(model_path)) {
             std::shared_ptr<GraphIteratorSavedModel> graph_iterator;
-            graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, std::string(META_GRAPH_DEFAULT_TAG));
+            graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path,
+                                                                       std::string(META_GRAPH_DEFAULT_TAG),
+                                                                       mmap_enabled);
             return std::make_shared<InputModel>(graph_iterator,
                                                 m_telemetry,
                                                 graph_iterator->get_variables_index(),
@@ -284,7 +289,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 nullptr,
                                                 true);
         } else if (GraphIteratorMeta::is_supported(model_path)) {
-            auto graph_iterator = std::make_shared<GraphIteratorMeta>(model_path);
+            auto graph_iterator = std::make_shared<GraphIteratorMeta>(model_path, mmap_enabled);
             return std::make_shared<InputModel>(graph_iterator,
                                                 m_telemetry,
                                                 graph_iterator->get_variables_index(),
@@ -329,7 +334,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         auto saved_model_tags = ov::util::wstring_to_string(paths[1]);
         if (GraphIteratorSavedModel::is_supported(model_path)) {
             std::shared_ptr<GraphIteratorSavedModel> graph_iterator;
-            graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, saved_model_tags);
+            graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, saved_model_tags, mmap_enabled);
             return std::make_shared<InputModel>(graph_iterator,
                                                 m_telemetry,
                                                 graph_iterator->get_variables_index(),
@@ -343,7 +348,23 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     else if (variants[0].is<GraphIterator::Ptr>()) {
         // this is used for OpenVINO with TensorFlow Integration
         auto graph_iterator = variants[0].as<GraphIterator::Ptr>();
-        return std::make_shared<InputModel>(graph_iterator, m_telemetry);
+        std::shared_ptr<std::map<std::string, std::string>> input_names_map = nullptr;
+        std::shared_ptr<std::map<std::string, std::string>> output_names_map = nullptr;
+        if (graph_iterator->get_input_names_map().size() > 0) {
+            input_names_map =
+                std::make_shared<std::map<std::string, std::string>>(graph_iterator->get_input_names_map());
+        }
+        if (graph_iterator->get_output_names_map().size() > 0) {
+            output_names_map =
+                std::make_shared<std::map<std::string, std::string>>(graph_iterator->get_output_names_map());
+        }
+        return std::make_shared<InputModel>(graph_iterator,
+                                            m_telemetry,
+                                            nullptr,
+                                            input_names_map,
+                                            output_names_map,
+                                            nullptr,
+                                            false);
     }
 
     FRONT_END_GENERAL_CHECK(false,
@@ -471,6 +492,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
     manager.register_pass<pass::BlockLSTMReplacer>();
     manager.register_pass<pass::GRUBlockCellReplacer>();
+    manager.register_pass<pass::TensorArrayV3Replacer>();
     manager.register_pass<pass::ConstToResultRemover>();
     manager.register_pass<pass::SwitchMergeResolver>();
     manager.register_pass<ov::pass::UnrollIf>();

@@ -71,8 +71,6 @@ struct eltwise : public primitive_base<eltwise> {
 
     eltwise() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs eltwise primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -177,7 +175,7 @@ struct eltwise : public primitive_base<eltwise> {
     }
 
     /// @param mode Eltwise mode.
-    eltwise_mode mode;
+    eltwise_mode mode = eltwise_mode::sum;
     /// @param coefficients Blob-wise coefficient.
     std::vector<float> coefficients;
     /// @brief Defines shift in input buffers between adjacent calculations of output values.
@@ -185,7 +183,7 @@ struct eltwise : public primitive_base<eltwise> {
     /// @brief Define auto broadcast rule specification.
     ov::op::AutoBroadcastSpec broadcast_spec;
     /// @brief Define m_pythondiv.
-    bool m_pythondiv;
+    bool m_pythondiv = true;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

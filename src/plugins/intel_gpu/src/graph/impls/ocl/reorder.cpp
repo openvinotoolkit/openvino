@@ -18,7 +18,7 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
     using kernel_selector_t = kernel_selector::reorder_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::reorder_params, kernel_selector::reorder_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::reorder_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<reorder_impl>(*this);
@@ -125,6 +125,8 @@ public:
         const auto& prim = impl_param.typed_desc<reorder>();
         const auto& weights_params = prim->weights_reorder_params;
         auto& kernel_selector = kernel_selector::ReorderWeightsKernelSelector::Instance();
+
+        OPENVINO_ASSERT(weights_params != nullptr, "[GPU] Attempt to create reorder weights without weights params");
 
         OPENVINO_ASSERT(impl_param.get_input_layout().bytes_count() == weights_params->get_input_layout().bytes_count(),
                         "[GPU] Input layout doesn't match required reorder weights layout");

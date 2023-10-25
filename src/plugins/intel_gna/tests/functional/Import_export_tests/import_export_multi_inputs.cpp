@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "base/import_export_base.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -22,7 +22,8 @@ protected:
             this->GetParam();
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto input = ngraph::builder::makeParams(ngPrc, {inputShape, inputShape});
+        ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape)),
+                                  std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         auto mul1 = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
         auto result = std::make_shared<ngraph::opset7::Result>(mul1);
 

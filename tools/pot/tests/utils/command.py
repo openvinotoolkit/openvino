@@ -22,9 +22,9 @@ class Command:
         # set system/version dependent 'start_new_session' analogs
         if sys.platform == 'win32':
             self.kwargs.update(creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
-        elif sys.version_info < (3, 7):  # assume posix
+        elif sys.version_info < (3, 8):  # assume posix
             self.kwargs.update(preexec_fn=os.setsid)
-        else:  # Python 3.7+ and Unix
+        else:  # Python 3.8+ and Unix
             self.kwargs.update(start_new_session=True)
 
     def kill_process_tree(self, pid):

@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/reduce_ops.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <string>
 
 using namespace ngraph;
@@ -77,7 +77,10 @@ protected:
 
         init_input_shapes(inputShapes);
 
-        auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+        }
         auto paramOuts = ngraph::helpers::convert2OutputVector(
                 ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 

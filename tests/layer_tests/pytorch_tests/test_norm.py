@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 import torch
@@ -245,6 +247,8 @@ class TestLinalgMatrixNorm(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", ["float32", "float64", None])
     @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.parametrize("prim_dtype", [True, False])
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_linalg_matrix_norm(self, p, dim, keepdim, dtype, out, prim_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(p, dim, keepdim, dtype, out, prim_dtype),
                    ie_device, precision, ir_version,
@@ -253,11 +257,11 @@ class TestLinalgMatrixNorm(PytorchLayerTest):
 
 class TestLinalgNorm(PytorchLayerTest):
 
-    def _prepare_input(self, out=False, out_dtype=None):
+    def _prepare_input(self, out=False, out_dtype=None, input_shape=(3, 3)):
         if not out:
-            return (np.random.randn(3, 3).astype(np.float32),)
-        x = np.random.randn(3, 3).astype(np.float32)
-        y = np.random.randn(3, 3).astype(
+            return (np.random.randn(*input_shape).astype(np.float32),)
+        x = np.random.randn(*input_shape).astype(np.float32)
+        y = np.random.randn(*input_shape).astype(
             out_dtype if out_dtype is not None else np.float32)
         return (x, y)
 
@@ -318,7 +322,12 @@ class TestLinalgNorm(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", ["float32", "float64", None])
     @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.parametrize("prim_dtype", [True, False])
-    def test_linalg_norm(self, p, dim, keepdim, dtype, out, prim_dtype, ie_device, precision, ir_version):
+    @pytest.mark.parametrize("input_shape", [[1, 3], [3, 3], [1, 3, 3]])
+    def test_linalg_norm(self, p, dim, keepdim, dtype, out, prim_dtype, input_shape, ie_device, precision, ir_version):
         self._test(*self.create_model(p, dim, keepdim, dtype, out, prim_dtype),
                    ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"out": out or prim_dtype, "out_dtype": dtype if prim_dtype else None})
+                   kwargs_to_prepare_input={
+                       "out": out or prim_dtype, 
+                       "out_dtype": dtype if prim_dtype else None,
+                       "input_shape": input_shape
+                       })

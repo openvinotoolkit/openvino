@@ -46,8 +46,6 @@ struct crop : public primitive_base<crop> {
 
     crop() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs crop primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -127,7 +125,7 @@ struct crop : public primitive_base<crop> {
     /// @brief num_splits which Split has number of split as property
     size_t num_splits = 1;
     /// @brief original ngraph operation type
-    crop_ngraph_op_mode op_mode;
+    crop_ngraph_op_mode op_mode = crop_ngraph_op_mode::none;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

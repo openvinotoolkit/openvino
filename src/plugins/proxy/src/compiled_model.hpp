@@ -38,7 +38,10 @@ public:
     }
 
     ov::Any get_property(const std::string& name) const override {
-        return m_compiled_model->get_property(name);
+        auto property = m_compiled_model->get_property(name);
+        if (!property._so)
+            property._so = m_compiled_model._so;
+        return property;
     }
     const std::vector<ov::Output<const ov::Node>>& inputs() const override {
         return m_compiled_model->inputs();

@@ -224,9 +224,9 @@ protected:
     }
 
     kernel_arguments_data get_arguments_impl(const typed_primitive_inst<PType>& instance) const override {
-        for (size_t k = 0; k < _kernels.size(); ++k) {
+        if (_kernels.size()) {
             auto args = get_arguments(instance);
-            args.scalars = &_kernel_data.kernels[k].params.scalars;
+            args.scalars = &_kernel_data.kernels[0].params.scalars;
 
             for (const auto& m : instance.get_intermediates_memories()) {
                 args.intermediates.push_back(m);

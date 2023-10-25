@@ -2,22 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/log_softmax.hpp"
+
 #include "common_test_utils/type_prop.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, log_softmax) {
-    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 3, 6});
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 6});
     auto log_softmax_func = make_shared<op::v5::LogSoftmax>(data, 1);
     EXPECT_EQ(log_softmax_func->get_element_type(), element::f32);
     EXPECT_EQ(log_softmax_func->get_shape(), (Shape{1, 3, 6}));
 }
 
 TEST(type_prop, log_softmax_incorrect_axis) {
-    const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 3, 6});
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 6});
 
     try {
         auto log_softmax_func = make_shared<op::v5::LogSoftmax>(data, 3);
@@ -29,7 +29,7 @@ TEST(type_prop, log_softmax_incorrect_axis) {
 
 // TEST(type_prop, log_softmax_partial)
 // {
-//     auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 6});
+//     auto data = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 6});
 //     auto log_softmax_func = make_shared<op::v5::LogSoftmax>(data, 1);
 //     EXPECT_EQ(log_softmax_func->get_element_type(), element::f32);
 //     ASSERT_TRUE(log_softmax_func->get_output_partial_shape(0).same_scheme(
@@ -37,13 +37,13 @@ TEST(type_prop, log_softmax_incorrect_axis) {
 //
 //     // rank unknown
 //     auto log_softmax_partial = make_shared<op::v5::LogSoftmax>(
-//         make_shared<op::Parameter>(element::f32, PartialShape::dynamic()));
+//         make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic()));
 //     ASSERT_TRUE(
 //         log_softmax_partial->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 // }
 
 TEST(type_prop, log_softmax_partial_static_rank) {
-    auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 6});
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 6});
     auto log_softmax_func = make_shared<op::v5::LogSoftmax>(data, 1);
     EXPECT_EQ(log_softmax_func->get_element_type(), element::f32);
     ASSERT_TRUE(log_softmax_func->get_output_partial_shape(0).same_scheme((PartialShape{1, Dimension::dynamic(), 6})));

@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/experimental_detectron_detection_output.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
@@ -86,7 +86,10 @@ void ExperimentalDetectronDetectionOutputLayerTest::SetUp() {
 
     init_input_shapes(inputShapes);
 
-    auto params = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes});
+    ov::ParameterVector params;
+    for (auto&& shape : inputDynamicShapes) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+    }
     auto paramsOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto experimentalDetectron = std::make_shared<ngraph::opset6::ExperimentalDetectronDetectionOutput>(
         params[0], // input_rois

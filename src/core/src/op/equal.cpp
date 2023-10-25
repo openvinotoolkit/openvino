@@ -9,8 +9,8 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/less_eq.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/equal.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/reference/equal.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -23,12 +23,12 @@ bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
               const HostTensorPtr& out,
               const op::AutoBroadcastSpec& broadcast_spec) {
-    runtime::reference::equal(arg0->get_data_ptr<ET>(),
-                              arg1->get_data_ptr<ET>(),
-                              out->get_data_ptr<element::Type_t::boolean>(),
-                              arg0->get_shape(),
-                              arg1->get_shape(),
-                              broadcast_spec);
+    ov::reference::equal(arg0->get_data_ptr<ET>(),
+                         arg1->get_data_ptr<ET>(),
+                         out->get_data_ptr<element::Type_t::boolean>(),
+                         arg0->get_shape(),
+                         arg1->get_shape(),
+                         broadcast_spec);
     return true;
 }
 
@@ -39,21 +39,21 @@ bool evaluate_equal(const HostTensorPtr& arg0,
     bool rc = true;
     out->set_broadcast(broadcast_spec, arg0, arg1, element::boolean);
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_equal, boolean, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_equal, i4, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_equal, i8, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_equal, i16, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_equal, i32, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_equal, i64, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_equal, u4, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_equal, u8, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_equal, u16, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_equal, u32, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_equal, u64, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_equal, bf16, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_equal, f16, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_equal, f32, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_equal, f64, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_equal, boolean, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_equal, i4, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_equal, i8, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_equal, i16, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_equal, i32, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_equal, i64, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_equal, u4, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_equal, u8, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_equal, u16, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_equal, u32, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_equal, u64, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_equal, bf16, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_equal, f16, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_equal, f32, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_equal, f64, arg0, arg1, out, broadcast_spec);
     default:
         rc = false;
         break;

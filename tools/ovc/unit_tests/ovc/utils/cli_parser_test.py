@@ -13,187 +13,150 @@ from unittest.mock import patch
 import numpy as np
 
 from openvino.tools.ovc.cli_parser import input_to_input_cut_info, \
-    check_positive, writable_dir, \
-    readable_file_or_object, get_freeze_placeholder_values, get_all_cli_parser, \
-    get_mo_convert_params
-from openvino.tools.ovc.convert_impl import pack_params_to_args_namespace
+    readable_file_or_object, get_all_cli_parser, get_mo_convert_params, parse_inputs
+from openvino.tools.ovc.convert_impl import pack_params_to_args_namespace, arguments_post_parsing, args_to_argv
 from openvino.tools.ovc.error import Error
 from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from openvino.runtime import PartialShape, Dimension, Layout
-from openvino.tools.ovc import InputCutInfo
+from openvino.tools.ovc.cli_parser import _InputCutInfo
+import openvino.runtime as ov
 
 
 class TestShapesParsing(UnitTestWithMockedTelemetry):
     def test_get_shapes_several_inputs_several_shapes2(self):
         # shapes specified using --input command line parameter and no values
         argv_input = "inp1[1,22,333,123],inp2[-1,45,7,1]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='inp1', shape=PartialShape([1,22,333,123])),
-                      InputCutInfo(name='inp2', shape=PartialShape([-1,45,7,1]))]
+        inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([1,22,333,123])),
+                      _InputCutInfo(name='inp2', shape=PartialShape([-1,45,7,1]))]
         self.assertEqual(inputs, inputs_ref)
-        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input)
-        placeholder_values_ref = {}
-        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
-        for i in placeholder_values_ref.keys():
-            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
+
+    def test_raises_get_shapes_1(self):
+        argv_input = "[h,y]"
+        self.assertRaises(Error, parse_inputs, argv_input)
+
+    def test_raises_get_shapes_2(self):
+        argv_input = "(2, 3)"
+        self.assertRaises(Error, parse_inputs, argv_input)
+
+    def test_raises_get_shapes_3(self):
+        argv_input = "input_1(2, 3)"
+        self.assertRaises(Error, parse_inputs, argv_input)
+
+    def test_raises_get_shapes_4(self):
+        argv_input = "(2, 3),(10, 10)"
+        self.assertRaises(Error, parse_inputs, argv_input)
+
+    def test_raises_get_shapes_5(self):
+        argv_input = "<2,3,4>"
+        self.assertRaises(Error, parse_inputs, argv_input)
+
+    def test_raises_get_shapes_6(self):
+        argv_input = "sd<2,3>"
+        self.assertRaises(Error, parse_inputs, argv_input)
+
+    def test_get_shapes_complex_input(self):
+        argv_input = "[10, -1, 100],mask[],[?,?]"
+        argv_input = parse_inputs(argv_input)
+        inputs = input_to_input_cut_info(argv_input)
+        inputs_ref = [_InputCutInfo(shape=PartialShape([10, -1, 100])),
+                      _InputCutInfo(name='mask', shape=PartialShape([])),
+                      _InputCutInfo(shape=PartialShape([-1, -1]))]
+        self.assertEqual(inputs, inputs_ref)
 
     def test_get_shapes_and_freezing_with_scalar_and_without_shapes_in_input(self):
         # shapes and value for freezing specified using --input command line parameter
-        argv_input = "inp1,inp2->157"
+        argv_input = "inp1,inp2"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='inp1'),
-                      InputCutInfo(name='inp2', value=157)]
+        inputs_ref = [_InputCutInfo(name='inp1'),
+                      _InputCutInfo(name='inp2')]
         self.assertEqual(inputs, inputs_ref)
 
-        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input)
-        placeholder_values_ref = {'inp2': 157}
-
-        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
-        for i in placeholder_values_ref.keys():
-            self.assertEqual(placeholder_values_res[i], placeholder_values_ref[i])
 
     def test_get_shapes_and_freezing_with_scalar(self):
         # shapes and value for freezing specified using --input command line parameter
-        argv_input = "inp1,inp2[]->157"
+        argv_input = "inp1,inp2[]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='inp1'),
-                      InputCutInfo(name='inp2', shape=PartialShape([]), value=157)]
+        inputs_ref = [_InputCutInfo(name='inp1'),
+                      _InputCutInfo(name='inp2', shape=PartialShape([]))]
         self.assertEqual(inputs, inputs_ref)
 
     def test_get_shapes_several_inputs_several_shapes3(self):
         # shapes and value for freezing specified using --input command line parameter
-        argv_input = "inp1[3 1]->[1.0 2.0 3.0],inp2[3,2,3],inp3[5]->[1.0 1.0 2.0 3.0 5.0]"
+        argv_input = "inp1[3 1],inp2[3,2,3],inp3[5]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='inp1', shape=PartialShape([3,1]), value=['1.0', '2.0', '3.0']),
-                      InputCutInfo(name='inp2', shape=PartialShape([3,2,3])),
-                      InputCutInfo(name='inp3', shape=PartialShape([5]), value=['1.0', '1.0', '2.0', '3.0', '5.0'])]
+        inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([3,1])),
+                      _InputCutInfo(name='inp2', shape=PartialShape([3,2,3])),
+                      _InputCutInfo(name='inp3', shape=PartialShape([5]))]
         self.assertEqual(inputs, inputs_ref)
-        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input)
-        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']),
-                                  'inp3': np.array(['1.0', '1.0', '2.0', '3.0', '5.0'])}
-        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
-        for i in placeholder_values_ref.keys():
-            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
 
     def test_get_shapes_several_inputs_several_shapes3_comma_sep(self):
         # shapes and value for freezing specified using --input command line parameter
-        argv_input = "inp1[3 1]->[1.0 2.0 3.0],inp2[3 2 3],inp3[5]->[1.0, 1.0, 2.0, 3.0,5.0]"
+        argv_input = "inp1[3 1],inp2[3 2 3],inp3[5]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='inp1', shape=PartialShape([3,1]), value=['1.0', '2.0', '3.0']),
-                      InputCutInfo(name='inp2', shape=PartialShape([3,2,3])),
-                      InputCutInfo(name='inp3', shape=PartialShape([5]), value=['1.0', '1.0', '2.0', '3.0', '5.0'])]
+        inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([3,1])),
+                      _InputCutInfo(name='inp2', shape=PartialShape([3,2,3])),
+                      _InputCutInfo(name='inp3', shape=PartialShape([5]))]
         self.assertEqual(inputs, inputs_ref)
-        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input)
-        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']),
-                                  'inp3': np.array(['1.0', '1.0', '2.0', '3.0', '5.0'])}
-        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
-        for i in placeholder_values_ref.keys():
-            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
 
     def test_get_shapes_several_inputs_several_shapes6(self):
         # 0D value for freezing specified using --input command line parameter without shape
-        argv_input = "inp1[3,1]->[1.0 2.0 3.0],inp2[3,2,3],inp3->False"
+        argv_input = "inp1[3,1],inp2[3,2,3],inp3"
+        argv_input = parse_inputs(argv_input)
         inputs_list, result, _ = input_to_input_cut_info(argv_input)
         inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='inp1', shape=PartialShape([3,1]), value=['1.0', '2.0', '3.0']),
-                      InputCutInfo(name='inp2', shape=PartialShape([3,2,3])),
-                      InputCutInfo(name='inp3', value=False)]
+        inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([3,1])),
+                      _InputCutInfo(name='inp2', shape=PartialShape([3,2,3])),
+                      _InputCutInfo(name='inp3')]
         self.assertEqual(inputs, inputs_ref)
-        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input)
-        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']), 'inp3': False}
-        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
-        for i in placeholder_values_ref.keys():
-            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
 
     def test_get_shapes_several_inputs_several_shapes7(self):
         # 0D shape and value for freezing specified using --input command line parameter
-        argv_input = "inp1[3,1]->[1.0 2.0 3.0],inp2[3,2,3],inp3[]->True"
+        argv_input = "inp1[3,1],inp2[3,2,3],inp3[]"
+        argv_input = parse_inputs(argv_input)
         inputs_list, result, _ = input_to_input_cut_info(argv_input)
         inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='inp1', shape=PartialShape([3,1]), value=['1.0', '2.0', '3.0']),
-                      InputCutInfo(name='inp2', shape=PartialShape([3,2,3])),
-                      InputCutInfo(name='inp3', shape=PartialShape([]), value=True)]
-        self.assertEqual(inputs, inputs_ref)
-        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input)
-        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']), 'inp3': True}
-        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
-        for i in placeholder_values_ref.keys():
-            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
-
-    def test_get_shapes_and_data_types1(self):
-        argv_input = "inp1[3 1]->[1.0 2.0 3.0],inp2[3 2 3]{i32},inp3[5]{f32}->[1.0 1.0 2.0 3.0 5.0]"
-        inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='inp1', shape=PartialShape([3,1]), value=['1.0', '2.0', '3.0']),
-                      InputCutInfo(name='inp2', shape=PartialShape([3,2,3]), type=np.int32),
-                      InputCutInfo(name='inp3', shape=PartialShape([5]), type=np.float32, value=['1.0', '1.0', '2.0', '3.0', '5.0'])]
+        inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([3,1])),
+                      _InputCutInfo(name='inp2', shape=PartialShape([3,2,3])),
+                      _InputCutInfo(name='inp3', shape=PartialShape([]))]
         self.assertEqual(inputs, inputs_ref)
 
-    def test_get_shapes_and_data_types_with_input_ports(self):
-        argv_input = "1:inp1[3 1]->[1.0 2.0 3.0],inp2[3 2 3]{i32},0:inp3[5]{f32}->[1.0 1.0 2.0 3.0 5.0]"
-        inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='1:inp1', shape=PartialShape([3,1]), value=['1.0', '2.0', '3.0']),
-                      InputCutInfo(name='inp2', shape=PartialShape([3,2,3]), type=np.int32),
-                      InputCutInfo(name='0:inp3', shape=PartialShape([5]), type=np.float32, value=['1.0', '1.0', '2.0', '3.0', '5.0'])]
-        self.assertEqual(inputs, inputs_ref)
-
-    def test_get_shapes_and_data_types_with_output_ports(self):
-        argv_input = "inp1:1[3 1]->[1.0 2.0 3.0],inp2[3 2 3]{i32},inp3:4[5]{f32}->[1.0 1.0 2.0 3.0 5.0]"
-        inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='inp1:1', shape=PartialShape([3,1]), value=['1.0', '2.0', '3.0']),
-                      InputCutInfo(name='inp2', shape=PartialShape([3,2,3]), type=np.int32),
-                      InputCutInfo(name='inp3:4', shape=PartialShape([5]), type=np.float32, value=['1.0', '1.0', '2.0', '3.0', '5.0'])]
-        self.assertEqual(inputs, inputs_ref)
-
-    def test_get_shapes_and_data_types_with_output_ports_comma_sep(self):
-        argv_input = "inp1:1[3,1]->[1.0,2.0 ,3.0],inp2[3,2, 3]{i32},inp3:4[5]{f32}->[1.0, 1.0,2.0, 3.0,5.0]"
-        inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='inp1:1', shape=PartialShape([3,1]), value=['1.0', '2.0', '3.0']),
-                      InputCutInfo(name='inp2', shape=PartialShape([3,2,3]), type=np.int32),
-                      InputCutInfo(name='inp3:4', shape=PartialShape([5]), type=np.float32, value=['1.0', '1.0', '2.0', '3.0', '5.0'])]
-        self.assertEqual(inputs, inputs_ref)
 
     def test_get_shapes_and_data_types_shape_only(self):
         argv_input = "placeholder1[3 1],placeholder2,placeholder3"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='placeholder1', shape=PartialShape([3,1])),
-                      InputCutInfo(name='placeholder2'),
-                      InputCutInfo(name='placeholder3')]
+        inputs_ref = [_InputCutInfo(name='placeholder1', shape=PartialShape([3,1])),
+                      _InputCutInfo(name='placeholder2'),
+                      _InputCutInfo(name='placeholder3')]
         self.assertEqual(inputs, inputs_ref)
 
     def test_get_shapes_and_data_types_shape_with_ports_only(self):
         argv_input = "placeholder1:4[3 1],placeholder2,2:placeholder3"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='placeholder1:4', shape=PartialShape([3,1])),
-                      InputCutInfo(name='placeholder2'),
-                      InputCutInfo(name='2:placeholder3')]
-        self.assertEqual(inputs, inputs_ref)
-
-    def test_get_shapes_and_data_types_when_no_freeze_value(self):
-        argv_input = "placeholder1{i32}[3 1],placeholder2,placeholder3{i32}"
-        inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='placeholder1', shape=PartialShape([3,1]), type=np.int32),
-                      InputCutInfo(name='placeholder2'),
-                      InputCutInfo(name='placeholder3', type=np.int32)]
+        inputs_ref = [_InputCutInfo(name='placeholder1:4', shape=PartialShape([3,1])),
+                      _InputCutInfo(name='placeholder2'),
+                      _InputCutInfo(name='2:placeholder3')]
         self.assertEqual(inputs, inputs_ref)
 
     def test_wrong_data_types(self):
         argv_input = "inp1[3 1]->[1.0 2.0 3.0],inp2[3 2 3]{abracadabra},inp3[5]{f32}->[1.0 1.0 2.0 3.0 5.0]"
-        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+        self.assertRaises(Error, parse_inputs, argv_input)
 
     def test_shape_and_value_shape_mismatch(self):
         # size of value tensor does not correspond to specified shape for the third node
         argv_input = "inp1[3 1]->[1.0 2.0 3.0],inp2[3 2 3],inp3[5 3]->[2.0 3.0 5.0]"
-        self.assertRaises(Error, input_to_input_cut_info, argv_input)
-
-    def test_wrong_data_for_input_cmd_param(self):
-        # test that wrongly formatted data specified in --input is handled properly
-        argv_input = "abc->[1.0"
-        self.assertRaises(Error, get_freeze_placeholder_values, argv_input)
-        argv_input = "def[2 2]->[1.0 2.0 3.0 4.0],abc->1.0 34]"
-        self.assertRaises(Error, get_freeze_placeholder_values, argv_input)
+        self.assertRaises(Error, parse_inputs, argv_input)
 
     def test_get_shapes_no_input_no_shape(self):
         argv_input = ""
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
         inputs_ref = []
         self.assertEqual(inputs, inputs_ref)
@@ -201,217 +164,148 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
 
     def test_get_shapes_no_input_one_shape2(self):
         argv_input = "[12,4,1]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(shape=PartialShape([12,4,1]))]
+        inputs_ref = [_InputCutInfo(shape=PartialShape([12,4,1]))]
         self.assertEqual(inputs, inputs_ref)
 
     def test_get_shapes_for_scalar_inputs(self):
         argv_input = "[]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(shape=PartialShape([]))]
+        inputs_ref = [_InputCutInfo(shape=PartialShape([]))]
         self.assertEqual(inputs, inputs_ref)
 
     def test_get_shapes_two_input_shapes_with_scalar(self):
         argv_input = "[12,4,1],[]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(shape=PartialShape([12,4,1])),
-                      InputCutInfo(shape=PartialShape([]))]
+        inputs_ref = [_InputCutInfo(shape=PartialShape([12,4,1])),
+                      _InputCutInfo(shape=PartialShape([]))]
         self.assertEqual(inputs, inputs_ref)
 
     def test_get_shapes_two_input_shapes(self):
         argv_input = "[12,4,1],[10]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(shape=PartialShape([12,4,1])),
-                      InputCutInfo(shape=PartialShape([10])),]
+        inputs_ref = [_InputCutInfo(shape=PartialShape([12,4,1])),
+                      _InputCutInfo(shape=PartialShape([10])),]
         self.assertEqual(inputs, inputs_ref)
 
     def test_get_shapes_one_input_no_shape(self):
         argv_input = "inp1"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='inp1')]
+        inputs_ref = [_InputCutInfo(name='inp1')]
         self.assertEqual(inputs, inputs_ref)
 
     def test_get_shapes_several_inputs_several_partial_shapes2(self):
         # shapes specified using --input command line parameter and no values
         argv_input = "inp1[1,?,50..100,123],inp2[-1,45..,..7,1]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='inp1', shape=PartialShape("[1,?,50..100,123]")),
-                      InputCutInfo(name='inp2', shape=PartialShape("[-1,45..,..7,1]"))]
+        inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape("[1,?,50..100,123]")),
+                      _InputCutInfo(name='inp2', shape=PartialShape("[-1,45..,..7,1]"))]
         self.assertEqual(inputs, inputs_ref)
-
-        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input)
-        placeholder_values_ref = {}
-        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
-        for i in placeholder_values_ref.keys():
-            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
 
     def test_get_shapes_several_inputs_several_partial_shapes3(self):
         # shapes and value for freezing specified using --input command line parameter
-        argv_input = "inp1[3,1]->[1.0 2.0 3.0],inp2[3..,..2,5..10,?,-1],inp3[5]->[1.0 1.0 2.0 3.0 5.0]"
+        argv_input = "inp1[3,1],inp2[3..,..2,5..10,?,-1],inp3[5]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='inp1', shape=PartialShape([3,1]), value=["1.0", "2.0", "3.0"]),
-                      InputCutInfo(name='inp2', shape=PartialShape("[3..,..2,5..10,?,-1]")),
-                      InputCutInfo(name='inp3', shape=PartialShape([5]), value=["1.0", "1.0", "2.0", "3.0", "5.0"])]
+        inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([3,1])),
+                      _InputCutInfo(name='inp2', shape=PartialShape("[3..,..2,5..10,?,-1]")),
+                      _InputCutInfo(name='inp3', shape=PartialShape([5]))]
         self.assertEqual(inputs, inputs_ref)
-        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input)
-        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']), 'inp3': np.array(['1.0', '1.0', '2.0', '3.0', '5.0'])}
-        input_node_names_ref = "inp1,inp2,inp3"
-        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
-        for i in placeholder_values_ref.keys():
-            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
 
     def test_get_shapes_several_inputs_several_partial_shapes6(self):
         # 0D value for freezing specified using --input command line parameter without shape
-        argv_input = "inp1[3 1]->[1.0 2.0 3.0],inp2[3.. ..2 5..10 ? -1],inp3->False"
+        argv_input = "inp1[3 1],inp2[3.. ..2 5..10 ? -1],inp3"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='inp1', shape=PartialShape([3,1]), value=["1.0", "2.0", "3.0"]),
-                      InputCutInfo(name='inp2', shape=PartialShape("[3..,..2,5..10,?,-1]")),
-                      InputCutInfo(name='inp3', value=False)]
+        inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([3,1])),
+                      _InputCutInfo(name='inp2', shape=PartialShape("[3..,..2,5..10,?,-1]")),
+                      _InputCutInfo(name='inp3')]
         self.assertEqual(inputs, inputs_ref)
-        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input)
-        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']), 'inp3': False}
-        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
-        for i in placeholder_values_ref.keys():
-            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
 
     def test_get_shapes_several_inputs_several_partial_shapes7(self):
         # 0D shape and value for freezing specified using --input command line parameter
-        argv_input = "inp1[3 1]->[1.0 2.0 3.0],inp2[3.. ..2 5..10 ? -1],inp3[]->True"
+        argv_input = "inp1[3 1],inp2[3.. ..2 5..10 ? -1],inp3[]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='inp1', shape=PartialShape([3,1]), value=["1.0", "2.0", "3.0"]),
-                      InputCutInfo(name='inp2', shape=PartialShape("[3..,..2,5..10,?,-1]")),
-                      InputCutInfo(name='inp3', shape=PartialShape([]), value=True)]
-        self.assertEqual(inputs, inputs_ref)
-        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input)
-        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']), 'inp3': True}
-        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
-        for i in placeholder_values_ref.keys():
-            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
-
-    def test_get_shapes_and_data_types_partial_shape_with_input_port(self):
-        argv_input = "inp1:1[3 1]->[1.0 2.0 3.0],0:inp2[3.. ..2 5..10 ? -1]{i32},inp3:4[5]{f32}->[1.0 1.0 2.0 3.0 5.0]"
-        inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='inp1:1', shape=PartialShape([3,1]), value=['1.0', '2.0', '3.0']),
-                      InputCutInfo(name='0:inp2', shape=PartialShape("[3..,..2,5..10,?,-1]"), type=np.int32),
-                      InputCutInfo(name='inp3:4', shape=PartialShape([5]), type=np.float32, value=['1.0', '1.0', '2.0', '3.0', '5.0'])]
-        self.assertEqual(inputs, inputs_ref)
-
-    def test_get_shapes_and_data_types_partial_shape_with_output_port(self):
-        argv_input = "inp1:1[3 1]->[1.0 2.0 3.0],inp2:3[3.. ..2 5..10 ? -1]{i32},inp3:4[5]{f32}->[1.0 1.0 2.0 3.0 5.0]"
-        inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='inp1:1', shape=PartialShape([3,1]), value=['1.0', '2.0', '3.0']),
-                      InputCutInfo(name='inp2:3', shape=PartialShape("[3..,..2,5..10,?,-1]"), type=np.int32),
-                      InputCutInfo(name='inp3:4', shape=PartialShape([5]), type=np.float32, value=['1.0', '1.0', '2.0', '3.0', '5.0'])]
+        inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([3,1])),
+                      _InputCutInfo(name='inp2', shape=PartialShape("[3..,..2,5..10,?,-1]")),
+                      _InputCutInfo(name='inp3', shape=PartialShape([]))]
         self.assertEqual(inputs, inputs_ref)
 
     def test_partial_shapes_freeze_dynamic_negative_case1(self):
         argv_input = "inp1:1[3 1..10]->[1.0 2.0 3.0]"
-        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+        self.assertRaises(Error, parse_inputs, argv_input)
 
     def test_partial_shapes_freeze_dynamic_negative_case2(self):
         argv_input = "inp1:1[1 2 -1]->[1.0 2.0 3.0]"
-        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+        self.assertRaises(Error, parse_inputs, argv_input)
 
     def test_get_shapes_several_inputs_several_partial_shapes2_comma_separator(self):
         # shapes specified using --input command line parameter and no values
         argv_input = "inp1[1,?,50..100,123],inp2[-1,45..,..7,1]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='inp1', shape=PartialShape("[1,?,50..100,123]")),
-                      InputCutInfo(name='inp2', shape=PartialShape("[-1,45..,..7,1]"))]
+        inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape("[1,?,50..100,123]")),
+                      _InputCutInfo(name='inp2', shape=PartialShape("[-1,45..,..7,1]"))]
         self.assertEqual(inputs, inputs_ref)
-
-        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input)
-        placeholder_values_ref = {}
-        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
-        for i in placeholder_values_ref.keys():
-            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
 
     def test_get_shapes_several_inputs_several_partial_shapes3_comma_separator(self):
         # shapes and value for freezing specified using --input command line parameter
-        argv_input = "inp1[3,1]->[1.0 2.0 3.0],inp2[3..,..2,5..10,?,-1],inp3[5]->[1.0 1.0 2.0 3.0 5.0]"
+        argv_input = "inp1[3,1],inp2[3..,..2,5..10,?,-1],inp3[5]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='inp1', shape=PartialShape([3,1]), value=["1.0", "2.0", "3.0"]),
-                      InputCutInfo(name='inp2', shape=PartialShape("[3..,..2,5..10,?,-1]")),
-                      InputCutInfo(name='inp3', shape=PartialShape([5]), value=["1.0", "1.0", "2.0", "3.0", "5.0"])]
+        inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([3,1])),
+                      _InputCutInfo(name='inp2', shape=PartialShape("[3..,..2,5..10,?,-1]")),
+                      _InputCutInfo(name='inp3', shape=PartialShape([5]))]
         self.assertEqual(inputs, inputs_ref)
-        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input)
-        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']),
-                                  'inp3': np.array(['1.0', '1.0', '2.0', '3.0', '5.0'])}
-        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
-        for i in placeholder_values_ref.keys():
-            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
 
     def test_get_shapes_several_inputs_several_partial_shapes6_comma_separator(self):
         # 0D value for freezing specified using --input command line parameter without shape
-        argv_input = "inp1[3, 1]->[1.0 2.0 3.0],inp2[3.., ..2, 5..10, ?,-1],inp3->False"
+        argv_input = "inp1[3, 1],inp2[3.., ..2, 5..10, ?,-1],inp3"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='inp1', shape=PartialShape([3,1]), value=["1.0", "2.0", "3.0"]),
-                      InputCutInfo(name='inp2', shape=PartialShape("[3..,..2,5..10,?,-1]")),
-                      InputCutInfo(name='inp3', value=False)]
+        inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([3,1])),
+                      _InputCutInfo(name='inp2', shape=PartialShape("[3..,..2,5..10,?,-1]")),
+                      _InputCutInfo(name='inp3')]
         self.assertEqual(inputs, inputs_ref)
-        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input)
-        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']), 'inp3': False}
-        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
-        for i in placeholder_values_ref.keys():
-            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
 
     def test_get_shapes_several_inputs_several_partial_shapes7_comma_separator(self):
         # 0D shape and value for freezing specified using --input command line parameter
-        argv_input = "inp1[3,1]->[1.0 2.0 3.0],inp2[3.., ..2,5..10, ?,-1],inp3[]->True"
+        argv_input = "inp1[3,1],inp2[3.., ..2,5..10, ?,-1],inp3[]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='inp1', shape=PartialShape([3,1]), value=["1.0", "2.0", "3.0"]),
-                      InputCutInfo(name='inp2', shape=PartialShape("[3..,..2,5..10,?,-1]")),
-                      InputCutInfo(name='inp3', shape=PartialShape([]), value=True)]
-        self.assertEqual(inputs, inputs_ref)
-        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input)
-        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']), 'inp3': True}
-        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
-        for i in placeholder_values_ref.keys():
-            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
-
-    def test_get_shapes_and_data_types_partial_shape_with_input_port_comma_separator(self):
-        argv_input = "inp1:1[3,1]->[1.0 2.0 3.0],0:inp2[ 3.. ,..2, 5..10, ?,-1]{i32},inp3:4[5]{f32}->[1.0 1.0 2.0 3.0 5.0]"
-        inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='inp1:1', shape=PartialShape([3,1]), value=['1.0', '2.0', '3.0']),
-                      InputCutInfo(name='0:inp2', shape=PartialShape("[3..,..2,5..10,?,-1]"), type=np.int32),
-                      InputCutInfo(name='inp3:4', shape=PartialShape([5]), type=np.float32, value=['1.0', '1.0', '2.0', '3.0', '5.0'])]
-        self.assertEqual(inputs, inputs_ref)
-
-    def test_get_shapes_and_data_types_partial_shape_with_output_port_comma_separator(self):
-        argv_input = "inp1:1[3,1]->[1.0 2.0 3.0],inp2:3[3..,..2,5..10,?,-1]{i32},inp3:4[5]{f32}->[1.0 1.0 2.0 3.0 5.0]"
-        inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [InputCutInfo(name='inp1:1', shape=PartialShape([3,1]), value=['1.0', '2.0', '3.0']),
-                      InputCutInfo(name='inp2:3', shape=PartialShape("[3..,..2,5..10,?,-1]"), type=np.int32),
-                      InputCutInfo(name='inp3:4', shape=PartialShape([5]), type=np.float32, value=['1.0', '1.0', '2.0', '3.0', '5.0'])]
+        inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([3,1])),
+                      _InputCutInfo(name='inp2', shape=PartialShape("[3..,..2,5..10,?,-1]")),
+                      _InputCutInfo(name='inp3', shape=PartialShape([]))]
         self.assertEqual(inputs, inputs_ref)
 
     def test_partial_shapes_freeze_dynamic_negative_case1_comma_separator(self):
         argv_input = "inp1:1[3,1..10]->[1.0 2.0 3.0]"
-        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+        self.assertRaises(Error, parse_inputs, argv_input)
 
     def test_partial_shapes_freeze_dynamic_negative_case2_comma_separator(self):
         argv_input = "inp1:1[1,2,-1]->[1.0 2.0 3.0]"
-        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+        self.assertRaises(Error, parse_inputs, argv_input)
 
     def test_partial_shapes_freeze_dynamic_negative_case3_comma_separator(self):
         argv_input = "inp1:1[3,1..10]->[1.0 2.0 3.0]"
-        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+        self.assertRaises(Error, parse_inputs, argv_input)
 
     def test_partial_shapes_freeze_dynamic_negative_case4_comma_separator(self):
         argv_input = "inp1:1[1, 2, -1]->[1.0 2.0 3.0]"
-        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+        self.assertRaises(Error, parse_inputs, argv_input)
 
-
-class PositiveChecker(unittest.TestCase):
-    def test_positive_checker_batch(self):
-        res = check_positive('1')
-        self.assertEqual(res, 1)
-
-    def test_positive_checker_batch_negative(self):
-        self.assertRaises(argparse.ArgumentTypeError, check_positive, '-1')
-
-    def test_positive_checker_batch_not_int(self):
-        self.assertRaises(argparse.ArgumentTypeError, check_positive, 'qwe')
+    def test_not_supported_arrow(self):
+        with self.assertRaisesRegex(Exception,
+                                    "Incorrect format of input."):
+            argv_input = parse_inputs("inp1->[1.0]")
+            input_to_input_cut_info(argv_input)
 
 
 class PathCheckerFunctions(unittest.TestCase):
@@ -451,27 +345,6 @@ class PathCheckerFunctions(unittest.TestCase):
         if os.path.exists(__class__.EXISTING_FILE):
             os.remove(__class__.EXISTING_FILE)
 
-    def test_single_writable_dir(self):
-        self.assertEqual(__class__.WRITABLE_DIR, writable_dir(__class__.WRITABLE_DIR))
-
-    @unittest.skip("Temporary disabled since chmod() is temporary not working on Linux. (Windows do not support not writable dir at all)")
-    def test_single_non_writable_dir(self):
-        with self.assertRaises(Error) as cm:
-            writable_dir(__class__.NOT_WRITABLE_DIR)
-
-    @unittest.skip("Temporary disabled since chmod() is temporary not working on Linux. (Windows do not support not writable dir at all)")
-    def test_single_non_writable_sub_dir(self):
-        with self.assertRaises(Error) as cm:
-            writable_dir(__class__.NOT_WRITABLE_SUB_DIR)
-
-    def test_multiple_writable_dirs(self):
-        dirs_str = ','.join([__class__.WRITABLE_DIR, __class__.WRITABLE_NON_EXISTING_DIR])
-        self.assertEqual(dirs_str, writable_dir(dirs_str))
-
-    def test_single_writable_non_existing_dir(self):
-        self.assertEqual(__class__.WRITABLE_NON_EXISTING_DIR, writable_dir(__class__.WRITABLE_NON_EXISTING_DIR))
-
-
     def test_readable_file(self):
         self.assertEqual(__class__.EXISTING_FILE, readable_file_or_object(__class__.EXISTING_FILE))
 
@@ -485,7 +358,7 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
         from openvino.frontend import ConversionExtension
         args = {'input_model': os.path.dirname(__file__),
                 'extension': ConversionExtension("Ext", lambda x: x),
-                'input': ['name', InputCutInfo("a", [1,2,3], numpy.float32, [5, 6, 7])],
+                'input': ['name', ("a", [1, 2, 3], ov.Type.f32)],
                 'output': ["a", "b", "c"]}
 
         cli_parser = get_all_cli_parser()
@@ -493,12 +366,120 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
 
         assert argv.input_model == args['input_model']
         assert argv.extension == args['extension']
-        assert argv.input == ['name', InputCutInfo("a", [1,2,3], numpy.float32, [5, 6, 7])]
-        assert argv.output == ["a","b","c"]
+        assert argv.input == ['name', ("a", [1,2,3], ov.Type.f32)]
+        assert argv.output == ["a", "b", "c"]
 
         for arg, value in vars(argv).items():
             if arg not in args and arg != 'is_python_api_used':
                 assert value == cli_parser.get_default(arg)
+
+    def test_output_post_parsing_1(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                'output': "a,b,c"}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = False
+        argv = arguments_post_parsing(argv)
+        assert argv.output == ["a", "b", "c"]
+
+    def test_output_post_parsing_2(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                'output': "a, b, c"}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = False
+        argv = arguments_post_parsing(argv)
+        assert argv.output == ["a", "b", "c"]
+
+    def test_output_post_parsing_3(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                'output': "a,b, c"}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = False
+        argv = arguments_post_parsing(argv)
+        assert argv.output == ["a", "b", "c"]
+
+    def test_output_post_parsing_4(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                'output': "a , b ,  c"}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = False
+        argv = arguments_post_parsing(argv)
+        assert argv.output == ["a", "b", "c"]
+
+    def test_output_post_parsing_5(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                'output': "a,b"}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = True
+        argv = arguments_post_parsing(argv)
+        assert argv.output == ["a,b"]  # post parsing should decorate single string into a list
+
+    def test_output_post_parsing_6(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                'output': ["first na me", "second name"]}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = True
+        argv = arguments_post_parsing(argv)
+        # when used in python api should be able to handle names with spaces
+        assert argv.output == ["first na me", "second name"]
+
+    def test_raises_output_post_parsing_1(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                'output': ["a,b, c", 23]}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = True
+        self.assertRaises(AssertionError, arguments_post_parsing, argv)
+
+    def test_raises_output_post_parsing_2(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                'output': "na me, full_name"}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = False
+        with self.assertRaisesRegex(AssertionError, ".*output names should not be empty or contain spaces"):
+            arguments_post_parsing(argv)
+
+    def test_raises_output_post_parsing_3(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                'output': "a,,b,c"}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = False
+        with self.assertRaisesRegex(AssertionError, ".*output names should not be empty or contain spaces"):
+            arguments_post_parsing(argv)
 
     def test_not_existing_dir(self):
         args = {"input_model": "abc"}
@@ -522,7 +503,6 @@ class TestConvertModelParamsParsing(unittest.TestCase):
         ref_params = {
             'Optional parameters:': {'input_model', 'input', 'output', 'example_input',
                                                'extension', 'verbose', 'share_weights'},
-            'PaddlePaddle-specific parameters:': {'example_output'},
         }
 
         params = get_mo_convert_params()
@@ -534,9 +514,7 @@ class TestConvertModelParamsParsing(unittest.TestCase):
         for group_name, params in ref_params.items():
             for param_name in params:
                 param_name = '--' + param_name
-                if group_name == 'PaddlePaddle-specific parameters:' or \
-                        param_name in ['--input_model', '--share_weights', '--example_input']:
+                if param_name in ['--input_model', '--share_weights', '--example_input']:
                     assert param_name not in cli_parser._option_string_actions
                 else:
                     assert param_name in cli_parser._option_string_actions
-

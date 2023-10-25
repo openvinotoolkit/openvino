@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/ctc_loss.hpp"
 
 namespace LayerTestsDefinitions {
@@ -50,7 +50,7 @@ void CTCLossLayerTest::SetUp() {
     auto ngFpPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(fpPrecision);
     auto ngIntPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(intPrecision);
 
-    auto params = ngraph::builder::makeParams(ngFpPrc, {logitsShapes});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngFpPrc, ov::Shape(logitsShapes))};
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto ctcLoss = std::dynamic_pointer_cast<ngraph::opset4::CTCLoss>(

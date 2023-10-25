@@ -185,59 +185,6 @@ void Matcher::clear_state() {
     m_pattern_value_maps.clear();
     m_matched_list.clear();
 }
-
-namespace {
-std::set<std::shared_ptr<Node>> as_node_set(const std::set<std::shared_ptr<op::Label>>& label_set) {
-    std::set<std::shared_ptr<Node>> result;
-    for (const auto& label : label_set) {
-        result.insert(label);
-    }
-    return result;
-}
-}  // namespace
-
-RecurrentMatcher::RecurrentMatcher(const Output<Node>& initial_pattern,
-                                   const Output<Node>& pattern,
-                                   const std::shared_ptr<Node>& rpattern,
-                                   const std::set<std::shared_ptr<op::Label>>& correlated_patterns)
-    : RecurrentMatcher(initial_pattern, pattern, rpattern, as_node_set(correlated_patterns)) {}
-
-bool RecurrentMatcher::match(Output<Node> graph) {
-    bool matched = false;
-    Matcher m_initial(m_initial_pattern);
-    Matcher m_repeat(m_pattern);
-    Matcher& m = m_initial;
-    PatternValueMap previous_matches;
-    m_matches.clear();
-    m_match_root = graph;
-
-    // try to match one cell (i.e. pattern)
-    while (m.match(graph, previous_matches)) {
-        matched = true;
-        // move to the next cell
-        graph = m.get_pattern_value_map()[m_recurrent_pattern];
-
-        // copy bound nodes for the current pattern graph into a global matches map
-        for (const auto& cur_match : m.get_pattern_value_map()) {
-            m_matches[cur_match.first].push_back(cur_match.second);
-        }
-
-        // pre-populate the pattern map for the next cell with the bound nodes
-        // from the current match. Only bound nodes whose labels are in
-        // correlated_patterns are pre-populated. Skip other labels are
-        // unbounded by default
-        for (const auto& cor_pat : m_correlated_patterns) {
-            previous_matches[cor_pat] = m.get_pattern_value_map()[cor_pat];
-        }
-        m = m_repeat;
-    }
-
-    if (!matched) {
-        m_match_root.reset();
-    }
-
-    return matched;
-}
 }  // namespace pattern
 }  // namespace pass
 }  // namespace ov

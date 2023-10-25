@@ -162,4 +162,23 @@ class TestNonZero_IndexPut(PytorchLayerTest):
         self.values = input_data["values"]
         self.indices_0 = indices[0]
         self.indices_1 = indices[1]
-        self._test(*self.create_model(accumulate), ie_device, precision, ir_version, trace_model=True)
+        self._test(*self.create_model(accumulate), ie_device, precision, ir_version, trace_model=True, use_convert_model=True)
+
+class TestMask_IndexPut(PytorchLayerTest):
+    def _prepare_input(self):
+        return (np.random.randn(100, 5).astype(np.float32),np.random.randn(100, 5).astype(np.float32))
+    
+    def create_model(self):
+        class aten_index_put_mask(torch.nn.Module):
+            def forward(self, x, y):
+                x[x < 0] = y[x < 0]
+                return x
+
+        ref_net = None
+
+        return aten_index_put_mask(), ref_net, "aten::index_put_"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_nonzero_index_put_(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=True, use_convert_model=True)

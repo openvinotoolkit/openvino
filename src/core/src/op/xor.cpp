@@ -2,105 +2,106 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/xor.hpp"
+#include "openvino/op/xor.hpp"
 
+#include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/xor.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/shape_util.hpp"
+#include "openvino/op/logical_xor.hpp"
+#include "openvino/reference/xor.hpp"
+#include "utils.hpp"
 
-using namespace std;
-using namespace ngraph;
-
-op::v1::LogicalXor::LogicalXor(const Output<Node>& arg0,
-                               const Output<Node>& arg1,
-                               const AutoBroadcastSpec& auto_broadcast)
-    : BinaryElementwiseLogical(arg0, arg1, auto_broadcast) {
-    constructor_validate_and_infer_types();
-}
-
-shared_ptr<Node> op::v1::LogicalXor::clone_with_new_inputs(const OutputVector& new_args) const {
-    OV_OP_SCOPE(v1_LogicalXor_clone_with_new_inputs);
-    check_new_args_count(this, new_args);
-    return make_shared<v1::LogicalXor>(new_args.at(0), new_args.at(1), this->get_autob());
-}
-
-OPENVINO_SUPPRESS_DEPRECATED_START
+namespace ov {
+namespace op {
 namespace logxor {
+struct Evaluate : element::NoAction<bool> {
+    using element::NoAction<bool>::visit;
+
+    template <element::Type_t ET>
+    static result_type visit(const Tensor& arg0,
+                             const Tensor& arg1,
+                             Tensor& out,
+                             const Shape& shape0,
+                             const Shape& shape1,
+                             const AutoBroadcastSpec& broadcast_spec) {
+        using T = typename element_type_traits<ET>::value_type;
+        reference::logical_xor(arg0.data<const T>(),
+                               arg1.data<const T>(),
+                               out.data<T>(),
+                               shape0,
+                               shape1,
+                               broadcast_spec);
+        return true;
+    }
+};
+
 namespace {
-template <element::Type_t ET>
-bool evaluate(const HostTensorPtr& arg0,
-              const HostTensorPtr& arg1,
-              const HostTensorPtr& out,
-              const op::AutoBroadcastSpec& broadcast_spec) {
-    runtime::reference::logical_xor(arg0->get_data_ptr<ET>(),
-                                    arg1->get_data_ptr<ET>(),
-                                    out->get_data_ptr<ET>(),
-                                    arg0->get_shape(),
-                                    arg1->get_shape(),
-                                    broadcast_spec);
-    return true;
+bool input_supported_type(const element::Type& et) {
+    return et == element::boolean;
 }
 
-bool evaluate_logxor(const HostTensorPtr& arg0,
-                     const HostTensorPtr& arg1,
-                     const HostTensorPtr& out,
-                     const op::AutoBroadcastSpec& broadcast_spec) {
-    bool rc = true;
-    out->set_broadcast(broadcast_spec, arg0, arg1);
-    switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_logxor, boolean, arg0, arg1, out, broadcast_spec);
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
+bool evaluate(const Node* const op, TensorVector& outputs, const TensorVector& inputs) {
+    OPENVINO_ASSERT(outputs.size() == 1);
+
+    outputs[0].set_shape(infer_broadcast_shape(op, inputs));
+    using namespace ov::element;
+    return IfTypeOf<boolean>::apply<logxor::Evaluate>(inputs[0].get_element_type(),
+                                                      inputs[0],
+                                                      inputs[1],
+                                                      outputs[0],
+                                                      inputs[0].get_shape(),
+                                                      inputs[1].get_shape(),
+                                                      op->get_autob());
 }
 }  // namespace
 }  // namespace logxor
 
-bool op::v1::LogicalXor::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    OV_OP_SCOPE(v1_LogicalXor_evaluate);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 2));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    return logxor::evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob());
-}
-
-bool op::v1::LogicalXor::has_evaluate() const {
-    OV_OP_SCOPE(v1_LogicalXor_has_evaluate);
-    switch (get_input_element_type(0)) {
-    case ngraph::element::boolean:
-        return true;
-    default:
-        break;
-    }
-    return false;
-}
-
-op::v0::Xor::Xor(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
+namespace v0 {
+Xor::Xor(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseLogical(arg0, arg1, auto_broadcast) {
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::v0::Xor::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> Xor::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Xor_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v0::Xor>(new_args.at(0), new_args.at(1), this->get_autob());
+    return std::make_shared<Xor>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
-bool op::v0::Xor::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool Xor::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v0_Xor_evaluate);
-    return logxor::evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob());
+
+    return logxor::evaluate(this, outputs, inputs);
 }
 
-bool op::v0::Xor::has_evaluate() const {
+bool Xor::has_evaluate() const {
     OV_OP_SCOPE(v0_Xor_has_evaluate);
-    switch (get_input_element_type(0)) {
-    case ngraph::element::boolean:
-        return true;
-    default:
-        break;
-    }
-    return false;
+    return logxor::input_supported_type(get_input_element_type(0));
 }
+}  // namespace v0
+
+namespace v1 {
+LogicalXor::LogicalXor(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
+    : BinaryElementwiseLogical(arg0, arg1, auto_broadcast) {
+    constructor_validate_and_infer_types();
+}
+
+std::shared_ptr<Node> LogicalXor::clone_with_new_inputs(const OutputVector& new_args) const {
+    OV_OP_SCOPE(v1_LogicalXor_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    return std::make_shared<LogicalXor>(new_args.at(0), new_args.at(1), this->get_autob());
+}
+
+bool LogicalXor::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
+    OV_OP_SCOPE(v1_LogicalXor_evaluate);
+
+    return logxor::evaluate(this, outputs, inputs);
+}
+
+bool LogicalXor::has_evaluate() const {
+    OV_OP_SCOPE(v1_LogicalXor_has_evaluate);
+    return logxor::input_supported_type(get_input_element_type(0));
+}
+}  // namespace v1
+}  // namespace op
+}  // namespace ov

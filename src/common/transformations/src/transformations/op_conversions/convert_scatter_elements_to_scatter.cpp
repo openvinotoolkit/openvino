@@ -5,12 +5,12 @@
 #include "transformations/op_conversions/convert_scatter_elements_to_scatter.hpp"
 
 #include <memory>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/validation_util.hpp>
 #include <numeric>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
@@ -62,9 +62,8 @@ ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
         }
 
         OPENVINO_SUPPRESS_DEPRECATED_START
-        const size_t axis = ngraph::normalize_axes(scatter->get_friendly_name(),
-                                                   axis_const->cast_vector<int64_t>(),
-                                                   data_pshape.rank())[0];
+        const size_t axis =
+            ov::normalize_axes(scatter->get_friendly_name(), axis_const->cast_vector<int64_t>(), data_pshape.rank())[0];
         OPENVINO_SUPPRESS_DEPRECATED_END
 
         struct Range {
@@ -217,8 +216,8 @@ ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
                                                                           scatter->input_value(3));
         new_ops.push_back(scatter_update);
         scatter_update->set_friendly_name(scatter->get_friendly_name());
-        ngraph::copy_runtime_info({scatter, broadcast}, {new_ops});
-        ngraph::replace_node(scatter, scatter_update);
+        ov::copy_runtime_info({scatter, broadcast}, {new_ops});
+        ov::replace_node(scatter, scatter_update);
         return true;
     };
 

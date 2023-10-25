@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/fc_conv_fc.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -61,7 +61,7 @@ void FcAfterConvTest::SetUp() {
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     std::vector<size_t> convInputShape = {1, inputChannels, 1, inputShape[0] * inputShape[1] / inputChannels};
     auto reshapePattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
@@ -145,7 +145,7 @@ void FcBeforeConvTest::SetUp() {
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     auto fc1_weights = ov::test::utils::generate_float_numbers(inputShape[1] * inputShape[1], -0.1f, 0.1f);
     auto fc1 = ngraph::builder::makeFullyConnected(params[0], ngPrc, inputShape[1], false, {}, fc1_weights);
@@ -228,7 +228,7 @@ void FcBetweenConvsTest::SetUp() {
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     std::vector<size_t> conv1InputShape = {1, inputChannels, 1, inputShape[0] * inputShape[1] / inputChannels};
     auto reshapePattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, conv1InputShape);

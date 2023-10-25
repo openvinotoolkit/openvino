@@ -112,5 +112,5 @@ setup(
     ],
     packages=find_packages(),
     install_requires=read_requirements('requirements.txt'),
-    python_requires='>=3.7',
+    python_requires='>=3.8',
 )

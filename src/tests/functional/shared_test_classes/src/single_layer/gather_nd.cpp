@@ -44,7 +44,7 @@ void GatherNDLayerTest::SetUp() {
     auto ngDPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dPrecision);
     auto ngIPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iPrecision);
 
-    auto params = ngraph::builder::makeParams(ngDPrc, {dataShape});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngDPrc, ov::Shape(dataShape))};
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto dataNode = paramOuts[0];
@@ -70,7 +70,7 @@ void GatherND8LayerTest::SetUp() {
     auto ngDPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dPrecision);
     auto ngIPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iPrecision);
 
-    auto params = ngraph::builder::makeParams(ngDPrc, { dataShape });
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngDPrc, ov::Shape(dataShape))};
     auto paramOuts = ngraph::helpers::convert2OutputVector(
         ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto dataNode = paramOuts[0];

@@ -10,6 +10,7 @@
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/sqrt.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils.hpp"
 
@@ -78,6 +79,18 @@ OutputVector translate_var_mean(const NodeContext& context) {
 OutputVector translate_var(const NodeContext& context) {
     auto res = translate_var_mean(context);
     return {res[0]};
+}
+
+OutputVector translate_std(const NodeContext& context) {
+    auto res = translate_var_mean(context);
+    auto var = res[0];
+    return {context.mark_node(std::make_shared<v0::Sqrt>(var))};
+}
+
+OutputVector translate_std_mean(const NodeContext& context) {
+    auto res = translate_var_mean(context);
+    auto var = res[0];
+    return {context.mark_node(std::make_shared<v0::Sqrt>(var)), res[1]};
 }
 
 }  // namespace op

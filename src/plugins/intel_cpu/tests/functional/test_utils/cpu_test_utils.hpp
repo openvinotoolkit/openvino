@@ -7,6 +7,7 @@
 #include <string>
 #include "ie_system_conf.h"
 #include "shared_test_classes/base/layer_test_utils.hpp"
+#include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include <exec_graph_info.hpp>
 #include <openvino/runtime/compiled_model.hpp>
 #include "ie_system_conf.h"
@@ -122,12 +123,13 @@ public:
     static const char *cpu_fmt2str(cpu_memory_format_t v);
     static cpu_memory_format_t cpu_str2fmt(const char *str);
     static std::string fmts2str(const std::vector<cpu_memory_format_t> &fmts, const std::string &prefix);
-    static std::string impls2str(const std::vector<std::string> &priority);
+    static ov::PrimitivesPriority impls2primProiority(const std::vector<std::string> &priority);
     static CPUInfo makeCPUInfo(const std::vector<cpu_memory_format_t>& inFmts,
                                const std::vector<cpu_memory_format_t>& outFmts,
                                const std::vector<std::string>& priority);
    //TODO: change to setter method
     static std::string makeSelectedTypeStr(std::string implString, ngraph::element::Type_t elType);
+    void updateSelectedType(const std::string& primitiveType, const ov::element::Type netType, const ov::AnyMap& config);
 
     CPUInfo getCPUInfo() const;
     std::shared_ptr<ngraph::Function> makeNgraphFunction(const ngraph::element::Type &ngPrc,
@@ -168,6 +170,7 @@ protected:
 // common parameters
 const auto emptyCPUSpec = CPUSpecificParams{{}, {}, {}, {}};
 const std::map<std::string, std::string> cpuEmptyPluginConfig;
+const ov::AnyMap empty_plugin_config{};
 const std::map<std::string, std::string> cpuFP32PluginConfig =
         { { InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO } };
 const std::map<std::string, std::string> cpuBF16PluginConfig =

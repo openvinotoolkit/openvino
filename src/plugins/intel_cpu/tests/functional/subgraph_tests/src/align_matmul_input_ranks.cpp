@@ -4,7 +4,7 @@
 
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/common_utils.hpp"
 
 #include <algorithm>
@@ -54,7 +54,9 @@ protected:
             std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
         const auto ngPrec = element::f32;
-        auto inputParams = builder::makeParams(ngPrec, {inShapes.first, inShapes.second});
+        ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ngPrec, ov::Shape(inShapes.first)),
+                                        std::make_shared<ov::op::v0::Parameter>(ngPrec, ov::Shape(inShapes.second))};
+
         const auto outputNodes = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(inputParams));
         const auto matMul = builder::makeMatMul(outputNodes[0], outputNodes[1], false, false);
 

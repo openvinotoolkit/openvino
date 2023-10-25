@@ -12,7 +12,6 @@ import openpyxl
 from utils.conformance_utils import get_logger
 from utils import constants
 
-
 LOGS_ZIP_NAME = 'logs.zip'
 NEW_LOG_DIR = 'ie_logs'
 
@@ -31,7 +30,7 @@ class AnalyzerConformanceLog:
 
     @staticmethod
     def status_folder_exists(path_name):
-        return any([status for status in constants.TEST_STATUS.keys()])
+        return any([(status in path_name) for status in constants.TEST_STATUS.keys()])
 
     def setup_log_local_dir(self, user_log_dir):
         if user_log_dir:
@@ -200,15 +199,20 @@ class AnalyzerConformanceLog:
                     error_msg = ''
                     font = not_run_font
                     fill = not_run_fill
-                    if dev.lower() in devices_info:
-                        if devices_info[dev.lower()]['status'] == 'passed':
+
+                    real_dev = dev
+                    if dev == "CPU_ARM":
+                        real_dev = "arm"
+
+                    if real_dev.lower() in devices_info:
+                        if devices_info[real_dev.lower()]['status'] == 'passed':
                             font = pass_font
                             fill = pass_fill
                             status = 'Pass'
-                        elif devices_info[dev.lower()]['status'] == 'failed' or devices_info[dev.lower()]['status'] == 'hanged' or\
-                             devices_info[dev.lower()]['status'] == 'crashed' or devices_info[dev.lower()]['status'] == 'interapted':
+                        elif devices_info[real_dev.lower()]['status'] == 'failed' or devices_info[real_dev.lower()]['status'] == 'hanged' or\
+                             devices_info[real_dev.lower()]['status'] == 'crashed' or devices_info[real_dev.lower()]['status'] == 'interapted':
                             status = 'Fail'
-                            error_msg = devices_info[dev.lower()]['err_info']
+                            error_msg = devices_info[real_dev.lower()]['err_info']
                             font = fail_font
                             fill = fail_fill
 

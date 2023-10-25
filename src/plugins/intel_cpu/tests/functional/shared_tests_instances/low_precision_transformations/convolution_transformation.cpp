@@ -16,7 +16,7 @@ const std::vector<ngraph::element::Type> netPrecisions = {
     // ngraph::element::f16,
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams()
 };
 
@@ -116,6 +116,33 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         "Convolution",
         "U8"
     },
+    // not supported quantization level on data
+    {
+        { 65536ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        false,
+        { 255ul, ngraph::Shape{1, 1, 1, 1}, {0.f}, {254.f}, {-12.7f}, {12.7f}},
+        false,
+        "Convolution",
+        "FP32"
+    },
+    // not supported quantization level on data & weights
+    {
+        { 65536ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        false,
+        { 65536ul, ngraph::Shape{1, 1, 1, 1}, {0.f}, {254.f}, {-12.7f}, {12.7f}},
+        false,
+        "Convolution",
+        "FP32"
+    },
+    // not supported quantization level on weights
+    {
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        false,
+        { 65536ul, ngraph::Shape{1, 1, 1, 1}, {0.f}, {254.f}, {-12.7f}, {12.7f}},
+        false,
+        "Convolution",
+        "FP32"
+    }
 };
 
 const std::vector<ngraph::Shape> shapes = {

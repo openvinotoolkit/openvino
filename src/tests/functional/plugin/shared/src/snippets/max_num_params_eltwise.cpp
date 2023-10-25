@@ -5,19 +5,25 @@
 #include "common_test_utils/common_utils.hpp"
 #include "snippets/max_num_params_eltwise.hpp"
 #include "subgraph_simple.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 namespace ov {
 namespace test {
 namespace snippets {
 
 std::string MaxNumParamsEltwise::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MaxNumParamsEltwiseParams> obj) {
-    ov::Shape inputShapes;
+    ov::test::InputShape inputShapes;
     std::string targetDevice;
     size_t num_nodes, num_subgraphs;
     std::tie(inputShapes, num_nodes, num_subgraphs, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS[0]=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "IS[0]=" << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
+    result << "TS[0]=";
+    for (const auto& item : inputShapes.second) {
+        result << ov::test::utils::vec2str(item) << "_";
+    }
+
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
     result << "targetDevice=" << targetDevice;
@@ -25,18 +31,17 @@ std::string MaxNumParamsEltwise::getTestCaseName(testing::TestParamInfo<ov::test
 }
 
 void MaxNumParamsEltwise::SetUp() {
-    ov::Shape inputShape;
+    ov::test::InputShape inputShape;
     std::tie(inputShape, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    std::vector<ov::PartialShape> expandedShapes(10, inputShape);
-    std::vector<InputShape> input_shapes;
-    for (const auto& s : expandedShapes) {
-        input_shapes.emplace_back(InputShape {{}, {s.get_shape(), }});
-    }
+    std::vector<ov::test::InputShape> expandedShapes(10, inputShape);
+    init_input_shapes(expandedShapes);
 
-    init_input_shapes(input_shapes);
-
-    auto f = ov::test::snippets::EltwiseMaxNumParamsFunction(expandedShapes);
+    auto f = ov::test::snippets::EltwiseMaxNumParamsFunction(inputDynamicShapes);
     function = f.getOriginal();
+    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
+        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    }
 }
 
 TEST_P(MaxNumParamsEltwise, CompareWithRefImpl) {

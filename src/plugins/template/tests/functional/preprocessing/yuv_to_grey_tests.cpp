@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-
 #include "preprocessing/yuv_to_grey_tests.hpp"
+
+#include <gtest/gtest.h>
 
 using namespace ov::preprocess;
 

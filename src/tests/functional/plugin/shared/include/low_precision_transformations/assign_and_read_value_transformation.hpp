@@ -5,8 +5,8 @@
 #pragma once
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 namespace LayerTestsDefinitions {
 class AssignAndReadValueTransformationParam {
@@ -19,7 +19,7 @@ typedef std::tuple <
     ngraph::PartialShape,          // input shape
     size_t,                        // opset version
     std::string,                   // device
-    ngraph::pass::low_precision::LayerTransformation::Params, // transformation params
+    ov::pass::low_precision::LayerTransformation::Params, // transformation params
     AssignAndReadValueTransformationParam       // test params
 > AssignAndReadValueTransformationParams;
 

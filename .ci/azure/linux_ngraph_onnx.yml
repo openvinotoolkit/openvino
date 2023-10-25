@@ -81,6 +81,7 @@ jobs:
     displayName: 'System info'
 
   - script: |
+      set -e
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       sudo mkdir -p $(MODELS_DIR)
       sudo apt --assume-yes update && sudo apt --assume-yes install nfs-common

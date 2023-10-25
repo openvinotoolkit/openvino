@@ -597,14 +597,25 @@ class Core(CoreBase):
         )
 
 
-def compile_model(model_path: Union[str, Path]) -> CompiledModel:
+def compile_model(
+    model: Union[Model, str, Path],
+    device_name: Optional[str] = "AUTO",
+    config: Optional[dict] = None,
+) -> CompiledModel:
     """Compact method to compile model with AUTO plugin.
 
-    :param model_path: Path to file with model.
-    :type model_path: str, pathlib.Path
-    :return: A compiled model
+    :param model: Model acquired from read_model function or a path to a model in IR / ONNX / PDPD /
+                    TF and TFLite format.
+    :type model: Union[openvino.runtime.Model, str, pathlib.Path]
+    :param device_name: Optional. Name of the device to load the model to. If not specified,
+                        the default OpenVINO device will be selected by AUTO plugin.
+    :type device_name: str
+    :param config: Optional dict of pairs:
+                    (property name, property value) relevant only for this load operation.
+    :type config: dict, optional
+    :return: A compiled model.
     :rtype: openvino.runtime.CompiledModel
 
     """
     core = Core()
-    return core.compile_model(model_path, "AUTO")
+    return core.compile_model(model, device_name, {} if config is None else config)

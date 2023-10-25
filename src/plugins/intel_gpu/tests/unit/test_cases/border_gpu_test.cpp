@@ -16,6 +16,7 @@
 using namespace cldnn;
 using namespace ::tests;
 
+namespace {
 template<typename T>
 static std::vector<T> generate_rnd_real_input(
     const std::vector<size_t> sizes,
@@ -55,6 +56,7 @@ using border_test_param = std::tuple<ov::op::PadMode,      // pad mode
                                      std::array<int, 4>,   // shape in
                                      std::array<int, 4>,   // coord diff lt
                                      std::array<int, 4>,   // coord diff rb
+                                     bool,                 // allow negative pads
                                      bool>;                // is_caching_test
 
 template <class T, data_types T_dt>
@@ -65,11 +67,12 @@ public:
     T pad_value;
     format::type fmt;
     std::array<int, 4> sh_in, cd_lt, cd_rb, sh_out;
+    bool allow_negative_pads;
     bool is_caching_test;
     void SetUp() override {
         ::testing::TestWithParam<border_test_param<T>>::SetUp();
         rg.set_seed(GET_SUITE_NAME);
-        std::tie(pad_mode, pad_value, fmt, sh_in, cd_lt, cd_rb, is_caching_test) = this->GetParam();
+        std::tie(pad_mode, pad_value, fmt, sh_in, cd_lt, cd_rb, allow_negative_pads, is_caching_test) = this->GetParam();
         sh_out = {sh_in[0] + cd_lt[0] + cd_rb[0],
                   sh_in[1] + cd_lt[1] + cd_rb[1],
                   sh_in[2] + cd_lt[2] + cd_rb[2],
@@ -88,7 +91,8 @@ public:
                                    ov::CoordinateDiff(cd_lt.begin(), cd_lt.end()),
                                    ov::CoordinateDiff(cd_rb.begin(), cd_rb.end()),
                                    pad_mode,
-                                   pad_value),
+                                   pad_value,
+                                   allow_negative_pads),
                             reorder("output", input_info("border"), cldnn::format::bfyx, T_dt));
         cldnn::network::ptr target_network = get_network(engine, target_topology,  get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         target_network->set_input_data("input", input);
@@ -103,7 +107,8 @@ public:
                                  ov::CoordinateDiff(cd_lt.begin(), cd_lt.end()),
                                  ov::CoordinateDiff(cd_rb.begin(), cd_rb.end()),
                                  pad_mode,
-                                 pad_value));
+                                 pad_value,
+                                 allow_negative_pads));
 
         cldnn::network base_network(engine, base_topology, get_test_default_config(engine));
         base_network.set_input_data("input", input);
@@ -123,6 +128,7 @@ INSTANTIATE_TEST_SUITE_P(border_test_i8,
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
                                           testing::Values(std::array<int, 4>{1, 1, 1, 1}),
+                                          testing::Values(false),
                                           testing::Values(false)));
 using border_test_u8 = border_test<char, data_types::u8>;
 TEST_P(border_test_u8, border_test_u8) {}
@@ -134,6 +140,7 @@ INSTANTIATE_TEST_SUITE_P(border_test_u8,
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
                                           testing::Values(std::array<int, 4>{1, 1, 1, 1}),
+                                          testing::Values(false),
                                           testing::Values(false)));
 using border_test_i32 = border_test<int, data_types::i32>;
 TEST_P(border_test_i32, border_test_i32) {}
@@ -145,26 +152,40 @@ INSTANTIATE_TEST_SUITE_P(border_test_i32,
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
                                           testing::Values(std::array<int, 4>{1, 1, 1, 1}),
+                                          testing::Values(false),
                                           testing::Values(false)));
-using border_test_f16 = border_test<FLOAT16, data_types::f16>;
+INSTANTIATE_TEST_SUITE_P(negative_pads,
+                         border_test_i32,
+                         testing::Combine(testing::Values(PAD_MODES),
+                                          testing::Values(-333),
+                                          testing::Values(format::type::b_fs_yx_fsv16),
+                                          testing::Values(std::array<int, 4>{6, 8, 7, 11}),
+                                          testing::ValuesIn({std::array<int, 4>{-1, -2, -2, -3}, std::array<int, 4>{-1, 3, 4, -3}}),
+                                          testing::ValuesIn({std::array<int, 4>{-1, -2, -2, -1}, std::array<int, 4>{2, -3, 3, -2}}),
+                                          testing::Values(true),
+                                          testing::Values(false)));
+
+using border_test_f16 = border_test<ov::float16, data_types::f16>;
 TEST_P(border_test_f16, border_test_f16) {}
 INSTANTIATE_TEST_SUITE_P(border_test_f16,
                          border_test_f16,
                          testing::Combine(testing::Values(ov::op::PadMode::REFLECT),
-                                          testing::Values(FLOAT16(123)),
+                                          testing::Values(ov::float16(123)),
                                           testing::Values(format::type::bs_fs_yx_bsv32_fsv16),
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
                                           testing::Values(std::array<int, 4>{1, 1, 1, 1}),
+                                          testing::Values(false),
                                           testing::Values(false)));
 INSTANTIATE_TEST_SUITE_P(export_import,
                          border_test_f16,
                          testing::Combine(testing::Values(ov::op::PadMode::REFLECT),
-                                          testing::Values(FLOAT16(123)),
+                                          testing::Values(ov::float16(123)),
                                           testing::Values(format::type::bs_fs_yx_bsv32_fsv16),
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
                                           testing::Values(std::array<int, 4>{1, 1, 1, 1}),
+                                          testing::Values(false),
                                           testing::Values(true)));
 using border_test_f32 = border_test<float, data_types::f32>;
 TEST_P(border_test_f32, border_test_f32) {}
@@ -176,6 +197,7 @@ INSTANTIATE_TEST_SUITE_P(border_test_f32,
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
                                           testing::Values(std::array<int, 4>{1, 1, 1, 1}),
+                                          testing::Values(false),
                                           testing::Values(false)));
 
 INSTANTIATE_TEST_SUITE_P(bsv16fsv16_reorder,
@@ -186,6 +208,7 @@ INSTANTIATE_TEST_SUITE_P(bsv16fsv16_reorder,
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
                                           testing::Values(std::array<int, 4>{1, 1, 1, 1}),
+                                          testing::Values(false),
                                           testing::Values(false)));
 
 TEST(border_gpu, bsv16fsv16_without_reorder) {
@@ -1636,3 +1659,264 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_constant_dynamic) {
         }
     }
 }
+
+struct border_dynamic_test_param {
+    ov::op::PadMode mode;
+    std::array<int, 4> in_shape;
+    std::array<int, 4> lt;
+    std::array<int, 4> rb;
+};
+
+class border_dynamic_test : public ::testing::TestWithParam<border_dynamic_test_param> {
+public:
+    void SetUp() override {
+        ::testing::TestWithParam<border_dynamic_test_param>::SetUp();
+
+        const  border_dynamic_test_param p = this->GetParam();
+
+        mode = p.mode;
+        in_size_b = p.in_shape[0];
+        in_size_f = p.in_shape[1];
+        in_size_y = p.in_shape[2];
+        in_size_x = p.in_shape[3];
+
+        blt_size_b = p.lt[0];
+        blt_size_f = p.lt[1];
+        blt_size_y = p.lt[2];
+        blt_size_x = p.lt[3];
+
+        brb_size_b = p.rb[0];
+        brb_size_f = p.rb[1];
+        brb_size_y = p.rb[2];
+        brb_size_x = p.rb[3];
+
+        out_size_b = in_size_b + blt_size_b + brb_size_b;
+        out_size_f = in_size_f + blt_size_f + brb_size_f;
+        out_size_y = in_size_y + blt_size_y + brb_size_y;
+        out_size_x = in_size_x + blt_size_x + brb_size_x;
+
+        auto& engine = get_test_engine();
+
+        const auto input_layout_dynamic = layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
+        const auto input_layout_static = layout{ov::PartialShape{in_size_b, in_size_f, in_size_y, in_size_x}, data_types::f32, format::bfyx};
+        const auto input = engine.allocate_memory(input_layout_static);
+        const auto pads_begin = engine.allocate_memory({{4}, data_types::i32, format::bfyx});
+        const auto pads_end = engine.allocate_memory({{4}, data_types::i32, format::bfyx});
+
+        set_values(pads_begin, {blt_size_b, blt_size_f, blt_size_y, blt_size_x});
+        set_values(pads_end, {brb_size_b, brb_size_f, brb_size_y, brb_size_x});
+
+        constexpr auto pad_value = -333.0f;
+
+        topology topology;
+        topology.add(input_layout("input", input_layout_dynamic));
+        topology.add(data("pads_begin", pads_begin));
+        topology.add(data("pads_end", pads_end));
+        topology.add(border("output",
+                            {input_info("input"), input_info("pads_begin"), input_info("pads_end")},
+                            cldnn::border::PAD_NON_CONST_INPUT::BEGIN |
+                            cldnn::border::PAD_NON_CONST_INPUT::END,
+                            std::vector<int64_t>{},
+                            std::vector<int64_t>{},
+                            mode,
+                            pad_value,
+                            true));
+
+        const std::vector<size_t> sizes{ static_cast<std::size_t>(in_size_b), static_cast<std::size_t>(in_size_f),
+                                         static_cast<std::size_t>(in_size_y), static_cast<std::size_t>(in_size_x) };
+        const std::vector<float> input_data = generate_rnd_real_input<float>(sizes, -8.0f, 8.0f);
+        set_values(input, input_data);
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        network network(engine, topology, config);
+        network.set_input_data("input", input);
+
+        const auto inst = network.get_primitive("output");
+        const auto impl = inst->get_impl();
+        ASSERT_TRUE(impl != nullptr);
+        ASSERT_TRUE(impl->is_dynamic());
+
+        const auto outputs = network.execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "output");
+
+        const auto output = outputs.at("output").get_memory();
+        const cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+        const auto expected_size = out_size_b * out_size_f * out_size_y * out_size_x;
+        ASSERT_EQ(output_ptr.size(), expected_size);
+
+        for (auto b = 0; b < out_size_b; ++b) {
+            for (auto f = 0; f < out_size_f; ++f) {
+                for (auto y = 0; y < out_size_y; ++y) {
+                    for (auto x = 0; x < out_size_x; ++x) {
+                        const auto output_off = ((b * out_size_f + f) * out_size_y + y) * out_size_x + x;
+                        ASSERT_GE(output_off, 0);
+
+                        if (mode == ov::op::PadMode::CONSTANT) {
+                            if (b < blt_size_b || b >= out_size_b - brb_size_b ||
+                                f < blt_size_f || f >= out_size_f - brb_size_f ||
+                                y < blt_size_y || y >= out_size_y - brb_size_y ||
+                                x < blt_size_x || x >= out_size_x - brb_size_x) {
+                                ASSERT_EQ(output_ptr[output_off], pad_value);
+                            } else {
+                                const auto input_off  = (((b - blt_size_b) * in_size_f + f - blt_size_f) * in_size_y + y - blt_size_y) * in_size_x + x - blt_size_x; // BFYX
+                                ASSERT_GE(input_off, 0);
+                                ASSERT_EQ(output_ptr[output_off], input_data[input_off]);
+                            }
+                        } else {
+                            int in_b, in_f, in_y, in_x;
+                            CalcInIndices(b, f, y, x, in_b, in_f, in_y, in_x);
+                            const auto input_off  = ((in_b * in_size_f + in_f) * in_size_y + in_y) * in_size_x + in_x;
+                            ASSERT_GE(input_off, 0);
+                            ASSERT_EQ(output_ptr[output_off], input_data[input_off]);
+                        }
+                    }
+                }
+            }
+        }
+   }
+
+private:
+    void CalcInIndices(const int b, const int f, const int y, const int x, int& in_b, int& in_f, int& in_y, int& in_x) {
+        switch (mode) {
+            case ov::op::PadMode::REFLECT: {
+                in_b = (b >= blt_size_b && b < out_size_b - brb_size_b) ? b - blt_size_b : (b < blt_size_b ? blt_size_b - b : in_size_b + out_size_b - brb_size_b - 2 - b);
+                in_f = (f >= blt_size_f && f < out_size_f - brb_size_f) ? f - blt_size_f : (f < blt_size_f ? blt_size_f - f : in_size_f + out_size_f - brb_size_f - 2 - f);
+                in_y = (y >= blt_size_y && y < out_size_y - brb_size_y) ? y - blt_size_y : (y < blt_size_y ? blt_size_y - y : in_size_y + out_size_y - brb_size_y - 2 - y);
+                in_x = (x >= blt_size_x && x < out_size_x - brb_size_x) ? x - blt_size_x : (x < blt_size_x ? blt_size_x - x : in_size_x + out_size_x - brb_size_x - 2 - x);
+                break;
+            }
+            case ov::op::PadMode::SYMMETRIC: {
+                in_b = (b >= blt_size_b && b < out_size_b - brb_size_b) ? b - blt_size_b : (b < blt_size_b ? blt_size_b - 1 - b : in_size_b + out_size_b - brb_size_b - 1 - b);
+                in_f = (f >= blt_size_f && f < out_size_f - brb_size_f) ? f - blt_size_f : (f < blt_size_f ? blt_size_f - 1 - f : in_size_f + out_size_f - brb_size_f - 1 - f);
+                in_y = (y >= blt_size_y && y < out_size_y - brb_size_y) ? y - blt_size_y : (y < blt_size_y ? blt_size_y - 1 - y : in_size_y + out_size_y - brb_size_y - 1 - y);
+                in_x = (x >= blt_size_x && x < out_size_x - brb_size_x) ? x - blt_size_x : (x < blt_size_x ? blt_size_x - 1 - x : in_size_x + out_size_x - brb_size_x - 1 - x);
+                break;
+            }
+            case ov::op::PadMode::EDGE: {
+                in_b = (b >= blt_size_b && b < out_size_b - brb_size_b) ? b - blt_size_b : (b < blt_size_b ? 0 : in_size_b - 1);
+                in_f = (f >= blt_size_f && f < out_size_f - brb_size_f) ? f - blt_size_f : (f < blt_size_f ? 0 : in_size_f - 1);
+                in_y = (y >= blt_size_y && y < out_size_y - brb_size_y) ? y - blt_size_y : (y < blt_size_y ? 0 : in_size_y - 1);
+                in_x = (x >= blt_size_x && x < out_size_x - brb_size_x) ? x - blt_size_x : (x < blt_size_x ? 0 : in_size_x - 1);
+                break;
+            }
+            default: {
+                throw std::runtime_error("Invalid PadMode");
+            }
+        }
+    }
+
+    ov::op::PadMode mode;
+    int in_size_b, in_size_f, in_size_y, in_size_x;
+    int blt_size_b, blt_size_f, blt_size_y, blt_size_x;
+    int brb_size_b, brb_size_f, brb_size_y, brb_size_x;
+    int out_size_b, out_size_f, out_size_y, out_size_x;
+};
+
+const std::vector<border_dynamic_test_param> dynamic_params {
+    {ov::op::PadMode::CONSTANT, {2, 3, 5, 4}, {-1, 2, -2, 3}, {2, -1, 3, -2}},
+    {ov::op::PadMode::EDGE, {3, 4, 6, 5}, {-1, 1, -3, 2}, {3, -1, 1, -3}},
+    {ov::op::PadMode::REFLECT, {3, 4, 6, 5}, {-1, 1, -3, 2}, {2, -1, 2, -3}},
+    {ov::op::PadMode::SYMMETRIC, {2, 3, 5, 4}, {-1, 2, -2, 3}, {2, -1, 3, -2}}
+    };
+TEST_P(border_dynamic_test, border_dynamic_test) {}
+INSTANTIATE_TEST_SUITE_P(border_dynamic_test,
+                         border_dynamic_test,
+                         ::testing::ValuesIn(dynamic_params));
+
+TEST(border_gpu, basic_zero_input_dynamic) {
+    auto& engine = get_test_engine();
+
+    // WA to avoid crash due to attempt to allocate 0 bytes for USM memory
+    layout fake_input_layout = {{1}, data_types::undefined, format::bfyx};
+    auto input = engine.allocate_memory(fake_input_layout);
+
+    layout zero_input_layout = {{0, 1}, data_types::f32, format::bfyx};
+    input = engine.reinterpret_buffer(*input, zero_input_layout);
+
+    layout input_layout_dynamic = {ov::PartialShape::dynamic(2), data_types::f32, format::bfyx};
+
+    ov::CoordinateDiff pads_begin = {4, 0};
+    ov::CoordinateDiff pads_end = {0, 0};
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(border("border", {input_info("input")}, 0, pads_begin, pads_end, ov::op::PadMode::CONSTANT, 1.0f));
+
+    std::vector<float> ref_output = {
+        1, 1, 1, 1
+    };
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    cldnn::network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto inst = network.get_primitive("border");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "border");
+
+    auto output = outputs.at("border").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(ref_output.size(), output_ptr.size());
+
+    for (size_t i = 0; i < output_ptr.size(); ++i) {
+        ASSERT_EQ(ref_output[i], output_ptr[i]);
+    }
+}
+
+TEST(border_gpu, basic_zero_input) {
+    auto& engine = get_test_engine();
+
+    // WA to avoid crash due to attempt to allocate 0 bytes for USM memory
+    layout fake_input_layout = {{1}, data_types::u8, format::bfyx};
+    auto input = engine.allocate_memory(fake_input_layout);
+
+    layout zero_input_layout = {{0, 1}, data_types::f32, format::bfyx};
+    input = engine.reinterpret_buffer(*input, zero_input_layout);
+
+    ov::CoordinateDiff pads_begin = {4, 0};
+    ov::PartialShape pads_begin_shape = { ov::Dimension(pads_begin.size()) };
+    auto pads_begin_input = engine.allocate_memory({pads_begin_shape, data_types::i32, format::bfyx});
+    set_values(pads_begin_input, pads_begin);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("pads_begin", pads_begin_input->get_layout()));
+    topology.add(border("border", {input_info("input"), input_info("pads_begin")},
+                        border::PAD_NON_CONST_INPUT::BEGIN,
+                        /*pads_begin*/{}, /*pads_end*/{0, 0},
+                        ov::op::PadMode::CONSTANT,
+                        2.0f));
+
+    std::vector<float> ref_output = {
+        2, 2, 2, 2
+    };
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    cldnn::network network(engine, topology, config);
+    network.set_input_data("input", input);
+    network.set_input_data("pads_begin", pads_begin_input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("border").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(ref_output.size(), output_ptr.size());
+
+    for (size_t i = 0; i < output_ptr.size(); ++i) {
+        ASSERT_EQ(ref_output[i], output_ptr[i]);
+    }
+}
+};  // namespace

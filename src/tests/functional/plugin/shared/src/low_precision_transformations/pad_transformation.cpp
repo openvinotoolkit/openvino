@@ -8,7 +8,7 @@
 #include <vector>
 #include <ngraph/ngraph.hpp>
 
-#include "lpt_ngraph_functions/pad_function.hpp"
+#include "ov_lpt_models/pad.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -17,7 +17,7 @@ std::string PadTransformation::getTestCaseName(const testing::TestParamInfo<PadT
     ngraph::PartialShape inputShape;
     ngraph::op::PadMode padMode;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     PadTransformationParam param;
     std::tie(netPrecision, inputShape, padMode, targetDevice, params, param) = obj.param;
 
@@ -33,7 +33,7 @@ void PadTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     ngraph::op::PadMode mode;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     PadTransformationParam param;
     std::tie(netPrecision, inputShape, mode, targetDevice, params, param) = this->GetParam();
 

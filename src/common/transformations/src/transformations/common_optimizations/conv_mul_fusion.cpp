@@ -4,17 +4,16 @@
 
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
 
-#include <ngraph/rt_info.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <transformations/utils/utils.hpp>
-
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
     MATCHER_SCOPE(ConvolutionMultiplyFusion);

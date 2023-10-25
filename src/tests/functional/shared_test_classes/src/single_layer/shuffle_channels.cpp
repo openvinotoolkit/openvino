@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/shuffle_channels.hpp"
 
 namespace LayerTestsDefinitions {
@@ -39,7 +39,7 @@ void ShuffleChannelsLayerTest::SetUp() {
     int axis, group;
     std::tie(axis, group) = shuffleChannelsParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto shuffleChannels = std::dynamic_pointer_cast<ngraph::opset3::ShuffleChannels>(

@@ -186,6 +186,7 @@ typedef enum {
     U16,             //!< u16 element type
     U32,             //!< u32 element type
     U64,             //!< u64 element type
+    NF4,             //!< nf4 element type
 } ov_element_type_e;
 
 /**

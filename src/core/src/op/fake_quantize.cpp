@@ -11,9 +11,9 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/convert.hpp"
 #include "ngraph/op/select.hpp"
-#include "ngraph/runtime/reference/fake_quantize.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "openvino/reference/fake_quantize.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -89,19 +89,19 @@ bool evaluate(const HostTensorPtr& arg0,
     using T = typename element_type_traits<ET>::value_type;
     out->set_shape(arg0->get_shape());
     out->set_element_type(arg0->get_element_type());
-    runtime::reference::fake_quantize<T>(arg0->get_data_ptr<const T>(),
-                                         arg1->get_data_ptr<const T>(),
-                                         arg2->get_data_ptr<const T>(),
-                                         arg3->get_data_ptr<const T>(),
-                                         arg4->get_data_ptr<const T>(),
-                                         out->get_data_ptr<T>(),
-                                         arg0->get_shape(),
-                                         arg1->get_shape(),
-                                         arg2->get_shape(),
-                                         arg3->get_shape(),
-                                         arg4->get_shape(),
-                                         parent->get_levels(),
-                                         parent->get_auto_broadcast());
+    ov::reference::fake_quantize<T>(arg0->get_data_ptr<const T>(),
+                                    arg1->get_data_ptr<const T>(),
+                                    arg2->get_data_ptr<const T>(),
+                                    arg3->get_data_ptr<const T>(),
+                                    arg4->get_data_ptr<const T>(),
+                                    out->get_data_ptr<T>(),
+                                    arg0->get_shape(),
+                                    arg1->get_shape(),
+                                    arg2->get_shape(),
+                                    arg3->get_shape(),
+                                    arg4->get_shape(),
+                                    parent->get_levels(),
+                                    parent->get_auto_broadcast());
     return true;
 }
 
@@ -114,12 +114,12 @@ bool evaluate_fakequantize(const HostTensorPtr& arg0,
                            const ngraph::op::FakeQuantize* parent) {
     bool rc = true;
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_fakequantize, i32, arg0, arg1, arg2, arg3, arg4, out, parent);
-        NGRAPH_TYPE_CASE(evaluate_fakequantize, i64, arg0, arg1, arg2, arg3, arg4, out, parent);
-        NGRAPH_TYPE_CASE(evaluate_fakequantize, u32, arg0, arg1, arg2, arg3, arg4, out, parent);
-        NGRAPH_TYPE_CASE(evaluate_fakequantize, u64, arg0, arg1, arg2, arg3, arg4, out, parent);
-        NGRAPH_TYPE_CASE(evaluate_fakequantize, f16, arg0, arg1, arg2, arg3, arg4, out, parent);
-        NGRAPH_TYPE_CASE(evaluate_fakequantize, f32, arg0, arg1, arg2, arg3, arg4, out, parent);
+        OPENVINO_TYPE_CASE(evaluate_fakequantize, i32, arg0, arg1, arg2, arg3, arg4, out, parent);
+        OPENVINO_TYPE_CASE(evaluate_fakequantize, i64, arg0, arg1, arg2, arg3, arg4, out, parent);
+        OPENVINO_TYPE_CASE(evaluate_fakequantize, u32, arg0, arg1, arg2, arg3, arg4, out, parent);
+        OPENVINO_TYPE_CASE(evaluate_fakequantize, u64, arg0, arg1, arg2, arg3, arg4, out, parent);
+        OPENVINO_TYPE_CASE(evaluate_fakequantize, f16, arg0, arg1, arg2, arg3, arg4, out, parent);
+        OPENVINO_TYPE_CASE(evaluate_fakequantize, f32, arg0, arg1, arg2, arg3, arg4, out, parent);
     default:
         rc = false;
         break;

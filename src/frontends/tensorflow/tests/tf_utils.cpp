@@ -16,13 +16,16 @@ namespace frontend {
 namespace tensorflow {
 namespace tests {
 
+const std::string TF_FE = "tf";
+
 shared_ptr<Model> convert_model(const string& model_path,
                                 const ConversionExtension::Ptr& conv_ext,
                                 const vector<string>& input_names,
                                 const vector<element::Type>& input_types,
                                 const vector<PartialShape>& input_shapes,
                                 const std::vector<std::string>& input_names_to_freeze,
-                                const std::vector<void*>& freeze_values) {
+                                const std::vector<void*>& freeze_values,
+                                const bool disable_mmap) {
     FrontEndManager fem;
     auto front_end = fem.load_by_framework(TF_FE);
     if (!front_end) {
@@ -32,7 +35,13 @@ shared_ptr<Model> convert_model(const string& model_path,
         front_end->add_extension(conv_ext);
     }
     auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_MODELS_DIRNAME) + model_path);
-    auto input_model = front_end->load(model_filename);
+    ov::frontend::InputModel::Ptr input_model;
+    if (!disable_mmap) {
+        input_model = front_end->load(model_filename);
+    } else {
+        input_model = front_end->load({model_filename, false});
+    }
+
     if (!input_model) {
         throw "Input model is not read";
     }

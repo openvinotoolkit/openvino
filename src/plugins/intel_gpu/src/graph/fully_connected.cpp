@@ -161,6 +161,9 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
     format::type output_format = is_static && !allow_new_shape_infer ? get_preferred_format(node, impl_param) :
                                               input_layout.format.value;
 
+    if (node.get_preferred_output_fmt() != format::any)
+        output_format = node.get_preferred_output_fmt();
+
     return { layout{output_shapes[0], output_type, output_format} };
 }
 
@@ -184,8 +187,9 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
             return std::move(orig_impl_param);
         }
 
-        input_shape[input_row_idx] = align_to(input_shape[input_row_idx], 8);
-        output_shape[output_row_idx] = align_to(output_shape[output_row_idx], 8);
+        size_t fake_align_base = (orig_impl_param.dev_type == cldnn::device_type::integrated_gpu) ? 16 : 8;
+        input_shape[input_row_idx] = align_to(input_shape[input_row_idx], fake_align_base);
+        output_shape[output_row_idx] = align_to(output_shape[output_row_idx], fake_align_base);
 
         updated_param.input_layouts[0] = layout(ov::PartialShape(input_shape),
                                                 orig_input_layout.data_type,
@@ -214,6 +218,14 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
     json_composite fc_info;
     fc_info.add("weights id", weights_id);
     fc_info.add("bias id", bias_id);
+    fc_info.add("compressed weights", desc->compressed_weights ? "true" : "false");
+    if (desc->compressed_weights) {
+        fc_info.add("decompression scale id", desc->decompression_scale);
+        fc_info.add("decompression zp id", desc->decompression_zero_point);
+        if (desc->decompression_zero_point_scalar.has_value()) {
+            fc_info.add("decompression zp value", desc->decompression_zero_point_scalar.value());
+        }
+    }
 
     node_info->add("fully connected info", fc_info);
     node_info->dump(primitive_description);

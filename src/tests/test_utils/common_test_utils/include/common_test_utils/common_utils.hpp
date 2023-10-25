@@ -4,18 +4,18 @@
 
 #pragma once
 
-#include "openvino/core/partial_shape.hpp"
-
 #include <algorithm>
 #include <chrono>
+#include <fstream>
 #include <iterator>
 #include <memory>
 #include <ostream>
 #include <set>
 #include <sstream>
-#include <fstream>
 #include <string>
 #include <vector>
+
+#include "openvino/core/partial_shape.hpp"
 
 namespace ov {
 namespace test {
@@ -115,6 +115,10 @@ inline std::string set2str(const std::set<vecElementType>& set) {
     return std::string("()");
 }
 
+inline std::string bool2str(const bool val) {
+    return val ? "True" : "False";
+}
+
 template <typename master, typename slave>
 std::vector<std::pair<master, slave>> combineParams(const std::map<master, std::vector<slave>>& keyValueSets) {
     std::vector<std::pair<master, slave>> resVec;
@@ -188,15 +192,10 @@ inline std::ostream& operator<<(std::ostream& os, const std::map<std::string, st
 }
 
 std::string generateTestFilePrefix();
+
+size_t getVmSizeInKB();
+
+size_t getVmRSSInKB();
 }  // namespace utils
 }  // namespace test
 }  // namespace ov
-
-// openvino_contrib and vpu repo use CommonTestUtils::
-// so we need to add these names to CommonTestUtils namespace
-namespace CommonTestUtils {
-using ov::test::utils::vec2str;
-using ov::test::utils::combineParams;
-using ov::test::utils::OpType;
-using ov::test::utils::GetTimestamp;
-} // namespace CommonTestUtils

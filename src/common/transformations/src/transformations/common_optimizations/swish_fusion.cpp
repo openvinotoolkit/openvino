@@ -5,10 +5,9 @@
 #include "transformations/common_optimizations/swish_fusion.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
@@ -17,6 +16,7 @@
 #include "openvino/op/negative.hpp"
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/swish.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -26,7 +26,7 @@ bool check_beta_value(const std::shared_ptr<ov::op::v0::Constant>& constant) {
     if (!constant) {
         return false;
     }
-    if (constant->get_element_type() == ngraph::element::f32 || constant->get_element_type() == ngraph::element::f16) {
+    if (constant->get_element_type() == ov::element::f32 || constant->get_element_type() == ov::element::f16) {
         auto data = constant->cast_vector<float>();
         if (!std::equal(data.begin() + 1, data.end(), data.begin())) {
             return false;
@@ -46,21 +46,21 @@ ov::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
     auto sigmoid = std::make_shared<ov::op::v0::Sigmoid>(input);
     auto mul = std::make_shared<ov::op::v1::Multiply>(input, sigmoid);
 
-    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
         auto swish = std::make_shared<ov::op::v4::Swish>(exp_input);
 
         swish->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info(
+        ov::copy_runtime_info(
             {pattern_to_output.at(sigmoid).get_node_shared_ptr(), pattern_to_output.at(mul).get_node_shared_ptr()},
             swish);
-        ngraph::replace_node(m.get_match_root(), swish);
+        ov::replace_node(m.get_match_root(), swish);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -73,7 +73,7 @@ ov::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
     auto sigmoid = std::make_shared<ov::op::v0::Sigmoid>(mul_beta);
     auto mul = std::make_shared<ov::op::v1::Multiply>(input, sigmoid);
 
-    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
         auto beta_input = pattern_to_output.at(beta);
@@ -90,7 +90,7 @@ ov::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
             }
         } else {
             // if the input is not constant and number of elements is not equal to 1 then we cannot perform fusing
-            if (beta_input.get_partial_shape().is_dynamic() || ngraph::shape_size(beta_input.get_shape()) != 1) {
+            if (beta_input.get_partial_shape().is_dynamic() || ov::shape_size(beta_input.get_shape()) != 1) {
                 return false;
             }
             new_beta = beta_input;
@@ -99,14 +99,14 @@ ov::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
         auto swish = std::make_shared<ov::op::v4::Swish>(exp_input, new_beta);
 
         swish->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info(
+        ov::copy_runtime_info(
             {pattern_to_output.at(sigmoid).get_node_shared_ptr(), pattern_to_output.at(mul).get_node_shared_ptr()},
             swish);
-        ngraph::replace_node(m.get_match_root(), swish);
+        ov::replace_node(m.get_match_root(), swish);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -118,11 +118,11 @@ ov::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
     auto mul = std::make_shared<ov::op::v1::Multiply>(input, beta);
     auto neg = std::make_shared<ov::op::v0::Negative>(mul);
     auto exp = std::make_shared<ov::op::v0::Exp>(neg);
-    auto add_constant = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
+    auto add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto add = std::make_shared<ov::op::v1::Add>(exp, add_constant);
     auto div = std::make_shared<ov::op::v1::Divide>(input, add);
 
-    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
@@ -135,19 +135,19 @@ ov::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
         auto swish = std::make_shared<ov::op::v4::Swish>(exp_input, pattern_to_output.at(beta));
 
         swish->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({pattern_to_output.at(beta).get_node_shared_ptr(),
-                                   pattern_to_output.at(mul).get_node_shared_ptr(),
-                                   pattern_to_output.at(neg).get_node_shared_ptr(),
-                                   pattern_to_output.at(exp).get_node_shared_ptr(),
-                                   pattern_to_output.at(add_constant).get_node_shared_ptr(),
-                                   pattern_to_output.at(add).get_node_shared_ptr(),
-                                   pattern_to_output.at(div).get_node_shared_ptr()},
-                                  swish);
-        ngraph::replace_node(m.get_match_root(), swish);
+        ov::copy_runtime_info({pattern_to_output.at(beta).get_node_shared_ptr(),
+                               pattern_to_output.at(mul).get_node_shared_ptr(),
+                               pattern_to_output.at(neg).get_node_shared_ptr(),
+                               pattern_to_output.at(exp).get_node_shared_ptr(),
+                               pattern_to_output.at(add_constant).get_node_shared_ptr(),
+                               pattern_to_output.at(add).get_node_shared_ptr(),
+                               pattern_to_output.at(div).get_node_shared_ptr()},
+                              swish);
+        ov::replace_node(m.get_match_root(), swish);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(div, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(div, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -157,11 +157,11 @@ ov::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
     auto input = pass::pattern::any_input();
     auto neg = std::make_shared<ov::op::v0::Negative>(input);
     auto exp = std::make_shared<ov::op::v0::Exp>(neg);
-    auto add_constant = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
+    auto add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto add = std::make_shared<ov::op::v1::Add>(exp, add_constant);
     auto div = std::make_shared<ov::op::v1::Divide>(input, add);
 
-    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
@@ -174,16 +174,16 @@ ov::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
         auto swish = std::make_shared<ov::op::v4::Swish>(exp_input);
 
         swish->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({pattern_to_output.at(neg).get_node_shared_ptr(),
-                                   pattern_to_output.at(exp).get_node_shared_ptr(),
-                                   pattern_to_output.at(add_constant).get_node_shared_ptr(),
-                                   pattern_to_output.at(add).get_node_shared_ptr(),
-                                   pattern_to_output.at(div).get_node_shared_ptr()},
-                                  swish);
-        ngraph::replace_node(m.get_match_root(), swish);
+        ov::copy_runtime_info({pattern_to_output.at(neg).get_node_shared_ptr(),
+                               pattern_to_output.at(exp).get_node_shared_ptr(),
+                               pattern_to_output.at(add_constant).get_node_shared_ptr(),
+                               pattern_to_output.at(add).get_node_shared_ptr(),
+                               pattern_to_output.at(div).get_node_shared_ptr()},
+                              swish);
+        ov::replace_node(m.get_match_root(), swish);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(div, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(div, matcher_name);
     register_matcher(m, callback);
 }

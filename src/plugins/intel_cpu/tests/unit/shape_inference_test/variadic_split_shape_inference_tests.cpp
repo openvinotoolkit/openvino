@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gmock/gmock.h"
+#include <gmock/gmock.h>
+
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -74,7 +75,7 @@ TEST_P(VariadicSplitStaticShapeInferenceTest, shape_inference_empty_const_map) {
         std::make_shared<op::v0::Constant>(element::i64, Shape{split_lengths.size()}, split_lengths);
     op = make_op(data, axis_node, split_len_node);
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), split_lengths.size());
     EXPECT_EQ(output_shapes, exp_shapes);
@@ -86,11 +87,10 @@ TEST_P(VariadicSplitStaticShapeInferenceTest, shape_inference_axis_in_const_map)
         std::make_shared<op::v0::Constant>(element::i64, Shape{split_lengths.size()}, split_lengths);
     op = make_op(data, axis_node, split_len_node);
 
-    const auto axis_const = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{}, axis);
-    const auto axis_tensor = std::make_shared<ngraph::runtime::HostTensor>(axis_const);
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {{1, axis_tensor}};
+    const auto axis_tensor = ov::Tensor(element::i64, ov::Shape{}, &axis);
+    const auto constant_data = std::unordered_map<size_t, ov::Tensor>{{1, axis_tensor}};
 
-    shape_inference(op.get(), input_shapes, output_shapes, constant_data);
+    output_shapes = shape_inference(op.get(), input_shapes, constant_data);
 
     EXPECT_EQ(output_shapes.size(), split_lengths.size());
     EXPECT_EQ(output_shapes, exp_shapes);
@@ -101,16 +101,12 @@ TEST_P(VariadicSplitStaticShapeInferenceTest, shape_inference_all_const_in_map) 
     const auto split_len_node = std::make_shared<op::v0::Parameter>(element::i64, ov::PartialShape::dynamic());
     op = make_op(data, axis_node, split_len_node);
 
-    const auto axis_const = std::make_shared<op::v0::Constant>(element::i64, Shape{}, axis);
-    const auto axis_tensor = std::make_shared<ngraph::runtime::HostTensor>(axis_const);
-    const auto split_len_const =
-        std::make_shared<op::v0::Constant>(element::i64, Shape{split_lengths.size()}, split_lengths);
-    const auto split_len_tensor = std::make_shared<ngraph::runtime::HostTensor>(split_len_const);
+    const auto axis_tensor = ov::Tensor(element::i64, Shape{}, &axis);
+    const auto split_len_tensor = ov::Tensor(element::i64, Shape{split_lengths.size()}, split_lengths.data());
 
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {{2, split_len_tensor},
-                                                                                           {1, axis_tensor}};
+    const auto constant_data = std::unordered_map<size_t, ov::Tensor>{{2, split_len_tensor}, {1, axis_tensor}};
 
-    shape_inference(op.get(), input_shapes, output_shapes, constant_data);
+    output_shapes = shape_inference(op.get(), input_shapes, constant_data);
 
     EXPECT_EQ(output_shapes.size(), split_lengths.size());
     EXPECT_EQ(output_shapes, exp_shapes);

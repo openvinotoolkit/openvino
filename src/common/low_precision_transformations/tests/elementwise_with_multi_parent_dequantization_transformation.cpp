@@ -11,40 +11,40 @@
 #include <gtest/gtest.h>
 
 #include <utility>
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
 
-#include <low_precision/add.hpp>
-#include "lpt_ngraph_functions/elementwise_with_multi_parent_dequantization_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "low_precision/add.hpp"
+#include "ov_lpt_models/elementwise_with_multi_parent_dequantization.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 using namespace testing;
-using namespace ngraph::pass;
+using namespace ov::pass;
 using namespace ngraph::builder::subgraph;
 
 class ElementwiseWithMultiParentDequantizationTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type precision1;
+        ov::element::Type precision1;
         ngraph::builder::subgraph::DequantizationOperations dequantization1;
-        ngraph::element::Type precision2;
+        ov::element::Type precision2;
         ngraph::builder::subgraph::DequantizationOperations dequantization2;
     };
 
     class Expected {
     public:
-        ngraph::element::Type precision1;
+        ov::element::Type precision1;
         ngraph::builder::subgraph::DequantizationOperations dequantization1;
-        ngraph::element::Type precision2;
+        ov::element::Type precision2;
         ngraph::builder::subgraph::DequantizationOperations dequantization2;
     };
 
-    ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ov::element::Type precision;
+    ov::Shape inputShape;
     TestTransformationParams params;
     Actual actual;
     Expected expected;
@@ -67,7 +67,7 @@ public:
             testValues.actual.dequantization2);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::AddTransformation, ov::op::v1::Add>(testValues.params);
+        transform.add<ov::pass::low_precision::AddTransformation, ov::op::v1::Add>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ElementwiseWithMultiParentDequantizationFunction::get(
@@ -104,38 +104,38 @@ TEST_P(ElementwiseWithMultiParentDequantizationTransformation, CompareFunctions)
 const std::vector<ElementwiseWithMultiParentDequantizationTransformationTestValues> addTransformationTestValues = {
     // U8
     {
-        ngraph::element::f32,
-        ngraph::Shape{1, 4, 16, 16},
+        ov::element::f32,
+        ov::Shape{1, 4, 16, 16},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            { {ngraph::element::f32},  { 7.f }, { 10.f }},
-            ngraph::element::u8,
+            ov::element::u8,
+            { {ov::element::f32},  { 7.f }, { 10.f }},
+            ov::element::u8,
             {},
         },
         {
-            ngraph::element::u8,
-            { {ngraph::element::f32},  { 7.f }, { 10.f }},
-            ngraph::element::u8,
+            ov::element::u8,
+            { {ov::element::f32},  { 7.f }, { 10.f }},
+            ov::element::u8,
             {},
         }
     },
     // U8
     {
-        ngraph::element::f32,
-        ngraph::Shape{1, 4, 16, 16},
+        ov::element::f32,
+        ov::Shape{1, 4, 16, 16},
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            { {ngraph::element::f32},  { 7.f }, { 10.f }}
+            ov::element::u8,
+            { {ov::element::f32},  { 7.f }, { 10.f }}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            { {ngraph::element::f32},  { 7.f }, { 10.f }}
+            ov::element::u8,
+            { {ov::element::f32},  { 7.f }, { 10.f }}
         }
     }
 };

@@ -47,9 +47,9 @@ macro(ov_cpack_settings)
         string(TOUPPER ${item} UPPER_COMP)
         # filter out some components, which are not needed to be wrapped to .deb package
         if(NOT OV_CPACK_COMP_${UPPER_COMP}_EXCLUDE_ALL AND
-           # skip OpenVINO Python API (pattern in form of "<pyie | pyopenvino | pyngraph>_python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}")
+           # skip OpenVINO Python API (pattern in form of "pyopenvino_python${Python3_VERSION_MAJOR}${Python3_VERSION_MINOR}")
            NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO}_python.*" AND
-           # because in case of .deb package, pyopenvino_package_python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR} is installed
+           # because in case of .deb package, pyopenvino_package_python${Python3_VERSION_MAJOR}${Python3_VERSION_MINOR} is installed
            (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
            # see ticket # 82605
            NOT item STREQUAL "gna" AND
@@ -65,6 +65,7 @@ macro(ov_cpack_settings)
             list(APPEND CPACK_COMPONENTS_ALL ${item})
         endif()
     endforeach()
+    unset(cpack_components_all)
     list(REMOVE_DUPLICATES CPACK_COMPONENTS_ALL)
 
     # version with 3 components
@@ -89,7 +90,8 @@ macro(ov_cpack_settings)
         # - 2022.1.1, 2022.2 do not have debian packages enabled, distributed only as archives
         # - 2022.3 is the first release where Debian updated packages are introduced, others 2022.3.X are LTS
         2022.3.0 2022.3.1 2022.3.2 2022.3.3 2022.3.4 2022.3.5
-        2023.0.0 2023.0.1
+        2023.0.0 2023.0.1 2023.0.2 2023.0.3
+        2023.1.0
         )
 
     #

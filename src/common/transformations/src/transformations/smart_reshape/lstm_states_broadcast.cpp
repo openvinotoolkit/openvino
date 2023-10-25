@@ -22,6 +22,8 @@
 
 using namespace std;
 
+namespace {
+
 ov::Input<ov::Node> get_outer_input_of_ti_by_parameter(const shared_ptr<ov::op::v0::Parameter>& parameter,
                                                        const shared_ptr<ov::op::v0::TensorIterator>& ti) {
     int64_t parameter_index = ti->get_body()->get_parameter_index(parameter);
@@ -115,11 +117,11 @@ bool broadcast_state_by_batch(ov::Input<ov::Node> input, const shared_ptr<ov::No
     const auto& broadcast_by_batch = make_shared<ov::op::v3::Broadcast>(
         constant_copy,
         make_shared<ov::op::v0::Concat>(
-            ngraph::NodeVector{batch_delivering_node,
-                               ov::op::util::make_try_fold<ov::op::v8::Gather>(
-                                   ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(constant_copy),
-                                   ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
-                                   ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0}))},
+            ov::NodeVector{batch_delivering_node,
+                           ov::op::util::make_try_fold<ov::op::v8::Gather>(
+                               ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(constant_copy),
+                               ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
+                               ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0}))},
             0));
     input.replace_source_output(broadcast_by_batch->output(0));
     return true;
@@ -153,6 +155,8 @@ bool relax_batch_for_initial_states_of_lstm(const shared_ptr<ov::op::v4::LSTMCel
     rewritten |= broadcast_state_by_batch(lstm_cell->input(2), batch_delivering_node);
     return rewritten;
 }
+
+}  // namespace
 
 bool ov::pass::LSTMStatesBroadcast::run_on_model(const shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(LSTMStatesBroadcast);

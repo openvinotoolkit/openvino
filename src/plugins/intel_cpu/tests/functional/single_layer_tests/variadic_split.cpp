@@ -6,7 +6,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace ov::test;
@@ -74,7 +74,7 @@ protected:
         }
 
         init_input_shapes(shapesToInit);
-        auto params = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes[0]});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
 
         std::shared_ptr<ov::Node> splitLengthsOp;
         if (lengthsType == ngraph::helpers::InputLayerType::PARAMETER) {

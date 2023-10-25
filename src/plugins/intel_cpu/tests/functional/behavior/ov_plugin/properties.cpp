@@ -153,13 +153,38 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinity) {
     ASSERT_EQ(affinity, value);
 }
 
+TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinityCore) {
+    ov::Core ie;
+    ov::Affinity affinity = ov::Affinity::CORE;
+    bool value = false;
+
+    ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::enable_cpu_pinning));
+    ASSERT_EQ(true, value);
+
+    affinity = ov::Affinity::HYBRID_AWARE;
+    ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::enable_cpu_pinning));
+    ASSERT_EQ(true, value);
+
+    affinity = ov::Affinity::NUMA;
+    ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::enable_cpu_pinning));
+    ASSERT_EQ(false, value);
+}
+
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+    const auto expected_precision_for_performance_mode = ov::element::f16;
+#else
+    const auto expected_precision_for_performance_mode = InferenceEngine::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
+#endif
+
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigHintInferencePrecision) {
     ov::Core ie;
     auto value = ov::element::f32;
-    const auto precision = InferenceEngine::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
 
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
-    ASSERT_EQ(precision, value);
+    ASSERT_EQ(expected_precision_for_performance_mode, value);
 
     const auto forcedPrecision = ov::element::f32;
 
@@ -190,20 +215,19 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigEnableProfiling) {
     ASSERT_EQ(enableProfiling, value);
 }
 
-const auto bf16_if_supported       = InferenceEngine::with_cpu_x86_bfloat16() ?    ov::element::bf16 : ov::element::f32;
 const auto bf16_if_can_be_emulated = InferenceEngine::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
 using ExpectedModeAndType = std::pair<ov::hint::ExecutionMode, ov::element::Type>;
 
-const std::map<ov::hint::ExecutionMode, ExpectedModeAndType> exectedTypeByMode {
+const std::map<ov::hint::ExecutionMode, ExpectedModeAndType> expectedTypeByMode {
     {ov::hint::ExecutionMode::PERFORMANCE, {ov::hint::ExecutionMode::PERFORMANCE,
-                                            bf16_if_supported}},
+                                            expected_precision_for_performance_mode}},
     {ov::hint::ExecutionMode::ACCURACY,    {ov::hint::ExecutionMode::ACCURACY,
                                             ov::element::f32}},
 };
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigExecutionModeExpectCorrespondingInferencePrecision) {
     ov::Core ie;
-    const auto inference_precision_default = bf16_if_supported;
+    const auto inference_precision_default = expected_precision_for_performance_mode;
     const auto execution_mode_default = ov::hint::ExecutionMode::PERFORMANCE;
     auto execution_mode_value = ov::hint::ExecutionMode::PERFORMANCE;
     auto inference_precision_value = ov::element::undefined;
@@ -214,23 +238,23 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigExecutionModeExpectCorrespondi
     ASSERT_NO_THROW(execution_mode_value = ie.get_property("CPU", ov::hint::execution_mode));
     ASSERT_EQ(execution_mode_value, execution_mode_default);
 
-    for (const auto& m : exectedTypeByMode) {
+    for (const auto& m : expectedTypeByMode) {
         const auto execution_mode = m.first;
-        const auto execution_mode_exected = m.second.first;
-        const auto inference_precision_exected = m.second.second;
+        const auto execution_mode_expected = m.second.first;
+        const auto inference_precision_expected = m.second.second;
 
         ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::execution_mode(execution_mode)));
         ASSERT_NO_THROW(execution_mode_value = ie.get_property("CPU", ov::hint::execution_mode));
-        ASSERT_EQ(execution_mode_value, execution_mode_exected);
+        ASSERT_EQ(execution_mode_value, execution_mode_expected);
 
         ASSERT_NO_THROW(inference_precision_value = ie.get_property("CPU", ov::hint::inference_precision));
-        ASSERT_EQ(inference_precision_value, inference_precision_exected);
+        ASSERT_EQ(inference_precision_value, inference_precision_expected);
     }
 }
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigExecutionModeAndInferencePrecision) {
     ov::Core ie;
-    const auto inference_precision_default = bf16_if_supported;
+    const auto inference_precision_default = expected_precision_for_performance_mode;
     const auto execution_mode_default = ov::hint::ExecutionMode::PERFORMANCE;
 
     auto expect_execution_mode = [&](const ov::hint::ExecutionMode expected_value) {

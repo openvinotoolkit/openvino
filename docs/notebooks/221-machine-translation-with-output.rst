@@ -5,7 +5,7 @@ This demo utilizes Intel’s pre-trained model that translates from
 English to German. More information about the model can be found
 `here <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/machine-translation-nar-en-de-0002/README.md>`__.
 
-This model encodes sentences using the SentecePieceBPETokenizer from
+This model encodes sentences using the ``SentecePieceBPETokenizer`` from
 HuggingFace. The tokenizer vocabulary is downloaded automatically with
 the OMZ tool.
 
@@ -13,14 +13,32 @@ the OMZ tool.
 following structure: ``<s>`` + *tokenized sentence* + ``<s>`` +
 ``<pad>`` (``<pad>`` tokens pad the remaining blank spaces).
 
-**Ouput** After the inference, we have a sequence of up to 200 tokens.
+**Output** After the inference, we have a sequence of up to 200 tokens.
 The structure is the same as the one for the input.
+
+**Table of contents:**
+
+- `Downloading model <#downloading-model>`__ 
+- `Load and configure the model <#load-and-configure-the-model>`__ 
+- `Select inference device <#select-inference-device>`__ 
+- `Load tokenizers <#load-tokenizers>`__ 
+- `Perform translation <#perform-translation>`__ 
+- `Translate the sentence <#translate-the-sentence>`__ 
+
+  - `Test your translation <#test-your-translation>`__
 
 .. code:: ipython3
 
     # Install requirements
-    !pip install -q 'openvino-dev>=2023.0.0'
+    !pip install -q "openvino-dev>=2023.0.0"
     !pip install -q tokenizers
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
 
 .. code:: ipython3
 
@@ -31,7 +49,7 @@ The structure is the same as the one for the input.
     from tokenizers import SentencePieceBPETokenizer
 
 Downloading model
------------------
+###############################################################################################################################
 
 The following command will download the model to the current directory.
 Make sure you have run ``pip install openvino-dev`` beforehand.
@@ -45,34 +63,34 @@ Make sure you have run ``pip install openvino-dev`` beforehand.
 
     ################|| Downloading machine-translation-nar-en-de-0002 ||################
     
-    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/tokenizer_tgt/merges.txt
+    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/tokenizer_tgt/merges.txt
     
     
-    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/tokenizer_tgt/vocab.json
+    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/tokenizer_tgt/vocab.json
     
     
-    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/tokenizer_src/merges.txt
+    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/tokenizer_src/merges.txt
     
     
-    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/tokenizer_src/vocab.json
+    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/tokenizer_src/vocab.json
     
     
-    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/FP32/machine-translation-nar-en-de-0002.xml
+    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/FP32/machine-translation-nar-en-de-0002.xml
     
     
-    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/FP32/machine-translation-nar-en-de-0002.bin
+    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/FP32/machine-translation-nar-en-de-0002.bin
     
     
-    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/FP16/machine-translation-nar-en-de-0002.xml
+    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/FP16/machine-translation-nar-en-de-0002.xml
     
     
-    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/FP16/machine-translation-nar-en-de-0002.bin
+    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/FP16/machine-translation-nar-en-de-0002.bin
     
     
 
 
 Load and configure the model
-----------------------------
+###############################################################################################################################
 
 The model is now available in the ``intel/`` folder. Below, we load and
 configure its inputs and outputs.
@@ -81,19 +99,51 @@ configure its inputs and outputs.
 
     core = Core()
     model = core.read_model('intel/machine-translation-nar-en-de-0002/FP32/machine-translation-nar-en-de-0002.xml')
-    compiled_model = core.compile_model(model)
     input_name = "tokens"
     output_name = "pred"
     model.output(output_name)
     max_tokens = model.input(input_name).shape[1]
 
+Select inference device
+###############################################################################################################################
+
+Select device from dropdown list for running inference using OpenVINO:
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    core = Core()
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
+    compiled_model = core.compile_model(model, device.value)
+
 Load tokenizers
----------------
+###############################################################################################################################
 
 NLP models usually take a list of tokens as standard input. A token is a
 single word converted to some integer. To provide the proper input, we
-need the vocabulary for such mapping. We use ‘merges.txt’ to find out
-what sequences of letters form a token. ‘vocab.json’ specifies the
+need the vocabulary for such mapping. We use ``merges.txt`` to find out
+what sequences of letters form a token. ``vocab.json`` specifies the
 mapping between tokens and integers.
 
 The input needs to be transformed into a token sequence the model
@@ -115,7 +165,7 @@ Initialize the tokenizer for the input ``src_tokenizer`` and the output
     )
 
 Perform translation
--------------------
+###############################################################################################################################
 
 The following function translates a sentence in English to German.
 
@@ -164,7 +214,7 @@ The following function translates a sentence in English to German.
         return sentence
 
 Translate the sentence
-----------------------
+###############################################################################################################################
 
 The following function is a basic loop that translates sentences.
 
@@ -194,7 +244,7 @@ The following function is a basic loop that translates sentences.
     # run_translator()
 
 Test your translation
-~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Run the following cell with an English sentence to have it translated to
 German

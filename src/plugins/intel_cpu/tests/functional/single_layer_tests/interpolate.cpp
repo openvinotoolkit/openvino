@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
@@ -214,8 +214,7 @@ protected:
 
         init_input_shapes(inputShapes);
 
-        auto params = ngraph::builder::makeDynamicParams(ngPrc, {inputDynamicShapes.front()});
-
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, inputDynamicShapes.front())};
         std::shared_ptr<ov::Node> sizesInput, scalesInput;
         if (shapeCalcMode == ov::op::v11::Interpolate::ShapeCalcMode::SCALES) {
             if (shapeInputType == ngraph::helpers::InputLayerType::PARAMETER) {
@@ -463,13 +462,18 @@ const std::vector<ShapeParams> shapeParams4D_fixed_C = {
 };
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+const std::vector<fusingSpecificParams> interpolateFusingParamsSet_fixed_C{
+        fusingFakeQuantizePerChannelRelu,
+        fusingMultiplyPerChannel,
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN_Layout_PerChannelFuse_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
             interpolateCasesNN_Smoke,
             ::testing::ValuesIn(shapeParams4D_fixed_C),
             ::testing::Values(ElementType::f32),
             ::testing::ValuesIn(filterCPUInfoForDevice()),
-            ::testing::Values(fusingFakeQuantizePerChannelRelu),
+            ::testing::ValuesIn(interpolateFusingParamsSet_fixed_C),
             ::testing::ValuesIn(filterAdditionalConfig())),
     InterpolateLayerCPUTest::getTestCaseName);
 
@@ -479,7 +483,7 @@ INSTANTIATE_TEST_SUITE_P(InterpolateNN_Layout_PerChannelFuse_Test, InterpolateLa
             ::testing::ValuesIn(shapeParams4D_fixed_C),
             ::testing::Values(ElementType::f32),
             ::testing::ValuesIn(filterCPUInfoForDevice()),
-            ::testing::Values(fusingFakeQuantizePerChannelRelu),
+            ::testing::ValuesIn(interpolateFusingParamsSet_fixed_C),
             ::testing::ValuesIn(filterAdditionalConfig())),
     InterpolateLayerCPUTest::getTestCaseName);
 #endif
@@ -1016,5 +1020,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateBicubicPillow_LayoutAlign_Test, Interp
     InterpolateLayerCPUTest::getTestCaseName);
 
 } // namespace
-
 } // namespace CPULayerTestsDefinitions

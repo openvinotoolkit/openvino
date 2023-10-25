@@ -466,7 +466,7 @@ TEST(prepare_primitive_fusing, eltwise_fusing_residual_connection) {
     auto conv_in_layout = layout{ ov::PartialShape{1, 3, -1, -1}, data_types::f16, format::bfyx};
     auto weight_layout = layout{ ov::PartialShape{10, 3, 3, 3}, data_types::f16, format::bfyx};
     auto weight_mem = engine.allocate_memory(weight_layout);
-    auto weight_data = rg.generate_random_4d<FLOAT16>(10, 3, 3, 3, -1, 1);
+    auto weight_data = rg.generate_random_4d<ov::float16>(10, 3, 3, 3, -1, 1);
     set_values(weight_mem, weight_data);
     auto elt1_in1_layout = layout{ ov::PartialShape{1, 10, -1, -1}, data_types::f16, format::bfyx};
 
@@ -493,11 +493,11 @@ TEST(prepare_primitive_fusing, eltwise_fusing_residual_connection) {
     cldnn::network net(prog, 0);
 
     // Valid
-    auto conv_input_data = rg.generate_random_4d<FLOAT16>(1, 3, 7, 7, -1, 1);
+    auto conv_input_data = rg.generate_random_4d<ov::float16>(1, 3, 7, 7, -1, 1);
     auto conv_input_mem = engine.allocate_memory(layout{ov::PartialShape{1, 3, 7, 7}, data_types::f16, format::bfyx});
     set_values(conv_input_mem, conv_input_data);
 
-    auto elt_input_data = rg.generate_random_4d<FLOAT16>(1, 10, 5, 5, -10, 10);
+    auto elt_input_data = rg.generate_random_4d<ov::float16>(1, 10, 5, 5, -10, 10);
     auto elt_input_mem = engine.allocate_memory(layout{ov::PartialShape{1, 10, 5, 5}, data_types::f16, format::bfyx});
     set_values(elt_input_mem, elt_input_data);
 
@@ -509,11 +509,98 @@ TEST(prepare_primitive_fusing, eltwise_fusing_residual_connection) {
     ASSERT_FALSE(conv_inst->has_unfused_subgraph());
 
     // Invalid => unfusion
-    auto conv_input_data2 = rg.generate_random_4d<FLOAT16>(1, 3, 3, 3, -1, 1);
+    auto conv_input_data2 = rg.generate_random_4d<ov::float16>(1, 3, 3, 3, -1, 1);
     auto conv_input_mem2 = engine.allocate_memory(layout{ov::PartialShape{1, 3, 3, 3}, data_types::f16, format::bfyx});
     set_values(conv_input_mem2, conv_input_data2);
     net.set_input_data("conv_input", conv_input_mem2);
     net.set_input_data("elt1_input", elt_input_mem);
     net.execute();
     ASSERT_TRUE(conv_inst->has_unfused_subgraph());
+}
+
+TEST(prepare_primitive_fusing, fuse_constant_transposes_removal_check) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ { 2, 32 }, data_types::f16, format::bfyx });
+    auto weights = engine.allocate_memory({{ 32, 2 }, data_types::f32, format::bfyx });
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        data("weights", weights),
+        permute("permute", input_info("weights"), {1, 0}),
+        reorder("reorder_dt", input_info("permute"), format::fbyx, data_types::f16),
+        fully_connected("fc", input_info("input"), { "reorder_dt" }, "", data_types::f16)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    if (engine.get_device_info().supports_immad) {
+        ov::intel_gpu::ImplementationDesc fc_impl = { format::bfyx, "", impl_types::onednn };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc", fc_impl} }));
+    }
+
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    layout_optimizer lo(true);
+    lo.set_implementation_forcing(config.get_property(ov::intel_gpu::force_implementations));
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+
+    ASSERT_TRUE(!has_node(*prog, "permute"));
+    ASSERT_EQ(prog->get_node("weights").get_output_layout().format, format::fbyx);
+
+    if (engine.get_device_info().supports_immad) {
+        ASSERT_TRUE(has_node(*prog, "reorder_dt"));
+        ASSERT_EQ(prog->get_node("reorder_dt").get_output_layout().format, format::bfyx);
+    }
+}
+
+TEST(prepare_primitive_fusing, fuse_constant_transposes_accuracy_test) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ { 2, 32 }, data_types::f16, format::bfyx });
+    auto weights = engine.allocate_memory({{ 32, 2 }, data_types::f32, format::bfyx });
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto input_data = rg.generate_random_2d<ov::float16>(2, 32, -1, 1);
+    auto weights_data = rg.generate_random_2d<float>(32, 2, -1, 1);
+
+    set_values(input, flatten_2d(format::bfyx, input_data));
+    set_values(weights, flatten_2d(format::bfyx, weights_data));
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        data("weights", weights),
+        reorder("reorder_dt", input_info("weights"), format::bfyx, data_types::f16,
+                std::vector<float>(), reorder_mean_mode::subtract, padding(), true),
+        permute("permute", input_info("reorder_dt"), {1, 0}),
+        fully_connected("fc", input_info("input"), { "permute" }, "", data_types::f16)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    cldnn::network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    auto output = outputs.at("fc").get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+
+    ExecutionConfig config_ref = get_test_default_config(engine);
+    config_ref.set_property(ov::intel_gpu::optimize_data(false));
+    config_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    cldnn::network network_ref(engine, topology, config_ref);
+    network_ref.set_input_data("input", input);
+
+    auto outputs_ref = network_ref.execute();
+    auto output_ref = outputs_ref.at("fc").get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr_ref(output_ref, get_test_stream());
+
+    for (size_t i = 0; i < output_ptr_ref.size(); ++i) {
+        ASSERT_EQ(output_ptr[i], output_ptr_ref[i]);
+    }
 }

@@ -304,7 +304,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Basic, Interpolate11LayerTest, ::t
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(targetShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
     Interpolate11LayerTest::getTestCaseName);
 
@@ -337,7 +337,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow, Interpolate11LayerTest, ::
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(std::vector<size_t>{1, 1, 23, 23}),
         ::testing::Values(std::vector<size_t>{1, 1, 50, 50}),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
     Interpolate11LayerTest::getTestCaseName);
 
@@ -361,7 +361,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Horizontal, Interpolate11La
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(std::vector<size_t>{1, 1, 23, 23}),
         ::testing::Values(std::vector<size_t>{1, 1, 25, 50}),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
     Interpolate11LayerTest::getTestCaseName);
 
@@ -385,7 +385,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Vertical, Interpolate11Laye
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(std::vector<size_t>{1, 1, 23, 23}),
         ::testing::Values(std::vector<size_t>{1, 1, 50, 25}),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
     Interpolate11LayerTest::getTestCaseName);
 
@@ -409,7 +409,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_11_Pillow_Vertical_BF, Interpolate11L
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(std::vector<size_t>{23, 23, 2, 2}),
         ::testing::Values(std::vector<size_t>{52, 26, 2, 2}),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
     Interpolate11LayerTest::getTestCaseName);
 } // namespace

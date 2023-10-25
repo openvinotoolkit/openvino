@@ -7,10 +7,11 @@
 #include "bound_evaluate.hpp"
 #include "gather_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/gather.hpp"
+#include "ngraph/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/reference/gather.hpp"
 
 ov::op::util::GatherBase::GatherBase(const Output<Node>& data,
                                      const Output<Node>& indices,
@@ -84,23 +85,23 @@ bool evaluate(const ngraph::HostTensorPtr& arg0,
     out->set_shape(out_shape);
 
     if (arg1->get_element_type() == ov::element::i64) {
-        ngraph::runtime::reference::gather<T, int64_t>(arg0->get_data_ptr<ET>(),
-                                                       arg1->get_data_ptr<int64_t>(),
-                                                       out->get_data_ptr<ET>(),
-                                                       arg0->get_shape(),
-                                                       arg1->get_shape(),
-                                                       out->get_shape(),
-                                                       axis,
-                                                       batch_dims);
+        ov::reference::gather<T, int64_t>(arg0->get_data_ptr<ET>(),
+                                          arg1->get_data_ptr<int64_t>(),
+                                          out->get_data_ptr<ET>(),
+                                          arg0->get_shape(),
+                                          arg1->get_shape(),
+                                          out->get_shape(),
+                                          axis,
+                                          batch_dims);
     } else if (arg1->get_element_type() == ov::element::i32) {
-        ngraph::runtime::reference::gather<T, int32_t>(arg0->get_data_ptr<ET>(),
-                                                       arg1->get_data_ptr<int32_t>(),
-                                                       out->get_data_ptr<ET>(),
-                                                       arg0->get_shape(),
-                                                       arg1->get_shape(),
-                                                       out->get_shape(),
-                                                       axis,
-                                                       batch_dims);
+        ov::reference::gather<T, int32_t>(arg0->get_data_ptr<ET>(),
+                                          arg1->get_data_ptr<int32_t>(),
+                                          out->get_data_ptr<ET>(),
+                                          arg0->get_shape(),
+                                          arg1->get_shape(),
+                                          out->get_shape(),
+                                          axis,
+                                          batch_dims);
     } else {
         OPENVINO_THROW("Unexpected type ", arg1->get_element_type().c_type_string(), " for Gather evaluate method.");
     }
@@ -115,16 +116,17 @@ bool evaluate_gather(const ngraph::HostTensorPtr& arg0,
                      int64_t batch_dims = 0) {
     bool rc = true;
 
+    using ov::element::Type_t;
     switch (out->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_gather, i32, arg0, arg1, out, axis, batch_dims);
-        NGRAPH_TYPE_CASE(evaluate_gather, i64, arg0, arg1, out, axis, batch_dims);
-        NGRAPH_TYPE_CASE(evaluate_gather, i8, arg0, arg1, out, axis, batch_dims);
-        NGRAPH_TYPE_CASE(evaluate_gather, u8, arg0, arg1, out, axis, batch_dims);
-        NGRAPH_TYPE_CASE(evaluate_gather, u32, arg0, arg1, out, axis, batch_dims);
-        NGRAPH_TYPE_CASE(evaluate_gather, u64, arg0, arg1, out, axis, batch_dims);
-        NGRAPH_TYPE_CASE(evaluate_gather, f16, arg0, arg1, out, axis, batch_dims);
-        NGRAPH_TYPE_CASE(evaluate_gather, f32, arg0, arg1, out, axis, batch_dims);
-        NGRAPH_TYPE_CASE(evaluate_gather, boolean, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, i32, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, i64, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, i8, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, u8, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, u32, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, u64, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, f16, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, f32, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, boolean, arg0, arg1, out, axis, batch_dims);
     default:
         rc = false;
         break;

@@ -64,6 +64,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHABF16, MHA,
                                  ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig)),
                          MHA::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAEnforceBF16, MHA,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(inputShapes),
+                                 ::testing::ValuesIn(precision_f32(4)),
+                                 ::testing::Values(ov::element::bf16),
+                                 ::testing::ValuesIn({false}),
+                                 ::testing::Values(7),
+                                 ::testing::Values(7),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                 ::testing::Values(CPUTestUtils::cpuBF16PluginConfig)),
+                         MHA::getTestCaseName);
+
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAMulAdd, MHAMulAdd,
                          ::testing::Combine(
@@ -211,7 +223,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAQuantMatMul0, MHAQuantMatMul0,
                                  ::testing::Values(false), // The graph doesn't contain Multiply
                                  ::testing::Values(8),     // FQ on input + MHA + Transpose on output + 4 Reshapes + Deq Mul
                                  ::testing::Values(3),     // FQ on input + MHA + Deq Mul
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                  ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig)),
                          MHA::getTestCaseName);
 

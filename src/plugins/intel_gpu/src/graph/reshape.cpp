@@ -85,7 +85,7 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node
         pattern_shape,
     };
 
-    std::map<size_t, ngraph::HostTensorPtr> const_data;
+    std::unordered_map<size_t, ov::Tensor> const_data;
     const auto ta = ov::make_tensor_accessor(const_data);
 
     auto run_shape_infer = [&](reshape::reshape_mode mode) {
@@ -120,13 +120,13 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node
         cldnn::mem_lock<uint8_t, mem_lock_type::read> pattern_lock(pattern_mem, impl_param.get_stream());
 
         auto pattern_ptr = pattern_lock.data();
-        auto pattern_tensor = make_host_tensor(pattern_mem->get_layout(), pattern_ptr);
+        auto pattern_tensor = make_tensor(pattern_mem->get_layout(), pattern_ptr);
 
         const_data.emplace(1, pattern_tensor);
         run_shape_infer(prim->mode);
     } else {
         auto pattern_data = prim->output_pattern;
-        auto pattern_tensor = make_host_tensor({pattern_shape, data_types::i64, format::bfyx}, static_cast<void*>(pattern_data.data()));
+        auto pattern_tensor = make_tensor({pattern_shape, data_types::i64, format::bfyx}, static_cast<void*>(pattern_data.data()));
 
         const_data.emplace(1, pattern_tensor);
         run_shape_infer(prim->mode);
@@ -148,6 +148,8 @@ std::string reshape_inst::to_string(reshape_node const& node) {
     reshape_info.add("input id", input.id());
     reshape_info.add("output shape", desc->output_shape);
     reshape_info.add("output pshape", desc->output_partial_shape);
+    reshape_info.add("output pattern", desc->output_pattern);
+    reshape_info.add("special zero", desc->special_zero);
 
     node_info->add("reshape info", reshape_info);
     node_info->dump(primitive_description);

@@ -1,13 +1,15 @@
-// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 
+#include <atomic>
 #include <condition_variable>
 #include <memory>
 #include <mutex>
 #include <queue>
+#include <set>
 #include <thread>
 #include <vector>
 
@@ -132,21 +134,27 @@ struct CPUStreamsExecutor::Impl {
                                    const StreamCreateType stream_type,
                                    const int concurrency,
                                    const int core_type,
-                                   const int numa_node_id) {
-            _numaNodeId = (_impl->_usedNumaNodes.size() == 1 && _impl->_usedNumaNodes.at(0) == -1)
-                              ? -1  // macOS
-                              : std::max(0, numa_node_id);
+                                   const int numa_node_id,
+                                   const int max_threads_per_core) {
+            _numaNodeId = std::max(0, numa_node_id);
             _socketId = get_socket_by_numa_node(_numaNodeId);
             if (stream_type == STREAM_WITHOUT_PARAM) {
-                _taskArena.reset(new custom::task_arena{concurrency});
+                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
+                                                            .set_max_concurrency(concurrency)
+                                                            .set_max_threads_per_core(max_threads_per_core)});
             } else if (stream_type == STREAM_WITH_NUMA_ID) {
-                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
+                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
+                                                            .set_numa_id(_numaNodeId)
+                                                            .set_max_concurrency(concurrency)
+                                                            .set_max_threads_per_core(max_threads_per_core)});
             } else if (stream_type == STREAM_WITH_CORE_TYPE) {
                 const auto real_core_type = (core_type == MAIN_CORE_PROC || core_type == HYPER_THREADING_PROC)
                                                 ? custom::info::core_types().back()
                                                 : custom::info::core_types().front();
-                _taskArena.reset(new custom::task_arena{
-                    custom::task_arena::constraints{}.set_core_type(real_core_type).set_max_concurrency(concurrency)});
+                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
+                                                            .set_core_type(real_core_type)
+                                                            .set_max_concurrency(concurrency)
+                                                            .set_max_threads_per_core(max_threads_per_core)});
             } else {
                 _taskArena.reset(new custom::task_arena{concurrency});
                 _cpu_ids = static_cast<int>(_impl->_config._stream_processor_ids.size()) == _impl->_config._streams
@@ -175,6 +183,7 @@ struct CPUStreamsExecutor::Impl {
             int concurrency;
             int cpu_core_type;
             int numa_node_id;
+            int max_threads_per_core;
             StreamCreateType stream_type;
             const auto org_proc_type_table = get_org_proc_type_table();
             const auto stream_id = _streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId;
@@ -186,11 +195,17 @@ struct CPUStreamsExecutor::Impl {
                                 stream_type,
                                 concurrency,
                                 cpu_core_type,
-                                numa_node_id);
+                                numa_node_id,
+                                max_threads_per_core);
             if (concurrency <= 0) {
                 return;
             }
-            create_tbb_task_arena(stream_id, stream_type, concurrency, cpu_core_type, numa_node_id);
+            create_tbb_task_arena(stream_id,
+                                  stream_type,
+                                  concurrency,
+                                  cpu_core_type,
+                                  numa_node_id,
+                                  max_threads_per_core);
         }
 
         void init_stream_legacy() {
@@ -312,17 +327,122 @@ struct CPUStreamsExecutor::Impl {
         std::vector<int> _cpu_ids;
 #endif
     };
+    // if the thread is created by CPUStreamsExecutor, the Impl::Stream of the thread is stored by tbb Class
+    // enumerable_thread_specific, the alias is ThreadLocal, the limitations of ThreadLocal please refer to
+    // https://spec.oneapi.io/versions/latest/elements/oneTBB/source/thread_local_storage/enumerable_thread_specific_cls.html
+    // if the thread is created by customer, the Impl::Stream of the thread will be stored in variable _stream_map, and
+    // will be counted by thread_local t_stream_count_map.
+    // when the customer's thread is destoryed, the stream's count will became 1,
+    // Call local() will reuse one of them, and release others.
+    // it's only a workaround for ticket CVS-111490, please be carefully when need to modify
+    // CustomeThreadLocal::local(), especially like operations that will affect the count of
+    // CustomThreadLocal::ThreadId
+    class CustomThreadLocal : public ThreadLocal<std::shared_ptr<Stream>> {
+        class ThreadTracker {
+        public:
+            explicit ThreadTracker(const std::thread::id& id)
+                : _id(id),
+                  _count_ptr(std::make_shared<std::atomic_int>(1)) {}
+            ~ThreadTracker() {
+                _count_ptr->fetch_sub(1);
+            }
+            std::shared_ptr<ThreadTracker> fetch() {
+                auto new_ptr = std::shared_ptr<ThreadTracker>(new ThreadTracker(*this));
+                auto pre_valule = new_ptr.get()->_count_ptr->fetch_add(1);
+                OPENVINO_ASSERT(pre_valule == 1, "this value must be 1, please check code CustomThreadLocal::local()");
+                return new_ptr;
+            }
+            const std::thread::id& get_id() const {
+                return _id;
+            }
+            int count() const {
+                return *(_count_ptr.get());
+            }
+
+        private:
+            // disable all copy and move semantics, user only can use fetch()
+            // to create a new instance with a shared count num;
+            ThreadTracker(ThreadTracker const&) = default;
+            ThreadTracker(ThreadTracker&&) = delete;
+            ThreadTracker& operator=(ThreadTracker const&) = delete;
+            ThreadTracker& operator=(ThreadTracker&&) = delete;
+            std::thread::id _id;
+            std::shared_ptr<std::atomic_int> _count_ptr;
+        };
+
+    public:
+        CustomThreadLocal(std::function<std::shared_ptr<Stream>()> callback_construct, Impl* impl)
+            : ThreadLocal<std::shared_ptr<Stream>>(std::move(callback_construct)),
+              _impl(impl) {}
+        std::shared_ptr<Stream> local() {
+            // maybe there are two CPUStreamsExecutors in the same thread.
+            static thread_local std::map<void*, std::shared_ptr<CustomThreadLocal::ThreadTracker>> t_stream_count_map;
+            // fix the memory leak issue that CPUStreamsExecutor is already released,
+            // but still exists CustomThreadLocal::ThreadTracker in t_stream_count_map
+            for (auto it = t_stream_count_map.begin(); it != t_stream_count_map.end();) {
+                if (this != it->first && it->second->count() == 1) {
+                    t_stream_count_map.erase(it++);
+                } else {
+                    it++;
+                }
+            }
+            auto id = std::this_thread::get_id();
+            auto search = _thread_ids.find(id);
+            if (search != _thread_ids.end()) {
+                return ThreadLocal<std::shared_ptr<Stream>>::local();
+            }
+            std::lock_guard<std::mutex> guard(_stream_map_mutex);
+            for (auto& item : _stream_map) {
+                if (item.first->get_id() == id) {
+                    return item.second;
+                }
+            }
+            std::shared_ptr<Impl::Stream> stream = nullptr;
+            for (auto it = _stream_map.begin(); it != _stream_map.end();) {
+                if (it->first->count() == 1) {
+                    if (stream == nullptr) {
+                        stream = it->second;
+                    }
+                    _stream_map.erase(it++);
+                } else {
+                    it++;
+                }
+            }
+            if (stream == nullptr) {
+                stream = std::make_shared<Impl::Stream>(_impl);
+            }
+            auto tracker_ptr = std::make_shared<CustomThreadLocal::ThreadTracker>(id);
+            t_stream_count_map[(void*)this] = tracker_ptr;
+            auto new_tracker_ptr = tracker_ptr->fetch();
+            _stream_map[new_tracker_ptr] = stream;
+            return stream;
+        }
+
+        void set_thread_ids_map(std::vector<std::thread>& threads) {
+            for (auto& thread : threads) {
+                _thread_ids.insert(thread.get_id());
+            }
+        }
+
+    private:
+        std::set<std::thread::id> _thread_ids;
+        Impl* _impl;
+        std::map<std::shared_ptr<CustomThreadLocal::ThreadTracker>, std::shared_ptr<Impl::Stream>> _stream_map;
+        std::mutex _stream_map_mutex;
+    };
 
     explicit Impl(const Config& config)
         : _config{config},
-          _streams([this] {
-              return std::make_shared<Impl::Stream>(this);
-          }) {
+          _streams(
+              [this] {
+                  return std::make_shared<Impl::Stream>(this);
+              },
+              this) {
         _exectorMgr = executor_manager();
         auto numaNodes = get_available_numa_nodes();
         if (_config._streams != 0) {
             std::copy_n(std::begin(numaNodes),
-                        std::min(static_cast<std::size_t>(_config._streams), numaNodes.size()),
+                        std::min<std::size_t>(_config._streams, numaNodes.size()),
                         std::back_inserter(_usedNumaNodes));
         } else {
             _usedNumaNodes = numaNodes;
@@ -378,6 +498,7 @@ struct CPUStreamsExecutor::Impl {
                 }
             });
         }
+        _streams.set_thread_ids_map(_threads);
     }
 
     void Enqueue(Task task) {
@@ -427,7 +548,7 @@ struct CPUStreamsExecutor::Impl {
     std::queue<Task> _taskQueue;
     bool _isStopped = false;
     std::vector<int> _usedNumaNodes;
-    ThreadLocal<std::shared_ptr<Stream>> _streams;
+    CustomThreadLocal _streams;
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
     // stream id mapping to the core type
     // stored in the reversed order (so the big cores, with the highest core_type_id value, are populated first)

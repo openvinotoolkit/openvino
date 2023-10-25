@@ -2,15 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/acosh.hpp"
+#include "openvino/op/acosh.hpp"
 
-#include <string>
-#include <vector>
-
+#include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/acosh.hpp"
-#include "ngraph/type/element_type.hpp"
+#include "openvino/reference/acosh.hpp"
+
+namespace ov {
+namespace op {
+namespace acosh {
+struct Evaluate : ov::element::NoAction<bool> {
+    using ov::element::NoAction<bool>::visit;
+
+    template <element::Type_t ET>
+    static result_type visit(const Tensor& arg0, Tensor& out, const size_t count) {
+        using T = typename element_type_traits<ET>::value_type;
+        reference::acosh(arg0.data<T>(), out.data<T>(), count);
+        return true;
+    }
+};
+}  // namespace acosh
+}  // namespace op
+}  // namespace ov
 
 ov::op::v3::Acosh::Acosh(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
@@ -22,51 +35,29 @@ std::shared_ptr<ov::Node> ov::op::v3::Acosh::clone_with_new_inputs(const OutputV
     return std::make_shared<Acosh>(new_args.at(0));
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace acoshop {
-namespace {
-template <ov::element::Type_t ET>
-bool evaluate(const ngraph::HostTensorPtr& arg0, const ngraph::HostTensorPtr& out) {
-    ngraph::runtime::reference::acosh(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape_size(arg0->get_shape()));
-    return true;
-}
-
-bool evaluate_acosh(const ngraph::HostTensorPtr& arg0, const ngraph::HostTensorPtr& out) {
-    bool rc = true;
-    out->set_unary(arg0);
-    switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_acosh, i32, arg0, out);
-        NGRAPH_TYPE_CASE(evaluate_acosh, i64, arg0, out);
-        NGRAPH_TYPE_CASE(evaluate_acosh, u32, arg0, out);
-        NGRAPH_TYPE_CASE(evaluate_acosh, u64, arg0, out);
-        NGRAPH_TYPE_CASE(evaluate_acosh, f16, arg0, out);
-        NGRAPH_TYPE_CASE(evaluate_acosh, f32, arg0, out);
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
-}
-}  // namespace
-}  // namespace acoshop
-
-bool ov::op::v3::Acosh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ov::op::v3::Acosh::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v3_Acosh_evaluate);
-    return acoshop::evaluate_acosh(inputs[0], outputs[0]);
+    OPENVINO_ASSERT(inputs.size() == 1 && outputs.size() == 1);
+    outputs[0].set_shape(inputs[0].get_shape());
+
+    using namespace ov::element;
+    return IfTypeOf<i32, i64, u32, u64, f16, f32>::apply<acosh::Evaluate>(inputs[0].get_element_type(),
+                                                                          inputs[0],
+                                                                          outputs[0],
+                                                                          shape_size(inputs[0].get_shape()));
 }
 
 bool ov::op::v3::Acosh::has_evaluate() const {
     OV_OP_SCOPE(v3_Acosh_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
+    case element::i32:
+    case element::i64:
+    case element::u32:
+    case element::u64:
+    case element::f16:
+    case element::f32:
         return true;
     default:
-        break;
+        return false;
     }
-    return false;
 }

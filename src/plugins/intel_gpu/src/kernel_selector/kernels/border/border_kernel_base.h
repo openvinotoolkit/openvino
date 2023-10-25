@@ -12,16 +12,20 @@ namespace kernel_selector {
 // border_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct border_params : public base_params {
-    DimTensor<> lt_sizes;
-    DimTensor<> rb_sizes;
+    DimTensor<int32_t> lt_sizes;
+    DimTensor<int32_t> rb_sizes;
     BorderType b_type;
     float border_value;
+    bool allow_negative_pad;
 
     ArgType begin_type;
     ArgType end_type;
     ArgType pad_value_type;
 
-    border_params() : base_params(KernelType::BORDER), b_type(BorderType::CONSTANT), border_value(0.0f) {}
+
+    border_params() : base_params(KernelType::BORDER), b_type(BorderType::CONSTANT),
+                      border_value(0.0f), allow_negative_pad(false),
+                      begin_type(ArgType::Constant), end_type(ArgType::Constant), pad_value_type(ArgType::Constant) {}
 
     ParamsKey GetParamsKey() const override {
         ParamsKey k = base_params::GetParamsKey();

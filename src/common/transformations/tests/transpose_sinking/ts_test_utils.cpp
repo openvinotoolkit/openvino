@@ -52,6 +52,19 @@ OutputVector set_transpose_for(const vector<size_t>& idxs, const OutputVector& o
     return result;
 }
 
+OutputVector set_transpose_with_order(const vector<size_t>& idxs,
+                                      const OutputVector& out_vec,
+                                      const vector<size_t>& transpose_order_axes) {
+    OutputVector result = out_vec;
+    for (const auto& idx : idxs) {
+        const auto& out = out_vec[idx];
+        auto order = make_shared<Constant>(element::i32, Shape{transpose_order_axes.size()}, transpose_order_axes);
+        auto transpose = make_shared<Transpose>(out, order);
+        result[idx] = transpose;
+    }
+    return result;
+}
+
 OutputVector set_gather_for(const vector<size_t>& idxs, const OutputVector& out_vec) {
     OutputVector result = out_vec;
     for (const auto& idx : idxs) {

@@ -9,7 +9,7 @@
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/hswish.hpp"
+#include "openvino/reference/hswish.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -35,7 +35,7 @@ template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
 
-    runtime::reference::hswish<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+    ov::reference::hswish<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
     return true;
 }
 
@@ -45,9 +45,9 @@ bool evaluate_hswish(const HostTensorPtr& arg, const HostTensorPtr& out) {
     out->set_unary(arg);
 
     switch (arg->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_hswish, bf16, arg, out, count);
-        NGRAPH_TYPE_CASE(evaluate_hswish, f16, arg, out, count);
-        NGRAPH_TYPE_CASE(evaluate_hswish, f32, arg, out, count);
+        OPENVINO_TYPE_CASE(evaluate_hswish, bf16, arg, out, count);
+        OPENVINO_TYPE_CASE(evaluate_hswish, f16, arg, out, count);
+        OPENVINO_TYPE_CASE(evaluate_hswish, f32, arg, out, count);
     default:
         rc = false;
         break;
@@ -60,7 +60,7 @@ bool evaluate_hswish(const HostTensorPtr& arg, const HostTensorPtr& out) {
 bool op::v4::HSwish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v4_HSwish_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
     return hswish::evaluate_hswish(inputs[0], outputs[0]);
 }

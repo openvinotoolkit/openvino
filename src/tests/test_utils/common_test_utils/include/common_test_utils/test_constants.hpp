@@ -23,46 +23,31 @@ const char API_REPORT_FILENAME[] = "report_api";
 const char REPORT_EXTENSION[] = ".xml";
 const char LST_EXTENSION[] = ".lst";
 
+const char TEMPLATE_LIB[] = "openvino_template_plugin";
+
 const char DEVICE_SUFFIX_SEPARATOR = '.';
 
 const unsigned int maxFileNameLength = 140;
 
 #ifdef _WIN32
-    #if defined(__MINGW32__) || defined(__MINGW64__)
-        const char pre[] = "lib";
-    #else
-        const char pre[] = "";
-    #endif
-    const char ext[] = ".dll";
-    const char FileSeparator[] = "\\";
+#    if defined(__MINGW32__) || defined(__MINGW64__)
+const char pre[] = "lib";
+#    else
+const char pre[] = "";
+#    endif
+const char ext[] = ".dll";
+const char FileSeparator[] = "\\";
 #else
-    #if defined __APPLE__
-        const char pre[] = "lib";
-        const char ext[] = ".so";
-    #else
-        const char pre[] = "lib";
-        const char ext[] = ".so";
-    #endif
-    const char FileSeparator[] = "/";
+#    if defined __APPLE__
+const char pre[] = "lib";
+const char ext[] = ".so";
+#    else
+const char pre[] = "lib";
+const char ext[] = ".so";
+#    endif
+const char FileSeparator[] = "/";
 #endif
 
 }  // namespace utils
 }  // namespace test
 }  // namespace ov
-
-// openvino_contrib and vpu repo use CommonTestUtils::
-// so we need to add these names to CommonTestUtils namespace
-namespace CommonTestUtils {
-using ov::test::utils::DEVICE_AUTO;
-using ov::test::utils::DEVICE_CPU;
-using ov::test::utils::DEVICE_GNA;
-using ov::test::utils::DEVICE_GPU;
-using ov::test::utils::DEVICE_BATCH;
-using ov::test::utils::DEVICE_KEEMBAY;
-using ov::test::utils::DEVICE_MULTI;
-using ov::test::utils::DEVICE_TEMPLATE;
-using ov::test::utils::DEVICE_HETERO;
-
-using ov::test::utils::maxFileNameLength;
-using ov::test::utils::DEVICE_SUFFIX_SEPARATOR;
-} // namespace CommonTestUtils

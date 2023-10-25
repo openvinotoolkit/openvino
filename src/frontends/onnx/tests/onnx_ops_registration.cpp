@@ -8,9 +8,9 @@
 #include <sstream>
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_control.hpp"
 #include "editor.hpp"
-#include "engines_util/test_case.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "onnx_test_util.hpp"
@@ -19,7 +19,7 @@ using namespace ov;
 using namespace ov::onnx_editor;
 using namespace ngraph::test;
 
-static std::string s_manifest = "${MANIFEST}";
+static std::string s_manifest = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(), "${MANIFEST}");
 
 OPENVINO_TEST(ops_registration, check_importing_abs_in_all_opset_versions) {
     ONNXModelEditor editor{

@@ -17,7 +17,7 @@ class ConvertSwishToSwishIEMatcher;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertSwishToSwishIEMatcher : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertSwishToSwishIEMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertSwishToSwishIEMatcher", "0");
     ConvertSwishToSwishIEMatcher();

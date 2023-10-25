@@ -17,7 +17,13 @@ except ImportError:
 
 
 def init_mo_telemetry(app_name='Model Conversion API'):
-    return tm.Telemetry(tid=get_tid(), app_name=app_name, app_version=get_rt_version(), backend='ga4')
+    return tm.Telemetry(tid=get_tid(),
+                        app_name=app_name,
+                        app_version=get_rt_version(),
+                        backend='ga4',
+                        enable_opt_in_dialog=False,
+                        disable_in_ci=True
+                        )
 
 def send_framework_info(framework: str):
     """
@@ -25,7 +31,7 @@ def send_framework_info(framework: str):
     :param framework: framework name.
     """
     t = tm.Telemetry()
-    t.send_event('mo', 'framework', framework)
+    t.send_event('ovc', 'framework', framework)
 
 
 def get_tid():
@@ -37,8 +43,8 @@ def get_tid():
 
 def send_conversion_result(conversion_result: str, need_shutdown=False):
     t = tm.Telemetry()
-    t.send_event('mo', 'conversion_result', conversion_result)
-    t.end_session('mo')
+    t.send_event('ovc', 'conversion_result', conversion_result)
+    t.end_session('ovc')
     if need_shutdown:
         t.force_shutdown(1.0)
 
@@ -71,4 +77,4 @@ def send_params_info(argv: argparse.Namespace, cli_parser: argparse.ArgumentPars
             else:
                 param_str = arg + ":" + arg_to_str(arg_value)
 
-            t.send_event('mo', 'cli_parameters', param_str)
+            t.send_event('ovc', 'cli_parameters', param_str)

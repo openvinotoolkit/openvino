@@ -3,7 +3,7 @@
 //
 
 #include <shared_test_classes/single_layer/normalize_l2.hpp>
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 using namespace InferenceEngine;
@@ -55,12 +55,15 @@ protected:
 
        init_input_shapes({inputShapes});
 
-       auto param = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
-       auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+        }
+       auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
        auto normalize = ngraph::builder::makeNormalizeL2(paramOuts[0], axes, eps, epsMode);
 
        ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(normalize)};
-       function = std::make_shared<ngraph::Function>(results, param, "NormalizeL2");
+       function = std::make_shared<ngraph::Function>(results, params, "NormalizeL2");
    }
 };
 

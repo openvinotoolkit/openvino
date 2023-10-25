@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -33,16 +33,6 @@ using CTCGreedyDecoderSeqLenLayerCPUTestParams = std::tuple<InputShapeParams,   
                                                             ElementType,         // Index Type
                                                             bool                 // mergeRepeated
                                                             >;
-inline ngraph::ParameterVector makeDynamicParams(const std::vector<ElementType>& types,
-                                          const std::vector<ov::PartialShape>& shapes) {
-    ngraph::ParameterVector outs;
-    NGRAPH_CHECK(types.size() == shapes.size());
-    for (size_t i = 0; i < types.size(); i++) {
-        auto paramNode = std::make_shared<ov::op::v0::Parameter>(types[i], shapes[i]);
-        outs.push_back(paramNode);
-    }
-    return outs;
-}
 
 class CTCGreedyDecoderSeqLenLayerCPUTest : public testing::WithParamInterface<CTCGreedyDecoderSeqLenLayerCPUTestParams>,
                                            virtual public SubgraphBaseTest,
@@ -95,6 +85,7 @@ protected:
         inputDynamicShapes = {ov::PartialShape{in_dyn_N, in_dyn_T, in_dyc_C},
                               ov::PartialShape{in_dyn_N},
                               blank_rank == 0 ? ov::PartialShape{} : ov::PartialShape{1}};
+        OPENVINO_ASSERT(inType.size() == inputDynamicShapes.size());
 
         for (auto& shape : shapes.second) {
             size_t N;
@@ -107,7 +98,11 @@ protected:
                 targetStaticShapes.push_back({{N, T, C}, {N}, {1}});
         }
 
-        auto params = makeDynamicParams(inType, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (size_t i = 0; i < inType.size(); i++) {
+            auto param_node = std::make_shared<ov::op::v0::Parameter>(inType[i], inputDynamicShapes[i]);
+            params.push_back(param_node);
+        }
         auto ctcGreedyDecoderSeqLen = std::make_shared<ov::op::v6::CTCGreedyDecoderSeqLen>(params[0],
                                                                                            params[1],
                                                                                            params[2],

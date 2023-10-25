@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 import torch
@@ -31,13 +33,13 @@ class aten_native_multi_head_attention(torch.nn.Module):
         # Float masks raise a warning in PyTorch and are (incorrectly) converted to bool,
         # which later returns NaNs as MHA's output
         if mask == 0:
-            self.mask = torch.from_numpy(np.random.randint(0, 2, (SEQ_LENGTH, SEQ_LENGTH)).astype(np.bool)) 
+            self.mask = torch.from_numpy(np.random.randint(0, 2, (SEQ_LENGTH, SEQ_LENGTH)).astype("bool")) 
             self.mask_type = 0
         elif mask == 1:
-            self.mask = torch.from_numpy(np.random.randint(0, 2, (BATCH_SIZE, SEQ_LENGTH)).astype(np.bool))
+            self.mask = torch.from_numpy(np.random.randint(0, 2, (BATCH_SIZE, SEQ_LENGTH)).astype("bool"))
             self.mask_type = 1
         elif mask == 2:
-            self.mask = torch.from_numpy(np.random.randint(0, 2, (BATCH_SIZE, NUM_HEADS, SEQ_LENGTH, SEQ_LENGTH)).astype(np.bool))
+            self.mask = torch.from_numpy(np.random.randint(0, 2, (BATCH_SIZE, NUM_HEADS, SEQ_LENGTH, SEQ_LENGTH)).astype("bool"))
             self.mask_type = 2
         else:
             self.mask = None
@@ -74,6 +76,8 @@ class TestNativeMultiHeadAttention(PytorchLayerTest):
         ["need_weights", "average_attn_weights"], 
         [[False, False], [True, False], [True, True]]
     )
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_native_multi_head_attention(self, ie_device, precision, ir_version, mask, need_weights, average_attn_weights):
         self._test(aten_native_multi_head_attention(mask, need_weights, average_attn_weights), 
                    None, "aten::_native_multi_head_attention", ie_device, precision, ir_version) 

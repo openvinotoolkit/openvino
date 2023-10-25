@@ -40,6 +40,8 @@ void regmodule_properties(py::module m) {
     wrap_property_RO(m_properties, ov::optimal_batch_size, "optimal_batch_size");
     wrap_property_RO(m_properties, ov::max_batch_size, "max_batch_size");
     wrap_property_RO(m_properties, ov::range_for_async_infer_requests, "range_for_async_infer_requests");
+    wrap_property_RO(m_properties, ov::execution_devices, "execution_devices");
+    wrap_property_RO(m_properties, ov::loaded_from_cache, "loaded_from_cache");
 
     // Submodule hint
     py::module m_hint =
@@ -103,6 +105,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RO(m_intel_gpu, ov::intel_gpu::memory_statistics, "memory_statistics");
 
     wrap_property_RW(m_intel_gpu, ov::intel_gpu::enable_loop_unrolling, "enable_loop_unrolling");
+    wrap_property_RW(m_intel_gpu, ov::intel_gpu::disable_winograd_convolution, "disable_winograd_convolution");
 
     // Submodule hint (intel_gpu)
     py::module m_intel_gpu_hint = m_intel_gpu.def_submodule(

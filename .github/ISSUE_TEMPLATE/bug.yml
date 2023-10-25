@@ -1,5 +1,5 @@
-name: Bug Report
-description: Create a report to help us improve
+name: Bug report
+description: Help us improve OpenVINO.
 title: "[Bug]: "
 labels: ["bug", "support_request"]
 body:
@@ -53,7 +53,7 @@ body:
     id: framework
     attributes:
       label: Framework
-      description: Framework used in model optimization
+      description: Framework used for model optimization
       options:
         - TensorFlow 1
         - Keras (TensorFlow 2)
@@ -68,7 +68,7 @@ body:
     id: model_name
     attributes:
       label: Model used
-      description: Please provide us the link to your model in the description
+      description: Link to the model 
       placeholder: ResNet50 / YOLOv4
     validations:
       required: false
@@ -77,8 +77,7 @@ body:
     attributes:
       label: Issue description
       description: What issue are you having, and what did you expect to happen instead?
-      placeholder: Please provide a detailed description of what happened
-      value: "Error when performing model optimization on yolov4 model."
+      placeholder: "Error when performing model optimization on yolov4 model."
     validations:
       required: true
   - type: textarea
@@ -101,9 +100,9 @@ body:
       label: Issue submission checklist
       description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/intel/intel-one-mono/blob/main/CODE_OF_CONDUCT.md)
       options:
-        - label: I report the issue. It's not a question
+        - label: I'm reporting an issue. It's not a question.
           required: true
-        - label: I checked the problem with the documentation, FAQ, open issues, Stack Overflow, etc., and have not found the solution
+        - label: I checked the problem with the documentation, FAQ, open issues, Stack Overflow, etc., and have not found a solution.
           required: true
         - label: There is reproducer code and related data files such as images, videos, models, etc.
           required: true

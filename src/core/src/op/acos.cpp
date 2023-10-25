@@ -2,21 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/acos.hpp"
+#include "openvino/op/acos.hpp"
 
-#include <string>
-
+#include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/axis_set.hpp"
-#include "ngraph/op/broadcast.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/divide.hpp"
-#include "ngraph/op/multiply.hpp"
-#include "ngraph/op/negative.hpp"
-#include "ngraph/op/sqrt.hpp"
-#include "ngraph/op/subtract.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/acos.hpp"
+#include "openvino/reference/acos.hpp"
+
+namespace ov {
+namespace op {
+namespace acos {
+struct Evaluate : ov::element::NoAction<bool> {
+    using ov::element::NoAction<bool>::visit;
+
+    template <element::Type_t ET>
+    static result_type visit(const Tensor& arg0, Tensor& out, const size_t count) {
+        using T = typename element_type_traits<ET>::value_type;
+        reference::acos(arg0.data<T>(), out.data<T>(), count);
+        return true;
+    }
+};
+}  // namespace acos
+}  // namespace op
+}  // namespace ov
 
 ov::op::v0::Acos::Acos(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
@@ -28,53 +35,29 @@ std::shared_ptr<ov::Node> ov::op::v0::Acos::clone_with_new_inputs(const OutputVe
     return std::make_shared<Acos>(new_args.at(0));
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace acosop {
-namespace {
-template <ov::element::Type_t ET>
-inline bool evaluate(const ngraph::HostTensorPtr& arg0, const ngraph::HostTensorPtr& out, const size_t count) {
-    using T = typename ov::element_type_traits<ET>::value_type;
-    ngraph::runtime::reference::acos<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
-    return true;
-}
-
-bool evaluate_acos(const ov::HostTensorPtr& arg0, const ov::HostTensorPtr& out, const size_t count) {
-    bool rc = true;
-    out->set_unary(arg0);
-
-    switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_acos, i32, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_acos, i64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_acos, u32, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_acos, u64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_acos, f16, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_acos, f32, arg0, out, count);
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
-}
-}  // namespace
-}  // namespace acosop
-
-bool ov::op::v0::Acos::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ov::op::v0::Acos::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v0_Acos_evaluate);
-    return acosop::evaluate_acos(inputs[0], outputs[0], shape_size(inputs[0]->get_shape()));
+    OPENVINO_ASSERT(inputs.size() == 1 && outputs.size() == 1);
+    outputs[0].set_shape(inputs[0].get_shape());
+
+    using namespace ov::element;
+    return IfTypeOf<i32, i64, u32, u64, f16, f32>::apply<acos::Evaluate>(inputs[0].get_element_type(),
+                                                                         inputs[0],
+                                                                         outputs[0],
+                                                                         shape_size(inputs[0].get_shape()));
 }
 
 bool ov::op::v0::Acos::has_evaluate() const {
     OV_OP_SCOPE(v0_Acos_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
+    case element::i32:
+    case element::i64:
+    case element::u32:
+    case element::u64:
+    case element::f16:
+    case element::f32:
         return true;
     default:
-        break;
+        return false;
     }
-    return false;
 }

@@ -4,10 +4,11 @@
 
 #include <gtest/gtest.h>
 
+#include <vector>
+
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
-#include <ngraph/opsets/opset8.hpp>
-#include <vector>
+#include "openvino/opsets/opset8.hpp"
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {
@@ -35,17 +36,17 @@ public:
         StaticShape tmp_exp_shape;
         std::tie(tmp_input_shapes, tmp_attrs, tmp_data, tmp_exp_shape) = obj.param;
         std::ostringstream result;
-        result << "IS" << CommonTestUtils::vec2str(tmp_input_shapes) << "_";
-        result << "min_size" << CommonTestUtils::vec2str(tmp_attrs.min_size) << "_";
-        result << "max_size" << CommonTestUtils::vec2str(tmp_attrs.max_size) << "_";
-        result << "density" << CommonTestUtils::vec2str(tmp_attrs.density) << "_";
-        result << "fixed_ratio" << CommonTestUtils::vec2str(tmp_attrs.fixed_ratio) << "_";
-        result << "fixed_size" << CommonTestUtils::vec2str(tmp_attrs.fixed_size) << "_";
+        result << "IS" << ov::test::utils::vec2str(tmp_input_shapes) << "_";
+        result << "min_size" << ov::test::utils::vec2str(tmp_attrs.min_size) << "_";
+        result << "max_size" << ov::test::utils::vec2str(tmp_attrs.max_size) << "_";
+        result << "density" << ov::test::utils::vec2str(tmp_attrs.density) << "_";
+        result << "fixed_ratio" << ov::test::utils::vec2str(tmp_attrs.fixed_ratio) << "_";
+        result << "fixed_size" << ov::test::utils::vec2str(tmp_attrs.fixed_size) << "_";
         result << "clip(" << unit_test::boolToString(tmp_attrs.clip) << ")_";
         result << "flip(" << unit_test::boolToString(tmp_attrs.flip) << ")_";
         result << "step(" << tmp_attrs.step << ")_";
         result << "offset(" << tmp_attrs.offset << ")_";
-        result << "variance" << CommonTestUtils::vec2str(tmp_attrs.variance) << "_";
+        result << "variance" << ov::test::utils::vec2str(tmp_attrs.variance) << "_";
         result << "scale_all_sizes(" << unit_test::boolToString(tmp_attrs.scale_all_sizes) << ")_";
         result << "exp_shape(" << tmp_exp_shape << ")";
         return result.str();
@@ -180,12 +181,8 @@ TEST_P(PriorBoxV0CpuShapeInferenceTest , shape_inference_with_const_map) {
     const auto image_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
     auto op = make_op(layer_shape, image_shape, attrs);
 
-    const auto layer_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{2}, data[0]);
-    const auto image_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{2}, data[1]);
-    const std::map<size_t, HostTensorPtr> const_data {
-        {0, std::make_shared<HostTensor>(layer_const)},
-            {1, std::make_shared<HostTensor>(image_const)},
-    };
+    const std::unordered_map<size_t, ov::Tensor> const_data{{0, {element::i32, ov::Shape{2}, data[0].data()}},
+                                                            {1, {element::i32, ov::Shape{2}, data[1].data()}}};
 
     unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, const_data);
 }

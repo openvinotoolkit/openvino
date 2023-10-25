@@ -10,31 +10,31 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/prelu.hpp>
-#include <low_precision/convolution.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/max_pool.hpp>
+#include "low_precision/prelu.hpp"
+#include "low_precision/convolution.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/max_pool.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "lpt_ngraph_functions/fake_quantize_precision_selection_function.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "ov_lpt_models/fake_quantize_precision_selection.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 namespace {
 class ActualValues {
 public:
-    builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    ngraph:: builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    ngraph:: builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
 };
 
 class ExpectedValues {
 public:
     element::Type fakeQuantizeOnDataOutPrecision;
-    builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    ngraph:: builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    ngraph:: builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
 };
 
 class FakeQuantizePrecisionSelectionTransformationTestValues {
@@ -59,8 +59,8 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizePrecisionSe
 }
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::Shape,
+    ov::element::Type,
+    ov::Shape,
     bool,
     FakeQuantizePrecisionSelectionTransformationTestValues> FakeQuantizePrecisionSelectionTransformationParams;
 
@@ -68,8 +68,8 @@ class FakeQuantizePrecisionSelectionTransformation : public LayerTransformation,
     public testing::WithParamInterface<FakeQuantizePrecisionSelectionTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::element::Type precision = std::get<0>(GetParam());
-        const ngraph::Shape shape = std::get<1>(GetParam());
+        const ov::element::Type precision = std::get<0>(GetParam());
+        const ov::Shape shape = std::get<1>(GetParam());
         const bool updatePrecision = std::get<2>(GetParam());
         const FakeQuantizePrecisionSelectionTransformationTestValues testValues = std::get<3>(GetParam());
 
@@ -89,18 +89,18 @@ public:
                 testValues.actual.fakeQuantizeOnWeights
             });
 
-        auto supportedPrecisions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
-           ngraph::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Convolution>({
+        auto supportedPrecisions = std::vector<ov::pass::low_precision::PrecisionsRestriction>({
+           ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Convolution>({
                {{0}, testValues.precisionsOnActivationForLimitedOperation},
                {{1}, { element::i8 }}
            })
         });
 
         SimpleLowPrecisionTransformer transform(supportedPrecisions);
-        transform.add<ngraph::pass::low_precision::PReluTransformation, ov::op::v0::PRelu>(params);
-        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(precisionLimitedOperationParams);
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(params);
-        transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(params);
+        transform.add<ov::pass::low_precision::PReluTransformation, ov::op::v0::PRelu>(params);
+        transform.add<ov::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(precisionLimitedOperationParams);
+        transform.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(params);
+        transform.add<ov::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FakeQuantizePrecisionSelectionFunction::getReference(
@@ -115,8 +115,8 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizePrecisionSelectionTransformationParams> obj) {
-        ngraph::element::Type precision;
-        ngraph::Shape shape;
+        ov::element::Type precision;
+        ov::Shape shape;
         bool updatePrecision;
         FakeQuantizePrecisionSelectionTransformationTestValues testValues;
         std::tie(precision, shape, updatePrecision, testValues) = obj.param;
@@ -137,9 +137,9 @@ TEST_P(FakeQuantizePrecisionSelectionTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-    // ngraph::element::f16
+const std::vector<ov::element::Type> precisions = {
+    ov::element::f32,
+    // ov::element::f16
 };
 
 const std::vector<bool> updatePrecisions = {
@@ -196,7 +196,7 @@ const std::vector<FakeQuantizePrecisionSelectionTransformationTestValues> fakeQu
     // },
 };
 
-const std::vector<ngraph::Shape> shapes = {
+const std::vector<ov::Shape> shapes = {
     { 1, 32, 72, 48 },
     // TODO: 3D tensor
 };

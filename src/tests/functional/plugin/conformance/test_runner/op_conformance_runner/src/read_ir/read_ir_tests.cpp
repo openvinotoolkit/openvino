@@ -17,7 +17,7 @@ using namespace ov::test::subgraph;
 
 namespace {
 
-TEST_P(ReadIRTest, ReadIR) {
+TEST_P(ReadIRTest, Inference) {
     run();
 }
 
@@ -38,14 +38,14 @@ TEST_P(ReadIRTest, ImportExport) {
                              ReadIRTest::getTestCaseName); \
 
 // It should point on latest opset which contains biggest list of operations
-#include "openvino/opsets/opset10_tbl.hpp"
+#include "openvino/opsets/opset12_tbl.hpp"
 #undef _OPENVINO_OP_REG
 
-INSTANTIATE_TEST_SUITE_P(conformance_other,
+INSTANTIATE_TEST_SUITE_P(conformance_subgraph,
                         ReadIRTest,
                         ::testing::Combine(::testing::ValuesIn(getModelPaths(IRFolderPaths)),
-                                        ::testing::Values(targetDevice),
-                                        ::testing::Values(pluginConfig)),
+                                           ::testing::Values(targetDevice),
+                                           ::testing::Values(pluginConfig)),
                         ReadIRTest::getTestCaseName);
 
 }  // namespace

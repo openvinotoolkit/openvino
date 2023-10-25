@@ -27,6 +27,7 @@ protected:
         {
             std::shared_ptr<ov::op::v0::Parameter> test_parameter =
                 std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2});
+            test_parameter->set_friendly_name("test_parameter_0");
             std::shared_ptr<ov::op::v0::Abs> test_abs =
                 std::make_shared<ov::op::v0::Abs>(test_parameter);
             std::shared_ptr<ov::op::v0::Result> test_res =
@@ -34,30 +35,10 @@ protected:
             test_model_0_0 = std::make_shared<ov::Model>(ov::ResultVector{test_res},
                                                          ov::ParameterVector{test_parameter});
         }
-        {
-            std::shared_ptr<ov::op::v0::Parameter> test_parameter =
-                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 5});
-            std::shared_ptr<ov::op::v0::Abs> test_abs =
-                std::make_shared<ov::op::v0::Abs>(test_parameter);
-            std::shared_ptr<ov::op::v0::Result> test_res =
-                std::make_shared<ov::op::v0::Result>(test_abs);
-            test_model_0_1 = std::make_shared<ov::Model>(ov::ResultVector{test_res},
-                                                         ov::ParameterVector{test_parameter});
-        }
-        {
-            std::shared_ptr<ov::op::v0::Parameter> test_parameter =
-                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 5});
-            std::shared_ptr<ov::op::v0::Relu> test_abs =
-                std::make_shared<ov::op::v0::Relu>(test_parameter);
-            std::shared_ptr<ov::op::v0::Result> test_res =
-                std::make_shared<ov::op::v0::Result>(test_abs);
-            test_model_1 = std::make_shared<ov::Model>(ov::ResultVector{test_res},
-                                                       ov::ParameterVector{test_parameter});
-        }
     }
 
     ExtractorsManager::ExtractorsMap test_map;
-    std::shared_ptr<ov::Model> test_model_0_0, test_model_0_1, test_model_1;
+    std::shared_ptr<ov::Model> test_model_0_0;
 };
 
 TEST_F(ExtractorsManagerTest, constructor) {
@@ -74,16 +55,6 @@ TEST_F(ExtractorsManagerTest, get_extractors) {
     ASSERT_NO_THROW(this->set_extractors(test_map));
     ASSERT_NO_THROW(this->get_extractors());
     ASSERT_EQ(this->m_extractors, this->get_extractors());
-}
-
-TEST_F(ExtractorsManagerTest, match) {
-    this->set_extractors(test_map);
-    ASSERT_NO_THROW(this->match(test_model_0_0, test_model_0_1));
-    ASSERT_TRUE(this->match(test_model_0_0, test_model_0_1));
-    ASSERT_NO_THROW(this->match(test_model_0_0, test_model_1));
-    ASSERT_FALSE(this->match(test_model_0_0, test_model_1));
-    ASSERT_NO_THROW(this->match(test_model_0_1, test_model_1));
-    ASSERT_FALSE(this->match(test_model_0_1, test_model_1));
 }
 
 TEST_F(ExtractorsManagerTest, extract) {

@@ -2,29 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/select.hpp"
+
 #include "common_test_utils/type_prop.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, select_deduce) {
-    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
-    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto tv0_2_4_param_0 = make_shared<ov::op::v0::Parameter>(element::boolean, Shape{2, 4});
+    auto tv0_2_4_param_1 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
+    auto tv0_2_4_param_2 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
     auto bc = make_shared<op::v1::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
     ASSERT_EQ(bc->get_element_type(), element::f32);
     ASSERT_EQ(bc->get_shape(), (Shape{2, 4}));
 }
 
 TEST(type_prop, select_default_constructor) {
-    auto cond_param = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
-    auto then_param = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto else_param = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto cond_param = make_shared<ov::op::v0::Parameter>(element::boolean, Shape{2, 4});
+    auto then_param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
+    auto else_param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
     auto op = make_shared<op::v1::Select>();
 
     EXPECT_EQ(op->get_auto_broadcast().m_type, op::AutoBroadcastType::NUMPY);
@@ -47,9 +45,9 @@ TEST(type_prop, select_labels_cond_numpy) {
     set_shape_labels(labeled_shape, 10);
     ov::TensorLabel expected_labels{10, 11, 12, ov::no_label, 14};
 
-    auto cond_param = make_shared<op::Parameter>(element::boolean, labeled_shape);
-    auto then_param = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(5));
-    auto else_param = make_shared<op::Parameter>(element::f32, PartialShape({{1, 5}, {1, 11}, 5, {1, 8}}));
+    auto cond_param = make_shared<ov::op::v0::Parameter>(element::boolean, labeled_shape);
+    auto then_param = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(5));
+    auto else_param = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape({{1, 5}, {1, 11}, 5, {1, 8}}));
     auto op = make_shared<op::v1::Select>(cond_param, then_param, else_param);
 
     const auto& out_shape = op->get_output_partial_shape(0);
@@ -65,9 +63,9 @@ TEST(type_prop, select_labels_then_numpy) {
     ov::TensorLabel expected_labels{ov::no_label, ov::no_label, 12, ov::no_label, 14};
 
     auto cond_param =
-        make_shared<op::Parameter>(element::boolean, PartialShape{{2, 8}, {3, 7}, {1, 10}, {1, 6}, {1, 10}});
-    auto then_param = make_shared<op::Parameter>(element::f32, labeled_shape);
-    auto else_param = make_shared<op::Parameter>(element::f32, PartialShape({{1, 5}, {1, 11}, 5, {1, 8}}));
+        make_shared<ov::op::v0::Parameter>(element::boolean, PartialShape{{2, 8}, {3, 7}, {1, 10}, {1, 6}, {1, 10}});
+    auto then_param = make_shared<ov::op::v0::Parameter>(element::f32, labeled_shape);
+    auto else_param = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape({{1, 5}, {1, 11}, 5, {1, 8}}));
     auto op = make_shared<op::v1::Select>(cond_param, then_param, else_param);
 
     const auto& out_shape = op->get_output_partial_shape(0);
@@ -84,9 +82,9 @@ TEST(type_prop, select_labels_else_numpy) {
     ov::TensorLabel expected_labels{ov::no_label, ov::no_label, 11, 12, 13};
 
     auto cond_param =
-        make_shared<op::Parameter>(element::boolean, PartialShape{{2, 8}, {3, 7}, {1, 10}, {1, 6}, {1, 10}});
-    auto then_param = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(5));
-    auto else_param = make_shared<op::Parameter>(element::f32, labeled_shape);
+        make_shared<ov::op::v0::Parameter>(element::boolean, PartialShape{{2, 8}, {3, 7}, {1, 10}, {1, 6}, {1, 10}});
+    auto then_param = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(5));
+    auto else_param = make_shared<ov::op::v0::Parameter>(element::f32, labeled_shape);
     auto op = make_shared<op::v1::Select>(cond_param, then_param, else_param);
 
     const auto& out_shape = op->get_output_partial_shape(0);
@@ -107,9 +105,9 @@ TEST(type_prop, select_labels_all_params_numpy) {
 
     ov::TensorLabel expected_labels{10, 11, 22, 13, 34, 15, 26, 17, 18};
 
-    auto cond_param = make_shared<op::Parameter>(element::boolean, labeled_shape_cond);
-    auto then_param = make_shared<op::Parameter>(element::f32, labeled_shape_then);
-    auto else_param = make_shared<op::Parameter>(element::f32, labeled_shape_else);
+    auto cond_param = make_shared<ov::op::v0::Parameter>(element::boolean, labeled_shape_cond);
+    auto then_param = make_shared<ov::op::v0::Parameter>(element::f32, labeled_shape_then);
+    auto else_param = make_shared<ov::op::v0::Parameter>(element::f32, labeled_shape_else);
     auto op = make_shared<op::v1::Select>(cond_param, then_param, else_param);
 
     const auto& out_shape = op->get_output_partial_shape(0);
@@ -130,9 +128,9 @@ TEST(type_prop, select_labels_all_params_none) {
 
     ov::TensorLabel expected_labels{10, 11, 12, 13, 14, 15, 16, 17, 18};
 
-    auto cond_param = make_shared<op::Parameter>(element::boolean, labeled_shape_cond);
-    auto then_param = make_shared<op::Parameter>(element::f32, labeled_shape_then);
-    auto else_param = make_shared<op::Parameter>(element::f32, labeled_shape_else);
+    auto cond_param = make_shared<ov::op::v0::Parameter>(element::boolean, labeled_shape_cond);
+    auto then_param = make_shared<ov::op::v0::Parameter>(element::f32, labeled_shape_then);
+    auto else_param = make_shared<ov::op::v0::Parameter>(element::f32, labeled_shape_else);
     auto op = make_shared<op::v1::Select>(cond_param, then_param, else_param, op::AutoBroadcastType::NONE);
 
     const auto& out_shape = op->get_output_partial_shape(0);
@@ -153,9 +151,9 @@ TEST(type_prop, select_labels_all_params_pdpd) {
 
     ov::TensorLabel expected_labels{10, 11, 22, 33, 24, 25, 26, 17, 18};
 
-    auto cond_param = make_shared<op::Parameter>(element::boolean, labeled_shape_cond);
-    auto then_param = make_shared<op::Parameter>(element::f32, labeled_shape_then);
-    auto else_param = make_shared<op::Parameter>(element::f32, labeled_shape_else);
+    auto cond_param = make_shared<ov::op::v0::Parameter>(element::boolean, labeled_shape_cond);
+    auto then_param = make_shared<ov::op::v0::Parameter>(element::f32, labeled_shape_then);
+    auto else_param = make_shared<ov::op::v0::Parameter>(element::f32, labeled_shape_else);
     auto op = make_shared<op::v1::Select>(cond_param,
                                           then_param,
                                           else_param,
@@ -170,18 +168,18 @@ TEST(type_prop, select_labels_all_params_pdpd) {
 
 TEST(type_prop, select_dynamic) {
     auto param_0 =
-        make_shared<op::Parameter>(element::boolean, PartialShape({{2, 8}, {3, 7}, {1, 10}, {1, 6}, {1, 10}}));
-    auto param_1 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(5));
-    auto param_2 = make_shared<op::Parameter>(element::f32, PartialShape({{1, 5}, {1, 11}, 5, {1, 8}}));
+        make_shared<ov::op::v0::Parameter>(element::boolean, PartialShape({{2, 8}, {3, 7}, {1, 10}, {1, 6}, {1, 10}}));
+    auto param_1 = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(5));
+    auto param_2 = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape({{1, 5}, {1, 11}, 5, {1, 8}}));
     auto bc = make_shared<op::v1::Select>(param_0, param_1, param_2);
     ASSERT_EQ(bc->get_element_type(), element::f32);
     ASSERT_EQ(bc->get_output_partial_shape(0), PartialShape({{2, 8}, {3, 7}, -1, 5, -1}));
 }
 
 TEST(type_prop, select_shape_mismatch_a) {
-    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::boolean, Shape{3, 5});
-    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto tv0_2_4_param_0 = make_shared<ov::op::v0::Parameter>(element::boolean, Shape{3, 5});
+    auto tv0_2_4_param_1 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
+    auto tv0_2_4_param_2 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
     try {
         auto bc = make_shared<op::v1::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
         // Should have thrown, so fail if it didn't
@@ -194,9 +192,9 @@ TEST(type_prop, select_shape_mismatch_a) {
 }
 
 TEST(type_prop, select_shape_mismatch_b) {
-    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
-    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::f32, Shape{3, 5});
-    auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto tv0_2_4_param_0 = make_shared<ov::op::v0::Parameter>(element::boolean, Shape{2, 4});
+    auto tv0_2_4_param_1 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 5});
+    auto tv0_2_4_param_2 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
     try {
         auto bc = make_shared<op::v1::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
         // Should have thrown, so fail if it didn't
@@ -209,9 +207,9 @@ TEST(type_prop, select_shape_mismatch_b) {
 }
 
 TEST(type_prop, select_shape_mismatch_c) {
-    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
-    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::f32, Shape{3, 5});
+    auto tv0_2_4_param_0 = make_shared<ov::op::v0::Parameter>(element::boolean, Shape{2, 4});
+    auto tv0_2_4_param_1 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
+    auto tv0_2_4_param_2 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 5});
     try {
         auto bc = make_shared<op::v1::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
         // Should have thrown, so fail if it didn't
@@ -224,9 +222,9 @@ TEST(type_prop, select_shape_mismatch_c) {
 }
 
 TEST(type_prop, select_elem_mismatch_a) {
-    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto tv0_2_4_param_0 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
+    auto tv0_2_4_param_1 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
+    auto tv0_2_4_param_2 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
     try {
         auto bc = make_shared<op::v1::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
         // Should have thrown, so fail if it didn't
@@ -239,9 +237,9 @@ TEST(type_prop, select_elem_mismatch_a) {
 }
 
 TEST(type_prop, select_elem_mismatch_bc) {
-    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
-    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::i32, Shape{2, 4});
+    auto tv0_2_4_param_0 = make_shared<ov::op::v0::Parameter>(element::boolean, Shape{2, 4});
+    auto tv0_2_4_param_1 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
+    auto tv0_2_4_param_2 = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 4});
     try {
         auto bc = make_shared<op::v1::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
         // Should have thrown, so fail if it didn't
@@ -254,9 +252,9 @@ TEST(type_prop, select_elem_mismatch_bc) {
 }
 
 TEST(type_prop, select_partial_all_rank_dynamic) {
-    auto param0 = make_shared<op::Parameter>(element::boolean, PartialShape::dynamic());
-    auto param1 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto param2 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto param0 = make_shared<ov::op::v0::Parameter>(element::boolean, PartialShape::dynamic());
+    auto param1 = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto param2 = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
 
     auto sel = make_shared<op::v1::Select>(param0, param1, param2);
 
@@ -265,9 +263,9 @@ TEST(type_prop, select_partial_all_rank_dynamic) {
 }
 
 TEST(type_prop, select_partial_all_rank_dynamic_arg0_et_dynamic_arg1_arg2_et_mismatch) {
-    auto param0 = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
-    auto param1 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto param2 = make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
+    auto param0 = make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto param1 = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto param2 = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
 
     try {
         auto sel = make_shared<op::v1::Select>(param0, param1, param2);
@@ -281,9 +279,9 @@ TEST(type_prop, select_partial_all_rank_dynamic_arg0_et_dynamic_arg1_arg2_et_mis
 }
 
 TEST(type_prop, select_partial_all_rank_dynamic_arg0_arg1_et_dynamic) {
-    auto param0 = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
-    auto param1 = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
-    auto param2 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto param0 = make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto param1 = make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto param2 = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
 
     auto sel = make_shared<op::v1::Select>(param0, param1, param2);
 
@@ -292,9 +290,9 @@ TEST(type_prop, select_partial_all_rank_dynamic_arg0_arg1_et_dynamic) {
 }
 
 TEST(type_prop, select_partial_all_rank_dynamic_arg0_arg2_et_dynamic) {
-    auto param0 = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
-    auto param1 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto param2 = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto param0 = make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto param1 = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto param2 = make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape::dynamic());
 
     auto sel = make_shared<op::v1::Select>(param0, param1, param2);
 
@@ -303,9 +301,9 @@ TEST(type_prop, select_partial_all_rank_dynamic_arg0_arg2_et_dynamic) {
 }
 
 TEST(type_prop, select_partial_all_rank_dynamic_arg0_arg1_arg2_et_dynamic) {
-    auto param0 = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
-    auto param1 = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
-    auto param2 = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto param0 = make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto param1 = make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto param2 = make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape::dynamic());
 
     auto sel = make_shared<op::v1::Select>(param0, param1, param2);
 
@@ -314,10 +312,12 @@ TEST(type_prop, select_partial_all_rank_dynamic_arg0_arg1_arg2_et_dynamic) {
 }
 
 TEST(type_prop, select_partial_all_rank_static_dynamic_ok) {
-    auto param0 =
-        make_shared<op::Parameter>(element::boolean, PartialShape{2, Dimension::dynamic(), Dimension::dynamic()});
-    auto param1 = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 8, Dimension::dynamic()});
-    auto param2 = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3});
+    auto param0 = make_shared<ov::op::v0::Parameter>(element::boolean,
+                                                     PartialShape{2, Dimension::dynamic(), Dimension::dynamic()});
+    auto param1 =
+        make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 8, Dimension::dynamic()});
+    auto param2 =
+        make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3});
 
     auto sel = make_shared<op::v1::Select>(param0, param1, param2);
 
@@ -327,10 +327,11 @@ TEST(type_prop, select_partial_all_rank_static_dynamic_ok) {
 }
 
 TEST(type_prop, select_partial_all_rank_static_intransitive_incompatibility) {
-    auto param0 =
-        make_shared<op::Parameter>(element::boolean, PartialShape{2, Dimension::dynamic(), Dimension::dynamic()});
-    auto param1 = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 8, Dimension::dynamic()});
-    auto param2 = make_shared<op::Parameter>(element::f32, PartialShape{3, Dimension::dynamic(), 3});
+    auto param0 = make_shared<ov::op::v0::Parameter>(element::boolean,
+                                                     PartialShape{2, Dimension::dynamic(), Dimension::dynamic()});
+    auto param1 =
+        make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 8, Dimension::dynamic()});
+    auto param2 = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{3, Dimension::dynamic(), 3});
 
     try {
         auto sel = make_shared<op::v1::Select>(param0, param1, param2);
@@ -362,9 +363,9 @@ struct DeduceV1SelectTest : ::testing::TestWithParam<SelectParams> {};
 
 TEST_P(DeduceV1SelectTest, output_shape) {
     auto tp = GetParam();
-    auto cond = make_shared<op::Parameter>(tp.ets[0], tp.shapes[0]);
-    auto ptrue = make_shared<op::Parameter>(tp.ets[1], tp.shapes[1]);
-    auto pfalse = make_shared<op::Parameter>(tp.ets[2], tp.shapes[2]);
+    auto cond = make_shared<ov::op::v0::Parameter>(tp.ets[0], tp.shapes[0]);
+    auto ptrue = make_shared<ov::op::v0::Parameter>(tp.ets[1], tp.shapes[1]);
+    auto pfalse = make_shared<ov::op::v0::Parameter>(tp.ets[2], tp.shapes[2]);
     auto select = make_shared<op::v1::Select>(cond, ptrue, pfalse, tp.auto_broadcast);
 
     ASSERT_EQ(select->get_shape(), tp.shapes[3]);
@@ -411,27 +412,27 @@ INSTANTIATE_TEST_SUITE_P(
     PrintToDummyParamName());
 
 TEST(type_prop, select_v1_partial_shape) {
-    auto a = make_shared<op::Parameter>(element::boolean, PartialShape::dynamic());
-    auto b = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto c = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto a = make_shared<ov::op::v0::Parameter>(element::boolean, PartialShape::dynamic());
+    auto b = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
+    auto c = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
 
     auto select = make_shared<op::v1::Select>(a, b, c, op::AutoBroadcastType::NONE);
     ASSERT_EQ(select->get_shape(), (Shape{2, 4}));
 }
 
 TEST(type_prop, select_v1_partial_shape_autob) {
-    auto a = make_shared<op::Parameter>(element::boolean, PartialShape{Dimension::dynamic()});
-    auto b = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic()});
-    auto c = make_shared<op::Parameter>(element::f32, PartialShape{2, Dimension::dynamic()});
+    auto a = make_shared<ov::op::v0::Parameter>(element::boolean, PartialShape{Dimension::dynamic()});
+    auto b = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{Dimension::dynamic()});
+    auto c = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{2, Dimension::dynamic()});
 
     auto select = make_shared<op::v1::Select>(a, b, c);
     ASSERT_TRUE(select->get_output_partial_shape(0).same_scheme(PartialShape{2, Dimension::dynamic()}));
 }
 
 TEST(type_prop, select_v1_wrong_et) {
-    auto param0 = make_shared<op::Parameter>(element::i8, Shape{2, 4});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto param2 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto param0 = make_shared<ov::op::v0::Parameter>(element::i8, Shape{2, 4});
+    auto param1 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
+    auto param2 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
 
     try {
         auto sel = make_shared<op::v1::Select>(param0, param1, param2);
@@ -444,9 +445,9 @@ TEST(type_prop, select_v1_wrong_et) {
 }
 
 TEST(type_prop, select_v1_et_mismatch) {
-    auto param0 = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto param2 = make_shared<op::Parameter>(element::i8, Shape{2, 4});
+    auto param0 = make_shared<ov::op::v0::Parameter>(element::boolean, Shape{2, 4});
+    auto param1 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
+    auto param2 = make_shared<ov::op::v0::Parameter>(element::i8, Shape{2, 4});
 
     try {
         auto sel = make_shared<op::v1::Select>(param0, param1, param2);
@@ -459,9 +460,9 @@ TEST(type_prop, select_v1_et_mismatch) {
 }
 
 TEST(type_prop, select_v1_shape_mismatch) {
-    auto param0 = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{2, 3});
-    auto param2 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto param0 = make_shared<ov::op::v0::Parameter>(element::boolean, Shape{2, 4});
+    auto param1 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3});
+    auto param2 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
 
     try {
         auto sel = make_shared<op::v1::Select>(param0, param1, param2);
@@ -474,9 +475,9 @@ TEST(type_prop, select_v1_shape_mismatch) {
 }
 
 TEST(type_prop, select_v1_partial_shape_mismatch) {
-    auto param0 = make_shared<op::Parameter>(element::boolean, PartialShape{3, Dimension::dynamic()});
-    auto param1 = make_shared<op::Parameter>(element::f32, PartialShape{2, Dimension::dynamic()});
-    auto param2 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto param0 = make_shared<ov::op::v0::Parameter>(element::boolean, PartialShape{3, Dimension::dynamic()});
+    auto param1 = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{2, Dimension::dynamic()});
+    auto param2 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
 
     try {
         auto sel = make_shared<op::v1::Select>(param0, param1, param2);

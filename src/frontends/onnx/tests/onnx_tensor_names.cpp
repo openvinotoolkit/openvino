@@ -3,9 +3,10 @@
 //
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_control.hpp"
-#include "engines_util/test_case.hpp"
 #include "gtest/gtest.h"
+#include "ngraph/file_util.hpp"
 #include "ngraph/ngraph.hpp"
 #include "onnx_import/onnx.hpp"
 #include "onnx_import/onnx_utils.hpp"
@@ -14,7 +15,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 
 using namespace ngraph;
 
-static std::string s_manifest = "${MANIFEST}";
+static std::string s_manifest = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(), "${MANIFEST}");
 
 using Inputs = std::vector<std::vector<float>>;
 using Outputs = std::vector<std::vector<float>>;

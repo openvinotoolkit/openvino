@@ -5,20 +5,20 @@
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <openvino/core/core.hpp>
-#include <transformations/utils/utils.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/core.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/interpolate.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4() {
     MATCHER_SCOPE(ConvertInterpolate1ToInterpolate4);
-    auto interpolate1 = ngraph::pattern::wrap_type<ov::op::v0::Interpolate>(
+    auto interpolate1 = ov::pass::pattern::wrap_type<ov::op::v0::Interpolate>(
         {pattern::any_input(pattern::has_static_rank()), pattern::any_input()});
     matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto interpolationV0 = std::dynamic_pointer_cast<ov::op::v0::Interpolate>(m.get_match_root());
@@ -39,7 +39,7 @@ ov::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4()
             OPENVINO_SUPPRESS_DEPRECATED_END
             scales = constant;
         }
-        auto axisConstant = ov::op::v0::Constant::create(ngraph::element::i64, {axes.size()}, axes);
+        auto axisConstant = ov::op::v0::Constant::create(ov::element::i64, {axes.size()}, axes);
 
         ov::op::v4::Interpolate::InterpolateAttrs attrsV4;
         auto input_shape_rank = interpolationV0->get_input_partial_shape(0).rank().get_length();
@@ -99,11 +99,11 @@ ov::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4()
                                                                        attrsV4);
 
         interpolateV4->set_friendly_name(interpolationV0->get_friendly_name());
-        ngraph::copy_runtime_info(interpolationV0, interpolateV4);
-        ngraph::replace_node(interpolationV0, interpolateV4);
+        ov::copy_runtime_info(interpolationV0, interpolateV4);
+        ov::replace_node(interpolationV0, interpolateV4);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(interpolate1, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(interpolate1, matcher_name);
     this->register_matcher(m, callback);
 }

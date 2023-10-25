@@ -15,7 +15,7 @@ from openvino.helpers import pack_data, unpack_data
 
 import pytest
 
-from tests.test_utils.test_utils import generate_image, generate_relu_compiled_model
+from tests.utils.helpers import generate_image, generate_relu_compiled_model
 
 
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
@@ -377,6 +377,7 @@ def test_init_with_packed_buffer(dtype, ov_type):
     (0, 2, ov.Type.u1, np.uint8),
     (0, 16, ov.Type.u4, np.uint8),
     (-8, 7, ov.Type.i4, np.int8),
+    (0, 16, ov.Type.nf4, np.uint8),
 ])
 def test_packing(shape, low, high, ov_type, dtype):
     ov_tensor = Tensor(ov_type, shape)

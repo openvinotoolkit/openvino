@@ -2,22 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/visitor.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
+#include "openvino/op/gru_sequence.hpp"
+
+#include <gtest/gtest.h>
+
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, gru_sequence_op) {
-    NodeBuilder::get_ops().register_factory<opset5::GRUSequence>();
+    NodeBuilder::get_ops().register_factory<ov::op::v5::GRUSequence>();
 
     const size_t batch_size = 4;
     const size_t num_directions = 2;
@@ -25,15 +21,16 @@ TEST(attributes, gru_sequence_op) {
     const size_t input_size = 16;
     const size_t hidden_size = 64;
 
-    const auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
+    const auto X = make_shared<ov::op::v0::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
     const auto initial_hidden_state =
-        make_shared<op::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
+        make_shared<ov::op::v0::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
     const auto initial_cell_state =
-        make_shared<op::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
-    const auto sequence_lengths = make_shared<op::Parameter>(element::i32, Shape{batch_size});
-    const auto W = make_shared<op::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size, input_size});
-    const auto R = make_shared<op::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size, hidden_size});
-    const auto B = make_shared<op::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size});
+        make_shared<ov::op::v0::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
+    const auto sequence_lengths = make_shared<ov::op::v0::Parameter>(element::i32, Shape{batch_size});
+    const auto W = make_shared<ov::op::v0::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size, input_size});
+    const auto R =
+        make_shared<ov::op::v0::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size, hidden_size});
+    const auto B = make_shared<ov::op::v0::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size});
 
     const auto gru_direction = op::RecurrentSequenceDirection::BIDIRECTIONAL;
     const std::vector<float> activations_alpha = {1, 2};
@@ -41,20 +38,20 @@ TEST(attributes, gru_sequence_op) {
     const std::vector<std::string> activations = {"tanh", "sigmoid"};
     const float clip_threshold = 0.5f;
 
-    const auto gru_sequence = make_shared<opset5::GRUSequence>(X,
-                                                               initial_hidden_state,
-                                                               sequence_lengths,
-                                                               W,
-                                                               R,
-                                                               B,
-                                                               hidden_size,
-                                                               gru_direction,
-                                                               activations,
-                                                               activations_alpha,
-                                                               activations_beta,
-                                                               clip_threshold);
+    const auto gru_sequence = make_shared<ov::op::v5::GRUSequence>(X,
+                                                                   initial_hidden_state,
+                                                                   sequence_lengths,
+                                                                   W,
+                                                                   R,
+                                                                   B,
+                                                                   hidden_size,
+                                                                   gru_direction,
+                                                                   activations,
+                                                                   activations_alpha,
+                                                                   activations_beta,
+                                                                   clip_threshold);
     NodeBuilder builder(gru_sequence, {X, initial_hidden_state, sequence_lengths, W, R, B});
-    auto g_gru_sequence = ov::as_type_ptr<opset5::GRUSequence>(builder.create());
+    auto g_gru_sequence = ov::as_type_ptr<ov::op::v5::GRUSequence>(builder.create());
 
     EXPECT_EQ(g_gru_sequence->get_hidden_size(), gru_sequence->get_hidden_size());
     EXPECT_EQ(g_gru_sequence->get_activations(), gru_sequence->get_activations());

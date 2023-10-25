@@ -29,7 +29,7 @@ namespace pass {
  *         |                       |
  *      MatMul                   MatMul
  */
-class HandleTransposeBeforeMatMul : public ngraph::pass::MatcherPass {
+class HandleTransposeBeforeMatMul : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("HandleTransposeBeforeMatMul", "0");
     HandleTransposeBeforeMatMul();
@@ -58,13 +58,13 @@ public:
  *       |                       |
  *    [1, A*B]                [1, A*B]
  */
-class HandleTransposeAfterMatMul : public ngraph::pass::MatcherPass {
+class HandleTransposeAfterMatMul : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("HandleTransposeAfterMatMul", "0");
     HandleTransposeAfterMatMul();
 };
 
-class HandleTransposesAroundMatMul : public ngraph::pass::GraphRewrite {
+class HandleTransposesAroundMatMul : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("HandleTransposesAroundMatMul", "0");
     HandleTransposesAroundMatMul();

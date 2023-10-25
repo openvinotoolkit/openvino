@@ -70,7 +70,7 @@ auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::Fake
     }
 }
 
-ov::PartialShape get_reordered_planar_shape(const ov::PartialShape& shape, const std::vector<size_t>& layout) {
+ov::PartialShape get_planar_pshape(const ov::PartialShape& shape, const std::vector<size_t>& layout) {
     if (layout.empty())
         return shape;
     std::vector<Dimension> reordered_shape(layout.size());
@@ -87,14 +87,54 @@ ov::PartialShape get_reordered_planar_shape(const ov::PartialShape& shape, const
     return reordered_shape;
 }
 
-ov::PartialShape get_port_planar_shape(const Input<Node>& in) {
-    const auto& port = lowered::PortDescriptorUtils::get_port_descriptor_ptr(in);
-    return utils::get_reordered_planar_shape(ov::Shape{port->get_shape()}, port->get_layout());
+VectorDims pshape_to_vdims(const PartialShape& pshape) {
+    VectorDims result;
+    result.reserve(pshape.size());
+    for (const auto& d : pshape)
+        result.push_back(d.is_dynamic() ? IShapeInferSnippets::DYNAMIC_DIMENSION : d.get_length());
+    // Note: PartialShape could be empty which designates scalar value. However, Scalars are represented as {1} in Snippets
+    return result.empty() ? VectorDims {1} : result;
 }
 
-ov::PartialShape get_port_planar_shape(const Output<Node>& out) {
-    const auto& port = lowered::PortDescriptorUtils::get_port_descriptor_ptr(out);
-    return utils::get_reordered_planar_shape(ov::Shape{port->get_shape()}, port->get_layout());
+ov::PartialShape vdims_to_pshape(const VectorDims& vdims) {
+    ov::PartialShape result;
+    result.reserve(vdims.size());
+    for (const auto& v : vdims)
+        result.push_back(v != IShapeInferSnippets::DYNAMIC_DIMENSION ?
+                         Dimension(static_cast<Dimension::value_type>(v)) :
+                         Dimension());
+    return result;
+}
+
+ov::PartialShape get_planar_pshape(const Input<Node>& in) {
+    const auto& port = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(in);
+    return utils::get_planar_pshape(ov::Shape{port->get_shape()}, port->get_layout());
+}
+
+ov::PartialShape get_planar_pshape(const Output<Node>& out) {
+    const auto& port = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(out);
+    return utils::get_planar_pshape(ov::Shape{port->get_shape()}, port->get_layout());
+}
+
+VectorDims get_planar_vdims(const VectorDims& shape, const std::vector<size_t>& layout) {
+    VectorDims reordered_shape(shape.size());
+    for (size_t i = 0; i < layout.size(); i++) {
+        OPENVINO_ASSERT(layout[i] < shape.size(), "get_planar_vdims: layout index is greater than the shape size");
+        reordered_shape[i] = shape[layout[i]];
+    }
+    return reordered_shape;
+}
+
+VectorDims get_planar_vdims(const snippets::lowered::PortDescriptorPtr& port_desc) {
+    return get_planar_vdims(port_desc->get_shape(), port_desc->get_layout());
+}
+
+VectorDims get_planar_vdims(const snippets::lowered::ExpressionPort& expr_port) {
+    return get_planar_vdims(expr_port.get_descriptor_ptr());
+}
+
+bool is_dynamic_vdims(const VectorDims& shape) {
+    return std::any_of(shape.cbegin(), shape.cend(), [](size_t v){ return v == IShapeInferSnippets::DYNAMIC_DIMENSION; });
 }
 
 } // namespace utils

@@ -11,6 +11,28 @@ namespace ov {
 namespace intel_cpu {
 
 /**
+* @brief ACL supports arm_compute::MAX_DIMS maximum. The method squashes the last
+* dimensions in order to comply with this limitation
+* @param dims vector of dimensions to squash
+* @return vector of dimensions that complies to ACL
+*/
+inline VectorDims collapse_dims_to_max_rank(VectorDims dims) {
+    const size_t MAX_NUM_SHAPE = arm_compute::MAX_DIMS;
+    VectorDims result_dims(MAX_NUM_SHAPE - 1);
+    if (dims.size() >= MAX_NUM_SHAPE) {
+        for (size_t i = 0; i < MAX_NUM_SHAPE - 1; i++) {
+            result_dims[i] = dims[i];
+        }
+        for (size_t i = MAX_NUM_SHAPE - 1; i < dims.size(); i++) {
+            result_dims[MAX_NUM_SHAPE - 2] *= dims[i];
+        }
+    } else {
+        result_dims = dims;
+    }
+    return result_dims;
+}
+
+/**
 * @brief ACL handles NHWC specifically, it thinks it is NCHW, so we need to change layout manually:
 * NCHW (0, 1, 2, 3) -> NHWC (0, 2, 3, 1)
 * @param shape shape to convert

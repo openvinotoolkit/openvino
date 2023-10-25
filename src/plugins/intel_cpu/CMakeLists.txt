@@ -10,14 +10,15 @@ set(TARGET_NAME "openvino_intel_cpu_plugin")
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # C4267, 4244 issues from oneDNN headers conversion from 'XXX' to 'YYY', possible loss of data
-    ie_add_compiler_flags(/wd4267)
-    ie_add_compiler_flags(/wd4244)
+    ov_add_compiler_flags(/wd4018)
+    ov_add_compiler_flags(/wd4267)
+    ov_add_compiler_flags(/wd4244)
     # mkldnn headers: '<<': result of 32-bit shift implicitly converted to 64 bits
-    ie_add_compiler_flags(/wd4334)
+    ov_add_compiler_flags(/wd4334)
     # oneDNN arm64: unary minus operator applied to unsigned type, result still unsigned
-    ie_add_compiler_flags(/wd4146)
+    ov_add_compiler_flags(/wd4146)
 elseif(OV_COMPILER_IS_CLANG)
-    ie_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
+    ov_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
 endif()
 
 set(OV_CPU_ARM_TARGET_GENERIC_ARCHS armv8a
@@ -30,7 +31,7 @@ if(ARM)
     set(OV_CPU_ARM_TARGET_ARCHS armv7a armv7a-hf
                                 # requires estate=32
                                 ${OV_CPU_ARM_TARGET_GENERIC_ARCHS})
-else()
+elseif(AARCH64)
     if(APPLE)
         # Apple M1 / M2 is assumed
         set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8.2-a)
@@ -49,7 +50,8 @@ if(OV_CPU_ARM_TARGET_ARCH MATCHES "arm64-v8.2-a")
 endif()
 
 if(X86 OR X86_64 OR AARCH64)
-    if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7)
+    # disable mlas with webassembly
+    if(EMSCRIPTEN OR (WIN32 AND AARCH64) OR MINGW OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7))
         set(ENABLE_MLAS_FOR_CPU_DEFAULT OFF)
     else()
         set(ENABLE_MLAS_FOR_CPU_DEFAULT ON)
@@ -57,7 +59,7 @@ if(X86 OR X86_64 OR AARCH64)
 else()
     set(ENABLE_MLAS_FOR_CPU_DEFAULT OFF)
 endif()
-ie_option(ENABLE_MLAS_FOR_CPU "Enable MLAS for OpenVINO CPU Plugin" ${ENABLE_MLAS_FOR_CPU_DEFAULT})
+ov_option(ENABLE_MLAS_FOR_CPU "Enable MLAS for OpenVINO CPU Plugin" ${ENABLE_MLAS_FOR_CPU_DEFAULT})
 
 add_subdirectory(thirdparty)
 
@@ -127,11 +129,11 @@ elseif(RISCV64)
     set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "openvino_riscv_cpu_plugin")
 endif()
 
-ie_mark_target_as_cc(${TARGET_NAME})
+ov_mark_target_as_cc(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE dnnl
-                                             ov_shape_inference
-                                             inference_engine_snippets)
+                                             openvino::shape_inference
+                                             openvino::snippets)
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -153,10 +155,10 @@ cross_compiled_file(${TARGET_NAME}
 
 # system dependencies must go last
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)
-set_ie_threading_interface_for(${TARGET_NAME})
+ov_set_threading_interface_for(${TARGET_NAME})
 
 # must be called after all target_link_libraries
-ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+ov_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 # LTO
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
@@ -167,7 +169,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 if(BUILD_SHARED_LIBS)
     add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
-    link_system_libraries(${TARGET_NAME}_obj PUBLIC dnnl openvino::pugixml)
+    ov_link_system_libraries(${TARGET_NAME}_obj PUBLIC dnnl openvino::pugixml)
 
     ov_add_version_defines(src/plugin.cpp ${TARGET_NAME}_obj)
 
@@ -175,8 +177,8 @@ if(BUILD_SHARED_LIBS)
         PRIVATE
             $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:ov_shape_inference,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:inference_engine_snippets,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:openvino::shape_inference,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:openvino::snippets,INTERFACE_INCLUDE_DIRECTORIES>
         PUBLIC
             ${CMAKE_CURRENT_SOURCE_DIR}/src
             $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -187,7 +189,7 @@ if(BUILD_SHARED_LIBS)
         target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:mlas,INCLUDE_DIRECTORIES>)
     endif()
 
-    set_ie_threading_interface_for(${TARGET_NAME}_obj)
+    ov_set_threading_interface_for(${TARGET_NAME}_obj)
 
     target_compile_definitions(${TARGET_NAME}_obj PRIVATE
         USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN IMPLEMENT_INFERENCE_EXTENSION_API

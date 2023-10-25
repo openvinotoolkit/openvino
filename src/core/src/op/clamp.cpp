@@ -8,8 +8,8 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/clamp.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/reference/clamp.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -19,7 +19,7 @@ namespace clamp {
 namespace {
 template <element::Type_t ET, typename T>
 bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, T min, T max, size_t count) {
-    runtime::reference::clamp<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), min, max, count);
+    ov::reference::clamp<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), min, max, count);
     return true;
 }
 
@@ -79,7 +79,7 @@ bool evaluate_clamp(const HostTensorPtr& arg, const HostTensorPtr& out, double m
 bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Clamp_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
     return clamp::evaluate_clamp(inputs[0], outputs[0], get_min(), get_max());
 }

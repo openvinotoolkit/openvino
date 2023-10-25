@@ -13,9 +13,9 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
@@ -66,7 +66,7 @@ protected:
         const ngraph::Shape shape1 = inputShape;
         const ngraph::Shape shape2 = {1, inputShape[1] * inputShape[1]};
         const float maxInputValue = 10.0f;
-        auto params = ngraph::builder::makeParams(ngPrc, {shape1});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape1))};
         auto relu = std::make_shared<ngraph::opset8::Relu>(params[0]);
 
         std::shared_ptr<ngraph::Node> input2;

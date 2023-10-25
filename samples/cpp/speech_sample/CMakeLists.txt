@@ -8,13 +8,10 @@ file (GLOB HDR ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 # Required zlib and cnpy dependencies
 
-if(NOT ANDROID)
-    find_package(PkgConfig QUIET)
-endif()
-
 find_package(ZLIB QUIET)
 
 if(NOT TARGET ZLIB::ZLIB)
+    find_package(PkgConfig QUIET)
     if(PkgConfig_FOUND)
         pkg_search_module(zlib QUIET
                           IMPORTED_TARGET GLOBAL
@@ -49,7 +46,7 @@ endif()
 
 # add sample
 
-ie_add_sample(NAME speech_sample
+ov_add_sample(NAME speech_sample
               SOURCES ${SRC}
               HEADERS ${HDR}
               DEPENDENCIES ${GFLAGS_TARGET} cnpy ie_samples_utils)

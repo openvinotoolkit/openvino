@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
@@ -54,8 +54,10 @@ protected:
 
         init_input_shapes({inputShape});
 
-        const auto paramsIn = ngraph::builder::makeDynamicParams(inputPrecision, inputDynamicShapes);
-
+        ov::ParameterVector paramsIn;
+        for (auto&& shape : inputDynamicShapes) {
+            paramsIn.push_back(std::make_shared<ov::op::v0::Parameter>(inputPrecision, shape));
+        }
         auto shiftNode = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{shift.size()}, shift)->output(0);
         auto axesNode = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{axes.size()}, axes)->output(0);
 

@@ -31,7 +31,7 @@ void TransposeAdd::SetUp() {
     configuration.insert(additional_config.begin(), additional_config.end());
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {input_shape});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_shape))};
 
     ngraph::Shape permute_order(input_shape.size());
     std::iota(std::begin(permute_order), std::end(permute_order), 0);

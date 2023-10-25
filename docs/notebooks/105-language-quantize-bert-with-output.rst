@@ -14,20 +14,35 @@ Research Paraphrase Corpus
 will be used. The tutorial is designed to be extendable to custom models
 and datasets. It consists of the following steps:
 
--  Download and prepare the BERT model and MRPC dataset.
--  Define data loading and accuracy validation functionality.
--  Prepare the model for quantization.
--  Run optimization pipeline.
--  Load and test quantized model.
--  Compare the performance of the original, converted and quantized
-   models.
+- Download and prepare the BERT model and MRPC dataset.
+- Define data loading and accuracy validation functionality.
+- Prepare the model for quantization.
+- Run optimization pipeline.
+- Load and test quantized model.
+- Compare the performance of the original, converted and quantized models.
+
+**Table of contents:**
+
+- `Imports <#imports>`__
+- `Settings <#settings>`__
+- `Prepare the Model <#prepare-the-model>`__
+- `Prepare the Dataset <#prepare-the-dataset>`__
+- `Optimize model using NNCF Post-training Quantization API <#optimize-model-using-nncf-post-training-quantization-api>`__
+- `Load and Test OpenVINO Model <#load-and-test-openvino-model>`__
+
+  - `Select inference device <#select-inference-device>`__
+
+- `Compare F1-score of FP32 and INT8 models <#compare-f1-score-of-fp32-and-int8-models>`__
+- `Compare Performance of the Original, Converted and Quantized Models <#compare-performance-of-the-original-converted-and-quantized-models>`__
 
 .. code:: ipython3
 
-    !pip install -q "nncf>=2.5.0" datasets evaluate
+    !pip install -q "nncf>=2.5.0" 
+    !pip install -q transformers datasets evaluate
+    !pip install -q "openvino==2023.1.0.dev20230811"
 
 Imports
--------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -39,16 +54,14 @@ Imports
     from typing import Iterable
     from typing import Any
     
-    import numpy as np
-    import torch
-    from openvino import runtime as ov
-    from openvino.runtime import serialize, Model, PartialShape
-    import nncf
-    from nncf.parameters import ModelType
-    from transformers import BertForSequenceClassification, BertTokenizer
-    from openvino.tools.mo import convert_model
     import datasets
     import evaluate
+    import numpy as np
+    import nncf
+    from nncf.parameters import ModelType
+    import openvino as ov
+    import torch
+    from transformers import BertForSequenceClassification, BertTokenizer
     
     sys.path.append("../utils")
     from notebook_utils import download_file
@@ -56,10 +69,10 @@ Imports
 
 .. parsed-literal::
 
-    2023-07-11 22:27:10.887837: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-07-11 22:27:10.921844: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-09-08 22:31:58.502786: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-09-08 22:31:58.537414: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-07-11 22:27:11.494944: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-09-08 22:31:59.115585: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -68,7 +81,7 @@ Imports
 
 
 Settings
---------
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -83,12 +96,13 @@ Settings
     os.makedirs(MODEL_DIR, exist_ok=True)
 
 Prepare the Model
------------------
+###############################################################################################################################
 
 Perform the following:
 
-- Download and unpack pre-trained BERT model for MRPC by PyTorch.
-- Convert the model to the OpenVINO Intermediate Representation (OpenVINO IR)
+-  Download and unpack pre-trained BERT model for MRPC by PyTorch.
+-  Convert the model to the OpenVINO Intermediate Representation
+   (OpenVINO IR)
 
 .. code:: ipython3
 
@@ -107,17 +121,17 @@ Convert the original PyTorch model to the OpenVINO Intermediate
 Representation.
 
 From OpenVINO 2023.0, we can directly convert a model from the PyTorch
-format to the OpenVINO IR format using Model Optimizer. Following
+format to the OpenVINO IR format using model conversion API. Following
 PyTorch model formats are supported:
 
--  torch.nn.Module
--  torch.jit.ScriptModule
--  torch.jit.ScriptFunction
+-  ``torch.nn.Module``
+-  ``torch.jit.ScriptModule``
+-  ``torch.jit.ScriptFunction``
 
 .. code:: ipython3
 
     MAX_SEQ_LENGTH = 128
-    input_shape = PartialShape([1, -1])
+    input_shape = ov.PartialShape([1, -1])
     ir_model_xml = Path(MODEL_DIR) / "bert_mrpc.xml"
     core = ov.Core()
     
@@ -134,20 +148,27 @@ PyTorch model formats are supported:
     
     # Convert the PyTorch model to OpenVINO IR FP32.
     if not ir_model_xml.exists():
-        model = convert_model(torch_model, example_input=inputs, input=input_info)
-        serialize(model, str(ir_model_xml))
+        model = ov.convert_model(torch_model, example_input=inputs, input=input_info)
+        ov.save_model(model, str(ir_model_xml))
     else:
         model = core.read_model(ir_model_xml)
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/annotations.py:309: UserWarning: TorchScript will treat type annotations of Tensor dtype-specific subtypes as if they are normal Tensors. dtype constraints are not enforced in compilation either.
+    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
+
+
+.. parsed-literal::
+
+    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
+    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/annotations.py:309: UserWarning: TorchScript will treat type annotations of Tensor dtype-specific subtypes as if they are normal Tensors. dtype constraints are not enforced in compilation either.
       warnings.warn("TorchScript will treat type annotations of Tensor "
 
 
 Prepare the Dataset
--------------------
+###############################################################################################################################
 
 We download the `General Language Understanding Evaluation
 (GLUE) <https://gluebenchmark.com/>`__ dataset for the MRPC task from
@@ -171,15 +192,8 @@ tokenizer from HuggingFace.
     
     data_source = create_data_source()
 
-
-.. parsed-literal::
-
-    Found cached dataset glue (/opt/home/k8sworker/.cache/huggingface/datasets/glue/mrpc/1.0.0/dacbe3125aa31d7f70367a07a8a9e72a5a0bfeb5fc42e75c9db75b96da6053ad)
-    Loading cached processed dataset at /opt/home/k8sworker/.cache/huggingface/datasets/glue/mrpc/1.0.0/dacbe3125aa31d7f70367a07a8a9e72a5a0bfeb5fc42e75c9db75b96da6053ad/cache-b5f4c739eb2a4a9f.arrow
-
-
 Optimize model using NNCF Post-training Quantization API
---------------------------------------------------------
+###############################################################################################################################
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -190,8 +204,7 @@ The optimization process contains the following steps:
 
 1. Create a Dataset for quantization
 2. Run ``nncf.quantize`` for getting an optimized model
-3. Serialize OpenVINO IR model using ``openvino.runtime.serialize``
-   function
+3. Serialize OpenVINO IR model using ``openvino.save_model`` function
 
 .. code:: ipython3
 
@@ -218,198 +231,198 @@ The optimization process contains the following steps:
 
     INFO:nncf:202 ignored nodes was found by types in the NNCFGraph
     INFO:nncf:24 ignored nodes was found by name in the NNCFGraph
-    INFO:nncf:Not adding activation input quantizer for operation: 22 aten::rsub_16
-    INFO:nncf:Not adding activation input quantizer for operation: 25 aten::rsub_17
-    INFO:nncf:Not adding activation input quantizer for operation: 30 aten::mul_18
-    INFO:nncf:Not adding activation input quantizer for operation: 11 aten::add_40
-    INFO:nncf:Not adding activation input quantizer for operation: 14 aten::add__46
-    INFO:nncf:Not adding activation input quantizer for operation: 17 aten::layer_norm_48
-    20 aten::layer_norm_49
-    23 aten::layer_norm_50
+    INFO:nncf:Not adding activation input quantizer for operation: 19 __module.bert/aten::rsub/Multiply
+    INFO:nncf:Not adding activation input quantizer for operation: 22 __module.bert/aten::rsub/Subtract
+    INFO:nncf:Not adding activation input quantizer for operation: 25 __module.bert/aten::mul/Multiply
+    INFO:nncf:Not adding activation input quantizer for operation: 11 __module.bert.embeddings/aten::add/Add_15
+    INFO:nncf:Not adding activation input quantizer for operation: 14 __module.bert.embeddings/aten::add_/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 17 __module.bert.embeddings.LayerNorm/aten::layer_norm/MVN
+    20 __module.bert.embeddings.LayerNorm/aten::layer_norm/Multiply
+    23 __module.bert.embeddings.LayerNorm/aten::layer_norm/Add
     
-    INFO:nncf:Not adding activation input quantizer for operation: 36 aten::add_108
-    INFO:nncf:Not adding activation input quantizer for operation: 55 aten::softmax_109
-    INFO:nncf:Not adding activation input quantizer for operation: 74 aten::matmul_110
-    INFO:nncf:Not adding activation input quantizer for operation: 26 aten::add_126
-    INFO:nncf:Not adding activation input quantizer for operation: 31 aten::layer_norm_128
-    47 aten::layer_norm_129
-    66 aten::layer_norm_130
+    INFO:nncf:Not adding activation input quantizer for operation: 30 __module.bert.encoder.layer.0.attention.self/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 46 __module.bert.encoder.layer.0.attention.self/aten::softmax/Softmax
+    INFO:nncf:Not adding activation input quantizer for operation: 65 __module.bert.encoder.layer.0.attention.self/aten::matmul/MatMul_54
+    INFO:nncf:Not adding activation input quantizer for operation: 26 __module.bert.encoder.layer.0.attention.output/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 42 __module.bert.encoder.layer.0.attention.output.LayerNorm/aten::layer_norm/MVN
+    58 __module.bert.encoder.layer.0.attention.output.LayerNorm/aten::layer_norm/Multiply
+    77 __module.bert.encoder.layer.0.attention.output.LayerNorm/aten::layer_norm/Add
     
-    INFO:nncf:Not adding activation input quantizer for operation: 85 aten::add_140
-    INFO:nncf:Not adding activation input quantizer for operation: 103 aten::layer_norm_142
-    133 aten::layer_norm_143
-    171 aten::layer_norm_144
+    INFO:nncf:Not adding activation input quantizer for operation: 97 __module.bert.encoder.layer.0.output/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 127 __module.bert.encoder.layer.0.output.LayerNorm/aten::layer_norm/MVN
+    154 __module.bert.encoder.layer.0.output.LayerNorm/aten::layer_norm/Multiply
+    180 __module.bert.encoder.layer.0.output.LayerNorm/aten::layer_norm/Add
     
-    INFO:nncf:Not adding activation input quantizer for operation: 38 aten::add_202
-    INFO:nncf:Not adding activation input quantizer for operation: 57 aten::softmax_203
-    INFO:nncf:Not adding activation input quantizer for operation: 76 aten::matmul_204
-    INFO:nncf:Not adding activation input quantizer for operation: 209 aten::add_220
-    INFO:nncf:Not adding activation input quantizer for operation: 236 aten::layer_norm_222
-    250 aten::layer_norm_223
-    267 aten::layer_norm_224
+    INFO:nncf:Not adding activation input quantizer for operation: 31 __module.bert.encoder.layer.1.attention.self/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 47 __module.bert.encoder.layer.1.attention.self/aten::softmax/Softmax
+    INFO:nncf:Not adding activation input quantizer for operation: 66 __module.bert.encoder.layer.1.attention.self/aten::matmul/MatMul_107
+    INFO:nncf:Not adding activation input quantizer for operation: 181 __module.bert.encoder.layer.1.attention.output/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 196 __module.bert.encoder.layer.1.attention.output.LayerNorm/aten::layer_norm/MVN
+    210 __module.bert.encoder.layer.1.attention.output.LayerNorm/aten::layer_norm/Multiply
+    227 __module.bert.encoder.layer.1.attention.output.LayerNorm/aten::layer_norm/Add
     
-    INFO:nncf:Not adding activation input quantizer for operation: 287 aten::add_234
-    INFO:nncf:Not adding activation input quantizer for operation: 316 aten::layer_norm_236
-    342 aten::layer_norm_237
-    364 aten::layer_norm_238
+    INFO:nncf:Not adding activation input quantizer for operation: 245 __module.bert.encoder.layer.1.output/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 271 __module.bert.encoder.layer.1.output.LayerNorm/aten::layer_norm/MVN
+    294 __module.bert.encoder.layer.1.output.LayerNorm/aten::layer_norm/Multiply
+    316 __module.bert.encoder.layer.1.output.LayerNorm/aten::layer_norm/Add
     
-    INFO:nncf:Not adding activation input quantizer for operation: 39 aten::add_296
-    INFO:nncf:Not adding activation input quantizer for operation: 58 aten::softmax_297
-    INFO:nncf:Not adding activation input quantizer for operation: 77 aten::matmul_298
-    INFO:nncf:Not adding activation input quantizer for operation: 221 aten::add_314
-    INFO:nncf:Not adding activation input quantizer for operation: 242 aten::layer_norm_316
-    259 aten::layer_norm_317
-    279 aten::layer_norm_318
+    INFO:nncf:Not adding activation input quantizer for operation: 34 __module.bert.encoder.layer.2.attention.self/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 50 __module.bert.encoder.layer.2.attention.self/aten::softmax/Softmax
+    INFO:nncf:Not adding activation input quantizer for operation: 69 __module.bert.encoder.layer.2.attention.self/aten::matmul/MatMul_160
+    INFO:nncf:Not adding activation input quantizer for operation: 184 __module.bert.encoder.layer.2.attention.output/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 199 __module.bert.encoder.layer.2.attention.output.LayerNorm/aten::layer_norm/MVN
+    213 __module.bert.encoder.layer.2.attention.output.LayerNorm/aten::layer_norm/Multiply
+    230 __module.bert.encoder.layer.2.attention.output.LayerNorm/aten::layer_norm/Add
     
-    INFO:nncf:Not adding activation input quantizer for operation: 300 aten::add_328
-    INFO:nncf:Not adding activation input quantizer for operation: 326 aten::layer_norm_330
-    348 aten::layer_norm_331
-    370 aten::layer_norm_332
+    INFO:nncf:Not adding activation input quantizer for operation: 251 __module.bert.encoder.layer.2.output/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 277 __module.bert.encoder.layer.2.output.LayerNorm/aten::layer_norm/MVN
+    300 __module.bert.encoder.layer.2.output.LayerNorm/aten::layer_norm/Multiply
+    322 __module.bert.encoder.layer.2.output.LayerNorm/aten::layer_norm/Add
     
-    INFO:nncf:Not adding activation input quantizer for operation: 40 aten::add_390
-    INFO:nncf:Not adding activation input quantizer for operation: 59 aten::softmax_391
-    INFO:nncf:Not adding activation input quantizer for operation: 78 aten::matmul_392
-    INFO:nncf:Not adding activation input quantizer for operation: 223 aten::add_408
-    INFO:nncf:Not adding activation input quantizer for operation: 243 aten::layer_norm_410
-    260 aten::layer_norm_411
-    280 aten::layer_norm_412
+    INFO:nncf:Not adding activation input quantizer for operation: 35 __module.bert.encoder.layer.3.attention.self/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 51 __module.bert.encoder.layer.3.attention.self/aten::softmax/Softmax
+    INFO:nncf:Not adding activation input quantizer for operation: 70 __module.bert.encoder.layer.3.attention.self/aten::matmul/MatMul_213
+    INFO:nncf:Not adding activation input quantizer for operation: 185 __module.bert.encoder.layer.3.attention.output/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 200 __module.bert.encoder.layer.3.attention.output.LayerNorm/aten::layer_norm/MVN
+    214 __module.bert.encoder.layer.3.attention.output.LayerNorm/aten::layer_norm/Multiply
+    231 __module.bert.encoder.layer.3.attention.output.LayerNorm/aten::layer_norm/Add
     
-    INFO:nncf:Not adding activation input quantizer for operation: 302 aten::add_422
-    INFO:nncf:Not adding activation input quantizer for operation: 328 aten::layer_norm_424
-    350 aten::layer_norm_425
-    372 aten::layer_norm_426
+    INFO:nncf:Not adding activation input quantizer for operation: 253 __module.bert.encoder.layer.3.output/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 279 __module.bert.encoder.layer.3.output.LayerNorm/aten::layer_norm/MVN
+    302 __module.bert.encoder.layer.3.output.LayerNorm/aten::layer_norm/Multiply
+    324 __module.bert.encoder.layer.3.output.LayerNorm/aten::layer_norm/Add
     
-    INFO:nncf:Not adding activation input quantizer for operation: 41 aten::add_484
-    INFO:nncf:Not adding activation input quantizer for operation: 60 aten::softmax_485
-    INFO:nncf:Not adding activation input quantizer for operation: 79 aten::matmul_486
-    INFO:nncf:Not adding activation input quantizer for operation: 225 aten::add_502
-    INFO:nncf:Not adding activation input quantizer for operation: 244 aten::layer_norm_504
-    261 aten::layer_norm_505
-    281 aten::layer_norm_506
+    INFO:nncf:Not adding activation input quantizer for operation: 36 __module.bert.encoder.layer.4.attention.self/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 52 __module.bert.encoder.layer.4.attention.self/aten::softmax/Softmax
+    INFO:nncf:Not adding activation input quantizer for operation: 71 __module.bert.encoder.layer.4.attention.self/aten::matmul/MatMul_266
+    INFO:nncf:Not adding activation input quantizer for operation: 186 __module.bert.encoder.layer.4.attention.output/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 201 __module.bert.encoder.layer.4.attention.output.LayerNorm/aten::layer_norm/MVN
+    215 __module.bert.encoder.layer.4.attention.output.LayerNorm/aten::layer_norm/Multiply
+    232 __module.bert.encoder.layer.4.attention.output.LayerNorm/aten::layer_norm/Add
     
-    INFO:nncf:Not adding activation input quantizer for operation: 304 aten::add_516
-    INFO:nncf:Not adding activation input quantizer for operation: 330 aten::layer_norm_518
-    352 aten::layer_norm_519
-    374 aten::layer_norm_520
+    INFO:nncf:Not adding activation input quantizer for operation: 255 __module.bert.encoder.layer.4.output/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 281 __module.bert.encoder.layer.4.output.LayerNorm/aten::layer_norm/MVN
+    304 __module.bert.encoder.layer.4.output.LayerNorm/aten::layer_norm/Multiply
+    326 __module.bert.encoder.layer.4.output.LayerNorm/aten::layer_norm/Add
     
-    INFO:nncf:Not adding activation input quantizer for operation: 42 aten::add_578
-    INFO:nncf:Not adding activation input quantizer for operation: 61 aten::softmax_579
-    INFO:nncf:Not adding activation input quantizer for operation: 80 aten::matmul_580
-    INFO:nncf:Not adding activation input quantizer for operation: 227 aten::add_596
-    INFO:nncf:Not adding activation input quantizer for operation: 245 aten::layer_norm_598
-    262 aten::layer_norm_599
-    282 aten::layer_norm_600
+    INFO:nncf:Not adding activation input quantizer for operation: 37 __module.bert.encoder.layer.5.attention.self/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 53 __module.bert.encoder.layer.5.attention.self/aten::softmax/Softmax
+    INFO:nncf:Not adding activation input quantizer for operation: 72 __module.bert.encoder.layer.5.attention.self/aten::matmul/MatMul_319
+    INFO:nncf:Not adding activation input quantizer for operation: 187 __module.bert.encoder.layer.5.attention.output/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 202 __module.bert.encoder.layer.5.attention.output.LayerNorm/aten::layer_norm/MVN
+    216 __module.bert.encoder.layer.5.attention.output.LayerNorm/aten::layer_norm/Multiply
+    233 __module.bert.encoder.layer.5.attention.output.LayerNorm/aten::layer_norm/Add
     
-    INFO:nncf:Not adding activation input quantizer for operation: 306 aten::add_610
-    INFO:nncf:Not adding activation input quantizer for operation: 332 aten::layer_norm_612
-    354 aten::layer_norm_613
-    376 aten::layer_norm_614
+    INFO:nncf:Not adding activation input quantizer for operation: 257 __module.bert.encoder.layer.5.output/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 283 __module.bert.encoder.layer.5.output.LayerNorm/aten::layer_norm/MVN
+    306 __module.bert.encoder.layer.5.output.LayerNorm/aten::layer_norm/Multiply
+    328 __module.bert.encoder.layer.5.output.LayerNorm/aten::layer_norm/Add
     
-    INFO:nncf:Not adding activation input quantizer for operation: 43 aten::add_672
-    INFO:nncf:Not adding activation input quantizer for operation: 62 aten::softmax_673
-    INFO:nncf:Not adding activation input quantizer for operation: 81 aten::matmul_674
-    INFO:nncf:Not adding activation input quantizer for operation: 229 aten::add_690
-    INFO:nncf:Not adding activation input quantizer for operation: 246 aten::layer_norm_692
-    263 aten::layer_norm_693
-    283 aten::layer_norm_694
+    INFO:nncf:Not adding activation input quantizer for operation: 38 __module.bert.encoder.layer.6.attention.self/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 54 __module.bert.encoder.layer.6.attention.self/aten::softmax/Softmax
+    INFO:nncf:Not adding activation input quantizer for operation: 73 __module.bert.encoder.layer.6.attention.self/aten::matmul/MatMul_372
+    INFO:nncf:Not adding activation input quantizer for operation: 188 __module.bert.encoder.layer.6.attention.output/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 203 __module.bert.encoder.layer.6.attention.output.LayerNorm/aten::layer_norm/MVN
+    217 __module.bert.encoder.layer.6.attention.output.LayerNorm/aten::layer_norm/Multiply
+    234 __module.bert.encoder.layer.6.attention.output.LayerNorm/aten::layer_norm/Add
     
-    INFO:nncf:Not adding activation input quantizer for operation: 308 aten::add_704
-    INFO:nncf:Not adding activation input quantizer for operation: 334 aten::layer_norm_706
-    356 aten::layer_norm_707
-    378 aten::layer_norm_708
+    INFO:nncf:Not adding activation input quantizer for operation: 259 __module.bert.encoder.layer.6.output/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 285 __module.bert.encoder.layer.6.output.LayerNorm/aten::layer_norm/MVN
+    308 __module.bert.encoder.layer.6.output.LayerNorm/aten::layer_norm/Multiply
+    330 __module.bert.encoder.layer.6.output.LayerNorm/aten::layer_norm/Add
     
-    INFO:nncf:Not adding activation input quantizer for operation: 44 aten::add_766
-    INFO:nncf:Not adding activation input quantizer for operation: 63 aten::softmax_767
-    INFO:nncf:Not adding activation input quantizer for operation: 82 aten::matmul_768
-    INFO:nncf:Not adding activation input quantizer for operation: 231 aten::add_784
-    INFO:nncf:Not adding activation input quantizer for operation: 247 aten::layer_norm_786
-    264 aten::layer_norm_787
-    284 aten::layer_norm_788
+    INFO:nncf:Not adding activation input quantizer for operation: 39 __module.bert.encoder.layer.7.attention.self/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 55 __module.bert.encoder.layer.7.attention.self/aten::softmax/Softmax
+    INFO:nncf:Not adding activation input quantizer for operation: 74 __module.bert.encoder.layer.7.attention.self/aten::matmul/MatMul_425
+    INFO:nncf:Not adding activation input quantizer for operation: 189 __module.bert.encoder.layer.7.attention.output/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 204 __module.bert.encoder.layer.7.attention.output.LayerNorm/aten::layer_norm/MVN
+    218 __module.bert.encoder.layer.7.attention.output.LayerNorm/aten::layer_norm/Multiply
+    235 __module.bert.encoder.layer.7.attention.output.LayerNorm/aten::layer_norm/Add
     
-    INFO:nncf:Not adding activation input quantizer for operation: 310 aten::add_798
-    INFO:nncf:Not adding activation input quantizer for operation: 336 aten::layer_norm_800
-    358 aten::layer_norm_801
-    380 aten::layer_norm_802
+    INFO:nncf:Not adding activation input quantizer for operation: 261 __module.bert.encoder.layer.7.output/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 287 __module.bert.encoder.layer.7.output.LayerNorm/aten::layer_norm/MVN
+    310 __module.bert.encoder.layer.7.output.LayerNorm/aten::layer_norm/Multiply
+    332 __module.bert.encoder.layer.7.output.LayerNorm/aten::layer_norm/Add
     
-    INFO:nncf:Not adding activation input quantizer for operation: 45 aten::add_860
-    INFO:nncf:Not adding activation input quantizer for operation: 64 aten::softmax_861
-    INFO:nncf:Not adding activation input quantizer for operation: 83 aten::matmul_862
-    INFO:nncf:Not adding activation input quantizer for operation: 233 aten::add_878
-    INFO:nncf:Not adding activation input quantizer for operation: 248 aten::layer_norm_880
-    265 aten::layer_norm_881
-    285 aten::layer_norm_882
+    INFO:nncf:Not adding activation input quantizer for operation: 40 __module.bert.encoder.layer.8.attention.self/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 56 __module.bert.encoder.layer.8.attention.self/aten::softmax/Softmax
+    INFO:nncf:Not adding activation input quantizer for operation: 75 __module.bert.encoder.layer.8.attention.self/aten::matmul/MatMul_478
+    INFO:nncf:Not adding activation input quantizer for operation: 190 __module.bert.encoder.layer.8.attention.output/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 205 __module.bert.encoder.layer.8.attention.output.LayerNorm/aten::layer_norm/MVN
+    219 __module.bert.encoder.layer.8.attention.output.LayerNorm/aten::layer_norm/Multiply
+    236 __module.bert.encoder.layer.8.attention.output.LayerNorm/aten::layer_norm/Add
     
-    INFO:nncf:Not adding activation input quantizer for operation: 312 aten::add_892
-    INFO:nncf:Not adding activation input quantizer for operation: 338 aten::layer_norm_894
-    360 aten::layer_norm_895
-    382 aten::layer_norm_896
+    INFO:nncf:Not adding activation input quantizer for operation: 263 __module.bert.encoder.layer.8.output/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 289 __module.bert.encoder.layer.8.output.LayerNorm/aten::layer_norm/MVN
+    312 __module.bert.encoder.layer.8.output.LayerNorm/aten::layer_norm/Multiply
+    334 __module.bert.encoder.layer.8.output.LayerNorm/aten::layer_norm/Add
     
-    INFO:nncf:Not adding activation input quantizer for operation: 46 aten::add_954
-    INFO:nncf:Not adding activation input quantizer for operation: 65 aten::softmax_955
-    INFO:nncf:Not adding activation input quantizer for operation: 84 aten::matmul_956
-    INFO:nncf:Not adding activation input quantizer for operation: 235 aten::add_972
-    INFO:nncf:Not adding activation input quantizer for operation: 249 aten::layer_norm_974
-    266 aten::layer_norm_975
-    286 aten::layer_norm_976
+    INFO:nncf:Not adding activation input quantizer for operation: 41 __module.bert.encoder.layer.9.attention.self/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 57 __module.bert.encoder.layer.9.attention.self/aten::softmax/Softmax
+    INFO:nncf:Not adding activation input quantizer for operation: 76 __module.bert.encoder.layer.9.attention.self/aten::matmul/MatMul_531
+    INFO:nncf:Not adding activation input quantizer for operation: 191 __module.bert.encoder.layer.9.attention.output/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 206 __module.bert.encoder.layer.9.attention.output.LayerNorm/aten::layer_norm/MVN
+    220 __module.bert.encoder.layer.9.attention.output.LayerNorm/aten::layer_norm/Multiply
+    237 __module.bert.encoder.layer.9.attention.output.LayerNorm/aten::layer_norm/Add
     
-    INFO:nncf:Not adding activation input quantizer for operation: 314 aten::add_986
-    INFO:nncf:Not adding activation input quantizer for operation: 340 aten::layer_norm_988
-    362 aten::layer_norm_989
-    384 aten::layer_norm_990
+    INFO:nncf:Not adding activation input quantizer for operation: 265 __module.bert.encoder.layer.9.output/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 291 __module.bert.encoder.layer.9.output.LayerNorm/aten::layer_norm/MVN
+    314 __module.bert.encoder.layer.9.output.LayerNorm/aten::layer_norm/Multiply
+    336 __module.bert.encoder.layer.9.output.LayerNorm/aten::layer_norm/Add
     
-    INFO:nncf:Not adding activation input quantizer for operation: 35 aten::add_1048
-    INFO:nncf:Not adding activation input quantizer for operation: 54 aten::softmax_1049
-    INFO:nncf:Not adding activation input quantizer for operation: 73 aten::matmul_1050
-    INFO:nncf:Not adding activation input quantizer for operation: 215 aten::add_1066
-    INFO:nncf:Not adding activation input quantizer for operation: 240 aten::layer_norm_1068
-    257 aten::layer_norm_1069
-    277 aten::layer_norm_1070
+    INFO:nncf:Not adding activation input quantizer for operation: 32 __module.bert.encoder.layer.10.attention.self/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 48 __module.bert.encoder.layer.10.attention.self/aten::softmax/Softmax
+    INFO:nncf:Not adding activation input quantizer for operation: 67 __module.bert.encoder.layer.10.attention.self/aten::matmul/MatMul_584
+    INFO:nncf:Not adding activation input quantizer for operation: 182 __module.bert.encoder.layer.10.attention.output/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 197 __module.bert.encoder.layer.10.attention.output.LayerNorm/aten::layer_norm/MVN
+    211 __module.bert.encoder.layer.10.attention.output.LayerNorm/aten::layer_norm/Multiply
+    228 __module.bert.encoder.layer.10.attention.output.LayerNorm/aten::layer_norm/Add
     
-    INFO:nncf:Not adding activation input quantizer for operation: 296 aten::add_1080
-    INFO:nncf:Not adding activation input quantizer for operation: 322 aten::layer_norm_1082
-    344 aten::layer_norm_1083
-    366 aten::layer_norm_1084
+    INFO:nncf:Not adding activation input quantizer for operation: 247 __module.bert.encoder.layer.10.output/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 273 __module.bert.encoder.layer.10.output.LayerNorm/aten::layer_norm/MVN
+    296 __module.bert.encoder.layer.10.output.LayerNorm/aten::layer_norm/Multiply
+    318 __module.bert.encoder.layer.10.output.LayerNorm/aten::layer_norm/Add
     
-    INFO:nncf:Not adding activation input quantizer for operation: 37 aten::add_1142
-    INFO:nncf:Not adding activation input quantizer for operation: 56 aten::softmax_1143
-    INFO:nncf:Not adding activation input quantizer for operation: 75 aten::matmul_1144
-    INFO:nncf:Not adding activation input quantizer for operation: 218 aten::add_1160
-    INFO:nncf:Not adding activation input quantizer for operation: 241 aten::layer_norm_1162
-    258 aten::layer_norm_1163
-    278 aten::layer_norm_1164
+    INFO:nncf:Not adding activation input quantizer for operation: 33 __module.bert.encoder.layer.11.attention.self/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 49 __module.bert.encoder.layer.11.attention.self/aten::softmax/Softmax
+    INFO:nncf:Not adding activation input quantizer for operation: 68 __module.bert.encoder.layer.11.attention.self/aten::matmul/MatMul_637
+    INFO:nncf:Not adding activation input quantizer for operation: 183 __module.bert.encoder.layer.11.attention.output/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 198 __module.bert.encoder.layer.11.attention.output.LayerNorm/aten::layer_norm/MVN
+    212 __module.bert.encoder.layer.11.attention.output.LayerNorm/aten::layer_norm/Multiply
+    229 __module.bert.encoder.layer.11.attention.output.LayerNorm/aten::layer_norm/Add
     
-    INFO:nncf:Not adding activation input quantizer for operation: 298 aten::add_1174
-    INFO:nncf:Not adding activation input quantizer for operation: 324 aten::layer_norm_1176
-    346 aten::layer_norm_1177
-    368 aten::layer_norm_1178
+    INFO:nncf:Not adding activation input quantizer for operation: 249 __module.bert.encoder.layer.11.output/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 275 __module.bert.encoder.layer.11.output.LayerNorm/aten::layer_norm/MVN
+    298 __module.bert.encoder.layer.11.output.LayerNorm/aten::layer_norm/Multiply
+    320 __module.bert.encoder.layer.11.output.LayerNorm/aten::layer_norm/Add
     
 
 
 .. parsed-literal::
 
-    Statistics collection: 100%|██████████| 300/300 [00:24<00:00, 12.02it/s]
-    Biases correction: 100%|██████████| 74/74 [00:25<00:00,  2.94it/s]
+    Statistics collection: 100%|██████████| 300/300 [00:25<00:00, 11.87it/s]
+    Biases correction: 100%|██████████| 74/74 [00:25<00:00,  2.92it/s]
 
 
 .. code:: ipython3
 
     compressed_model_xml = Path(MODEL_DIR) / "quantized_bert_mrpc.xml"
-    ov.serialize(quantized_model, compressed_model_xml)
+    ov.save_model(quantized_model, compressed_model_xml)
 
 Load and Test OpenVINO Model
-----------------------------
+###############################################################################################################################
 
 To load and test converted model, perform the following:
 
-* Load the model and compile it for selected device.
-* Prepare the input.
-* Run the inference.
-* Get the answer from the model output.
+-  Load the model and compile it for selected device.
+-  Prepare the input.
+-  Run the inference.
+-  Get the answer from the model output.
 
 Select inference device
-~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -466,11 +479,11 @@ changing ``sample_idx`` to another value (from 0 to 407).
 
 
 Compare F1-score of FP32 and INT8 models
-----------------------------------------
+###############################################################################################################################
 
 .. code:: ipython3
 
-    def validate(model: Model, dataset: Iterable[Any]) -> float:
+    def validate(model: ov.Model, dataset: Iterable[Any]) -> float:
         """
         Evaluate the model on GLUE dataset. 
         Returns F1 score metric.
@@ -506,11 +519,11 @@ Compare F1-score of FP32 and INT8 models
     Checking the accuracy of the original model:
     F1 score: 0.9019
     Checking the accuracy of the quantized model:
-    F1 score: 0.8995
+    F1 score: 0.8983
 
 
 Compare Performance of the Original, Converted and Quantized Models
--------------------------------------------------------------------
+###############################################################################################################################
 
 Compare the original PyTorch model with OpenVINO converted and quantized
 models (``FP32``, ``INT8``) to see the difference in performance. It is
@@ -562,9 +575,14 @@ Frames Per Second (FPS) for images.
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.071 seconds per sentence, SPS: 14.09
-    IR FP32 model in OpenVINO Runtime/AUTO: 0.022 seconds per sentence, SPS: 45.98
-    OpenVINO IR INT8 model in OpenVINO Runtime/AUTO: 0.010 seconds per sentence, SPS: 98.77
+    We strongly recommend passing in an `attention_mask` since your input_ids may be padded. See https://huggingface.co/docs/transformers/troubleshooting#incorrect-output-when-padding-tokens-arent-masked.
+
+
+.. parsed-literal::
+
+    PyTorch model on CPU: 0.073 seconds per sentence, SPS: 13.77
+    IR FP32 model in OpenVINO Runtime/AUTO: 0.021 seconds per sentence, SPS: 46.77
+    OpenVINO IR INT8 model in OpenVINO Runtime/AUTO: 0.010 seconds per sentence, SPS: 98.85
 
 
 Finally, measure the inference performance of OpenVINO ``FP32`` and
@@ -572,7 +590,9 @@ Finally, measure the inference performance of OpenVINO ``FP32`` and
 Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 in OpenVINO.
 
-   **Note**: The ``benchmark_app`` tool is able to measure the
+.. note::
+
+   The ``benchmark_app`` tool is able to measure the
    performance of the OpenVINO Intermediate Representation (OpenVINO IR)
    models only. For more accurate performance, run ``benchmark_app`` in
    a terminal/command prompt after closing other applications. Run
@@ -584,7 +604,7 @@ in OpenVINO.
 .. code:: ipython3
 
     # Inference FP32 model (OpenVINO IR)
-    ! benchmark_app -m $ir_model_xml -shape [1,128],[1,128],[1,128] -d device.value -api sync
+    !benchmark_app -m $ir_model_xml -shape [1,128],[1,128],[1,128] -d device.value -api sync
 
 
 .. parsed-literal::
@@ -594,18 +614,22 @@ in OpenVINO.
     [Step 2/11] Loading OpenVINO Runtime
     [ WARNING ] Default duration 120 seconds is used for unknown device device.value
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
+    [ INFO ] Build ................................. 2023.1.0-12050-e33de350633
     [ INFO ] 
     [ INFO ] Device info:
-    [ ERROR ] Check 'false' failed at src/inference/src/core.cpp:84:
+    [ ERROR ] Exception from src/inference/src/core.cpp:84:
+    Exception from src/inference/src/dev/core_impl.cpp:565:
     Device with "device" name is not registered in the OpenVINO Runtime
+    
     Traceback (most recent call last):
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 103, in main
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 102, in main
         benchmark.print_version_info()
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/benchmark.py", line 48, in print_version_info
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/benchmark.py", line 48, in print_version_info
         for device, version in self.core.get_versions(self.device).items():
-    RuntimeError: Check 'false' failed at src/inference/src/core.cpp:84:
+    RuntimeError: Exception from src/inference/src/core.cpp:84:
+    Exception from src/inference/src/dev/core_impl.cpp:565:
     Device with "device" name is not registered in the OpenVINO Runtime
+    
     
 
 
@@ -622,17 +646,21 @@ in OpenVINO.
     [Step 2/11] Loading OpenVINO Runtime
     [ WARNING ] Default duration 120 seconds is used for unknown device device.value
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
+    [ INFO ] Build ................................. 2023.1.0-12050-e33de350633
     [ INFO ] 
     [ INFO ] Device info:
-    [ ERROR ] Check 'false' failed at src/inference/src/core.cpp:84:
+    [ ERROR ] Exception from src/inference/src/core.cpp:84:
+    Exception from src/inference/src/dev/core_impl.cpp:565:
     Device with "device" name is not registered in the OpenVINO Runtime
+    
     Traceback (most recent call last):
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 103, in main
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 102, in main
         benchmark.print_version_info()
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/benchmark.py", line 48, in print_version_info
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/benchmark.py", line 48, in print_version_info
         for device, version in self.core.get_versions(self.device).items():
-    RuntimeError: Check 'false' failed at src/inference/src/core.cpp:84:
+    RuntimeError: Exception from src/inference/src/core.cpp:84:
+    Exception from src/inference/src/dev/core_impl.cpp:565:
     Device with "device" name is not registered in the OpenVINO Runtime
+    
     
 

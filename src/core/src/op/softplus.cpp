@@ -9,7 +9,7 @@
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/softplus.hpp"
+#include "openvino/reference/softplus.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -48,7 +48,7 @@ namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::softplus<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+    ov::reference::softplus<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
     return true;
 }
 
@@ -58,9 +58,9 @@ bool evaluate_softplus(const HostTensorPtr& arg, const HostTensorPtr& out) {
     size_t count = shape_size(arg->get_shape());
 
     switch (arg->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_softplus, bf16, arg, out, count);
-        NGRAPH_TYPE_CASE(evaluate_softplus, f16, arg, out, count);
-        NGRAPH_TYPE_CASE(evaluate_softplus, f32, arg, out, count);
+        OPENVINO_TYPE_CASE(evaluate_softplus, bf16, arg, out, count);
+        OPENVINO_TYPE_CASE(evaluate_softplus, f16, arg, out, count);
+        OPENVINO_TYPE_CASE(evaluate_softplus, f32, arg, out, count);
     default:
         rc = false;
         break;
@@ -73,7 +73,7 @@ bool evaluate_softplus(const HostTensorPtr& arg, const HostTensorPtr& out) {
 bool op::v4::SoftPlus::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v4_SoftPlus_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
     return softplus::evaluate_softplus(inputs[0], outputs[0]);
 }

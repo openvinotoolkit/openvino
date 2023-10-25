@@ -42,7 +42,7 @@ partitioned_modules = {}
 def execute(
     gm: GraphModule,
     *args,
-    executor: str = "aten",
+    executor: str = "openvino",
     executor_parameters: Optional[dict] = None,
 ):
     if executor == "openvino":
@@ -57,6 +57,14 @@ def execute(
 import numpy as np
 
 
+def execute_cached(compiled_model, *args):
+    ov_inputs = [a.detach().cpu().numpy() for a in args]
+    ov_inputs.reverse()
+    res = compiled_model(ov_inputs)
+    result = [torch.from_numpy(res[out]) for out in compiled_model.outputs]
+    return result
+
+
 def openvino_execute(gm: GraphModule, *args, executor_parameters=None, partition_id):
 
     executor_parameters = executor_parameters or DEFAULT_OPENVINO_PYTHON_CONFIG
@@ -69,7 +77,11 @@ def openvino_execute(gm: GraphModule, *args, executor_parameters=None, partition
 
     model_hash_str = executor_parameters.get("model_hash_str", None)
     if model_hash_str is not None:
-        model_hash_str = model_hash_str + str(partition_id)
+        fully_supported = False
+        if len(model_hash_str) > 3 and model_hash_str[-3:] == "_fs":
+            fully_supported = True
+        if not fully_supported:
+            model_hash_str = model_hash_str + "_p" + str(partition_id)
 
     if use_cache and (partition_id in compiled_cache):
         compiled = compiled_cache[partition_id]

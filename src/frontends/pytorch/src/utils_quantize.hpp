@@ -29,11 +29,15 @@ public:
     virtual size_t get_subgraph_size() const override {
         return 0;
     }
+    virtual const std::string& decoder_type_name() const override {
+        return m_decoder_type;
+    }
 
 private:
     const Output<Node> m_qinput;
     const std::string m_op_type = "QuantizedPtNode";
     const std::string m_schema = "NONE";
+    const std::string m_decoder_type = "qt";
 };
 
 enum QuantizedPtNodeType { QUANTIZE_PER_TENSOR, QUANTIZE_PER_CHANNEL };
@@ -140,8 +144,7 @@ Output<Node> quantize(const NodeContext& context,
                       const Output<Node>& zero_point,
                       const Output<Node>& quantized_node);
 
-std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(Output<Node> node);
-std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(Output<Node> node, const std::string& type);
+std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(std::shared_ptr<Node> node);
 
 namespace op {
 /**
@@ -151,16 +154,23 @@ template <OutputVector (*T)(const NodeContext&), size_t in_idx = 0, size_t out_i
 OutputVector quantizable_op(const NodeContext& context) {
     auto translation_res = T(context);
     FRONT_END_OP_CONVERSION_CHECK(translation_res.size() > out_idx, "Not enough outputs to apply quantization.");
-    if (const auto quantized_pt_node = cast_quantized_fw_node(context.get_input(in_idx).get_node_shared_ptr())) {
-        return {context.mark_node(std::make_shared<QuantizedPtNode>(quantized_pt_node->get_type(),
-                                                                    translation_res[out_idx],
-                                                                    quantized_pt_node->get_scale(),
-                                                                    quantized_pt_node->get_zero_point(),
-                                                                    quantized_pt_node->get_dtype()))};
+    auto target_input = context.get_input(in_idx);
+    if (const auto quantized_pt_node = cast_quantized_fw_node(target_input.get_node_shared_ptr())) {
+        return {quantize(context,
+                         translation_res[out_idx],
+                         quantized_pt_node->get_scale(),
+                         quantized_pt_node->get_zero_point(),
+                         target_input)};
     }
     return translation_res;
 }
 }  // namespace op
+
+/**
+ * Captures aten::stack([aten::bitwise_and(Constant(u8)), aten::bitwise_right_shift(Constant(u8))], dim=-1).
+ * This pattern is transformed to a single Constant with element_type=u4.
+ */
+std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64_t axis);
 
 }  // namespace pytorch
 }  // namespace frontend

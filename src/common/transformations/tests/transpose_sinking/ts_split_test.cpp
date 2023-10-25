@@ -6,7 +6,7 @@
 
 #include <functional>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "gtest/gtest.h"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/opsets/opset10.hpp"
@@ -748,9 +748,9 @@ ov::OutputVector MiddleAnotherTranspose(const ov::OutputVector& split_tree_leave
 
 struct TransposeInsertFuncDesc {
     TransposeInsertFuncDesc() = default;
-    TransposeInsertFuncDesc(TransposeInsertF a_function, std::string a_name) : function(a_function), name(a_name) {}
+    TransposeInsertFuncDesc(TransposeInsertF a_model, std::string a_name) : model(a_model), name(a_name) {}
 
-    TransposeInsertF function;
+    TransposeInsertF model;
     std::string name;
 };
 
@@ -807,7 +807,7 @@ TEST_P(TSSplitBackwardRestrictTestFixture, CompareFunctions) {
     std::tie(pass_factory, split_tree_depth, num_split_outputs, model_factory, input_type, tranpose_insert_function) =
         this->GetParam();
 
-    model = model_factory(split_tree_depth, num_split_outputs, input_type, tranpose_insert_function.function);
+    model = model_factory(split_tree_depth, num_split_outputs, input_type, tranpose_insert_function.model);
     model_ref = model->clone();
     pass_factory->registerPass(manager);
 }

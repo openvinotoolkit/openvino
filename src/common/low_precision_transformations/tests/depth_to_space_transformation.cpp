@@ -10,33 +10,33 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
 #include "low_precision/depth_to_space.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/depth_to_space_function.hpp"
+#include "ov_lpt_models/depth_to_space.hpp"
 
 namespace {
-using namespace ngraph::pass;
+using namespace ov::pass;
 using namespace ngraph::builder::subgraph;
-using namespace ngraph::opset1;
-using namespace ngraph;
+using namespace ov::opset1;
+using namespace ov;
 
 class DepthToSpaceTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-        ngraph::element::Type precisionAfterOperation;
+        ov::element::Type precisionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
@@ -48,13 +48,13 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::PartialShape,
+    ov::PartialShape,
     DepthToSpaceTransformationTestValues> DepthToSpaceTransformationParams;
 
 class DepthToSpaceTransformation : public LayerTransformation, public testing::WithParamInterface<DepthToSpaceTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::PartialShape inputShape = std::get<0>(GetParam());
+        const ov::PartialShape inputShape = std::get<0>(GetParam());
         const DepthToSpaceTransformationTestValues testValues = std::get<1>(GetParam());
 
         actualFunction = DepthToSpaceFunction::getOriginal(
@@ -65,7 +65,7 @@ public:
             testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<low_precision::DepthToSpaceTransformation, ngraph::opset1::DepthToSpace>(testValues.params);
+        transform.add<ov::pass::low_precision::DepthToSpaceTransformation, ov::opset1::DepthToSpace>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = DepthToSpaceFunction::getReference(
@@ -84,7 +84,7 @@ public:
             {DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, "DEPTH_FIRST"},
         };
 
-        const ngraph::PartialShape inputShape = std::get<0>(obj.param);
+        const ov::PartialShape inputShape = std::get<0>(obj.param);
         const DepthToSpaceTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
@@ -107,7 +107,7 @@ TEST_P(DepthToSpaceTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> inputShapesForBlockSize2 = {
+const std::vector<ov::PartialShape> inputShapesForBlockSize2 = {
     { 1, 4, 3, 3 },
     {-1, -1, -1, -1}
 };
@@ -119,14 +119,14 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
         2,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
+            ov::element::u8,
+            {{ov::element::f32}, {0.32f}, {0.45f}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
+            ov::element::u8,
+            {{ov::element::f32}, {0.32f}, {0.45f}}
         }
     },
     // blockSize = 2
@@ -135,20 +135,20 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
         2,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
-                {{0.32f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true},
+                {ov::element::f32},
+                {{0.32f}, ov::element::f32, {}, false, 1, ov::element::u8, true},
                 {0.45f}
             }
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {{}, {}, {}},
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
-                {{0.32f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true},
+                {ov::element::f32},
+                {{0.32f}, ov::element::f32, {}, false, 1, ov::element::u8, true},
                 {0.45f}
             }
         }
@@ -159,21 +159,21 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
         2,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
+                {ov::element::f32},
                 {{0.32f, 0.5f, 0.6f, 0.77f}},
                 {{0.1f, 0.55f, 0.3f, 0.8f}}
             }
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
+                {ov::element::f32},
                 {{0.32f, 0.5f, 0.6f, 0.77f}},
                 {{0.1f, 0.55f, 0.3f, 0.8f}}
             },
-            ngraph::element::f32,
+            ov::element::f32,
             { {}, {}, {}}
         }
     },
@@ -183,19 +183,19 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
         2,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
+                {ov::element::f32},
                 {{0.32f, 0.32f, 0.32f, 0.32f}},
                 {{0.1f, 0.1f, 0.1f, 0.1f}}
             }
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             { {}, {}, {}},
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
+                {ov::element::f32},
                 {{0.32f, 0.32f, 0.32f, 0.32f}},
                 {{0.1f, 0.1f, 0.1f, 0.1f}}
             }
@@ -207,13 +207,13 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
         2,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             { {}, {}, {}},
-            ngraph::element::u8,
+            ov::element::u8,
             { {}, {}, {}}
         }
     },
@@ -229,7 +229,7 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> inputShapesForBlockSize3 = {
+const std::vector<ov::PartialShape> inputShapesForBlockSize3 = {
     { 1, 9, 3, 3 },
     {-1, -1, -1, -1}
 };
@@ -241,14 +241,14 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
         3,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
+            ov::element::u8,
+            {{ov::element::f32}, {0.32f}, {0.45f}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
+            ov::element::u8,
+            {{ov::element::f32}, {0.32f}, {0.45f}}
         }
     },
     // DEPTH_FIRST
@@ -257,14 +257,14 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
         3,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
+            ov::element::u8,
+            {{ov::element::f32}, {0.32f}, {0.45f}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
+            ov::element::u8,
+            {{ov::element::f32}, {0.32f}, {0.45f}}
         }
     },
 };
@@ -279,7 +279,7 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues2
 
 namespace testValues3 {
-const std::vector<ngraph::PartialShape> inputShapesWithDynamicRank = {
+const std::vector<ov::PartialShape> inputShapesWithDynamicRank = {
     PartialShape::dynamic(),
 };
 
@@ -289,13 +289,13 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
         2,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
+            ov::element::u8,
+            {{ov::element::f32}, {0.32f}, {0.45f}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}},
-            ngraph::element::f32,
+            ov::element::u8,
+            {{ov::element::f32}, {0.32f}, {0.45f}},
+            ov::element::f32,
             {}
         }
     },

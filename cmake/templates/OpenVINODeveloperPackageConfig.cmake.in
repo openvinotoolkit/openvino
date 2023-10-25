@@ -10,12 +10,26 @@ set_and_check(OpenVINO_SOURCE_DIR "@OpenVINO_SOURCE_DIR@")
 
 # Variables to export in plugin's projects
 
-set(ov_options "@IE_OPTIONS@")
+set(ov_options "@OV_OPTIONS@")
 list(APPEND ov_options CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER
                        CMAKE_CXX_LINKER_LAUNCHER CMAKE_C_LINKER_LAUNCHER
-                       CMAKE_BUILD_TYPE CMAKE_SKIP_RPATH CMAKE_INSTALL_PREFIX
-                       CMAKE_OSX_ARCHITECTURES CMAKE_OSX_DEPLOYMENT_TARGET
-                       CPACK_GENERATOR)
+                       CMAKE_INSTALL_PREFIX CPACK_GENERATOR)
+
+if(APPLE)
+    list(APPEND ov_options CMAKE_OSX_ARCHITECTURES CMAKE_OSX_DEPLOYMENT_TARGET)
+endif()
+
+get_property(_OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+if(_OV_GENERATOR_MULTI_CONFIG)
+    list(APPEND ov_options CMAKE_CONFIGURATION_TYPES)
+    if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
+        list(APPEND ov_options CMAKE_DEFAULT_BUILD_TYPE)
+    endif()
+else()
+    list(APPEND ov_options CMAKE_BUILD_TYPE)
+endif()
+unset(_OV_GENERATOR_MULTI_CONFIG)
+
 file(TO_CMAKE_PATH "${CMAKE_CURRENT_LIST_DIR}" cache_path)
 
 message(STATUS "The following CMake options are exported from OpenVINO Developer package")
@@ -27,6 +41,9 @@ foreach(option IN LISTS ov_options)
     message("    ${option}: ${${option}}")
 endforeach()
 message(" ")
+
+# Restore TBB installation directory (requires for proper LC_RPATH on macOS with SIP)
+load_cache("${cache_path}" READ_WITH_PREFIX "" TBB_INSTALL_DIR)
 
 # activate generation of plugins.xml
 set(ENABLE_PLUGINS_XML ON)
@@ -40,16 +57,14 @@ if(ENABLE_SAMPLES)
     endif()
 endif()
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # Disable warning as error for private components
-    set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
-endif()
+# Disable warning as error for private components
+set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
 
 #
 # Content
 #
 
-find_dependency(IEDevScripts
+find_dependency(OpenVINODeveloperScripts
                 PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
                 NO_CMAKE_FIND_ROOT_PATH
                 NO_DEFAULT_PATH)
@@ -62,13 +77,7 @@ find_dependency(OpenVINO
 _ov_find_tbb()
 _ov_find_pugixml()
 
-foreach(component @openvino_export_components@)
-    # TODO: remove legacy targets from some tests
-    # string(FIND "${component}" "_legacy" index)
-    # if (index EQUAL -1)
-    include("${CMAKE_CURRENT_LIST_DIR}/ov_${component}_dev_targets.cmake")
-    # endif()
-endforeach()
+include("${CMAKE_CURRENT_LIST_DIR}/openvino_developer_package_targets.cmake")
 
 # inherit OpenCV from main OpenVINO project if enabled
 if("@OpenCV_FOUND@")

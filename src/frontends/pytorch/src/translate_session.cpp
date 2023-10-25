@@ -17,6 +17,7 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/util/log.hpp"
+#include "place.hpp"
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
 
@@ -54,7 +55,7 @@ std::shared_ptr<ov::Model> TranslateSession::get_converted_model() {
 std::shared_ptr<ov::Model> TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& input_model) {
     auto pytorch_model = std::dynamic_pointer_cast<pytorch::InputModel>(input_model);
     FRONT_END_GENERAL_CHECK(pytorch_model != nullptr, "Invalid input model");
-    auto model = convert_pytorch_model(pytorch_model->m_model_decoder, {}, pytorch_model->m_descriptors);
+    auto model = convert_pytorch_model(pytorch_model->m_model_decoder, {}, pytorch_model);
     // First delete tensor indexes from outputs then resolve input names, otherwise Parameter->Result will fail
     for (auto& result : model->get_results()) {
         auto tensor_desc = result->input_value(0);
@@ -79,7 +80,7 @@ std::shared_ptr<ov::Model> TranslateSession::translate_graph(const ov::frontend:
 std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
     std::shared_ptr<TorchDecoder> pytorch_model,
     const TensorMap& external_tensor_map,
-    const std::unordered_map<size_t, PlaceDesc>& external_descriptors) {
+    const std::shared_ptr<pytorch::InputModel>& input_model) {
     // FIXME: don't use global variable to count inlined inputs, no we should use global counter because ID should be
     // unique for all new inlined inputs
     static size_t inlined_nodes_counter = 100000000;  // Suppose there are not graph with more than 10M nodes
@@ -90,50 +91,43 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
         auto tensor_map = std::make_shared<TensorMap>();  // tensor map of the current context
         auto mutated_tensors = std::make_shared<std::set<size_t>>();
 
-        //  Go over all pytorch_model inputs and register them in the tensor map:
-        auto inputs = pytorch_model->inputs();
-        for (size_t i = 0; i < inputs.size(); ++i) {
-            std::shared_ptr<Node> input_node;
-            element::Type type = element::dynamic;
-            PartialShape pshape;
-            auto desc = external_descriptors.find(inputs[i]);
-            if (desc != external_descriptors.end()) {
-                if (desc->second.m_value) {
-                    input_node = desc->second.m_value;
-                } else {
-                    pshape = desc->second.m_pshape;
-                    type = desc->second.m_type;
-                }
-            } else {
-                pshape = pytorch_model->get_input_shape(i);
+        if (input_model) {
+            // When we have input model we should use its inputs order to create Parameters
+            // We use m_inputs instead of get_inputs() because latter doesn't have "self" input
+            for (auto input_p : input_model->m_inputs) {
+                auto pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(input_p);
+                FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported.");
+                auto tensor_id = pytorch_place->get_tensor_index();
+                element::Type type = pytorch_place->get_element_type();
+                PartialShape pshape = pytorch_place->get_partial_shape();
+                auto parameter = std::make_shared<v0::Parameter>(type, pshape);
+                if (pytorch_place->get_names().size() > 0)
+                    parameter->set_friendly_name(pytorch_place->get_names().at(0));
+                encode_tensor_name(parameter->output(0), tensor_id);
+                parameters->push_back(parameter);
+                (*tensor_map)[tensor_id] = parameter;
+            }
+            // Add all tensors that were frozen
+            for (auto desc : input_model->m_descriptors) {
+                (*tensor_map)[desc.first] = desc.second.m_value;
+            }
+        } else {
+            // Go over all pytorch_model inputs and register them in the tensor map:
+            auto inputs = pytorch_model->inputs();
+            for (size_t i = 0; i < inputs.size(); ++i) {
+                element::Type type = element::dynamic;
+                PartialShape pshape = pytorch_model->get_input_shape(i);
                 auto type_any = simplified_type_interpret(pytorch_model->get_input_type(i));
                 // TODO: Use special API to set custom type specification
                 if (type_any.is<element::Type>()) {
                     type = type_any.as<element::Type>();
                 }
-            }
-            if (!input_node) {
                 auto parameter = std::make_shared<v0::Parameter>(type, pshape);
                 parameter->set_friendly_name(pytorch_model->get_input_signature_name(i));
                 encode_tensor_name(parameter->output(0), inputs.at(i), {pytorch_model->get_input_debug_name(i)});
                 parameters->push_back(parameter);
-                input_node = parameter;
-                auto order = pytorch_model->get_input_transpose_order(i);
-                if (order.size() > 0 && !std::is_sorted(order.begin(), order.end())) {
-                    FRONT_END_GENERAL_CHECK(pshape.is_static(), "Shape must be static.");  // TODO: make dynamic
-                    auto sh = pshape.get_shape();
-                    Shape new_shape(sh.size());
-                    for (size_t i = 0; i < sh.size(); i++) {
-                        new_shape[order[i]] = sh[i];
-                    }
-                    auto shape_const = v0::Constant::create(element::i32, {new_shape.size()}, new_shape);
-                    auto reshape = std::make_shared<v1::Reshape>(parameter, shape_const, false);
-                    auto order_const = v0::Constant::create(element::i32, {order.size()}, order);
-                    auto transpose = std::make_shared<v1::Transpose>(reshape, order_const);
-                    input_node = transpose;
-                }
+                (*tensor_map)[inputs.at(i)] = parameter;
             }
-            (*tensor_map)[inputs.at(i)] = input_node;
         }
 
         auto node_visitor = [&](std::shared_ptr<TorchDecoder> node) {
@@ -167,7 +161,6 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                         dtype = type.as<element::Type>();
                     }
                     auto parameter = std::make_shared<v0::Parameter>(dtype, ps);
-                    // TODO: Missing get_input_transpose_order handling for not trivial layouts
                     (*tensor_map)[input] = parameter;
                     // set name of parameter to the index of node in the model
                     encode_tensor_name(parameter->output(0), input);
@@ -230,24 +223,36 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
         pytorch_model->visit_subgraph(node_visitor);
 
         ResultVector results;
-        for (size_t i = 0; i < pytorch_model->num_of_outputs(); ++i) {
-            size_t id = pytorch_model->output(i);
-            if (tensor_map->find(id) == tensor_map->end()) {
-                // Not found in this scope, adding Parameter to connect to external scope
-                auto parameter = std::make_shared<v0::Parameter>(element::dynamic, PartialShape::dynamic());
-                encode_tensor_name(parameter->output(0), id);
-                parameters->push_back(parameter);
-                (*tensor_map)[id] = parameter;
+        if (input_model) {
+            // For the case when we have InputModel we need to have same order as its outputs
+            for (auto output_p : input_model->get_outputs()) {
+                auto pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(output_p);
+                FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported.");
+                auto tensor_id = pytorch_place->get_tensor_index();
+                auto ov_output = tensor_map->at(tensor_id);
+                FRONT_END_GENERAL_CHECK(ov_output.get_names().size() > 0,
+                                        "Tensor doesn't have name, while it should have name: ",
+                                        tensor_id);
+                auto result = std::make_shared<v0::Result>(ov_output);
+                results.push_back(result);
             }
-            auto ov_output = tensor_map->at(id);
-            auto order = pytorch_model->get_output_transpose_order(i);
-            FRONT_END_GENERAL_CHECK(order.size() == 0 || std::is_sorted(order.begin(), order.end()),
-                                    "Output strides have wrong order.");
-            FRONT_END_GENERAL_CHECK(ov_output.get_names().size() > 0,
-                                    "Tensor doesn't have name, while it should have name: ",
-                                    id);
-            auto result = std::make_shared<v0::Result>(ov_output);
-            results.push_back(result);
+        } else {
+            for (size_t i = 0; i < pytorch_model->num_of_outputs(); ++i) {
+                size_t id = pytorch_model->output(i);
+                if (tensor_map->find(id) == tensor_map->end()) {
+                    // Not found in this scope, adding Parameter to connect to external scope
+                    auto parameter = std::make_shared<v0::Parameter>(element::dynamic, PartialShape::dynamic());
+                    encode_tensor_name(parameter->output(0), id);
+                    parameters->push_back(parameter);
+                    (*tensor_map)[id] = parameter;
+                }
+                auto ov_output = tensor_map->at(id);
+                FRONT_END_GENERAL_CHECK(ov_output.get_names().size() > 0,
+                                        "Tensor doesn't have name, while it should have name: ",
+                                        id);
+                auto result = std::make_shared<v0::Result>(ov_output);
+                results.push_back(result);
+            }
         }
 
         // Since parameters can be added we need to list all current parameters

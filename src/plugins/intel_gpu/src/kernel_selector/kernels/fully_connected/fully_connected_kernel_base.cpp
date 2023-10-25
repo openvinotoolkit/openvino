@@ -21,6 +21,36 @@ JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_par
         const auto x_size = input.LogicalSize() / input.Batch().v;
         jit.AddConstant(MakeJitConstant("INPUT0_ELEMENTS_COUNT", x_size));
     }
+
+    if (params.compressed) {
+        jit.AddConstants({MakeJitConstant("COMPRESSED_WEIGHTS", 1)});
+        if (params.weights.GetDType() == WeightsType::INT8 || params.weights.GetDType() == WeightsType::UINT8) {
+            jit.AddConstants({MakeJitConstant("COMPRESSED_WEIGHTS_INT8", 1)});
+        } else if (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) {
+            jit.AddConstants({MakeJitConstant("COMPRESSED_WEIGHTS_INT4", 1)});
+        }
+
+        const size_t scale_groups_num = params.decompression_scale.Feature().v;
+        const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
+        jit.AddConstants({MakeJitConstant("DECOMPRESSION_SCALE_TERM", 1)});
+        jit.AddConstants({MakeJitConstant("DECOMPRESSION_SCALE", params.decompression_scale)});
+        jit.AddConstants({MakeJitConstant("DECOMPRESSION_SCALE_GROUPS_NUM", scale_groups_num)});
+        jit.AddConstants({MakeJitConstant("DECOMPRESSION_SCALE_GROUP_SIZE", scale_group_size)});
+        if (params.has_decompression_zp) {
+            jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP_TERM", 1)});
+            if (params.scalar_zp) {
+                jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP_VALUE", params.zp_value)});
+                jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP_SCALAR", 1)});
+            } else {
+                const size_t zp_groups_num = params.decompression_zero_point.Feature().v;
+                const size_t zp_group_size = params.weights.IFM().v / params.decompression_zero_point.Feature().v;
+                jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP", params.decompression_zero_point)});
+                jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP_GROUPS_NUM", zp_groups_num)});
+                jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP_GROUP_SIZE", zp_group_size)});
+            }
+        }
+    }
+
     return jit;
 }
 
@@ -93,11 +123,11 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
     auto cldnn_jit = GetJitConstants(newParams, dispatchData);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
-    uint32_t fused_deps_total = 0;
-    for (auto& fused_dep : newParams.fused_ops) {
-        for (int i = 0; i < static_cast<int>(fused_dep.dep_size); i++) {
-            fused_deps_total++;
-        }
+    int inputs_count = 1;
+    if (newParams.compressed) {
+        inputs_count++;
+        if (newParams.has_decompression_zp && !newParams.scalar_zp)
+            inputs_count++;
     }
 
     auto& kernel = kd.kernels[0];
@@ -110,8 +140,8 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
                      exeMode,
                      true,
                      !orgParams.bias.empty(),
-                     1,
-                     fused_deps_total,
+                     inputs_count,
+                     GetFusedPrimitiveInputsCount(params),
                      1,
                      orgParams.outputs[0].is_dynamic());
 
@@ -176,10 +206,10 @@ Datatype FullyConnectedKernelBase::GetAccumulatorType(const fully_connected_para
         return Datatype::INT32;
 
     // If we either weights or input is quantized, then we use fp32 accumulator to avoid fp16 overflow
-    if (quantized_inputs || quantized_weights)
+    if ((quantized_inputs || quantized_weights) && !params.compressed)
         return Datatype::F32;
 
-    return params.inputs[0].GetDType();
+    return in_dt;
 }
 
 Datatype FullyConnectedKernelBase::GetActivationType(const fully_connected_params& params) const {

@@ -19,7 +19,7 @@ struct range_impl : public typed_primitive_impl<range> {
 
     std::shared_ptr<ov::op::v4::Range> op;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::range_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<range_impl>(*this);
@@ -46,8 +46,8 @@ struct range_impl : public typed_primitive_impl<range> {
         auto ev = stream.create_user_event(false);
         auto params = instance.get_impl_params();
 
-        ov::HostTensorVector input_host_tensors;
-        ov::HostTensorVector output_host_tensors;
+        ov::TensorVector input_host_tensors;
+        ov::TensorVector output_host_tensors;
 
         std::vector<memory::ptr> input_mem_ptrs;
         for (size_t i = 0; i < instance.dependencies().size(); i++)
@@ -58,15 +58,15 @@ struct range_impl : public typed_primitive_impl<range> {
         cldnn::mem_lock<uint8_t, mem_lock_type::read> output_lock(output_mem_ptr, stream);
 
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)
-            input_host_tensors.push_back(make_host_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
+            input_host_tensors.push_back(make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
 
-        output_host_tensors.push_back(make_host_tensor(params->output_layouts[0], output_lock.data()));
+        output_host_tensors.push_back(make_tensor(params->output_layouts[0], output_lock.data()));
 
         if (!op) {
             const auto output_dt = params->get_output_layout().data_type;
 
             op = std::make_shared<ov::op::v4::Range>();
-            op->set_output_type(data_type_to_element_type(output_dt));
+            op->set_output_type(output_dt);
         }
 
         OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),

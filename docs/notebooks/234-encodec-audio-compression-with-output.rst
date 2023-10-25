@@ -1,6 +1,8 @@
 Audio compression with EnCodec and OpenVINO
 ===========================================
 
+
+
 Compression is an important part of the Internet today because it
 enables people to easily share high-quality photos, listen to audio
 messages, stream their favorite shows, and so much more. Even when using
@@ -26,8 +28,28 @@ and original `repo <https://github.com/facebookresearch/encodec>`__.
 
    image.png
 
-Prerequisites
--------------
+.. _top:
+
+**Table of contents**:
+
+- `Prerequisites <#prerequisites>`__
+- `Instantiate audio compression pipeline <#instantiate-audio-compression-pipeline>`__
+- `Explore EnCodec pipeline <#explore-encodec-pipeline>`__
+
+  - `Preprocessing <#preprocessing>`__
+  - `Encoding <#encoding>`__
+  - `Decompression <#decompression>`__
+
+- `Convert model to OpenVINO Intermediate Representation format <#convert-model-to-openvino-intermediate-representation-format>`__
+- `Integrate OpenVINO to EnCodec pipeline <#integrate-openvino-to-encodec-pipeline>`__
+
+  - `Select inference device <#select-inference-device>`__
+
+- `Run EnCodec with OpenVINO <#run-encodec-with-openvino>`__
+
+Prerequisites `⇑ <#top>`__
+###############################################################################################################################
+
 
 Install required dependencies:
 
@@ -35,8 +57,9 @@ Install required dependencies:
 
     !python -W ignore -m pip install -q -r requirements.txt
 
-Instantiate audio compression pipeline
---------------------------------------
+Instantiate audio compression pipeline `⇑ <#top>`__
+###############################################################################################################################
+
 
 `Codecs <https://en.wikipedia.org/wiki/Codec>`__, which act as encoders
 and decoders for streams of data, help empower most of the audio
@@ -74,9 +97,9 @@ stereophonic audio trained on music-only data.
 In this tutorial, we will use ``encodec_model_24khz`` as an example, but
 the same actions are also applicable to ``encodec_model_48khz`` model as
 well. To start working with this model, we need to instantiate model
-class using EncodecModel.encodec_model_24khz() and select required
+class using ``EncodecModel.encodec_model_24khz()`` and select required
 compression bandwidth among available: 1.5, 3, 6, 12 or 24 kbps for 24
-kHz model and 3, 6, 12 and 24 kbps for 48 kHz model. We will use 6 kbs
+kHz model and 3, 6, 12 and 24 kbps for 48 kHz model. We will use 6 kbps
 bandwidth.
 
 .. |encodec_compression| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/5cd9a482-b42b-4dea-85a5-6d66b20ce13d
@@ -93,8 +116,9 @@ bandwidth.
     model = EncodecModel.encodec_model_24khz()
     model.set_target_bandwidth(6.0)
 
-Explore EnCodec pipeline
-------------------------
+Explore EnCodec pipeline `⇑ <#top>`__
+###############################################################################################################################
+
 
 Let us explore model capabilities on example audio:
 
@@ -144,8 +168,9 @@ Let us explore model capabilities on example audio:
 .. image:: 234-encodec-audio-compression-with-output_files/234-encodec-audio-compression-with-output_6_2.png
 
 
-Preprocessing
-~~~~~~~~~~~~~
+Preprocessing `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 To achieve the best result, audio should have the number of channels and
 sample rate expected by the model. If audio does not fulfill these
@@ -172,8 +197,9 @@ number of channels using the ``convert_audio`` function.
     
     wav = convert_audio(wav, sr, model_sr, model_channels)
 
-Encoding
-~~~~~~~~
+Encoding `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Audio waveform should be split by chunks and then encoded by Encoder
 model, then compressed by quantizer for reducing memory. The result of
@@ -221,8 +247,9 @@ Let us compare obtained compression result:
 Great! Now, we see the power of hyper compression. Binary size of a file
 becomes 60 times smaller and more suitable for sending via network.
 
-Decompression
-~~~~~~~~~~~~~
+Decompression `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 After successful sending of the compressed audio, it should be
 decompressed on the recipient’s side. The decoder model is responsible
@@ -270,8 +297,8 @@ audio.
 
 Nice! Audio sounds close to original.
 
-Convert model to OpenVINO Intermediate Representation format
-------------------------------------------------------------
+Convert model to OpenVINO Intermediate Representation format. `⇑ <#top>`__
+###############################################################################################################################
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. OpenVINO supports PyTorch via ONNX conversion. We
@@ -329,25 +356,25 @@ with ``openvino.runtime.serialize``.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/encodec/modules/conv.py:60: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/encodec/modules/conv.py:60: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       ideal_length = (math.ceil(n_frames) - 1) * stride + (kernel_size - padding_total)
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/encodec/modules/conv.py:85: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/encodec/modules/conv.py:85: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert padding_left >= 0 and padding_right >= 0, (padding_left, padding_right)
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/encodec/modules/conv.py:87: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/encodec/modules/conv.py:87: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       max_pad = max(padding_left, padding_right)
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/encodec/modules/conv.py:89: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/encodec/modules/conv.py:89: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if length <= max_pad:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/symbolic_opset9.py:4315: UserWarning: Exporting a model to ONNX with a batch_size other than 1, with a variable length with LSTM can cause an error when running the ONNX model with a different batch size. Make sure to save the model with a batch size of 1, or define the initial states (h0/c0) as inputs of the model. 
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/symbolic_opset9.py:4315: UserWarning: Exporting a model to ONNX with a batch_size other than 1, with a variable length with LSTM can cause an error when running the ONNX model with a different batch size. Make sure to save the model with a batch size of 1, or define the initial states (h0/c0) as inputs of the model. 
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/_internal/jit_utils.py:258: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/_internal/jit_utils.py:258: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_node_shape_type_inference(node, params_dict, opset_version)
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: Constant folding - Only steps=1 can be constant folded for opset >= 10 onnx::Slice op. Constant folding not applied. (Triggered internally at ../torch/csrc/jit/passes/onnx/constant_fold.cpp:179.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: Constant folding - Only steps=1 can be constant folded for opset >= 10 onnx::Slice op. Constant folding not applied. (Triggered internally at ../torch/csrc/jit/passes/onnx/constant_fold.cpp:179.)
       _C._jit_pass_onnx_graph_shape_type_inference(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_graph_shape_type_inference(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: Constant folding - Only steps=1 can be constant folded for opset >= 10 onnx::Slice op. Constant folding not applied. (Triggered internally at ../torch/csrc/jit/passes/onnx/constant_fold.cpp:179.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: Constant folding - Only steps=1 can be constant folded for opset >= 10 onnx::Slice op. Constant folding not applied. (Triggered internally at ../torch/csrc/jit/passes/onnx/constant_fold.cpp:179.)
       _C._jit_pass_onnx_graph_shape_type_inference(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_graph_shape_type_inference(
 
 
@@ -364,16 +391,17 @@ with ``openvino.runtime.serialize``.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/encodec/quantization/core_vq.py:358: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/encodec/quantization/core_vq.py:358: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
       quantized_out = torch.tensor(0.0, device=q_indices.device)
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/encodec/quantization/core_vq.py:359: TracerWarning: Iterating over a tensor might cause the trace to be incorrect. Passing a tensor of different shape won't change the number of iterations executed (and might lead to errors or silently give incorrect results).
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/encodec/quantization/core_vq.py:359: TracerWarning: Iterating over a tensor might cause the trace to be incorrect. Passing a tensor of different shape won't change the number of iterations executed (and might lead to errors or silently give incorrect results).
       for i, indices in enumerate(q_indices):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/encodec/modules/conv.py:103: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/encodec/modules/conv.py:103: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert (padding_left + padding_right) <= x.shape[-1]
 
 
-Integrate OpenVINO to EnCodec pipeline
---------------------------------------
+Integrate OpenVINO to EnCodec pipeline `⇑ <#top>`__
+###############################################################################################################################
+
 
 The following steps are required for integration of OpenVINO to EnCodec
 pipeline:
@@ -383,14 +411,40 @@ pipeline:
 3. Replace the original frame processing functions with OpenVINO based
    algorithms.
 
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+Select device from dropdown list for running inference using OpenVINO:
+
 .. code:: ipython3
 
-    device = "CPU"
+    import ipywidgets as widgets
     
-    compiled_encoder = core.compile_model(encoder_ov, device)
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
+    compiled_encoder = core.compile_model(encoder_ov, device.value)
     encoder_out = compiled_encoder.output(0)
     
-    compiled_decoder = core.compile_model(decoder_ov, device)
+    compiled_decoder = core.compile_model(decoder_ov, device.value)
     decoder_out = compiled_decoder.output(0)
 
 .. code:: ipython3
@@ -422,8 +476,9 @@ pipeline:
     model._encode_frame = encode_frame
     model._decode_frame = decode_frame
 
-Run EnCodec with OpenVINO
--------------------------
+Run EnCodec with OpenVINO `⇑ <#top>`__
+###############################################################################################################################
+
 
 The process of running encodec with OpenVINO under hood will be the same
 like with the original PyTorch models.
@@ -475,7 +530,7 @@ like with the original PyTorch models.
 
 
 
-.. image:: 234-encodec-audio-compression-with-output_files/234-encodec-audio-compression-with-output_36_1.png
+.. image:: 234-encodec-audio-compression-with-output_files/234-encodec-audio-compression-with-output_38_1.png
 
 
 .. code:: ipython3
@@ -532,7 +587,7 @@ like with the original PyTorch models.
 
 
 
-.. raw:: html
+.. .. raw:: html
 
-    <div><iframe src="http://10.211.120.12:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..     <div><iframe src="http://10.211.120.12:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

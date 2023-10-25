@@ -1,26 +1,23 @@
 # used in multiple components
-numpy>=1.16.6,<1.26  # Python bindings, frontends
+numpy>=1.16.6,<1.27  # Python bindings, frontends
 
 # pytest
-pytest>=5.0,<7.4
+pytest>=5.0,<7.5
 pytest-dependency==0.5.1
 pytest-html==3.2.0
-pytest-timeout==2.1.0
+pytest-timeout==2.2.0
 
 # Python bindings
 py>=1.9.0
 pygments>=2.8.1
-setuptools>=53.0.0
+setuptools>=65.6.1
 wheel>=0.38.1
+patchelf<=0.17.2.1
 
 # Frontends
 docopt~=0.6.2
-paddlepaddle==2.4.2
-tensorflow>=1.15.5,<2.13.0
+paddlepaddle==2.5.1
+tensorflow>=1.15.5,<2.15.0
 six~=1.16.0
 protobuf>=3.18.1,<4.0.0
-onnx==1.13.1
-
-# torchvision > OpenVINO preprocessing converter 
-pillow>=9.0
-torch>=1.13
+onnx==1.14.1

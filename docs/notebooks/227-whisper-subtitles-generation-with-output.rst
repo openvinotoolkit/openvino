@@ -19,102 +19,79 @@ card <https://github.com/openai/whisper/blob/main/model-card.md>`__ and
 GitHub `repository <https://github.com/openai/whisper>`__.
 
 In this notebook, we will use Whisper with OpenVINO to generate
-subtitles in a sample video. Notebook contains the following steps: 1.
-Download the model. 2. Instantiate the PyTorch model pipeline. 3. Export
-the ONNX model and convert it to OpenVINO IR, using the Model Optimizer
-tool. 4. Run the Whisper pipeline with OpenVINO models.
+subtitles in a sample video. Notebook contains the following steps: 
+
+1. Download the model. 
+2. Instantiate the PyTorch model pipeline. 
+3. Convert model to OpenVINO IR, using model conversion API. 
+4. Run the Whisper pipeline with OpenVINO models.
+
+**Table of contents:**
+
+- `Prerequisites <#Prerequisites>`__
+- `Instantiate model <#Instantiate-model>`__
+
+  - `Convert model to OpenVINO Intermediate Representation (IR) format. <#convert-model-to-openvino-intermediate-representation-ir-format>`__
+  - `Convert Whisper Encoder to OpenVINO IR <#convert-whisper-encoder-to-openvino-ir>`__
+  - `Convert Whisper decoder to OpenVINO IR <#convert-whisper-decoder-to-openvino-ir>`__
+
+- `Prepare inference pipeline <#prepare-inference-pipeline>`__
+
+  - `Select inference device <#select-inference-device>`__
+
+- `Run video transcription pipeline <#run-video-transcription-pipeline>`__
+.. - `Interactive demo <#interactive-demo>`__
 
 Prerequisites
--------------
+###############################################################################################################################
 
-Clone and install the model repository.
+Install dependencies.
 
 .. code:: ipython3
 
-    !pip install -q 'openvino-dev>=2023.0.0'
-    !pip install -q "python-ffmpeg<=1.0.16" moviepy transformers onnx
-    !pip install -q -I "git+https://github.com/garywu007/pytube.git"
+    %pip install -q "openvino==2023.1.0.dev20230811"
+    %pip install -q "python-ffmpeg<=1.0.16" moviepy transformers onnx
+    %pip install -q -I "git+https://github.com/garywu007/pytube.git"
+    %pip install -q -U gradio
+    %pip install -q -I "git+https://github.com/openai/whisper.git@e8622f9afc4eba139bf796c210f5c01081000472"
 
 
 .. parsed-literal::
 
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    Note: you may need to restart the kernel to use updated packages.
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    ppgan 2.1.0 requires imageio==2.9.0, but you have imageio 2.31.3 which is incompatible.
     ppgan 2.1.0 requires librosa==0.8.1, but you have librosa 0.9.2 which is incompatible.
-    ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.8.0.74 which is incompatible.
-    
-
-.. code:: ipython3
-
-    from pathlib import Path
-    
-    REPO_DIR = Path("whisper")
-    if not REPO_DIR.exists():
-        !git clone https://github.com/openai/whisper.git -b v20230124
-    !cd whisper && pip install .
-
-
-.. parsed-literal::
-
-    Cloning into 'whisper'...
-    remote: Enumerating objects: 585, done.[K
-    remote: Counting objects: 100% (304/304), done.[K
-    remote: Compressing objects: 100% (53/53), done.[K
-    remote: Total 585 (delta 275), reused 253 (delta 251), pack-reused 281[K
-    Receiving objects: 100% (585/585), 8.14 MiB | 3.85 MiB/s, done.
-    Resolving deltas: 100% (352/352), done.
-    Note: switching to '55f690af7914c672c69733b7e04ef5a41b2b2774'.
-    
-    You are in 'detached HEAD' state. You can look around, make experimental
-    changes and commit them, and you can discard any commits you make in this
-    state without impacting any branches by switching back to a branch.
-    
-    If you want to create a new branch to retain commits you create, you may
-    do so (now or later) by using -c with the switch command. Example:
-    
-      git switch -c <new-branch-name>
-    
-    Or undo this operation with:
-    
-      git switch -
-    
-    Turn off this advice by setting config variable advice.detachedHead to false
-    
-    Processing /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/227-whisper-subtitles-generation/whisper
-      Preparing metadata (setup.py) ... - done
-    Requirement already satisfied: numpy in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openai-whisper==20230124) (1.23.5)
-    Requirement already satisfied: torch in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openai-whisper==20230124) (1.13.1+cpu)
-    Requirement already satisfied: tqdm in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openai-whisper==20230124) (4.65.0)
-    Collecting more-itertools (from openai-whisper==20230124)
-      Using cached more_itertools-9.1.0-py3-none-any.whl (54 kB)
-    Requirement already satisfied: transformers>=4.19.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openai-whisper==20230124) (4.30.2)
-    Collecting ffmpeg-python==0.2.0 (from openai-whisper==20230124)
-      Using cached ffmpeg_python-0.2.0-py3-none-any.whl (25 kB)
-    Requirement already satisfied: future in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ffmpeg-python==0.2.0->openai-whisper==20230124) (0.18.3)
-    Requirement already satisfied: filelock in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.19.0->openai-whisper==20230124) (3.12.2)
-    Requirement already satisfied: huggingface-hub<1.0,>=0.14.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.19.0->openai-whisper==20230124) (0.16.4)
-    Requirement already satisfied: packaging>=20.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.19.0->openai-whisper==20230124) (23.1)
-    Requirement already satisfied: pyyaml>=5.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.19.0->openai-whisper==20230124) (6.0)
-    Requirement already satisfied: regex!=2019.12.17 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.19.0->openai-whisper==20230124) (2023.6.3)
-    Requirement already satisfied: requests in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.19.0->openai-whisper==20230124) (2.31.0)
-    Requirement already satisfied: tokenizers!=0.11.3,<0.14,>=0.11.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.19.0->openai-whisper==20230124) (0.13.3)
-    Requirement already satisfied: safetensors>=0.3.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.19.0->openai-whisper==20230124) (0.3.1)
-    Requirement already satisfied: typing-extensions in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch->openai-whisper==20230124) (4.7.1)
-    Requirement already satisfied: fsspec in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from huggingface-hub<1.0,>=0.14.1->transformers>=4.19.0->openai-whisper==20230124) (2023.6.0)
-    Requirement already satisfied: charset-normalizer<4,>=2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.19.0->openai-whisper==20230124) (3.2.0)
-    Requirement already satisfied: idna<4,>=2.5 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.19.0->openai-whisper==20230124) (3.4)
-    Requirement already satisfied: urllib3<3,>=1.21.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.19.0->openai-whisper==20230124) (1.26.16)
-    Requirement already satisfied: certifi>=2017.4.17 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.19.0->openai-whisper==20230124) (2023.5.7)
-    Building wheels for collected packages: openai-whisper
-      Building wheel for openai-whisper (setup.py) ... - \ | done
-      Created wheel for openai-whisper: filename=openai_whisper-20230124-py3-none-any.whl size=1179311 sha256=a75d8198e0a3343e35889bda79a05e0b83878dae0f191cba9fd4ba44f5ca6ae6
-      Stored in directory: /tmp/pip-ephem-wheel-cache-4_3s8aog/wheels/07/04/88/d2c2d6f2253db7e60a09770f6870703d1fd581296886334a97
-    Successfully built openai-whisper
-    Installing collected packages: more-itertools, ffmpeg-python, openai-whisper
-    Successfully installed ffmpeg-python-0.2.0 more-itertools-9.1.0 openai-whisper-20230124
+    ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.8.0.76 which is incompatible.
+    Note: you may need to restart the kernel to use updated packages.
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    Note: you may need to restart the kernel to use updated packages.
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    Note: you may need to restart the kernel to use updated packages.
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    black 21.7b0 requires tomli<2.0.0,>=0.2.6, but you have tomli 2.0.1 which is incompatible.
+    google-auth 2.22.0 requires urllib3<2.0, but you have urllib3 2.0.4 which is incompatible.
+    nncf 2.5.0.dev0+90a1e860 requires networkx<=2.8.2,>=2.6, but you have networkx 3.1 which is incompatible.
+    onnxconverter-common 1.14.0 requires protobuf==3.20.2, but you have protobuf 4.24.3 which is incompatible.
+    paddleclas 2.5.1 requires faiss-cpu==1.7.1.post2, but you have faiss-cpu 1.7.4 which is incompatible.
+    paddleclas 2.5.1 requires gast==0.3.3, but you have gast 0.4.0 which is incompatible.
+    ppgan 2.1.0 requires imageio==2.9.0, but you have imageio 2.31.3 which is incompatible.
+    ppgan 2.1.0 requires librosa==0.8.1, but you have librosa 0.9.2 which is incompatible.
+    ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.8.0.76 which is incompatible.
+    pyannote-audio 2.0.1 requires networkx<3.0,>=2.6, but you have networkx 3.1 which is incompatible.
+    pytorch-lightning 1.6.5 requires protobuf<=3.20.1, but you have protobuf 4.24.3 which is incompatible.
+    tensorflow 2.12.0 requires numpy<1.24,>=1.22, but you have numpy 1.24.4 which is incompatible.
+    tf2onnx 1.15.1 requires protobuf~=3.20.2, but you have protobuf 4.24.3 which is incompatible.
+    torchaudio 0.13.1+cpu requires torch==1.13.1, but you have torch 2.0.1 which is incompatible.
+    torchvision 0.14.1+cpu requires torch==1.13.1, but you have torch 2.0.1 which is incompatible.
+    Note: you may need to restart the kernel to use updated packages.
 
 
 Instantiate model
------------------
+###############################################################################################################################
 
 Whisper is a Transformer based encoder-decoder model, also referred to
 as a sequence-to-sequence model. It maps a sequence of audio spectrogram
@@ -147,78 +124,72 @@ Whisper family.
     pass
 
 Convert model to OpenVINO Intermediate Representation (IR) format.
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 For best results with OpenVINO, it is recommended to convert the model
-to OpenVINO IR format. OpenVINO supports PyTorch via ONNX conversion. We
-will use ``torch.onnx.export`` for exporting the ONNX model from
-PyTorch. We need to provide initialized model object and example of
-inputs for shape inference. We will use ``mo.convert_model``
-functionality to convert the ONNX models. The ``mo.convert_model``
-Python function returns an OpenVINO model ready to load on device and
-start making predictions. We can save it on disk for next usage with
-``openvino.runtime.serialize``.
+to OpenVINO IR format. We need to provide initialized model object and
+example of inputs for shape inference. We will use ``ov.convert_model``
+functionality to convert models. The ``ov.convert_model`` Python
+function returns an OpenVINO model ready to load on device and start
+making predictions. We can save it on disk for next usage with
+``ov.save_model``.
 
 Convert Whisper Encoder to OpenVINO IR
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+.. code:: ipython3
+
+    from pathlib import Path
+    
+    WHISPER_ENCODER_OV = Path("whisper_encoder.xml")
+    WHISPER_DECODER_OV = Path("whisper_decoder.xml")
 
 .. code:: ipython3
 
     import torch
-    from openvino.tools import mo
-    from openvino.runtime import serialize
+    import openvino as ov
     
     mel = torch.zeros((1, 80, 3000))
     audio_features = model.encoder(mel)
-    torch.onnx.export(
-        model.encoder, 
-        mel, 
-        "whisper_encoder.onnx",
-        input_names=["mel"], 
-        output_names=["output_features"]
-    )
-    encoder_model = mo.convert_model("whisper_encoder.onnx", compress_to_fp16=True)
-    serialize(encoder_model, xml_path="whisper_encoder.xml")
+    encoder_model = ov.convert_model(model.encoder, example_input=mel)
+    ov.save_model(encoder_model, WHISPER_ENCODER_OV)
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/whisper/model.py:153: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/whisper/model.py:166: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert x.shape[1:] == self.positional_embedding.shape, "incorrect audio shape"
 
 
 Convert Whisper decoder to OpenVINO IR
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 To reduce computational complexity, the decoder uses cached key/value
 projections in attention modules from the previous steps. We need to
-modify this process for correct tracing to ONNX.
+modify this process for correct tracing.
+
+There are 2 types of attention modules in Whisper Decoder -
+self-attention, that makes projection for internal decoder state and
+cross-attention, that uses internal state of encoder for calculating
+attention. Decoder model runs autoregressively, it means that each new
+step uses prediction from previous step as input and in the same time it
+conditioned by encoder hidden state calculated before decoding start. To
+sum up, it is enough calculate cross-attention once on first step and
+reuse it for next steps for reducing computational complexity.
+Self-attention hidden state for sequence that generated on previous
+steps remains without changes, so it is possible to calculate it only
+for current token and then join it to previously generated.
 
 .. code:: ipython3
 
     import torch
-    from typing import Optional, Union, List, Dict
+    from typing import Optional, Tuple
     from functools import partial
-    
-    positional_embeddings_size = model.decoder.positional_embedding.shape[0]
-    
-    
-    def save_to_cache(cache: Dict[str, torch.Tensor], module: str, output: torch.Tensor):
-        """
-        Saving cached attention hidden states for previous tokens.
-        Parameters:
-          cache: dictionary with cache.
-          module: current attention module name.
-          output: predicted hidden state.
-        Returns:
-          output: cached attention hidden state for specified attention module.
-        """
-        if module not in cache or output.shape[1] > positional_embeddings_size:
-            # save as-is, for the first token or cross attention
-            cache[module] = output
-        else:
-            cache[module] = torch.cat([cache[module], output], dim=1).detach()
-        return cache[module]
     
     
     def attention_forward(
@@ -226,8 +197,7 @@ modify this process for correct tracing to ONNX.
             x: torch.Tensor,
             xa: Optional[torch.Tensor] = None,
             mask: Optional[torch.Tensor] = None,
-            kv_cache: Optional[dict] = None,
-            idx: int = 0
+            kv_cache: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
     ):
         """
         Override for forward method of decoder attention module with storing cache values explicitly.
@@ -244,23 +214,27 @@ modify this process for correct tracing to ONNX.
         """
         q = attention_module.query(x)
     
-        if kv_cache is None or xa is None:
+        if xa is None:
             # hooks, if installed (i.e. kv_cache is not None), will prepend the cached kv tensors;
             # otherwise, perform key/value projections for self- or cross-attention as usual.
-            k = attention_module.key(x if xa is None else xa)
-            v = attention_module.value(x if xa is None else xa)
+            k = attention_module.key(x)
+            v = attention_module.value(x)
             if kv_cache is not None:
-                k = save_to_cache(kv_cache, f'k_{idx}', k)
-                v = save_to_cache(kv_cache, f'v_{idx}', v)
+                k = torch.cat((kv_cache[0], k), dim=1)
+                v = torch.cat((kv_cache[1], v), dim=1)
+            
         else:
-            # for cross-attention, calculate keys and values once and reuse in subsequent calls.
-            k = kv_cache.get(f'k_{idx}', save_to_cache(
-                kv_cache, f'k_{idx}', attention_module.key(xa)))
-            v = kv_cache.get(f'v_{idx}', save_to_cache(
-                kv_cache, f'v_{idx}', attention_module.value(xa)))
+            if kv_cache is None or kv_cache[0].shape[1] == 0:
+                # for cross-attention, calculate keys and values once and reuse in subsequent calls.
+                k = attention_module.key(xa)
+                v = attention_module.value(xa)
+            else:
+                k, v = kv_cache
+        
+        kv_cache_new = (k, v)
     
         wv, qk = attention_module.qkv_attention(q, k, v, mask)
-        return attention_module.out(wv), kv_cache
+        return attention_module.out(wv), kv_cache_new
     
     
     def block_forward(
@@ -268,8 +242,7 @@ modify this process for correct tracing to ONNX.
         x: torch.Tensor,
         xa: Optional[torch.Tensor] = None,
         mask: Optional[torch.Tensor] = None,
-        kv_cache: Optional[dict] = None,
-        idx: int = 0
+        kv_cache: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
     ):
         """
         Override for residual block forward method for providing kv_cache to attention module.
@@ -279,32 +252,87 @@ modify this process for correct tracing to ONNX.
             xa: input audio features (Optional).
             mask: attention mask (Optional).
             kv_cache: cache for storing attention key values.
-            idx: index of current residual block for search in kv_cache.
           Returns:
             x: residual block output
             kv_cache: updated kv_cache
     
         """
-        x0, kv_cache = residual_block.attn(residual_block.attn_ln(
-            x), mask=mask, kv_cache=kv_cache, idx=f'{idx}a')
+        x0, kv_cache_self = residual_block.attn(residual_block.attn_ln(
+            x), mask=mask, kv_cache=kv_cache[0])
         x = x + x0
         if residual_block.cross_attn:
-            x1, kv_cache = residual_block.cross_attn(
-                residual_block.cross_attn_ln(x), xa, kv_cache=kv_cache, idx=f'{idx}c')
+            x1, kv_cache_cross = residual_block.cross_attn(
+                residual_block.cross_attn_ln(x), xa, kv_cache=kv_cache[1])
             x = x + x1
         x = x + residual_block.mlp(residual_block.mlp_ln(x))
-        return x, kv_cache
+        return x, (kv_cache_self, kv_cache_cross)
+    
+    class CrossAttnKVGetter(torch.nn.Module):
+        """
+        Helper class for scripting approach of caching cross attention key values.
+        The main idea that they should be calculated once and reused for next steps.
+        Tracing can not correctly catch condition for that, that is why we need to use scripting for this part of model.
+        """
+        def __init__(self, attn):
+            super().__init__()
+            self.attn_key = attn.key
+            self.attn_value = attn.value
+    
+        def forward(self, xa: torch.Tensor, kv_cache: Tuple[torch.Tensor, torch.Tensor]):
+            if kv_cache is None or kv_cache[0].shape[1] == 0:
+                # for cross-attention, calculate keys and values once and reuse in subsequent calls.
+                k = self.attn_key(xa)
+                v = self.attn_value(xa)
+            else:
+                k, v = kv_cache
+            return k, v
+        
+    def crossattention_forward(
+            attention_module,
+            x: torch.Tensor,
+            xa: Optional[torch.Tensor] = None,
+            mask: Optional[torch.Tensor] = None,
+            kv_cache: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+    ):
+        """
+        Override for forward method of decoder cross attention module with storing cache values explicitly.
+        Parameters:
+          attention_module: current attention module
+          x: input token ids.
+          xa: input audio features (Optional).
+          mask: mask for applying attention (Optional).
+          kv_cache: dictionary with cached key values for attention modules.
+          idx: idx for search in kv_cache.
+        Returns:
+          attention module output tensor
+          updated kv_cache
+        """
+        q = attention_module.query(x)
+    
+        if xa is None:
+            # hooks, if installed (i.e. kv_cache is not None), will prepend the cached kv tensors;
+            # otherwise, perform key/value projections for self- or cross-attention as usual.
+            k = attention_module.key(x)
+            v = attention_module.value(x)        
+        else:
+            k, v = attention_module.kv_getter(xa, kv_cache)
+        kv_cache_new = (k, v)
+    
+        wv, qk = attention_module.qkv_attention(q, k, v, mask)
+        return attention_module.out(wv), kv_cache_new
     
     
     # update forward functions
-    for idx, block in enumerate(model.decoder.blocks):
-        block.forward = partial(block_forward, block, idx=idx)
+    for _, block in enumerate(model.decoder.blocks):
+        block.forward = partial(block_forward, block)
         block.attn.forward = partial(attention_forward, block.attn)
         if block.cross_attn:
-            block.cross_attn.forward = partial(attention_forward, block.cross_attn)
+            kv_getter = CrossAttnKVGetter(block.cross_attn)
+            block.cross_attn.kv_getter = torch.jit.script(kv_getter)
+            block.cross_attn.forward = partial(crossattention_forward, block.cross_attn)
     
     
-    def decoder_forward(decoder, x: torch.Tensor, xa: torch.Tensor, kv_cache: Optional[dict] = None):
+    def decoder_forward(decoder, x: torch.Tensor, xa: torch.Tensor, kv_cache: Optional[Tuple[Tuple[torch.Tensor, torch.Tensor]]] = None):
         """
         Override for decoder forward method.
         Parameters:
@@ -313,19 +341,25 @@ modify this process for correct tracing to ONNX.
                the encoded audio features to be attended on
           kv_cache: Dict[str, torch.Tensor], attention modules hidden states cache from previous steps 
         """
-        offset = next(iter(kv_cache.values())).shape[1] if kv_cache else 0
+        if kv_cache is not None:
+            offset = kv_cache[0][0][0].shape[1]
+        else:
+            offset = 0
+            kv_cache = [(None, None) for _ in range(len(decoder.blocks))]
         x = decoder.token_embedding(
             x) + decoder.positional_embedding[offset: offset + x.shape[-1]]
         x = x.to(xa.dtype)
+        kv_cache_upd = []
     
-        for block in decoder.blocks:
-            x, kv_cache = block(x, xa, mask=decoder.mask, kv_cache=kv_cache)
+        for block, kv_block_cache in zip(decoder.blocks, kv_cache):
+            x, kv_block_cache_upd = block(x, xa, mask=decoder.mask, kv_cache=kv_block_cache)
+            kv_cache_upd.append(tuple(kv_block_cache_upd))
     
         x = decoder.ln(x)
         logits = (
             x @ torch.transpose(decoder.token_embedding.weight.to(x.dtype), 1, 0)).float()
     
-        return logits, kv_cache
+        return logits, tuple(kv_cache_upd)
     
     
     # override decoder forward
@@ -333,37 +367,30 @@ modify this process for correct tracing to ONNX.
 
 .. code:: ipython3
 
-    tokens = torch.ones((5, 3), dtype=torch.int64)
-    
-    logits, kv_cache = model.decoder(tokens, audio_features, kv_cache={})
-    kv_cache = {k: v for k, v in kv_cache.items()}
-    tokens = torch.ones((5, 1), dtype=torch.int64)
+    encoder_hidden_size = audio_features.shape[2]
+    kv_cache_init = [((torch.zeros((5, 0, encoder_hidden_size)), torch.zeros((5, 0, encoder_hidden_size))), (torch.zeros((1, 0, encoder_hidden_size)), torch.zeros((1, 0, encoder_hidden_size)))) for _ in range(len(model.decoder.blocks))] 
 
 .. code:: ipython3
 
-    outputs = [f"out_{k}" for k in kv_cache.keys()]
-    inputs = [f"in_{k}" for k in kv_cache.keys()]
-    dynamic_axes = {
-        "tokens": {0: "beam_size", 1: "seq_len"},
-        "audio_features": {0: "beam_size"},
-        "logits": {0: "beam_size", 1: "seq_len"}}
-    dynamic_outs = {o: {0: "beam_size", 1: "prev_seq_len"} for o in outputs}
-    dynamic_inp = {i: {0: "beam_size", 1: "prev_seq_len"} for i in inputs}
-    dynamic_axes.update(dynamic_outs)
-    dynamic_axes.update(dynamic_inp)
-    torch.onnx.export(
-        model.decoder, {'x': tokens, 'xa': audio_features, 'kv_cache': kv_cache},
-        'whisper_decoder.onnx',
-        input_names=["tokens", "audio_features"] + inputs,
-        output_names=["logits"] + outputs,
-        dynamic_axes=dynamic_axes
-    )
+    tokens = torch.ones((5, 3), dtype=torch.int64)
+    logits, kv_cache = model.decoder(tokens, audio_features, kv_cache=kv_cache_init)
+    
+    tokens = torch.ones((5, 1), dtype=torch.int64)
+    decoder_model = ov.convert_model(model.decoder, example_input=(tokens, audio_features, kv_cache))
+    decoder_cache_input = decoder_model.inputs[2:]
+    for i in range(2, len(decoder_cache_input), 4):
+        decoder_cache_input[i].get_node().set_partial_shape(ov.PartialShape([-1, -1, encoder_hidden_size]))
+        decoder_cache_input[i + 1].get_node().set_partial_shape(ov.PartialShape([-1, -1, encoder_hidden_size]))
+       
+    decoder_model.validate_nodes_and_infer_types()
+    ov.save_model(decoder_model, WHISPER_DECODER_OV)
+    del decoder_model
 
 
 .. parsed-literal::
 
-    /tmp/ipykernel_3462814/1737529362.py:18: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if module not in cache or output.shape[1] > positional_embeddings_size:
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:154: UserWarning: The .grad attribute of a Tensor that is not a leaf Tensor is being accessed. Its .grad attribute won't be populated during autograd.backward(). If you indeed want the .grad field to be populated for a non-leaf Tensor, use .retain_grad() on the non-leaf Tensor. If you access the non-leaf Tensor by mistake, make sure you access the leaf Tensor instead. See github.com/pytorch/pytorch/pull/30531 for more informations. (Triggered internally at aten/src/ATen/core/TensorBody.h:486.)
+      if a.grad is not None:
 
 
 The decoder model autoregressively predicts the next token guided by
@@ -373,20 +400,8 @@ tokens and attention hidden states from previous step) are dynamic. For
 efficient utilization of memory, you define an upper bound for dynamic
 input shapes.
 
-.. code:: ipython3
-
-    input_shapes = "tokens[1..5 1..224],audio_features[1..5 1500 512]"
-    for k, v in kv_cache.items():
-        if k.endswith('a'):
-            input_shapes += f",in_{k}[1..5 0..224 512]"
-    decoder_model = mo.convert_model(
-        input_model="whisper_decoder.onnx",
-        compress_to_fp16=True,
-        input=input_shapes)
-    serialize(decoder_model, "whisper_decoder.xml")
-
 Prepare inference pipeline
---------------------------
+###############################################################################################################################
 
 The image below illustrates the pipeline of video transcribing using the
 Whisper model.
@@ -401,325 +416,48 @@ To run the PyTorch Whisper model, we just need to call the
 original model pipeline for audio transcribing after replacing the
 original models with OpenVINO IR versions.
 
-.. code:: ipython3
+Select inference device
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    class OpenVINOAudioEncoder(torch.nn.Module):
-        """
-        Helper for inference Whisper encoder model with OpenVINO
-        """
-    
-        def __init__(self, core, model_path, device='CPU'):
-            super().__init__()
-            self.model = core.read_model(model_path)
-            self.compiled_model = core.compile_model(self.model, device)
-            self.output_blob = self.compiled_model.output(0)
-    
-        def forward(self, mel: torch.Tensor):
-            """
-            Inference OpenVINO whisper encoder model.
-    
-            Parameters:
-              mel: input audio fragment mel spectrogram.
-            Returns:
-              audio_features: torch tensor with encoded audio features.
-            """
-            return torch.from_numpy(self.compiled_model(mel)[self.output_blob])
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
-    from openvino.runtime import Core, Tensor
-    
-    
-    class OpenVINOTextDecoder(torch.nn.Module):
-        """
-        Helper for inference OpenVINO decoder model
-        """
-    
-        def __init__(self, core: Core, model_path: Path, device: str = 'CPU'):
-            super().__init__()
-            self._core = core
-            self.model = core.read_model(model_path)
-            self._input_names = [inp.any_name for inp in self.model.inputs]
-            self.compiled_model = core.compile_model(self.model, device)
-            self.device = device
-    
-        def init_past_inputs(self, feed_dict):
-            """
-            Initialize cache input for first step.
-    
-            Parameters:
-              feed_dict: Dictonary with inputs for inference
-            Returns:
-              feed_dict: updated feed_dict
-            """
-            beam_size = feed_dict['tokens'].shape[0]
-            audio_len = feed_dict['audio_features'].shape[2]
-            previous_seq_len = 0
-            for name in self._input_names:
-                if name in ['tokens', 'audio_features']:
-                    continue
-                feed_dict[name] = Tensor(np.zeros(
-                    (beam_size, previous_seq_len, audio_len), dtype=np.float32))
-            return feed_dict
-    
-        def preprocess_kv_cache_inputs(self, feed_dict, kv_cache):
-            """
-            Transform kv_cache to inputs
-    
-            Parameters:
-              feed_dict: dictionary with inputs for inference
-              kv_cache: dictionary with cached attention hidden states from previous step
-            Returns:
-              feed_dict: updated feed dictionary with additional inputs
-            """
-            if not kv_cache:
-                return self.init_past_inputs(feed_dict)
-            for k, v in kv_cache.items():
-                new_k = f'in_{k}'
-                if new_k in self._input_names:
-                    feed_dict[new_k] = Tensor(v.numpy())
-            return feed_dict
-    
-        def postprocess_outputs(self, outputs):
-            """
-            Transform model output to format expected by the pipeline
-    
-            Parameters:
-              outputs: outputs: raw inference results.
-            Returns:
-              logits: decoder predicted token logits
-              kv_cache: cached attention hidden states
-            """
-            logits = None
-            kv_cache = {}
-            for output_t, out in outputs.items():
-                if 'logits' in output_t.get_names():
-                    logits = torch.from_numpy(out)
-                else:
-                    tensor_name = output_t.any_name
-                    kv_cache[tensor_name.replace(
-                        'out_', '')] = torch.from_numpy(out)
-            return logits, kv_cache
-    
-        def forward(self, x: torch.Tensor, xa: torch.Tensor, kv_cache: Optional[dict] = None):
-            """
-            Inference decoder model.
-    
-            Parameters:
-              x: torch.LongTensor, shape = (batch_size, <= n_ctx) the text tokens
-              xa: torch.Tensor, shape = (batch_size, n_mels, n_audio_ctx)
-                 the encoded audio features to be attended on
-              kv_cache: Dict[str, torch.Tensor], attention modules hidden states cache from previous steps
-            Returns:
-              logits: decoder predicted logits
-              kv_cache: updated kv_cache with current step hidden states
-            """
-            feed_dict = {'tokens': Tensor(x.numpy()), 'audio_features': Tensor(xa.numpy())}
-            feed_dict = (self.preprocess_kv_cache_inputs(feed_dict, kv_cache))
-            res = self.compiled_model(feed_dict)
-            return self.postprocess_outputs(res)
+    core = ov.Core()
 
 .. code:: ipython3
 
-    from whisper.decoding import DecodingTask, Inference, DecodingOptions, DecodingResult
+    import ipywidgets as widgets
     
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
     
-    class OpenVINOInference(Inference):
-        """
-        Wrapper for inference interface
-        """
-    
-        def __init__(self, model: "Whisper", initial_token_length: int):
-            self.model: "Whisper" = model
-            self.initial_token_length = initial_token_length
-            self.kv_cache = {}
-    
-        def logits(self, tokens: torch.Tensor, audio_features: torch.Tensor) -> torch.Tensor:
-            """
-            getting logits for given tokens sequence and audio features and save kv_cache
-    
-            Parameters:
-              tokens: input tokens
-              audio_features: input audio features
-            Returns:
-              logits: predicted by decoder logits
-            """
-            if tokens.shape[-1] > self.initial_token_length:
-                # only need to use the last token except in the first forward pass
-                tokens = tokens[:, -1:]
-            logits, self.kv_cache = self.model.decoder(
-                tokens, audio_features, kv_cache=self.kv_cache)
-            return logits
-    
-        def cleanup_caching(self):
-            """
-            Reset kv_cache to initial state
-            """
-            self.kv_cache = {}
-    
-        def rearrange_kv_cache(self, source_indices):
-            """
-            Update hidden states cache for selected sequences
-            Parameters:
-              source_indicies: sequences indicies
-            Returns:
-              None
-            """
-            for module, tensor in self.kv_cache.items():
-                # update the key/value cache to contain the selected sequences
-                self.kv_cache[module] = tensor[source_indices]
-    
-    
-    class OpenVINODecodingTask(DecodingTask):
-        """
-        Class for decoding using OpenVINO
-        """
-    
-        def __init__(self, model: "Whisper", options: DecodingOptions):
-            super().__init__(model, options)
-            self.inference = OpenVINOInference(model, len(self.initial_tokens))
-    
-    
-    @torch.no_grad()
-    def decode(model: "Whisper", mel: torch.Tensor, options: DecodingOptions = DecodingOptions()) -> Union[DecodingResult, List[DecodingResult]]:
-        """
-        Performs decoding of 30-second audio segment(s), provided as Mel spectrogram(s).
-    
-        Parameters
-        ----------
-        model: Whisper
-            the Whisper model instance
-    
-        mel: torch.Tensor, shape = (80, 3000) or (*, 80, 3000)
-            A tensor containing the Mel spectrogram(s)
-    
-        options: DecodingOptions
-            A dataclass that contains all necessary options for decoding 30-second segments
-    
-        Returns
-        -------
-        result: Union[DecodingResult, List[DecodingResult]]
-            The result(s) of decoding contained in `DecodingResult` dataclass instance(s)
-        """
-        single = mel.ndim == 2
-        if single:
-            mel = mel.unsqueeze(0)
-    
-        result = OpenVINODecodingTask(model, options).run(mel)
-    
-        if single:
-            result = result[0]
-    
-        return result
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
 
 .. code:: ipython3
 
-    del model.decoder
-    del model.encoder
-
-.. code:: ipython3
-
-    from collections import namedtuple
+    from utils import patch_whisper_for_ov_inference, OpenVINOAudioEncoder, OpenVINOTextDecoder
     
-    Parameter = namedtuple('Parameter', ['device'])
+    patch_whisper_for_ov_inference(model)
     
-    core = Core()
-    
-    model.encoder = OpenVINOAudioEncoder(core, 'whisper_encoder.xml')
-    model.decoder = OpenVINOTextDecoder(core, 'whisper_decoder.xml')
-    model.decode = partial(decode, model)
-    
-    
-    def parameters():
-        return iter([Parameter(torch.device('cpu'))])
-    
-    
-    model.parameters = parameters
-    
-    
-    def logits(model, tokens: torch.Tensor, audio_features: torch.Tensor):
-        """
-        Override for logits extraction method
-        Parameters:
-          toekns: input tokens
-          audio_features: input audio features
-        Returns:
-          logits: decoder predicted logits
-        """
-        return model.decoder(tokens, audio_features, None)[0]
-    
-    
-    model.logits = partial(logits, model)
-
-Define audio preprocessing
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The model expects mono-channel audio with a 16000 Hz sample rate,
-represented in floating point range. When the audio from the input video
-does not meet these requirements, we will need to apply preprocessing.
-
-.. code:: ipython3
-
-    import io
-    from pathlib import Path
-    import numpy as np
-    from scipy.io import wavfile
-    from pytube import YouTube
-    from moviepy.editor import VideoFileClip
-    
-    
-    def resample(audio, src_sample_rate, dst_sample_rate):
-        """
-        Resample audio to specific sample rate
-    
-        Parameters:
-          audio: input audio signal
-          src_sample_rate: source audio sample rate
-          dst_sample_rate: destination audio sample rate
-        Returns:
-          resampled_audio: input audio signal resampled with dst_sample_rate
-        """
-        if src_sample_rate == dst_sample_rate:
-            return audio
-        duration = audio.shape[0] / src_sample_rate
-        resampled_data = np.zeros(shape=(int(duration * dst_sample_rate)), dtype=np.float32)
-        x_old = np.linspace(0, duration, audio.shape[0], dtype=np.float32)
-        x_new = np.linspace(0, duration, resampled_data.shape[0], dtype=np.float32)
-        resampled_audio = np.interp(x_new, x_old, audio)
-        return resampled_audio.astype(np.float32)
-    
-    
-    def audio_to_float(audio):
-        """
-        convert audio signal to floating point format
-        """
-        return audio.astype(np.float32) / np.iinfo(audio.dtype).max
-    
-    
-    def get_audio(video_file):
-        """
-        Extract audio signal from a given video file, then convert it to float, 
-        then mono-channel format and resample it to the expected sample rate
-    
-        Parameters:
-            video_file: path to input video file
-        Returns:
-          resampled_audio: mono-channel float audio signal with 16000 Hz sample rate 
-                           extracted from video  
-        """
-        input_video = VideoFileClip(str(video_file))
-        input_video.audio.write_audiofile(video_file.stem + '.wav', verbose=False, logger=None)
-        input_audio_file = video_file.stem + '.wav'
-        sample_rate, audio = wavfile.read(
-            io.BytesIO(open(input_audio_file, 'rb').read()))
-        audio = audio_to_float(audio)
-        if audio.ndim == 2:
-            audio = audio.mean(axis=1)
-        resampled_audio = resample(audio, sample_rate, 16000)
-        return resampled_audio
+    model.encoder = OpenVINOAudioEncoder(core, WHISPER_ENCODER_OV, device=device.value)
+    model.decoder = OpenVINOTextDecoder(core, WHISPER_DECODER_OV, device=device.value)
 
 Run video transcription pipeline
---------------------------------
+###############################################################################################################################
 
 Now, we are ready to start transcription. We select a video from YouTube
 that we want to transcribe. Be patient, as downloading the video may
@@ -749,6 +487,8 @@ take some time.
 
 .. code:: ipython3
 
+    from pytube import YouTube
+    
     print(f"Downloading video {link.value} started")
     
     output_file = Path("downloaded_video.mp4")
@@ -765,12 +505,16 @@ take some time.
 
 .. code:: ipython3
 
+    from utils import get_audio
+    
     audio = get_audio(output_file)
 
 Select the task for the model:
 
-* **transcribe** - generate audio transcription in the source language (automatically detected).
-* **translate** - generate audio transcription with translation to English language.
+-  **transcribe** - generate audio transcription in the source language
+   (automatically detected).
+-  **translate** - generate audio transcription with translation to
+   English language.
 
 .. code:: ipython3
 
@@ -793,42 +537,7 @@ Select the task for the model:
 
 .. code:: ipython3
 
-    transcription = model.transcribe(audio, beam_size=5, best_of=5, task=task.value)
-
-.. code:: ipython3
-
-    def format_timestamp(seconds: float):
-        """
-        format time in srt-file excpected format
-        """
-        assert seconds >= 0, "non-negative timestamp expected"
-        milliseconds = round(seconds * 1000.0)
-    
-        hours = milliseconds // 3_600_000
-        milliseconds -= hours * 3_600_000
-    
-        minutes = milliseconds // 60_000
-        milliseconds -= minutes * 60_000
-    
-        seconds = milliseconds // 1_000
-        milliseconds -= seconds * 1_000
-    
-        return (f"{hours}:" if hours > 0 else "00:") + f"{minutes:02d}:{seconds:02d},{milliseconds:03d}"
-    
-    
-    def prepare_srt(transcription):
-        """
-        Format transcription into srt file format
-        """
-        segment_lines = []
-        for segment in transcription["segments"]:
-            segment_lines.append(str(segment["id"] + 1) + "\n")
-            time_start = format_timestamp(segment["start"])
-            time_end = format_timestamp(segment["end"])
-            time_str = f"{time_start} --> {time_end}\n"
-            segment_lines.append(time_str)
-            segment_lines.append(segment["text"] + "\n\n")
-        return segment_lines
+    transcription = model.transcribe(audio, task=task.value)
 
 "The results will be saved in the ``downloaded_video.srt`` file. SRT is
 one of the most popular formats for storing subtitles and is compatible
@@ -838,6 +547,8 @@ into video files using ``ffmpeg``.
 
 .. code:: ipython3
 
+    from utils import prepare_srt
+    
     srt_lines = prepare_srt(transcription)
     # save transcription
     with output_file.with_suffix(".srt").open("w") as f:
@@ -890,8 +601,69 @@ Now let us see the results.
      Don't tell anyone what you've seen in here.
     
     7
-    00:00:22,000 --> 00:00:30,000
+    00:00:22,000 --> 00:00:23,000
+     Oh, my.
+    
+    8
+    00:00:23,000 --> 00:00:24,000
      Have you seen what's in there?
     
+    9
+    00:00:24,000 --> 00:00:25,000
+     They have intel.
     
+    10
+    00:00:25,000 --> 00:00:27,000
+     This is where it all changes.
+    
+    
+
+
+.. Interactive demo
+.. ###############################################################################################################################
+
+.. .. code:: ipython3
+
+..     import gradio as gr
+    
+    
+..     def transcribe(url, task):
+..         output_file = Path("downloaded_video.mp4")
+..         yt = YouTube(url)
+..         yt.streams.get_highest_resolution().download(filename=output_file)
+..         audio = get_audio(output_file)
+..         transcription = model.transcribe(audio, task=task.lower())
+..         srt_lines = prepare_srt(transcription)
+..         with output_file.with_suffix(".srt").open("w") as f:
+..             f.writelines(srt_lines)
+..         return [str(output_file), str(output_file.with_suffix(".srt"))]
+    
+    
+..     demo = gr.Interface(
+..         transcribe,
+..         [gr.Textbox(label="YouTube URL"), gr.Radio(["Transcribe", "Translate"], value="Transcribe")],
+..         "video",
+..         examples=[["https://youtu.be/kgL5LBM-hFI", "Transcribe"]],
+..         allow_flagging="never"
+..     )
+..     try:
+..         demo.launch(debug=False)
+..     except Exception:
+..         demo.launch(share=True, debug=False)
+..     # if you are launching remotely, specify server_name and server_port
+..     # demo.launch(server_name='your server name', server_port='server port in int')
+..     # Read more in the docs: https://gradio.app/docs/
+
+
+.. .. parsed-literal::
+
+..     Running on local URL:  http://127.0.0.1:7860
+    
+..     To create a public link, set `share=True` in `launch()`.
+
+
+
+.. .. raw:: html
+
+..     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

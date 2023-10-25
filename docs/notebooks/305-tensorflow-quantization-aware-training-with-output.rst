@@ -1,42 +1,69 @@
 Quantization Aware Training with NNCF, using TensorFlow Framework
 =================================================================
 
+
+
 The goal of this notebook to demonstrate how to use the Neural Network
 Compression Framework `NNCF <https://github.com/openvinotoolkit/nncf>`__
 8-bit quantization to optimize a TensorFlow model for inference with
 OpenVINO™ Toolkit. The optimization process contains the following
 steps:
 
-* Transforming the original ``FP32`` model to ``INT8``.
-* Using fine-tuning to restore the accuracy.
-* Exporting optimized and original models to Frozen Graph and then to OpenVINO.
-* Measuring and comparing the performance of models.
+-  Transforming the original ``FP32`` model to ``INT8``
+-  Using fine-tuning to restore the accuracy.
+-  Exporting optimized and original models to Frozen Graph and then to
+   OpenVINO.
+-  Measuring and comparing the performance of models.
 
 For more advanced usage, refer to these
 `examples <https://github.com/openvinotoolkit/nncf/tree/develop/examples>`__.
 
 This tutorial uses the ResNet-18 model with Imagenette dataset.
-Imagenette is a subset of 10 easily classified classes from the Imagenet
+Imagenette is a subset of 10 easily classified classes from the ImageNet
 dataset. Using the smaller model and dataset will speed up training and
 download time.
 
-Imports and Settings
---------------------
+.. _top:
 
-Import NNCF and all auxiliary packages from your Python code. Set a name
-for the model, input image size, used batch size, and the learning rate.
-Also, define paths where Frozen Graph and OpenVINO IR versions of the
-models will be stored.
+**Table of contents**:
 
-   **NOTE**: All NNCF logging messages below ERROR level (INFO and
+- `Imports and Settings <#imports-and-settings>`__
+- `Dataset Preprocessing <#dataset-preprocessing>`__
+- `Define a Floating-Point Model <#define-a-floating-point-model>`__
+- `Pre-train a Floating-Point Model <#pre-train-a-floating-point-model>`__
+- `Create and Initialize Quantization <#create-and-initialize-quantization>`__
+- `Fine-tune the Compressed Model <#fine-tune-the-compressed-model>`__
+- `Export Models to OpenVINO Intermediate Representation (IR) <#export-models-to-openvino-intermediate-representation-ir>`__
+- `Benchmark Model Performance by Computing Inference Time <#benchmark-model-performance-by-computing-inference-time>`__
+
+Imports and Settings `⇑ <#top>`__
+###############################################################################################################################
+
+Import NNCF and all auxiliary packages from your Python code. Set a name for the model, input image
+size, used batch size, and the learning rate. Also, define paths where
+Frozen Graph and OpenVINO IR versions of the models will be stored.
+
+.. note::
+
+   All NNCF logging messages below ERROR level (INFO and
    WARNING) are disabled to simplify the tutorial. For production use,
    it is recommended to enable logging by removing
    ``set_log_level(logging.ERROR)``.
 
+
 .. code:: ipython3
 
-    !pip install -q 'openvino-dev>=2023.0.0' 'nncf>=2.5.0'
+    !pip install -q "openvino-dev>=2023.0.0" "nncf>=2.5.0"
     !pip install -q "tensorflow-datasets>=4.8.0"
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    pytorch-lightning 1.6.5 requires protobuf<=3.20.1, but you have protobuf 3.20.3 which is incompatible.
+    
 
 .. code:: ipython3
 
@@ -85,10 +112,10 @@ models will be stored.
 
 .. parsed-literal::
 
-    2023-07-11 23:57:23.400449: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-07-11 23:57:23.436263: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-08-16 01:17:34.103410: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-08-16 01:17:34.137361: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-07-11 23:57:24.023497: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-08-16 01:17:34.726614: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -98,15 +125,22 @@ models will be stored.
     Downloading data from https://storage.openvinotoolkit.org/repositories/nncf/openvino_notebook_ckpts/305_resnet18_imagenette_fp32_v1.h5
     134604992/134604992 [==============================] - 30s 0us/step
     Absolute path where the model weights are saved:
-     /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/305-tensorflow-quantization-aware-training/model/ResNet-18_fp32.h5
+     /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/305-tensorflow-quantization-aware-training/model/ResNet-18_fp32.h5
 
 
-Dataset Preprocessing
----------------------
+Dataset Preprocessing `⇑ <#top>`__
+###############################################################################################################################
+
 
 Download and prepare Imagenette 160px dataset. - Number of classes: 10 -
-Download size: 94.18 MiB \| Split \| Examples \| \|————–|———-\| \|
-‘train’ \| 12,894 \| \| ‘validation’ \| 500 \|
+Download size: 94.18 MiB
+
+::
+
+   | Split        | Examples |
+   |--------------|----------|
+   | 'train'      | 12,894   |
+   | 'validation' | 500      |
 
 .. code:: ipython3
 
@@ -118,17 +152,17 @@ Download size: 94.18 MiB \| Split \| Examples \| \|————–|———-\| 
 
 .. parsed-literal::
 
-    2023-07-11 23:57:56.999149: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
+    2023-08-16 01:18:08.016585: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
     Skipping registering GPU devices...
-    2023-07-11 23:57:57.107813: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_3' with dtype int64 and shape [1]
-    	 [[{{node Placeholder/_3}}]]
-    2023-07-11 23:57:57.108141: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [1]
+    2023-08-16 01:18:08.132762: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_1' with dtype string and shape [1]
+    	 [[{{node Placeholder/_1}}]]
+    2023-08-16 01:18:08.133087: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [1]
     	 [[{{node Placeholder/_0}}]]
-    2023-07-11 23:57:57.153228: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
+    2023-08-16 01:18:08.170026: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
 
 
 
-.. image:: 305-tensorflow-quantization-aware-training-with-output_files/305-tensorflow-quantization-aware-training-with-output_5_1.png
+.. image:: 305-tensorflow-quantization-aware-training-with-output_files/305-tensorflow-quantization-aware-training-with-output_6_1.png
 
 
 .. code:: ipython3
@@ -149,8 +183,9 @@ Download size: 94.18 MiB \| Split \| Examples \| \|————–|———-\| 
                                             .batch(BATCH_SIZE)
                                             .prefetch(tf.data.experimental.AUTOTUNE))
 
-Define a Floating-Point Model
------------------------------
+Define a Floating-Point Model `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -224,15 +259,19 @@ Define a Floating-Point Model
     IMG_SHAPE = IMG_SIZE + (3,)
     fp32_model = ResNet18(input_shape=IMG_SHAPE)
 
-Pre-train a Floating-Point Model
---------------------------------
+Pre-train a Floating-Point Model `⇑ <#top>`__
+###############################################################################################################################
+
 
 Using NNCF for model compression assumes that the user has a pre-trained
 model and a training pipeline.
 
-   **NOTE** For the sake of simplicity of the tutorial, it is
+.. note::
+
+   For the sake of simplicity of the tutorial, it is
    recommended to skip ``FP32`` model training and load the weights that
    are provided.
+
 
 .. code:: ipython3
 
@@ -255,21 +294,22 @@ model and a training pipeline.
 
 .. parsed-literal::
 
-    2023-07-11 23:57:57.994768: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_2' with dtype string and shape [1]
-    	 [[{{node Placeholder/_2}}]]
-    2023-07-11 23:57:57.995164: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int64 and shape [1]
-    	 [[{{node Placeholder/_4}}]]
+    2023-08-16 01:18:09.025847: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_1' with dtype string and shape [1]
+    	 [[{{node Placeholder/_1}}]]
+    2023-08-16 01:18:09.026203: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [1]
+    	 [[{{node Placeholder/_0}}]]
 
 
 .. parsed-literal::
 
-    4/4 [==============================] - 1s 235ms/sample - loss: 0.9807 - acc@1: 0.8220
+    4/4 [==============================] - 1s 229ms/sample - loss: 0.9807 - acc@1: 0.8220
     
     Accuracy of FP32 model: 0.822
 
 
-Create and Initialize Quantization
-----------------------------------
+Create and Initialize Quantization `⇑ <#top>`__
+###############################################################################################################################
+
 
 NNCF enables compression-aware training by integrating into regular
 training pipelines. The framework is designed so that modifications to
@@ -309,13 +349,13 @@ scenario and requires only 3 modifications.
 
 .. parsed-literal::
 
-    2023-07-11 23:58:00.692522: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_1' with dtype string and shape [1]
-    	 [[{{node Placeholder/_1}}]]
-    2023-07-11 23:58:00.692903: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_2' with dtype string and shape [1]
-    	 [[{{node Placeholder/_2}}]]
-    2023-07-11 23:58:01.596992: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
-    2023-07-11 23:58:02.209552: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
-    2023-07-11 23:58:10.535691: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
+    2023-08-16 01:18:11.729441: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int64 and shape [1]
+    	 [[{{node Placeholder/_4}}]]
+    2023-08-16 01:18:11.729828: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_3' with dtype int64 and shape [1]
+    	 [[{{node Placeholder/_3}}]]
+    2023-08-16 01:18:12.738622: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
+    2023-08-16 01:18:13.389616: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
+    2023-08-16 01:18:21.360841: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
 
 
 Evaluate the new model on the validation set after initialization of
@@ -341,11 +381,12 @@ demonstrated here.
 
 .. parsed-literal::
 
-    4/4 [==============================] - 1s 300ms/sample - loss: 0.9766 - acc@1: 0.8120
+    4/4 [==============================] - 1s 301ms/sample - loss: 0.9766 - acc@1: 0.8120
 
 
-Fine-tune the Compressed Model
-------------------------------
+Fine-tune the Compressed Model `⇑ <#top>`__
+###############################################################################################################################
+
 
 At this step, a regular fine-tuning process is applied to further
 improve quantized model accuracy. Normally, several epochs of tuning are
@@ -373,24 +414,24 @@ training pipeline are required. Here is a simple example.
     
     Accuracy of INT8 model after initialization: 0.812
     Epoch 1/2
-    101/101 [==============================] - 48s 417ms/step - loss: 0.7134 - acc@1: 0.9299
+    101/101 [==============================] - 49s 417ms/step - loss: 0.7134 - acc@1: 0.9299
     Epoch 2/2
-    101/101 [==============================] - 42s 419ms/step - loss: 0.6807 - acc@1: 0.9489
-    4/4 [==============================] - 1s 141ms/sample - loss: 0.9760 - acc@1: 0.8160
+    101/101 [==============================] - 42s 414ms/step - loss: 0.6807 - acc@1: 0.9489
+    4/4 [==============================] - 1s 144ms/sample - loss: 0.9760 - acc@1: 0.8160
     
     Accuracy of INT8 model after fine-tuning: 0.816
     
     Accuracy drop of tuned INT8 model over pre-trained FP32 model: 0.006
 
 
-Export Models to OpenVINO Intermediate Representation (IR)
-----------------------------------------------------------
+Export Models to OpenVINO Intermediate Representation (IR) `⇑ <#top>`__
+###############################################################################################################################
 
-Use Model Optimizer Python API to convert the models to OpenVINO IR.
 
-For more information about Model Optimizer, see the `Model Optimizer
-Developer
-Guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Python_API.html>`__.
+Use model conversion Python API to convert the models to OpenVINO IR.
+
+For more information about model conversion, see this
+`page <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__.
 
 Executing this command may take a while.
 
@@ -404,9 +445,9 @@ Executing this command may take a while.
 
 .. parsed-literal::
 
-    2023-07-11 23:59:43.746206: I tensorflow/core/grappler/devices.cc:66] Number of eligible GPUs (core count >= 8, compute capability >= 0.0): 2
-    2023-07-11 23:59:43.746302: I tensorflow/core/grappler/clusters/single_machine.cc:358] Starting new session
-    2023-07-11 23:59:43.881725: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
+    2023-08-16 01:19:54.530759: I tensorflow/core/grappler/devices.cc:66] Number of eligible GPUs (core count >= 8, compute capability >= 0.0): 2
+    2023-08-16 01:19:54.530838: I tensorflow/core/grappler/clusters/single_machine.cc:358] Starting new session
+    2023-08-16 01:19:54.651453: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
     Skipping registering GPU devices...
 
 
@@ -420,24 +461,27 @@ Executing this command may take a while.
 
 .. parsed-literal::
 
-    2023-07-11 23:59:45.484067: I tensorflow/core/grappler/devices.cc:66] Number of eligible GPUs (core count >= 8, compute capability >= 0.0): 2
-    2023-07-11 23:59:45.484141: I tensorflow/core/grappler/clusters/single_machine.cc:358] Starting new session
-    2023-07-11 23:59:45.485613: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
+    2023-08-16 01:19:56.200644: I tensorflow/core/grappler/devices.cc:66] Number of eligible GPUs (core count >= 8, compute capability >= 0.0): 2
+    2023-08-16 01:19:56.200714: I tensorflow/core/grappler/clusters/single_machine.cc:358] Starting new session
+    2023-08-16 01:19:56.202200: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
     Skipping registering GPU devices...
 
 
-Benchmark Model Performance by Computing Inference Time
--------------------------------------------------------
+Benchmark Model Performance by Computing Inference Time `⇑ <#top>`__
+###############################################################################################################################
+
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 - an inference performance measurement tool in OpenVINO. By default,
 Benchmark Tool runs inference for 60 seconds in asynchronous mode on
 CPU. It returns inference speed as latency (milliseconds per image) and
 throughput (frames per second) values.
 
-   **NOTE**: This notebook runs ``benchmark_app`` for 15 seconds to give
+.. note::
+
+   This notebook runs ``benchmark_app`` for 15 seconds to give
    a quick indication of performance. For more accurate performance, it
    is recommended to run ``benchmark_app`` in a terminal/command prompt
    after closing other applications. Run
@@ -445,6 +489,7 @@ throughput (frames per second) values.
    CPU for one minute. Change CPU to GPU to benchmark on GPU. Run
    ``benchmark_app --help`` to see an overview of all command-line
    options.
+
 
 .. code:: ipython3
 
@@ -469,10 +514,10 @@ throughput (frames per second) values.
 .. parsed-literal::
 
     Benchmark FP32 model (IR)
-    [ INFO ] Throughput:   2843.91 FPS
+    [ INFO ] Throughput:   2831.57 FPS
     
     Benchmark INT8 model (IR)
-    [ INFO ] Throughput:   11931.91 FPS
+    [ INFO ] Throughput:   11769.65 FPS
 
 
 Show CPU Information for reference.

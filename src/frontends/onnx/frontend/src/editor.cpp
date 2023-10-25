@@ -310,8 +310,7 @@ struct onnx_editor::ONNXModelEditor::Impl {
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     Impl(const std::wstring& model_path)
-        : m_model_proto{
-              std::make_shared<ONNX_NAMESPACE::ModelProto>(ngraph::onnx_common::parse_from_file(model_path))} {}
+        : Impl(std::make_shared<ONNX_NAMESPACE::ModelProto>(ngraph::onnx_common::parse_from_file(model_path))) {}
 #endif
 };
 
@@ -319,7 +318,8 @@ onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path,
                                               const bool enable_mmap,
                                               frontend::ExtensionHolder extensions)
     : m_model_path{model_path},
-      m_enable_mmap{enable_mmap},
+      m_mmap_cache{enable_mmap ? std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>()
+                               : nullptr},
       m_extensions{std::move(extensions)},
       m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
                   delete impl;
@@ -331,7 +331,8 @@ onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::wstring& model_path,
                                               frontend::ExtensionHolder extensions)
     : m_extensions{std::move(extensions)},
       m_model_path{ov::util::wstring_to_string(model_path)},
-      m_enable_mmap{enable_mmap},
+      m_mmap_cache{enable_mmap ? std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>()
+                               : nullptr},
       m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
                   delete impl;
               }} {}
@@ -342,7 +343,8 @@ onnx_editor::ONNXModelEditor::ONNXModelEditor(std::istream& model_stream,
                                               const bool enable_mmap,
                                               frontend::ExtensionHolder extensions)
     : m_model_path{model_path},
-      m_enable_mmap{enable_mmap},
+      m_mmap_cache{enable_mmap ? std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>()
+                               : nullptr},
       m_extensions{std::move(extensions)},
       m_pimpl{new ONNXModelEditor::Impl{model_stream}, [](Impl* impl) {
                   delete impl;
@@ -533,7 +535,7 @@ std::shared_ptr<Model> onnx_editor::ONNXModelEditor::get_function() const {
     OPENVINO_SUPPRESS_DEPRECATED_START
     return ngraph::onnx_import::detail::import_onnx_model(m_pimpl->m_model_proto,
                                                           m_model_path,
-                                                          m_enable_mmap,
+                                                          m_mmap_cache,
                                                           m_extensions);
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
@@ -728,7 +730,7 @@ std::vector<std::string> onnx_editor::ONNXModelEditor::get_output_ports(const Ed
 std::shared_ptr<Model> onnx_editor::ONNXModelEditor::decode() {
     return ngraph::onnx_import::detail::decode_to_framework_nodes(m_pimpl->m_model_proto,
                                                                   m_model_path,
-                                                                  m_enable_mmap,
+                                                                  m_mmap_cache,
                                                                   m_extensions);
 }
 

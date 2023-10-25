@@ -27,7 +27,7 @@ class ConvertNMSToNMSIEMatcher;
  *     we insert Unsqueeze operations.
  */
 
-class ngraph::pass::ConvertNMSToNMSIEMatcher : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertNMSToNMSIEMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertNMSToNMSIEMatcher", "0");
     ConvertNMSToNMSIEMatcher();

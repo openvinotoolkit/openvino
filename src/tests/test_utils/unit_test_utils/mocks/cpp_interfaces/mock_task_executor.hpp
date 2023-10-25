@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <memory>
-
 #include <gmock/gmock.h>
+
+#include <memory>
 #include <threading/ie_itask_executor.hpp>
 
 class MockTaskExecutor : public InferenceEngine::ITaskExecutor {

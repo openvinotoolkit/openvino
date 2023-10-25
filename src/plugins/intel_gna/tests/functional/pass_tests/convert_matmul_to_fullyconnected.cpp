@@ -9,8 +9,8 @@
 #include <vector>
 
 #include "functional_test_utils/blob_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 typedef std::tuple<std::vector<std::vector<size_t>>,   // Input shape
@@ -61,7 +61,7 @@ protected:
         std::tie(inputShape, netPrecision, targetDevice, configuration) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape[1]});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape[1]))};
         std::vector<float> weights =
             ov::test::utils::generate_float_numbers(inputShape[0][0] * inputShape[0][1], -0.2f, 0.2f);
         auto const_mult2 = ngraph::builder::makeConstant<float>(ngPrc, inputShape[0], weights);
@@ -114,8 +114,8 @@ protected:
         std::tie(inputShape, netPrecision, targetDevice, configuration) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, inputShape[1][0] * inputShape[1][1]}});
-
+        ov::ParameterVector params{
+            std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape({1, inputShape[1][0] * inputShape[1][1]}))};
         auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(
             params[0],
             ngraph::builder::makeConstant(ngraph::element::i64, {inputShape[1].size()}, inputShape[1]),

@@ -7,16 +7,17 @@
 #include <vector>
 #include <memory>
 
+#include "common_test_utils/test_assertions.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 
-#include <gpu/gpu_config.hpp>
 #include <remote_blob_tests/remote_blob_helpers.hpp>
 #include <common_test_utils/test_common.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
 #include "base/ov_behavior_test_utils.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "transformations/utils/utils.hpp"
@@ -877,8 +878,8 @@ TEST_F(OVRemoteTensor_Test, NV12toGray) {
 
     // ------------------------------------------------------
     // Prepare input data
-    ov::Tensor fake_image = ov::test::utils::create_and_fill_tensor(ov::element::i8, {1, feature, height, width}, 50, 0, 1);
-    ov::Tensor fake_image_regular = ov::test::utils::create_and_fill_tensor(ov::element::f32, {1, feature, height, width});
+    ov::Tensor fake_image = ov::test::utils::create_and_fill_tensor(ov::element::i8, {1, height, width, feature}, 50, 0, 1);
+    ov::Tensor fake_image_regular = ov::test::utils::create_and_fill_tensor(ov::element::f32, {1, height, width, feature });
 
     auto image_ptr = static_cast<uint8_t*>(fake_image.data());
     auto image_ptr_regular = static_cast<float*>(fake_image_regular.data());
@@ -943,12 +944,13 @@ TEST_F(OVRemoteTensor_Test, NV12toGray) {
 
     // ------------------------------------------------------
     // regular inference
-    auto fn_ptr_regular = ngraph::builder::subgraph::makeConvPoolRelu({1, 1, height, width});
+    auto fn_ptr_regular = ngraph::builder::subgraph::makeConvPoolRelu({1, feature, height, width});
 
     auto p_reg = PrePostProcessor(fn_ptr_regular);
     p_reg.input().tensor().set_element_type(ov::element::f32)
+                          .set_layout("NHWC")
                           .set_memory_type(ov::intel_gpu::memory_type::buffer);
-    p_reg.input().model().set_layout("NHWC");
+    p_reg.input().model().set_layout("NCHW");
     auto function_regular = p_reg.build();
 
     auto param_input_y_regular = function_regular->get_parameters().at(0);
@@ -978,8 +980,8 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_ConvertTranspose) {
 
     // ------------------------------------------------------
     // Prepare input data
-    ov::Tensor fake_image_data_y = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, 1, height, width}, 50, 0, 1);
-    ov::Tensor fake_image_data_uv = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, 2, height / 2, width / 2}, 256, 0, 1);
+    ov::Tensor fake_image_data_y = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height, width, 1}, 50, 0, 1);
+    ov::Tensor fake_image_data_uv = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height / 2, width / 2, 2}, 256, 0, 1);
 
     auto ie = ov::Core();
 
@@ -991,7 +993,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_ConvertTranspose) {
     auto p = PrePostProcessor(fn_ptr_remote);
     p.input().tensor().set_element_type(ov::element::u8)
                       .set_color_format(ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
-                      .set_memory_type(GPU_CONFIG_KEY(SURFACE));
+                      .set_memory_type(ov::intel_gpu::memory_type::surface);
     p.input().preprocess().convert_color(ColorFormat::BGR);
     p.input().model().set_layout("NCHW");
     auto function = p.build();
@@ -1038,8 +1040,10 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_ConvertTranspose) {
     cl::Image2D img_y = cl::Image2D(nv12_image_plane_y);
     cl::Image2D img_uv = cl::Image2D(nv12_image_plane_uv);
 
-    auto tensor_remote_y = cldnn_context.create_tensor(param_input_y->get_element_type(), fake_image_data_y.get_shape(), img_y);
-    auto tensor_remote_uv = cldnn_context.create_tensor(param_input_uv->get_element_type(), fake_image_data_uv.get_shape(), img_uv);
+    auto nv12 = cldnn_context.create_tensor_nv12(img_y, img_uv);
+
+    auto tensor_remote_y = nv12.first;
+    auto tensor_remote_uv = nv12.second;
 
     inf_req_remote.set_tensor(*param_input_y->output(0).get_tensor().get_names().begin(), tensor_remote_y);
     inf_req_remote.set_tensor(*param_input_uv->output(0).get_tensor().get_names().begin(), tensor_remote_uv);
@@ -1056,7 +1060,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_ConvertTranspose) {
     auto p_reg = PrePostProcessor(fn_ptr_regular);
     p_reg.input().tensor().set_element_type(ov::element::u8)
                           .set_color_format(ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
-                          .set_memory_type(GPU_CONFIG_KEY(BUFFER));
+                          .set_memory_type(ov::intel_gpu::memory_type::buffer);
     p_reg.input().preprocess().convert_color(ColorFormat::BGR);
     p_reg.input().model().set_layout("NCHW");
     auto function_regular = p_reg.build();
@@ -1087,7 +1091,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_single_plane) {
 
     // ------------------------------------------------------
     // Prepare input data
-    ov::Tensor fake_image_data_yuv = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, 1, height * 3 / 2, width}, 50);
+    ov::Tensor fake_image_data_yuv = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height * 3 / 2, width, 1}, 50);
 
     auto ie = ov::Core();
 
@@ -1099,7 +1103,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_single_plane) {
     auto p = PrePostProcessor(fn_ptr_remote);
     p.input().tensor().set_element_type(ov::element::u8)
                       .set_color_format(ColorFormat::NV12_SINGLE_PLANE)
-                      .set_memory_type(GPU_CONFIG_KEY(SURFACE));
+                      .set_memory_type(ov::intel_gpu::memory_type::surface);
     p.input().preprocess().convert_color(ColorFormat::BGR);
     p.input().model().set_layout("NCHW");
     auto function = p.build();
@@ -1147,7 +1151,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_single_plane) {
     auto p_reg = PrePostProcessor(fn_ptr_regular);
     p_reg.input().tensor().set_element_type(ov::element::u8)
                           .set_color_format(ColorFormat::NV12_SINGLE_PLANE)
-                          .set_memory_type(GPU_CONFIG_KEY(BUFFER));
+                          .set_memory_type(ov::intel_gpu::memory_type::buffer);
     p_reg.input().preprocess().convert_color(ColorFormat::BGR);
     p_reg.input().model().set_layout("NCHW");
     auto function_regular = p_reg.build();
@@ -1177,8 +1181,8 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_two_planes) {
 
     // ------------------------------------------------------
     // Prepare input data
-    ov::Tensor fake_image_data_y = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, 1, height, width}, 50, 0, 1);
-    ov::Tensor fake_image_data_uv = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, 2, height / 2, width / 2}, 256, 0, 1);
+    ov::Tensor fake_image_data_y = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height, width, 1}, 50, 0, 1);
+    ov::Tensor fake_image_data_uv = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height / 2, width / 2, 2}, 256, 0, 1);
 
     auto ie = ov::Core();
 
@@ -1190,7 +1194,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_two_planes) {
     auto p = PrePostProcessor(fn_ptr_remote);
     p.input().tensor().set_element_type(ov::element::u8)
                       .set_color_format(ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
-                      .set_memory_type(GPU_CONFIG_KEY(SURFACE));
+                      .set_memory_type(ov::intel_gpu::memory_type::surface);
     p.input().preprocess().convert_color(ColorFormat::BGR);
     p.input().model().set_layout("NCHW");
     auto function = p.build();
@@ -1255,7 +1259,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_two_planes) {
     auto p_reg = PrePostProcessor(fn_ptr_regular);
     p_reg.input().tensor().set_element_type(ov::element::u8)
                           .set_color_format(ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
-                          .set_memory_type(GPU_CONFIG_KEY(BUFFER));
+                          .set_memory_type(ov::intel_gpu::memory_type::buffer);
     p_reg.input().preprocess().convert_color(ColorFormat::BGR);
     p_reg.input().model().set_layout("NCHW");
     auto function_regular = p_reg.build();
@@ -1286,8 +1290,8 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_buffer) {
 
     // ------------------------------------------------------
     // Prepare input data
-    ov::Tensor fake_image_data_y = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, 1, height, width}, 50, 0, 1);
-    ov::Tensor fake_image_data_uv = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, 2, height / 2, width / 2}, 256, 0, 1);
+    ov::Tensor fake_image_data_y = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height, width, 1}, 50, 0, 1);
+    ov::Tensor fake_image_data_uv = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height / 2, width / 2, 2}, 256, 0, 1);
 
     auto ie = ov::Core();
 
@@ -1297,7 +1301,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_buffer) {
     auto p = PrePostProcessor(fn_ptr_remote);
     p.input().tensor().set_element_type(ov::element::u8)
                       .set_color_format(ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
-                      .set_memory_type(GPU_CONFIG_KEY(BUFFER));
+                      .set_memory_type(ov::intel_gpu::memory_type::buffer);
     p.input().preprocess().convert_color(ColorFormat::BGR);
     p.input().model().set_layout("NCHW");
     auto function = p.build();
@@ -1389,7 +1393,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_single_plane) {
     std::vector<ov::Tensor> fake_image_data_yuv;
     for (size_t i = 0; i < num_batch; i++) {
         fake_image_data_yuv.push_back(ov::test::utils::create_and_fill_tensor(
-            ov::element::u8, {1, 1, height * 3 / 2, width}, 50, 0, 1, static_cast<int32_t>(i)));
+            ov::element::u8, {1, height * 3 / 2, width, 1}, 50, 0, 1, static_cast<int32_t>(i)));
     }
 
     auto ie = ov::Core();
@@ -1402,7 +1406,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_single_plane) {
     auto p = PrePostProcessor(fn_ptr_remote);
     p.input().tensor().set_element_type(ov::element::u8)
                       .set_color_format(ColorFormat::NV12_SINGLE_PLANE)
-                      .set_memory_type(GPU_CONFIG_KEY(SURFACE));
+                      .set_memory_type(ov::intel_gpu::memory_type::surface);
     p.input().preprocess().convert_color(ColorFormat::BGR);
     p.input().model().set_layout("NCHW");
     auto function = p.build();
@@ -1460,7 +1464,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_single_plane) {
     auto p_reg = PrePostProcessor(fn_ptr_regular);
     p_reg.input().tensor().set_element_type(ov::element::u8)
                           .set_color_format(ColorFormat::NV12_SINGLE_PLANE)
-                          .set_memory_type(GPU_CONFIG_KEY(BUFFER));
+                          .set_memory_type(ov::intel_gpu::memory_type::buffer);
     p_reg.input().preprocess().convert_color(ColorFormat::BGR);
     p_reg.input().model().set_layout("NCHW");
     auto function_regular = p_reg.build();
@@ -1495,9 +1499,9 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_two_planes) {
     // Prepare input data
     std::vector<ov::Tensor> fake_image_data_y, fake_image_data_uv;
     for (size_t i = 0; i < num_batch; i++) {
-        fake_image_data_y.push_back(ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, 1, height, width}, 50, 0, 1, static_cast<int32_t>(i)));
+        fake_image_data_y.push_back(ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height, width, 1}, 50, 0, 1, static_cast<int32_t>(i)));
         fake_image_data_uv.push_back(ov::test::utils::create_and_fill_tensor(
-            ov::element::u8, {1, 2, height / 2, width / 2}, 256, 0, 1, static_cast<int32_t>(i)));
+            ov::element::u8, {1, height / 2, width / 2, 2}, 256, 0, 1, static_cast<int32_t>(i)));
     }
 
     auto ie = ov::Core();
@@ -1510,7 +1514,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_two_planes) {
     auto p = PrePostProcessor(fn_ptr_remote);
     p.input().tensor().set_element_type(ov::element::u8)
                       .set_color_format(ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
-                      .set_memory_type(GPU_CONFIG_KEY(SURFACE));
+                      .set_memory_type(ov::intel_gpu::memory_type::surface);
     p.input().preprocess().convert_color(ColorFormat::BGR);
     p.input().model().set_layout("NCHW");
     auto function = p.build();
@@ -1584,7 +1588,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_two_planes) {
     auto p_reg = PrePostProcessor(fn_ptr_regular);
     p_reg.input().tensor().set_element_type(ov::element::u8)
                           .set_color_format(ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
-                          .set_memory_type(GPU_CONFIG_KEY(BUFFER));
+                          .set_memory_type(ov::intel_gpu::memory_type::buffer);
     p_reg.input().preprocess().convert_color(ColorFormat::BGR);
     p_reg.input().model().set_layout("NCHW");
     auto function_regular = p_reg.build();
@@ -1623,8 +1627,8 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toGray) {
     std::vector<ov::Tensor> fake_image;
     std::vector<ov::Tensor> fake_image_regular;
     for (size_t i = 0; i < num_batch; i++) {
-        auto tensor_image = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, feature, height, width}, 50, 0, 1, static_cast<int32_t>(i));
-        auto tensor_regular = ov::test::utils::create_and_fill_tensor(ov::element::f32, {1, feature, height, width});
+        auto tensor_image = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height, width, feature}, 50, 0, 1, static_cast<int32_t>(i));
+        auto tensor_regular = ov::test::utils::create_and_fill_tensor(ov::element::f32, {1, feature, height, width });
         auto image_ptr = static_cast<uint8_t*>(tensor_image.data());
         auto image_ptr_regular = static_cast<float*>(tensor_regular.data());
         // Apply NV12 (Surface) -> Gray conversion for regular blob
@@ -1739,9 +1743,9 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_buffer) {
     // Prepare input data
     std::vector<ov::Tensor> fake_image_data_y, fake_image_data_uv;
     for (size_t i = 0; i < num_batch * 2; ++i) {
-        fake_image_data_y.push_back(ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, 1, height, width}, 50, 0, 1, static_cast<int32_t>(i)));
+        fake_image_data_y.push_back(ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, height, width, 1}, 50, 0, 1, static_cast<int32_t>(i)));
         fake_image_data_uv.push_back(ov::test::utils::create_and_fill_tensor(
-            ov::element::u8, {1, 2, height / 2, width / 2}, 256, 0, 1, static_cast<int32_t>(i)));
+            ov::element::u8, {1, height / 2, width / 2, 2}, 256, 0, 1, static_cast<int32_t>(i)));
     }
 
     auto ie = ov::Core();
@@ -1754,7 +1758,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_buffer) {
     auto p = PrePostProcessor(fn_ptr_remote);
     p.input().tensor().set_element_type(ov::element::u8)
                       .set_color_format(ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
-                      .set_memory_type(GPU_CONFIG_KEY(BUFFER));
+                      .set_memory_type(ov::intel_gpu::memory_type::buffer);
     p.input().preprocess().convert_color(ColorFormat::BGR);
     p.input().model().set_layout("NCHW");
     auto function = p.build();
@@ -1856,7 +1860,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_buffer) {
     auto p_reg = PrePostProcessor(fn_ptr_regular);
     p_reg.input().tensor().set_element_type(ov::element::u8)
                           .set_color_format(ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
-                          .set_memory_type(GPU_CONFIG_KEY(BUFFER));
+                          .set_memory_type(ov::intel_gpu::memory_type::buffer);
     p_reg.input().preprocess().convert_color(ColorFormat::BGR);
     p_reg.input().model().set_layout("NCHW");
     auto function_regular = p_reg.build();
@@ -1929,6 +1933,14 @@ TEST(OVRemoteContextGPU, smoke_CustomContextDeviceNames) {
         ASSERT_EQ(remote_context0.get_device_name(), device_name);
         ASSERT_EQ(remote_context1.get_device_name(), device_name);
     }
+}
+
+TEST(OVRemoteContextGPU, smoke_CantCreateContextForNullHandle) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    auto core = ov::Core();
+    OV_EXPECT_THROW(ov::intel_gpu::ocl::ClContext(core, nullptr, 0), ov::Exception, HasSubstr("Can't create shared OCL context as user handle is nullptr!"));
 }
 
 TEST(OVRemoteContextGPU, smoke_RemoteContextPerDevice) {

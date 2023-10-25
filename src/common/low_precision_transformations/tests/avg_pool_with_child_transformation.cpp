@@ -4,35 +4,35 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/avg_pool.hpp>
-#include <low_precision/convolution.hpp>
+#include "low_precision/avg_pool.hpp"
+#include "low_precision/convolution.hpp"
 #include <memory>
 #include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/avg_pool_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/avg_pool.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
-using namespace ngraph::pass;
+using namespace ov::pass;
 
 class AvgPoolWithChildTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type inputPrecision;
+        ov::element::Type inputPrecision;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
-        ngraph::element::Type inputPrecision;
+        ov::element::Type inputPrecision;
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-        ngraph::element::Type preicsionAfterOperation;
+        ov::element::Type preicsionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
         ngraph::builder::subgraph::DequantizationOperations dequantizationEnd;
     };
@@ -43,15 +43,15 @@ public:
     Expected expected;
 };
 
-typedef std::tuple<ngraph::element::Type, ngraph::PartialShape, AvgPoolWithChildTransformationTestValues>
+typedef std::tuple<ov::element::Type, ov::PartialShape, AvgPoolWithChildTransformationTestValues>
     AvgPoolWithChildTransformationParams;
 
 class AvgPoolWithChildTransformation : public LayerTransformation,
                                        public testing::WithParamInterface<AvgPoolWithChildTransformationParams> {
 public:
     void SetUp() override {
-        ngraph::element::Type precision;
-        ngraph::PartialShape shape;
+        ov::element::Type precision;
+        ov::PartialShape shape;
         std::string additionalLayer;
         AvgPoolWithChildTransformationTestValues testValues;
         std::tie(precision, shape, testValues) = GetParam();
@@ -63,8 +63,8 @@ public:
                                                                                  testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ov::op::v1::AvgPool>(testValues.params);
-        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(
+        transform.add<ov::pass::low_precision::AvgPoolTransformation, ov::op::v1::AvgPool>(testValues.params);
+        transform.add<ov::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(
             testValues.params);
         transform.transform(actualFunction);
 
@@ -81,8 +81,8 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<AvgPoolWithChildTransformationParams> obj) {
-        ngraph::element::Type precision;
-        ngraph::PartialShape shape;
+        ov::element::Type precision;
+        ov::PartialShape shape;
         std::string additionalLayer;
         AvgPoolWithChildTransformationTestValues testValues;
         std::tie(precision, shape, testValues) = obj.param;
@@ -113,25 +113,25 @@ TEST_P(AvgPoolWithChildTransformation, CompareFunctions) {
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
-const std::vector<ngraph::element::Type> precisions = {ngraph::element::f32};
+const std::vector<ov::element::Type> precisions = {ov::element::f32};
 
-const std::vector<ngraph::PartialShape> shapes = {{1, 3, 72, 48}, {4, 3, 72, 48}};
+const std::vector<ov::PartialShape> shapes = {{1, 3, 72, 48}, {4, 3, 72, 48}};
 
 const std::vector<AvgPoolWithChildTransformationTestValues> testValues = {
     // U8 per tensor quantization
     {LayerTransformation::createParamsU8I8(),
      {"convolution"},
-     {ngraph::element::u8, {{ngraph::element::f32}, {}, {0.02f}}},
-     {ngraph::element::u8, {}, ngraph::element::u8, {}, {{}, {}, {std::vector<float>{0.0002f}, element::f32, {}}}}},
+     {ov::element::u8, {{ov::element::f32}, {}, {0.02f}}},
+     {ov::element::u8, {}, ov::element::u8, {}, {{}, {}, {std::vector<float>{0.0002f}, element::f32, {}}}}},
     // U8 per tensor quantization
     {LayerTransformation::createParamsU8I8(),
      {"softmax", "convolution"},
-     {ngraph::element::u8, {{ngraph::element::f32}, {}, {0.02f}}},
-     {ngraph::element::u8, {}, ngraph::element::f32, {{}, {}, {0.02f}}, {}}},
+     {ov::element::u8, {{ov::element::f32}, {}, {0.02f}}},
+     {ov::element::u8, {}, ov::element::f32, {{}, {}, {0.02f}}, {}}},
     {LayerTransformation::createParamsU8I8(),
      {"unsupported_convolution"},
-     {ngraph::element::u8, {{ngraph::element::f32}, {}, {0.02f}}},
-     {ngraph::element::u8, {}, ngraph::element::f32, {{}, {}, {0.02f}}, {}}}};
+     {ov::element::u8, {{ov::element::f32}, {}, {0.02f}}},
+     {ov::element::u8, {}, ov::element::f32, {{}, {}, {0.02f}}, {}}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,
                          AvgPoolWithChildTransformation,

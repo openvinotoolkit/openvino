@@ -7,13 +7,13 @@
 #include <cassert>
 #include <memory>
 #include <vector>
-#include <ngraph/node.hpp>
+#include "openvino/core/node.hpp"
 #include "itt.hpp"
 #include "low_precision/rt_info/quantization_granularity_attribute.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
-ngraph::pass::low_precision::MarkupQuantizationGranularity::MarkupQuantizationGranularity(
+ov::pass::low_precision::MarkupQuantizationGranularity::MarkupQuantizationGranularity(
     const std::vector<QuantizationGranularityRestriction>& restrictions) {
     for (const auto& restriction : restrictions) {
         const auto it = restrictionsByOperation.find(restriction.operationType.name);
@@ -29,7 +29,7 @@ ngraph::pass::low_precision::MarkupQuantizationGranularity::MarkupQuantizationGr
     }
 }
 
-bool ngraph::pass::low_precision::MarkupQuantizationGranularity::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+bool ov::pass::low_precision::MarkupQuantizationGranularity::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(MarkupPerTensorQuantization);
     auto setRestriction = [](const std::shared_ptr<Node>& node, const std::vector<PortQuantizationGranularityRestriction>& restrictedPorts) {
         auto createAttribute = [](Input<Node>& input, const QuantizationGranularityAttribute::Granularity granularity){

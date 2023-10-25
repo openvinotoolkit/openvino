@@ -9,23 +9,24 @@
 #include <set>
 #include <vector>
 
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset4.hpp>
-#include <ngraph/opsets/opset5.hpp>
-#include <ngraph/opsets/opset6.hpp>
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset2.hpp"
+#include "openvino/opsets/opset4.hpp"
+#include "openvino/opsets/opset5.hpp"
+#include "openvino/opsets/opset6.hpp"
 #include "openvino/opsets/opset12.hpp"
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/pattern/op/or.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 #include "itt.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
-ngraph::pass::low_precision::MarkupPrecisions::MarkupPrecisions(
+ov::pass::low_precision::MarkupPrecisions::MarkupPrecisions(
     const std::vector<PrecisionsRestriction>& restrictions,
-    const std::vector<ngraph::element::Type>& defaultPrecisions) : defaultPrecisions(defaultPrecisions) {
+    const std::vector<ov::element::Type>& defaultPrecisions) : defaultPrecisions(defaultPrecisions) {
     for (const auto& restriction : restrictions) {
         const auto it = restrictionsByOperation.find(restriction.operationType.name);
         OPENVINO_SUPPRESS_DEPRECATED_START
@@ -62,7 +63,7 @@ void setRestriction(
             for (const auto& port : item.first) {
                 Input<Node> input = node->input(port);
                 auto& rt = input.get_rt_info();
-                auto precisionsAttribute = ngraph::pass::low_precision::getAttribute<PrecisionsAttribute>(input);
+                auto precisionsAttribute = ov::pass::low_precision::getAttribute<PrecisionsAttribute>(input);
                 if ((!precisionsAttribute.empty()) && (precisionsAttribute.as<PrecisionsAttribute>().value().empty())) {
                     return;
                 }
@@ -73,7 +74,7 @@ void setRestriction(
 }
 } // namespace
 
-bool ngraph::pass::low_precision::MarkupPrecisions::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+bool ov::pass::low_precision::MarkupPrecisions::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(MarkupPrecisions);
     for (const std::shared_ptr<Node>& node : f->get_ordered_ops()) {
         if (node->get_input_size() == 0) {
@@ -84,7 +85,7 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_model(const std::shar
             continue;
         }
 
-        if (const auto multiSubGraph = ov::as_type_ptr<ngraph::op::util::MultiSubGraphOp>(node)) {
+        if (const auto multiSubGraph = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
             for (size_t i = 0; i < multiSubGraph->get_internal_subgraphs_size(); i++)
                 run_on_model(multiSubGraph->get_function(i));
             continue;
@@ -136,7 +137,7 @@ std::string name() {
     return Operation::get_type_info_static().name;
 }
 
-bool ngraph::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const std::shared_ptr<Node>& node) {
+bool ov::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const std::shared_ptr<Node>& node) {
     if (isDisabled(node)) {
         return false;
     }
@@ -152,10 +153,12 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const s
         { name<opset1::ReduceMin>() },
         { name<opset1::Relu>() },
         // TODO: there are conditions
+        { name<opset2::BatchToSpace>() },
         { name<opset1::Pad>() },
         { name<ov::opset12::Pad>() },
         { name<opset1::Reshape>() },
         { name<opset1::Squeeze>() },
+        { name<opset2::SpaceToBatch>() },
         { name<opset1::Split>() },
         { name<opset1::StridedSlice>() },
         { name<opset1::ShuffleChannels>() },
@@ -186,10 +189,11 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const s
     return false;
 }
 
-bool ngraph::pass::low_precision::MarkupPrecisions::isSupported(const std::shared_ptr<Node>& node) {
+bool ov::pass::low_precision::MarkupPrecisions::isSupported(const std::shared_ptr<Node>& node) {
     static std::unordered_set<std::string> supportedOps = {
         { name<opset1::Add>() },
         { name<opset1::AvgPool>() },
+        { name<opset2::BatchToSpace>() },
         { name<opset1::Clamp>() },
         { name<opset1::Concat>() },
         // ?
@@ -204,7 +208,7 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isSupported(const std::share
         { name<opset1::MatMul>() },
         { name<opset1::MaxPool>() },
         { name<opset1::Multiply>() },
-        { name<ngraph::op::MVN>() },
+        { name<ov::op::v0::MVN>() },
         { name<opset6::MVN>() },
         { name<opset1::NormalizeL2>() },
         { name<opset1::Pad>() },
@@ -217,6 +221,7 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isSupported(const std::share
         { name<opset1::Relu>() },
         // TODO: there are conditions
         { name<opset1::Reshape>() },
+        { name<opset2::SpaceToBatch>() },
         { name<opset1::Squeeze>() },
         { name<opset1::ShuffleChannels>() },
         { name<opset1::Split>() },

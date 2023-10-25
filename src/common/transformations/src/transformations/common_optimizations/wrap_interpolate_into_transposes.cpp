@@ -6,18 +6,18 @@
 
 #include <algorithm>
 #include <memory>
-#include <ngraph/rt_info.hpp>
 #include <numeric>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <set>
 #include <tuple>
 #include <utility>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace {
 std::vector<int64_t> reverse_permutation(const std::vector<int64_t>& perm) {

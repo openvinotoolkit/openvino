@@ -19,7 +19,7 @@ class ConvertLRNToLegacyMatcher;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertLRNToLegacyMatcher : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertLRNToLegacyMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertLRNToLegacyMatcher", "0");
     ConvertLRNToLegacyMatcher();

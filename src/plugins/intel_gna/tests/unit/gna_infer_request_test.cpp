@@ -11,10 +11,10 @@
 
 #include "any_copy.hpp"
 #include "common_test_utils/data_utils.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "gna_mock_api.hpp"
 #include "gna_plugin.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace ::testing;
 using namespace InferenceEngine;
@@ -41,7 +41,7 @@ protected:
     std::shared_ptr<ngraph::Function> GetFunction() {
         auto ngPrc = ngraph::element::f32;
         std::vector<size_t> shape = {1, 10};
-        auto params = ngraph::builder::makeParams(ngPrc, {shape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape))};
         auto shape_size = ov::shape_size(shape);
         auto add_const =
             ngraph::builder::makeConstant<float>(ngPrc,

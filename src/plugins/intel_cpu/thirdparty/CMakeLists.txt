@@ -16,6 +16,7 @@ if(ENABLE_LTO)
 endif()
 
 function(ov_add_onednn)
+    set(CMAKE_DISABLE_FIND_PACKAGE_PythonInterp ON)
     set(DNNL_ENABLE_JIT_PROFILING ${BUILD_SHARED_LIBS} CACHE BOOL "" FORCE)
     if(BUILD_SHARED_LIBS AND ENABLE_PROFILING_ITT)
         set(DNNL_ENABLE_ITT_TASKS ON CACHE BOOL "" FORCE)
@@ -36,6 +37,7 @@ function(ov_add_onednn)
     # select needed primitives
     set(DNNL_ENABLE_PRIMITIVE "CONVOLUTION;DECONVOLUTION;CONCAT;LRN;INNER_PRODUCT;MATMUL;POOLING;REDUCTION;REORDER;RNN;SOFTMAX" CACHE STRING "" FORCE)
     set(DNNL_ENABLE_WORKLOAD "INFERENCE" CACHE STRING "" FORCE)
+    set(DNNL_LIBRARY_NAME "openvino_onednn_cpu" CACHE STRING "" FORCE)
 
     # Allow to enable oneDNN verbose with CPU_DEBUG_CAPS and rely on oneDNN default configuration otherwise
     if(ENABLE_CPU_DEBUG_CAPS)
@@ -77,30 +79,30 @@ function(ov_add_onednn)
     endif()
 
     if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-        ie_add_compiler_flags(-Wno-undef)
-        ie_add_compiler_flags(-Wno-missing-declarations)
+        ov_add_compiler_flags(-Wno-undef)
+        ov_add_compiler_flags(-Wno-missing-declarations)
         if(ARM OR AARCH64)
-            ie_add_compiler_flags(-Wno-macro-redefined)
+            ov_add_compiler_flags(-Wno-macro-redefined)
         endif()
         if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)
-            ie_add_compiler_flags(-Wno-array-bounds)
-            ie_add_compiler_flags(-Wno-stringop-overflow)
+            ov_add_compiler_flags(-Wno-array-bounds)
+            ov_add_compiler_flags(-Wno-stringop-overflow)
             if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12)
-                ie_add_compiler_flags(-Wno-restrict)
+                ov_add_compiler_flags(-Wno-restrict)
             endif()
         endif()
     elseif(UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable=10121")
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         # C4849 OpenMP 'reduction' clause ignored in 'simd' directive
-        ie_add_compiler_flags(/wd4849)
+        ov_add_compiler_flags(/wd4849)
         # C4661 no suitable definition provided for explicit template instantiation request
-        ie_add_compiler_flags(/wd4661)
+        ov_add_compiler_flags(/wd4661)
         # C4267, 4244 conversion from 'XXX' to 'YYY', possible loss of data
-        ie_add_compiler_flags(/wd4267)
-        ie_add_compiler_flags(/wd4244)
+        ov_add_compiler_flags(/wd4267)
+        ov_add_compiler_flags(/wd4244)
         # C4334 '<<': result of 32-bit shift implicitly converted to 64 bits
-        ie_add_compiler_flags(/wd4334)
+        ov_add_compiler_flags(/wd4334)
     endif()
 
     if(SUGGEST_OVERRIDE_SUPPORTED)
@@ -116,7 +118,7 @@ function(ov_add_onednn)
     add_subdirectory(onednn EXCLUDE_FROM_ALL)
 
     # install static libraries
-    ov_install_static_lib(dnnl cpu)
+    ov_install_static_lib(dnnl ${OV_CPACK_COMP_CORE})
 
     if(DNNL_USE_ACL AND NOT BUILD_SHARED_LIBS)
         # use ACLConfig.cmake in OpenVINOConfig.cmake in case of static build
@@ -124,16 +126,16 @@ function(ov_add_onednn)
         # but for this we need to install library files
         install(FILES $<TARGET_PROPERTY:arm_compute::arm_compute,IMPORTED_LOCATION>
                 DESTINATION ${OV_CPACK_ARCHIVEDIR}
-                COMPONENT cpu)
+                COMPONENT ${OV_CPACK_COMP_CORE})
         install(FILES "${intel_cpu_thirdparty_SOURCE_DIR}/ACLConfig.cmake"
                 DESTINATION ${OV_CPACK_OPENVINO_CMAKEDIR}
-                COMPONENT core_dev)
+                COMPONENT ${OV_CPACK_COMP_CORE_DEV})
     endif()
 endfunction()
 
 if(ENABLE_MLAS_FOR_CPU)
     add_subdirectory(mlas)
-    ov_install_static_lib(mlas cpu)
+    ov_install_static_lib(mlas ${OV_CPACK_COMP_CORE})
 endif()
 
 ov_add_onednn()

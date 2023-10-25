@@ -5,10 +5,9 @@
 #include "openvino/runtime/core.hpp"
 
 #include "any_copy.hpp"
-#include "cnn_network_ngraph_impl.hpp"
 #include "dev/converter_utils.hpp"
 #include "dev/core_impl.hpp"
-#include "ie_itt.hpp"
+#include "itt.hpp"
 #include "openvino/core/so_extension.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/iremote_context.hpp"
@@ -161,7 +160,7 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
     });
 }
 
-void Core::add_extension(const ie::IExtensionPtr& extension) {
+void Core::add_extension(const InferenceEngine::IExtensionPtr& extension) {
     OV_CORE_CALL_STATEMENT(_impl->AddExtension(extension););
 }
 
@@ -211,7 +210,7 @@ void Core::add_extension(const std::vector<std::shared_ptr<ov::Extension>>& exte
 }
 
 CompiledModel Core::import_model(std::istream& modelStream, const std::string& device_name, const AnyMap& config) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->import_model(modelStream, device_name, config);
         return {exec._ptr, exec._so};
@@ -219,7 +218,7 @@ CompiledModel Core::import_model(std::istream& modelStream, const std::string& d
 }
 
 CompiledModel Core::import_model(std::istream& modelStream, const RemoteContext& context, const AnyMap& config) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
 
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->import_model(modelStream, ov::SoPtr<ov::IRemoteContext>{context._impl, context._so}, config);

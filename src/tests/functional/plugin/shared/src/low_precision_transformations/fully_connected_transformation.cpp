@@ -15,9 +15,9 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "lpt_ngraph_functions/mat_mul_function.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_lpt_models/mat_mul.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -25,7 +25,7 @@ std::string FullyConnectedTransformation::getTestCaseName(const testing::TestPar
     ngraph::element::Type precision;
     MatMulShapes shapes;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(precision, shapes, targetDevice, params) = obj.param;
 
     std::ostringstream result;
@@ -41,7 +41,7 @@ std::string FullyConnectedTransformation::getTestCaseName(const testing::TestPar
 void FullyConnectedTransformation::SetUp() {
     ngraph::element::Type precision;
     MatMulShapes shapes;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(precision, shapes, targetDevice, params) = this->GetParam();
 
     function = ngraph::builder::subgraph::MatMulFunction::getOriginal(

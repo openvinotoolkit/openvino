@@ -14,8 +14,8 @@
 #include <condition_variable>
 #include "openvino/core/shape.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "transformations/utils/utils.hpp"
 #include <string>
 #include <ie_core.hpp>
@@ -24,7 +24,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
 #include "behavior/ov_infer_request/infer_request_dynamic.hpp"
 #include "base/ov_behavior_test_utils.hpp"
@@ -76,6 +76,14 @@ bool OVInferRequestDynamicTests::checkOutput(const ov::runtime::Tensor& in, cons
         tensor.data<float>()[i] = in.data<float>()[i];
     }
     req.infer();
+    const auto reqShape = req.get_output_tensor(0).get_shape();
+    const auto actualShape = actual.get_shape();
+    if (reqShape.size() != actualShape.size()) {
+        return false;
+    }
+    if (!std::equal(reqShape.cbegin(), reqShape.cend(), actualShape.cbegin())) {
+        return false;
+    }
     for (int i = 0; i < actual.get_size(); i++) {
         if (fabs(req.get_output_tensor(0).data<float>()[i] - actual.data<float>()[i]) > std::numeric_limits<float>::epsilon())
             return false;

@@ -6,10 +6,10 @@
 #include <sstream>
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_control.hpp"
 #include "default_opset.hpp"
 #include "editor.hpp"
-#include "engines_util/test_case.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "ngraph/op/util/op_types.hpp"
@@ -23,7 +23,7 @@ using namespace ov;
 using namespace ov::onnx_editor;
 using namespace ngraph::test;
 
-static std::string s_manifest = "${MANIFEST}";
+static std::string s_manifest = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(), "${MANIFEST}");
 
 namespace {
 using InputTypePred = std::function<bool(const std::shared_ptr<ngraph::Node>)>;
@@ -1356,7 +1356,7 @@ OPENVINO_TEST(onnx_editor, values__append_one_initializer) {
     editor.set_input_values(in_vals);
 
     const auto function = editor.get_function();
-    auto test_case = ngraph::test::TestCase(function);
+    auto test_case = ov::test::TestCase(function);
     test_case.add_input<int64_t>(Shape{2}, {5, 6});
     test_case.add_expected_output<int64_t>(Shape{2}, {6, 8});
     test_case.run();
@@ -1373,7 +1373,7 @@ OPENVINO_TEST(onnx_editor, values__append_two_initializers_to_invalid) {
     editor.set_input_values(in_vals);
 
     const auto function = editor.get_function();
-    auto test_case = ngraph::test::TestCase(function);
+    auto test_case = ov::test::TestCase(function);
     test_case.add_expected_output<int64_t>(Shape{2}, {5, 5});
     test_case.run();
 }
@@ -1389,7 +1389,7 @@ OPENVINO_TEST(onnx_editor, values__modify_one_initializer) {
     editor.set_input_values(in_vals);
 
     const auto function = editor.get_function();
-    auto test_case = ngraph::test::TestCase(function);
+    auto test_case = ov::test::TestCase(function);
     test_case.add_expected_output<int64_t>(Shape{2}, {4, 6});
     test_case.run();
 }
@@ -1406,7 +1406,7 @@ OPENVINO_TEST(onnx_editor, values__modify_two_initializers) {
     editor.set_input_values(in_vals);
 
     const auto function = editor.get_function();
-    auto test_case = ngraph::test::TestCase(function);
+    auto test_case = ov::test::TestCase(function);
     test_case.add_expected_output<int64_t>(Shape{2}, {5, 7});
     test_case.run();
 }
@@ -1423,7 +1423,7 @@ OPENVINO_TEST(onnx_editor, values__no_inputs_modify_two_initializers) {
     editor.set_input_values(in_vals);
 
     const auto function = editor.get_function();
-    auto test_case = ngraph::test::TestCase(function);
+    auto test_case = ov::test::TestCase(function);
     test_case.add_expected_output<int64_t>(Shape{2}, {12, 24});
     test_case.run();
 }
@@ -1439,7 +1439,7 @@ OPENVINO_TEST(onnx_editor, values__append_two_initializers_change_shape_type) {
     editor.set_input_values(in_vals);
 
     const auto function = editor.get_function();
-    auto test_case = ngraph::test::TestCase(function);
+    auto test_case = ov::test::TestCase(function);
     test_case.add_expected_output<int8_t>(Shape{2, 1}, {-3, 3});
     test_case.run();
 }
@@ -1455,7 +1455,7 @@ OPENVINO_TEST(onnx_editor, values__append_two_initializers_mixed_types) {
     editor.set_input_values(in_vals);
 
     const auto function = editor.get_function();
-    auto test_case = ngraph::test::TestCase(function);
+    auto test_case = ov::test::TestCase(function);
     test_case.add_expected_output<int16_t>(Shape{2, 2, 1}, {1, 4, 5, 8});
     test_case.run();
 }
@@ -1468,7 +1468,7 @@ OPENVINO_TEST(onnx_editor, read_model_from_stream) {
     ASSERT_TRUE(stream.is_open());
     ONNXModelEditor editor{stream, path};
 
-    auto test_case = ngraph::test::TestCase(editor.get_function());
+    auto test_case = ov::test::TestCase(editor.get_function());
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
     test_case.add_expected_output<float>(Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
 

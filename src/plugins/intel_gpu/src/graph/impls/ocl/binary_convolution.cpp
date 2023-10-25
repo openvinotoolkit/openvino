@@ -17,7 +17,7 @@ struct binary_convolution_impl : typed_primitive_impl_ocl<binary_convolution> {
     using kernel_selector_t = kernel_selector::binary_convolution_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::binary_convolution_params, kernel_selector::binary_convolution_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::binary_convolution_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<binary_convolution_impl>(*this);
@@ -77,7 +77,7 @@ namespace detail {
 
 attach_binary_convolution_impl::attach_binary_convolution_impl() {
     implementation_map<binary_convolution>::add(impl_types::ocl, typed_primitive_impl_ocl<binary_convolution>::create<binary_convolution_impl>, {
-        std::make_tuple(data_types::bin, format::b_fs_yx_32fp),
+        std::make_tuple(data_types::u1, format::b_fs_yx_32fp),
     });
 }
 

@@ -43,7 +43,7 @@ public:
     enum NMSType {CAFFE, MXNET};
     NMSType nms_type = NMSType::CAFFE;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::detection_output_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<detection_output_impl>(*this);
@@ -499,7 +499,7 @@ public:
                                            std::vector<std::array<float, PRIOR_BOX_SIZE>>& prior_variances) {
         auto input_prior_box = instance.prior_box_memory();
         const int num_of_priors = static_cast<int>(prior_bboxes.size()) / images_count;
-        mem_lock<dtype, mem_lock_type::read> lock{input_prior_box, stream};
+        mem_lock<dtype, mem_lock_type::read> lock{std::move(input_prior_box), stream};
         for (int i = 0; i < images_count; i++) {
             auto prior_box_data =
                 lock.begin() + i * num_of_priors * prior_info_size * (variance_encoded_in_target ? 1 : 2);
@@ -839,11 +839,11 @@ public:
 
         std::vector<std::vector<std::pair<float, std::pair<int, int>>>> scoreIndexPairs;
         if (instance.location_memory()->get_layout().data_type == data_types::f32) {
-            prepare_data<data_type_to_type<data_types::f32>::type>(stream, instance, bboxes, confidences, scoreIndexPairs);
-            generate_detections<data_type_to_type<data_types::f32>::type>(stream, instance, num_of_images, bboxes, confidences, scoreIndexPairs);
+            prepare_data<ov::element_type_traits<data_types::f32>::value_type>(stream, instance, bboxes, confidences, scoreIndexPairs);
+            generate_detections<ov::element_type_traits<data_types::f32>::value_type>(stream, instance, num_of_images, bboxes, confidences, scoreIndexPairs);
         } else {
-            prepare_data<data_type_to_type<data_types::f16>::type>(stream, instance, bboxes, confidences, scoreIndexPairs);
-            generate_detections<data_type_to_type<data_types::f16>::type>(stream, instance, num_of_images, bboxes, confidences, scoreIndexPairs);
+            prepare_data<ov::element_type_traits<data_types::f16>::value_type>(stream, instance, bboxes, confidences, scoreIndexPairs);
+            generate_detections<ov::element_type_traits<data_types::f16>::value_type>(stream, instance, num_of_images, bboxes, confidences, scoreIndexPairs);
         }
 
         ev->set();

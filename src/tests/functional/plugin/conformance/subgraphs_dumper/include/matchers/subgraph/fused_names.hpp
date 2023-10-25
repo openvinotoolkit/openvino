@@ -12,13 +12,17 @@ namespace ov {
 namespace tools {
 namespace subgraph_dumper {
 
-class FusedNamesExtractor : public SubgraphExtractor {
+class FusedNamesExtractor final : public SubgraphExtractor {
 public:
-    std::list<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &model,
-                                        bool is_extract_body = true) override;
+    FusedNamesExtractor(const std::string& device = "");
+
+    std::vector<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &modele) override;
 
 protected:
     std::unordered_set<std::string> extract_compiled_model_names(const std::shared_ptr<ov::Model>& model);
+    void set_target_device(const std::string& _device);
+
+    std::string device;
 };
 
 }  // namespace subgraph_dumper

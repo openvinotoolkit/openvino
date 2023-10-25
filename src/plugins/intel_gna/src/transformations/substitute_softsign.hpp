@@ -38,7 +38,7 @@ namespace pass {
  * SubstituteSoftsign transformation does backward substitution to SoftSign.
  * TODO: remove that pass as soon as ModelOptimizer will not substitute SoftSign activation
  */
-class SubstituteSoftsign : public ngraph::pass::MatcherPass {
+class SubstituteSoftsign : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("SubstituteSoftsign", "0");
     SubstituteSoftsign();

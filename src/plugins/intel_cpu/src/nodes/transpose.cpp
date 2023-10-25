@@ -76,7 +76,7 @@ void Transpose::initSupportedPrimitiveDescriptors() {
     config.inConfs[INPUT_ORDER_IDX].constant(isInputOrderConst);
     config.inConfs[INPUT_ORDER_IDX].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
             Precision::I32, getInputShapeAtPort(INPUT_ORDER_IDX)));
-    config.outConfs[0].inPlace(-1);
+    config.outConfs[0].inPlace(isOptimized ? 0 : -1);
     config.outConfs[0].constant(false);
     transpose_context = std::make_shared<ExecutorContext>(context, getImplPriority());
 
@@ -125,7 +125,7 @@ void Transpose::initSupportedPrimitiveDescriptors() {
 }
 
 bool Transpose::isExecutable() const {
-    return !isInputTensorAtPortEmpty(0);
+    return !isInputTensorAtPortEmpty(0) && !isOptimized;
 }
 
 bool Transpose::needPrepareParams() const {
@@ -133,6 +133,9 @@ bool Transpose::needPrepareParams() const {
 }
 
 void Transpose::prepareParams() {
+    if (isOptimized)
+        return;
+
     if (performAsReorder) {
         //  Transpose(order={0,3,1,2}) can be performed as Reorder(acdb=>abcd)
         auto srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
@@ -173,11 +176,11 @@ void Transpose::prepareParams() {
     auto builder = [&srcDesc, &dstDesc, this](const PermuteParams& key) -> std::shared_ptr<TransposeExecutor> {
         dnnl::primitive_attr attr;
         auto selectedPD = getSelectedPrimitiveDescriptor();
-        auto jitExec = selectedPD->getExecutorFactoryAs<TransposeExecutorFactory>()->makeExecutor(transposeParams,
-                                                                                                  {srcDesc},
-                                                                                                  {dstDesc},
-                                                                                                  attr);
-        return jitExec;
+        auto executor = selectedPD->getExecutorFactoryAs<TransposeExecutorFactory>()->makeExecutor(transposeParams,
+                                                                                                   {srcDesc},
+                                                                                                   {dstDesc},
+                                                                                                   attr);
+        return executor;
     };
 
     auto cache = context->getParamsCache();
@@ -191,6 +194,9 @@ void Transpose::prepareParams() {
 }
 
 void Transpose::createPrimitive() {
+    if (isOptimized)
+        return;
+
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
@@ -223,6 +229,9 @@ void Transpose::createPrimitive() {
 }
 
 void Transpose::execute(dnnl::stream strm) {
+    if (isOptimized)
+        return;
+
     if (prim) {
         prim.execute(strm, primArgs);
     } else if (execPtr) {

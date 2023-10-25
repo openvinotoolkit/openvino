@@ -134,7 +134,7 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
     using kernel_selector_t = kernel_selector::resample_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::resample_params, kernel_selector::resample_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::resample_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<resample_impl>(*this);
@@ -160,7 +160,7 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
         bool scales_calc_mod = primitive->shape_calc_mode == resample::InterpolateOp::ShapeCalcMode::SCALES;
         if (scales_calc_mod && impl_param.input_layouts.size() > 1 && scales.empty()) {
             auto mem = impl_param.memory_deps.at(2);
-            scales = read_vector<float>(mem, impl_param.get_stream());
+            scales = read_vector<float>(std::move(mem), impl_param.get_stream());
         }
 
         params.scales = scales;

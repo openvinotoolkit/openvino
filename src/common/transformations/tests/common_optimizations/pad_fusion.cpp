@@ -2,22 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/pad_fusion.hpp"
+
 #include <gtest/gtest.h>
 
-#include <common_test_utils/ngraph_test_utils.hpp>
 #include <memory>
-#include <openvino/op/pad.hpp>
 #include <queue>
 #include <string>
-#include <transformations/common_optimizations/nop_elimination.hpp>
-#include <transformations/common_optimizations/pad_fusion.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/pad.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -77,8 +77,8 @@ struct ITestModelFactory {
     virtual ~ITestModelFactory() = default;
     virtual void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) = 0;
     std::string test_name;
-    std::shared_ptr<ov::Model> function;
-    std::shared_ptr<ov::Model> function_ref;
+    std::shared_ptr<ov::Model> model;
+    std::shared_ptr<ov::Model> model_ref;
 };
 using TestModelFactoryPtr = std::shared_ptr<ITestModelFactory>;
 
@@ -105,8 +105,8 @@ TEST_P(PadFusionTestFixture, CompareFunctions) {
     std::tie(pad_factory, model_factory) = this->GetParam();
 
     model_factory->setup(pad_factory, manager);
-    model = model_factory->function;
-    model_ref = model_factory->function_ref;
+    model = model_factory->model;
+    model_ref = model_factory->model_ref;
     if (!model_ref)
         model_ref = model->clone();
 }
@@ -132,7 +132,7 @@ TEST_BODY(PadElimination) {
                                                   CoordinateDiff{0, 0},
                                                   CoordinateDiff{1, 1},
                                                   Shape{1, 1});
-        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
         manager.register_pass<ov::pass::EliminatePad>();
     }
     {
@@ -145,7 +145,7 @@ TEST_BODY(PadElimination) {
                                                   CoordinateDiff{1, 1},
                                                   Shape{1, 1},
                                                   op::PadType::EXPLICIT);
-        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
     }
 }
 
@@ -163,7 +163,7 @@ TEST_BODY(NegativePadElimination) {
                                                   CoordinateDiff{0, 0},
                                                   CoordinateDiff{1, 1},
                                                   Shape{1, 1});
-        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
         manager.register_pass<ov::pass::EliminatePad>();
     }
     // Reference function is equal to function
@@ -183,7 +183,7 @@ TEST_BODY(PadFusionAvgPoolExcludePad) {
                                                   Shape{4, 4},
                                                   true,
                                                   op::RoundingType::FLOOR);
-        function = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
+        model = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
         manager.register_pass<ov::pass::PadFusion>();
     }
     {
@@ -196,7 +196,7 @@ TEST_BODY(PadFusionAvgPoolExcludePad) {
                                                   false,
                                                   op::RoundingType::FLOOR,
                                                   op::PadType::EXPLICIT);
-        function_ref = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
     }
 }
 
@@ -214,7 +214,7 @@ TEST_BODY(NegativePadFusionAvgPoolExcludePad) {
                                                   Shape{4, 4},
                                                   true,
                                                   op::RoundingType::FLOOR);
-        function = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
+        model = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
         manager.register_pass<ov::pass::PadFusion>();
     }
     // Reference function is equal to function
@@ -234,7 +234,7 @@ TEST_BODY(PadFusionAvgPoolDontExcludePad) {
                                                   Shape{4, 4},
                                                   false,
                                                   op::RoundingType::FLOOR);
-        function = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
+        model = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
         manager.register_pass<ov::pass::PadFusion>();
     }
     {
@@ -247,7 +247,7 @@ TEST_BODY(PadFusionAvgPoolDontExcludePad) {
                                                   false,
                                                   op::RoundingType::FLOOR,
                                                   op::PadType::EXPLICIT);
-        function_ref = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
     }
 }
 
@@ -265,7 +265,7 @@ TEST_BODY(NegativePadFusionAvgPoolDontExcludePad) {
                                                   Shape{4, 4},
                                                   false,
                                                   op::RoundingType::FLOOR);
-        function = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
+        model = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
         manager.register_pass<ov::pass::PadFusion>();
     }
     // Reference function is equal to function
@@ -285,7 +285,7 @@ TEST_BODY(PadFusionConvolution) {
                                                   CoordinateDiff{0, 0},
                                                   CoordinateDiff{1, 1},
                                                   Shape{1, 1});
-        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
         manager.register_pass<ov::pass::PadFusion>();
     }
     {
@@ -298,7 +298,7 @@ TEST_BODY(PadFusionConvolution) {
                                                   CoordinateDiff{3, 3},
                                                   Shape{1, 1},
                                                   op::PadType::EXPLICIT);
-        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
     }
 }
 
@@ -316,7 +316,7 @@ TEST_BODY(NegativePadFusionConvolution) {
                                                   CoordinateDiff{0, 0},
                                                   CoordinateDiff{1, 1},
                                                   Shape{1, 1});
-        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
         manager.register_pass<ov::pass::PadFusion>();
     }
     // Reference function is equal to function
@@ -338,7 +338,7 @@ TEST_BODY(PadFusionConvolutionBackpropData) {
                                                               CoordinateDiff{3, 3},
                                                               Shape{1, 1});
 
-        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
         manager.register_pass<ov::pass::PadFusion>();
     }
     {
@@ -351,7 +351,7 @@ TEST_BODY(PadFusionConvolutionBackpropData) {
                                                               CoordinateDiff{1, 1},
                                                               Shape{1, 1});
 
-        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
     }
 }
 
@@ -370,7 +370,7 @@ TEST_BODY(PadFusionGroupConvolution) {
                                                        CoordinateDiff{1, 1},
                                                        Shape{1, 1});
 
-        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
         manager.register_pass<ov::pass::PadFusion>();
     }
     {
@@ -383,7 +383,7 @@ TEST_BODY(PadFusionGroupConvolution) {
                                                        CoordinateDiff{3, 3},
                                                        Shape{1, 1},
                                                        op::PadType::EXPLICIT);
-        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
     }
 }
 
@@ -402,7 +402,7 @@ TEST_BODY(NegativePadFusionGroupConvolution) {
                                                        CoordinateDiff{1, 1},
                                                        Shape{1, 1});
 
-        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
         manager.register_pass<ov::pass::PadFusion>();
     }
     // Reference function is equal to function
@@ -422,7 +422,7 @@ TEST_BODY(PadFusionGroupConvolutionBackpropData) {
                                                                    CoordinateDiff{3, 2},
                                                                    CoordinateDiff{4, 3},
                                                                    Shape{1, 1});
-        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
         manager.register_pass<ov::pass::PadFusion>();
     }
     {
@@ -434,7 +434,7 @@ TEST_BODY(PadFusionGroupConvolutionBackpropData) {
                                                                    CoordinateDiff{2, 1},
                                                                    CoordinateDiff{1, 2},
                                                                    Shape{1, 1});
-        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
     }
 }
 
@@ -454,7 +454,7 @@ TEST_BODY(PadFusionAvgPoolNonConstPadValue) {
                                                   Shape{4, 4},
                                                   true,
                                                   op::RoundingType::FLOOR);
-        function = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
+        model = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
         manager.register_pass<ov::pass::PadFusion>();
     }
     {
@@ -467,7 +467,7 @@ TEST_BODY(PadFusionAvgPoolNonConstPadValue) {
                                                   false,
                                                   op::RoundingType::FLOOR,
                                                   op::PadType::EXPLICIT);
-        function_ref = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
     }
 }
 
@@ -487,7 +487,7 @@ TEST_BODY(PadFusionConvolutionNonConstPadValue) {
                                                   CoordinateDiff{0, 0},
                                                   CoordinateDiff{1, 1},
                                                   Shape{1, 1});
-        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
         manager.register_pass<ov::pass::PadFusion>();
     }
     {
@@ -500,7 +500,7 @@ TEST_BODY(PadFusionConvolutionNonConstPadValue) {
                                                   CoordinateDiff{3, 3},
                                                   Shape{1, 1},
                                                   op::PadType::EXPLICIT);
-        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
     }
 }
 
@@ -522,7 +522,7 @@ TEST_BODY(PadFusionConvolutionBackpropDataNonConstPadValue) {
                                                               CoordinateDiff{3, 3},
                                                               Shape{1, 1});
 
-        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
         manager.register_pass<ov::pass::PadFusion>();
     }
     {
@@ -535,7 +535,7 @@ TEST_BODY(PadFusionConvolutionBackpropDataNonConstPadValue) {
                                                               CoordinateDiff{1, 1},
                                                               Shape{1, 1});
 
-        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
     }
 }
 
@@ -556,7 +556,7 @@ TEST_BODY(PadFusionGroupConvolutionNonConstPadValue) {
                                                        CoordinateDiff{1, 1},
                                                        Shape{1, 1});
 
-        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
         manager.register_pass<ov::pass::PadFusion>();
     }
     {
@@ -569,7 +569,7 @@ TEST_BODY(PadFusionGroupConvolutionNonConstPadValue) {
                                                        CoordinateDiff{3, 3},
                                                        Shape{1, 1},
                                                        op::PadType::EXPLICIT);
-        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
     }
 }
 
@@ -589,7 +589,7 @@ TEST_BODY(PadFusionGroupConvolutionBackpropDataNonConstPadValue) {
                                                                    CoordinateDiff{3, 2},
                                                                    CoordinateDiff{4, 3},
                                                                    Shape{1, 1});
-        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
         manager.register_pass<ov::pass::PadFusion>();
     }
     {
@@ -601,7 +601,7 @@ TEST_BODY(PadFusionGroupConvolutionBackpropDataNonConstPadValue) {
                                                                    CoordinateDiff{2, 1},
                                                                    CoordinateDiff{1, 2},
                                                                    Shape{1, 1});
-        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
     }
 }
 
@@ -619,7 +619,7 @@ TEST_BODY(NegativePadFusionNonConstantPadMode) {
                                                   CoordinateDiff{0, 0},
                                                   CoordinateDiff{1, 1},
                                                   Shape{1, 1});
-        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
         manager.register_pass<ov::pass::PadFusion>();
     }
     {
@@ -634,7 +634,7 @@ TEST_BODY(NegativePadFusionNonConstantPadMode) {
                                                   CoordinateDiff{0, 0},
                                                   CoordinateDiff{1, 1},
                                                   Shape{1, 1});
-        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
     }
 }
 
@@ -653,7 +653,7 @@ TEST_BODY(NegativePadFusionNonZeroPadValue) {
                                                   CoordinateDiff{0, 0},
                                                   CoordinateDiff{1, 1},
                                                   Shape{1, 1});
-        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
         manager.register_pass<ov::pass::PadFusion>();
     }
     {
@@ -669,7 +669,7 @@ TEST_BODY(NegativePadFusionNonZeroPadValue) {
                                                   CoordinateDiff{0, 0},
                                                   CoordinateDiff{1, 1},
                                                   Shape{1, 1});
-        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
     }
 }
 
@@ -688,7 +688,7 @@ TEST_BODY(NegativePadFusionPadForBatchSize) {
                                                   CoordinateDiff{0, 0},
                                                   CoordinateDiff{1, 1},
                                                   Shape{1, 1});
-        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
         manager.register_pass<ov::pass::PadFusion>();
     }
     {
@@ -704,7 +704,7 @@ TEST_BODY(NegativePadFusionPadForBatchSize) {
                                                   CoordinateDiff{0, 0},
                                                   CoordinateDiff{1, 1},
                                                   Shape{1, 1});
-        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
     }
 }
 
@@ -722,7 +722,7 @@ TEST_BODY(NegativePadFusionAvgPoolExcludePadNonZeroPads) {
                                                   Shape{4, 4},
                                                   true,
                                                   op::RoundingType::FLOOR);
-        function = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
+        model = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
         manager.register_pass<ov::pass::PadFusion>();
     }
     {
@@ -737,7 +737,7 @@ TEST_BODY(NegativePadFusionAvgPoolExcludePadNonZeroPads) {
                                                   Shape{4, 4},
                                                   true,
                                                   op::RoundingType::FLOOR);
-        function_ref = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
     }
 }
 
@@ -758,7 +758,7 @@ TEST_BODY(NegativePadFusionConvolutionBackpropDataTooSmallPad) {
                                                               CoordinateDiff{1, 1},
                                                               Shape{1, 1});
 
-        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
         manager.register_pass<ov::pass::PadFusion>();
     }
     {
@@ -776,7 +776,7 @@ TEST_BODY(NegativePadFusionConvolutionBackpropDataTooSmallPad) {
                                                               CoordinateDiff{1, 1},
                                                               Shape{1, 1});
 
-        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
     }
 }
 
@@ -794,7 +794,7 @@ TEST_BODY(NegativePadPreservation) {
                                                   CoordinateDiff{0, 0},
                                                   CoordinateDiff{1, 1},
                                                   Shape{1, 1});
-        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
         manager.register_pass<ov::pass::PadFusion>();
     }
     // Reference function is equal to function

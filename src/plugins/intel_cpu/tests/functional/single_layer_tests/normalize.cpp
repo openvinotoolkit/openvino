@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/single_layer/normalize_l2.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
@@ -74,9 +74,16 @@ protected:
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 
-        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
+        }
         auto normalize = builder::makeNormalizeL2(params[0], axes, eps, epsMode);
         function = makeNgraphFunction(inType, params, normalize, "Normalize");
+
+        if (inType == ov::element::bf16) {
+            abs_threshold = 1e-1f;
+        }
     }
 
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {

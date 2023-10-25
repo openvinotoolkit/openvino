@@ -6,8 +6,8 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/transpose.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/transpose.hpp"
 #include "transpose_shape_inference.hpp"
 
 using namespace std;
@@ -70,12 +70,12 @@ bool op::v1::Transpose::evaluate(const HostTensorVector& output_values, const Ho
     auto& out = output_values[ARG_T];
     out->set_shape(out_shape);
     out->set_element_type(arg->get_element_type());
-    ngraph::runtime::reference::transpose(arg->get_data_ptr<char>(),
-                                          out->get_data_ptr<char>(),
-                                          arg->get_shape(),
-                                          arg->get_element_type().size(),
-                                          axes_order.data(),
-                                          out_shape);
+    ov::reference::transpose(arg->get_data_ptr<char>(),
+                             out->get_data_ptr<char>(),
+                             arg->get_shape(),
+                             arg->get_element_type().size(),
+                             axes_order.data(),
+                             out_shape);
     return true;
 }
 OPENVINO_SUPPRESS_DEPRECATED_END

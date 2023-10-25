@@ -21,7 +21,7 @@ dynamic_dimension = np.ma.masked
 def refer_to_faq_msg(question_num: int):
     try:
         t = tm.Telemetry()
-        t.send_event('mo', 'error_info', "faq:" + str(question_num))
+        t.send_event('ovc', 'error_info', "faq:" + str(question_num))
     except Exception:
         # Telemetry can be not initialized if it is used in MO IR Reader
         pass

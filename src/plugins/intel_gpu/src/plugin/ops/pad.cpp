@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
-#include "ngraph/op/pad.hpp"
+#include "openvino/op/pad.hpp"
 
 #include "intel_gpu/primitives/border.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
-static void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& op) {
+static void CreatePadOpInternal(ProgramBuilder& p, const std::shared_ptr<op::util::PadBase>& op, bool allow_negative_pad) {
     validate_inputs_count(op, {3, 4});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
@@ -21,7 +21,7 @@ static void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& 
     std::vector<cldnn::input_info> non_constant_inputs = {inputs[0]};
     int32_t non_constant_input_mask = 0;
 
-    auto pads_begin_constant = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
+    auto pads_begin_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
     std::vector<int64_t> pads_begin = std::vector<int64_t>{};
     if (pads_begin_constant) {
         pads_begin = pads_begin_constant->cast_vector<int64_t>();
@@ -30,7 +30,7 @@ static void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& 
         non_constant_input_mask |= cldnn::border::PAD_NON_CONST_INPUT::BEGIN;
     }
 
-    auto pads_end_constant = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->input_value(2).get_node_shared_ptr());
+    auto pads_end_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->input_value(2).get_node_shared_ptr());
     std::vector<int64_t> pads_end = std::vector<int64_t>{};
     if (pads_end_constant) {
         pads_end = pads_end_constant->cast_vector<int64_t>();
@@ -42,9 +42,10 @@ static void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& 
     float pad_value = 0.f;
     bool is_value_const = false;
     if (op->get_pad_mode() == ov::op::PadMode::CONSTANT && op->get_input_size() == 4) {
-        auto const_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(3));
+        auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(3));
         if (const_node) {
-            OPENVINO_ASSERT(ov::op::util::get_single_value(const_node, pad_value),
+            const bool check_value_range = false;  // Allows the usage of infinity value as pad_value
+            OPENVINO_ASSERT(ov::op::util::get_single_value(const_node, pad_value, check_value_range),
                             "Invalid parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
             is_value_const = true;
         }
@@ -55,18 +56,27 @@ static void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& 
         non_constant_input_mask |= cldnn::border::PAD_NON_CONST_INPUT::VALUE;
     }
 
-    auto tilePrim = cldnn::border(layerName,
+    const auto borderPrim = cldnn::border(layerName,
                                   non_constant_inputs,
                                   non_constant_input_mask,
                                   pads_begin,
                                   pads_end,
                                   op->get_pad_mode(),
-                                  pad_value);
+                                  pad_value,
+                                  allow_negative_pad);
+    p.add_primitive(*op, borderPrim);
+}
 
-    p.add_primitive(*op, tilePrim);
+static void CreatePadOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::Pad>& op) {
+    CreatePadOpInternal(p, op, false);
+}
+
+static void CreatePadOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v12::Pad>& op) {
+    CreatePadOpInternal(p, op, true);
 }
 
 REGISTER_FACTORY_IMPL(v1, Pad);
+REGISTER_FACTORY_IMPL(v12, Pad);
 
 }  // namespace intel_gpu
 }  // namespace ov

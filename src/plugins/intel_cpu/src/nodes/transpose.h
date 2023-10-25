@@ -38,6 +38,10 @@ public:
     bool needPrepareParams() const override;
     void prepareParams() override;
 
+    void setOptimized(bool isOptimized) {
+        this->isOptimized = isOptimized;
+    }
+
 protected:
     void executeDynamicImpl(dnnl::stream strm) override;
     std::shared_ptr<ExecutorContext> transpose_context;
@@ -56,6 +60,7 @@ private:
     static constexpr size_t INPUT_ORDER_IDX = 1lu;
 
     bool performAsReorder = false;
+    bool isOptimized = false;
 };
 
 }   // namespace node

@@ -2,13 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/gru_sequence.hpp"
+
+#include <gtest/gtest.h>
+
 #include "common_test_utils/type_prop.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset5.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
+
+namespace {
 
 struct gru_sequence_parameters {
     Dimension batch_size = 8;
@@ -16,10 +21,10 @@ struct gru_sequence_parameters {
     Dimension seq_length = 6;
     Dimension input_size = 4;
     Dimension hidden_size = 128;
-    ngraph::element::Type et = element::f32;
+    ov::element::Type et = element::f32;
 };
 
-shared_ptr<opset5::GRUSequence> gru_seq_tensor_initialization(const gru_sequence_parameters& param) {
+shared_ptr<ov::op::v5::GRUSequence> gru_seq_tensor_initialization(const gru_sequence_parameters& param) {
     auto batch_size = param.batch_size;
     auto seq_length = param.seq_length;
     auto input_size = param.input_size;
@@ -27,15 +32,15 @@ shared_ptr<opset5::GRUSequence> gru_seq_tensor_initialization(const gru_sequence
     auto hidden_size = param.hidden_size;
     auto et = param.et;
 
-    const auto X = make_shared<opset5::Parameter>(et, PartialShape{batch_size, seq_length, input_size});
+    const auto X = make_shared<ov::op::v0::Parameter>(et, PartialShape{batch_size, seq_length, input_size});
     const auto initial_hidden_state =
-        make_shared<opset5::Parameter>(et, PartialShape{batch_size, num_directions, hidden_size});
-    const auto sequence_lengths = make_shared<opset5::Parameter>(et, PartialShape{batch_size});
-    const auto W = make_shared<opset5::Parameter>(et, PartialShape{num_directions, hidden_size * 3, input_size});
-    const auto R = make_shared<opset5::Parameter>(et, PartialShape{num_directions, hidden_size * 3, hidden_size});
-    const auto B = make_shared<opset5::Parameter>(et, PartialShape{num_directions, hidden_size * 3});
+        make_shared<ov::op::v0::Parameter>(et, PartialShape{batch_size, num_directions, hidden_size});
+    const auto sequence_lengths = make_shared<ov::op::v0::Parameter>(et, PartialShape{batch_size});
+    const auto W = make_shared<ov::op::v0::Parameter>(et, PartialShape{num_directions, hidden_size * 3, input_size});
+    const auto R = make_shared<ov::op::v0::Parameter>(et, PartialShape{num_directions, hidden_size * 3, hidden_size});
+    const auto B = make_shared<ov::op::v0::Parameter>(et, PartialShape{num_directions, hidden_size * 3});
 
-    const auto gru_sequence = make_shared<opset5::GRUSequence>();
+    const auto gru_sequence = make_shared<ov::op::v5::GRUSequence>();
 
     gru_sequence->set_argument(0, X);
     gru_sequence->set_argument(1, initial_hidden_state);
@@ -47,8 +52,8 @@ shared_ptr<opset5::GRUSequence> gru_seq_tensor_initialization(const gru_sequence
     return gru_sequence;
 }
 
-shared_ptr<opset5::GRUSequence> gru_seq_direction_initialization(const gru_sequence_parameters& param,
-                                                                 op::RecurrentSequenceDirection direction) {
+shared_ptr<ov::op::v5::GRUSequence> gru_seq_direction_initialization(const gru_sequence_parameters& param,
+                                                                     op::RecurrentSequenceDirection direction) {
     auto batch_size = param.batch_size;
     auto seq_length = param.seq_length;
     auto input_size = param.input_size;
@@ -57,25 +62,27 @@ shared_ptr<opset5::GRUSequence> gru_seq_direction_initialization(const gru_seque
     auto hidden_size_value = hidden_size.is_dynamic() ? 0 : hidden_size.get_length();
     auto et = param.et;
 
-    const auto X = make_shared<opset5::Parameter>(et, PartialShape{batch_size, seq_length, input_size});
+    const auto X = make_shared<ov::op::v0::Parameter>(et, PartialShape{batch_size, seq_length, input_size});
     const auto initial_hidden_state =
-        make_shared<opset5::Parameter>(et, PartialShape{batch_size, num_directions, hidden_size});
-    const auto sequence_lengths = make_shared<opset5::Parameter>(et, PartialShape{batch_size});
-    const auto W = make_shared<opset5::Parameter>(et, PartialShape{num_directions, hidden_size * 3, input_size});
-    const auto R = make_shared<opset5::Parameter>(et, PartialShape{num_directions, hidden_size * 3, hidden_size});
-    const auto B = make_shared<opset5::Parameter>(et, PartialShape{num_directions, hidden_size * 3});
+        make_shared<ov::op::v0::Parameter>(et, PartialShape{batch_size, num_directions, hidden_size});
+    const auto sequence_lengths = make_shared<ov::op::v0::Parameter>(et, PartialShape{batch_size});
+    const auto W = make_shared<ov::op::v0::Parameter>(et, PartialShape{num_directions, hidden_size * 3, input_size});
+    const auto R = make_shared<ov::op::v0::Parameter>(et, PartialShape{num_directions, hidden_size * 3, hidden_size});
+    const auto B = make_shared<ov::op::v0::Parameter>(et, PartialShape{num_directions, hidden_size * 3});
 
-    auto gru_sequence = make_shared<opset5::GRUSequence>(X,
-                                                         initial_hidden_state,
-                                                         sequence_lengths,
-                                                         W,
-                                                         R,
-                                                         B,
-                                                         hidden_size_value,
-                                                         direction);
+    auto gru_sequence = make_shared<ov::op::v5::GRUSequence>(X,
+                                                             initial_hidden_state,
+                                                             sequence_lengths,
+                                                             W,
+                                                             R,
+                                                             B,
+                                                             hidden_size_value,
+                                                             direction);
 
     return gru_sequence;
 }
+
+}  // namespace
 
 TEST(type_prop, gru_sequence_forward) {
     const size_t batch_size = 8;
@@ -84,18 +91,25 @@ TEST(type_prop, gru_sequence_forward) {
     const size_t input_size = 4;
     const size_t hidden_size = 128;
 
-    const auto X = make_shared<opset5::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
+    const auto X = make_shared<ov::op::v0::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
     const auto initial_hidden_state =
-        make_shared<opset5::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
-    const auto sequence_lengths = make_shared<op::Parameter>(element::i32, Shape{batch_size});
-    const auto W = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size, input_size});
-    const auto R = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size, hidden_size});
-    const auto B = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size});
+        make_shared<ov::op::v0::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
+    const auto sequence_lengths = make_shared<op::v0::Parameter>(element::i32, Shape{batch_size});
+    const auto W = make_shared<ov::op::v0::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size, input_size});
+    const auto R =
+        make_shared<ov::op::v0::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size, hidden_size});
+    const auto B = make_shared<ov::op::v0::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size});
 
     const auto direction = op::RecurrentSequenceDirection::FORWARD;
 
-    const auto sequence =
-        make_shared<opset5::GRUSequence>(X, initial_hidden_state, sequence_lengths, W, R, B, hidden_size, direction);
+    const auto sequence = make_shared<ov::op::v5::GRUSequence>(X,
+                                                               initial_hidden_state,
+                                                               sequence_lengths,
+                                                               W,
+                                                               R,
+                                                               B,
+                                                               hidden_size,
+                                                               direction);
 
     EXPECT_EQ(sequence->get_hidden_size(), hidden_size);
     EXPECT_EQ(sequence->get_direction(), op::RecurrentSequenceDirection::FORWARD);
@@ -119,30 +133,31 @@ TEST(type_prop, gru_sequence_bidirectional) {
     const size_t input_size = 4;
     const size_t hidden_size = 128;
 
-    const auto X = make_shared<opset5::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
+    const auto X = make_shared<ov::op::v0::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
     const auto initial_hidden_state =
-        make_shared<opset5::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
-    const auto sequence_lengths = make_shared<op::Parameter>(element::i32, Shape{batch_size});
-    const auto W = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size, input_size});
-    const auto R = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size, hidden_size});
-    const auto B = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size});
+        make_shared<ov::op::v0::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
+    const auto sequence_lengths = make_shared<op::v0::Parameter>(element::i32, Shape{batch_size});
+    const auto W = make_shared<ov::op::v0::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size, input_size});
+    const auto R =
+        make_shared<ov::op::v0::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size, hidden_size});
+    const auto B = make_shared<ov::op::v0::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size});
 
     const auto direction = op::RecurrentSequenceDirection::BIDIRECTIONAL;
     const std::vector<float> activations_alpha = {2.7f, 7.0f, 32.367f};
     const std::vector<float> activations_beta = {0.0f, 5.49f, 6.0f};
     const std::vector<std::string> activations = {"tanh", "sigmoid"};
 
-    const auto sequence = make_shared<opset5::GRUSequence>(X,
-                                                           initial_hidden_state,
-                                                           sequence_lengths,
-                                                           W,
-                                                           R,
-                                                           B,
-                                                           hidden_size,
-                                                           direction,
-                                                           activations,
-                                                           activations_alpha,
-                                                           activations_beta);
+    const auto sequence = make_shared<ov::op::v5::GRUSequence>(X,
+                                                               initial_hidden_state,
+                                                               sequence_lengths,
+                                                               W,
+                                                               R,
+                                                               B,
+                                                               hidden_size,
+                                                               direction,
+                                                               activations,
+                                                               activations_alpha,
+                                                               activations_beta);
 
     EXPECT_EQ(sequence->get_hidden_size(), hidden_size);
     EXPECT_EQ(sequence->get_direction(), op::RecurrentSequenceDirection::BIDIRECTIONAL);
@@ -249,13 +264,13 @@ TEST(type_prop, gru_sequence_invalid_input_dimension) {
     param.et = element::f32;
 
     auto gru_sequence = gru_seq_tensor_initialization(param);
-    auto invalid_rank0_tensor = make_shared<opset5::Parameter>(param.et, PartialShape{});
+    auto invalid_rank0_tensor = make_shared<ov::op::v0::Parameter>(param.et, PartialShape{});
 
     // Validate invalid rank0 tensor for all inputs: X, initial_hidden_state, W, R, B
     for (size_t i = 0; i < gru_sequence->get_input_size(); i++) {
         gru_sequence = gru_seq_tensor_initialization(param);
         gru_sequence->set_argument(i, invalid_rank0_tensor);
-        ASSERT_THROW(gru_sequence->validate_and_infer_types(), ngraph::CheckFailure)
+        ASSERT_THROW(gru_sequence->validate_and_infer_types(), ov::AssertFailure)
             << "GRUSequence node was created with invalid data.";
     }
 }
@@ -291,7 +306,7 @@ TEST(type_prop, gru_sequence_input_dynamic_rank) {
     param.et = element::f32;
 
     auto gru_sequence = gru_seq_tensor_initialization(param);
-    auto dynamic_tensor = make_shared<opset5::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    auto dynamic_tensor = make_shared<ov::op::v0::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
 
     for (size_t i = 0; i < gru_sequence->get_input_size(); i++) {
         gru_sequence = gru_seq_tensor_initialization(param);
@@ -321,21 +336,22 @@ TEST(type_prop, gru_sequence_all_inputs_dynamic_rank) {
     param.hidden_size = 128;
     param.et = element::f32;
 
-    const auto X = make_shared<opset5::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
-    const auto initial_hidden_state = make_shared<opset5::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
-    const auto sequence_lengths = make_shared<opset5::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
-    const auto W = make_shared<opset5::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
-    const auto R = make_shared<opset5::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
-    const auto B = make_shared<opset5::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    const auto X = make_shared<ov::op::v0::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    const auto initial_hidden_state =
+        make_shared<ov::op::v0::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    const auto sequence_lengths = make_shared<ov::op::v0::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    const auto W = make_shared<ov::op::v0::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    const auto R = make_shared<ov::op::v0::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    const auto B = make_shared<ov::op::v0::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
 
-    const auto gru_sequence = make_shared<opset5::GRUSequence>(X,
-                                                               initial_hidden_state,
-                                                               sequence_lengths,
-                                                               W,
-                                                               R,
-                                                               B,
-                                                               param.hidden_size.get_length(),
-                                                               op::RecurrentSequenceDirection::FORWARD);
+    const auto gru_sequence = make_shared<ov::op::v5::GRUSequence>(X,
+                                                                   initial_hidden_state,
+                                                                   sequence_lengths,
+                                                                   W,
+                                                                   R,
+                                                                   B,
+                                                                   param.hidden_size.get_length(),
+                                                                   op::RecurrentSequenceDirection::FORWARD);
     EXPECT_EQ(gru_sequence->get_output_partial_shape(0), (PartialShape{-1, 1, -1, -1}));
     EXPECT_EQ(gru_sequence->get_output_partial_shape(1), (PartialShape{-1, 1, -1}));
     EXPECT_EQ(gru_sequence->get_output_element_type(0), param.et);

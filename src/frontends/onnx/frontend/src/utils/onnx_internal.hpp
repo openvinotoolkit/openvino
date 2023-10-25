@@ -7,9 +7,10 @@
 #include <memory>
 #include <string>
 
-#include "legacy_conversion_extension.hpp"
 #include "ngraph/function.hpp"
 #include "openvino/frontend/extension/holder.hpp"
+#include "utils/legacy_conversion_extension.hpp"
+#include "utils/tensor_external_data.hpp"
 
 namespace ONNX_NAMESPACE {
 class ModelProto;
@@ -35,7 +36,7 @@ namespace detail {
 /// graph.
 std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
                                             const std::string& model_path,
-                                            const bool enable_mmap,
+                                            detail::MappedMemoryHandles mmap_cache,
                                             ov::frontend::ExtensionHolder extensions = {});
 
 /// \brief      Decode ONNX model to nGraph function with ONNXFrameworkNode(s)
@@ -48,7 +49,7 @@ std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::Mode
 /// \return     A nGraph function with ONNXFrameworkNodes
 std::shared_ptr<Function> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
                                                     const std::string& model_path,
-                                                    const bool enable_mmap,
+                                                    detail::MappedMemoryHandles mmap_cache,
                                                     ov::frontend::ExtensionHolder extensions = {});
 
 /// \brief     Converts a nGraph function (onnx model decoded to function with ONNXFrameworkNode(s))

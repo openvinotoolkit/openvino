@@ -11,22 +11,22 @@
 #include <vector>
 
 #include <gtest/gtest.h>
-#include <low_precision/fake_quantize_decomposition.hpp>
+#include "low_precision/fake_quantize_decomposition.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "lpt_ngraph_functions/get_dequantization_function.hpp"
-#include <low_precision/common/fake_quantize_dequantization.hpp>
+#include "common_test_utils/ov_test_utils.hpp"
+#include "ov_lpt_models/get_dequantization.hpp"
+#include "low_precision/common/fake_quantize_dequantization.hpp"
 #include "low_precision/network_helper.hpp"
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 using namespace ngraph::builder::subgraph;
 
 class GetDequantizationTestValues {
 public:
     FakeQuantizeOnData fakeQuantize;
-    // actual dequantization to create nGraph function to run NetworkHelper::getDequantization
+    // actual dequantization to create ov::Model to run NetworkHelper::getDequantization
     DequantizationOperations actualDequantization;
     DequantizationOperations expectedDequantization;
 };
@@ -48,15 +48,15 @@ inline std::ostream& operator<<(std::ostream& out, const GetDequantizationTestVa
 }
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::Shape,
+    ov::element::Type,
+    ov::Shape,
     GetDequantizationTestValues> GetDequantizationParams;
 
 class GetDequantizationTransformation : public LayerTransformation, public testing::WithParamInterface<GetDequantizationParams> {
 public:
     void SetUp() override {
-        const ngraph::element::Type precision = std::get<0>(GetParam());
-        const ngraph::Shape shape = std::get<1>(GetParam());
+        const ov::element::Type precision = std::get<0>(GetParam());
+        const ov::Shape shape = std::get<1>(GetParam());
         const GetDequantizationTestValues testValues = std::get<2>(GetParam());
 
         actualFunction = GetDequantizationFunction::get(
@@ -66,12 +66,12 @@ public:
             testValues.actualDequantization);
 
         const auto output = actualFunction->get_output_op(0);
-        auto dequantization = ngraph::pass::low_precision::NetworkHelper::getDequantization(output);
+        auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(output);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<GetDequantizationParams> obj) {
-        ngraph::element::Type precision;
-        ngraph::Shape shape;
+        ov::element::Type precision;
+        ov::Shape shape;
         GetDequantizationTestValues testValues;
         std::tie(precision, shape, testValues) = obj.param;
 
@@ -85,7 +85,7 @@ TEST_P(GetDequantizationTransformation, CompareFunctions) {
     const GetDequantizationTestValues testValues = std::get<2>(GetParam());
 
     const auto output = actualFunction->get_output_op(0);
-    const ngraph::pass::low_precision::FakeQuantizeDequantization dequantization = ngraph::pass::low_precision::NetworkHelper::getDequantization(output);
+    const ov::pass::low_precision::FakeQuantizeDequantization dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(output);
     DequantizationOperations actualDequantization = toDequantizationOperations(dequantization);
     actualDequantization.subtract.constantShapeIsDefined = testValues.expectedDequantization.subtract.constantShapeIsDefined;
     actualDequantization.subtract.outPrecision = testValues.expectedDequantization.subtract.outPrecision;
@@ -95,65 +95,65 @@ TEST_P(GetDequantizationTransformation, CompareFunctions) {
 }
 
 const element::TypeVector precisions = {
-    ngraph::element::f32,
+    ov::element::f32,
 };
 
 const std::vector<GetDequantizationTestValues> testValues = {
     {
-        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ngraph::element::u8 },
-        { ngraph::element::f32, {}, { 0.01f } },
-        { ngraph::element::f32, {}, { 0.01f } }
+        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ov::element::u8 },
+        { ov::element::f32, {}, { 0.01f } },
+        { ov::element::f32, {}, { 0.01f } }
     },
     {
-        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ngraph::element::u8 },
-        { ngraph::element::f32, { 127.f }, { 0.01f } },
-        { ngraph::element::f32, { 127.f }, { 0.01f } }
+        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ov::element::u8 },
+        { ov::element::f32, { 127.f }, { 0.01f } },
+        { ov::element::f32, { 127.f }, { 0.01f } }
     },
     {
-        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ngraph::element::u8 },
+        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ov::element::u8 },
         {
-            ngraph::element::f32,
-            {{ 127.f }, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true},
-            {{ 0.1f }, ngraph::element::f32, {}, false, 1},
+            ov::element::f32,
+            {{ 127.f }, ov::element::f32, {}, false, 1, ov::element::u8, true},
+            {{ 0.1f }, ov::element::f32, {}, false, 1},
         },
         {
-            ngraph::element::f32,
-            {{ 127.f }, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true},
-            {{ 0.1f }, ngraph::element::f32, {}, false, 1},
+            ov::element::f32,
+            {{ 127.f }, ov::element::f32, {}, false, 1, ov::element::u8, true},
+            {{ 0.1f }, ov::element::f32, {}, false, 1},
         }
     },
     {
         // unexpected Subtract shape
-        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ngraph::element::u8 },
+        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ov::element::u8 },
         {
-            ngraph::element::f32,
-            {std::vector<float>(12ul, 127.0), ngraph::element::f32, {1, 3, 2, 2}, false, 0, ngraph::element::u8, true},
-            {{ 0.1f }, ngraph::element::f32, {}, false, 1},
+            ov::element::f32,
+            {std::vector<float>(12ul, 127.0), ov::element::f32, {1, 3, 2, 2}, false, 0, ov::element::u8, true},
+            {{ 0.1f }, ov::element::f32, {}, false, 1},
         },
         {
             {},
             {},
-            {{ 0.1f }, ngraph::element::f32, {}, false, 1},
+            {{ 0.1f }, ov::element::f32, {}, false, 1},
         }
     },
     {
-        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ngraph::element::u8 },
+        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ov::element::u8 },
         {
-            ngraph::element::f32,
-            {{ 127.f }, ngraph::element::f32, {}, false, 0, ngraph::element::u8, true},
-            {{ 0.1f }, ngraph::element::f32, {}, false, 0},
+            ov::element::f32,
+            {{ 127.f }, ov::element::f32, {}, false, 0, ov::element::u8, true},
+            {{ 0.1f }, ov::element::f32, {}, false, 0},
         },
         {
-            ngraph::element::f32,
-            {{ 127.f }, ngraph::element::f32, {}, false, 0, ngraph::element::u8, true},
-            {{ 0.1f }, ngraph::element::f32, {}, false, 0},
+            ov::element::f32,
+            {{ 127.f }, ov::element::f32, {}, false, 0, ov::element::u8, true},
+            {{ 0.1f }, ov::element::f32, {}, false, 0},
         }
     },
     {
         // unexpected precision (non dequantization operations)
         {},
         {
-            ngraph::element::i32,
+            ov::element::i32,
             DequantizationOperations::Subtract{ 32 }.setConstantPrecision(element::i32),
             DequantizationOperations::Multiply{ 2 }.setConstantPrecision(element::i32),
         },
@@ -161,7 +161,7 @@ const std::vector<GetDequantizationTestValues> testValues = {
     }
 };
 
-const std::vector<ngraph::Shape> shapes = {
+const std::vector<ov::Shape> shapes = {
     { 1, 1, 2, 2 },
     // TODO: 3D tensor
 };
