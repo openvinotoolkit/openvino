@@ -521,10 +521,6 @@ void Deconvolution::getSupportedDescriptors() {
             createDescriptor({in_candidate}, {out_candidate});
         }
     }
-    OPENVINO_ASSERT(!descs.empty(),
-                    "Failed to create convolution_backward_data::primitive_desc: ",
-                    "Node: ##",
-                    getName());
 }
 
 void Deconvolution::initPaddingR(const Shape &inShape, const Shape &outShape) {
