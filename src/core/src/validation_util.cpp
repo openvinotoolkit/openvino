@@ -10,6 +10,7 @@
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "ngraph/evaluator.hpp"
+#include "ngraph/op/negative.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/gather.hpp"
@@ -979,6 +980,9 @@ bool validate_host_tensor_vector(const HostTensorVector& tensor_vector, const si
            std::none_of(tensor_vector.cbegin(), tensor_vector.cend(), ov::cmp::Equal<HostTensorPtr>(nullptr));
 }
 
+std::shared_ptr<Node> operator-(const Output<Node>& arg0) {
+    return std::make_shared<op::Negative>(arg0);
+}
 }  // namespace ngraph
 
 void ov::infer_auto_padding(const Shape& image_shape,
