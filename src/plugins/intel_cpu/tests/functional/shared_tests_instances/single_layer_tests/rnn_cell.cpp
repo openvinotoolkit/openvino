@@ -4,10 +4,10 @@
 
 #include <vector>
 
-#include "single_layer_tests/rnn_cell.hpp"
+#include "single_op_tests/rnn_cell.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using ov::test::RNNCellTest;
 
 namespace {
     std::vector<bool> should_decompose{false, true};
@@ -16,12 +16,12 @@ namespace {
     std::vector<size_t> input_size{1, 30};
     std::vector<std::vector<std::string>> activations = {{"relu"}, {"sigmoid"}, {"tanh"}};
     std::vector<float> clip = {0.f, 0.7f};
-    std::vector<ngraph::helpers::InputLayerType> layer_types = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER
+    std::vector<ov::test::utils::InputLayerType> layer_types = {
+        ov::test::utils::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::PARAMETER
     };
-    std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
-                                                             InferenceEngine::Precision::FP16};
+    std::vector<ov::element::Type> model_types = {ov::element::f32,
+                                                  ov::element::f16};
 
     INSTANTIATE_TEST_SUITE_P(smoke_RNNCellCommon, RNNCellTest,
             ::testing::Combine(
@@ -34,7 +34,7 @@ namespace {
             ::testing::ValuesIn(layer_types),
             ::testing::ValuesIn(layer_types),
             ::testing::ValuesIn(layer_types),
-            ::testing::ValuesIn(netPrecisions),
+            ::testing::ValuesIn(model_types),
             ::testing::Values(ov::test::utils::DEVICE_CPU)),
             RNNCellTest::getTestCaseName);
 
