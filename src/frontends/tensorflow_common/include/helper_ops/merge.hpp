@@ -33,20 +33,34 @@ public:
         ov::PartialShape output_data_shape = ov::PartialShape::dynamic();
 
         auto input_size = get_input_size();
-        bool merge_output_shape = true;
         for (size_t input_ind = 0; input_ind < input_size; ++input_ind) {
             auto input_type = get_input_element_type(input_ind);
             if (input_type.is_static()) {
                 output_data_type = input_type;
             }
 
-            // check if it still needs to merge input shapes
-            // if yes, it tries to merge them
-            if (merge_output_shape &&
-                !PartialShape::merge_into(output_data_shape, get_input_partial_shape(input_ind))) {
-                merge_output_shape = false;
-                // reset output shape to dynamic rank
+            auto input_shape = get_input_partial_shape(input_ind);
+            if (input_shape.rank().is_dynamic()) {
+                continue;
+            }
+
+            if (output_data_shape.rank().is_dynamic()) {
+                // firstly met shape of static rank
+                // immediately use this shape of static rank
+                output_data_shape = input_shape;
+            } else if (output_data_shape.rank().is_static() &&
+                       output_data_shape.rank().get_length() != input_shape.rank().get_length()) {
+                // different inputs have different rank means output must be of a dynamic rank
                 output_data_shape = ov::PartialShape::dynamic();
+                break;
+            } else {
+                auto output_rank = output_data_shape.rank().get_length();
+                for (int64_t dim_ind = 0; dim_ind < output_rank; ++dim_ind) {
+                    if (input_shape[dim_ind] != output_data_shape[dim_ind]) {
+                        // different inputs can have different dimensions so it must combine them
+                        output_data_shape[dim_ind] = ov::Dimension::dynamic();
+                    }
+                }
             }
         }
 

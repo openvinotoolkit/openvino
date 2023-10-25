@@ -38,7 +38,7 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& model,
         // check that Free RAM memory is enough. Serialize in other case
         // serialize graph cache in case graph cache bytesize > 4GB to avoid long search the same graphs
         if (m_graph_cache_bytesize + 2 * model_bytesize > mem_size || m_graph_cache_bytesize >> 20 != 0) {
-            // std::cout << "[ GRAPH CACHE ][ WARNING ] There are not enought RAM memory! Serialize graph cache" << std::endl;
+            std::cout << "[ GRAPH CACHE ][ WARNING ] There are not enought RAM memory! Serialize graph cache" << std::endl;
             serialize_cache();
             m_graph_cache_bytesize = 0;
         }
@@ -48,8 +48,8 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& model,
             model_bytesize_gb >>= 30;
             auto mem_size_gb = mem_size;
             mem_size_gb >>= 30;
-            // std::cout << "[ GRAPH CACHE ][ WARNING ] Model  bytesize is " << model_bytesize_gb <<
-            // "GB. It is larger than 25% RAM size: " << mem_size_gb << ". Constants won't be copied!" << std::endl;
+            std::cout << "[ GRAPH CACHE ][ WARNING ] Model  bytesize is " << model_bytesize_gb <<
+            "GB. It is larger than 25% RAM size: " << mem_size_gb << ". Constants won't be copied!" << std::endl;
         }
         auto extracted_patterns = m_manager.extract(model, extract_body, !is_large_model);
         if (extracted_patterns.empty()) {
@@ -96,7 +96,7 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
             // std::cout << "[ GRAPH CACHE ][ INFO ] Reading cached model: " << serialized_model_path << std::endl;
             auto bin_path = ov::test::utils::replaceExt(serialized_model_path, ".bin");
             auto meta_path = ov::test::utils::replaceExt(serialized_model_path, ".meta");
-            auto cached_model = ov::test::utils::PluginCache::get().core()->read_model(serialized_model_path);
+            auto cached_model = core->read_model(serialized_model_path);
             auto cached_meta = MetaInfo::read_meta_from_file(meta_path);
 
             ov::test::utils::removeFile(serialized_model_path);

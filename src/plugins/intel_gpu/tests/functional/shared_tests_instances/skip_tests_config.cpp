@@ -115,5 +115,9 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_LPT.*ElementwiseBranchSelectionTransformation.*)",
             // Dynamic state unsupported for now
             R"(.*MemoryDynamicBatch.*)",
+            // Issue: 123493
+            R"(.*GroupNormalizationTest.*CompareWithRefs.*NetType=f16.*)",
+            // Issue: 123507
+            R"(.*ReverseLayerTest.*mask.*f16.*)",
     };
 }
