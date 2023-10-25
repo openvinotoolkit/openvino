@@ -4,16 +4,17 @@
 
 #pragma once
 
-#include <openvino/pass/graph_rewrite.hpp>
-#include <openvino/pass/manager.hpp>
-#include <openvino/pass/pass.hpp>
-#include <openvino/pass/pattern/matcher.hpp>
-#include <transformations_visibility.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace pass {
 class TRANSFORMATIONS_API SymbolicOptimizations;
 class TRANSFORMATIONS_API SymbolicPropagation;
+class TRANSFORMATIONS_API LabelResolvingThroughSelect;
 }  // namespace pass
 }  // namespace ov
 
@@ -47,4 +48,20 @@ public:
 
 private:
     std::shared_ptr<ov::TableOfEquivalence> m_te;
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief Transformation requires equal labels on one input of Add and output of last Reshape in the pattern:
+ *      -> Add -> Reshape -[then or else input]-> Select -> Softmax -> Reshape ->
+ *
+ * If shape labels onn mentioned tensors are equal we proved that no broadcasting of this input was done for Add and
+ * for Select. Therefore, we can put the same labels on the output of Add and Select. This transformation helps
+ * propagate labels and will not be needed if we would use information on equality of products of input and output
+ * dimensions of Reshape operations
+ */
+class ov::pass::LabelResolvingThroughSelect : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("LabelResolvingThroughSelect", "0");
+    LabelResolvingThroughSelect();
 };
