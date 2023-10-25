@@ -441,11 +441,6 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
             refParams.src_prc = Precision::FP32;
     }
 
-#if defined(OV_CPU_ARM_ENABLE_FP16)
-    if (refParams.src_prc == Precision::FP16)
-        refParams.src_prc = Precision::FP32;
-#endif
-
     auto format = mayiuse(avx512_core) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
     impl_desc_type impl_type;
     if (mayiuse(cpu::x64::avx512_core)) {
@@ -830,6 +825,9 @@ std::shared_ptr<ROIPooling::ROIPoolingExecutor> ROIPooling::ROIPoolingExecutor::
     ROIPoolingContext ctx = { nullptr, jpp };
 
     OV_SWITCH(intel_cpu, ROIPoolingExecutorCreation, ctx, jpp.src_prc,
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+              OV_CASE(Precision::FP16, float16_t),
+#endif
               OV_CASE(Precision::FP32, float),
               OV_CASE(Precision::BF16, bfloat16_t))
 
