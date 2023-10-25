@@ -991,7 +991,6 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     , _outputs({memory::ptr()})
     , _reordered_weights_cache(network.get_weights_cache_capacity())
     , _output_changed(false)
-    , _mem_allocated(allocate_memory)
     , _is_dynamic(node.is_dynamic() || node.generates_dynamic_output())
     , _type(node.type())
     , _id(node.id())
@@ -1006,6 +1005,12 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     , _can_share_buffer(node.can_share_buffer())
     , _is_constant(node.is_constant())
     , _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output()) {
+    // When dynamic shape node has huge upper boundary which causes bigger mem size than system max allocable mem size, do not allocate in build time.
+    auto output_layout = node.get_output_layout();
+    if (allocate_memory && node.is_dynamic() && (!network.get_engine().check_allocatable(output_layout, allocation_type::usm_host))) {
+        allocate_memory = false;
+    }
+    _mem_allocated = allocate_memory;
     if (allocate_memory) {
         // In case when output is mutable_data primitive, and other users dependencies are only used for
         // suychronization, The output memory of such primitive will be fused with mutable_data
