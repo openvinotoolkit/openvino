@@ -14,9 +14,6 @@
 #include <shape_inference/shape_inference_pass_through.hpp>
 #include "ie_ngraph_utils.hpp"
 
-#include <iostream>
-#include <vector>
-
 using namespace ov::intel_cpu;
 
 namespace MergeTransposeReorderCPUTest {
@@ -104,9 +101,9 @@ protected:
                 |Input  |
                 ---------
                     |
-                ---------
-                |Reshape|           <*NOTE: fake node with laytout NCSP, and inplace from upstream*>
-                ---------
+                ----------
+                |  Dummy |           <*NOTE: fake node with laytout NCSP, and inplace from upstream*>
+                ----------
                     |
              |---------------|
              |   ----------  |
@@ -118,9 +115,9 @@ protected:
              |   ---------   |
              |---------------|
                     |
-                ----------
-                |Multiply |         <*NOTE: fake node with laytout NSPC, and inplace from downstream*>
-                ----------
+                -----------
+                |  Dummy  |         <*NOTE: fake node with laytout NSPC, and inplace from downstream*>
+                -----------
                     |
                 ---------
                 |Output |
