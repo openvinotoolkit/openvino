@@ -11,7 +11,6 @@
 #include "edge.h"
 #include "graph_context.h"
 #include "node.h"
-#include "normalize_preprocess.h"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 

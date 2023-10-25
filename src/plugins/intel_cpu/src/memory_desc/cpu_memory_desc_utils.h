@@ -74,37 +74,6 @@ public:
      */
     static DnnlBlockedMemoryDesc createDnnlBlockedMemoryDesc(const ov::SoPtr<ITensor>& tensor);
 
-    /**
-     * @brief Creates ov::Tensor from Memory with the memory reuse
-     * @param desc Memory from which will be created ov::Tensor
-     * @return pointer to ov::Tensor
-     */
-    static ov::SoPtr<ov::ITensor> interpretAsTensor(const IMemory &mem);
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-
-    /**
-     * @brief Converts InferenceEngine::TensorDesc to CpuBlockedMemoryDesc
-     * @param desc InferenceEngine::TensorDesc to be converted
-     * @return converted CpuBlockedMemoryDesc
-     */
-    static CpuBlockedMemoryDesc convertToCpuBlockedMemoryDesc(const InferenceEngine::TensorDesc& desc);
-
-    /**
-     * @brief Converts InferenceEngine::TensorDesc to DnnlBlockedMemoryDesc
-     * @param desc InferenceEngine::TensorDesc to be converted
-     * @return converted DnnlBlockedMemoryDesc
-     */
-    static DnnlBlockedMemoryDesc convertToDnnlBlockedMemoryDesc(const InferenceEngine::TensorDesc& desc);
-
-    /**
-     * @brief Converts MemoryDesc to InferenceEngine::TensorDesc
-     * @param desc MemoryDesc to be converted
-     * @return converted InferenceEngine::TensorDesc
-     */
-    static InferenceEngine::TensorDesc convertToTensorDesc(const MemoryDesc& desc);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
     static constexpr Dim DEFAULT_DUMMY_VAL = 64;
 
     /**

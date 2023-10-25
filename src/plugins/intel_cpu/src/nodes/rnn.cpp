@@ -745,14 +745,14 @@ void RNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t rIdx)
     MemoryPtr w_data_mem = std::make_shared<Memory>(getEngine(), w_data_desc);
     auto w_ptr = static_cast<Prec*>(w_data_mem->getData());
     if (w_ptr == nullptr)
-        OPENVINO_THROW("NotAllocated : Internal blob was not allocated for node ", getName(), ".");
+        OPENVINO_THROW("NotAllocated: Internal blob was not allocated for node ", getName(), ".");
 
     const VectorDims dims_s = {L, D, SC, G, SC};
-    auto w_state_desc = DnnlBlockedMemoryDesc(Shape(dims_w), targetWeightDataType, getWeightsFormatTagByDims(dims_s));
+    auto w_state_desc = DnnlBlockedMemoryDesc(Shape(dims_s), targetWeightDataType, getWeightsFormatTagByDims(dims_s));
     MemoryPtr w_state_mem = std::make_shared<Memory>(getEngine(), w_state_desc);
     auto r_ptr = static_cast<Prec*>(w_state_mem->getData());
     if (r_ptr == nullptr)
-        OPENVINO_THROW("NotAllocated : Internal blob was not allocated for node ", getName(), ".");
+        OPENVINO_THROW("NotAllocated: Internal blob was not allocated for node ", getName(), ".");
 
     const size_t ie_w_vec_size = getInputShapeAtPort(wIdx).getElementsCount();
     const size_t ie_r_vec_size = getInputShapeAtPort(rIdx).getElementsCount();
