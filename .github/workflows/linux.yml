@@ -1368,6 +1368,7 @@ jobs:
 
       - name: E2E TensorFlow Hub Tests - TF FE
         run: |
+          pushd ${E2E_TESTS_INSTALL_DIR}
           export PYTHONPATH=${E2E_TESTS_INSTALL_DIR}:${INSTALL_TEST_DIR}:$PYTHONPATH
           pytest ${E2E_TESTS_INSTALL_DIR}/test_ovc_mo.py -v --test_conf=${E2E_TESTS_INSTALL_DIR}/test_config_local.yml --env_conf=${E2E_TESTS_INSTALL_DIR}/env_config_local.yml --base_rules_conf=${E2E_TESTS_INSTALL_DIR}/base_test_rules.yml --modules=${E2E_TESTS_INSTALL_DIR}/pipelines/production/tf_hub
 
