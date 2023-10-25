@@ -127,38 +127,38 @@ TEST(dimension, dimension_equality) {
     DimensionTracker dt(te);
 
     // labeling dimensions
-    Dimension A, B, C;
-    dt.set_up_for_tracking(A);
-    dt.set_up_for_tracking(B);
-    dt.set_up_for_tracking(C);
+    PartialShape dimensions = PartialShape::dynamic(5);  // A, B, C, D, E
+    for (auto& dimension : dimensions)
+        dt.set_up_for_tracking(dimension);
 
     // checking labels are unique
-    EXPECT_NE(DimensionTracker::get_label(A), no_label);
-    EXPECT_NE(DimensionTracker::get_label(B), no_label);
-    EXPECT_NE(DimensionTracker::get_label(C), no_label);
-    EXPECT_NE(DimensionTracker::get_label(A), DimensionTracker::get_label(B));
-    EXPECT_NE(DimensionTracker::get_label(B), DimensionTracker::get_label(C));
-    EXPECT_NE(DimensionTracker::get_label(A), DimensionTracker::get_label(C));
-    EXPECT_EQ(DimensionTracker::get_label(A), DimensionTracker::get_label(A));
-    EXPECT_EQ(DimensionTracker::get_label(B), DimensionTracker::get_label(B));
-    EXPECT_EQ(DimensionTracker::get_label(C), DimensionTracker::get_label(C));
+    for (const auto& dimension : dimensions)
+        EXPECT_NE(DimensionTracker::get_label(dimension), no_label);
 
-    // setting A == B and B == C
-    te->set_as_equal(A, B);
-    te->set_as_equal(C, B);
+    for (const auto& lhs : dimensions) {
+        for (const auto& rhs : dimensions) {
+            if (&lhs == &rhs)
+                continue;
+            EXPECT_NE(DimensionTracker::get_label(lhs), DimensionTracker::get_label(rhs));
+            EXPECT_FALSE(te->are_equal(lhs, rhs));
+        }
+    }
 
-    // expected to see A == B, B == C and A == C
-    EXPECT_TRUE(te->are_equal(A, B));
-    EXPECT_TRUE(te->are_equal(A, C));
-    EXPECT_TRUE(te->are_equal(B, C));
+    te->set_as_equal(dimensions[0], dimensions[1]);  // A == B
+    te->set_as_equal(dimensions[3], dimensions[4]);  // D == E
+    te->set_as_equal(dimensions[2], dimensions[3]);  // C == D
+    te->set_as_equal(dimensions[1], dimensions[2]);  // B == C
+
+    // expected to see A == B == C == D == E
+    for (const auto& lhs : dimensions)
+        for (const auto& rhs : dimensions)
+            EXPECT_TRUE(te->are_equal(lhs, rhs));
 
     // clear up all the tracking info
-    DimensionTracker::reset_tracking_info(A);
-    DimensionTracker::reset_tracking_info(B);
-    DimensionTracker::reset_tracking_info(C);
+    for (auto& dimension : dimensions)
+        DimensionTracker::reset_tracking_info(dimension);
 
-    // expected to have no label
-    EXPECT_EQ(DimensionTracker::get_label(A), no_label);
-    EXPECT_EQ(DimensionTracker::get_label(B), no_label);
-    EXPECT_EQ(DimensionTracker::get_label(C), no_label);
+    // checking labels are unique
+    for (const auto& dimension : dimensions)
+        EXPECT_EQ(DimensionTracker::get_label(dimension), no_label);
 }

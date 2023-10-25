@@ -8,26 +8,23 @@ using namespace ov;
 
 void TableOfEquivalence::set_as_equal(const Dimension& lhs, const Dimension& rhs) {
     const auto &l_label = DimensionTracker::get_label(lhs), r_label = DimensionTracker::get_label(rhs);
-    bool l_known = dimension_table_of_equivalence.count(l_label) && dimension_table_of_equivalence[l_label],
-         r_known = dimension_table_of_equivalence.count(r_label) && dimension_table_of_equivalence[r_label];
-    if (l_known && r_known) {
-        auto soup_l = dimension_table_of_equivalence[l_label];
-        soup_l->insert(r_label);
-        auto soup_r = dimension_table_of_equivalence[r_label];
-        soup_r->insert(l_label);
-        soup_l->insert(soup_r->begin(), soup_r->end());
-        soup_r->insert(soup_l->begin(), soup_l->end());
-    } else {
-        auto soup = std::make_shared<std::set<label_t>>();
-        if (l_known)
-            soup = dimension_table_of_equivalence[l_label];
-        else if (r_known)
-            soup = dimension_table_of_equivalence[r_label];
-        soup->insert(l_label);
-        soup->insert(r_label);
-        dimension_table_of_equivalence[l_label] = soup;
-        dimension_table_of_equivalence[r_label] = soup;
-    }
+    if (l_label == ov::no_label || r_label == ov::no_label)
+        // TODO after value restriction enabling: non labeled dim propagates restriction (if any) to labeled dim
+        return;
+
+    auto get_soup = [](const label_t& label, EqTable& table) -> EqualitySoup {
+        if (!table.count(label) || !table.at(label))
+            table[label] = std::make_shared<std::set<label_t>>(std::set<label_t>{label});
+        return table.at(label);
+    };
+
+    auto l_soup = get_soup(l_label, dimension_table_of_equivalence);
+    auto r_soup = get_soup(r_label, dimension_table_of_equivalence);
+    if (r_soup->size() > l_soup->size())  // we would like to minimize number of iterations in the following for-loop
+        std::swap(l_soup, r_soup);
+    l_soup->insert(r_soup->begin(), r_soup->end());
+    for (const auto& label : *r_soup)
+        dimension_table_of_equivalence[label] = l_soup;
 }
 
 const ValTable& TableOfEquivalence::get_value_equivalence_table() const {
@@ -43,7 +40,9 @@ label_t TableOfEquivalence::get_next_label() {
 }
 
 bool TableOfEquivalence::are_equal(const Dimension& lhs, const Dimension& rhs) {
-    const auto &l_label = DimensionTracker::get_label(lhs), r_label = DimensionTracker::get_label(rhs);
+    if (!DimensionTracker::has_label(lhs) || !DimensionTracker::has_label(rhs))
+        return false;
+    const auto &l_label = DimensionTracker::get_label(lhs), &r_label = DimensionTracker::get_label(rhs);
     if (l_label == r_label)
         return true;
     if (dimension_table_of_equivalence.count(l_label) && dimension_table_of_equivalence[l_label])
