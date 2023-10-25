@@ -56,7 +56,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     if (variants[0].is<std::string>()) {
         std::string suffix = ".tflite";
         std::string model_path = variants[0].as<std::string>();
-        if (ov::util::ends_with(model_path, suffix.c_str())) {
+        if (ov::util::ends_with(model_path, suffix.c_str()) && ov::util::file_size(model_path) > 0) {
             return true;
         }
     }
@@ -64,7 +64,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     else if (variants[0].is<std::wstring>()) {
         std::wstring suffix = L".tflite";
         std::wstring model_path = variants[0].as<std::wstring>();
-        if (ov::util::ends_with(model_path, suffix)) {
+        if (ov::util::ends_with(model_path, suffix) && ov::util::file_size(model_path) > 0) {
             return true;
         }
     }
@@ -79,7 +79,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         if (variants[0].is<std::string>()) {
             std::string suffix = ".tflite";
             std::string model_path = variants[0].as<std::string>();
-            if (ov::util::ends_with(model_path, suffix.c_str())) {
+            if (ov::util::ends_with(model_path, suffix.c_str()) && ov::util::file_size(model_path) > 0) {
                 return std::make_shared<tensorflow_lite::InputModel>(
                     std::make_shared<GraphIteratorFlatBuffer>(model_path),
                     m_telemetry);
@@ -89,7 +89,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         else if (variants[0].is<std::wstring>()) {
             std::wstring suffix = L".tflite";
             std::wstring model_path = variants[0].as<std::wstring>();
-            if (ov::util::ends_with(model_path, suffix)) {
+            if (ov::util::ends_with(model_path, suffix) && ov::util::file_size(model_path) > 0) {
                 return std::make_shared<tensorflow_lite::InputModel>(
                     std::make_shared<GraphIteratorFlatBuffer>(model_path),
                     m_telemetry);
