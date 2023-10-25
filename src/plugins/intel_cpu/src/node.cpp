@@ -1728,7 +1728,7 @@ int Node::inPlaceInputPort(int portIdx) const {
 
 int Node::inPlaceOutPort(int portIdx) const {
     if (outputShapes.empty()) {
-        //special cas - a dead end node
+        //special case - a dead end node
         return -1;
     }
 

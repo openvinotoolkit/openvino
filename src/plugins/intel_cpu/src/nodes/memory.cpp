@@ -233,7 +233,11 @@ MemoryInput::MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext
 
 void MemoryInput::createPrimitive() {
     Input::createPrimitive();
-    Input::resetMemoryPtr(getParentEdgeAt(0)->getMemoryPtr());
+    auto parentEdge = getParentEdgeAt(0);
+
+    if (parentEdge->getParent()->isConstant()) {
+        Input::resetMemoryPtr(parentEdge->getMemoryPtr());
+    }
 }
 
 void MemoryInput::initSupportedPrimitiveDescriptors() {
@@ -370,7 +374,7 @@ void MemoryInput::assignState(MemStatePtr newState) {
     //Establish some check for double buffer
 
     newState->SwapBuffer();
-    getOutputNode().assignMemory(newState->InternalMem(), newState->InitalDesc());
+    getOutputNode().assignMemory(newState->InternalMem(), newState->OriginalDesc());
 }
 
 void MemoryInput::execute(dnnl::stream strm) {

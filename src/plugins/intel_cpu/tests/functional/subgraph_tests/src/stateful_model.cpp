@@ -50,8 +50,8 @@ public:
 
     const std::pair<std::vector<float>, std::vector<float>>& calc_refs() const {
         static const std::pair<std::vector<float>, std::vector<float>> result = {
-            {6.06f, 17.87f, 25.54, 29.07f, 38.46f, 53.71f, 64.82, 71.79, 84.62, 103.31f}, // expected_res
-            {6.06f, 11.81f, 13.73f, 15.34f, 23.12f, 30.59f, 34.23, 37.56f, 47.06f, 56.25f} // expected_states
+            {6.06f, 17.87f, 25.54f, 29.07f, 38.46f, 53.71f, 64.82f, 71.79f, 84.62f, 103.31f}, // expected_res
+            {6.06f, 11.81f, 13.73f, 15.34f, 23.12f, 30.59f, 34.23f, 37.56f, 47.06f, 56.25f} // expected_states
         };
         return result;
     }

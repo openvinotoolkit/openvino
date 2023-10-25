@@ -32,12 +32,12 @@ public:
         return m_internal_mem[buffer_num];
     }
 
-    MemoryDescPtr InitalDesc() const {
+    MemoryDescPtr OriginalDesc() const {
         return m_desc;
     }
 
 private:
-    static MemoryDescPtr normalize_desc(const MemoryDescPtr& desc); //TODO rename
+    static MemoryDescPtr ToStatic(const MemoryDescPtr& desc);
     void ResetMem(const MemoryPtr& mem) {
         m_internal_mem[buffer_num] = mem;
     }

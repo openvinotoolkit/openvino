@@ -25,10 +25,14 @@ VariableState::VariableState(std::string name,
     //TODO what if by some reason we already have internal static state while the node is dynamic, is it even possible?
 
     if (shape.isStatic()) {
-        InternalMem()->load(*init_val);
+        if (init_val) {
+            InternalMem()->load(*init_val);
+        } else {
+            InternalMem()->nullify();
+        }
     } else {
         //in the case of the original desc has dynamic shape we create an empty tensor
-        auto new_desc = normalize_desc(m_desc);
+        auto new_desc = ToStatic(m_desc);
         InternalMem()->redefineDesc(new_desc);
     }
 }
@@ -61,7 +65,7 @@ Blob::CPtr VariableState::GetState() const {
 }
 
 void VariableState::Reset() {
-    auto new_desc = normalize_desc(m_desc);
+    auto new_desc = ToStatic(m_desc);
     for (auto&& mem : m_internal_mem) {
         if (mem) {
             mem->redefineDesc(new_desc);
@@ -70,7 +74,7 @@ void VariableState::Reset() {
     }
 }
 
-MemoryDescPtr VariableState::normalize_desc(const MemoryDescPtr& desc) {
+MemoryDescPtr VariableState::ToStatic(const MemoryDescPtr& desc) {
     if (!desc->isDefined()) {
         auto&& current_dims = desc->getShape().getDims();
         VectorDims new_dims(current_dims.size());
