@@ -60,4 +60,5 @@ TEST(tensor, create_tensor_with_zero_dims_check_stride) {
     auto stride = tensor.get_strides();
     EXPECT_EQ(stride.size(), shape.size());
     EXPECT_EQ(stride.back(), 0);
+    EXPECT_EQ(tensor.is_continuous(), true);
 }
