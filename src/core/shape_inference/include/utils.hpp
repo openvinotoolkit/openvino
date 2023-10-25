@@ -419,6 +419,17 @@ ov::optional<TResult> get_input_bounds(const ov::Node* op, size_t port, const IT
  * @return Result shape from inputs with applied broadcast specification.
  */
 ov::Shape infer_broadcast_shape(const ov::Node* const op, const ov::Shape& first, const ov::Shape& second);
+
+/**
+ * @brief Inference broadcast shape from input tensor shapes for element wise operator
+ * according to broadcast specification stored in operator.
+ *
+ * @param op      Pointer to operator.
+ * @param inputs  Tensors vector to get theirs shapes.
+ *
+ * @return Result shape from input tensors shape with applied broadcast specification.
+ */
+ov::Shape infer_broadcast_shape(const ov::Node* const op, const ov::TensorVector& inputs);
 }  // namespace op
 
 /**
