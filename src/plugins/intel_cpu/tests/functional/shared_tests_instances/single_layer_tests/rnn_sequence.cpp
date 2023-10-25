@@ -3,21 +3,24 @@
 //
 
 #include <vector>
-#include <ngraph/op/util/attr_types.hpp>
-#include "single_layer_tests/rnn_sequence.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "single_op_tests/rnn_sequence.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using ov::test::RNNSequenceTest;
+using ov::test::utils::SequenceTestsMode;
+using ov::test::utils::InputLayerType;
+using ov::op::RecurrentSequenceDirection;
 
 namespace {
-    std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST,
-                                                         ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST,
-                                                         ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM,
-                                                         ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM,
-                                                         ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST,
-                                                         ngraph::helpers::SequenceTestsMode::PURE_SEQ};
+    std::vector<SequenceTestsMode> mode{SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST,
+                                        SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST,
+                                        SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM,
+                                        SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM,
+                                        SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST,
+                                        SequenceTestsMode::PURE_SEQ};
     // output values increase rapidly without clip, so use only seq_lengths = 2
-    std::vector<size_t> seq_lengths_zero_clip{2};
+    std::vector<size_t> seq_lengths_zero_clip{10};
     std::vector<size_t> seq_lengths_clip_non_zero{20};
     std::vector<size_t> batch{1, 10};
     std::vector<size_t> hidden_size{1, 10};
@@ -25,11 +28,11 @@ namespace {
     std::vector<std::vector<std::string>> activations = {{"relu"}, {"sigmoid"}, {"tanh"}};
     std::vector<float> clip{0.f};
     std::vector<float> clip_non_zeros{0.7f};
-    std::vector<ngraph::op::RecurrentSequenceDirection> direction = {ngraph::op::RecurrentSequenceDirection::FORWARD,
-                                                           ngraph::op::RecurrentSequenceDirection::REVERSE,
-                                                           ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL,
+    std::vector<RecurrentSequenceDirection> direction = {RecurrentSequenceDirection::FORWARD,
+                                                         RecurrentSequenceDirection::REVERSE,
+                                                         RecurrentSequenceDirection::BIDIRECTIONAL,
     };
-    std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
+    std::vector<ov::element::Type> model_types = {ov::element::f32};
 
     INSTANTIATE_TEST_SUITE_P(smoke_RNNSequenceCommonZeroClip, RNNSequenceTest,
                             ::testing::Combine(
@@ -41,8 +44,8 @@ namespace {
                                     ::testing::ValuesIn(activations),
                                     ::testing::ValuesIn(clip),
                                     ::testing::ValuesIn(direction),
-                                    ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
-                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(InputLayerType::CONSTANT),
+                                    ::testing::ValuesIn(model_types),
                                     ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             RNNSequenceTest::getTestCaseName);
 
@@ -56,8 +59,8 @@ namespace {
                                     ::testing::ValuesIn(activations),
                                     ::testing::ValuesIn(clip_non_zeros),
                                     ::testing::ValuesIn(direction),
-                                    ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
-                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(InputLayerType::CONSTANT),
+                                    ::testing::ValuesIn(model_types),
                                     ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             RNNSequenceTest::getTestCaseName);
 
