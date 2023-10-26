@@ -92,25 +92,27 @@ std::string Multinomial::getPrimitiveDescriptorType() const {
     }
 
     if (type == impl_desc_type::unknown)
-        str_type = "unknown";
-    else if (type == impl_desc_type::jit)
-        str_type = "jit";
-    else if (type == impl_desc_type::ref)
-        str_type = "ref";
-    else if (type == impl_desc_type::avx512)
-        str_type = "avx512";
-    else if (type == impl_desc_type::avx2)
-        str_type = "avx2";
-    else if (type == impl_desc_type::sse42)
-        str_type = "sse42";
-    else if (type == impl_desc_type::any)
-        str_type = "any";
-    else
-        str_type = "undef";
+        str_type += "unknown_";
+    if ((type & impl_desc_type::jit) == impl_desc_type::jit)
+        str_type += "jit_";
+    if ((type & impl_desc_type::ref) == impl_desc_type::ref)
+        str_type += "ref_";
+    if ((type & impl_desc_type::avx512) == impl_desc_type::avx512)
+        str_type += "avx512_";
+    if ((type & impl_desc_type::avx2) == impl_desc_type::avx2)
+        str_type += "avx2_";
+    if ((type & impl_desc_type::sse42) == impl_desc_type::sse42)
+        str_type += "sse42_";
+    if ((type & impl_desc_type::any) == impl_desc_type::any)
+        str_type += "any_";
+
+    if (str_type.empty())
+        str_type += "undef_";
 
     if (selectedPrimitiveDesc) {
-        str_type +=
-            "_" + std::string(selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision().name());
+        str_type += std::string(selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision().name());
+    } else {
+        str_type.pop_back();
     }
 
     return str_type;
