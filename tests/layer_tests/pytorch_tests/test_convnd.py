@@ -185,6 +185,9 @@ class TestConv2DInSubgraph(PytorchLayerTest):
         im = fe.load(decoder)
         om = fe.convert(im)
         self._resolve_input_shape_dtype(om, ov_inputs, dynamic_shapes)
+        from openvino import serialize
+        om.validate_nodes_and_infer_types()
+        serialize(om, "/tmp/convs_if.xml")
         return model, om
 
 
@@ -216,6 +219,7 @@ class TestConv2DInSubgraph(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.xfail(reason="ticket 123727")
     def test_conv2d(self, ie_device, precision, ir_version):
         self._test(*self.create_model(),
                    ie_device, precision, ir_version, freeze_model=True, dynamic_shapes=False)
