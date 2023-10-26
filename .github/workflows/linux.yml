@@ -103,14 +103,6 @@ jobs:
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
 
-      - name: Check pip vars set by setup action
-        run: |
-          echo ${{ env.PIP_CACHE_DIR }}
-          echo ${{ env.PIP_INSTALL_PATH }}
-          echo
-          echo ${PIP_CACHE_DIR}
-          echo ${PIP_INSTALL_PATH}
-
       - name: Install python dependencies
         run: |
           # For Python API: build and wheel packaging
@@ -520,11 +512,12 @@ jobs:
       ONNX_RUNTIME_BUILD_DIR: /__w/openvino/openvino/onnxruntime/build
 
     steps:
-      - name: Fetch install_build_dependencies.sh
+      - name: Fetch install_build_dependencies.sh and setup_python action
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
             install_build_dependencies.sh
+            .github/actions/setup_python/.yml
           sparse-checkout-cone-mode: false
           path: ${{ env.OPENVINO_REPO }}
           ref: 'master'
@@ -1380,20 +1373,15 @@ jobs:
             tar -xzf openvino_developer_package.tar.gz -C ${INSTALL_DIR}
           popd
 
-      # TODO: replace with sparse checkout below
-      - name: Clone OpenVINO
-        uses: actions/checkout@v4
-        with:
-          path: ${{ env.OPENVINO_REPO }}
-
-      - name: Fetch install_build_dependencies.sh
-        if: ${{ 'false' }}
+      - name: Fetch install_build_dependencies.sh and setup_python action
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
             install_build_dependencies.sh
+            .github/actions/setup_python/.yml
           sparse-checkout-cone-mode: false
           path: ${{ env.OPENVINO_REPO }}
+          ref: 'master'
 
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@v4
