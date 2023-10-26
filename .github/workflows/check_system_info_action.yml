@@ -19,7 +19,7 @@ jobs:
       max-parallel: 3
       fail-fast: false
       matrix:
-        machine: [aks-linux-8-cores, ubuntu-latest, windows-latest]
+        machine: [aks-linux-8-cores, macos-13, windows-latest]
     runs-on: ${{ matrix.machine }}
 
     steps:
