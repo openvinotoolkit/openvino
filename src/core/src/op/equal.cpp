@@ -18,13 +18,6 @@ namespace op {
 namespace equal {
 namespace {
 
-Tensor equal_tensor(const Tensor& lhs, const Tensor& rhs) {
-    const auto eq = v1::Equal();
-    auto outs = TensorVector{{element::boolean, Shape{}}};
-    eq.evaluate(outs, {lhs, rhs});
-    return outs.front();
-}
-
 Tensor less_equal_tensor(const Tensor& lhs, const Tensor& rhs) {
     const auto less_eq = v1::LessEqual();
     auto outs = TensorVector{{element::boolean, Shape{}}};
@@ -46,10 +39,19 @@ Tensor or_tensor(const Tensor& lhs, const Tensor& rhs) {
     return outs.front();
 }
 
-void all_equal(const TensorVector tensors, Tensor& output_value) {
-    auto& first_tensor = tensors[0];
-    for (size_t i = 1; i < tensors.size(); ++i) {
-        output_value = and_tensor(output_value, equal_tensor(first_tensor, tensors[i]));
+void all_equal(const TensorVector& tensors, TensorVector& outputs) {
+    auto& output = outputs[0];
+    auto eq_result = TensorVector{{output.get_element_type(), output.get_shape()}};
+
+    auto t_iter = tensors.begin() + 2;
+    auto eq_inputs = TensorVector(tensors.begin(), t_iter);
+
+    const auto eq = v1::Equal();
+    eq.evaluate(outputs, eq_inputs);
+    for (; t_iter != tensors.end(); ++t_iter) {
+        eq_inputs[1] = *t_iter;
+        eq.evaluate(eq_result, eq_inputs);
+        output = and_tensor(output, eq_result[0]);
     }
 }
 
@@ -117,7 +119,7 @@ bool Equal::evaluate_lower(TensorVector& output_values) const {
     const auto &lhs = get_input_tensor(0), &rhs = get_input_tensor(1);
     const auto &lhs_lower = lhs.get_lower_value(), &lhs_upper = lhs.get_upper_value();
     const auto &rhs_lower = rhs.get_lower_value(), &rhs_upper = rhs.get_upper_value();
-    equal::all_equal({lhs_lower, lhs_upper, rhs_lower, rhs_upper}, output_values[0]);
+    equal::all_equal({lhs_lower, lhs_upper, rhs_lower, rhs_upper}, output_values);
     return true;
 }
 
