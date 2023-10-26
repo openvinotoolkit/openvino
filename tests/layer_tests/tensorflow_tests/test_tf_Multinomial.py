@@ -23,7 +23,7 @@ class TestMultinomial(CommonTFLayerTest):
             num_samples = tf.compat.v1.placeholder(tf.int32, [], "num_samples")
             if global_seed is not None:
                 tf.random.set_seed(global_seed)
-            tf.random.categorical(tf.math.log(probs), num_samples, dtype=out_type, seed=op_seed)
+            tf.raw_ops.Multinomial(logits=tf.math.log(probs), num_samples=num_samples, seed=global_seed, seed2=op_seed, output_dtype=out_type)
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
