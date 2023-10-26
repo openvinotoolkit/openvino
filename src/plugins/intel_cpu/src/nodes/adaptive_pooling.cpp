@@ -105,10 +105,6 @@ void AdaptivePooling::initSupportedPrimitiveDescriptors() {
     // we supports only fp32 currently
     precision = Precision::FP32;
 
-    InferenceEngine::LayerConfig config;
-    config.inConfs.resize(2);
-    config.outConfs.resize((algorithm == Algorithm::AdaptivePoolingAvg ? 1 : 2));
-
     std::vector<LayoutType> dataFormats{ LayoutType::ncsp };
     const auto &inDims = getInputShapeAtPort(0).getDims();
     if (inDims[1] != Shape::UNDEFINED_DIM && inDims[1] != 1) {

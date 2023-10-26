@@ -634,7 +634,6 @@ protected:
 
     virtual std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const;
 
-    InferenceEngine::Layout getWeightsLayoutByDims(InferenceEngine::SizeVector dims, bool isGrouped);
     dnnl::memory::format_tag getWeightsFormatTagByDims(const InferenceEngine::SizeVector& dims) const;
 
     /**

@@ -28,7 +28,6 @@ bool ITensor::is_continuous() const {
     if (get_element_type().bitwidth() < 8)
         // OpenVINO doesn't support strides for lp types
         return true;
-
     const auto& shape = get_shape();
     const auto& type = get_element_type();
     std::vector<size_t> strides(shape.size());

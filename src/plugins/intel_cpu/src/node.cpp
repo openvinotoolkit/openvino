@@ -1212,27 +1212,6 @@ bool Node::isFusedWith(Type fusedNodeType) const {
     return false;
 }
 
-InferenceEngine::Layout Node::getWeightsLayoutByDims(SizeVector dims, bool isGrouped) {
-    switch (dims.size()) {
-        case 0:
-            return InferenceEngine::Layout::SCALAR;
-        case 1:
-            return InferenceEngine::Layout::C;
-        case 2:
-            return InferenceEngine::Layout::NC;
-        case 3:
-            return InferenceEngine::Layout::CHW;
-        case 4:
-            return InferenceEngine::Layout::OIHW;
-        case 5:
-            return isGrouped ? InferenceEngine::Layout::GOIHW : InferenceEngine::Layout::OIDHW;
-        case 6:
-            return isGrouped ? InferenceEngine::Layout::GOIDHW : InferenceEngine::Layout::BLOCKED;
-        default:
-            return InferenceEngine::Layout::BLOCKED;
-    }
-}
-
 dnnl::memory::format_tag Node::getWeightsFormatTagByDims(const SizeVector& dims) const {
     switch (dims.size()) {
     case 1:
