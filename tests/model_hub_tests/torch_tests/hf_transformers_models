@@ -71,7 +71,7 @@ facebook/esm2_t6_8M_UR50D,esm
 facebook/flava-full,flava,xfail,Tracing problem
 facebook/flava-image-codebook,flava_image_codebook,skip,Load problem
 facebook/m2m100_418M,m2m_100
-facebook/mask2former-swin-base-coco-panoptic,mask2former,xfail,Accuracy validation failed
+facebook/mask2former-swin-base-coco-panoptic,mask2former
 facebook/maskformer-swin-base-coco,maskformer
 facebook/mms-tts-eng,vits,skip,Load problem
 facebook/musicgen-small,musicgen,skip,Load problem

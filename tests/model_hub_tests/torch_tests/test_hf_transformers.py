@@ -298,7 +298,7 @@ class TestTransformersModel(TestConvertModel):
                                            ("google/tapas-large-finetuned-wtq", "tapas"),
                                            ("gpt2", "gpt2"),
                                            ("openai/clip-vit-large-patch14", "clip"),
-                                           ("facebook/xmod-base","xmod")
+                                           ("facebook/mask2former-swin-base-coco-panoptic","mask2former")
                                            ])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, type, ie_device):
