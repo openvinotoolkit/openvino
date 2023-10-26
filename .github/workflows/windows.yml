@@ -1,9 +1,9 @@
-name: Windows (VS 2022, Python 3.11)
+name: Windows (VS 2019, Python 3.11)
 on:
+  workflow_dispatch:
   schedule:
     # at 00:00 on workdays
     - cron: '0 0 * * 1,2,3,4,5'
-#  workflow_dispatch:
 #  pull_request:
 #    paths-ignore:
 #      - '**/docs/**'
@@ -33,10 +33,11 @@ env:
 
 jobs:
   Build:
+    timeout-minutes: 180
     defaults:
       run:
         shell: pwsh
-    runs-on: windows-latest-8-cores
+    runs-on: windows-2019-16-core
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
@@ -115,7 +116,7 @@ jobs:
           cmake -G "${{ env.CMAKE_GENERATOR }}" `
             -DENABLE_CPPLINT=OFF `
             -DBUILD_nvidia_plugin=OFF `
-            -DBUILD_SHARED_LIBS=OFF `
+            -DBUILD_SHARED_LIBS=ON `
             -DENABLE_TESTS=ON `
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF `
             -DENABLE_STRICT_DEPENDENCIES=OFF `
@@ -180,10 +181,11 @@ jobs:
 
   Samples:
     needs: Build
+    timeout-minutes: 10
     defaults:
       run:
         shell: pwsh
-    runs-on: windows-latest-8-cores
+    runs-on: windows-2019
     env:
       INSTALL_DIR: "${{ github.workspace }}\\install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
@@ -248,10 +250,11 @@ jobs:
   Python_Unit_Tests:
     name: Python unit tests
     needs: Build
+    timeout-minutes: 75
     defaults:
       run:
         shell: pwsh
-    runs-on: windows-latest
+    runs-on: windows-2019
     env:
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
@@ -448,10 +451,11 @@ jobs:
   CXX_Unit_Tests:
     name: C++ unit tests
     needs: Build
+    timeout-minutes: 15
     defaults:
       run:
         shell: pwsh
-    runs-on: windows-latest
+    runs-on: windows-2019
     env:
       INSTALL_DIR: "${{ github.workspace }}\\install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
@@ -565,10 +569,13 @@ jobs:
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_cpu_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CPUUnitTests.xml
 
       - name: SubgraphsDumper tests
+        shell: cmd
         run: |
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/subgraphsDumperTests --gtest_print_time=1  --gtest_print_time=1 --device=TEMPLATE --gtest_filter="*OpImpl*" --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-SubgraphsDumperTests.xml
 
       - name: Template OpImpl tests
+        if: ${{ 'false' }} # Ticket: 123572
+        shell: cmd
         run: |
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/conformanceTests --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TemplateOpImplTests.xml
 
@@ -598,6 +605,7 @@ jobs:
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/InferenceEngineCAPITests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceEngineCAPITests.xml
 
       - name: OpenVINO C API tests
+        if: ${{ 'false' }} # Ticket: 123594
         shell: cmd
         run: |
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_capi_test --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OpenVINOCAPITests.xml
@@ -638,10 +646,11 @@ jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
     needs: Build
+    timeout-minutes: 30
     defaults:
       run:
         shell: pwsh
-    runs-on: windows-latest-8-cores
+    runs-on: windows-2019-8-core
     env:
       INSTALL_DIR: "${{ github.workspace }}\\install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
@@ -690,7 +699,7 @@ jobs:
         shell: cmd
         run: |
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}\ov_cpu_func_tests.exe -c ${{ env.PARALLEL_TEST_CACHE }} -w ${{ env.INSTALL_TEST_DIR }} -s suite -- --gtest_filter=*smoke*"
-        timeout-minutes: 45
+        timeout-minutes: 25
 
       - name: Save tests execution time
         uses: actions/cache/save@v3
