@@ -85,7 +85,6 @@
 #include "transformations/op_conversions/convert_scatter_elements_to_scatter.hpp"
 #include "transformations/op_conversions/convert_subtract.hpp"
 #include "transformations/op_conversions/convert_ti_to_sequences.hpp"
-#include "transformations/remove_rt_info.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "transformations/smart_reshape/lstm_states_broadcast.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
@@ -107,7 +106,6 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ov::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
     using namespace ov::pass;
-    REGISTER_PASS(manager, RemoveRtInfo)
     REGISTER_PASS(manager, InitNodeInfo)
     if (m_low_precision_enabled) {
         manager.register_pass<ov::pass::MarkDequantizationSubgraph>(

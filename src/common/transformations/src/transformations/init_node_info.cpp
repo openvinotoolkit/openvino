@@ -23,6 +23,7 @@ bool ov::pass::InitNodeInfo::run_on_model(const std::shared_ptr<ov::Model>& f) {
             }
         }
         auto& rtInfo = node->get_rt_info();
+        rtInfo.clear();
         rtInfo.emplace(FusedNames::get_type_info_static(), FusedNames{node->get_friendly_name()});
     }
     return false;
