@@ -317,7 +317,7 @@ jobs:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
           sparse-checkout-cone-mode: false
-          path: ${{ env.OPENVINO_REPO }}
+          path: 'openvino'
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
