@@ -517,10 +517,9 @@ jobs:
         with:
           sparse-checkout: |
             install_build_dependencies.sh
-            .github/actions/setup_python/.yml
+            .github/actions/setup_python/action.yml
           sparse-checkout-cone-mode: false
           path: ${{ env.OPENVINO_REPO }}
-          ref: 'master'
 
       - name: Install git
         run: |
@@ -1378,10 +1377,9 @@ jobs:
         with:
           sparse-checkout: |
             install_build_dependencies.sh
-            .github/actions/setup_python/.yml
+            .github/actions/setup_python/action.yml
           sparse-checkout-cone-mode: false
           path: ${{ env.OPENVINO_REPO }}
-          ref: 'master'
 
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@v4
