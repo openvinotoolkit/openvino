@@ -1,25 +1,38 @@
 name: 'System Information'
-description: 'Information about the system (CPU, RAM, HDD)'
+description: 'Information about the system and tools'
 runs:
   using: "composite"
   steps:
     - if: runner.os == 'Linux'
-      run: |
-        echo "Display information about the CPU architecture"
-        lscpu
-        echo "Display amount of free and used memory in the system:"
-        free -h
-        echo "Report file system disk space usage:"
-        df -h
       shell: bash
+      run: |
+        echo "System: ${{ runner.os }}"
+        echo "System Architecture: ${{ runner.arch }}"
+        echo "Python version: $(python3 --version)"
+        echo "gcc info: $(which gcc), Version: $(gcc --version)"
+        echo "cmake info: $(which cmake), Version: $(cmake --version)"
+        echo "CPU Info: "; lscpu
+        echo "RAM Info: "; free -h --si
+        echo "MEMORY Info: "; df -h
+
     - if: runner.os == 'macOS'
-      run: |
-        echo "Display information about the CPU architecture"
-        sytem_profiler SPHardwarecDataType
-        echo "Report file system disk space usage:"
-        df -h
       shell: bash
+      run: |
+        echo "System: ${{ runner.os }}"
+        echo "System Architecture: ${{ runner.arch }}"
+        echo "Python version: $(python3 --version)" 
+        echo "gcc info: $(which gcc), Version: $(gcc --version)"
+        echo "cmake info: $(which cmake), Version: $(cmake --version)"
+        echo "CPU and RAM Info: "; system_profiler SPHardwareDataType
+        echo "MEMORY Info: "; df -h
+
     - if: runner.os == 'Windows'
+      shell: pwsh
       run: |
-        systeminfo | findstr /C:”Memory”
-      shell: bash
+        echo "System: ${{ runner.os }}"
+        echo "System Architecture: ${{ runner.arch }}"
+        echo "Python version: $(python3 --version)"
+        echo "gcc version: $(gcc --version)"
+        echo "cmake version: $(cmake --version)"
+        echo "CPU Info: "; Get-WmiObject Win32_Processor
+        echo "RAM info: $(systeminfo | Select-String 'Total Physical Memory:')"

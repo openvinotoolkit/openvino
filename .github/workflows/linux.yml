@@ -67,10 +67,6 @@ jobs:
           apt-get update
           apt-get install --assume-yes --no-install-recommends git ca-certificates
 
-      # Print system info
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/system_info
-
       - name: Clone OpenVINO
         uses: actions/checkout@v4
         with:
