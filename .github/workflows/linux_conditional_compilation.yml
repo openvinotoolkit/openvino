@@ -116,9 +116,6 @@ jobs:
 
           # For running Paddle frontend unit tests
           python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
-          # see https://github.com/PaddlePaddle/Paddle/issues/55597#issuecomment-1718131420
-          wget http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
-          apt-get install ./libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
 
       #
       # Build
