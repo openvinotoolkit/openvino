@@ -6910,8 +6910,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_group_normalization_3grp_default_eps) {
          -0.73710674f, -0.80988204f, -0.6747702f,  -0.6824198f, -0.8084908f,  -0.86908495f, -0.48516175f, -0.8945968f,
          2.4475086f,   1.3245938f,   2.1965842f,   2.6363354f,  1.2183195f,   3.3474774f,   -0.92077446f, -1.2836761f});
 
-    constexpr size_t tolerance_bits = 3;
-    test_case.run(tolerance_bits);
+    test_case.run_with_tolerance_as_fp(0.000001f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_group_normalization_3grp_custom_eps) {
@@ -6939,8 +6938,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_group_normalization_3grp_custom_eps) {
          -0.36344206f, 0.6759755f,  -0.58001745f, -0.30147952f, -0.7614548f,  0.22742787f, 0.8815994f,   0.35268092f,
          -2.9372354f,  -1.3806448f, -1.3957335f,  -1.6709452f,  -1.5544388f,  -1.6389949f, -0.36025894f, -0.83673286f});
 
-    constexpr size_t tolerance_bits = 3;
-    test_case.run(tolerance_bits);
+    test_case.run_with_tolerance_as_fp(0.000001f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_group_normalization_2grp_custom_eps) {
@@ -6962,6 +6960,5 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_group_normalization_2grp_custom_eps) {
          3.0944781f,  2.154863f,    2.5965219f,   1.0839586f,  -1.8562672f,  -3.540983f, 0.14745194f, -1.8816261f,
          -1.4463723f, -0.547642f,   -2.768998f,   1.3848708f,  0.97488886f,  2.5446892f, 1.4639623f,  -1.7954159f});
 
-    constexpr size_t tolerance_bits = 3;
-    test_case.run(tolerance_bits);
+    test_case.run_with_tolerance_as_fp(0.000001f);
 }
