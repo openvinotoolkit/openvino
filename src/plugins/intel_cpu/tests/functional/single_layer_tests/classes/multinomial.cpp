@@ -99,8 +99,8 @@ void MultinomialLayerTestCPU::SetUp() {
     inputs.push_back(num_samples_param);
     params.push_back(num_samples_param);
 
-    auto multinomial = std::make_shared<ov::op::v13::Multinomial>(params[0],
-                                                                  params[1],
+    auto multinomial = std::make_shared<ov::op::v13::Multinomial>(inputs[0],
+                                                                  inputs[1],
                                                                   convert_type,
                                                                   with_replacement,
                                                                   log_probs,
