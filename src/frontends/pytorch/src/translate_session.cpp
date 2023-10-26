@@ -271,8 +271,10 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 auto mutated_tensor = tensor_map->at(tensor_id);
                 // empty external_tensor_map means this is main body of the model and we don't want to create
                 // additional outputs in that case.
-                if (mutated_tensor.get_target_inputs().empty() && !external_tensor_map.empty())
+                if (!external_tensor_map.empty()) {
+                    OPENVINO_DEBUG << "Creating Result for mutated tensor  " << tensor_id;
                     results.push_back(std::make_shared<v0::Result>(tensor_map->at(tensor_id)));
+                }
             } else {
                 OPENVINO_DEBUG << "Mutated tensor with id " << tensor_id << " doesn't exist in inputs, skipping.";
             }
