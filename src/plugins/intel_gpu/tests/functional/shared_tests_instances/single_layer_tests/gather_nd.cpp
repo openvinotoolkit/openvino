@@ -23,42 +23,18 @@ const std::vector<ov::element::Type> idxPrecisions = {
 };
 
 // set1
-const auto gatherNDArgsSubset1 = ::testing::Combine(
-    ::testing::ValuesIn(std::vector<std::vector<ov::Shape>>(
-        { {{2, 2}}, {{2, 3, 4}} })),                                // Data shape
-    ::testing::ValuesIn(std::vector<std::vector<size_t>>(
-        { {2, 1}, {2, 1, 1} })),                                // Indices shape
-    ::testing::ValuesIn(std::vector<int>({ 0, 1 }))             // Batch dims
-);
-
-// // set2
-// const auto gatherNDArgsSubset2 = ::testing::Combine(
-//     ::testing::ValuesIn(std::vector<std::vector<ov::Shape>>(
-//         { {{15, 12, 20, 15, 2}}, {{15, 12, 18, 7, 17}} })),         // Data shape
-//     ::testing::ValuesIn(std::vector<std::vector<ov::Shape>>(
-//         { {15, 12, 2}, {15, 12, 5, 9, 1, 3} })),                // Indices shape
-//     ::testing::ValuesIn(std::vector<int>({ 1, 2 }))             // Batch dims
-// );
-
-// // set3
-// const auto gatherNDArgsSubset3 = ::testing::Combine(
-//     ::testing::ValuesIn(std::vector<std::vector<ov::Shape>>(
-//         { {{4, 3, 2, 5, 5, 2}}, {{4, 3, 2, 5, 7, 2}} })),           // Data shape
-//     ::testing::ValuesIn(std::vector<std::vector<ov::Shape>>(
-//         { {4, 3, 2, 5, 1}, {4, 3, 2, 5, 6, 2} })),              // Indices shape
-//     ::testing::ValuesIn(std::vector<int>({ 3, 4 }))             // Batch dims
-// );
-
 std::vector<std::vector<ov::Shape>> shapes_subset1_static = std::vector<std::vector<ov::Shape>>({
     {{2, 2}}, {{2, 3, 4}} });
 std::vector<ov::Shape> indices_subset1_static = std::vector<ov::Shape>({
     {2, 1}, {2, 1, 1}});
 
+// set2
 std::vector<std::vector<ov::Shape>> shapes_subset2_static = std::vector<std::vector<ov::Shape>>({
     {{15, 12, 20, 15, 2}}, {{15, 12, 18, 7, 17}}});
 std::vector<ov::Shape> indices_subset2_static = std::vector<ov::Shape>({
     {15, 12, 2}, {15, 12, 5, 9, 1, 3}});
 
+// set3
 std::vector<std::vector<ov::Shape>> shapes_subset3_static = std::vector<std::vector<ov::Shape>>({
     {{4, 3, 2, 5, 5, 2}}, {{4, 3, 2, 5, 7, 2}} });
 std::vector<ov::Shape> indices_subset3_static = std::vector<ov::Shape>({
