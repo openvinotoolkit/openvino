@@ -7,7 +7,7 @@
 #include "ngraph_functions/builders.hpp"
 
 /*
-The main purpose of the tests is to refactor cyclic inplace resolution in order to make output edge be referenced whenever possible.
+The main purpose of the tests is to test cyclic inplace resolution in order to make sure that output edges are referenced whenever possible.
 */
 
 using namespace InferenceEngine;
