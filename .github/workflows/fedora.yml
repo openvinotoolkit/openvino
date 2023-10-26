@@ -51,7 +51,7 @@ jobs:
       SCCACHE_AZURE_KEY_PREFIX: fedora33_x86_64_Release
     steps:
       - name: Install git
-        run: yum update -y && yum install -y git procps
+        run: yum update -y && yum install -y git
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4

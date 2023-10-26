@@ -6,6 +6,11 @@ runs:
     - if: runner.os == 'Linux'
       shell: bash
       run: |
+        # Install pre-requisites for Fedora
+        if [[ -e /etc/fedora-release ]]; then
+          yum update -y -q && yum install -y -q procps
+        fi
+        
         echo "System: ${{ runner.os }}"
         echo "System Architecture: ${{ runner.arch }}"
         echo "CPU Info: "; lscpu
