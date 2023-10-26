@@ -13,11 +13,12 @@ namespace auto_plugin {
 std::string CumuSchedule::schedule_to_next_device(const std::vector<DeviceInformation>& devices,
                                                   std::size_t current_device_index) {
     std::lock_guard<std::mutex> lock(m_context->m_mutex);
-    m_n_ctput_schedule_nextdevice = m_n_ctput_schedule_nextdevice >= devices.size() ? 0 : m_n_ctput_schedule_nextdevice;
-    auto selected_device_name = devices[m_n_ctput_schedule_nextdevice].device_name;
+    m_n_ctput_schedule_next_device =
+        m_n_ctput_schedule_next_device >= devices.size() ? 0 : m_n_ctput_schedule_next_device;
+    auto selected_device_name = devices[m_n_ctput_schedule_next_device].device_name;
     auto schedule_policy = m_context->m_schedule_policy;
     if (schedule_policy == ov::intel_auto::SchedulePolicy::ROUND_ROBIN) {
-        m_n_ctput_schedule_nextdevice++;
+        m_n_ctput_schedule_next_device++;
     } else if (schedule_policy == ov::intel_auto::SchedulePolicy::DEVICE_PRIORITY) {
         selected_device_name = devices[current_device_index].device_name;
     }
@@ -34,7 +35,7 @@ bool CumuSchedule::select_other_device(const std::string& cur_dev_name) {
                     deviceChecker().check_and_return_if_device_in_list<DeviceInformation>(device_name, m_context->m_device_priorities);
                 if (current_device_iter != m_context->m_device_priorities.end()) {
                     m_context->m_device_priorities.erase(current_device_iter);
-                    return true;
+                                        return true;
                 }
             }
             return false;
@@ -230,6 +231,7 @@ bool CumuSchedule::schedule_to_worker_infer_request(ov::threading::Task pipeline
     } else {
         devices = m_context->m_device_priorities;
     }
+    lock.unlock();
 
     std::size_t current_device_index = 0;
     while (current_device_index < devices.size()) {
@@ -245,7 +247,6 @@ bool CumuSchedule::schedule_to_worker_infer_request(ov::threading::Task pipeline
             current_device_index++;
         }
     }
-    lock.unlock();
 
     // no vacant requests this time, storing the task to the respective queue
     if (!preferred_device.empty()) {

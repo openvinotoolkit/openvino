@@ -17,7 +17,7 @@ public:
     virtual ~CumuSchedule();
     std::unique_ptr<AutoCompileContext[]>      m_p_ctput_loadcontext = nullptr;
     size_t                                  m_n_ctput_devicenums = 0;
-    size_t                                  m_n_ctput_schedule_nextdevice = 0;
+    size_t                                  m_n_ctput_schedule_next_device = 0;
     std::string schedule_to_next_device(const std::vector<DeviceInformation>& devices,
                                         std::size_t current_device_index);
 private:
