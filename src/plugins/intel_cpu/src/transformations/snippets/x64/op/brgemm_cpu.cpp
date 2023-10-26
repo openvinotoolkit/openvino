@@ -17,7 +17,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type ty
                      const size_t offset_a, const size_t offset_b, const size_t offset_c,
                      std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c,
                      const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n, const float beta)
-    : Brgemm(), m_type(type) {
+    : Brgemm(), m_type(type), m_beta(beta) {
     // We call default ctor of Brgemm class to avoid incorrect shape infer in constructor_validate_and_type_infer() call
     set_arguments({A, B});
     set_output_size(1);

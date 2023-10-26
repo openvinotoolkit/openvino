@@ -61,12 +61,12 @@ ov::Shape compute_allocation_shape(const LinearIR::LoopManagerPtr& loop_manager,
     // TODO: Use general logic with the help of memory counts for allocation shape computation
     if (buffer_loop_ids.back() == parent_loop_ids.back()) {
         const auto buffer_loop = loop_manager->get_loop_info(buffer_loop_ids.back());
-        *(allocation_shape.rbegin() + 1) = buffer_loop->increment;
+        *(allocation_shape.rbegin() + 1) = buffer_loop->get_increment();
         set_rest_dims_to_ones(2);
     } else {
         for (size_t i = 0; i < std::min(rank, parent_loop_ids.size()); ++i) {
             const auto loop = loop_manager->get_loop_info(*(parent_loop_ids.rbegin() + i));
-            *(allocation_shape.rbegin() + i) = loop->work_amount;
+            *(allocation_shape.rbegin() + i) = loop->get_work_amount();
         }
         set_rest_dims_to_ones(static_cast<int>(parent_loop_ids.size()));
     }
@@ -275,8 +275,8 @@ bool InsertBuffers::run(LinearIR& linear_ir) {
     const auto loop_data_map = loop_manager->get_map();
     for (const auto& loop_data : loop_data_map) {
         const auto loop_info = loop_data.second;
-        const auto loop_entries = loop_info->entry_points;
-        const auto loop_exits = loop_info->exit_points;
+        const auto loop_entries = loop_info->get_entry_points();
+        const auto loop_exits = loop_info->get_exit_points();
         // using begin() as expr_it because we work with LoopInfo, not expressions in Linear IR
         insertion(linear_ir, linear_ir.cbegin(), loop_manager, loop_entries, loop_exits);
     }

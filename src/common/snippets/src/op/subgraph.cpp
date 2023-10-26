@@ -428,6 +428,10 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
     const size_t vector_size = get_generator()->get_target_machine()->get_lanes();
     const int32_t buffer_allocation_rank = static_cast<int32_t>(linear_ir.get_config().m_loop_depth);
 
+    // We have to call MarkLoops before backend markup passes
+    // because these passes can update subtensor but not insert Loop (e.g. when loop increment is equal to the corresponding dim)
+    // If MarkLoops is called on such LIR, it inserts Eltwise-like loops which might not reflect backend expectations
+    // It should be fixed by ticket 113666
     lowered::pass::PassPipeline markup_pipeline;
     markup_pipeline.register_pass<lowered::pass::MarkLoops>(vector_size);
     markup_pipeline.run(linear_ir);

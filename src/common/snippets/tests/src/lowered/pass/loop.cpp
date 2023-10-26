@@ -46,7 +46,7 @@ static void init_linear_ir(const std::vector<ov::PartialShape>& in_shapes, Linea
     loop_manager->mark_loop(expr_it, std::next(expr_it), inner_wa, inner_inc, 0, loop_entry_points, loop_exit_points);
     loop_manager->mark_loop(expr_it, std::next(expr_it), blocked_wa, blocked_inc, 1, loop_entry_points, loop_exit_points);
     const auto loop_id = loop_manager->mark_loop(expr_it, std::next(expr_it), outer_wa, outer_inc, 1, loop_entry_points, loop_exit_points);
-    loop_manager->get_loop_info(loop_id)->outer_splited_loop = true;
+    loop_manager->get_loop_info(loop_id)->set_outer_splited_loop(true);
 }
 
 static void init_pipeline(pass::PassPipeline& pass_pipeline) {

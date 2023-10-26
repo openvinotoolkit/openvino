@@ -27,6 +27,13 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
         return get_op_reg_type(op);
     };
     lowered::pass::PassPipeline lowered_pipeline;
+    // Note: the order of all passes in this pipeline must not be changed since they have hard dependencies
+    //    1. InsertTailLoop must be called after AssignRegisters since tail loop expressions must have the same
+    //       assigned registers as the corresponding ops in the main body.
+    //    2. CleanupLoopOffsets must be called after InsertTailLoop to avoid violating the proportionality of the pointer increments
+    //       (this might happen if tail loop and main loop have different increments)
+    //    3. OptimizeLoopSingleEvaluation must be called after CleanupLoopOffsets
+    //       since CleanupLoopOffsets can't handle loops with evaluate_once = true
     lowered_pipeline.register_pass<lowered::pass::AssignRegisters>(reg_type_mapper);
     lowered_pipeline.register_pass<lowered::pass::InsertTailLoop>();
     lowered_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();

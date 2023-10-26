@@ -13,7 +13,7 @@ namespace pass {
 /**
  * @interface SetBrgemmCopyBBuffersShape
  * @brief Sets the allocation shape for the Buffers after BrgemmCopyB node using BrgemmCopyB parameters
- *        This pass is a workaround until we have Buffer memory allocation based on subtensors
+ *        This pass may be deprecated when a more generic memory management approach is introduced.
  *        Ticket: 113744
  * @ingroup snippets
  */

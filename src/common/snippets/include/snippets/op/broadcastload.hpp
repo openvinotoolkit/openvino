@@ -30,7 +30,7 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
     const ov::Dimension& get_bcast_dimension() {return bcast_dimension;}
-    void set_bcast_dimension(const ov::Dimension new_dim) {bcast_dimension = new_dim;}
+    void set_bcast_dimension(ov::Dimension new_dim) {bcast_dimension = std::move(new_dim);}
 
     // Note:BroadcastMove and BroadcastLoad are implemented as separate classes,
     // but have identical shapeInfer semantics. In order to avoid code duplication,

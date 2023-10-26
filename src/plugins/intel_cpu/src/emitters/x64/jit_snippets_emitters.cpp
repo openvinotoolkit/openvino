@@ -760,8 +760,7 @@ size_t BrgemmEmitter::get_out_leading_dim(const VectorDims& shape, const std::ve
 BrgemmEmitter::BrgemmEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
-    if (brgemm_node->is_dynamic())
-        OPENVINO_THROW("Snippets don't support code generation for dynamic Brgemm");
+    OPENVINO_ASSERT(!brgemm_node->is_dynamic(), "Snippets don't support code generation for dynamic Brgemm");
 
     std::vector<size_t> leading_dimensions;
      auto get_layout = [](const std::vector<size_t>& layout, const snippets::VectorDims& io_shape) {
@@ -794,14 +793,8 @@ BrgemmEmitter::BrgemmEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
     }
     init_out_scheduling_params(output_desc);
 
-    const auto& output_subtensor = output_desc->get_subtensor();
-    const auto& input_0_subtensor = input_0_desc->get_subtensor();
-    m_K = *input_0_subtensor.rbegin();
-    m_M = *(output_subtensor.rbegin() + 1);
-    m_N = *output_subtensor.rbegin();
-
-    auto brg0Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(0));
-    auto brg1Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(1));
+    const auto& brg0Prc = brgemm_node->get_input_element_type(0);
+    const auto& brg1Prc = brgemm_node->get_input_element_type(1);
     bool brgWithAMX = brgemm_node->is_amx();
 
     io_data_size = {brg0Prc.size(), brg1Prc.size()};
@@ -812,14 +805,25 @@ BrgemmEmitter::BrgemmEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
     m_with_comp = brgemm_node->is_with_compensations();
     m_with_scratch = brgemm_node->is_with_scratchpad();
 
-    m_brgCtx.M = m_M;
-    m_brgCtx.N = m_N;
-    m_brgCtx.K = m_K;
+    const auto& output_subtensor = output_desc->get_subtensor();
+    const auto& input_0_subtensor = input_0_desc->get_subtensor();
+    const auto& input_1_subtensor = input_1_desc->get_subtensor();
+
+    OPENVINO_ASSERT(*(output_subtensor.rbegin() + 1) == *(input_0_subtensor.rbegin() + 1),
+                    "Brgemm has different M dimension subtensors on input0 and output");
+    OPENVINO_ASSERT(*output_subtensor.rbegin() == *input_1_subtensor.rbegin(),
+                    "Brgemm has different N dimension subtensors on input1 and output");
+    OPENVINO_ASSERT(*input_0_subtensor.rbegin() == *(input_1_subtensor.rbegin() + 1),
+                    "Brgemm has different K dimension subtensors on input0 and input1");
+
+    m_brgCtx.M = *(output_subtensor.rbegin() + 1);
+    m_brgCtx.N = *output_subtensor.rbegin();
+    m_brgCtx.K = *input_0_subtensor.rbegin();
     m_brgCtx.LDA = leading_dimensions[0];
     m_brgCtx.LDB = leading_dimensions[1];
     m_brgCtx.LDC = leading_dimensions[2];
-    m_brgCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg0Prc));
-    m_brgCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1Prc));
+    m_brgCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brg0Prc));
+    m_brgCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brg1Prc));
     m_brgCtx.beta = brgemm_node->get_beta();
 
     initBrgemm(m_brgCtx, m_brgKernel, brgWithAMX);

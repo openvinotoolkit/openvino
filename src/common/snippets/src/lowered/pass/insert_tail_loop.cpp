@@ -22,8 +22,8 @@ void InsertTailLoop::propagate_updated_subtensor_through_loop(const LinearIR& li
                                                               const size_t new_dim_value) {
     std::map<lowered::PortDescriptorPtr, snippets::VectorDims> original_shapes;
     // First step: set new dim value to the corresponding entry_points' dimensions
-    if (new_dim_value != SIZE_MAX) {
-        for (const auto& port : loop_info->entry_points) {
+    if (new_dim_value != existing_subtensor_value) {
+        for (const auto& port : loop_info->get_entry_points()) {
             if (port.is_incremented) {
                 const auto& expr = port.expr_port->get_expr();
                 const auto node = expr->get_node();
@@ -67,11 +67,12 @@ void InsertTailLoop::propagate_updated_subtensor_through_loop(const LinearIR& li
         }
     };
 
-    auto update_subtensors = [](const std::vector<PortDescriptorPtr>& descs) {
+    auto update_subtensors = [](const std::vector<PortDescriptorPtr>& descs, bool is_input) {
         for (const auto& desc : descs) {
             const auto& subtensor = desc->get_subtensor();
             if (!subtensor.empty()) {
-                auto planar_dims = snippets::utils::get_planar_vdims(desc->get_shape(), desc->get_layout());
+                auto planar_dims = is_input ? snippets::utils::get_planar_vdims(desc->get_shape(), desc->get_layout())
+                                            : snippets::utils::get_preordered_vdims(desc->get_shape(), desc->get_layout());
                 const size_t subtensor_start = planar_dims.size() - subtensor.size();
                 VectorDims new_subtensor(planar_dims.begin() + subtensor_start, planar_dims.end());
                 for (size_t i = 0; i < new_subtensor.size(); ++i) {
@@ -97,8 +98,8 @@ void InsertTailLoop::propagate_updated_subtensor_through_loop(const LinearIR& li
             const auto inner_end = linear_ir.find(linear_ir.get_expr_by_node(loop_end));
 
             // The corresponding shapes of inner loops entry points must be updated using existing subtensor values
-            if (new_dim_value == SIZE_MAX) {
-                for (const auto& port : loop_info->entry_points)
+            if (new_dim_value == existing_subtensor_value) {
+                for (const auto& port : loop_info->get_entry_points())
                     update_only_dim_idx_with_subtensor_value(port);
             }
             propagate_updated_subtensor_through_loop(linear_ir, inner_loop_info, inner_begin, inner_end);
@@ -115,8 +116,8 @@ void InsertTailLoop::propagate_updated_subtensor_through_loop(const LinearIR& li
             break;
         }
         expr->updateShapes();
-        update_subtensors(expr->get_input_port_descriptors());
-        update_subtensors(expr->get_output_port_descriptors());
+        update_subtensors(expr->get_input_port_descriptors(), true);
+        update_subtensors(expr->get_output_port_descriptors(), false);
     }
 
     // After subtensor propagation, the original shapes must be restored
@@ -131,34 +132,22 @@ LinearIR::container InsertTailLoop::copy_loop(const LinearIR& linear_ir, const s
     LinearIR::constExprIt loop_begin_pos, loop_end_pos;
     loop_manager->get_loop_bounds(linear_ir, loop_id, loop_begin_pos, loop_end_pos, true);
     ExressionMap expression_map;
-    auto loop_copy_range = LinearIR::deep_copy_range(loop_begin_pos, std::next(loop_end_pos), expression_map);
-
-    auto update_loop_ports = [](const ExpressionPtr& expr,
-                                const ExpressionPtr& tail_expr,
-                                std::vector<LinearIR::LoopManager::LoopPort>& ports) {
-        auto find_if_predicate = [&](const LinearIR::LoopManager::LoopPort& port) {
-            return port.expr_port->get_expr()->get_node() == expr->get_node();
-        };
-        auto pos = std::find_if(ports.begin(), ports.end(), find_if_predicate);
-        while (pos != ports.end()) {
-            pos->expr_port = std::make_shared<ExpressionPort>(tail_expr, pos->expr_port->get_type(), pos->expr_port->get_index());
-            pos = std::find_if(pos, ports.end(), find_if_predicate);
-        }
-    };
+    const auto& loop_copy_range = LinearIR::deep_copy_range(loop_begin_pos, std::next(loop_end_pos), expression_map);
 
     const auto original_loop_info = loop_manager->get_loop_info(loop_id);
-    auto new_entry_points = original_loop_info->entry_points;
-    auto new_exit_points = original_loop_info->exit_points;
+    std::vector<LinearIR::LoopManager::LoopPort> new_entry_points, new_exit_points;
+    // Clone loop ports from original loop info to new loop info
+    for (const auto& entry : original_loop_info->get_entry_points())
+        new_entry_points.push_back(*entry.clone_with_new_expr(expression_map[entry.expr_port->get_expr().get()]));
+    for (const auto& exit : original_loop_info->get_exit_points())
+        new_exit_points.push_back(*exit.clone_with_new_expr(expression_map[exit.expr_port->get_expr().get()]));
+
     for (const auto& elem : expression_map) {
         const auto expr = elem.first->shared_from_this();
         const auto& new_expr = elem.second;
         // Loop begin/end ops can't be loop ports
         if (ov::is_type<op::LoopBase>(expr->get_node()))
             continue;
-        // Clone loop ports from original loop info to new loop info
-        update_loop_ports(expr, new_expr, new_entry_points);
-        update_loop_ports(expr, new_expr, new_exit_points);
-
         // Update loop info of all outer loops with new loop ports
         const auto outer_loop_ids = LinearIR::LoopManager::get_outer_expr_loops(expr, loop_id);
         for (size_t i = 0; i < expr->get_input_count(); ++i)
@@ -169,13 +158,14 @@ LinearIR::container InsertTailLoop::copy_loop(const LinearIR& linear_ir, const s
 
     const auto new_loop_begin_pos = loop_copy_range.begin();
     const auto new_loop_end_pos = loop_copy_range.end();
-    const auto new_id = loop_manager->mark_loop_with_old_loop_replacement(std::next(new_loop_begin_pos),
-                                                                          std::prev(new_loop_end_pos),
-                                                                          original_loop_info->work_amount,
-                                                                          original_loop_info->increment,
-                                                                          new_entry_points,
-                                                                          new_exit_points,
-                                                                          loop_id);
+    const auto new_id = loop_manager->replace_with_new_loop(linear_ir,
+                                                            std::next(new_loop_begin_pos),
+                                                            std::prev(new_loop_end_pos),
+                                                            original_loop_info->get_work_amount(),
+                                                            original_loop_info->get_increment(),
+                                                            new_entry_points,
+                                                            new_exit_points,
+                                                            loop_id);
     const auto loop_end = ov::as_type_ptr<op::LoopEnd>(std::prev(new_loop_end_pos)->get()->get_node());
     OPENVINO_ASSERT(loop_end, "Cloned Loop does not contain LoopEnd op at the expected place.");
     loop_end->set_id(new_id);
@@ -204,26 +194,29 @@ void InsertTailLoop::create_tail_loop(LinearIR& linear_ir,
 
         // Note: new loop body is inserted before the original loop
         // So new loop becomes a main vector loop, the original loop becomes tail loop
+        // This is done in such way to have original ops from the main body at the end:
+        // this allows us to conveniently interact with outer loops in further passes
         linear_ir.insert(begin, new_loop_range.begin(), new_loop_range.end());
 
-        const auto new_vector_loop_wa = original_loop_info->work_amount - tail_size;
-        original_loop_info->work_amount = new_vector_loop_wa;
+        const auto new_vector_loop_wa = original_loop_info->get_work_amount() - tail_size;
+        original_loop_info->set_work_amount(new_vector_loop_wa);
         new_loop_end->set_work_amount(new_vector_loop_wa);
-        original_loop_info->outer_splited_loop = tail_loop_info->outer_splited_loop;
+        original_loop_info->set_outer_splited_loop(tail_loop_info->get_outer_splited_loop());
         // Note that finalization offsets should be applied after the last iteration.
         // So if there is a tail, then we should apply offsets after it, but not now.
         new_loop_end->set_finalization_offsets(std::vector<int64_t>(loop_end->get_finalization_offsets().size(), 0));
     }
     loop_end->set_increment(tail_size);
     loop_end->set_work_amount(tail_size);
-    tail_loop_info->increment = tail_size;
-    tail_loop_info->work_amount = tail_size;
+    tail_loop_info->set_increment(tail_size);
+    tail_loop_info->set_work_amount(tail_size);
 
     // We have to check the loop body for any nested loops that work on the same dimension
     // and rescale their work_amount and increment accordingly
-    if (original_loop_info->outer_splited_loop) {
+    if (original_loop_info->get_outer_splited_loop()) {
         const auto current_dim_idx = original_loop_info->get_dim_idx();
-        OPENVINO_ASSERT(current_dim_idx != SIZE_MAX, "Outer splitted loop unexpectedly iterates by several dimension indices");
+        OPENVINO_ASSERT(current_dim_idx != LinearIR::LoopManager::LoopInfo::UNDEFINED_DIM_IDX,
+                        "Outer splitted loop unexpectedly iterates by several dimension indices");
         for (auto it = std::next(begin); it != std::prev(end); ++it) {
             const auto& expr = *it;
             const auto inner_loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node());
@@ -337,9 +330,9 @@ bool InsertTailLoop::run(LinearIR& linear_ir) {
             continue;
 
         const auto loop_info = loop_manager->get_loop_info(loop_end->get_id());
-        if (loop_info->fst_iter_handler) {
-            modified |= loop_info->fst_iter_handler(linear_ir, expr_it);
-            continue;
+        const auto& first_iter_handler = loop_info->get_first_iter_handler();
+        if (first_iter_handler) {
+            modified |= first_iter_handler(linear_ir, expr_it);
         }
 
         const auto work_amount = loop_end->get_work_amount();

@@ -396,10 +396,6 @@ private:
     brgemmCtx m_brgCtx;
     std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> m_brgKernel = nullptr;
 
-    size_t m_M = 0lu;
-    size_t m_K = 0lu;
-    size_t m_N = 0lu;
-
     bool m_with_scratch = false;
     bool m_with_comp = false;
 

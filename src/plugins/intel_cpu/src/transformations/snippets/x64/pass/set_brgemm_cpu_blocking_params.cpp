@@ -19,7 +19,6 @@
 #include "cpu_shape.h"
 #include "utils/general_utils.h"
 
-
 namespace ov {
 namespace intel_cpu {
 pass::SetBrgemmCPUBlockingParams::SetBrgemmCPUBlockingParams() {
