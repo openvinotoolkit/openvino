@@ -2,19 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include <ie_precision.hpp>
 #include "common_test_utils/test_constants.hpp"
-#include "single_layer_tests/random_uniform.hpp"
+#include "single_op_tests/random_uniform.hpp"
 
-using namespace LayerTestsDefinitions;
+using ov::test::RandomUniformLayerTest;
 
 namespace {
 
-const std::vector<RandomUniformTypeSpecificParams> random_uniform_type_specific_params = {
-        {InferenceEngine::Precision::I32, -100, 100},
-        {InferenceEngine::Precision::FP32, 0.0f, 1.0f},
-        {InferenceEngine::Precision::FP16, -10.0, 10.0}
+const std::vector<ov::test::RandomUniformTypeSpecificParams> random_uniform_type_specific_params = {
+        {ov::element::i32, -100, 100},
+        {ov::element::f32, 0.0f, 1.0f},
+        {ov::element::f16, -10.0, 10.0}
 };
 
 
