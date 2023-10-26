@@ -10,9 +10,9 @@
  */
 
 #include <memory>
-#include <openvino/pass/graph_rewrite.hpp>
 #include <vector>
 
+#include "openvino/pass/graph_rewrite.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {

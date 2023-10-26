@@ -18,7 +18,7 @@
 #include "cpu/x64/jit_generator.hpp"
 #include "emitters/x64/jit_load_store_emitters.hpp"
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
-#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
+#include <shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace InferenceEngine;
 using namespace dnnl;
@@ -626,7 +626,7 @@ void NonMaxSuppression::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    const std::vector<Precision> supportedFloatPrecision = {Precision::FP32, Precision::BF16};
+    const std::vector<Precision> supportedFloatPrecision = {Precision::FP32, Precision::BF16, Precision::FP16};
     const std::vector<Precision> supportedIntOutputPrecision = {Precision::I32, Precision::I64};
 
     checkPrecision(getOriginalInputPrecisionAtPort(NMS_BOXES), supportedFloatPrecision, "boxes", inType);

@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/const_strided_slice_concat.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -81,7 +81,7 @@ void ConstStridedSliceConcatTest::SetUp() {
     std::vector<size_t> inputShape;
     const size_t totalInputSize = static_cast<size_t>(inputSlices) * inputSliceSize;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, { std::vector<size_t>{ 1, totalInputSize } });
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, totalInputSize})};
 
     const auto totalConstantSize = constSlices * constSliceSize;
     auto constantValues = ov::test::utils::generate_float_numbers(totalConstantSize, -0.2f, 0.2f);

@@ -2,25 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset9.hpp>
-#include <ngraph/pass/constant_folding.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <ov_ops/nms_ie_internal.hpp>
 #include <queue>
 #include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp>
-#include <transformations/op_conversions/convert_previous_nms_to_nms_9.hpp>
-#include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset9.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "ov_ops/nms_ie_internal.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/op_conversions/convert_previous_nms_to_nms_9.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
-using namespace ngraph;
+using namespace ov;
 
 TEST_F(TransformationTestsF, ConvertPreviousNMSToNMSIEInternal) {
     {
@@ -37,13 +38,13 @@ TEST_F(TransformationTestsF, ConvertPreviousNMSToNMSIEInternal) {
                                                                    op::v1::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                    true);
 
-        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ov::pass::ConvertNMS1ToNMS9>();
         manager.register_pass<ov::pass::ConvertNMS9ToNMSIEInternal>();
-        manager.register_pass<ngraph::pass::ConstantFolding>();
+        manager.register_pass<pass::ConstantFolding>();
 
-        // as inside test infrastructure we can not predict output names for given Function
+        // as inside test infrastructure we can not predict output names for given Model
         // we have to enable soft names comparison manually
         enable_soft_names_comparison();
     }
@@ -64,7 +65,7 @@ TEST_F(TransformationTestsF, ConvertPreviousNMSToNMSIEInternal) {
                                                                                    element::i32);
         auto convert = std::make_shared<ov::op::v0::Convert>(nms->output(0), element::i64);
 
-        function_ref = std::make_shared<Function>(NodeVector{convert}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(NodeVector{convert}, ParameterVector{boxes, scores});
     }
 }
 
@@ -86,10 +87,10 @@ TEST_F(TransformationTestsF, ConvertNMS9ToNMSIEInternal) {
                                                                true,
                                                                element::i32);
 
-        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ov::pass::ConvertNMS9ToNMSIEInternal>();
-        manager.register_pass<ngraph::pass::ConstantFolding>();
+        manager.register_pass<pass::ConstantFolding>();
     }
 
     {
@@ -109,6 +110,6 @@ TEST_F(TransformationTestsF, ConvertNMS9ToNMSIEInternal) {
                                                                                    true,
                                                                                    element::i32);
 
-        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
 }

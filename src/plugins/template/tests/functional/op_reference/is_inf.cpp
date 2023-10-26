@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-#include "base_reference_test.hpp"
 #include "openvino/op/is_inf.hpp"
+
+#include <gtest/gtest.h>
+
+#include "base_reference_test.hpp"
 
 using namespace ov;
 using namespace reference_tests;
@@ -60,9 +62,9 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape,
-                                                    const element::Type& input_type,
-                                                    const element::Type& expected_output_type,
-                                                    op::v10::IsInf::Attributes attrs) {
+                                                 const element::Type& input_type,
+                                                 const element::Type& expected_output_type,
+                                                 op::v10::IsInf::Attributes attrs) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto is_inf = std::make_shared<op::v10::IsInf>(in, attrs);
         return std::make_shared<Model>(NodeVector{is_inf}, ParameterVector{in});
@@ -78,20 +80,20 @@ std::vector<IsInfParams> generateParamsForIsInfDefault() {
     using T = typename element_type_traits<IN_ET>::value_type;
     using U = typename element_type_traits<element::Type_t::boolean>::value_type;
     op::v10::IsInf::Attributes attrs{};
-    std::vector<IsInfParams> params{
-        IsInfParams("IsInfDefault", ov::PartialShape{8},
-                    IN_ET, element::Type_t::boolean,
-                    std::vector<T>{std::numeric_limits<T>::infinity(), 0.0000f,
-                                    std::numeric_limits<T>::max(), -0.5000f,
-                                    -std::numeric_limits<T>::infinity(), 1.0000f,
-                                    std::numeric_limits<T>::min(), std::nanf("")},
-                    std::vector<U>{true, false,
-                                    false, false,
-                                    true, false,
-                                    false, false},
-                    attrs
-        )
-    };
+    std::vector<IsInfParams> params{IsInfParams("IsInfDefault",
+                                                ov::PartialShape{8},
+                                                IN_ET,
+                                                element::Type_t::boolean,
+                                                std::vector<T>{std::numeric_limits<T>::infinity(),
+                                                               0.0000f,
+                                                               std::numeric_limits<T>::max(),
+                                                               -0.5000f,
+                                                               -std::numeric_limits<T>::infinity(),
+                                                               1.0000f,
+                                                               std::numeric_limits<T>::min(),
+                                                               std::nanf("")},
+                                                std::vector<U>{true, false, false, false, true, false, false, false},
+                                                attrs)};
     return params;
 }
 
@@ -101,20 +103,20 @@ std::vector<IsInfParams> generateParamsForIsInfPositive() {
     using U = typename element_type_traits<element::Type_t::boolean>::value_type;
     op::v10::IsInf::Attributes attrs{};
     attrs.detect_negative = false;
-    std::vector<IsInfParams> params{
-        IsInfParams("IsInfPositiveOnly", ov::PartialShape{8},
-                    IN_ET, element::Type_t::boolean,
-                    std::vector<T>{std::numeric_limits<T>::infinity(), 0.0000f,
-                                    std::numeric_limits<T>::max(), -0.5000f,
-                                    -std::numeric_limits<T>::infinity(), 1.0000f,
-                                    std::numeric_limits<T>::min(), std::nanf("")},
-                    std::vector<U>{true, false,
-                                    false, false,
-                                    false, false,
-                                    false, false},
-                    attrs
-        )
-    };
+    std::vector<IsInfParams> params{IsInfParams("IsInfPositiveOnly",
+                                                ov::PartialShape{8},
+                                                IN_ET,
+                                                element::Type_t::boolean,
+                                                std::vector<T>{std::numeric_limits<T>::infinity(),
+                                                               0.0000f,
+                                                               std::numeric_limits<T>::max(),
+                                                               -0.5000f,
+                                                               -std::numeric_limits<T>::infinity(),
+                                                               1.0000f,
+                                                               std::numeric_limits<T>::min(),
+                                                               std::nanf("")},
+                                                std::vector<U>{true, false, false, false, false, false, false, false},
+                                                attrs)};
     return params;
 }
 
@@ -124,20 +126,20 @@ std::vector<IsInfParams> generateParamsForIsInfNegative() {
     using U = typename element_type_traits<element::Type_t::boolean>::value_type;
     op::v10::IsInf::Attributes attrs{};
     attrs.detect_positive = false;
-    std::vector<IsInfParams> params{
-        IsInfParams("IsInfNegativeOnly", ov::PartialShape{8},
-                    IN_ET, element::Type_t::boolean,
-                    std::vector<T>{std::numeric_limits<T>::infinity(), 0.0000f,
-                                    std::numeric_limits<T>::max(), -0.5000f,
-                                    -std::numeric_limits<T>::infinity(), 1.0000f,
-                                    std::numeric_limits<T>::min(), std::nanf("")},
-                    std::vector<U>{false, false,
-                                    false, false,
-                                    true, false,
-                                    false, false},
-                    attrs
-        )
-    };
+    std::vector<IsInfParams> params{IsInfParams("IsInfNegativeOnly",
+                                                ov::PartialShape{8},
+                                                IN_ET,
+                                                element::Type_t::boolean,
+                                                std::vector<T>{std::numeric_limits<T>::infinity(),
+                                                               0.0000f,
+                                                               std::numeric_limits<T>::max(),
+                                                               -0.5000f,
+                                                               -std::numeric_limits<T>::infinity(),
+                                                               1.0000f,
+                                                               std::numeric_limits<T>::min(),
+                                                               std::nanf("")},
+                                                std::vector<U>{false, false, false, false, true, false, false, false},
+                                                attrs)};
     return params;
 }
 
@@ -148,20 +150,20 @@ std::vector<IsInfParams> generateParamsForIsInfNone() {
     op::v10::IsInf::Attributes attrs{};
     attrs.detect_negative = false;
     attrs.detect_positive = false;
-    std::vector<IsInfParams> params{
-        IsInfParams("IsInfDetectNone", ov::PartialShape{8},
-                    IN_ET, element::Type_t::boolean,
-                    std::vector<T>{std::numeric_limits<T>::infinity(), 0.0000f,
-                                    std::numeric_limits<T>::max(), -0.5000f,
-                                    -std::numeric_limits<T>::infinity(), 1.0000f,
-                                    std::numeric_limits<T>::min(), std::nanf("")},
-                    std::vector<U>{false, false,
-                                    false, false,
-                                    false, false,
-                                    false, false},
-                    attrs
-        )
-    };
+    std::vector<IsInfParams> params{IsInfParams("IsInfDetectNone",
+                                                ov::PartialShape{8},
+                                                IN_ET,
+                                                element::Type_t::boolean,
+                                                std::vector<T>{std::numeric_limits<T>::infinity(),
+                                                               0.0000f,
+                                                               std::numeric_limits<T>::max(),
+                                                               -0.5000f,
+                                                               -std::numeric_limits<T>::infinity(),
+                                                               1.0000f,
+                                                               std::numeric_limits<T>::min(),
+                                                               std::nanf("")},
+                                                std::vector<U>{false, false, false, false, false, false, false, false},
+                                                attrs)};
     return params;
 }
 
@@ -194,9 +196,8 @@ std::vector<IsInfParams> generateCombinedParamsForIsInf() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_IsInf_With_Hardcoded_Refs,
-    ReferenceIsInfLayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForIsInf()),
-    ReferenceIsInfLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_IsInf_With_Hardcoded_Refs,
+                         ReferenceIsInfLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForIsInf()),
+                         ReferenceIsInfLayerTest::getTestCaseName);
 }  // namespace

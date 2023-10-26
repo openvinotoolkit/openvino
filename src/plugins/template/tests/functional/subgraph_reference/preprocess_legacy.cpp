@@ -4,15 +4,13 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_ngraph_utils.hpp>
-#include <openvino/core/preprocess/pre_post_process.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-#include <shared_test_classes/single_layer/convert_color_i420.hpp>
-#include <shared_test_classes/single_layer/convert_color_nv12.hpp>
 #include <vector>
 
 #include "base_reference_cnn_test.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "shared_test_classes/single_layer/convert_color_i420.hpp"
+#include "shared_test_classes/single_layer/convert_color_nv12.hpp"
 
 using namespace ov;
 using namespace ov::preprocess;
@@ -26,7 +24,7 @@ public:
     }
 };
 
-} // namespace
+}  // namespace
 
 static std::shared_ptr<Model> create_simple_function(element::Type type, const PartialShape& shape) {
     auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
@@ -41,18 +39,6 @@ static std::shared_ptr<Model> create_simple_function(element::Type type, const P
     return std::make_shared<ov::Model>(ResultVector{res}, ParameterVector{data1});
 }
 
-static std::shared_ptr<Model> create_simple_function_yuv(const PartialShape& shape) {
-    auto data1 = std::make_shared<op::v0::Parameter>(element::u8, shape);
-    data1->set_friendly_name("input1");
-    data1->get_output_tensor(0).set_names({"tensor_input1", "input1"});
-    auto op = std::make_shared<op::v0::Convert>(data1, element::f32);
-    op->set_friendly_name("Convert1");
-    auto res = std::make_shared<op::v0::Result>(op);
-    res->set_friendly_name("Result1");
-    res->get_output_tensor(0).set_names({"tensor_output1", "Result1", "Convert1"});
-    return std::make_shared<ov::Model>(ResultVector{res}, ParameterVector{data1});
-}
-
 TEST_F(ReferencePreprocessLegacyTest, mean) {
     function = create_simple_function(element::f32, Shape{1, 3, 2, 2});
     auto p = PrePostProcessor(function);
@@ -61,7 +47,7 @@ TEST_F(ReferencePreprocessLegacyTest, mean) {
 
     auto f2 = create_simple_function(element::f32, Shape{1, 3, 2, 2});
     legacy_network = InferenceEngine::CNNNetwork(f2);
-    auto &preProcess = legacy_network.getInputsInfo().begin()->second->getPreProcess();
+    auto& preProcess = legacy_network.getInputsInfo().begin()->second->getPreProcess();
     preProcess.init(3);
     preProcess[0]->meanValue = 1;
     preProcess[1]->meanValue = 1;
@@ -81,7 +67,7 @@ TEST_F(ReferencePreprocessLegacyTest, mean_scale) {
 
     auto f2 = create_simple_function(element::f32, Shape{1, 3, 20, 20});
     legacy_network = InferenceEngine::CNNNetwork(f2);
-    auto &preProcess = legacy_network.getInputsInfo().begin()->second->getPreProcess();
+    auto& preProcess = legacy_network.getInputsInfo().begin()->second->getPreProcess();
     preProcess.init(3);
     preProcess[0]->meanValue = 0;
     preProcess[1]->meanValue = 0;
@@ -104,7 +90,7 @@ TEST_F(ReferencePreprocessLegacyTest, resize) {
     p.input().model().set_layout("NCHW");
     p.build();
 
-    auto &preProcess = legacy_network.getInputsInfo().begin()->second->getPreProcess();
+    auto& preProcess = legacy_network.getInputsInfo().begin()->second->getPreProcess();
     preProcess.setResizeAlgorithm(InferenceEngine::ResizeAlgorithm::RESIZE_BILINEAR);
     Exec();
 }
@@ -132,7 +118,7 @@ TEST_F(ReferencePreprocessLegacyTest, bgrx_to_bgr) {
                                                 {1, 4, h, w},
                                                 InferenceEngine::Layout::NHWC);
     legacy_network.getInputsInfo().begin()->second->setLayout(InferenceEngine::NHWC);
-    auto &preProcess = legacy_network.getInputsInfo().begin()->second->getPreProcess();
+    auto& preProcess = legacy_network.getInputsInfo().begin()->second->getPreProcess();
     preProcess.setColorFormat(InferenceEngine::ColorFormat::BGRX);
     legacy_input_blobs["input1"] = InferenceEngine::make_shared_blob<uint8_t>(rgbx_plane_desc, rgbx_input.data());
 
@@ -162,7 +148,7 @@ TEST_F(ReferencePreprocessLegacyTest, rgbx_to_bgr) {
                                                 {1, 4, h, w},
                                                 InferenceEngine::Layout::NHWC);
     legacy_network.getInputsInfo().begin()->second->setLayout(InferenceEngine::NHWC);
-    auto &preProcess = legacy_network.getInputsInfo().begin()->second->getPreProcess();
+    auto& preProcess = legacy_network.getInputsInfo().begin()->second->getPreProcess();
     preProcess.setColorFormat(InferenceEngine::ColorFormat::RGBX);
     legacy_input_blobs["input1"] = InferenceEngine::make_shared_blob<uint8_t>(rgbx_plane_desc, rgbx_input.data());
 

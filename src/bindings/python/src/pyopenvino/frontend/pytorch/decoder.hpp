@@ -34,12 +34,12 @@ class PyDecoder : public ov::frontend::pytorch::TorchDecoder {
         PYBIND11_OVERRIDE_PURE(ov::PartialShape, TorchDecoder, get_input_shape, index);
     }
 
-    ov::Any get_input_type(size_t index) const override {
-        PYBIND11_OVERRIDE_PURE(ov::Any, TorchDecoder, get_input_type, index);
+    const std::vector<size_t>& get_input_strides(size_t index) const override {
+        PYBIND11_OVERRIDE_PURE(const std::vector<size_t>&, TorchDecoder, get_input_strides, index);
     }
 
-    const std::vector<size_t>& get_input_transpose_order(size_t index) const override {
-        PYBIND11_OVERRIDE_PURE(const std::vector<size_t>&, TorchDecoder, get_input_transpose_order, index);
+    ov::Any get_input_type(size_t index) const override {
+        PYBIND11_OVERRIDE_PURE(ov::Any, TorchDecoder, get_input_type, index);
     }
 
     const std::string& get_output_debug_name(size_t index) const override {
@@ -52,10 +52,6 @@ class PyDecoder : public ov::frontend::pytorch::TorchDecoder {
 
     ov::Any get_output_type(size_t index) const override {
         PYBIND11_OVERRIDE_PURE(ov::Any, TorchDecoder, get_output_type, index);
-    }
-
-    const std::vector<size_t>& get_output_transpose_order(size_t index) const override {
-        PYBIND11_OVERRIDE_PURE(const std::vector<size_t>&, TorchDecoder, get_output_transpose_order, index);
     }
 
     bool input_is_none(size_t index) const override {
@@ -116,6 +112,10 @@ class PyDecoder : public ov::frontend::pytorch::TorchDecoder {
 
     ov::OutputVector inlined_inputs(size_t start_index) const override {
         PYBIND11_OVERRIDE_PURE(ov::OutputVector, TorchDecoder, inlined_inputs, start_index); }
+
+    const std::string& decoder_type_name() const override {
+        PYBIND11_OVERRIDE_PURE(const std::string&, TorchDecoder, decoder_type_name);
+    }
 };
 
 void regclass_frontend_pytorch_decoder(py::module m);

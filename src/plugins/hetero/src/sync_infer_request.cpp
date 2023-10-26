@@ -24,16 +24,16 @@ ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::C
 
     for (size_t i = 0; i < compiled_model->inputs().size(); i++) {
         const auto& port = compiled_model->inputs()[i];
-        const auto& submodel_idx = compiled_model->m_inputs_to_submodels_inputs[i].first;
+        const auto& submodel_idx = compiled_model->m_mapping_info._inputs_to_submodels_inputs[i].first;
         m_port_to_subrequest_idx[port] = submodel_idx;
     }
     for (size_t i = 0; i < compiled_model->outputs().size(); i++) {
         const auto& port = compiled_model->outputs()[i];
-        const auto& submodel_idx = compiled_model->m_outputs_to_submodels_outputs[i].first;
+        const auto& submodel_idx = compiled_model->m_mapping_info._outputs_to_submodels_outputs[i].first;
         m_port_to_subrequest_idx[port] = submodel_idx;
     }
 
-    for (const auto& kvp : compiled_model->m_submodels_input_to_prev_output) {
+    for (const auto& kvp : compiled_model->m_mapping_info._submodels_input_to_prev_output) {
         const auto& submodel_idx_in = kvp.first.first;
         const auto& port_idx_in = kvp.first.second;
         const auto& submodel_idx_out = kvp.second.first;
@@ -49,24 +49,24 @@ ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::C
 ov::hetero::InferRequest::~InferRequest() = default;
 
 ov::SoPtr<ov::IAsyncInferRequest> ov::hetero::InferRequest::get_request(const ov::Output<const ov::Node>& port) const {
-    auto check_nodes = [](const ov::Node* node1, const ov::Node* node2) {
-        return node1 == node2 ||
-               (node1->get_friendly_name() == node2->get_friendly_name() &&
-                node1->get_type_info() == node2->get_type_info() &&
-                node1->outputs().size() == node2->outputs().size() && node1->inputs().size() == node2->inputs().size());
-    };
-
-    for (const auto& kvp : m_port_to_subrequest_idx) {
-        if (kvp.first.get_index() == port.get_index() && kvp.first.get_names() == port.get_names() &&
-            check_nodes(kvp.first.get_node(), port.get_node())) {
-            return m_subrequests[kvp.second];
-        }
+    auto found_port = find_port(port);
+    ov::Output<const ov::Node> internal_port;
+    OPENVINO_ASSERT(found_port.found(), "Cannot find infer request for port ", port);
+    if (found_port.is_input()) {
+        internal_port = get_inputs().at(found_port.idx);
+    } else {
+        internal_port = get_outputs().at(found_port.idx);
     }
-    OPENVINO_THROW("Cannot find infer request for port ", port);
+    return m_subrequests[m_port_to_subrequest_idx.at(internal_port)];
 }
 
 ov::SoPtr<ov::ITensor> ov::hetero::InferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
-    return get_request(port)->get_tensor(port);
+    const auto infer_request = get_request(port);
+    auto tensor = infer_request->get_tensor(port);
+    if (!tensor._so) {
+        tensor._so = infer_request._so;
+    }
+    return tensor;
 }
 
 void ov::hetero::InferRequest::set_tensor(const ov::Output<const ov::Node>& port,
@@ -76,7 +76,14 @@ void ov::hetero::InferRequest::set_tensor(const ov::Output<const ov::Node>& port
 
 std::vector<ov::SoPtr<ov::ITensor>> ov::hetero::InferRequest::get_tensors(
     const ov::Output<const ov::Node>& port) const {
-    return get_request(port)->get_tensors(port);
+    const auto infer_request = get_request(port);
+    auto tensors = infer_request->get_tensors(port);
+    for (auto& tensor : tensors) {
+        if (!tensor._so) {
+            tensor._so = infer_request._so;
+        }
+    }
+    return tensors;
 }
 
 void ov::hetero::InferRequest::set_tensors(const ov::Output<const ov::Node>& port,

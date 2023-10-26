@@ -66,6 +66,11 @@ protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() override;
 };
 
+class MHAQuantMatMul0 : public MHA {
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() override;
+};
+
 class MHAFQAfterMatMul : public MHA {
 protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() override;

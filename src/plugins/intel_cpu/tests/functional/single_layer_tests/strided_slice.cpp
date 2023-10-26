@@ -3,7 +3,7 @@
 //
 
 #include <shared_test_classes/single_layer/strided_slice.hpp>
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
@@ -103,7 +103,10 @@ protected:
             targetShapes.push_back({ssParams.strides.size()});
         }
 
-        auto params = ngraph::builder::makeDynamicParams(dataType, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(dataType, shape));
+        }
         std::shared_ptr<ngraph::Node> ss;
         if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
             ov::Shape inShape = {ssParams.begin.size()};

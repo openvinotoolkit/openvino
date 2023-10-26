@@ -19,12 +19,12 @@ ov::pass::param_callback ov::pass::PassConfig::get_callback(const DiscreteTypeIn
     }
 }
 
-void ov::pass::PassConfig::enable(const ngraph::DiscreteTypeInfo& type_info) {
+void ov::pass::PassConfig::enable(const ov::DiscreteTypeInfo& type_info) {
     m_disabled.erase(type_info);
     m_enabled.insert(type_info);
 }
 
-void ov::pass::PassConfig::disable(const ngraph::DiscreteTypeInfo& type_info) {
+void ov::pass::PassConfig::disable(const ov::DiscreteTypeInfo& type_info) {
     m_enabled.erase(type_info);
     m_disabled.insert(type_info);
 }

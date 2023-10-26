@@ -176,7 +176,7 @@ macro(_ov_find_tbb)
 
             set(enable_system_tbb "@ENABLE_SYSTEM_TBB@")
             if(NOT enable_system_tbb)
-                set_and_check(_tbb_dir "@PACKAGE_IE_TBB_DIR@")
+                set_and_check(_tbb_dir "@PACKAGE_OV_TBB_DIR@")
 
                 # see https://stackoverflow.com/questions/28070810/cmake-generate-error-on-windows-as-it-uses-as-escape-seq
                 if(DEFINED ENV{TBBROOT})
@@ -218,11 +218,15 @@ macro(_ov_find_tbb)
 
         set(install_tbbbind "@install_tbbbind@")
         if(install_tbbbind)
-            set_and_check(_tbb_bind_dir "@PACKAGE_IE_TBBBIND_DIR@")
+            set_and_check(_tbb_bind_dir "@PACKAGE_OV_TBBBIND_DIR@")
             _ov_find_dependency(TBBBIND_2_5
                                 PATHS ${_tbb_bind_dir}
                                 NO_CMAKE_FIND_ROOT_PATH
                                 NO_DEFAULT_PATH)
+            if(TARGET TBBbind::tbbbind_2_5)
+                # To solve https://cmake.org/cmake/help/latest/policy/CMP0111.html warnings
+                set_property(TARGET TBBbind::tbbbind_2_5 PROPERTY IMPORTED_CONFIGURATIONS RELEASE DEBUG)
+            endif()
             unset(_tbb_bind_dir)
         endif()
         unset(install_tbbbind)
@@ -343,11 +347,15 @@ endmacro()
 macro(_ov_find_intel_cpu_dependencies)
     set(_OV_ENABLE_CPU_ACL "@DNNL_USE_ACL@")
     if(_OV_ENABLE_CPU_ACL)
-        set(_ov_in_install_tree "@PACKAGE_ARM_COMPUTE_LIB_DIR@")
+        set(_ov_in_install_tree "@PACKAGE_OPENVINO_LIB_DIR@")
         if(_ov_in_install_tree)
-            set_and_check(ARM_COMPUTE_LIB_DIR "@PACKAGE_ARM_COMPUTE_LIB_DIR@")
+            set_and_check(ARM_COMPUTE_LIB_DIR "@PACKAGE_OPENVINO_LIB_DIR@")
             set(ACL_DIR "${CMAKE_CURRENT_LIST_DIR}")
         else()
+            if(NOT TARGET arm_compute::arm_compute)
+                # for case when build tree is used separately, e.g. OpenVINODeveloperPackageConfig.cmake
+                set_and_check(ARM_COMPUTE_LIB_DIR "@PACKAGE_CMAKE_ARCHIVE_OUTPUT_DIRECTORY@")
+            endif()
             set_and_check(ACL_DIR "@PACKAGE_FIND_ACL_PATH@")
         endif()
 
@@ -363,16 +371,50 @@ macro(_ov_find_intel_gpu_dependencies)
     set(_OV_ENABLE_INTEL_GPU "@ENABLE_INTEL_GPU@")
     set(_OV_ENABLE_SYSTEM_OPENCL "@ENABLE_SYSTEM_OPENCL@")
     if(_OV_ENABLE_INTEL_GPU AND _OV_ENABLE_SYSTEM_OPENCL)
-        set(_OV_OpenCLICDLoader_FOUND "@OpenCLICDLoader_FOUND@")
-        if(_OV_OpenCLICDLoader_FOUND)
-            _ov_find_dependency(OpenCLICDLoader)
-        else()
-            _ov_find_dependency(OpenCL)
-        endif()
-        unset(_OV_OpenCLICDLoader_FOUND)
+        _ov_find_dependency(OpenCL)
     endif()
     unset(_OV_ENABLE_INTEL_GPU)
     unset(_OV_ENABLE_SYSTEM_OPENCL)
+
+    set(_OV_ENABLE_ONEDNN_FOR_GPU "@ENABLE_ONEDNN_FOR_GPU@")
+    if(_OV_ENABLE_ONEDNN_FOR_GPU AND NOT TARGET onednn_gpu_tgt)
+        set(_OV_DNNL_GPU_LIBRARY_NAME "@DNNL_GPU_LIBRARY_NAME@")
+
+        set(_ov_in_install_tree "@PACKAGE_OPENVINO_LIB_DIR@")
+        if(_ov_in_install_tree)
+            set(onednn_gpu_lib "${CMAKE_STATIC_LIBRARY_PREFIX}${_OV_DNNL_GPU_LIBRARY_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
+            set_and_check(onednn_gpu_lib_root "@PACKAGE_OPENVINO_LIB_DIR@")
+            if(WIN32)
+                if(OV_GENERATOR_MULTI_CONFIG)
+                    set(extra_args PATH_SUFFIXES ${CMAKE_CONFIGURATION_TYPES})
+                else()
+                    set(extra_args PATH_SUFFIXES ${CMAKE_BUILD_TYPE})
+                endif()
+            endif()
+
+            find_library(onednn_gpu_lib_path
+                         NAMES ${_OV_DNNL_GPU_LIBRARY_NAME}
+                         PATHS ${onednn_gpu_lib_root}
+                         ${extra_args})
+
+            if(NOT onednn_gpu_lib_path)
+                message(FATAL_ERROR "Internal error: failed to find '${_OV_DNNL_GPU_LIBRARY_NAME}' in '${onednn_gpu_lib_root}'")
+            endif()
+
+            unset(extra_args)
+            unset(onednn_gpu_lib)
+        else()
+            set_and_check(onednn_gpu_lib_path "@PACKAGE_ONEDNN_GPU_LIB_PATH@")
+        endif()
+
+        set_target_properties(openvino::onednn_gpu_tgt PROPERTIES
+            INTERFACE_LINK_LIBRARIES "${onednn_gpu_lib_path}")
+
+        unset(onednn_gpu_lib_path)
+        unset(_ov_in_install_tree)
+        unset(_OV_DNNL_GPU_LIBRARY_NAME)
+    endif()
+    unset(_OV_ENABLE_ONEDNN_FOR_GPU)
 endmacro()
 
 macro(_ov_find_intel_gna_dependencies)
@@ -411,7 +453,7 @@ macro(_ov_find_tensorflow_frontend_dependencies)
 endmacro()
 
 macro(_ov_find_onnx_frontend_dependencies)
-    set(_OV_ENABLE_SYSTEM_ONNX "@ENABLE_SYSTEM_ONNX@")
+    set(_OV_ENABLE_SYSTEM_ONNX "@ONNX_FOUND@")
     if(_OV_ENABLE_SYSTEM_ONNX)
         _ov_find_dependency(ONNX @ONNX_VERSION@ EXACT)
     endif()
@@ -455,6 +497,7 @@ set(_OV_ENABLE_OPENVINO_BUILD_SHARED "@BUILD_SHARED_LIBS@")
 
 if(NOT TARGET openvino)
     set(_ov_as_external_package ON)
+    include("${CMAKE_CURRENT_LIST_DIR}/OpenVINOTargets.cmake")
 endif()
 
 if(NOT _OV_ENABLE_OPENVINO_BUILD_SHARED)
@@ -487,8 +530,6 @@ set(_ov_imported_libs openvino::runtime openvino::runtime::c
    openvino::frontend::pytorch openvino::frontend::tensorflow_lite)
 
 if(_ov_as_external_package)
-    include("${CMAKE_CURRENT_LIST_DIR}/OpenVINOTargets.cmake")
-
     foreach(target IN LISTS _ov_imported_libs)
         if(TARGET ${target})
             get_target_property(imported_configs ${target} IMPORTED_CONFIGURATIONS)

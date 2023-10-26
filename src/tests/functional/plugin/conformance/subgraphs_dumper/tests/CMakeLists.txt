@@ -4,20 +4,17 @@
 
 set(TARGET_NAME subgraphsDumperTests)
 
-addIeTargetTest(
+ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-        ADDITIONAL_SOURCE_DIRS
-            # TODO: create static library for matchers instead of duplication
-            ${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper/src/matchers
         INCLUDES
-            ${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/
         LINK_LIBRARIES
             PRIVATE
-                func_test_utils
-                openvino::runtime
-                openvino::pugixml
+                subgraphsDumperUtil
         ADD_CPPLINT
+        LABELS
+            OV UNIT
 )
 
-ie_faster_build(${TARGET_NAME} UNITY)
+ov_build_target_faster(${TARGET_NAME} UNITY)

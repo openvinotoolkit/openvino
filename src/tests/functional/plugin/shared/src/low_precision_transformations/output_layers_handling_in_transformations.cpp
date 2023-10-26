@@ -16,8 +16,8 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -25,7 +25,7 @@ std::string OutputLayers::getTestCaseName(const testing::TestParamInfo<LayerTest
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
 
     return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params);
@@ -35,7 +35,7 @@ InferenceEngine::Blob::Ptr OutputLayers::GenerateInput(const InferenceEngine::In
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
     const float k = 1.f;
@@ -49,7 +49,7 @@ InferenceEngine::Blob::Ptr OutputLayers::GenerateInput(const InferenceEngine::In
 void OutputLayers::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
     auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 

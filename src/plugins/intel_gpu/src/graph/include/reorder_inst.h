@@ -41,16 +41,25 @@ public:
     void set_input_layout(layout const& lo) { input_layout = lo; }
 
     bool is_type_conversion_only() const {
-        if (this->has_fused_primitives() || has_mean() || !typed_desc()->subtract_per_feature.empty())
-            return false;
-        auto in_layout = input().get_output_layout();
-        auto out_layout = this->get_output_layout();
-        auto check_common_layout = in_layout.data_type != out_layout.data_type &&
-                                   in_layout.format == out_layout.format &&
-                                   in_layout.data_padding == out_layout.data_padding;
-        return typed_desc()->truncate &&
-               ((this->is_dynamic() && check_common_layout && in_layout.get_partial_shape().rank() == out_layout.get_partial_shape().rank()) ||
-                (!this->is_dynamic() && check_common_layout && in_layout.get_partial_shape() == out_layout.get_partial_shape()));
+        auto in_layout = get_input_layout();
+        auto out_layout = get_output_layout();
+        bool only_precision_changed = in_layout.data_type != out_layout.data_type &&
+                                      in_layout.format == out_layout.format &&
+                                      in_layout.data_padding == out_layout.data_padding;
+        if (is_dynamic()) {
+            only_precision_changed &= in_layout.get_partial_shape().rank() == out_layout.get_partial_shape().rank();
+        } else {
+            only_precision_changed &= in_layout.get_partial_shape() == out_layout.get_partial_shape();
+        }
+
+        return only_precision_changed && is_simple_reorder() && typed_desc()->truncate;
+    }
+
+    bool is_simple_reorder() const {
+        return !has_fused_primitives() &&
+               !has_mean() &&
+               get_primitive()->subtract_per_feature.empty() &&
+               !get_primitive()->weights_reorder_params;
     }
 
     std::shared_ptr<NodeFuseParams> get_fuse_params() const override {
@@ -86,7 +95,13 @@ public:
     bool has_mean() const { return !get_typed_desc<reorder>()->mean.empty(); }
 
     void update_output_memory() override;
-    bool requires_reinterpret() const { return _req_reinterpr; }
+    bool requires_reinterpret() const {
+        auto req_reinterpr = _req_reinterpr;
+        if (input_memory().get_layout() != _impl_params->get_output_layout()) {
+            req_reinterpr = true;
+        }
+        return req_reinterpr;
+    }
 
     void save(cldnn::BinaryOutputBuffer& ob) const override;
     void load(cldnn::BinaryInputBuffer& ib) override;

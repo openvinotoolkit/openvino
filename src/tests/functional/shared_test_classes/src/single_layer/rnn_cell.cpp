@@ -59,7 +59,8 @@ void RNNCellTest::SetUp() {
     std::vector<std::vector<size_t>> inputShapes = {{batch, input_size}, {batch, hidden_size},
                                                     {hidden_size, input_size}, {hidden_size, hidden_size}, {hidden_size}};
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
+                               std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[1]))};
     std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
 
     std::shared_ptr<ov::Node> W;

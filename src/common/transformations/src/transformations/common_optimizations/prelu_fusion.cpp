@@ -7,11 +7,9 @@
 #include "transformations/common_optimizations/prelu_fusion.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/or.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -20,72 +18,74 @@
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::PReluFusionNegativeAdd::PReluFusionNegativeAdd() {
     MATCHER_SCOPE(PReluFusionNegativeAdd);
     auto input = pass::pattern::any_input();
-    auto relu_pos = ngraph::pattern::wrap_type<ov::op::v0::Relu>({input});
-    auto neg1 = ngraph::pattern::wrap_type<ov::op::v0::Negative>({input});
-    auto relu_neg = ngraph::pattern::wrap_type<ov::op::v0::Relu>({neg1});
-    auto neg2 = ngraph::pattern::wrap_type<ov::op::v0::Negative>({relu_neg});
-    auto mul_constant = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto mul = ngraph::pattern::wrap_type<ov::op::v1::Multiply>({neg2, mul_constant});
-    auto add = ngraph::pattern::wrap_type<ov::op::v1::Add>({relu_pos, mul});
+    auto relu_pos = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({input});
+    auto neg1 = ov::pass::pattern::wrap_type<ov::op::v0::Negative>({input});
+    auto relu_neg = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({neg1});
+    auto neg2 = ov::pass::pattern::wrap_type<ov::op::v0::Negative>({relu_neg});
+    auto mul_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({neg2, mul_constant});
+    auto add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({relu_pos, mul});
 
-    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto input_output = pattern_to_output.at(input);
         auto slope_output = pattern_to_output.at(mul_constant);
         auto add_node = pattern_to_output.at(add).get_node_shared_ptr();
         auto prelu = std::make_shared<ov::op::v0::PRelu>(input_output, slope_output);
         prelu->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::NodeVector copy_from = {pattern_to_output.at(relu_pos).get_node_shared_ptr(),
-                                        pattern_to_output.at(neg1).get_node_shared_ptr(),
-                                        pattern_to_output.at(relu_neg).get_node_shared_ptr(),
-                                        pattern_to_output.at(neg2).get_node_shared_ptr(),
-                                        pattern_to_output.at(mul).get_node_shared_ptr(),
-                                        pattern_to_output.at(add).get_node_shared_ptr()};
-        ngraph::copy_runtime_info(copy_from, prelu);
-        ngraph::replace_node(add_node, prelu);
+        ov::NodeVector copy_from = {pattern_to_output.at(relu_pos).get_node_shared_ptr(),
+                                    pattern_to_output.at(neg1).get_node_shared_ptr(),
+                                    pattern_to_output.at(relu_neg).get_node_shared_ptr(),
+                                    pattern_to_output.at(neg2).get_node_shared_ptr(),
+                                    pattern_to_output.at(mul).get_node_shared_ptr(),
+                                    pattern_to_output.at(add).get_node_shared_ptr()};
+        ov::copy_runtime_info(copy_from, prelu);
+        ov::replace_node(add_node, prelu);
         return true;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(add, matcher_name);
     register_matcher(m, callback);
 }
 
 ov::pass::PReluFusionNegativeSub::PReluFusionNegativeSub() {
     MATCHER_SCOPE(PReluFusionNegativeSub);
     auto input = pass::pattern::any_input();
-    auto relu_pos = ngraph::pattern::wrap_type<ov::op::v0::Relu>({input});
-    auto neg1 = ngraph::pattern::wrap_type<ov::op::v0::Negative>({input});
-    auto relu_neg = ngraph::pattern::wrap_type<ov::op::v0::Relu>({neg1});
-    auto mul_constant = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto mul = ngraph::pattern::wrap_type<ov::op::v1::Multiply>({relu_neg, mul_constant});
-    auto sub = ngraph::pattern::wrap_type<ov::op::v1::Subtract>({relu_pos, mul});
+    auto relu_pos = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({input});
+    auto neg1 = ov::pass::pattern::wrap_type<ov::op::v0::Negative>({input});
+    auto relu_neg = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({neg1});
+    auto mul_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({relu_neg, mul_constant});
+    auto sub = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({relu_pos, mul});
 
-    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto input_output = pattern_to_output.at(input);
         auto slope_output = pattern_to_output.at(mul_constant);
         auto sub_node = pattern_to_output.at(sub).get_node_shared_ptr();
         auto prelu = std::make_shared<ov::op::v0::PRelu>(input_output, slope_output);
         prelu->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::NodeVector copy_from = {pattern_to_output.at(relu_pos).get_node_shared_ptr(),
-                                        pattern_to_output.at(neg1).get_node_shared_ptr(),
-                                        pattern_to_output.at(relu_neg).get_node_shared_ptr(),
-                                        pattern_to_output.at(mul).get_node_shared_ptr(),
-                                        pattern_to_output.at(sub).get_node_shared_ptr()};
-        ngraph::copy_runtime_info(copy_from, prelu);
-        ngraph::replace_node(sub_node, prelu);
+        ov::NodeVector copy_from = {pattern_to_output.at(relu_pos).get_node_shared_ptr(),
+                                    pattern_to_output.at(neg1).get_node_shared_ptr(),
+                                    pattern_to_output.at(relu_neg).get_node_shared_ptr(),
+                                    pattern_to_output.at(mul).get_node_shared_ptr(),
+                                    pattern_to_output.at(sub).get_node_shared_ptr()};
+        ov::copy_runtime_info(copy_from, prelu);
+        ov::replace_node(sub_node, prelu);
         return true;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(sub, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(sub, matcher_name);
     register_matcher(m, callback);
 }
 
-static std::function<bool(ngraph::Output<ngraph::Node>)> constant_value(const float target_value) {
-    return [=](const ngraph::Output<ngraph::Node>& output) -> bool {
+static std::function<bool(ov::Output<ov::Node>)> constant_value(const float target_value) {
+    return [=](const ov::Output<ov::Node>& output) -> bool {
         auto node = std::dynamic_pointer_cast<ov::op::v0::Constant>(output.get_node_shared_ptr());
         if (!node) {
             return false;
@@ -101,15 +101,15 @@ static std::function<bool(ngraph::Output<ngraph::Node>)> constant_value(const fl
 ov::pass::PReluFusionMultiplyAdd::PReluFusionMultiplyAdd() {
     MATCHER_SCOPE(PReluFusionMultiplyAdd);
     auto input = pass::pattern::any_input();
-    auto relu_pos = ngraph::pattern::wrap_type<ov::op::v0::Relu>({input});
-    auto mul_neg_constant = ngraph::pattern::wrap_type<ov::op::v0::Constant>(constant_value(-1.0));
-    auto mul_neg = ngraph::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_neg_constant});
-    auto relu_neg = ngraph::pattern::wrap_type<ov::op::v0::Relu>({mul_neg});
-    auto mul_constant = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto mul = ngraph::pattern::wrap_type<ov::op::v1::Multiply>({relu_neg, mul_constant});
-    auto add = ngraph::pattern::wrap_type<ov::op::v1::Add>({relu_pos, mul});
+    auto relu_pos = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({input});
+    auto mul_neg_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(constant_value(-1.0));
+    auto mul_neg = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_neg_constant});
+    auto relu_neg = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({mul_neg});
+    auto mul_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({relu_neg, mul_constant});
+    auto add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({relu_pos, mul});
 
-    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto input_output = pattern_to_output.at(input);
         auto slope_output = pattern_to_output.at(mul_constant);
@@ -118,31 +118,31 @@ ov::pass::PReluFusionMultiplyAdd::PReluFusionMultiplyAdd() {
         auto prelu = std::make_shared<ov::op::v0::PRelu>(input_output, negative);
 
         prelu->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::NodeVector copy_from = {pattern_to_output.at(relu_pos).get_node_shared_ptr(),
-                                        pattern_to_output.at(mul_neg).get_node_shared_ptr(),
-                                        pattern_to_output.at(relu_neg).get_node_shared_ptr(),
-                                        pattern_to_output.at(mul).get_node_shared_ptr(),
-                                        pattern_to_output.at(add).get_node_shared_ptr()};
-        ngraph::copy_runtime_info(copy_from, {prelu, negative});
-        ngraph::replace_node(add_node, prelu);
+        ov::NodeVector copy_from = {pattern_to_output.at(relu_pos).get_node_shared_ptr(),
+                                    pattern_to_output.at(mul_neg).get_node_shared_ptr(),
+                                    pattern_to_output.at(relu_neg).get_node_shared_ptr(),
+                                    pattern_to_output.at(mul).get_node_shared_ptr(),
+                                    pattern_to_output.at(add).get_node_shared_ptr()};
+        ov::copy_runtime_info(copy_from, {prelu, negative});
+        ov::replace_node(add_node, prelu);
         return true;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(add, matcher_name);
     register_matcher(m, callback);
 }
 
 ov::pass::PReluFusionMultiplySub::PReluFusionMultiplySub() {
     MATCHER_SCOPE(PReluFusionMultiplySub);
     auto input = pass::pattern::any_input();
-    auto relu_pos = ngraph::pattern::wrap_type<ov::op::v0::Relu>({input});
-    auto mul_neg_constant = ngraph::pattern::wrap_type<ov::op::v0::Constant>(constant_value(-1.0));
-    auto mul_neg = ngraph::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_neg_constant});
-    auto relu_neg = ngraph::pattern::wrap_type<ov::op::v0::Relu>({mul_neg});
-    auto mul_constant = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto mul = ngraph::pattern::wrap_type<ov::op::v1::Multiply>({relu_neg, mul_constant});
-    auto sub = ngraph::pattern::wrap_type<ov::op::v1::Subtract>({relu_pos, mul});
+    auto relu_pos = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({input});
+    auto mul_neg_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(constant_value(-1.0));
+    auto mul_neg = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_neg_constant});
+    auto relu_neg = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({mul_neg});
+    auto mul_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({relu_neg, mul_constant});
+    auto sub = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({relu_pos, mul});
 
-    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto input_output = pattern_to_output.at(input);
         auto slope_output = pattern_to_output.at(mul_constant);
@@ -150,16 +150,16 @@ ov::pass::PReluFusionMultiplySub::PReluFusionMultiplySub() {
         auto prelu = std::make_shared<ov::op::v0::PRelu>(input_output, slope_output);
 
         prelu->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::NodeVector copy_from = {pattern_to_output.at(relu_pos).get_node_shared_ptr(),
-                                        pattern_to_output.at(mul_neg).get_node_shared_ptr(),
-                                        pattern_to_output.at(relu_neg).get_node_shared_ptr(),
-                                        pattern_to_output.at(mul).get_node_shared_ptr(),
-                                        pattern_to_output.at(sub).get_node_shared_ptr()};
-        ngraph::copy_runtime_info(copy_from, prelu);
-        ngraph::replace_node(sub_node, prelu);
+        ov::NodeVector copy_from = {pattern_to_output.at(relu_pos).get_node_shared_ptr(),
+                                    pattern_to_output.at(mul_neg).get_node_shared_ptr(),
+                                    pattern_to_output.at(relu_neg).get_node_shared_ptr(),
+                                    pattern_to_output.at(mul).get_node_shared_ptr(),
+                                    pattern_to_output.at(sub).get_node_shared_ptr()};
+        ov::copy_runtime_info(copy_from, prelu);
+        ov::replace_node(sub_node, prelu);
         return true;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(sub, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(sub, matcher_name);
     register_matcher(m, callback);
 }
 

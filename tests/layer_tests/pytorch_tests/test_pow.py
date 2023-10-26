@@ -41,7 +41,7 @@ class TestPow(PytorchLayerTest):
     @pytest.mark.precommit
     def test_pow(self, ie_device, precision, ir_version, test_input):
         self.test_input = test_input
-        self._test(*self.create_model(), ie_device, precision, ir_version)
+        self._test(*self.create_model(), ie_device, precision, ir_version, use_convert_model=True)
 
 
 class TestPowMixedTypes(PytorchLayerTest):

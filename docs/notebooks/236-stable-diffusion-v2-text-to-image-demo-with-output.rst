@@ -1,6 +1,8 @@
 Stable Diffusion Text-to-Image Demo
 ===================================
 
+
+
 Stable Diffusion is an innovative generative AI technique that allows us
 to generate and manipulate images in interesting ways, including
 generating image from text and restoring missing parts of pictures
@@ -11,18 +13,38 @@ including being able to use more data, employ more training, and has
 less restrictive filtering of the dataset. All of these features give us
 promising results for selecting a wide range of input text prompts!
 
-**Note:** This is a shorter version of the
-`236-stable-diffusion-v2-text-to-image.ipynb <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-text-to-image.ipynb>`__
-notebook for demo purposes and to get started quickly. This version does
-not have the full implementation of the helper utilities needed to
-convert the models from PyTorch to ONNX to OpenVINO, and the OpenVINO
-OVStableDiffusion pipeline within the notebook directly. If you would
-like to see the full implementation of stable diffusion for text to
-image, please visit
-`236-stable-diffusion-v2-text-to-image.ipynb <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-text-to-image.ipynb>`__.
+.. note::
 
-Step 0: Install and import prerequisites
-----------------------------------------
+   This is a shorter version of the
+   `236-stable-diffusion-v2-text-to-image <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-text-to-image.ipynb>`__
+   notebook for demo purposes and to get started quickly. This version does
+   not have the full implementation of the helper utilities needed to
+   convert the models from PyTorch to ONNX to OpenVINO, and the OpenVINO
+   ``OVStableDiffusionPipeline`` within the notebook directly. If you would
+   like to see the full implementation of stable diffusion for text to
+   image, please visit
+   `236-stable-diffusion-v2-text-to-image <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-text-to-image.ipynb>`__.
+
+
+.. _top:
+
+**Table of contents**:
+
+- `Step 0: Install and import prerequisites <#step-0-install-and-import-prerequisites>`__
+- `Step 1: Stable Diffusion v2 Fundamental components <#step-1-stable-diffusion-v2-fundamental-components>`__
+
+  - `Step 1.1: Retrieve components from HuggingFace <#step-1-1-retrieve-components-from-huggingface>`__
+
+- `Step 2: Convert the models to OpenVINO <#step-2-convert-the-models-to-openvino>`__
+- `Step 3: Text-to-Image Generation Inference Pipeline <#step-3-text-to-image-generation-inference-pipeline>`__
+
+  - `Step 3.1: Load and Understand Text to Image OpenVINO models <#step-3-1-load-and-understand-text-to-image-openvino-models>`__
+  - `Select inference device <#select-inference-device>`__
+  - `Step 3.3: Run Text-to-Image generation <#step-3-3-run-text-to-image-generation>`__
+
+Step 0: Install and import prerequisites `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -33,15 +55,16 @@ To work with Stable Diffusion v2, we will use Hugging Face’s
 
 To experiment with Stable Diffusion models, Diffusers exposes the
 `StableDiffusionPipeline <https://huggingface.co/docs/diffusers/using-diffusers/conditional_image_generation>`__
-and StableDiffusionInpaintPipeline, similar to the `other Diffusers
+and ``StableDiffusionInpaintPipeline``, similar to the `other Diffusers
 pipelines <https://huggingface.co/docs/diffusers/api/pipelines/overview>`__.
 
 .. code:: ipython3
 
     !pip install -q "diffusers>=0.14.0" openvino-dev openvino "transformers >= 4.25.1" accelerate
 
-Step 1: Stable Diffusion v2 Fundamental components
---------------------------------------------------
+Step 1: Stable Diffusion v2 Fundamental components `⇑ <#top>`__
+###############################################################################################################################
+
 
 Stable Diffusion pipelines for both Text to Image and Inpainting consist
 of three important parts:
@@ -52,11 +75,12 @@ of three important parts:
 2. A U-Net for step-by-step denoising of latent image representation.
 3. An Autoencoder (VAE) for decoding the latent space to an image.
 
-Depending on the pipeline, the paramaters for these parts can differ,
+Depending on the pipeline, the parameters for these parts can differ,
 which we’ll explore in this demo!
 
-Step 1.1: Retrieve components from HuggingFace
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Step 1.1: Retrieve components from HuggingFace `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Let’s start by retrieving these components from HuggingFace!
 
@@ -88,8 +112,9 @@ using ``stable-diffusion-2-1``.
     text_encoder\model.safetensors not found
 
 
-Step 2: Convert the models to OpenVINO
---------------------------------------
+Step 2: Convert the models to OpenVINO `⇑ <#top>`__
+###############################################################################################################################
+
 
 Now that we’ve retrieved the three parts for both of these pipelines, we
 now need to:
@@ -102,8 +127,8 @@ now need to:
        torch.onnx.export(model_part, image, onnx_path, input_names=[
                          '...'], output_names=['...'])
 
-2. Convert these ONNX models to OpenVINO IR format, using Model
-   Optimizer tool using:
+2. Convert these ONNX models to OpenVINO IR format, using ``mo``
+   command-line tool:
 
 ::
 
@@ -147,29 +172,49 @@ pipelines in OpenVINO on our own data!
     WARNING:root:Failed to send event with error cannot schedule new futures after shutdown.
 
 
-3. Text-to-Image Generation Inference Pipeline
-----------------------------------------------
+Step 3: Text-to-Image Generation Inference Pipeline `⇑ <#top>`__
+###############################################################################################################################
 
-Step 3.1: Load and Understand Text to Image OpenVINO models
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-First, let’s create instances of our OpenVINO Model for Text to Image.
+Step 3.1: Load and Understand Text to Image OpenVINO models `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
     from openvino.runtime import Core
     
     core = Core()
-    text_enc = core.compile_model(txt_encoder_ov_path, "CPU")
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+Let’s create instances of our OpenVINO Model for Text to Image.
 
 .. code:: ipython3
 
-    unet_model = core.compile_model(unet_ov_path, 'CPU')
+    text_enc = core.compile_model(txt_encoder_ov_path, device.value)
 
 .. code:: ipython3
 
-    vae_encoder = core.compile_model(vae_encoder_ov_path, 'CPU')
-    vae_decoder = core.compile_model(vae_decoder_ov_path, 'CPU')
+    unet_model = core.compile_model(unet_ov_path, device.value)
+
+.. code:: ipython3
+
+    vae_encoder = core.compile_model(vae_encoder_ov_path, device.value)
+    vae_decoder = core.compile_model(vae_decoder_ov_path, device.value)
 
 Next, we will define a few key elements to create the inference
 pipeline, as depicted in the diagram below:
@@ -179,7 +224,7 @@ pipeline, as depicted in the diagram below:
 
    text2img-stable-diffusion
 
-As part of the OVStableDiffusionPipeline() class:
+As part of the ``OVStableDiffusionPipeline()`` class:
 
 1. The stable diffusion pipeline takes both a latent seed and a text
    prompt as input. The latent seed is used to generate random latent
@@ -190,7 +235,7 @@ As part of the OVStableDiffusionPipeline() class:
    representations while being conditioned on the text embeddings. The
    output of the U-Net, being the noise residual, is used to compute a
    denoised latent image representation via a scheduler algorithm. In
-   this case we use the LMSDiscrete scheduler.
+   this case we use the ``LMSDiscreteScheduler``.
 
 .. code:: ipython3
 
@@ -217,8 +262,9 @@ As part of the OVStableDiffusionPipeline() class:
       from diffusers.pipeline_utils import DiffusionPipeline
 
 
-Step 3.3: Run Text-to-Image generation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Step 3.3: Run Text-to-Image generation `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Now, let’s define some text prompts for image generation and run our
 inference pipeline.
@@ -237,7 +283,7 @@ To improve image generation quality, we can use negative prompting.
 While positive prompts steer diffusion toward the images associated with
 it, negative prompts declares undesired concepts for the generation
 image, e.g. if we want to have colorful and bright images, a gray scale
-image will be result which we want to avoid. In this case, a grey scale
+image will be result which we want to avoid. In this case, a gray scale
 can be treated as negative prompt. The positive and negative prompt are
 in equal footing. You can always use one with or without the other. More
 explanation of how it works can be found in this
@@ -284,6 +330,6 @@ explanation of how it works can be found in this
 
 
 
-.. image:: 236-stable-diffusion-v2-text-to-image-demo-with-output_files/236-stable-diffusion-v2-text-to-image-demo-with-output_23_0.png
+.. image:: 236-stable-diffusion-v2-text-to-image-demo-with-output_files/236-stable-diffusion-v2-text-to-image-demo-with-output_25_0.png
 
 

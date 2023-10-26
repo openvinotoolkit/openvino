@@ -36,7 +36,7 @@ void ReshapeLayerTest::SetUp() {
     std::tie(specialZero, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, outFormShapes, targetDevice, configuration) =
         this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto paramsIn = ngraph::builder::makeParams(ngPrc, {inputShapes});
+    ov::ParameterVector paramsIn {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes))};
     auto paramIn = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
     auto constNode = std::make_shared<ngraph::opset1::Constant>(

@@ -2,15 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/pattern/op/or.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/validation_util.hpp>
+#include "transformations/common_optimizations/strides_optimization.hpp"
+
 #include <numeric>
-#include <transformations/common_optimizations/strides_optimization.hpp>
-#include <transformations/rt_info/strides_property.hpp>
-#include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
@@ -18,26 +15,30 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/rt_info/strides_property.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace std;
 using namespace ov;
 
-static bool can_propagate_conv_stride(const std::shared_ptr<ngraph::Node>& conv) {
+static bool can_propagate_conv_stride(const std::shared_ptr<ov::Node>& conv) {
     const auto& kernel_shape = conv->input_value(1).get_shape();
     return std::all_of(kernel_shape.begin() + 2, kernel_shape.end(), [](size_t s) -> bool {
         return s == 1;
     });
 }
 
-static std::tuple<ngraph::Strides, bool> check_next_ops(const std::vector<ngraph::Input<ngraph::Node>>& next_ops) {
-    std::vector<ngraph::Strides> strides;
+static std::tuple<ov::Strides, bool> check_next_ops(const std::vector<ov::Input<ov::Node>>& next_ops) {
+    std::vector<ov::Strides> strides;
     for (const auto& op : next_ops) {
         if (!has_strides_prop(op)) {
-            return std::make_tuple(ngraph::Strides{}, false);
+            return std::make_tuple(ov::Strides{}, false);
         }
         strides.push_back(get_strides_prop(op));
     }
-    bool all_ops_are_valid = std::all_of(strides.begin(), strides.end(), [&strides](const ngraph::Strides& s) -> bool {
+    bool all_ops_are_valid = std::all_of(strides.begin(), strides.end(), [&strides](const ov::Strides& s) -> bool {
         bool all_ones = std::all_of(s.begin(), s.end(), [](size_t i) -> bool {
             return i == 1;
         });
@@ -85,7 +86,7 @@ static void insert_pooling(const Output<Node>& first, Input<Node>& second, const
     second.replace_source_output(new_node);
 }
 
-static void handle_not_equal_stride_props(std::vector<ngraph::Input<ngraph::Node>>& next_ops) {
+static void handle_not_equal_stride_props(std::vector<ov::Input<ov::Node>>& next_ops) {
     for (auto& op : next_ops) {
         if (!has_strides_prop(op))
             continue;
@@ -104,7 +105,7 @@ static void handle_not_equal_stride_props(std::vector<ngraph::Input<ngraph::Node
     }
 }
 
-static void remove_strides_property_from_nodes(std::vector<ngraph::Input<ngraph::Node>>& nodes) {
+static void remove_strides_property_from_nodes(std::vector<ov::Input<ov::Node>>& nodes) {
     for (auto& node : nodes) {
         remove_strides_prop(node);
     }

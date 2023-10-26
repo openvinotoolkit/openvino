@@ -9,7 +9,7 @@
 #include "itt.hpp"
 #include "matmul_shape_inference.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/runtime/reference/matmul.hpp"
+#include "openvino/reference/matmul.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -34,6 +34,7 @@ shared_ptr<Node> op::MatMul::clone_with_new_inputs(const OutputVector& new_args)
     return make_shared<MatMul>(new_args.at(0), new_args.at(1), m_transpose_a, m_transpose_b);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace matmul {
 namespace {
 template <element::Type_t ET>
@@ -50,14 +51,14 @@ bool evaluate(const op::MatMul* op, const HostTensorPtr& arg0, const HostTensorP
     output->set_element_type(arg0->get_element_type());
     output->set_shape(output_shape);
 
-    runtime::reference::matmul<T>(arg0->get_data_ptr<ET>(),
-                                  arg1->get_data_ptr<ET>(),
-                                  output->get_data_ptr<ET>(),
-                                  arg0_shape,
-                                  arg1_shape,
-                                  output_shape,
-                                  op->get_transpose_a(),
-                                  op->get_transpose_b());
+    ov::reference::matmul<T>(arg0->get_data_ptr<ET>(),
+                             arg1->get_data_ptr<ET>(),
+                             output->get_data_ptr<ET>(),
+                             arg0_shape,
+                             arg1_shape,
+                             output_shape,
+                             op->get_transpose_a(),
+                             op->get_transpose_b());
     return true;
 }
 
@@ -68,12 +69,12 @@ bool evaluate_matmul(const op::MatMul* op,
     bool rc = true;
 
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_matmul, i32, op, arg0, arg1, output);
-        NGRAPH_TYPE_CASE(evaluate_matmul, i64, op, arg0, arg1, output);
-        NGRAPH_TYPE_CASE(evaluate_matmul, u32, op, arg0, arg1, output);
-        NGRAPH_TYPE_CASE(evaluate_matmul, u64, op, arg0, arg1, output);
-        NGRAPH_TYPE_CASE(evaluate_matmul, f16, op, arg0, arg1, output);
-        NGRAPH_TYPE_CASE(evaluate_matmul, f32, op, arg0, arg1, output);
+        OPENVINO_TYPE_CASE(evaluate_matmul, i32, op, arg0, arg1, output);
+        OPENVINO_TYPE_CASE(evaluate_matmul, i64, op, arg0, arg1, output);
+        OPENVINO_TYPE_CASE(evaluate_matmul, u32, op, arg0, arg1, output);
+        OPENVINO_TYPE_CASE(evaluate_matmul, u64, op, arg0, arg1, output);
+        OPENVINO_TYPE_CASE(evaluate_matmul, f16, op, arg0, arg1, output);
+        OPENVINO_TYPE_CASE(evaluate_matmul, f32, op, arg0, arg1, output);
     default:
         rc = false;
         break;

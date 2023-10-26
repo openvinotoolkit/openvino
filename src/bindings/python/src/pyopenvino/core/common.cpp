@@ -8,6 +8,7 @@
 
 #include "Python.h"
 #include "openvino/core/except.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 
 #define C_CONTIGUOUS py::detail::npy_api::constants::NPY_ARRAY_C_CONTIGUOUS_
@@ -30,6 +31,7 @@ const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype() {
         {ov::element::boolean, py::dtype("bool")},
         {ov::element::u1, py::dtype("uint8")},
         {ov::element::u4, py::dtype("uint8")},
+        {ov::element::nf4, py::dtype("uint8")},
         {ov::element::i4, py::dtype("int8")},
     };
     return ov_type_to_dtype_mapping;
@@ -174,7 +176,7 @@ ov::op::v0::Constant create_shared(py::array& array) {
     // Check if passed array has C-style contiguous memory layout.
     // If memory is going to be shared it needs to be contiguous before passing to the constructor.
     if (array_helpers::is_contiguous(array)) {
-        auto memory = std::make_shared<ngraph::runtime::SharedBuffer<py::array>>(
+        auto memory = std::make_shared<ov::SharedBuffer<py::array>>(
             static_cast<char*>(array.ndim() == 0 ? array.mutable_data() : array.mutable_data(0)),
             array.ndim() == 0 ? array.itemsize() : array.nbytes(),
             array);

@@ -4,9 +4,10 @@
 
 #include <exec_graph_info.hpp>
 #include "base/behavior_test_utils.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/relu.hpp"
 
 namespace BehaviorTestsDefinitions {
 class ExecutableNetworkBaseTest : public BehaviorTestsUtils::IEExecutableNetworkTestBase,

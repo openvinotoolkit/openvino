@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
@@ -98,7 +98,10 @@ protected:
                 targetShapes.push_back({sliceParams.axes.size()});
         }
 
-        auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+        }
         std::shared_ptr<ngraph::Node> sliceNode;
         if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
             // Slice start, stop, step, axes are parameters.

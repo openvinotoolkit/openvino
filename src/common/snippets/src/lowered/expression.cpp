@@ -14,8 +14,9 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
-Expression::Expression(const std::shared_ptr<Node>& n)
-        : m_source_node{n}, m_emitter{nullptr}, m_input_port_connectors{}, m_output_port_connectors{} {
+Expression::Expression(const std::shared_ptr<Node>& n, const std::shared_ptr<IShapeInferSnippetsFactory>& factory)
+        : m_source_node{n}, m_emitter{nullptr},
+        m_input_port_connectors{}, m_output_port_connectors{}, m_shapeInference(make_shape_inference(n, factory)) {
     m_input_port_descriptors.reserve(n->get_input_size());
     m_output_port_descriptors.reserve(n->get_output_size());
     for (const auto& input : n->inputs()) {
@@ -78,10 +79,6 @@ void Expression::set_reg_info(RegInfo rinfo) {
     }
 }
 
-void Expression::init_emitter(const std::shared_ptr<const TargetMachine>& target) {
-    m_emitter = target->get(m_source_node->get_type_info())(m_source_node);
-}
-
 void Expression::validate() const {
     OPENVINO_ASSERT(m_input_port_descriptors.size() == m_input_port_connectors.size(),
                     "The count of input ports and input port connectors must be equal");
@@ -114,10 +111,40 @@ ExpressionPort Expression::get_output_port(size_t i) {
     return ExpressionPort(this->shared_from_this(), ExpressionPort::Type::Output, i);
 }
 
-IOExpression::IOExpression(const std::shared_ptr<ov::opset1::Parameter>& par, int64_t index)
-        : Expression(par), m_index(index), m_type{io_type::INPUT} {}
-IOExpression::IOExpression(const std::shared_ptr<ov::opset1::Result>& res, int64_t index)
-        : Expression(res), m_index(index), m_type{io_type::OUTPUT} {}
+void Expression::updateShapes() {
+    OPENVINO_ASSERT(m_shapeInference, "Attempt to UpdateShapes without initialized shapeInference");
+    IShapeInferSnippets::Result result;
+    try {
+        std::vector<VectorDimsRef> input_shapes;
+
+        const auto& in_connectors = get_input_port_connectors();
+        const auto& in_descriptors = get_input_port_descriptors();
+
+        input_shapes.reserve(in_connectors.size());
+        for (size_t i = 0; i < in_connectors.size(); i++) {
+            const auto& src_port_desc = in_connectors[i]->get_source().get_descriptor_ptr();
+            in_descriptors[i]->set_shape(src_port_desc->get_shape());
+            // Note that input_shape is a reference, so we should always bind it to an object with a longer lifetime
+            input_shapes.emplace_back(in_descriptors[i]->get_shape());
+        }
+
+        result = m_shapeInference->infer(input_shapes);
+    }
+    catch (const std::exception& exp) {
+        OPENVINO_THROW("Shape inference of " + (get_node()->get_friendly_name()) + " failed: " + exp.what());
+    }
+    OPENVINO_ASSERT(result.status == ShapeInferStatus::success,
+                    "Shape inference of " + (get_node()->get_friendly_name()) + " didn't return success status");
+    const auto& out_descriptors = get_output_port_descriptors();
+    OPENVINO_ASSERT(result.dims.size() == out_descriptors.size(), "shapeInference call returned invalid number of output shapes");
+    for (size_t i = 0; i < out_descriptors.size(); i++)
+        out_descriptors[i]->set_shape(result.dims[i]);
+}
+
+IOExpression::IOExpression(const std::shared_ptr<ov::opset1::Parameter>& par, int64_t index, const std::shared_ptr<IShapeInferSnippetsFactory>& factory)
+        : Expression(par, factory), m_index(index), m_type{io_type::INPUT} {}
+IOExpression::IOExpression(const std::shared_ptr<ov::opset1::Result>& res, int64_t index, const std::shared_ptr<IShapeInferSnippetsFactory>& factory)
+        : Expression(res, factory), m_index(index), m_type{io_type::OUTPUT} {}
 
 }// namespace lowered
 }// namespace snippets

@@ -13,6 +13,7 @@
 #include "openvino/op/equal.hpp"
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/random_uniform.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/roll.hpp"
 #include "openvino/op/select.hpp"
@@ -60,6 +61,8 @@ ListConstructReplacer::ListConstructReplacer() {
     auto interpolate_mul_op = pattern::wrap_type<v1::Multiply>({interpolate_convert_op, pattern::any_input()});
     auto interpolate_op =
         pattern::wrap_type<v11::Interpolate>({pattern::any_input(), interpolate_mul_op, pattern::any_input()});
+    // aten::randint case
+    auto rand_op = pattern::wrap_type<v8::RandomUniform>({list, pattern::any_input(), pattern::any_input()});
     auto lc_pattern = std::make_shared<pattern::op::Or>(OutputVector{reshape_op,
                                                                      roll_op,
                                                                      broadcast_op,
@@ -70,7 +73,8 @@ ListConstructReplacer::ListConstructReplacer() {
                                                                      tile_op,
                                                                      transpose_op,
                                                                      vsplit_op,
-                                                                     interpolate_op});
+                                                                     interpolate_op,
+                                                                     rand_op});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();

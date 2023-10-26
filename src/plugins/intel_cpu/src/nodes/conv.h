@@ -94,6 +94,19 @@ private:
                                 bool constWeight);
     };
 
+    class ConvolutionSumExecutor : public DnnlExecutor {
+        public:
+            ConvolutionSumExecutor(const dnnl::primitive_desc& pd,
+                    const dnnl::memory::desc& inMemDesc,
+                    const dnnl::memory::desc& weightMemDesc,
+                    const dnnl::memory::desc& outMemDesc,
+                    const dnnl::engine& engine,
+                    bool constWeight);
+
+        private:
+            void reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::stream strm) override;
+    };
+
     void prepareParams() override;
     void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override;
@@ -149,7 +162,7 @@ private:
     const size_t X_AXIS = 0;
     const size_t Y_AXIS = 1;
 
-    static const bool isBrgConvAvailable;
+    static const bool isBrgConvAvailable();
     std::vector<dnnl::primitive_attr> attrs;
     AttrPtr pAttr;
     bool autoPadding = false;

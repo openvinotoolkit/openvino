@@ -91,33 +91,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
     # Options
     #
 
-    set(ARM_COMPUTE_SCONS_JOBS "8" CACHE STRING "Number of parallel threads to build ARM Compute Library")
-
-    set(ARM_COMPUTE_TARGET_GENERIC_ARCHS armv8a
-                                         armv8.2-a
-                                         armv8.6-a armv8.6-a-sve armv8.6-a-sve2 armv8.6-a-sve2-sme2
-                                         armv8r64 # the same as armv8.4-a
-    )
-    if(ARM)
-        set(ARM_COMPUTE_TARGET_ARCH_DEFAULT armv7a)
-        set(ARM_COMPUTE_TARGET_ARCHS armv7a armv7a-hf
-                                     # requires estate=32
-                                     ${ARM_COMPUTE_TARGET_GENERIC_ARCHS})
-    else()
-        if(APPLE)
-            # Apple M1 / M2 is assumed
-            set(ARM_COMPUTE_TARGET_ARCH_DEFAULT arm64-v8.2-a)
-        else()
-            set(ARM_COMPUTE_TARGET_ARCH_DEFAULT arm64-v8a)
-        endif()
-        set(ARM_COMPUTE_TARGET_ARCHS arm64-v8a
-                                     arm64-v8.2-a arm64-v8.2-a-sve arm64-v8.2-a-sve2
-                                     # used with estate=64
-                                     ${ARM_COMPUTE_TARGET_GENERIC_ARCHS})
-    endif()
-
-    set(ARM_COMPUTE_TARGET_ARCH "${ARM_COMPUTE_TARGET_ARCH_DEFAULT}" CACHE STRING "Architecture for ARM ComputeLibrary")
-    set_property(CACHE ARM_COMPUTE_TARGET_ARCH PROPERTY STRINGS ${ARM_COMPUTE_TARGET_ARCHS})
+    set(ARM_COMPUTE_SCONS_JOBS "8" CACHE STRING "Number of parallel threads to build ARM Compute Library")    
 
     #
     # Configure & build
@@ -168,7 +142,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
         # build_config=<file>
         # TODO: use data_type_support to disable useless kernels
         data_layout_support=all
-        arch=${ARM_COMPUTE_TARGET_ARCH}
+        arch=${OV_CPU_ARM_TARGET_ARCH}
     )
 
     if(ARM)
@@ -361,7 +335,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
         set(arm_compute_full_path "${arm_compute}")
     endif()
 
-    list(APPEND ARM_COMPUTE_OPTIONS experimental_fixed_format_kernels=True)
+    list(APPEND ARM_COMPUTE_OPTIONS fixed_format_kernels=True)
 
     add_custom_command(
         OUTPUT

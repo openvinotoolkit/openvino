@@ -8,8 +8,8 @@
 #include <memory>
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -43,7 +43,7 @@ public:
 typedef std::tuple<
     ngraph::element::Type,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params,
+    ov::pass::low_precision::LayerTransformation::Params,
     std::pair<ngraph::PartialShape, ngraph::Shape>,
     GroupConvolutionTransformationParam,
     bool // add precision preserved operation

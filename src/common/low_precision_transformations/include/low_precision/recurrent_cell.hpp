@@ -5,10 +5,10 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
+
 #include "low_precision/layer_transformation.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -16,7 +16,7 @@ class LP_TRANSFORMATIONS_API RecurrentCellTransformation : public LayerTransform
 public:
     OPENVINO_RTTI("RecurrentCellTransformation", "0");
     RecurrentCellTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
+    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
     void propagateSkipCleanupAttribute(std::shared_ptr<Node> dequantization_multiply);
@@ -27,4 +27,4 @@ public:
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

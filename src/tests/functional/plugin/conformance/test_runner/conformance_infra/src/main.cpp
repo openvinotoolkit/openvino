@@ -22,7 +22,7 @@ void RegisterTestCustomQueries(void) {
     std::map<std::string, std::string>& extTestQueries = *::PostgreSQLLink::get_ext_test_queries();
     std::map<std::string, std::string>& extTestNames = *::PostgreSQLLink::get_ext_test_names();
 
-    std::string testName("checkPluginImplementation");
+    std::string testName("checkPluginImplementationCompileModel");
     extTestQueries[testName + "_ON_START"] =
         "OpImplCheck_CheckPluginImpl($__test_id, '$opName', '$opSet', "
         "'$targetDevice', '$targetDeviceArch', '$targetDeviceName', '$config', $__is_temp)";
@@ -31,7 +31,7 @@ void RegisterTestCustomQueries(void) {
         "OpImplCheck_CheckPluginImpl($__test_id)";  // Query expected in case of a refused results
     extTestNames[testName] = "$opName";
 
-    testName = "ReadIR";
+    testName = "Inference";
     extTestQueries[testName + "_ON_START"] =
         "ReadIRTest_ReadIR($__test_id, '$opName', '$opSet', '$Type', "
         "'$targetDevice', '$targetDeviceArch', '$targetDeviceName', '$hashXml', '$pathXml', '$config', "
@@ -74,7 +74,7 @@ int main(int argc, char* argv[]) {
         throw std::runtime_error("Using mutually exclusive arguments: --extend_report and --report_unique_name");
     }
 
-    FuncTestUtils::SkipTestsConfig::disable_tests_skipping = FLAGS_disable_test_config;
+    ov::test::utils::disable_tests_skipping = FLAGS_disable_test_config;
     ov::test::utils::OpSummary::setExtendReport(FLAGS_extend_report);
     ov::test::utils::OpSummary::setExtractBody(FLAGS_extract_body);
     ov::test::utils::OpSummary::setSaveReportWithUniqueName(FLAGS_report_unique_name);

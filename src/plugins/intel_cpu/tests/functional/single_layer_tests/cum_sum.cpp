@@ -4,7 +4,7 @@
 
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -57,7 +57,10 @@ protected:
         selectedType = makeSelectedTypeStr("ref_any", inType);
         init_input_shapes({shapes});
 
-        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
+        }
         auto axisNode = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{}, std::vector<int64_t>{axis})->output(0);
         auto cumSum = ngraph::builder::makeCumSum(params[0], axisNode, exclusive, reverse);
 

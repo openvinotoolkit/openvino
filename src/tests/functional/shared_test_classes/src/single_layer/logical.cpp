@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/logical.hpp"
 
 using namespace LayerTestsDefinitions::LogicalParams;
@@ -64,7 +64,7 @@ void LogicalLayerTest::SetUp() {
     SetupParams();
 
     auto ngInputsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
-    auto inputs = ngraph::builder::makeParams(ngInputsPrc, {inputShapes.first});
+    ov::ParameterVector inputs {std::make_shared<ov::op::v0::Parameter>(ngInputsPrc, ov::Shape(inputShapes.first))};
 
     std::shared_ptr<ngraph::Node> logicalNode;
     if (logicalOpType != ngraph::helpers::LogicalTypes::LOGICAL_NOT) {

@@ -168,7 +168,7 @@ def dump_tensors(core, model, dump_dir = "./cpu_dump", dump_ports="OUT", device_
     device_config = {"PERF_COUNT": "NO",
                 "AFFINITY": "CORE",
                 "PERFORMANCE_HINT_NUM_REQUESTS":0,
-                "PERFORMANCE_HINT":"",
+                "PERFORMANCE_HINT":"LATENCY",
                 "INFERENCE_PRECISION_HINT": "f32",
                 "NUM_STREAMS":1,
                 "INFERENCE_NUM_THREADS":1}

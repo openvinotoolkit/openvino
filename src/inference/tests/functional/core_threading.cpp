@@ -19,21 +19,21 @@
 #include "openvino/util/file_util.hpp"
 #ifdef __GLIBC__
 #    include <gnu/libc-version.h>
-#    if __GLIBC_MINOR__ >= 34
-#        define OV_TEST_GLIBC_VERSION_GREATER_2_34
+#    if __GLIBC_MINOR__ < 34
+#        define OV_TEST_GLIBC_VERSION_LESS_2_34
 #    endif
 #endif
 
-class CoreThreadingTests : public ::testing::Test {
+class IECoreThreadingTests : public ::testing::Test {
 protected:
-    std::string modelName = "CoreThreadingTests.xml", weightsName = "CoreThreadingTests.bin";
+    std::string modelName = "IECoreThreadingTests.xml", weightsName = "IECoreThreadingTests.bin";
 
 public:
     void SetUp() override {
         auto prefix = ov::test::utils::generateTestFilePrefix();
         modelName = prefix + modelName;
         weightsName = prefix + weightsName;
-        FuncTestUtils::TestModel::generateTestModel(modelName, weightsName);
+        ov::test::utils::generate_test_model(modelName, weightsName);
     }
 
     void TearDown() override {
@@ -63,7 +63,7 @@ public:
         try {
             auto extension = std::make_shared<InferenceEngine::Extension>(
                 ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                   std::string("template_extension") + IE_BUILD_POSTFIX));
+                                                   std::string("template_extension") + OV_BUILD_POSTFIX));
             ie.AddExtension(extension);
         } catch (const InferenceEngine::Exception& ex) {
             ASSERT_STR_CONTAINS(ex.what(), "name: custom_opset. Opset");
@@ -72,7 +72,7 @@ public:
 };
 
 // tested function: SetConfig
-TEST_F(CoreThreadingTests, SetConfigPluginDoesNotExist) {
+TEST_F(IECoreThreadingTests, SetConfigPluginDoesNotExist) {
     InferenceEngine::Core ie;
     std::map<std::string, std::string> localConfig = {
         {CONFIG_KEY(PERF_COUNT), InferenceEngine::PluginConfigParams::YES}};
@@ -88,14 +88,14 @@ TEST_F(CoreThreadingTests, SetConfigPluginDoesNotExist) {
 #ifndef OPENVINO_STATIC_LIBRARY
 
 // tested function: RegisterPlugin
-TEST_F(CoreThreadingTests, RegisterPlugin) {
+TEST_F(IECoreThreadingTests, RegisterPlugin) {
     InferenceEngine::Core ie;
     std::atomic<int> index{0};
     runParallel(
         [&]() {
             const std::string deviceName = std::to_string(index++);
             ie.RegisterPlugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                                 std::string("mock_engine") + IE_BUILD_POSTFIX),
+                                                                 std::string("mock_engine") + OV_BUILD_POSTFIX),
                               deviceName);
             ie.GetVersions(deviceName);
             ie.UnregisterPlugin(deviceName);
@@ -104,7 +104,7 @@ TEST_F(CoreThreadingTests, RegisterPlugin) {
 }
 
 // tested function: RegisterPlugins
-TEST_F(CoreThreadingTests, RegisterPlugins) {
+TEST_F(IECoreThreadingTests, RegisterPlugins) {
     InferenceEngine::Core ie;
     std::atomic<unsigned int> index{0};
 
@@ -118,7 +118,7 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
         file << ov::util::FileTraits<char>::file_separator;
         file << ov::util::FileTraits<char>::library_prefix();
         file << "mock_engine";
-        file << IE_BUILD_POSTFIX;
+        file << OV_BUILD_POSTFIX;
         file << ov::util::FileTraits<char>::dot_symbol;
         file << ov::util::FileTraits<char>::library_ext();
         file << "\" name=\"";
@@ -145,8 +145,8 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
 
 // tested function: GetAvailableDevices, UnregisterPlugin
 // TODO: some initialization (e.g. thread/dlopen) sporadically fails during such stress-test scenario
-TEST_F(CoreThreadingTests, GetAvailableDevices) {
-#ifndef OV_TEST_GLIBC_VERSION_GREATER_2_34
+TEST_F(IECoreThreadingTests, GetAvailableDevices) {
+#ifdef OV_TEST_GLIBC_VERSION_LESS_2_34
     GTEST_SKIP();
 #endif
     InferenceEngine::Core ie;
@@ -170,7 +170,7 @@ TEST_F(CoreThreadingTests, GetAvailableDevices) {
 
 #if defined(ENABLE_OV_IR_FRONTEND)
 // tested function: ReadNetwork, AddExtension
-TEST_F(CoreThreadingTests, ReadNetwork) {
+TEST_F(IECoreThreadingTests, ReadNetwork) {
     InferenceEngine::Core ie;
     auto network = ie.ReadNetwork(modelName, weightsName);
 

@@ -364,8 +364,8 @@ def create_api_summary(xml_paths: list, output_folder: str, expected_devices:lis
                             api_info[test_type.tag].setdefault(sw_plugin_name, {device.tag: {}})
                             api_info[test_type.tag][sw_plugin_name][device.tag] = {'passrate': float(sw_plugin.get('passrate', 0)),
                                                                                    'relative_passrate': float(sw_plugin.get('relative_passrate', 0)),
-                                                                                   'relative_all': float(sw_plugin.get('relative_all', 0)),
-                                                                                   'relative_passed': float(sw_plugin.get('relative_passed', 0)),
+                                                                                   'relative_all': int(float(sw_plugin.get('relative_all', 0))),
+                                                                                   'relative_passed': int(float(sw_plugin.get('relative_passed', 0))),
                                                                                    'passed': int(sw_plugin.get('passed', 0)), 
                                                                                    'failed': int(sw_plugin.get('failed', 0)),
                                                                                    'crashed': int(sw_plugin.get('crashed', 0)),
@@ -373,8 +373,8 @@ def create_api_summary(xml_paths: list, output_folder: str, expected_devices:lis
                                                                                    'hanged': int(sw_plugin.get('hanged', 0)),
                                                                                    'test_amout': int(sw_plugin.get('passed', 0)) +\
                                                                                                     int(sw_plugin.get('failed', 0)) +\
-                                                                                                    int(sw_plugin.get('passed', 0)) +\
                                                                                                     int(sw_plugin.get('crashed', 0)) +\
+                                                                                                    int(sw_plugin.get('skipped', 0)) +\
                                                                                                     int(sw_plugin.get('hanged', 0))}
 
             except ET.ParseError:

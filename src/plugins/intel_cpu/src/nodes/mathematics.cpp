@@ -10,7 +10,7 @@
 #include "ie_parallel.hpp"
 #include "mathematics.h"
 #include "utils/general_utils.h"
-#include <utils/shape_inference/shape_inference_pass_through.hpp>
+#include <shape_inference/shape_inference_pass_through.hpp>
 
 using namespace InferenceEngine;
 
@@ -20,7 +20,7 @@ namespace node {
 
 bool Math::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (initializers.find(op->get_type_info()) == initializers.end()) {
+        if (getInitializers().find(op->get_type_info()) == getInitializers().end()) {
             errorMessage = "Unsupported Math layer type.";
             return false;
         }
@@ -49,7 +49,7 @@ Math::Math(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr con
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    initializers[op->get_type_info()](op, *this);
+    getInitializers()[op->get_type_info()](op, *this);
 }
 
 void Math::initSupportedPrimitiveDescriptors() {
@@ -201,69 +201,72 @@ bool Math::created() const {
     return getType() == Type::Math;
 }
 
-std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, Math& node)>> Math::initializers {
-        {ngraph::op::v0::Abs::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathAbs;
-        }},
-        {ngraph::op::v0::Acos::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathAcos;
-        }},
-        {ngraph::op::v3::Acosh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathAcosh;
-        }},
-        {ngraph::op::v0::Asin::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathAsin;
-        }},
-        {ngraph::op::v3::Asinh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathAsinh;
-        }},
-        {ngraph::op::v0::Atan::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathAtan;
-        }},
-        {ngraph::op::v0::Ceiling::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathCeiling;
-        }},
-        {ngraph::op::v0::Cos::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathCos;
-        }},
-        {ngraph::op::v0::Cosh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathCosh;
-        }},
-        {ngraph::op::v0::Floor::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathFloor;
-        }},
-        {ngraph::op::v0::HardSigmoid::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathHardSigmoid;
-            node.alpha = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1))->cast_vector<float>()[0];
-            node.beta = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<float>()[0];
-        }},
-        {ngraph::op::v0::Negative::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathNegative;
-        }},
-        {ngraph::op::v0::Selu::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathSelu;
-            node.alpha = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1))->cast_vector<float>()[0];
-            node.gamma = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<float>()[0];
-        }},
-        {ngraph::op::v0::Sign::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathSign;
-        }},
-        {ngraph::op::v0::Sin::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathSin;
-        }},
-        {ngraph::op::v0::Sinh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathSinh;
-        }},
-        {ngraph::op::v4::SoftPlus::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathSoftPlus;
-        }},
-        {ngraph::op::v0::Tan::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathTan;
-        }},
-        {ngraph::op::v3::Atanh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathAtanh;
-        }}
-};
+std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, Math& node)>>& Math::getInitializers() {
+    static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, Math& node)>> initializers {
+            {ngraph::op::v0::Abs::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathAbs;
+            }},
+            {ngraph::op::v0::Acos::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathAcos;
+            }},
+            {ngraph::op::v3::Acosh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathAcosh;
+            }},
+            {ngraph::op::v0::Asin::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathAsin;
+            }},
+            {ngraph::op::v3::Asinh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathAsinh;
+            }},
+            {ngraph::op::v0::Atan::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathAtan;
+            }},
+            {ngraph::op::v0::Ceiling::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathCeiling;
+            }},
+            {ngraph::op::v0::Cos::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathCos;
+            }},
+            {ngraph::op::v0::Cosh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathCosh;
+            }},
+            {ngraph::op::v0::Floor::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathFloor;
+            }},
+            {ngraph::op::v0::HardSigmoid::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathHardSigmoid;
+                node.alpha = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1))->cast_vector<float>()[0];
+                node.beta = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<float>()[0];
+            }},
+            {ngraph::op::v0::Negative::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathNegative;
+            }},
+            {ngraph::op::v0::Selu::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathSelu;
+                node.alpha = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1))->cast_vector<float>()[0];
+                node.gamma = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<float>()[0];
+            }},
+            {ngraph::op::v0::Sign::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathSign;
+            }},
+            {ngraph::op::v0::Sin::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathSin;
+            }},
+            {ngraph::op::v0::Sinh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathSinh;
+            }},
+            {ngraph::op::v4::SoftPlus::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathSoftPlus;
+            }},
+            {ngraph::op::v0::Tan::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathTan;
+            }},
+            {ngraph::op::v3::Atanh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
+                node.algorithm = Algorithm::MathAtanh;
+            }}
+    };
+    return initializers;
+}
 
 }   // namespace node
 }   // namespace intel_cpu

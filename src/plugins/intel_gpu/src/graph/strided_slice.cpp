@@ -44,8 +44,20 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
     if ((begin_data.empty() && !constant_mem.count(1))
         || (end_data.empty() && !constant_mem.count(2))
         || (strides_data.empty() && !constant_mem.count(3))) {
-        auto out_shape = ov::PartialShape::dynamic(input0_layout.get_partial_shape().size());
-        return { layout{out_shape, input0_layout.data_type, format::get_default_format(out_shape.rank().get_length())} };
+        auto input0_pshape = input0_layout.get_partial_shape();
+        auto input0_len = input0_pshape.size();
+        auto out_shape = ov::PartialShape::dynamic(input0_len);
+        if (input0_layout.is_dynamic()) {
+            // fill with static shape until it finds dynamic
+            for (size_t i = 0; i < input0_len; i++) {
+                if (input0_pshape[i].is_static())
+                    out_shape[i] = input0_pshape[i];
+                else
+                    break;
+            }
+        }
+
+        return { layout{out_shape, input0_layout.data_type, format::get_default_format(input0_len)} };
     }
 
     ov::op::v1::StridedSlice op;
@@ -55,7 +67,7 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
 
     std::vector<ShapeType> output_shapes;
     std::vector<ShapeType> input_shapes = {
-        input0_shape,
+        std::move(input0_shape),
         begin_shape,
         end_shape,
         strides_shape
@@ -67,12 +79,12 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
     op.set_shrink_axis_mask(desc->shrink_axis_mask);
     op.set_ellipsis_mask_mask(desc->ellipsis_mask);
 
-    std::map<size_t, ngraph::HostTensorPtr> const_data;
+    std::unordered_map<size_t, ov::Tensor> const_data;
     const auto ta = ov::make_tensor_accessor(const_data);
     if (!begin_data.empty() && !end_data.empty() && !strides_data.empty()) {
-        auto begin_tensor = make_host_tensor({ begin_shape, data_types::i64, format::bfyx }, static_cast<void*>(begin_data.data()));
-        auto end_tensor = make_host_tensor({ end_shape, data_types::i64, format::bfyx }, static_cast<void*>(end_data.data()));
-        auto strides_tensor = make_host_tensor({ strides_shape, data_types::i64, format::bfyx }, static_cast<void*>(strides_data.data()));
+        auto begin_tensor = make_tensor({ begin_shape, data_types::i64, format::bfyx }, static_cast<void*>(begin_data.data()));
+        auto end_tensor = make_tensor({ end_shape, data_types::i64, format::bfyx }, static_cast<void*>(end_data.data()));
+        auto strides_tensor = make_tensor({ strides_shape, data_types::i64, format::bfyx }, static_cast<void*>(strides_data.data()));
 
         const_data.emplace(1, begin_tensor);
         const_data.emplace(2, end_tensor);
@@ -88,9 +100,9 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
         cldnn::mem_lock<uint8_t, mem_lock_type::read> lock2(end_mem, impl_param.get_stream());
         cldnn::mem_lock<uint8_t, mem_lock_type::read> lock3(strides_mem, impl_param.get_stream());
 
-        auto begin_tensor = make_host_tensor(begin_mem->get_layout(), lock1.data());
-        auto end_tensor = make_host_tensor(end_mem->get_layout(), lock2.data());
-        auto strides_tensor = make_host_tensor(strides_mem->get_layout(), lock3.data());
+        auto begin_tensor = make_tensor(begin_mem->get_layout(), lock1.data());
+        auto end_tensor = make_tensor(end_mem->get_layout(), lock2.data());
+        auto strides_tensor = make_tensor(strides_mem->get_layout(), lock3.data());
 
         const_data.emplace(1, begin_tensor);
         const_data.emplace(2, end_tensor);
@@ -116,8 +128,8 @@ std::string strided_slice_inst::to_string(strided_slice_node const& node) {
     json_composite strided_slice_info;
     strided_slice_info.add("input id", input.id());
     std::vector<std::string> dependencies_info = {"begin_param id", "end_param id", "stride_param id"};
-    for (size_t i = 0; i < node.get_dependencies().size(); ++i) {
-        strided_slice_info.add(dependencies_info[i], node.get_dependency(i).id());
+    for (size_t i = 1; i < node.get_dependencies().size(); ++i) {
+        strided_slice_info.add(dependencies_info[i - 1], node.get_dependency(i).id());
     }
     strided_slice_info.add("begin", node.get_primitive()->begin);
     strided_slice_info.add("end", node.get_primitive()->end);

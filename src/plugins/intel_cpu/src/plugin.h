@@ -65,7 +65,17 @@ private:
     std::shared_ptr<void> specialSetup;
 
 #if defined(OV_CPU_WITH_ACL)
-    std::shared_ptr<arm_compute::IScheduler> acl_scheduler;
+    struct SchedulerGuard {
+        SchedulerGuard();
+        ~SchedulerGuard();
+        static std::shared_ptr<SchedulerGuard> instance();
+        static std::mutex mutex;
+        // separate mutex for saving ACLScheduler state in destructor
+        mutable std::mutex dest_mutex;
+        static std::weak_ptr<SchedulerGuard> ptr;
+    };
+
+    std::shared_ptr<SchedulerGuard> scheduler_guard;
 #endif
 };
 

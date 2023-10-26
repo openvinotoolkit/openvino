@@ -6,9 +6,9 @@
 #include <string>
 #include <vector>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -70,7 +70,7 @@ public:
         }
 
         std::ostringstream result;
-        result << "Shape=" << CommonTestUtils::vec2str(input_shape) << "_";
+        result << "Shape=" << ov::test::utils::vec2str(input_shape) << "_";
         result << "netPRC=" << net_type << "_";
         result << "trgDev=" << target_device;
         for (auto const& conf_i : conf) {
@@ -103,7 +103,7 @@ protected:
 class TransposeGatherTest : public GatherTransposeMergeTest {
 protected:
     void init_test_model() {
-        auto params = ngraph::builder::makeParams(m_net_type, {m_input_shape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(m_net_type, ov::Shape(m_input_shape))};
         const size_t input_shape_size = ov::shape_size(params[0]->get_shape());
 
         std::vector<size_t> transpose_order = make_transpose_order(m_input_shape);
@@ -133,7 +133,7 @@ protected:
 class GatherTransposeTest : public GatherTransposeMergeTest {
 protected:
     void init_test_model() {
-        auto params = ngraph::builder::makeParams(m_net_type, {m_input_shape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(m_net_type, ov::Shape(m_input_shape))};
         const size_t input_shape_size = ov::shape_size(params[0]->get_shape());
 
         std::vector<int8_t> shape_in = {1, -1};
@@ -186,7 +186,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_merge_transpose_gather,
                          TransposeGatherTest,
                          ::testing::Combine(::testing::ValuesIn(input_shapes),
                                             ::testing::ValuesIn(input_precisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(target_configs)),
                          TransposeGatherTest::get_test_case_name);
@@ -195,7 +195,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_merge_transpose_gather,
                          GatherTransposeTest,
                          ::testing::Combine(::testing::ValuesIn(input_shapes),
                                             ::testing::ValuesIn(input_precisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(target_configs)),
                          GatherTransposeTest::get_test_case_name);

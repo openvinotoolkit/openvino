@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/single_layer/interpolate.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "openvino/core/preprocess/pre_post_process.hpp"
 
@@ -204,7 +204,7 @@ protected:
 
         init_input_shapes(inputShapes);
 
-        auto params = ngraph::builder::makeDynamicParams(ngPrc, {inputDynamicShapes.front()});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, inputDynamicShapes.front())};
 
         std::shared_ptr<ov::Node> sizesInput, scalesInput;
         if (shapeCalcMode == ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES) {

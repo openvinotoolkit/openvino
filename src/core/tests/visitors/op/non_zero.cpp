@@ -2,24 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/visitor.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset3.hpp"
+#include "openvino/op/non_zero.hpp"
+
+#include <gtest/gtest.h>
+
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, non_zero_op_default) {
-    NodeBuilder::get_ops().register_factory<opset3::NonZero>();
-    const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto non_zero = make_shared<op::NonZero>(data_node);
+    NodeBuilder::get_ops().register_factory<ov::op::v3::NonZero>();
+    const auto data_node = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    const auto non_zero = make_shared<ov::op::v3::NonZero>(data_node);
 
     NodeBuilder builder(non_zero, {data_node});
-    EXPECT_NO_THROW(auto g_non_zero = ov::as_type_ptr<opset3::NonZero>(builder.create()));
+    EXPECT_NO_THROW(auto g_non_zero = ov::as_type_ptr<ov::op::v3::NonZero>(builder.create()));
 
     const auto expected_attr_count = 1;
 
@@ -28,12 +27,12 @@ TEST(attributes, non_zero_op_default) {
 }
 
 TEST(attributes, non_zero_op_i32) {
-    NodeBuilder::get_ops().register_factory<opset3::NonZero>();
-    const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto non_zero = make_shared<op::NonZero>(data_node, element::i32);
+    NodeBuilder::get_ops().register_factory<ov::op::v3::NonZero>();
+    const auto data_node = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    const auto non_zero = make_shared<ov::op::v3::NonZero>(data_node, element::i32);
 
     NodeBuilder builder(non_zero, {data_node});
-    EXPECT_NO_THROW(auto g_non_zero = ov::as_type_ptr<opset3::NonZero>(builder.create()));
+    EXPECT_NO_THROW(auto g_non_zero = ov::as_type_ptr<ov::op::v3::NonZero>(builder.create()));
     const auto expected_attr_count = 1;
 
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
@@ -41,12 +40,12 @@ TEST(attributes, non_zero_op_i32) {
 }
 
 TEST(attributes, non_zero_op_i32_string) {
-    NodeBuilder::get_ops().register_factory<opset3::NonZero>();
-    const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto non_zero = make_shared<op::NonZero>(data_node, "i32");
+    NodeBuilder::get_ops().register_factory<ov::op::v3::NonZero>();
+    const auto data_node = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    const auto non_zero = make_shared<ov::op::v3::NonZero>(data_node, "i32");
 
     NodeBuilder builder(non_zero, {data_node});
-    EXPECT_NO_THROW(auto g_non_zero = ov::as_type_ptr<opset3::NonZero>(builder.create()));
+    EXPECT_NO_THROW(auto g_non_zero = ov::as_type_ptr<ov::op::v3::NonZero>(builder.create()));
     const auto expected_attr_count = 1;
 
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
@@ -54,12 +53,12 @@ TEST(attributes, non_zero_op_i32_string) {
 }
 
 TEST(attributes, non_zero_op_i64) {
-    NodeBuilder::get_ops().register_factory<opset3::NonZero>();
-    const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto non_zero = make_shared<op::NonZero>(data_node, element::i64);
+    NodeBuilder::get_ops().register_factory<ov::op::v3::NonZero>();
+    const auto data_node = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    const auto non_zero = make_shared<ov::op::v3::NonZero>(data_node, element::i64);
 
     NodeBuilder builder(non_zero, {data_node});
-    EXPECT_NO_THROW(auto g_non_zero = ov::as_type_ptr<opset3::NonZero>(builder.create()));
+    EXPECT_NO_THROW(auto g_non_zero = ov::as_type_ptr<ov::op::v3::NonZero>(builder.create()));
     const auto expected_attr_count = 1;
 
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
@@ -67,12 +66,12 @@ TEST(attributes, non_zero_op_i64) {
 }
 
 TEST(attributes, non_zero_op_i64_string) {
-    NodeBuilder::get_ops().register_factory<opset3::NonZero>();
-    const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto non_zero = make_shared<op::NonZero>(data_node, "i64");
+    NodeBuilder::get_ops().register_factory<ov::op::v3::NonZero>();
+    const auto data_node = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    const auto non_zero = make_shared<ov::op::v3::NonZero>(data_node, "i64");
 
     NodeBuilder builder(non_zero, {data_node});
-    EXPECT_NO_THROW(auto g_non_zero = ov::as_type_ptr<opset3::NonZero>(builder.create()));
+    EXPECT_NO_THROW(auto g_non_zero = ov::as_type_ptr<ov::op::v3::NonZero>(builder.create()));
     const auto expected_attr_count = 1;
 
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

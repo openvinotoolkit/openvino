@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/pattern/op/any_output.hpp"
+#include "openvino/pass/pattern/op/any_output.hpp"
 
-#include "ngraph/pattern/matcher.hpp"
-
-using namespace std;
+#include "openvino/pass/pattern/matcher.hpp"
 
 bool ov::pass::pattern::op::AnyOutput::match_value(Matcher* matcher,
                                                    const Output<Node>& pattern_value,

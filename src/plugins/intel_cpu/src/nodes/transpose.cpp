@@ -10,7 +10,7 @@
 #include <string>
 #include <dnnl_extension_utils.h>
 #include <common/primitive_hashing_utils.hpp>
-
+#include "shape_inference/custom/transpose.hpp"
 using namespace dnnl;
 using namespace InferenceEngine;
 
@@ -36,70 +36,6 @@ bool Transpose::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
     }
     return true;
 }
-
-namespace {
-class TransposeDynShapeInfer : public ShapeInferEmptyPads {
-public:
-    TransposeDynShapeInfer() = default;
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        IE_THROW(NotImplemented) << "TODO: Support parameterized Order input for dynamic shapes.";
-    }
-    port_mask_t get_port_mask() const override {
-        return EMPTY_PORT_MASK;
-    }
-private:
-};
-
-class TransposeShapeInfer : public ShapeInferEmptyPads {
-public:
-    TransposeShapeInfer(const size_t& out_rank, const std::vector<size_t>& axes_vec)
-    : m_out_rank(out_rank), m_axes_vec(axes_vec), m_outputShape(out_rank, 1), m_needReverse(axes_vec.empty()) {}
-
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        const VectorDims& shapeIn = input_shapes[0].get();
-        if (m_needReverse) {
-            for (size_t i = 0; i < m_out_rank; ++i) {
-                m_outputShape[i] = shapeIn[m_out_rank - 1 - i];
-            }
-        } else {
-            for (size_t i = 0; i < m_out_rank; ++i) {
-                m_outputShape[i] = shapeIn[m_axes_vec[i]];
-            }
-        }
-        return {{m_outputShape}, ShapeInferStatus::success};
-    }
-
-    port_mask_t get_port_mask() const override {
-        return EMPTY_PORT_MASK;
-    }
-
-private:
-    const size_t m_out_rank;
-    const std::vector<size_t> m_axes_vec;
-    VectorDims m_outputShape;
-    const bool m_needReverse;
-};
-
-class TransposeShapeInferFactory : public ShapeInferFactory {
-public:
-    TransposeShapeInferFactory(const std::shared_ptr<ov::Node>& op) : m_op(op) {}
-    ShapeInferPtr makeShapeInfer() const override {
-        if (const auto order = ov::as_type_ptr<const ov::op::v0::Constant>(m_op->get_input_node_shared_ptr(ov::op::v1::Transpose::ORDER))) {
-            const auto axes_vec = order->cast_vector<size_t>();
-            return std::make_shared<TransposeShapeInfer>(m_op->get_output_partial_shape(0).rank().get_length(), axes_vec);
-        } else {
-            return std::make_shared<TransposeDynShapeInfer>();
-        }
-    }
-
-private:
-    const std::shared_ptr<ov::Node> m_op;
-};
-} // namespace
 
 Transpose::Transpose(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, TransposeShapeInferFactory(op)) {
@@ -140,7 +76,7 @@ void Transpose::initSupportedPrimitiveDescriptors() {
     config.inConfs[INPUT_ORDER_IDX].constant(isInputOrderConst);
     config.inConfs[INPUT_ORDER_IDX].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
             Precision::I32, getInputShapeAtPort(INPUT_ORDER_IDX)));
-    config.outConfs[0].inPlace(-1);
+    config.outConfs[0].inPlace(isOptimized ? 0 : -1);
     config.outConfs[0].constant(false);
     transpose_context = std::make_shared<ExecutorContext>(context, getImplPriority());
 
@@ -175,7 +111,7 @@ void Transpose::initSupportedPrimitiveDescriptors() {
             supportedPrimitiveDescriptorsBuilder(config, transposeParams);
         }
 #endif // OPENVINO_ARCH_X86_64
-        if (prec == Precision::FP32 || prec == Precision::I8 || prec == Precision::U8) {
+        if (prec == Precision::FP32 || prec == Precision::FP16 || prec == Precision::I8 || prec == Precision::U8) {
             config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::nspc)->createSharedDesc(prec, inputDataShape));
             config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::nspc)->createSharedDesc(prec, outputDataShape));
             supportedPrimitiveDescriptorsBuilder(config, transposeParams);
@@ -189,7 +125,7 @@ void Transpose::initSupportedPrimitiveDescriptors() {
 }
 
 bool Transpose::isExecutable() const {
-    return !isInputTensorAtPortEmpty(0);
+    return !isInputTensorAtPortEmpty(0) && !isOptimized;
 }
 
 bool Transpose::needPrepareParams() const {
@@ -197,6 +133,9 @@ bool Transpose::needPrepareParams() const {
 }
 
 void Transpose::prepareParams() {
+    if (isOptimized)
+        return;
+
     if (performAsReorder) {
         //  Transpose(order={0,3,1,2}) can be performed as Reorder(acdb=>abcd)
         auto srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
@@ -237,11 +176,11 @@ void Transpose::prepareParams() {
     auto builder = [&srcDesc, &dstDesc, this](const PermuteParams& key) -> std::shared_ptr<TransposeExecutor> {
         dnnl::primitive_attr attr;
         auto selectedPD = getSelectedPrimitiveDescriptor();
-        auto jitExec = selectedPD->getExecutorFactoryAs<TransposeExecutorFactory>()->makeExecutor(transposeParams,
-                                                                                                  {srcDesc},
-                                                                                                  {dstDesc},
-                                                                                                  attr);
-        return jitExec;
+        auto executor = selectedPD->getExecutorFactoryAs<TransposeExecutorFactory>()->makeExecutor(transposeParams,
+                                                                                                   {srcDesc},
+                                                                                                   {dstDesc},
+                                                                                                   attr);
+        return executor;
     };
 
     auto cache = context->getParamsCache();
@@ -255,6 +194,9 @@ void Transpose::prepareParams() {
 }
 
 void Transpose::createPrimitive() {
+    if (isOptimized)
+        return;
+
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
@@ -287,6 +229,9 @@ void Transpose::createPrimitive() {
 }
 
 void Transpose::execute(dnnl::stream strm) {
+    if (isOptimized)
+        return;
+
     if (prim) {
         prim.execute(strm, primArgs);
     } else if (execPtr) {

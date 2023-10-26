@@ -5,12 +5,10 @@
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <transformations/utils/utils.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
@@ -18,12 +16,14 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/split.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
     MATCHER_SCOPE(LSTMCellDecomposition);
     auto any_lstm = pattern::wrap_type<ov::op::v0::LSTMCell, ov::op::v4::LSTMCell>();
 
-    matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
+    matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
         auto lstm_cell = std::dynamic_pointer_cast<op::util::RNNCellBase>(m.get_match_root());
         if (!lstm_cell || transformation_callback(lstm_cell)) {
             return false;
@@ -60,7 +60,7 @@ ov::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
             i = clamp_i;
             c = clamp_c;
             o = clamp_o;
-            ngraph::copy_runtime_info(lstm_cell, {clamp_f, clamp_i, clamp_c, clamp_o});
+            ov::copy_runtime_info(lstm_cell, {clamp_f, clamp_i, clamp_c, clamp_o});
         }
 
         // ft = f(Xt*(Wf^T) + Ht-1*(Rf^T) + Wbf + Rbf)
@@ -83,13 +83,13 @@ ov::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
 
         out_H->set_friendly_name(lstm_cell->get_friendly_name() + ".0");
         out_C->set_friendly_name(lstm_cell->get_friendly_name() + ".1");
-        ngraph::copy_runtime_info(
+        ov::copy_runtime_info(
             lstm_cell,
             {Xt_W, Ht_R, add, split, mul1, mul2, out_H, hC, out_C, axis_node, XHB, f_t, i_t, c_t, o_t});
-        ngraph::replace_node(lstm_cell, {out_H->output(0), out_C->output(0)});
+        ov::replace_node(lstm_cell, {out_H->output(0), out_C->output(0)});
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(any_lstm, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(any_lstm, matcher_name);
     register_matcher(m, callback);
 }

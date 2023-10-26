@@ -35,6 +35,7 @@
 #include "paddle_fw_node.hpp"
 #include "paddle_utils.hpp"
 #include "place.hpp"
+#include "transformations/resolve_names_collisions.hpp"
 
 using namespace ov::frontend::paddle::op::default_opset;
 using namespace ov;
@@ -457,6 +458,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const
 
     fuse_fakequantize_ops(f);
     try_remove_internal_ops(f);
+    normalize(f[0]);
     return f[0];
 }
 
@@ -472,6 +474,7 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
 
     fuse_fakequantize_ops({partiallyConverted});
     try_remove_internal_ops({partiallyConverted});
+    normalize(partiallyConverted);
 }
 
 std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& model) const {
@@ -504,7 +507,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& mo
 
     fuse_fakequantize_ops(f);
     try_remove_internal_ops(f);
-
+    normalize(f[0]);
     return f[0];
 }
 
@@ -540,6 +543,12 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
             return paddle_conv_ext->get_converter()(context);
         };
     }
+}
+
+void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::ResolveNameCollisions>();
+    manager.run_passes(model);
 }
 
 }  // namespace paddle

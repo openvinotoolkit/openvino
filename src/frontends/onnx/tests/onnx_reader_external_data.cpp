@@ -12,9 +12,10 @@
 #include <string>
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_case.hpp"
 #include "common_test_utils/unicode_utils.hpp"
-#include "engines_util/test_case.hpp"
 #include "ie_blob.h"
+#include "ie_common.h"
 #include "ie_core.hpp"
 #include "ngraph/ngraph.hpp"
 #include "openvino/frontend/manager.hpp"
@@ -65,7 +66,7 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromStringException) {
     stream.close();
     try {
         auto cnnNetwork = ie.ReadNetwork(modelAsString, weights);
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const InferenceEngine::Exception& e) {
         EXPECT_PRED_FORMAT2(testing::IsSubstring, std::string("invalid external data:"), e.what());
 
         EXPECT_PRED_FORMAT2(testing::IsSubstring,
@@ -129,7 +130,7 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data) {
     ov::Core core;
     core.set_property(ov::enable_mmap(GetParam()));
     const auto model = core.read_model(path);
-    auto test_case = ngraph::test::TestCase(model);
+    auto test_case = ov::test::TestCase(model);
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
     test_case.add_expected_output<float>({2, 2}, {3.f, 6.f, 9.f, 12.f});
 
@@ -149,7 +150,7 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data_from_stream) {
     const auto in_model = frontend->load(is, path, enable_mmap);
     const auto model = frontend->convert(in_model);
 
-    auto test_case = ngraph::test::TestCase(model);
+    auto test_case = ov::test::TestCase(model);
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
     test_case.add_expected_output<float>(ov::Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
 
@@ -183,7 +184,7 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data_optional_fields) {
     ov::Core core;
     core.set_property(ov::enable_mmap(GetParam()));
     const auto model = core.read_model(path);
-    auto test_case = ngraph::test::TestCase(model);
+    auto test_case = ov::test::TestCase(model);
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
     test_case.add_expected_output<float>(ov::Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
 
@@ -196,7 +197,7 @@ TEST_P(OnnxFeMmapFixture, onnx_external_offset_not_aligned_with_page_size) {
     ov::Core core;
     core.set_property(ov::enable_mmap(GetParam()));
     const auto model = core.read_model(path);
-    auto test_case = ngraph::test::TestCase(model);
+    auto test_case = ov::test::TestCase(model);
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
     test_case.add_expected_output<float>(ov::Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
 
@@ -210,7 +211,7 @@ TEST_P(OnnxFeMmapFixture, onnx_external_offset_not_aligned_with_page_and_less_th
     ov::Core core;
     core.set_property(ov::enable_mmap(GetParam()));
     const auto model = core.read_model(path);
-    auto test_case = ngraph::test::TestCase(model);
+    auto test_case = ov::test::TestCase(model);
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
     test_case.add_expected_output<float>(ov::Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
 
@@ -225,7 +226,7 @@ TEST_P(OnnxFeMmapFixture, onnx_external_offset_not_aligned_with_page_and_greater
     ov::Core core;
     core.set_property(ov::enable_mmap(GetParam()));
     const auto model = core.read_model(path);
-    auto test_case = ngraph::test::TestCase(model);
+    auto test_case = ov::test::TestCase(model);
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
     test_case.add_expected_output<float>(ov::Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
 
@@ -239,7 +240,7 @@ TEST_P(OnnxFeMmapFixture, onnx_external_offset_not_aligned_with_page_in_two_page
     ov::Core core;
     core.set_property(ov::enable_mmap(GetParam()));
     const auto model = core.read_model(path);
-    auto test_case = ngraph::test::TestCase(model);
+    auto test_case = ov::test::TestCase(model);
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
     test_case.add_expected_output<float>(ov::Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
 
@@ -252,7 +253,7 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data_in_different_paths) {
     ov::Core core;
     core.set_property(ov::enable_mmap(GetParam()));
     const auto model = core.read_model(path);
-    auto test_case = ngraph::test::TestCase(model);
+    auto test_case = ov::test::TestCase(model);
     // first input: {3.f}, second: {1.f, 2.f, 5.f} read from external files
     test_case.add_input<float>({2.f, 7.f, 7.f});
 
@@ -266,7 +267,7 @@ TEST_P(OnnxFeMmapFixture, onnx_external_two_tensors_data_in_the_same_file) {
     ov::Core core;
     core.set_property(ov::enable_mmap(GetParam()));
     const auto model = core.read_model(path);
-    auto test_case = ngraph::test::TestCase(model);
+    auto test_case = ov::test::TestCase(model);
     // first input: {3, 2, 1}, second: {1, 2, 3} read from external file
     test_case.add_input<int32_t>({2, 3, 1});
 
@@ -333,7 +334,7 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data_sanitize_path) {
     ov::Core core;
     core.set_property(ov::enable_mmap(GetParam()));
     const auto model = core.read_model(path);
-    auto test_case = ngraph::test::TestCase(model);
+    auto test_case = ov::test::TestCase(model);
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
     test_case.add_expected_output<float>(ov::Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
 
@@ -346,7 +347,7 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data_in_constant_node) {
     ov::Core core;
     core.set_property(ov::enable_mmap(GetParam()));
     const auto model = core.read_model(path);
-    auto test_case = ngraph::test::TestCase(model);
+    auto test_case = ov::test::TestCase(model);
     test_case.add_input<float>({3.f, 5.f, 8.f, 13.f});
     test_case.add_expected_output<float>(ov::Shape{2, 2}, {4.f, 7.f, 11.f, 17.f});
 

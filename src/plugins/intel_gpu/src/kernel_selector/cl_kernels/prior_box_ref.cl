@@ -121,52 +121,56 @@ KERNEL(ref)
         #endif
     }
 
-    for (uint ms_idx = 0; ms_idx < MIN_SIZE_SIZE; ++ms_idx) {
-        box_width = MIN_SIZE[ms_idx] * 0.5f;
-        box_height = MIN_SIZE[ms_idx] * 0.5f;
-        FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, &out_index, output);
-        #ifdef MIN_MAX_ASPECT_RATIO_ORDER
-            if (MAX_SIZE_SIZE > ms_idx) {
-                box_width = box_height = sqrt(MIN_SIZE[ms_idx] * MAX_SIZE[ms_idx]) * 0.5f;
-                FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, &out_index, output);
+    // Explicitly check MIN_SIZE has value to avoid seg fault duing opencl build
+    if (MIN_SIZE_SIZE > 0) {
+        for (uint ms_idx = 0; ms_idx < MIN_SIZE_SIZE; ++ms_idx) {
+            box_width = MIN_SIZE[ms_idx] * 0.5f;
+            box_height = MIN_SIZE[ms_idx] * 0.5f;
+            FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, &out_index, output);
+            #ifdef MIN_MAX_ASPECT_RATIO_ORDER
+                // Explicitly check MAX_SIZE has value to avoid seg fault duing opencl build
+                if ((MAX_SIZE_SIZE > 0) && (MAX_SIZE_SIZE > ms_idx)) {
+                    box_width = box_height = sqrt(MIN_SIZE[ms_idx] * MAX_SIZE[ms_idx]) * 0.5f;
+                    FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, &out_index, output);
+                }
 
-            }
+                if (SCALE_ALL_SIZES || (!SCALE_ALL_SIZES && (ms_idx == MIN_SIZE_SIZE - 1))) {
+                    uint s_idx = SCALE_ALL_SIZES ? ms_idx : 0;
+                    for (uint k = 0; k < ASPECT_RATIO_SIZE; ++k) {
+                        OUTPUT_TYPE ar = ASPECT_RATIO[k];
+                        if (fabs(ar - 1.0f) < 1e-6) {
+                            continue;
+                        }
 
-            if (SCALE_ALL_SIZES || (!SCALE_ALL_SIZES && (ms_idx == MIN_SIZE_SIZE - 1))) {
-                uint s_idx = SCALE_ALL_SIZES ? ms_idx : 0;
-                for (uint k = 0; k < ASPECT_RATIO_SIZE; ++k) {
-                    OUTPUT_TYPE ar = ASPECT_RATIO[k];
-                    if (fabs(ar - 1.0f) < 1e-6) {
-                        continue;
+                        ar = sqrt(ar);
+                        box_width = MIN_SIZE[s_idx] * 0.5f * ar;
+                        box_height = MIN_SIZE[s_idx] * 0.5f / ar;
+                        FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, &out_index, output);
                     }
+                }
+            #else
+                if (SCALE_ALL_SIZES || (!SCALE_ALL_SIZES && (ms_idx == MIN_SIZE_SIZE - 1))) {
+                    uint s_idx = SCALE_ALL_SIZES ? ms_idx : 0;
+                    for (uint k = 0; k < ASPECT_RATIO_SIZE; ++k) {
+                        OUTPUT_TYPE ar = ASPECT_RATIO[k];
+                        if (fabs(ar - 1.0f) < 1e-6) {
+                            continue;
+                        };
 
-                    ar = sqrt(ar);
-                    box_width = MIN_SIZE[s_idx] * 0.5f * ar;
-                    box_height = MIN_SIZE[s_idx] * 0.5f / ar;
+                        ar = sqrt(ar);
+                        box_width = MIN_SIZE[s_idx] * 0.5f * ar;
+                        box_height = MIN_SIZE[s_idx] * 0.5f / ar;
+                        FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, &out_index, output);
+                    }
+                }
+
+                // Explicitly check MAX_SIZE has value to avoid seg fault duing opencl build
+                if ((MAX_SIZE_SIZE > 0) && (MAX_SIZE_SIZE > ms_idx)) {
+                    box_width = box_height = sqrt(MIN_SIZE[ms_idx] * MAX_SIZE[ms_idx]) * 0.5f;
                     FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, &out_index, output);
                 }
-            }
-        #else
-            if (SCALE_ALL_SIZES || (!SCALE_ALL_SIZES && (ms_idx == MIN_SIZE_SIZE - 1))) {
-                uint s_idx = SCALE_ALL_SIZES ? ms_idx : 0;
-                for (uint k = 0; k < ASPECT_RATIO_SIZE; ++k) {
-                    OUTPUT_TYPE ar = ASPECT_RATIO[k];
-                    if (fabs(ar - 1.0f) < 1e-6) {
-                        continue;
-                    };
-
-                    ar = sqrt(ar);
-                    box_width = MIN_SIZE[s_idx] * 0.5f * ar;
-                    box_height = MIN_SIZE[s_idx] * 0.5f / ar;
-                    FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, &out_index, output);
-                }
-            }
-
-            if (MAX_SIZE_SIZE > ms_idx) {
-                box_width = box_height = sqrt(MIN_SIZE[ms_idx] * MAX_SIZE[ms_idx]) * 0.5f;
-                FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, &out_index, output);
-            }
-        #endif
+            #endif
+        }
     }
 
     #ifdef CLIP

@@ -2,150 +2,154 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/matrix_nms.hpp"
+
+#include <gtest/gtest.h>
+
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
+using namespace testing;
 
-TEST(type_prop, matrix_nms_incorrect_boxes_rank) {
-    try {
-        const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-        const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
+class TypePropMatrixNmsV8Test : public TypePropOpTest<op::v8::MatrixNms> {
+protected:
+    using Attributes = op::v8::MatrixNms::Attributes;
+};
 
-        const auto unused = make_shared<op::v8::MatrixNms>(boxes, scores, op::v8::MatrixNms::Attributes());
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Expected a 3D tensor for the 'boxes' input");
-    }
+TEST_F(TypePropMatrixNmsV8Test, incorrect_boxes_rank) {
+    const auto boxes = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    const auto scores = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3});
+    OV_EXPECT_THROW(ignore = make_op(boxes, scores, Attributes()),
+                    NodeValidationFailure,
+                    HasSubstr("Expected a 3D tensor for the 'boxes' input"));
 }
 
-TEST(type_prop, matrix_nms_incorrect_scores_rank) {
-    try {
-        const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
-        const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2});
+TEST_F(TypePropMatrixNmsV8Test, incorrect_scores_rank) {
+    const auto boxes = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 4});
+    const auto scores = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2});
 
-        const auto unused = make_shared<op::v8::MatrixNms>(boxes, scores, op::v8::MatrixNms::Attributes());
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Expected a 3D tensor for the 'scores' input");
-    }
+    OV_EXPECT_THROW(ignore = make_op(boxes, scores, Attributes()),
+                    NodeValidationFailure,
+                    HasSubstr("Expected a 3D tensor for the 'scores' input"));
 }
 
-TEST(type_prop, matrix_nms_incorrect_scheme_num_batches) {
-    try {
-        const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
-        const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 2, 3});
+TEST_F(TypePropMatrixNmsV8Test, incorrect_scheme_num_batches) {
+    const auto boxes = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 4});
+    const auto scores = make_shared<op::v0::Parameter>(element::f32, Shape{2, 2, 3});
 
-        const auto unused = make_shared<op::v8::MatrixNms>(boxes, scores, op::v8::MatrixNms::Attributes());
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "The first dimension of both 'boxes' and 'scores' must match");
-    }
+    OV_EXPECT_THROW(ignore = make_op(boxes, scores, Attributes()),
+                    NodeValidationFailure,
+                    HasSubstr("The first dimension of both 'boxes' and 'scores' must match"));
 }
 
-TEST(type_prop, matrix_nms_incorrect_scheme_num_boxes) {
-    try {
-        const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
-        const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
+TEST_F(TypePropMatrixNmsV8Test, incorrect_scheme_num_boxes) {
+    const auto boxes = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 4});
+    const auto scores = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3});
 
-        const auto unused = make_shared<op::v8::MatrixNms>(boxes, scores, op::v8::MatrixNms::Attributes());
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "'boxes' and 'scores' input shapes must match at the second and third "
-                             "dimension respectively");
-    }
+    OV_EXPECT_THROW(ignore = make_op(boxes, scores, Attributes()),
+                    NodeValidationFailure,
+                    HasSubstr("'boxes' and 'scores' input shapes must match at the second and third "
+                              "dimension respectively"));
 }
 
-TEST(type_prop, matrix_nms_incorrect_boxes_rank2) {
-    try {
-        const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-        const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 2, 2});
+TEST_F(TypePropMatrixNmsV8Test, incorrect_boxes_rank2) {
+    const auto boxes = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3});
+    const auto scores = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2});
 
-        const auto unused = make_shared<op::v8::MatrixNms>(boxes, scores, op::v8::MatrixNms::Attributes());
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "The third dimension of the 'boxes' must be 4");
-    }
+    OV_EXPECT_THROW(ignore = make_op(boxes, scores, Attributes()),
+                    NodeValidationFailure,
+                    HasSubstr("The last dimension of the 'boxes' input must be equal to 4"));
 }
 
-TEST(type_prop, matrix_nms_incorrect_output_type) {
-    try {
-        const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
-        const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
-        op::v8::MatrixNms::Attributes attrs;
-        attrs.output_type = ngraph::element::f32;
+TEST_F(TypePropMatrixNmsV8Test, incorrect_output_type) {
+    const auto boxes = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 4});
+    const auto scores = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2});
+    Attributes attrs;
+    attrs.output_type = element::f32;
 
-        const auto unused = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Output type must be i32 or i64");
-    }
+    OV_EXPECT_THROW(ignore = make_op(boxes, scores, attrs),
+                    NodeValidationFailure,
+                    HasSubstr("Output type must be i32 or i64"));
 }
 
-TEST(type_prop, matrix_nms_incorrect_nms_topk) {
-    try {
-        const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
-        const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
-        op::v8::MatrixNms::Attributes attrs;
-        attrs.nms_top_k = -2;
+TEST_F(TypePropMatrixNmsV8Test, incorrect_nms_topk) {
+    const auto boxes = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 4});
+    const auto scores = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2});
+    Attributes attrs;
+    attrs.nms_top_k = -2;
 
-        const auto unused = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "The 'nms_top_k' must be great or equal -1");
-    }
+    OV_EXPECT_THROW(ignore = make_op(boxes, scores, attrs),
+                    NodeValidationFailure,
+                    HasSubstr("The 'nms_top_k' must be great or equal -1"));
 }
 
-TEST(type_prop, matrix_nms_incorrect_keep_topk) {
-    try {
-        const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
-        const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
-        op::v8::MatrixNms::Attributes attrs;
-        attrs.keep_top_k = -2;
+TEST_F(TypePropMatrixNmsV8Test, incorrect_keep_topk) {
+    const auto boxes = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 4});
+    const auto scores = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2});
+    Attributes attrs;
+    attrs.keep_top_k = -2;
 
-        const auto unused = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "The 'keep_top_k' must be great or equal -1");
-    }
+    OV_EXPECT_THROW(ignore = make_op(boxes, scores, attrs),
+                    NodeValidationFailure,
+                    HasSubstr("The 'keep_top_k' must be great or equal -1"));
 }
 
-TEST(type_prop, matrix_nms_incorrect_background_class) {
-    try {
-        const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
-        const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
-        op::v8::MatrixNms::Attributes attrs;
-        attrs.background_class = -2;
+TEST_F(TypePropMatrixNmsV8Test, incorrect_background_class) {
+    const auto boxes = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 4});
+    const auto scores = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2});
+    Attributes attrs;
+    attrs.background_class = -2;
 
-        const auto unused = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "The 'background_class' must be great or equal -1");
-    }
+    OV_EXPECT_THROW(ignore = make_op(boxes, scores, attrs),
+                    NodeValidationFailure,
+                    HasSubstr("The 'background_class' must be great or equal -1"));
 }
 
-TEST(type_prop, matrix_nms_incorrect_input_type) {
-    try {
-        const auto boxes = make_shared<op::Parameter>(element::f16, Shape{1, 2, 4});
-        const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
+TEST_F(TypePropMatrixNmsV8Test, incorrect_input_type) {
+    const auto boxes = make_shared<op::v0::Parameter>(element::f16, Shape{1, 2, 4});
+    const auto scores = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2});
 
-        const auto unused = make_shared<op::v8::MatrixNms>(boxes, scores, op::v8::MatrixNms::Attributes());
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Expected 'boxes', 'scores' type is same.");
-    }
+    OV_EXPECT_THROW(ignore = make_op(boxes, scores, Attributes()),
+                    NodeValidationFailure,
+                    HasSubstr("Expected 'boxes', 'scores' type is same."));
 }
 
-TEST(type_prop, matrix_nms_output_shape_1dim_dynamic) {
-    const auto boxes = make_shared<op::Parameter>(element::f32, Shape{5, 2, 4});
-    const auto scores = make_shared<op::Parameter>(element::f32, Shape{5, 3, 2});
+TEST_F(TypePropMatrixNmsV8Test, default_ctor) {
+    const auto boxes = make_shared<op::v0::Parameter>(element::f32, Shape{5, 2, 4});
+    const auto scores = make_shared<op::v0::Parameter>(element::f32, Shape{5, 3, 2});
+    Attributes attrs;
+    attrs.nms_top_k = 3;
 
-    const auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, op::v8::MatrixNms::Attributes());
+    const auto nms = make_op();
+    nms->set_arguments(OutputVector{boxes, scores});
+    nms->set_output_type(element::f16);
+    nms->set_attrs(std::move(attrs));
+    nms->validate_and_infer_types();
 
-    ASSERT_TRUE(nms->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 6}));
-    ASSERT_TRUE(nms->get_output_partial_shape(1).same_scheme(PartialShape{Dimension::dynamic(), 1}));
+    EXPECT_EQ(nms->get_output_partial_shape(0), (PartialShape{{0, 30}, 6}));
+    EXPECT_EQ(nms->get_output_partial_shape(1), (PartialShape{{0, 30}, 1}));
+    EXPECT_EQ(nms->get_output_shape(2), (Shape{5}));
+}
+
+TEST_F(TypePropMatrixNmsV8Test, output_shape_1dim_dynamic) {
+    const auto boxes = make_shared<op::v0::Parameter>(element::f32, Shape{5, 2, 4});
+    const auto scores = make_shared<op::v0::Parameter>(element::f32, Shape{5, 3, 2});
+
+    const auto nms = make_op(boxes, scores, Attributes());
+
+    EXPECT_EQ(nms->get_output_partial_shape(0), (PartialShape{{0, 30}, 6}));
+    EXPECT_EQ(nms->get_output_partial_shape(1), (PartialShape{{0, 30}, 1}));
 
     EXPECT_EQ(nms->get_output_shape(2), (Shape{5}));
 }
 
-TEST(type_prop, matrix_nms_output_shape_1dim_max_out) {
-    const auto boxes = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
-    const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 5, 7});
+TEST_F(TypePropMatrixNmsV8Test, output_shape_1dim_max_out) {
+    const auto boxes = make_shared<op::v0::Parameter>(element::f32, Shape{2, 7, 4});
+    const auto scores = make_shared<op::v0::Parameter>(element::f32, Shape{2, 5, 7});
 
-    const auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, op::v8::MatrixNms::Attributes());
+    const auto nms = make_op(boxes, scores, Attributes());
 
     ASSERT_EQ(nms->get_output_element_type(0), element::f32);
     ASSERT_EQ(nms->get_output_element_type(1), element::i64);
@@ -157,13 +161,13 @@ TEST(type_prop, matrix_nms_output_shape_1dim_max_out) {
     EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
 }
 
-TEST(type_prop, matrix_nms_output_shape_1dim_nms_topk) {
-    const auto boxes = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
-    const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 5, 7});
+TEST_F(TypePropMatrixNmsV8Test, output_shape_1dim_nms_topk) {
+    const auto boxes = make_shared<op::v0::Parameter>(element::f32, Shape{2, 7, 4});
+    const auto scores = make_shared<op::v0::Parameter>(element::f32, Shape{2, 5, 7});
     op::v8::MatrixNms::Attributes attrs;
     attrs.nms_top_k = 3;
 
-    const auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
+    const auto nms = make_op(boxes, scores, attrs);
 
     ASSERT_EQ(nms->get_output_element_type(0), element::f32);
     ASSERT_EQ(nms->get_output_element_type(1), element::i64);
@@ -174,14 +178,14 @@ TEST(type_prop, matrix_nms_output_shape_1dim_nms_topk) {
     EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
 }
 
-TEST(type_prop, matrix_nms_output_shape_1dim_keep_topk) {
-    const auto boxes = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
-    const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 5, 7});
+TEST_F(TypePropMatrixNmsV8Test, output_shape_1dim_keep_topk) {
+    const auto boxes = make_shared<op::v0::Parameter>(element::f32, Shape{2, 7, 4});
+    const auto scores = make_shared<op::v0::Parameter>(element::f32, Shape{2, 5, 7});
     op::v8::MatrixNms::Attributes attrs;
     attrs.nms_top_k = 3;
     attrs.keep_top_k = 8;
 
-    const auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
+    const auto nms = make_op(boxes, scores, attrs);
 
     ASSERT_EQ(nms->get_output_element_type(0), element::f32);
     ASSERT_EQ(nms->get_output_element_type(1), element::i64);
@@ -192,11 +196,11 @@ TEST(type_prop, matrix_nms_output_shape_1dim_keep_topk) {
     EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
 }
 
-TEST(type_prop, matrix_nms_input_f16) {
-    const auto boxes = make_shared<op::Parameter>(element::f16, Shape{2, 7, 4});
-    const auto scores = make_shared<op::Parameter>(element::f16, Shape{2, 5, 7});
+TEST_F(TypePropMatrixNmsV8Test, input_f16) {
+    const auto boxes = make_shared<op::v0::Parameter>(element::f16, Shape{2, 7, 4});
+    const auto scores = make_shared<op::v0::Parameter>(element::f16, Shape{2, 5, 7});
 
-    const auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, op::v8::MatrixNms::Attributes());
+    const auto nms = make_op(boxes, scores, Attributes());
 
     ASSERT_EQ(nms->get_output_element_type(0), element::f16);
     ASSERT_EQ(nms->get_output_element_type(1), element::i64);
@@ -207,13 +211,13 @@ TEST(type_prop, matrix_nms_input_f16) {
     EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
 }
 
-TEST(type_prop, matrix_nms_output_shape_i32) {
-    const auto boxes = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
-    const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 5, 7});
+TEST_F(TypePropMatrixNmsV8Test, output_shape_i32) {
+    const auto boxes = make_shared<op::v0::Parameter>(element::f32, Shape{2, 7, 4});
+    const auto scores = make_shared<op::v0::Parameter>(element::f32, Shape{2, 5, 7});
     op::v8::MatrixNms::Attributes attrs;
-    attrs.output_type = ngraph::element::i32;
+    attrs.output_type = ov::element::i32;
 
-    const auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
+    const auto nms = make_op(boxes, scores, attrs);
 
     ASSERT_EQ(nms->get_output_element_type(0), element::f32);
     ASSERT_EQ(nms->get_output_element_type(1), element::i32);
@@ -224,11 +228,11 @@ TEST(type_prop, matrix_nms_output_shape_i32) {
     EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
 }
 
-TEST(type_prop, matrix_nms_dynamic_boxes_and_scores) {
-    const auto boxes = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    const auto scores = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+TEST_F(TypePropMatrixNmsV8Test, dynamic_boxes_and_scores) {
+    const auto boxes = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto scores = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
 
-    const auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, op::v8::MatrixNms::Attributes());
+    const auto nms = make_op(boxes, scores, Attributes());
 
     ASSERT_EQ(nms->get_output_element_type(0), element::f32);
     ASSERT_EQ(nms->get_output_element_type(1), element::i64);

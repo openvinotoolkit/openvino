@@ -17,7 +17,7 @@ inline const std::string get_plugin_lib_name_by_device(const std::string& device
             { "HETERO", "openvino_hetero_plugin" },
             { "BATCH", "openvino_auto_batch_plugin" },
             { "MULTI", "openvino_auto_plugin" },
-            { "VPU", "openvino_intel_vpu_plugin" },
+            { "NPU", "openvino_intel_npu_plugin" },
             { "CPU", "openvino_intel_cpu_plugin" },
             { "GNA", "openvino_intel_gna_plugin" },
             { "GPU", "openvino_intel_gpu_plugin" },

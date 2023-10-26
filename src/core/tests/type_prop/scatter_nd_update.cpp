@@ -2,21 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/scatter_nd_update.hpp"
+
 #include "common_test_utils/type_prop.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/opsets/opset10.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, scatter_nd_update_v3_fail_indices_element_type) {
     Shape ref_shape{2, 3, 4};
     Shape indices_shape{2, 1};
     Shape updates_shape{2, 2, 1, 4};
-    auto R = make_shared<op::Parameter>(element::f32, ref_shape);
-    auto I = make_shared<op::Parameter>(element::f16, indices_shape);
-    auto U = make_shared<op::Parameter>(element::f32, updates_shape);
+    auto R = make_shared<ov::op::v0::Parameter>(element::f32, ref_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::f16, indices_shape);
+    auto U = make_shared<ov::op::v0::Parameter>(element::f32, updates_shape);
     try {
         auto G = make_shared<op::v3::ScatterNDUpdate>(R, I, U);
         // Should have thrown, so fail if it didn't
@@ -33,11 +34,11 @@ TEST(type_prop, scatter_nd_update_v3_fail_updates_rank) {
     Shape indices_shape{1};
     Shape updates_shape{3, 3, 3};
     Shape out_shape{3, 3, 3};
-    auto R = make_shared<op::Parameter>(element::f32, ref_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto U = make_shared<op::Parameter>(element::f32, updates_shape);
+    auto R = make_shared<ov::op::v0::Parameter>(element::f32, ref_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i32, indices_shape);
+    auto U = make_shared<ov::op::v0::Parameter>(element::f32, updates_shape);
     try {
-        auto G = make_shared<op::ScatterNDUpdate>(R, I, U);
+        auto G = make_shared<op::v3::ScatterNDUpdate>(R, I, U);
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect updates rank";
     } catch (const NodeValidationFailure& error) {
@@ -54,11 +55,11 @@ TEST(type_prop, scatter_nd_update_fail_updates_element_type) {
     Shape indices_shape{1};
     Shape updates_shape{3, 3};
     Shape out_shape{3, 3, 3};
-    auto R = make_shared<op::Parameter>(element::f32, ref_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto U = make_shared<op::Parameter>(element::i32, updates_shape);
+    auto R = make_shared<ov::op::v0::Parameter>(element::f32, ref_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i32, indices_shape);
+    auto U = make_shared<ov::op::v0::Parameter>(element::i32, updates_shape);
     try {
-        auto G = make_shared<op::ScatterNDUpdate>(R, I, U);
+        auto G = make_shared<op::v3::ScatterNDUpdate>(R, I, U);
         // Should have thrown, so fail if it didn't
         FAIL() << "Created ScatterND op with incorrect updates element type.";
     } catch (const NodeValidationFailure& error) {
@@ -73,11 +74,11 @@ TEST(type_prop, scatter_nd_update_fail_updates_shape) {
     Shape indices_shape{1};
     Shape updates_shape{2, 3};
     Shape out_shape{3, 3, 3};
-    auto R = make_shared<op::Parameter>(element::f32, ref_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto U = make_shared<op::Parameter>(element::f32, updates_shape);
+    auto R = make_shared<ov::op::v0::Parameter>(element::f32, ref_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i32, indices_shape);
+    auto U = make_shared<ov::op::v0::Parameter>(element::f32, updates_shape);
     try {
-        auto G = make_shared<op::ScatterNDUpdate>(R, I, U);
+        auto G = make_shared<op::v3::ScatterNDUpdate>(R, I, U);
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect updates shape";
     } catch (const NodeValidationFailure& error) {
@@ -94,11 +95,11 @@ TEST(type_prop, scatter_nd_update_fail_indices_last_dim) {
     Shape indices_shape{2, 4};
     Shape updates_shape{2, 3, 3};
     Shape out_shape{3, 3, 3};
-    auto R = make_shared<op::Parameter>(element::f32, ref_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto U = make_shared<op::Parameter>(element::f32, updates_shape);
+    auto R = make_shared<ov::op::v0::Parameter>(element::f32, ref_shape);
+    auto I = make_shared<ov::op::v0::Parameter>(element::i32, indices_shape);
+    auto U = make_shared<ov::op::v0::Parameter>(element::f32, updates_shape);
     try {
-        auto G = make_shared<op::ScatterNDUpdate>(R, I, U);
+        auto G = make_shared<op::v3::ScatterNDUpdate>(R, I, U);
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect indices innermost dim";
     } catch (const NodeValidationFailure& error) {
@@ -200,10 +201,10 @@ TEST_F(TypePropScatterUpdateNDV3Test, preserve_partial_values_and_labels_via_eva
     auto u_shape = PartialShape{{10, 20}, {3, 4}};
     set_shape_labels(u_shape, 20);
 
-    const auto shape_of_u = std::make_shared<op::ShapeOf>(std::make_shared<Parameter>(element::i64, u_shape));
+    const auto shape_of_u = std::make_shared<op::v0::ShapeOf>(std::make_shared<Parameter>(element::i64, u_shape));
     const auto op = make_op(d, i, shape_of_u);
 
-    auto param = std::make_shared<op::Parameter>(element::f32, PartialShape{1});
+    auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1});
     auto bc = std::make_shared<op::v3::Broadcast>(param, op, op::BroadcastType::BIDIRECTIONAL);
 
     EXPECT_EQ(bc->get_output_partial_shape(0), PartialShape({{3, 4}, 3, {10, 20}, 4}));

@@ -4,6 +4,11 @@ newsletterFieldPrefix = 'newsletter-'
 // debug url
 // const eloquaUrl = 'https://httpbingo.org/post'
 
+const currentPath = window.location.pathname.slice(1).split('/');
+const newsletterModalPathVersion = (['cn', 'jp'].includes(currentPath[0])) ?
+                                    `/${currentPath[0]}/${currentPath[1]}` :
+                                    `/${currentPath[0]}`;
+const newsletterModalPath = newsletterModalPathVersion + '/_static/html/newsletter.html';
 
 $(document).ready(function () {
     const waitForElement = async selector => {
@@ -23,7 +28,7 @@ $(document).ready(function () {
     // });
 
     function showForm() {
-        fetch('_static/html/newsletter.html').then((response) => response.text()).then((text) => {
+        fetch(newsletterModalPath).then((response) => response.text()).then((text) => {
             const newsletter = $('<div>');
             newsletter.attr('id', 'newsletterModal');
             newsletter.addClass('newsletterContainer');

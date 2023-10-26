@@ -6,11 +6,12 @@
 
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/multiply.hpp"
+#include "openvino/reference/multiply.hpp"
 
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace multiplyop {
 namespace {
 template <element::Type_t ET>
@@ -18,12 +19,12 @@ bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
               const HostTensorPtr& out,
               const op::AutoBroadcastSpec& broadcast_spec) {
-    runtime::reference::multiply(arg0->get_data_ptr<ET>(),
-                                 arg1->get_data_ptr<ET>(),
-                                 out->get_data_ptr<ET>(),
-                                 arg0->get_shape(),
-                                 arg1->get_shape(),
-                                 broadcast_spec);
+    ov::reference::multiply(arg0->get_data_ptr<ET>(),
+                            arg1->get_data_ptr<ET>(),
+                            out->get_data_ptr<ET>(),
+                            arg0->get_shape(),
+                            arg1->get_shape(),
+                            broadcast_spec);
     return true;
 }
 
@@ -34,16 +35,16 @@ bool evaluate_multiply(const HostTensorPtr& arg0,
     bool rc = true;
     out->set_broadcast(broadcast_spec, arg0, arg1);
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_multiply, i32, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_multiply, i64, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_multiply, u32, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_multiply, u64, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_multiply, f16, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_multiply, f32, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_multiply, bf16, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_multiply, u8, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_multiply, i16, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_multiply, u16, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_multiply, i32, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_multiply, i64, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_multiply, u32, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_multiply, u64, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_multiply, f16, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_multiply, f32, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_multiply, bf16, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_multiply, u8, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_multiply, i16, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_multiply, u16, arg0, arg1, out, broadcast_spec);
     default:
         rc = false;
         break;

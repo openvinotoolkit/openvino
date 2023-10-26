@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "shared_test_classes/single_layer/ctc_greedy_decoder_seq_len.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 std::string CTCGreedyDecoderSeqLenLayerTest::getTestCaseName(
@@ -55,7 +55,7 @@ void CTCGreedyDecoderSeqLenLayerTest::SetUp() {
 
     auto ngDataPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dataPrecision);
     auto ngIdxPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(indicesPrecision);
-    auto paramsIn = ngraph::builder::makeParams(ngDataPrc, { inputShape });
+    ov::ParameterVector paramsIn {std::make_shared<ov::op::v0::Parameter>(ngDataPrc, ov::Shape(inputShape))};
     auto paramOuts = ngraph::helpers::convert2OutputVector(
         ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
 

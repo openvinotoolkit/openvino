@@ -37,7 +37,7 @@ mutable_data_node::typed_program_node(const std::shared_ptr<mutable_data> dprim,
 }
 
 void mutable_data_node::attach_memory(memory::ptr new_mem, bool invalidate_users_if_changed) {
-    mem = new_mem;
+    mem = std::move(new_mem);
     recalc_output_layout(invalidate_users_if_changed);
 }
 

@@ -10,10 +10,10 @@
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/file_util.hpp"
 #include "to_string_utils.h"
 #include "register.hpp"
 #include "utils.hpp"
-#include "openvino/util/file_util.hpp"
 #include "runtime/ocl/ocl_event.hpp"
 
 #include "quantize_inst.h"
@@ -41,6 +41,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     PrimDescType _pd;
     PrimType _prim;
     std::unordered_map<uint32_t, std::unordered_map<int, dnnl::memory>> _args;
+    dnnl::memory::desc _scratchpad_md;
     bool _enable_profiling = false;
 
     typed_primitive_onednn_impl(const engine& engine,
@@ -53,6 +54,24 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
         _attrs(attrs),
         _pd(pd) {
             _enable_profiling = config.get_property(ov::enable_profiling);
+
+            _scratchpad_md = _pd.scratchpad_desc();
+
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
+                _enable_profiling = true;
+            }
+
+            GPU_DEBUG_IF(debug_config->verbose >= 4) {
+                if (_scratchpad_md.get_size() > 0) {
+                    static std::atomic_llong total{0};
+                    int64_t size = _scratchpad_md.get_size() / 1048576;
+                    total += size;
+                    GPU_DEBUG_TRACE_DETAIL << " [scratchpad] kind: " << static_cast<int>(_pd.get_kind())
+                        << ", " << size << "MB, total " << total << "MB" << std::endl;
+                }
+            }
+
             build_primitive(config);
         }
 
@@ -70,6 +89,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
 
     typed_primitive_onednn_impl()
         : typed_primitive_impl<PType>({}, "undef"),
+          _engine(nullptr),
           _pd(), _prim() {
         _attrs = std::make_shared<dnnl::primitive_attr>();
     }
@@ -189,7 +209,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
 
         if (has_attrs) {
             {
-                dnnl::scratchpad_mode _scratchpad_mode = dnnl::scratchpad_mode::library;
+                dnnl::scratchpad_mode _scratchpad_mode = dnnl::scratchpad_mode::user;
                 ib >> make_data(&_scratchpad_mode, sizeof(dnnl::scratchpad_mode));
                 _attrs->set_scratchpad_mode(_scratchpad_mode);
             }
@@ -349,7 +369,7 @@ private:
 
                 {
                     std::lock_guard<std::mutex> lock(cacheAccessMutex);
-                    ov::util::save_binary(generate_cache_path_from_key(config, key), cache);
+                    ov::intel_gpu::save_binary(generate_cache_path_from_key(config, key), cache);
                 }
             } else {
                 _prim = PrimType(_pd, cache);
@@ -450,6 +470,12 @@ protected:
             args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0), offset)});
         }
 
+        if (_scratchpad_md.get_size() != 0) {
+            // onednn primitive can have only 1 scratchpad memory.
+            auto scratchpad = instance.get_intermediates_memories()[0];
+            args.insert({DNNL_ARG_SCRATCHPAD, scratchpad->get_onednn_memory(_scratchpad_md, 0)});
+        }
+
         configure_post_ops_arguments(instance, args);
 
         return args;
@@ -510,6 +536,12 @@ protected:
         }
 
         return event;
+    }
+
+    std::vector<layout> get_internal_buffer_layouts_impl() const override {
+        if (_scratchpad_md.get_size() == 0)
+            return {};
+        return {{{1, 1, 1, (tensor::value_type)(_scratchpad_md.get_size())}, cldnn::data_types::u8, format::bfyx}};
     }
 };
 

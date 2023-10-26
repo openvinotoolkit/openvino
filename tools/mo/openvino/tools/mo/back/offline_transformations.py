@@ -113,7 +113,8 @@ def apply_offline_transformations(func: Model, argv: argparse.Namespace):
     # Apply preprocessing (mean/scale/reverse_channels/convert_layout/etc)
     apply_preprocessing(ov_function=func, argv=argv)
 
-    apply_moc_transformations(func)
+    from openvino._offline_transformations import apply_moc_transformations as moc_transformations  # pylint: disable=import-error,no-name-in-module
+    moc_transformations(func, cf=argv.static_shape, smart_reshape=True)
 
     params_with_custom_types = create_params_with_custom_types(argv.packed_user_shapes)
     apply_moc_legacy_transformations(func, params_with_custom_types)

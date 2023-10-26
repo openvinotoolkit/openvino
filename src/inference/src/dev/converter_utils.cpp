@@ -24,6 +24,7 @@
 #include "ie_plugin_config.hpp"
 #include "ie_version.hpp"
 #include "iplugin_wrapper.hpp"
+#include "legacy_op_extension.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/exception.hpp"
@@ -214,7 +215,7 @@ public:
     }
 
     void SetState(const InferenceEngine::Blob::Ptr& newState) override {
-        m_state->set_state(ov::make_tensor(newState));
+        m_state->set_state(ov::make_tensor(newState, true));
     }
 
     InferenceEngine::Blob::CPtr GetState() const override {
@@ -345,7 +346,7 @@ public:
                                                      const std::map<std::string, std::string>& config) const override {
         auto res = m_plugin->query_model(ov::legacy_convert::convert_model(network, m_plugin->is_new_api()),
                                          ov::any_copy(config));
-        ie::QueryNetworkResult ret;
+        InferenceEngine::QueryNetworkResult ret;
         if (!network.getFunction() || res.empty()) {
             ret.rc = InferenceEngine::GENERAL_ERROR;
             return ret;
@@ -430,6 +431,26 @@ public:
     }
 
     InferenceEngine::Parameter GetMetric(const std::string& name) const override {
+        // Add legacy supported properties
+        if (METRIC_KEY(SUPPORTED_METRICS) == name || METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
+            try {
+                return m_model->get_property(name);
+            } catch (const ov::Exception&) {
+                auto props = m_model->get_property(ov::supported_properties.name()).as<std::vector<PropertyName>>();
+                std::vector<std::string> legacy_properties;
+                for (const auto& prop : props) {
+                    if ((METRIC_KEY(SUPPORTED_METRICS) == name && !prop.is_mutable()) ||
+                        (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name && prop.is_mutable()))
+                        legacy_properties.emplace_back(prop);
+                }
+                if (METRIC_KEY(SUPPORTED_METRICS) == name) {
+                    legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_METRICS));
+                    legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                }
+
+                return legacy_properties;
+            }
+        }
         return m_model->get_property(name);
     }
 
@@ -521,7 +542,7 @@ public:
 
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) override {
         try {
-            m_request->set_tensor(find_port(name), ov::make_tensor(data));
+            m_request->set_tensor(find_port(name), ov::make_tensor(data, true));
         } catch (const ov::Exception& ex) {
             const std::string what = ex.what();
             if (what.find("Failed to set tensor") != std::string::npos) {
@@ -535,7 +556,7 @@ public:
         try {
             std::vector<ov::SoPtr<ov::ITensor>> tensors;
             for (const auto& blob : blobs) {
-                tensors.emplace_back(ov::make_tensor(blob));
+                tensors.emplace_back(ov::make_tensor(blob, true));
             }
             m_request->set_tensors(find_port(name), tensors);
         } catch (const ov::Exception& ex) {
@@ -839,50 +860,40 @@ ov::SoPtr<::ov::IAsyncInferRequest> ov::legacy_convert::convert_infer_request(
 }
 
 namespace InferenceEngine {
+const std::shared_ptr<InferenceEngine::RemoteContext>& IRemoteContextWrapper::get_context() {
+    return m_context;
+}
 
-class IRemoteContextWrapper : public ov::IRemoteContext {
-private:
-    std::shared_ptr<InferenceEngine::RemoteContext> m_context;
-    mutable std::string m_name;
-    mutable ov::AnyMap m_params;
+const std::string& IRemoteContextWrapper::get_device_name() const {
+    m_name = m_context->getDeviceName();
+    return m_name;
+}
 
-public:
-    IRemoteContextWrapper(const std::shared_ptr<InferenceEngine::RemoteContext>& context) : m_context(context) {}
-    virtual ~IRemoteContextWrapper() = default;
-    const std::shared_ptr<InferenceEngine::RemoteContext>& get_context() {
-        return m_context;
-    }
-    const std::string& get_device_name() const override {
-        m_name = m_context->getDeviceName();
-        return m_name;
-    }
+const ov::AnyMap& IRemoteContextWrapper::get_property() const {
+    m_params = m_context->getParams();
+    return m_params;
+}
 
-    const ov::AnyMap& get_property() const override {
-        m_params = m_context->getParams();
-        return m_params;
-    }
+ov::SoPtr<ov::IRemoteTensor> IRemoteContextWrapper::create_tensor(const ov::element::Type& type,
+                                                                  const ov::Shape& shape,
+                                                                  const ov::AnyMap& params) {
+    InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(type),
+                                     shape,
+                                     InferenceEngine::TensorDesc::getLayoutByDims(shape));
+    auto blob = m_context->CreateBlob(desc, params);
+    blob->allocate();
+    auto tensor = ov::make_tensor(blob);
+    return {std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr), tensor._so};
+}
 
-    ov::SoPtr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
-                                               const ov::Shape& shape,
-                                               const ov::AnyMap& params = {}) override {
-        InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(type),
-                                         shape,
-                                         InferenceEngine::TensorDesc::getLayoutByDims(shape));
-        auto blob = m_context->CreateBlob(desc, params);
-        blob->allocate();
-        auto tensor = ov::make_tensor(blob);
-        return {std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr), tensor._so};
-    }
-
-    ov::SoPtr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override {
-        InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(type),
-                                         shape,
-                                         InferenceEngine::TensorDesc::getLayoutByDims(shape));
-        auto blob = m_context->CreateHostBlob(desc);
-        blob->allocate();
-        return ov::make_tensor(blob);
-    }
-};
+ov::SoPtr<ov::ITensor> IRemoteContextWrapper::create_host_tensor(const ov::element::Type type, const ov::Shape& shape) {
+    InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(type),
+                                     shape,
+                                     InferenceEngine::TensorDesc::getLayoutByDims(shape));
+    auto blob = m_context->CreateHostBlob(desc);
+    blob->allocate();
+    return ov::make_tensor(blob);
+}
 
 }  // namespace InferenceEngine
 
@@ -900,4 +911,77 @@ ov::SoPtr<ov::IRemoteContext> ov::legacy_convert::convert_remote_context(
         return ctx->get_context();
     }
     return {std::make_shared<InferenceEngine::IRemoteContextWrapper>(context)};
+}
+
+namespace ov {
+
+/*
+ * @brief Wrapper for old IE extensions to new API
+ */
+class ExtensionWrapper : public ov::LegacyOpExtension {
+public:
+    ExtensionWrapper(const InferenceEngine::IExtensionPtr& ext, const std::string& opset, const std::string& name)
+        : m_ext(ext),
+          m_opset_name(opset),
+          m_type(name),
+          m_ext_type(m_type.c_str(), m_opset_name.c_str()) {}
+    ~ExtensionWrapper() override = default;
+
+    const ov::DiscreteTypeInfo& get_type_info() const override {
+        return m_ext_type;
+    }
+
+    ngraph::OutputVector create(const ngraph::OutputVector& inputs, ngraph::AttributeVisitor& visitor) const override {
+        std::shared_ptr<ngraph::Node> node(m_ext->getOpSets().at(m_opset_name).create_insensitive(m_ext_type.name));
+
+        node->set_arguments(inputs);
+        if (node->visit_attributes(visitor)) {
+            node->constructor_validate_and_infer_types();
+        }
+        return node->outputs();
+    }
+
+    std::vector<ov::Extension::Ptr> get_attached_extensions() const override {
+        return {};
+    }
+
+    const InferenceEngine::IExtensionPtr& get_extension() const {
+        return m_ext;
+    }
+
+private:
+    InferenceEngine::IExtensionPtr m_ext;
+    std::string m_opset_name;
+    std::string m_type;
+    ov::DiscreteTypeInfo m_ext_type;
+};
+
+}  // namespace ov
+
+std::vector<ov::Extension::Ptr> ov::legacy_convert::convert_extension(
+    const std::vector<InferenceEngine::IExtensionPtr>& exts) {
+    std::vector<ov::Extension::Ptr> extensions;
+    for (const auto& ext : exts) {
+        for (const auto& item : ext->getOpSets()) {
+            for (const auto& type_info : item.second.get_types_info()) {
+                extensions.emplace_back(std::make_shared<ov::ExtensionWrapper>(ext, item.first, type_info.name));
+            }
+        }
+    }
+    return extensions;
+}
+
+std::vector<InferenceEngine::IExtensionPtr> ov::legacy_convert::convert_extension(
+    const std::vector<ov::Extension::Ptr>& exts) {
+    std::vector<InferenceEngine::IExtensionPtr> extensions;
+    std::unordered_set<InferenceEngine::IExtensionPtr> existed_extensions;
+    for (const auto& ext : exts) {
+        if (const auto& wrapper = std::dynamic_pointer_cast<ov::ExtensionWrapper>(ext)) {
+            if (!existed_extensions.count(wrapper->get_extension())) {
+                extensions.emplace_back(wrapper->get_extension());
+                existed_extensions.insert(wrapper->get_extension());
+            }
+        }
+    }
+    return extensions;
 }

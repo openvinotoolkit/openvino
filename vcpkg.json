@@ -1,7 +1,7 @@
 {
     "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
     "name": "openvino",
-    "version": "2023.0.0",
+    "version": "2023.2.0",
     "maintainers": "OpenVINO Developers <openvino@intel.com>",
     "summary": "This is a port for Open Visual Inference And Optimization toolkit for AI inference",
     "description": [
@@ -14,9 +14,11 @@
     "homepage": "https://github.com/openvinotoolkit/openvino",
     "documentation": "https://docs.openvino.ai/latest/index.html",
     "license": "Apache-2.0",
-    "builtin-baseline": "63366443439398a62afc9a63b34b9a3ba63b1cae",
+    "builtin-baseline": "db0473513e5dc73ec6b6f431ff05d2f398eea042",
     "dependencies": [
         "ade",
+        "gflags",
+        "nlohmann-json",
         {
             "name": "pkgconf",
             "host": true
@@ -24,18 +26,9 @@
         "pugixml",
         {
             "name": "tbb",
-            "platform": "static | osx",
-            "version>=": "2021.9.0#2"
+            "version>=": "2021.10.0#2"
         },
-        {
-            "name": "tbb",
-            "features": [
-                "hwloc"
-            ],
-            "$TODO": "Remove condition for static once static tbbbind can work in oneTBB",
-            "platform": "!static & !osx",
-            "version>=": "2021.9.0#2"
-        },
+        "rapidjson",
         {
             "name": "xbyak",
             "platform": "!(arm | uwp)",
@@ -43,8 +36,24 @@
         }
     ],
     "default-features": [
-        "default-features"
-    ],
+        "auto",
+        "auto-batch",
+        {
+          "name": "cpu",
+          "platform": "!(windows & arm)"
+        },
+        {
+          "name": "gpu",
+          "platform": "(x64 | arm64) & !(arm64 & windows) & !(osx | uwp)"
+        },
+        "hetero",
+        "ir",
+        "onnx",
+        "paddle",
+        "pytorch",
+        "tensorflow",
+        "tensorflow-lite"
+      ],
     "features": {
         "auto": {
             "description": "Enables Auto plugin for inference"
@@ -55,39 +64,6 @@
         "cpu": {
             "description": "Enables CPU plugin for inference",
             "supports": "!(windows & arm)"
-        },
-        "default-features": {
-            "description": "Enables all default features",
-            "dependencies": [
-                {
-                    "name": "openvino",
-                    "features": [
-                        "auto",
-                        "auto-batch",
-                        "hetero",
-                        "ir",
-                        "onnx",
-                        "paddle",
-                        "pytorch",
-                        "tensorflow",
-                        "tensorflow-lite"
-                    ]
-                },
-                {
-                    "name": "openvino",
-                    "features": [
-                        "cpu"
-                    ],
-                    "platform": "!(windows & arm)"
-                },
-                {
-                    "name": "openvino",
-                    "features": [
-                        "gpu"
-                    ],
-                    "platform": "(x64 | arm64) & !(arm64 & windows) & !(osx | uwp)"
-                }
-            ]
         },
         "gpu": {
             "description": "Enables GPU plugin for inference",
@@ -107,7 +83,7 @@
             "dependencies": [
                 {
                     "name": "onnx",
-                    "version>=": "1.13.1"
+                    "version>=": "1.14.0"
                 },
                 {
                     "name": "protobuf",

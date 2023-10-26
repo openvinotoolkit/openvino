@@ -23,8 +23,6 @@ struct lstm_dynamic_timeloop
 
     lstm_dynamic_timeloop() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs lstm_dynamic layer.
     /// @param id This primitive id.
     /// @param input Primitive id of input layer.
@@ -68,9 +66,9 @@ struct lstm_dynamic_timeloop
     /// @brief Array of primitive ids containing the initial value of the hidden state data (Ht-1).
     primitive_id initial_cell;
     /// @brief Cell clip threshold T. It is applied to the input of activations [-T, T]. No clip is applied if it is not specified.
-    float clip;
+    float clip = 0.0f;
     /// @brief Couple the input and forget gates if input_forget is 1. Default is 0.
-    bool input_forget;
+    bool input_forget = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

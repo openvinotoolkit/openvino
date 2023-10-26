@@ -4,7 +4,7 @@
 
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -33,7 +33,7 @@ protected:
         netPrecision = this->GetParam();
         const auto ngPrec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        std::vector<SizeVector> mmShape{{25, 14, 14, 768}};
+        ov::Shape mmShape{25, 14, 14, 768};
         SizeVector mmShape2{768, 2304};
         SizeVector sumShape{1, 1, 1, 2304};
 
@@ -46,7 +46,7 @@ protected:
 
         auto constShift = ngraph::opset5::Constant::create(ngraph::element::f32, sumShape, sumConstData);
         auto mmConst = ngraph::opset5::Constant::create(ngraph::element::f32, mmShape2, mmInData);
-        auto mmParams = builder::makeParams(ngPrec, {mmShape});
+        ov::ParameterVector mmParams {std::make_shared<ov::op::v0::Parameter>(ngPrec, mmShape)};
         const auto mmOutputNodes = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(mmParams));
 
         const auto mm = builder::makeMatMul(mmOutputNodes[0], mmConst, false, false);

@@ -17,14 +17,16 @@
 #include <vector>
 
 #include "dict_attribute_visitor.hpp"
-#include "ngraph/check.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/op_extension.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/opsets/opset.hpp"
 #include "openvino/util/log.hpp"
 #include "pyopenvino/core/common.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -37,26 +39,52 @@ public:
     std::shared_ptr<ov::Node> create(const std::string op_type_name,
                                      const ov::OutputVector& arguments,
                                      const py::dict& attributes = py::dict()) {
-        std::shared_ptr<ov::Node> op_node = std::shared_ptr<ov::Node>(m_opset.create(op_type_name));
+        // Check for available extensions first, because they may override ops from main opset
+        auto ext_it = m_opset_so_extensions.find(op_type_name);
+        if (ext_it != m_opset_so_extensions.end()) {
+            auto op_extension = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext_it->second->extension());
+            NGRAPH_CHECK(op_extension);  // guaranteed by add_extension method
+            util::DictAttributeDeserializer visitor(attributes, m_variables);
+            auto outputs = op_extension->create(arguments, visitor);
 
-        NGRAPH_CHECK(op_node != nullptr, "Couldn't create operator: ", op_type_name);
-        NGRAPH_CHECK(!ov::op::util::is_constant(op_node),
-                     "Currently NodeFactory doesn't support Constant node: ",
-                     op_type_name);
+            NGRAPH_CHECK(outputs.size() > 0,
+                         "Failed to create extension operation with type: ",
+                         op_type_name,
+                         " because it doesn't contain output ports. Operation should has at least one output port.");
 
-        util::DictAttributeDeserializer visitor(attributes, m_variables);
+            auto node = outputs[0].get_node_shared_ptr();
+            return node;
+        } else {
+            std::shared_ptr<ov::Node> op_node = std::shared_ptr<ov::Node>(m_opset.create(op_type_name));
 
-        op_node->set_arguments(arguments);
-        op_node->visit_attributes(visitor);
-        op_node->constructor_validate_and_infer_types();
+            NGRAPH_CHECK(op_node != nullptr, "Couldn't create operation: ", op_type_name);
+            NGRAPH_CHECK(!ov::op::util::is_constant(op_node),
+                         "Currently NodeFactory doesn't support Constant operation: ",
+                         op_type_name);
 
-        return op_node;
+            util::DictAttributeDeserializer visitor(attributes, m_variables);
+
+            op_node->set_arguments(arguments);
+            op_node->visit_attributes(visitor);
+            op_node->constructor_validate_and_infer_types();
+
+            return op_node;
+        }
     }
 
     std::shared_ptr<ov::Node> create(const std::string op_type_name) {
+        // Check for available extensions first, because they may override ops from main opset
+        auto ext_it = m_opset_so_extensions.find(op_type_name);
+        // No way to instantiate operation without inputs, so if extension operation is found report an error.
+        NGRAPH_CHECK(ext_it == m_opset_so_extensions.end(),
+                     "Couldn't create operation of type ",
+                     op_type_name,
+                     " from an extension library as no inputs were provided. Currently NodeFactory doesn't support ",
+                     "operations without inputs. Provide at least one input.");
+
         std::shared_ptr<ov::Node> op_node = std::shared_ptr<ov::Node>(m_opset.create(op_type_name));
 
-        NGRAPH_CHECK(op_node != nullptr, "Couldn't create operator: ", op_type_name);
+        NGRAPH_CHECK(op_node != nullptr, "Couldn't create operation: ", op_type_name);
         NGRAPH_CHECK(!ov::op::util::is_constant(op_node),
                      "Currently NodeFactory doesn't support Constant node: ",
                      op_type_name);
@@ -64,6 +92,24 @@ public:
         OPENVINO_WARN << "Empty op created! Please assign inputs and attributes and run validate() before op is used.";
 
         return op_node;
+    }
+
+    void add_extension(const std::string& lib_path) {
+        // Load extension library, seach for operation extensions (derived from ov::BaseOpExtension) and keep
+        // them in m_opset_so_extensions for future use in create methods.
+        // NodeFactory provides a simplified API for node creation withotu involving version of operation.
+        // It means all operations share the same name space and real operation versions (opsets) from extension
+        // library are ignored.
+        auto extensions = ov::detail::load_extensions(lib_path);
+        for (auto extension : extensions) {
+            auto so_extension = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension);
+            ov::Extension::Ptr extension_extracted = so_extension ? so_extension->extension() : extension;
+            if (auto op_extension = std::dynamic_pointer_cast<ov::BaseOpExtension>(extension_extracted)) {
+                auto op_type = op_extension->get_type_info().name;
+                // keep so extension instead of extension_extracted to hold loaded library
+                m_opset_so_extensions[op_type] = so_extension;
+            }
+        }
     }
 
 private:
@@ -80,7 +126,8 @@ private:
         return it->second();
     }
 
-    const ov::OpSet& m_opset = ov::get_opset12();
+    const ov::OpSet& m_opset = ov::get_opset13();
+    std::map<std::string, std::shared_ptr<ov::detail::SOExtension>> m_opset_so_extensions;
     std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>> m_variables;
 };
 }  // namespace
@@ -100,6 +147,10 @@ void regclass_graph_NodeFactory(py::module m) {
         [](NodeFactory& self, const std::string name, const ov::OutputVector& arguments, const py::dict& attributes) {
             return self.create(name, arguments, attributes);
         });
+
+    node_factory.def("add_extension", [](NodeFactory& self, const py::object& lib_path) {
+        return self.add_extension(Common::utils::convert_path_to_string(lib_path));
+    });
 
     node_factory.def("__repr__", [](const NodeFactory& self) {
         return Common::get_simple_repr(self);

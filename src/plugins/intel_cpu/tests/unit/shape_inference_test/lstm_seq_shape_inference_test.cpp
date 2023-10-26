@@ -35,7 +35,7 @@ TEST_F(LSTMSequenceV0StaticShapeInferenceTest, default_ctor) {
                     StaticShape{num_directions, gates_count * hidden_size},               // B
                     StaticShape{num_directions, (gates_count - 1) * hidden_size}};        // P
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 3);
     EXPECT_EQ(output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
@@ -71,7 +71,7 @@ TEST_F(LSTMSequenceV0StaticShapeInferenceTest, FORWARD_without_P) {
                     StaticShape{num_directions, gates_count * hidden_size, hidden_size},  // R
                     StaticShape{num_directions, gates_count * hidden_size}};              // B
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 3);
     EXPECT_EQ(output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
@@ -109,7 +109,7 @@ TEST_F(LSTMSequenceV0StaticShapeInferenceTest, FORWARD_with_P) {
                     StaticShape{num_directions, gates_count * hidden_size},               // B
                     StaticShape{num_directions, (gates_count - 1) * hidden_size}};        // P
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 3);
     EXPECT_EQ(output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
@@ -145,7 +145,7 @@ TEST_F(LSTMSequenceV0StaticShapeInferenceTest, REVERSE) {
                     StaticShape{num_directions, gates_count * hidden_size, hidden_size},  // R
                     StaticShape{num_directions, gates_count * hidden_size}};              // B
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes.size(), 3);
     EXPECT_EQ(output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
     EXPECT_EQ(output_shapes[1], StaticShape({batch_size, num_directions, hidden_size}));
@@ -180,7 +180,7 @@ TEST_F(LSTMSequenceV0StaticShapeInferenceTest, BIDIRECTIONAL) {
                     StaticShape{num_directions, gates_count * hidden_size, hidden_size},  // R
                     StaticShape{num_directions, gates_count * hidden_size}};              // B
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes.size(), 3);
     EXPECT_EQ(output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
     EXPECT_EQ(output_shapes[1], StaticShape({batch_size, num_directions, hidden_size}));
@@ -212,7 +212,7 @@ TEST_F(LSTMSequenceV5StaticShapeInferenceTest, default_ctor) {
                     StaticShape{num_directions, gates_count * hidden_size, hidden_size},  // R
                     StaticShape{num_directions, gates_count * hidden_size}};              // B
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 3);
     EXPECT_EQ(output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
@@ -248,7 +248,7 @@ TEST_F(LSTMSequenceV5StaticShapeInferenceTest, FORWARD) {
                     StaticShape{num_directions, gates_count * hidden_size, hidden_size},  // R
                     StaticShape{num_directions, gates_count * hidden_size}};              // B
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 3);
     EXPECT_EQ(output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
@@ -284,7 +284,7 @@ TEST_F(LSTMSequenceV5StaticShapeInferenceTest, REVERSE) {
                     StaticShape{num_directions, gates_count * hidden_size, hidden_size},  // R
                     StaticShape{num_directions, gates_count * hidden_size}};              // B
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes.size(), 3);
     EXPECT_EQ(output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
     EXPECT_EQ(output_shapes[1], StaticShape({batch_size, num_directions, hidden_size}));
@@ -319,7 +319,7 @@ TEST_F(LSTMSequenceV5StaticShapeInferenceTest, BIDIRECTIONAL) {
                     StaticShape{num_directions, gates_count * hidden_size, hidden_size},  // R
                     StaticShape{num_directions, gates_count * hidden_size}};              // B
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes.size(), 3);
     EXPECT_EQ(output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
     EXPECT_EQ(output_shapes[1], StaticShape({batch_size, num_directions, hidden_size}));

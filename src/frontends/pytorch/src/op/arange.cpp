@@ -75,10 +75,7 @@ OutputVector translate_arange(const NodeContext& context) {
             FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
         }
     }
-    auto r_end = context.mark_node(std::make_shared<v0::Convert>(end, dtype));
-    auto r_start = context.mark_node(std::make_shared<v0::Convert>(start, dtype));
-    auto r_step = context.mark_node(std::make_shared<v0::Convert>(step, dtype));
-    auto range = context.mark_node(std::make_shared<v4::Range>(r_start, r_end, r_step, dtype));
+    auto range = context.mark_node(std::make_shared<v4::Range>(start, end, step, dtype));
     if (!dtype_applied) {
         range = context.mark_node(std::make_shared<v1::ConvertLike>(range, out_tensor));
     }

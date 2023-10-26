@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/random_uniform.hpp"
+#include "openvino/reference/random_uniform.hpp"
 
 #include "itt.hpp"
 #include "openvino/op/random_uniform.hpp"
@@ -24,7 +24,7 @@ inline bool out_et(const element::Type& et) {
 RandomUniform::RandomUniform(const Output<Node>& out_shape,
                              const Output<Node>& min_val,
                              const Output<Node>& max_val,
-                             const ngraph::element::Type& out_type,
+                             const ov::element::Type& out_type,
                              uint64_t global_seed,
                              uint64_t op_seed)
     : Op({out_shape, min_val, max_val}),
@@ -92,15 +92,17 @@ bool RandomUniform::evaluate(TensorVector& outputs, const TensorVector& inputs) 
     const auto& t_out = get_out_type();
     OPENVINO_ASSERT(validate::out_et(t_out), "Unsupported type of RandomUniform: " + t_out.get_type_name());
 
-    auto state = ngraph::runtime::reference::random_uniform(out_dims.data(),
-                                                            static_cast<const char*>(inputs[1].data()),
-                                                            static_cast<const char*>(inputs[2].data()),
-                                                            static_cast<char*>(outputs[0].data()),
-                                                            inputs[0].get_shape(),
-                                                            get_out_type(),
-                                                            get_global_seed(),
-                                                            get_op_seed(),
-                                                            m_state);
+    outputs[0].set_shape(out_shape);
+
+    auto state = ov::reference::random_uniform(out_dims.data(),
+                                               static_cast<const char*>(inputs[1].data()),
+                                               static_cast<const char*>(inputs[2].data()),
+                                               static_cast<char*>(outputs[0].data()),
+                                               inputs[0].get_shape(),
+                                               get_out_type(),
+                                               get_global_seed(),
+                                               get_op_seed(),
+                                               m_state);
 
     // Update RandomUniform state
     std::lock_guard<std::mutex> guard(m_state_mutex);

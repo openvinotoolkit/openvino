@@ -6,12 +6,11 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "ngraph/ngraph.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "sequnce_generator.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace testing;
 
 namespace {
@@ -244,7 +243,7 @@ TEST(type_prop, slice_v8_basic_param_inputs_default_axes_labels_prop) {
     EXPECT_EQ(op->get_element_type(), et);
     EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
     EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)),
-                ElementsAre(10, ov::no_label, ov::no_label, ov::no_label, 14, ov::no_label, 16, 17, 18));
+                ElementsAre(10, ov::no_label, ov::no_label, ov::no_label, ov::no_label, ov::no_label, 16, 17, 18));
 }
 
 TEST(type_prop, slice_v8_sss_param_inputs_mixed_neg_const_axes) {
@@ -1067,9 +1066,9 @@ TEST(type_prop, slice_v8_dynamic_value_and_label_propagation) {
     ov::DimensionTracker::set_label(marked_0, 10);
     PartialShape target_0 = PartialShape{marked_0, 4};
 
-    auto param = std::make_shared<op::Parameter>(element::f32, Shape{1});
-    auto param_0 = std::make_shared<op::Parameter>(element::f32, target_0);
-    auto shape_0 = std::make_shared<op::ShapeOf>(param_0);
+    auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    auto param_0 = std::make_shared<ov::op::v0::Parameter>(element::f32, target_0);
+    auto shape_0 = std::make_shared<op::v0::ShapeOf>(param_0);
 
     const auto& et = element::i64;
     std::vector<int64_t> start_val{0}, stop_val{1}, step_val{1};
@@ -1105,10 +1104,10 @@ TEST(type_prop, slice_v8_dynamic_dimension_but_slice_min_is_lt_input_min_size) {
 TEST(type_prop, slice_v8_use_default_ctor) {
     const auto zero_mask = std::vector<int64_t>(3, 0);
 
-    auto data = std::make_shared<op::Parameter>(element::f32, PartialShape{10, 11, 12, 2});
-    auto start = op::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-    auto stop = op::Constant::create(element::i64, Shape{4}, {1, 5, 20, 20});
-    auto step = op::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1});
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{10, 11, 12, 2});
+    auto start = ov::op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+    auto stop = ov::op::v0::Constant::create(element::i64, Shape{4}, {1, 5, 20, 20});
+    auto step = ov::op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1});
 
     auto slice = std::make_shared<op::v8::Slice>();
     slice->set_arguments(ov::OutputVector{data, start, stop, step});
@@ -1120,12 +1119,12 @@ TEST(type_prop, slice_v8_use_default_ctor) {
 TEST(type_prop, slice_v8_stop_is_shape_of_with_bounds) {
     auto shape = PartialShape{1, {5, 7}};
     set_shape_labels(shape, 20);
-    const auto p_stop = std::make_shared<op::Parameter>(element::i64, shape);
-    const auto shape_of_stop = std::make_shared<op::ShapeOf>(p_stop);
+    const auto p_stop = std::make_shared<ov::op::v0::Parameter>(element::i64, shape);
+    const auto shape_of_stop = std::make_shared<op::v0::ShapeOf>(p_stop);
 
-    auto data = op::Constant::create(element::i64, Shape{1, 10}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 0});
-    auto start = op::Constant::create(element::i64, Shape{2}, {0, 0});
-    auto steps = op::Constant::create(element::i64, Shape{2}, {1, 1});
+    auto data = ov::op::v0::Constant::create(element::i64, Shape{1, 10}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 0});
+    auto start = ov::op::v0::Constant::create(element::i64, Shape{2}, {0, 0});
+    auto steps = ov::op::v0::Constant::create(element::i64, Shape{2}, {1, 1});
 
     auto slice = std::make_shared<op::v8::Slice>(data, start, shape_of_stop, steps);
 
@@ -1136,12 +1135,12 @@ TEST(type_prop, slice_v8_stop_is_shape_of_with_bounds) {
 TEST(type_prop, slice_v8_start_is_shape_of_with_bounds) {
     auto shape = PartialShape{0, {3, 5}};
     set_shape_labels(shape, 20);
-    const auto p_start = std::make_shared<op::Parameter>(element::i64, shape);
-    const auto shape_of_start = std::make_shared<op::ShapeOf>(p_start);
+    const auto p_start = std::make_shared<ov::op::v0::Parameter>(element::i64, shape);
+    const auto shape_of_start = std::make_shared<op::v0::ShapeOf>(p_start);
 
-    auto data = op::Constant::create(element::i64, Shape{1, 10}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 0});
-    auto stop = op::Constant::create(element::i64, Shape{2}, {1, 7});
-    auto steps = op::Constant::create(element::i64, Shape{2}, {1, 1});
+    auto data = ov::op::v0::Constant::create(element::i64, Shape{1, 10}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 0});
+    auto stop = ov::op::v0::Constant::create(element::i64, Shape{2}, {1, 7});
+    auto steps = ov::op::v0::Constant::create(element::i64, Shape{2}, {1, 1});
 
     auto slice = std::make_shared<op::v8::Slice>(data, shape_of_start, stop, steps);
 
@@ -1154,13 +1153,13 @@ TEST(type_prop, slice_v8_start_stop_is_shape_of_with_bounds) {
     auto stop_shape = PartialShape{2, {6, 7}};
     set_shape_labels(start_shape, 10);
     set_shape_labels(stop_shape, 20);
-    const auto p_start = std::make_shared<op::Parameter>(element::i64, start_shape);
-    const auto p_stop = std::make_shared<op::Parameter>(element::i64, stop_shape);
-    const auto shape_of_start = std::make_shared<op::ShapeOf>(p_start);
-    const auto shape_of_stop = std::make_shared<op::ShapeOf>(p_stop);
+    const auto p_start = std::make_shared<ov::op::v0::Parameter>(element::i64, start_shape);
+    const auto p_stop = std::make_shared<ov::op::v0::Parameter>(element::i64, stop_shape);
+    const auto shape_of_start = std::make_shared<op::v0::ShapeOf>(p_start);
+    const auto shape_of_stop = std::make_shared<op::v0::ShapeOf>(p_stop);
 
-    auto data = op::Constant::create(element::i64, Shape{1, 10}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 0});
-    auto steps = op::Constant::create(element::i64, Shape{2}, {1, 1});
+    auto data = ov::op::v0::Constant::create(element::i64, Shape{1, 10}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 0});
+    auto steps = ov::op::v0::Constant::create(element::i64, Shape{2}, {1, 1});
 
     auto slice = std::make_shared<op::v8::Slice>(data, shape_of_start, shape_of_stop, steps);
 
@@ -1169,11 +1168,11 @@ TEST(type_prop, slice_v8_start_stop_is_shape_of_with_bounds) {
 }
 
 TEST(type_prop, slice_v8_unknowns_axes) {
-    const auto data = std::make_shared<op::Parameter>(element::i64, Shape{5, 10, 15});
-    const auto start = std::make_shared<op::Parameter>(element::i64, PartialShape{-1});
-    const auto stop = std::make_shared<op::Parameter>(element::i64, Shape{1});
-    const auto steps = std::make_shared<op::Parameter>(element::i64, Shape{1});
-    const auto axes = std::make_shared<op::Parameter>(element::i64, Shape{1});
+    const auto data = std::make_shared<ov::op::v0::Parameter>(element::i64, Shape{5, 10, 15});
+    const auto start = std::make_shared<ov::op::v0::Parameter>(element::i64, PartialShape{-1});
+    const auto stop = std::make_shared<ov::op::v0::Parameter>(element::i64, Shape{1});
+    const auto steps = std::make_shared<ov::op::v0::Parameter>(element::i64, Shape{1});
+    const auto axes = std::make_shared<ov::op::v0::Parameter>(element::i64, Shape{1});
 
     auto slice = std::make_shared<op::v8::Slice>(data, start, stop, steps, axes);
 
@@ -1181,11 +1180,11 @@ TEST(type_prop, slice_v8_unknowns_axes) {
 }
 
 TEST(type_prop, slice_v8_inf_dim_start_from_last_N_to_end) {
-    auto data = std::make_shared<op::Parameter>(element::f32, PartialShape{1, 256, -1});
-    auto start = op::Constant::create(element::i64, Shape{1}, {-7});
-    auto stop = op::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{INT64_MAX});
-    auto step = op::Constant::create(element::i64, Shape{1}, {1});
-    auto axes = op::Constant::create(element::i64, Shape{1}, {2});
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 256, -1});
+    auto start = ov::op::v0::Constant::create(element::i64, Shape{1}, {-7});
+    auto stop = ov::op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{INT64_MAX});
+    auto step = ov::op::v0::Constant::create(element::i64, Shape{1}, {1});
+    auto axes = ov::op::v0::Constant::create(element::i64, Shape{1}, {2});
 
     auto slice = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
 

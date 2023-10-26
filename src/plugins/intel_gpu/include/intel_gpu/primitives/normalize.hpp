@@ -29,8 +29,6 @@ struct normalize : public primitive_base<normalize> {
 
     normalize() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs normalize primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -55,9 +53,9 @@ struct normalize : public primitive_base<normalize> {
     /// All other dimensions should be 1.
     primitive_id scale_input;
     /// @brief Determines if the normalization is done across or within spatial (see documentation above).
-    bool across_spatial;
+    bool across_spatial = true;
     /// @brief Epsilon for not dividing by zero while normalizing.
-    float epsilon;
+    float epsilon = 1e-10f;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

@@ -32,6 +32,12 @@ std::string TransposeLayerCPUTest::getTestCaseName(testing::TestParamInfo<Transp
     result << "inputOrder=" << ov::test::utils::vec2str(inputOrder) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "trgDev=" << targetDevice;
+    if (!additionalConfig.empty()) {
+        result << "_PluginConf";
+        for (auto& item : additionalConfig) {
+            result << "_" << item.first << "=" << item.second;
+        }
+    }
     result << CPUTestsBase::getTestCaseName(cpuParams);
     return result.str();
 }
@@ -44,25 +50,24 @@ void TransposeLayerCPUTest::SetUp() {
     std::map<std::string, std::string> additionalConfig;
     std::tie(inputShapes, inputOrder, netPrecision, targetDevice, additionalConfig, cpuParams) = this->GetParam();
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
-
     inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     outType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-    selectedType = makeSelectedTypeStr("unknown", inType);
+    updateSelectedType("unknown", inType, configuration);
 
     init_input_shapes({inputShapes});
 
-    auto params = ngraph::builder::makeDynamicParams(inType, {inputDynamicShapes[0]});
+    auto params = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
 
     const auto inputOrderOp =
         std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape({inputOrder.size()}), inputOrder);
-    const auto transpose = std::make_shared<ov::op::v1::Transpose>(params[0], inputOrderOp);
+    const auto transpose = std::make_shared<ov::op::v1::Transpose>(params, inputOrderOp);
     transpose->get_rt_info() = getCPUInfo();
     const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose)};
 
-    function = std::make_shared<ngraph::Function>(results, params, "TransposeLayerCPUTest");
+    function = std::make_shared<ngraph::Function>(results, ov::ParameterVector{params}, "TransposeLayerCPUTest");
     functionRefs = ngraph::clone_function(*function);
 }
 

@@ -5,13 +5,13 @@
 #include "low_precision/strided_slice.hpp"
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
 
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -101,7 +101,7 @@ std::shared_ptr<ov::opset1::Constant> stridedSliceDeqConstant(
 
 StridedSliceTransformation::StridedSliceTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(StridedSliceTransformation);
-    auto matcher = ngraph::pattern::wrap_type<ov::opset1::StridedSlice>();
+    auto matcher = ov::pass::pattern::wrap_type<ov::opset1::StridedSlice>();
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -169,4 +169,4 @@ bool StridedSliceTransformation::isPrecisionPreserved(std::shared_ptr<Node> laye
 }
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

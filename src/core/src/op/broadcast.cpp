@@ -2,43 +2,36 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/broadcast.hpp"
+#include "openvino/op/broadcast.hpp"
 
 #include <broadcast_shape_inference.hpp>
-#include <ngraph/validation_util.hpp>
 #include <numeric>
 
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/partial_shape.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/broadcast.hpp"
+#include "openvino/reference/broadcast.hpp"
 
-using namespace std;
-using namespace ngraph;
-
-op::v3::Broadcast::Broadcast(const Output<Node>& arg,
-                             const Output<Node>& target_shape,
-                             const Output<Node>& axes_mapping,
-                             const BroadcastModeSpec& broadcast_spec)
+ov::op::v3::Broadcast::Broadcast(const Output<Node>& arg,
+                                 const Output<Node>& target_shape,
+                                 const Output<Node>& axes_mapping,
+                                 const BroadcastModeSpec& broadcast_spec)
     : util::BroadcastBase{arg, target_shape, axes_mapping, broadcast_spec} {
     constructor_validate_and_infer_types();
 }
 
-op::v3::Broadcast::Broadcast(const Output<Node>& arg,
-                             const Output<Node>& target_shape,
-                             const BroadcastModeSpec& broadcast_spec)
+ov::op::v3::Broadcast::Broadcast(const Output<Node>& arg,
+                                 const Output<Node>& target_shape,
+                                 const BroadcastModeSpec& broadcast_spec)
     : util::BroadcastBase{arg, target_shape, broadcast_spec} {
     constructor_validate_and_infer_types();
 }
 
 namespace {
-std::pair<bool, AxisSet> get_broadcast_axes_bidirectional(const ov::Shape& arg_shape, const ov::Shape& result_shape) {
-    AxisSet broadcast_axes;
+std::pair<bool, ov::AxisSet> get_broadcast_axes_bidirectional(const ov::Shape& arg_shape,
+                                                              const ov::Shape& result_shape) {
+    ov::AxisSet broadcast_axes;
     bool axes_known = false;
     const auto start_axis = static_cast<int64_t>(result_shape.size()) - static_cast<int64_t>(arg_shape.size());
-    NGRAPH_CHECK(start_axis >= 0);
+    OPENVINO_ASSERT(start_axis >= 0);
     for (size_t i = 0; i < result_shape.size(); i++) {
         if (i < static_cast<size_t>(start_axis) || result_shape[i] != arg_shape[i - start_axis]) {
             broadcast_axes.insert(i);
@@ -49,7 +42,7 @@ std::pair<bool, AxisSet> get_broadcast_axes_bidirectional(const ov::Shape& arg_s
 }
 }  // namespace
 
-std::pair<bool, AxisSet> op::v3::Broadcast::get_broadcast_axes() const {
+std::pair<bool, ov::AxisSet> ov::op::v3::Broadcast::get_broadcast_axes() const {
     if (m_mode.m_type == BroadcastType::BIDIRECTIONAL) {
         AxisSet broadcast_axes;
         bool axes_known = false;
@@ -66,7 +59,7 @@ std::pair<bool, AxisSet> op::v3::Broadcast::get_broadcast_axes() const {
 }
 
 namespace {
-ov::PartialShape get_result_shape_bidirectional(const Node* this_ptr,
+ov::PartialShape get_result_shape_bidirectional(const ov::Node* this_ptr,
                                                 ov::PartialShape arg_shape,
                                                 ov::PartialShape target_shape) {
     if (arg_shape.rank().is_dynamic() || target_shape.rank().is_dynamic()) {
@@ -93,8 +86,8 @@ ov::PartialShape get_result_shape_bidirectional(const Node* this_ptr,
             } else if (arg_dim == 1 || (target_dim.is_static() && target_dim != 1)) {
                 result_shape[i] = target_dim;
             } else {
-                result_shape[i] = Dimension(std::min(arg_dim.get_min_length(), target_dim.get_min_length()),
-                                            std::max(arg_dim.get_max_length(), target_dim.get_max_length()));
+                result_shape[i] = ov::Dimension(std::min(arg_dim.get_min_length(), target_dim.get_min_length()),
+                                                std::max(arg_dim.get_max_length(), target_dim.get_max_length()));
             }
             continue;
         }
@@ -113,9 +106,9 @@ ov::PartialShape get_result_shape_bidirectional(const Node* this_ptr,
 }
 }  // namespace
 
-bool op::v3::Broadcast::broadcast_evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ov::op::v3::Broadcast::broadcast_evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     if (get_broadcast_spec().m_type == op::BroadcastType::BIDIRECTIONAL) {
-        auto arg_shape = inputs[0]->get_shape();
+        auto arg_shape = inputs[0].get_shape();
         ov::Shape target_shape = op::util::BroadcastBase::get_target_shape(inputs[1]);
         ov::PartialShape result_shape =
             get_result_shape_bidirectional(this, ov::PartialShape{arg_shape}, ov::PartialShape{target_shape});
@@ -128,7 +121,7 @@ bool op::v3::Broadcast::broadcast_evaluate(const HostTensorVector& outputs, cons
     return op::util::BroadcastBase::evaluate(outputs, inputs);
 }
 
-void op::v3::Broadcast::validate_and_infer_types() {
+void ov::op::v3::Broadcast::validate_and_infer_types() {
     OV_OP_SCOPE(v3_Broadcast_validate_and_infer_types);
     if (m_mode.m_type == BroadcastType::NONE) {
         NODE_VALIDATION_CHECK(this,
@@ -174,37 +167,37 @@ void op::v3::Broadcast::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
-shared_ptr<Node> op::v3::Broadcast::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<ov::Node> ov::op::v3::Broadcast::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v3_Broadcast_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 2) {
-        return make_shared<v3::Broadcast>(new_args.at(0), new_args.at(1), m_mode);
+        return std::make_shared<v3::Broadcast>(new_args.at(0), new_args.at(1), m_mode);
     } else if (new_args.size() == 3) {
-        return make_shared<v3::Broadcast>(new_args.at(0), new_args.at(1), new_args.at(2), m_mode);
+        return std::make_shared<v3::Broadcast>(new_args.at(0), new_args.at(1), new_args.at(2), m_mode);
     } else {
         OPENVINO_THROW("Not supported number of Broadcast:v3 args");
     }
 }
 
-bool op::v3::Broadcast::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::v3::Broadcast::visit_attributes(ov::AttributeVisitor& visitor) {
     OV_OP_SCOPE(v3_Broadcast_visit_attributes);
     visitor.on_attribute("mode", m_mode);
     return true;
 }
 
-bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ov::op::v3::Broadcast::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     OV_OP_SCOPE(v3_Broadcast_evaluate);
     return broadcast_evaluate(outputs, inputs);
 }
 
-bool op::v3::Broadcast::has_evaluate() const {
+bool ov::op::v3::Broadcast::has_evaluate() const {
     OV_OP_SCOPE(v3_Broadcast_has_evaluate);
     return m_mode.m_type == BroadcastType::NONE || m_mode.m_type == BroadcastType::PDPD ||
            m_mode.m_type == BroadcastType::NUMPY || m_mode.m_type == BroadcastType::BIDIRECTIONAL;
 }
 
 namespace {
-using namespace op;
+using namespace ov::op;
 BroadcastModeSpec to_broadcast_mode(const AutoBroadcastSpec& bs) {
     BroadcastModeSpec broadcast_mode;
     broadcast_mode.m_axis = bs.m_axis;
@@ -223,18 +216,18 @@ BroadcastModeSpec to_broadcast_mode(const AutoBroadcastSpec& bs) {
 }
 }  // namespace
 
-op::v1::Broadcast::Broadcast(const Output<Node>& arg,
-                             const Output<Node>& target_shape,
-                             const Output<Node>& axes_mapping,
-                             const AutoBroadcastSpec& broadcast_spec)
+ov::op::v1::Broadcast::Broadcast(const Output<Node>& arg,
+                                 const Output<Node>& target_shape,
+                                 const Output<Node>& axes_mapping,
+                                 const AutoBroadcastSpec& broadcast_spec)
     : util::BroadcastBase{arg, target_shape, axes_mapping, to_broadcast_mode(broadcast_spec)},
       m_broadcast_spec{broadcast_spec} {
     constructor_validate_and_infer_types();
 }
 
-op::v1::Broadcast::Broadcast(const Output<Node>& arg,
-                             const Output<Node>& target_shape,
-                             const AutoBroadcastSpec& broadcast_spec)
+ov::op::v1::Broadcast::Broadcast(const Output<Node>& arg,
+                                 const Output<Node>& target_shape,
+                                 const AutoBroadcastSpec& broadcast_spec)
     : util::BroadcastBase{arg,
                           target_shape,
                           op::v0::Constant::create(element::u8, ov::Shape{}, {0})->output(0),
@@ -243,7 +236,7 @@ op::v1::Broadcast::Broadcast(const Output<Node>& arg,
     constructor_validate_and_infer_types();
 }
 
-void op::v1::Broadcast::validate_and_infer_types() {
+void ov::op::v1::Broadcast::validate_and_infer_types() {
     OV_OP_SCOPE(v1_Broadcast_validate_and_infer_types);
     // m_type is deduced and not always explicitly stated, for cases where broadcast
     // has 2 inputs its always NUMPY mode
@@ -290,24 +283,24 @@ void op::v1::Broadcast::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
-shared_ptr<Node> op::v1::Broadcast::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<ov::Node> ov::op::v1::Broadcast::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_Broadcast_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v1::Broadcast>(new_args.at(0), new_args.at(1), new_args.at(2), m_broadcast_spec);
+    return std::make_shared<v1::Broadcast>(new_args.at(0), new_args.at(1), new_args.at(2), m_broadcast_spec);
 }
 
-bool op::v1::Broadcast::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::v1::Broadcast::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v1_Broadcast_visit_attributes);
     visitor.on_attribute("mode", m_broadcast_spec);
     return true;
 }
 
-bool op::v1::Broadcast::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ov::op::v1::Broadcast::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     OV_OP_SCOPE(v1_Broadcast_evaluate);
     return op::util::BroadcastBase::evaluate(outputs, inputs);
 }
 
-bool op::v1::Broadcast::has_evaluate() const {
+bool ov::op::v1::Broadcast::has_evaluate() const {
     OV_OP_SCOPE(v1_Broadcast_has_evaluate);
     return m_mode.m_type == BroadcastType::NONE || m_mode.m_type == BroadcastType::PDPD ||
            m_mode.m_type == BroadcastType::NUMPY;

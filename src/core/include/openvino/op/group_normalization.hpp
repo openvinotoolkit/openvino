@@ -15,7 +15,7 @@ namespace v12 {
 class OPENVINO_API GroupNormalization : public Op {
 public:
     OPENVINO_OP("GroupNormalization", "opset12");
-    GroupNormalization() = default;
+    GroupNormalization();
     /// \param data The input tensor to be normalized
     /// \param scale The tensor containing scale values for each channel
     /// \param bias The tensor containing bias values for each channel

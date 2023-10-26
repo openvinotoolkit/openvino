@@ -57,7 +57,7 @@ public:
 
 private:
     void run(program& p) override;
-    void add_reorder(program& p, program_node* node, program_node* usr);
+    void add_reorder(program& p, program_node* node, program_node* usr, bool keep_original_dt = false);
 };
 
 class add_reshape_to_primitives : public base_pass {
@@ -99,6 +99,14 @@ private:
 class mark_nodes : public base_pass {
 public:
     mark_nodes() : base_pass("analyzed_graph") {}
+
+private:
+    void run(program& p) override;
+};
+
+class clamp_fp16_output : public base_pass {
+public:
+    clamp_fp16_output() : base_pass("clamp_fp16_output") {}
 
 private:
     void run(program& p) override;
@@ -188,6 +196,7 @@ private:
     void fuse_bias(program &p);
     void fuse_reorders(program& p);
     void fuse_simple_primitives(program &p);
+    void fuse_constant_transposes(program &p);
     void optimize_fused_ops(program &p);
     void remove_redundant_reshape(program &p);
     layout_optimizer& _lo;
@@ -395,6 +404,14 @@ public:
 class build_implementations : public base_pass {
 public:
     build_implementations() : base_pass("build_implementations") {}
+    void run(program& p) override;
+};
+
+class reorder_transfer : public base_pass {
+public:
+    reorder_transfer() : base_pass("reorder_transfer") {}
+
+private:
     void run(program& p) override;
 };
 

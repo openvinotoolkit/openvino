@@ -42,18 +42,18 @@ add_custom_command(TARGET ${TARGET_NAME}
         COMMAND ${CMAKE_COMMAND} -E copy ${OpenVINOPython_SOURCE_DIR}/src/openvino/test_utils/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
         )
 
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
-        EXCLUDE_PATTERNS ".*\\.cxx")
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
+                           EXCLUDE_PATTERNS ".*\\.cxx")
 
 # install
 
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/test_utils
         COMPONENT tests EXCLUDE_FROM_ALL
-        LIBRARY DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/test_utils
+        LIBRARY DESTINATION tests/${OV_CPACK_PYTHONDIR}/openvino/test_utils
         COMPONENT tests EXCLUDE_FROM_ALL)
 
 install(PROGRAMS ${OpenVINOPython_SOURCE_DIR}/src/openvino/test_utils/__init__.py
-        DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/test_utils
+        DESTINATION tests/${OV_CPACK_PYTHONDIR}/openvino/test_utils
         COMPONENT tests
         EXCLUDE_FROM_ALL)

@@ -19,13 +19,13 @@ class ConvertNormalizeL2ToLegacyMatcher;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertNormalizeL2WithMulToNormalizeIE", "0");
     ConvertNormalizeL2WithMulToNormalizeIE();
 };
 
-class ngraph::pass::ConvertNormalizeL2ToLegacyMatcher : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertNormalizeL2ToLegacyMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertNormalizeL2ToLegacyMatcher", "0");
     ConvertNormalizeL2ToLegacyMatcher();

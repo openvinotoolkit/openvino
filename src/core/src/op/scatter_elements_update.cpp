@@ -7,8 +7,8 @@
 #include <scatter_elements_update_shape_inference.hpp>
 
 #include "itt.hpp"
-#include "ngraph/runtime/reference/scatter_elements_update.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/reference/scatter_elements_update.hpp"
 
 using namespace std;
 
@@ -91,14 +91,15 @@ bool op::v12::ScatterElementsUpdate::has_evaluate() const {
            (get_output_element_type(0) == element::boolean && is_supported_index_input_element_type());
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace scatter_elements_update {
 namespace {
 template <element::Type_t DT, element::Type_t IT, element::Type_t AT>
-bool evaluate(const HostTensorPtr& data,
-              const HostTensorPtr& indices,
-              const HostTensorPtr& updates,
-              const HostTensorPtr& axis,
-              const HostTensorPtr& out,
+bool evaluate(const ngraph::HostTensorPtr& data,
+              const ngraph::HostTensorPtr& indices,
+              const ngraph::HostTensorPtr& updates,
+              const ngraph::HostTensorPtr& axis,
+              const ngraph::HostTensorPtr& out,
               const int64_t normalized_axis,
               const op::v12::ScatterElementsUpdate::Reduction reduction_type,
               const bool use_init_value) {
@@ -107,15 +108,15 @@ bool evaluate(const HostTensorPtr& data,
 
     out->set_shape(data->get_shape());
 
-    ngraph::runtime::reference::scatter_elem_update<DataType, IndicesType>(data->get_data_ptr<DT>(),
-                                                                           indices->get_data_ptr<IT>(),
-                                                                           updates->get_data_ptr<DT>(),
-                                                                           normalized_axis,
-                                                                           out->get_data_ptr<DT>(),
-                                                                           data->get_shape(),
-                                                                           indices->get_shape(),
-                                                                           reduction_type,
-                                                                           use_init_value);
+    ov::reference::scatter_elem_update<DataType, IndicesType>(data->get_data_ptr<DT>(),
+                                                              indices->get_data_ptr<IT>(),
+                                                              updates->get_data_ptr<DT>(),
+                                                              normalized_axis,
+                                                              out->get_data_ptr<DT>(),
+                                                              data->get_shape(),
+                                                              indices->get_shape(),
+                                                              reduction_type,
+                                                              use_init_value);
 
     return true;
 }
@@ -127,11 +128,11 @@ bool evaluate(const HostTensorPtr& data,
     } break;
 
 template <element::Type_t DT, element::Type_t IT>
-bool evaluate(const HostTensorPtr& arg0,
-              const HostTensorPtr& arg1,
-              const HostTensorPtr& arg2,
-              const HostTensorPtr& arg3,
-              const HostTensorPtr& out,
+bool evaluate(const ngraph::HostTensorPtr& arg0,
+              const ngraph::HostTensorPtr& arg1,
+              const ngraph::HostTensorPtr& arg2,
+              const ngraph::HostTensorPtr& arg3,
+              const ngraph::HostTensorPtr& out,
               const int64_t normalized_axis,
               const op::v12::ScatterElementsUpdate::Reduction reduction_type,
               const bool use_init_value) {
@@ -163,11 +164,11 @@ bool evaluate(const HostTensorPtr& arg0,
     } break;
 
 template <element::Type_t DT>
-bool evaluate(const HostTensorPtr& arg0,
-              const HostTensorPtr& arg1,
-              const HostTensorPtr& arg2,
-              const HostTensorPtr& arg3,
-              const HostTensorPtr& out,
+bool evaluate(const ngraph::HostTensorPtr& arg0,
+              const ngraph::HostTensorPtr& arg1,
+              const ngraph::HostTensorPtr& arg2,
+              const ngraph::HostTensorPtr& arg3,
+              const ngraph::HostTensorPtr& out,
               const int64_t normalized_axis,
               const op::v12::ScatterElementsUpdate::Reduction reduction_type,
               const bool use_init_value) {
@@ -193,97 +194,97 @@ bool evaluate(const HostTensorPtr& arg0,
 }
 
 bool evaluate_scatter_elements_update(
-    const HostTensorPtr& arg0,
-    const HostTensorPtr& arg1,
-    const HostTensorPtr& arg2,
-    const HostTensorPtr& arg3,
-    const HostTensorPtr& out,
+    const ngraph::HostTensorPtr& arg0,
+    const ngraph::HostTensorPtr& arg1,
+    const ngraph::HostTensorPtr& arg2,
+    const ngraph::HostTensorPtr& arg3,
+    const ngraph::HostTensorPtr& out,
     const int64_t normalized_axis,
     const op::v12::ScatterElementsUpdate::Reduction reduction_type = op::v12::ScatterElementsUpdate::Reduction::NONE,
     const bool use_init_value = false) {
     bool rc = true;
 
     switch (out->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_scatter_element_update,
-                         i16,
-                         arg0,
-                         arg1,
-                         arg2,
-                         arg3,
-                         out,
-                         normalized_axis,
-                         reduction_type,
-                         use_init_value);
-        NGRAPH_TYPE_CASE(evaluate_scatter_element_update,
-                         i32,
-                         arg0,
-                         arg1,
-                         arg2,
-                         arg3,
-                         out,
-                         normalized_axis,
-                         reduction_type,
-                         use_init_value);
-        NGRAPH_TYPE_CASE(evaluate_scatter_element_update,
-                         i64,
-                         arg0,
-                         arg1,
-                         arg2,
-                         arg3,
-                         out,
-                         normalized_axis,
-                         reduction_type,
-                         use_init_value);
-        NGRAPH_TYPE_CASE(evaluate_scatter_element_update,
-                         u32,
-                         arg0,
-                         arg1,
-                         arg2,
-                         arg3,
-                         out,
-                         normalized_axis,
-                         reduction_type,
-                         use_init_value);
-        NGRAPH_TYPE_CASE(evaluate_scatter_element_update,
-                         u64,
-                         arg0,
-                         arg1,
-                         arg2,
-                         arg3,
-                         out,
-                         normalized_axis,
-                         reduction_type,
-                         use_init_value);
-        NGRAPH_TYPE_CASE(evaluate_scatter_element_update,
-                         f16,
-                         arg0,
-                         arg1,
-                         arg2,
-                         arg3,
-                         out,
-                         normalized_axis,
-                         reduction_type,
-                         use_init_value);
-        NGRAPH_TYPE_CASE(evaluate_scatter_element_update,
-                         f32,
-                         arg0,
-                         arg1,
-                         arg2,
-                         arg3,
-                         out,
-                         normalized_axis,
-                         reduction_type,
-                         use_init_value);
-        NGRAPH_TYPE_CASE(evaluate_scatter_element_update,
-                         boolean,
-                         arg0,
-                         arg1,
-                         arg2,
-                         arg3,
-                         out,
-                         normalized_axis,
-                         reduction_type,
-                         use_init_value);
+        OPENVINO_TYPE_CASE(evaluate_scatter_element_update,
+                           i16,
+                           arg0,
+                           arg1,
+                           arg2,
+                           arg3,
+                           out,
+                           normalized_axis,
+                           reduction_type,
+                           use_init_value);
+        OPENVINO_TYPE_CASE(evaluate_scatter_element_update,
+                           i32,
+                           arg0,
+                           arg1,
+                           arg2,
+                           arg3,
+                           out,
+                           normalized_axis,
+                           reduction_type,
+                           use_init_value);
+        OPENVINO_TYPE_CASE(evaluate_scatter_element_update,
+                           i64,
+                           arg0,
+                           arg1,
+                           arg2,
+                           arg3,
+                           out,
+                           normalized_axis,
+                           reduction_type,
+                           use_init_value);
+        OPENVINO_TYPE_CASE(evaluate_scatter_element_update,
+                           u32,
+                           arg0,
+                           arg1,
+                           arg2,
+                           arg3,
+                           out,
+                           normalized_axis,
+                           reduction_type,
+                           use_init_value);
+        OPENVINO_TYPE_CASE(evaluate_scatter_element_update,
+                           u64,
+                           arg0,
+                           arg1,
+                           arg2,
+                           arg3,
+                           out,
+                           normalized_axis,
+                           reduction_type,
+                           use_init_value);
+        OPENVINO_TYPE_CASE(evaluate_scatter_element_update,
+                           f16,
+                           arg0,
+                           arg1,
+                           arg2,
+                           arg3,
+                           out,
+                           normalized_axis,
+                           reduction_type,
+                           use_init_value);
+        OPENVINO_TYPE_CASE(evaluate_scatter_element_update,
+                           f32,
+                           arg0,
+                           arg1,
+                           arg2,
+                           arg3,
+                           out,
+                           normalized_axis,
+                           reduction_type,
+                           use_init_value);
+        OPENVINO_TYPE_CASE(evaluate_scatter_element_update,
+                           boolean,
+                           arg0,
+                           arg1,
+                           arg2,
+                           arg3,
+                           out,
+                           normalized_axis,
+                           reduction_type,
+                           use_init_value);
     default:
         rc = false;
         break;

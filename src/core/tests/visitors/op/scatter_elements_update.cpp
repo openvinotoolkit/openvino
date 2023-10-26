@@ -4,14 +4,12 @@
 
 #include "openvino/op/scatter_elements_update.hpp"
 
-#include "common_test_utils/visitor.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
+#include <gtest/gtest.h>
+
+#include "visitors/visitors.hpp"
 
 using namespace ov;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using ov::test::NodeBuilder;
 
 TEST(attributes, scatter_elements_update) {
     NodeBuilder::get_ops().register_factory<op::v3::ScatterElementsUpdate>();

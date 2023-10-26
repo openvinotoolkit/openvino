@@ -13,12 +13,13 @@
 
 #include <functional>
 #include <memory>
-#include <openvino/core/node.hpp>
-#include <openvino/core/rtti.hpp>
 #include <set>
 #include <string>
-#include <transformations_visibility.hpp>
 #include <utility>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/rtti.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 /**

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include "shared_test_classes/subgraph/activation_fq.hpp"
 
 namespace SubgraphTestsDefinitions {
@@ -62,7 +62,7 @@ namespace SubgraphTestsDefinitions {
         }
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
         auto act = ngraph::builder::makeActivation(params[0], ngPrc, activationType);
 

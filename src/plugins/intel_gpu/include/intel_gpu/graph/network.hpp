@@ -70,7 +70,7 @@ public:
         using Ptr = std::shared_ptr<VariableState>;
 
         VariableState(cldnn::memory_ptr mem = nullptr) :
-            memory { mem }, is_set { false } {
+            memory { std::move(mem) }, is_set { false } {
         }
         void set_memory(cldnn::memory_ptr new_mem) {
             memory = new_mem;
@@ -244,10 +244,14 @@ public:
 
     using variables_state_info_map = std::map<std::string, cldnn::layout>;
     void set_variables_state_info(const std::string& variable_id, const cldnn::layout& layout);
-
+    const variables_state_info_map& get_variables_state_info() const;
     const ExecutionConfig& get_config() const { return _config; }
 
     ShapePredictor& get_shape_predictor() { return *_shape_predictor; }
+
+#ifdef GPU_DEBUG_CONFIG
+    int64_t get_current_iteration_num() { return iteration; }
+#endif
 
 private:
     using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;
@@ -279,6 +283,8 @@ private:
     size_t _weights_cache_capacity = 1;
 
     std::unordered_map<primitive_id, event::ptr> _events;
+    // This map is used to temporarily hold events that will be deallocated later
+    std::unordered_map<primitive_id, event::ptr> _old_events;
     output_chains_map _output_chains;
 
     std::unique_ptr<ShapePredictor> _shape_predictor;

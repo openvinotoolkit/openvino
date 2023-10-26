@@ -41,8 +41,8 @@ template <class InputType, class OutputType>
 class PriorBoxGPUTest : public ::testing::TestWithParam<prior_box_param<InputType, OutputType>> {
 public:
     void execute(bool is_caching_test) {
-        const auto input_data_type = type_to_data_type<InputType>::value;
-        const auto output_data_type = type_to_data_type<OutputType>::value;
+        const auto input_data_type = ov::element::from<InputType>();
+        const auto output_data_type = ov::element::from<OutputType>();
         const auto plain_format = format::bfyx;
 
         format::type target_format;
@@ -54,16 +54,18 @@ public:
         auto &engine = get_test_engine();
         std::tie(target_format, output_size, image_size, attrs, expected_values) = this->GetParam();
 
-        const auto output_size_input = engine.allocate_memory({input_data_type, plain_format, tensor{2}});
-        const auto image_size_input = engine.allocate_memory({input_data_type, plain_format, tensor{2}});
+        auto layout_output_size_input = layout{input_data_type, plain_format, tensor{2}};
+        auto layout_image_size_input = layout{input_data_type, plain_format, tensor{2}};
+        const auto output_size_input = engine.allocate_memory(layout_output_size_input);
+        const auto image_size_input = engine.allocate_memory(layout_image_size_input);
 
         const cldnn::tensor output_size_tensor{cldnn::spatial(output_size[0], output_size[1])};
         const cldnn::tensor img_size_tensor{cldnn::spatial(image_size[0], image_size[1])};
 
         topology topo;
-        topo.add(data("output_size", output_size_input));
+        topo.add(input_layout("output_size", layout_output_size_input));
         topo.add(reorder("reordered_output_size", input_info("output_size"), target_format, input_data_type));
-        topo.add(data("image_size", image_size_input));
+        topo.add(input_layout("image_size", layout_image_size_input));
         topo.add(reorder("reordered_image_size", input_info("image_size"), target_format, input_data_type));
 
         set_values<InputType>(output_size_input, output_size);
@@ -92,9 +94,12 @@ public:
         topo.add(reorder("prior_box", input_info("blocked_prior_box"), plain_format, output_data_type));
 
         ExecutionConfig config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::optimize_data(false));
+        config.set_property(ov::intel_gpu::optimize_data(true));
 
         cldnn::network::ptr network = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
+
+        network->set_input_data("output_size", output_size_input);
+        network->set_input_data("image_size", image_size_input);
 
         const auto outputs = network->execute();
         const auto output = outputs.at("prior_box").get_memory();

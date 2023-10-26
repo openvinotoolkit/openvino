@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/op_conversions/convert_topk11_downgrade.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <openvino/opsets/opset11.hpp>
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/pass/manager.hpp>
-#include <transformations/op_conversions/convert_topk11_downgrade.hpp>
-#include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/opsets/opset11.hpp"
+#include "openvino/opsets/opset3.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/utils/utils.hpp"
+using namespace ov;
 using namespace testing;
 
 TEST_F(TransformationTestsF, ConvertTopK11ToTopK3) {
@@ -28,7 +29,7 @@ TEST_F(TransformationTestsF, ConvertTopK11ToTopK3) {
                                                               false);
         topk->set_friendly_name("topk11");
 
-        function = std::make_shared<ov::Model>(topk->outputs(), ov::ParameterVector{input, k});
+        model = std::make_shared<ov::Model>(topk->outputs(), ov::ParameterVector{input, k});
         manager.register_pass<ov::pass::ConvertTopK11ToTopK3>();
     }
 
@@ -43,7 +44,7 @@ TEST_F(TransformationTestsF, ConvertTopK11ToTopK3) {
                                                              ov::element::i64);
         topk->set_friendly_name("topk11");
 
-        function_ref = std::make_shared<ov::Model>(topk->outputs(), ov::ParameterVector{input, k});
+        model_ref = std::make_shared<ov::Model>(topk->outputs(), ov::ParameterVector{input, k});
     }
 }
 
@@ -60,7 +61,7 @@ TEST_F(TransformationTestsF, ConvertTopK11ToTopK3StableMode) {
                                                               true);
         topk->set_friendly_name("topk11");
 
-        function = std::make_shared<ov::Model>(topk->outputs(), ov::ParameterVector{input, k});
+        model = std::make_shared<ov::Model>(topk->outputs(), ov::ParameterVector{input, k});
         manager.register_pass<ov::pass::ConvertTopK11ToTopK3>();
     }
 
@@ -75,6 +76,6 @@ TEST_F(TransformationTestsF, ConvertTopK11ToTopK3StableMode) {
                                                              ov::element::i64);
         topk->set_friendly_name("topk11");
 
-        function_ref = std::make_shared<ov::Model>(topk->outputs(), ov::ParameterVector{input, k});
+        model_ref = std::make_shared<ov::Model>(topk->outputs(), ov::ParameterVector{input, k});
     }
 }

@@ -10,10 +10,10 @@
 #include "any_copy.hpp"
 #include "common/versioning.hpp"
 #include "common_test_utils/data_utils.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "gna_mock_api.hpp"
 #include "gna_plugin.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace ::testing;
 using ov::intel_gna::GNAPlugin;
@@ -106,7 +106,7 @@ protected:
     std::shared_ptr<ngraph::Function> getFunction() {
         auto ngPrc = ngraph::element::f32;
         size_t shape = 10;
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, shape}});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, shape})};
         auto mul_const =
             ngraph::builder::makeConstant<float>(ngPrc,
                                                  {shape, shape},

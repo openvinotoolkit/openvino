@@ -40,9 +40,11 @@ void GatherTreeLayerTest::SetUp() {
     std::shared_ptr<ngraph::Node> inp3;
     std::shared_ptr<ngraph::Node> inp4;
 
-    auto paramsIn = ngraph::builder::makeParams(ngPrc, { inputShape });
+    ov::ParameterVector paramsIn {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     if (ngraph::helpers::InputLayerType::PARAMETER == secondaryInputType) {
-        auto paramsSecond = ngraph::builder::makeParams(ngPrc, { inputShape, {inputShape.at(1)}, {}});
+        ov::ParameterVector paramsSecond{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape)),
+                                         std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{inputShape.at(1)}),
+                                         std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape())};
         paramsIn.insert(paramsIn.end(), paramsSecond.begin(), paramsSecond.end());
 
         inp2 = paramsIn.at(1);

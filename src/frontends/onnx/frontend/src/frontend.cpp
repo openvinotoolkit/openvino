@@ -29,6 +29,7 @@
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "ops_bridge.hpp"
+#include "transformations/resolve_names_collisions.hpp"
 #include "utils/common.hpp"
 
 using namespace ov;
@@ -103,14 +104,17 @@ std::shared_ptr<ngraph::Function> FrontEnd::convert_partially(const InputModel::
         return function;
     }
 
-    return model_onnx->convert();
+    const auto& converted_model = model_onnx->convert();
+    normalize(converted_model);
+    return converted_model;
 }
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     // Here, you can register transformations as a second step of importing process
     // In particular, you can operate on not supported ops (it allows to N:N ONNX->OV mapping).
-    // ov::pass::Manager manager;
-    // manager.run_passes(model);
+    ov::pass::Manager manager;
+    manager.register_pass<pass::ResolveNameCollisions>();
+    manager.run_passes(model);
 }
 
 std::shared_ptr<ngraph::Function> FrontEnd::convert(const InputModel::Ptr& model) const {
@@ -126,6 +130,7 @@ std::shared_ptr<ngraph::Function> FrontEnd::convert(const InputModel::Ptr& model
 
 void FrontEnd::convert(const std::shared_ptr<ov::Model>& partially_converted) const {
     ngraph::onnx_import::detail::convert_decoded_function(partially_converted);
+    normalize(partially_converted);
 }
 
 std::shared_ptr<ngraph::Function> FrontEnd::decode(const InputModel::Ptr& model) const {

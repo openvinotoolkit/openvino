@@ -18,7 +18,7 @@ public:
     CommonOptimizations(const SnippetsTokenization::Config& config = {});
 
     // Returns True if parallelism work amount can be increased using SplitDimensionM optimization
-    static bool CanOptimizeParallelWA(const std::shared_ptr<const ov::Node>& node, size_t minimal_concurrency);
+    static bool CanOptimizeParallelWA(const std::shared_ptr<const ov::Node>& node, size_t concurrency);
 
 private:
     // Move up Constants which aren't scalars from body to Subgraph and replace them with Parameters inside body
@@ -28,7 +28,7 @@ private:
     // Insert Reshape nodes after and before Parameters and Results in Subgraphs with MatMul inside
     // to split dimension M for MatMuls to increase work amount for parallelism
     // Note: works only with 3D MHA patterns
-    void SplitDimensionM(const std::shared_ptr<op::Subgraph>& subgraph, size_t minimal_concurrency);
+    void SplitDimensionM(const std::shared_ptr<op::Subgraph>& subgraph, size_t concurrency);
 };
 
 }  // namespace pass

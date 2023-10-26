@@ -7,8 +7,8 @@
 #include "ngraph/op/util/variable_context.hpp"
 #include "ngraph/pass/low_latency.hpp"
 
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 #include "shared_test_classes/subgraph/multiple_LSTMCell.hpp"
 
@@ -56,7 +56,7 @@ void MultipleLSTMCellTest::SetUp() {
     reccurrenceWeights_vals = ov::test::utils::generate_float_numbers(4 * hiddenSize * hiddenSize, -0.1f, 0.1f);
     bias_vals = ov::test::utils::generate_float_numbers(4 * hiddenSize, -0.25f, 0.15f);
 
-    auto input_parameter = builder::makeParams(ngPrc, {input_dims});
+    ov::ParameterVector input_parameter {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_dims))};
 
     auto input_add_const = builder::makeConstant(ngPrc, input_dims, input_bias);
     auto add = builder::makeEltwise(input_parameter[0], input_add_const, helpers::EltwiseTypes::ADD);
@@ -207,7 +207,7 @@ void MultipleLSTMCellTest::switchToNgraphFriendlyModel() {
     std::vector<size_t> hidden_memory_dims {1, hiddenSize};
     std::vector<size_t> cell_memory_dims {1, hiddenSize};
 
-    auto input_parameter = builder::makeParams(ngPrc, {input_dims});
+    ov::ParameterVector input_parameter {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_dims))};
 
     auto input_add_const = builder::makeConstant(ngPrc, input_dims, input_bias);
     auto add = builder::makeEltwise(input_parameter[0], input_add_const, helpers::EltwiseTypes::ADD);
@@ -280,7 +280,7 @@ void MultipleLSTMCellTest::CreatePureTensorIteratorModel() {
     std::vector<size_t> hidden_memory_dims {1, hiddenSize};
     std::vector<size_t> cell_memory_dims {1, hiddenSize};
 
-    auto input_parameter = builder::makeParams(ngPrc, {input_dims});
+    ov::ParameterVector input_parameter {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(input_dims))};
 
     auto input_add_const = builder::makeConstant(ngPrc, input_dims, input_bias);
     auto add = builder::makeEltwise(input_parameter[0], input_add_const, helpers::EltwiseTypes::ADD);

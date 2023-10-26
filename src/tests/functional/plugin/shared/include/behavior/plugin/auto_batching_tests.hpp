@@ -11,7 +11,7 @@
 #include <common_test_utils/test_common.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
 
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "base/behavior_test_utils.hpp"
 
@@ -164,10 +164,12 @@ public:
 };
 
 TEST_P(AutoBatching_Test, compareAutoBatchingToSingleBatch) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     TestAutoBatch();
 }
 
 TEST_P(AutoBatching_Test_DetectionOutput, compareAutoBatchingToSingleBatch) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     TestAutoBatch();
 }
 

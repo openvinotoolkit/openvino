@@ -25,7 +25,7 @@ void MultipleConnectSplitConcatTest::SetUp() {
     std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto params = ngraph::builder::makeParams(ngPrc, {{1, 256}});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 256})};
     auto relu_start = std::make_shared<ngraph::opset1::Relu>(params[0]);
     auto split = ngraph::builder::makeSplit(relu_start, ngPrc, 1, 1);
     auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{split->output(0), split->output(0)}, 1);

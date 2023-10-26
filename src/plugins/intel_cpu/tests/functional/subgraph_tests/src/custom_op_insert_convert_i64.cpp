@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/op/op.hpp>
-#include <shape_util.hpp>
-#include <shared_test_classes/base/ov_subgraph.hpp>
-#include <ngraph_functions/builders.hpp>
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include <openvino/op/op.hpp>
+#include <shared_test_classes/base/ov_subgraph.hpp>
+#include <ov_models/builders.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace ov::test;
@@ -101,7 +100,10 @@ protected:
         std::tie(inType, inputShape) = this->GetParam();
 
         init_input_shapes({inputShape});
-        auto inputParams = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        ov::ParameterVector inputParams;
+        for (auto&& shape : inputDynamicShapes) {
+            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
+        }
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(inputParams));
         auto customOp = std::make_shared<CustomOpI64>(paramOuts);
 

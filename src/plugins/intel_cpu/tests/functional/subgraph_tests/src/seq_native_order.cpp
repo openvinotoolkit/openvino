@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
@@ -171,8 +171,11 @@ protected:
         if (seqInType == ngraph::helpers::InputLayerType::PARAMETER) {
             types.back() = ElementType::i64;
         }
-        auto params = ngraph::builder::makeDynamicParams(types, inputDynamicShapes);
-
+        ov::ParameterVector params;
+        for (size_t i = 0; i < types.size(); i++) {
+            auto param_node = std::make_shared<ov::op::v0::Parameter>(types[i], inputDynamicShapes[i]);
+            params.push_back(param_node);
+        }
         std::vector<int64_t> order_ref_before = {1, 0, 2};
         const auto order_before = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                                          ov::Shape({order_ref_before.size()}),

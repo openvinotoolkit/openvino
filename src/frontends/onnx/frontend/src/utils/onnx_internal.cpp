@@ -91,13 +91,13 @@ void convert_decoded_function(std::shared_ptr<Function> function) {
 
 std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
                                             const std::string& model_path,
-                                            const bool enable_mmap,
+                                            detail::MappedMemoryHandles mmap_cache,
                                             ov::frontend::ExtensionHolder extensions) {
     apply_transformations(*model_proto);
     NGRAPH_SUPPRESS_DEPRECATED_START
     Graph graph{file_util::get_directory(ov::util::get_absolute_file_path(model_path)),
                 model_proto,
-                enable_mmap,
+                mmap_cache,
                 std::move(extensions)};
     NGRAPH_SUPPRESS_DEPRECATED_END
     return graph.convert();
@@ -105,13 +105,13 @@ std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::Mode
 
 std::shared_ptr<Function> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
                                                     const std::string& model_path,
-                                                    const bool enable_mmap,
+                                                    detail::MappedMemoryHandles mmap_cache,
                                                     ov::frontend::ExtensionHolder extensions) {
     apply_transformations(*model_proto);
     NGRAPH_SUPPRESS_DEPRECATED_START
     auto graph = std::make_shared<Graph>(file_util::get_directory(ov::util::get_absolute_file_path(model_path)),
                                          model_proto,
-                                         enable_mmap,
+                                         mmap_cache,
                                          extensions);
     NGRAPH_SUPPRESS_DEPRECATED_END
     return graph->decode();

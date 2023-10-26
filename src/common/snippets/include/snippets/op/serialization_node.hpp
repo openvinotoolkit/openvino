@@ -22,7 +22,7 @@ public:
     OPENVINO_OP("SerializationNode", "SnippetsOpset");
 
     SerializationNode() = default;
-    SerializationNode(const Output<Node> &arg, const std::shared_ptr<lowered::Expression>& expr);
+    SerializationNode(const ov::OutputVector& args, const std::shared_ptr<lowered::Expression>& expr);
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector &new_args) const override;

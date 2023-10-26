@@ -5,10 +5,11 @@
 #pragma once
 
 #include <memory>
-#include <openvino/pass/graph_rewrite.hpp>
 #include <string>
-#include <transformations_visibility.hpp>
 #include <vector>
+
+#include "openvino/pass/graph_rewrite.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace pass {

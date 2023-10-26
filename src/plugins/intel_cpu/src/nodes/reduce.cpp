@@ -1768,35 +1768,38 @@ private:
 
 #endif // OPENVINO_ARCH_X86_64
 
-const std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, Reduce&)>> Reduce::initializers = {
-    {ngraph::opset4::ReduceL1::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
-        node.algorithm = Algorithm::ReduceL1;
-    }},
-    {ngraph::opset4::ReduceL2::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
-        node.algorithm = Algorithm::ReduceL2;
-    }},
-    {ngraph::opset1::ReduceLogicalAnd::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
-        node.algorithm = Algorithm::ReduceAnd;
-    }},
-    {ngraph::opset1::ReduceLogicalOr::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
-        node.algorithm = Algorithm::ReduceOr;
-    }},
-    {ngraph::opset1::ReduceMax::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
-        node.algorithm = Algorithm::ReduceMax;
-    }},
-    {ngraph::opset1::ReduceMean::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
-        node.algorithm = Algorithm::ReduceMean;
-    }},
-    {ngraph::opset1::ReduceMin::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
-        node.algorithm = Algorithm::ReduceMin;
-    }},
-    {ngraph::opset1::ReduceProd::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
-        node.algorithm = Algorithm::ReduceProd;
-    }},
-    {ngraph::opset1::ReduceSum::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
-        node.algorithm = Algorithm::ReduceSum;
-    }}
-};
+const std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>& op, Reduce& node)>>& Reduce::getInitializers() {
+    static const std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, Reduce&)>> initializers = {
+        {ngraph::opset4::ReduceL1::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+            node.algorithm = Algorithm::ReduceL1;
+        }},
+        {ngraph::opset4::ReduceL2::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+            node.algorithm = Algorithm::ReduceL2;
+        }},
+        {ngraph::opset1::ReduceLogicalAnd::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+            node.algorithm = Algorithm::ReduceAnd;
+        }},
+        {ngraph::opset1::ReduceLogicalOr::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+            node.algorithm = Algorithm::ReduceOr;
+        }},
+        {ngraph::opset1::ReduceMax::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+            node.algorithm = Algorithm::ReduceMax;
+        }},
+        {ngraph::opset1::ReduceMean::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+            node.algorithm = Algorithm::ReduceMean;
+        }},
+        {ngraph::opset1::ReduceMin::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+            node.algorithm = Algorithm::ReduceMin;
+        }},
+        {ngraph::opset1::ReduceProd::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+            node.algorithm = Algorithm::ReduceProd;
+        }},
+        {ngraph::opset1::ReduceSum::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+            node.algorithm = Algorithm::ReduceSum;
+        }}
+    };
+    return initializers;
+}
 
 bool Reduce::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -1819,7 +1822,7 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
                 return false;
             }
         }
-        if (initializers.find(op->get_type_info()) == initializers.end()) {
+        if (getInitializers().find(op->get_type_info()) == getInitializers().end()) {
             errorMessage = "Doesn't support Reduce algorithm: " +  std::string(op->get_type_info().name);
             return false;
         }
@@ -1838,7 +1841,7 @@ Reduce::Reduce(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Reduce node with name '" + getName() + "'";
-        initializers.at(op->get_type_info())(op, *this);
+        getInitializers().at(op->get_type_info())(op, *this);
         if (const auto reduce = std::dynamic_pointer_cast<ngraph::op::util::ArithmeticReductionKeepDims>(op)) {
             keep_dims = reduce->get_keep_dims();
             auto reduceConst = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
@@ -2154,7 +2157,7 @@ void Reduce::createPrimitive() {
 
     auto reduce_jcp = jcp;
     reduce_jcp.dst_dt = fuse_low_precision ? DnnlExtensionUtils::IEPrecisionToDataType(intermediate_prec) : jcp.dst_dt;
-    jcp.dst_data_size = DnnlExtensionUtils::sizeOfDataType(reduce_jcp.dst_dt);
+    reduce_jcp.dst_data_size = DnnlExtensionUtils::sizeOfDataType(reduce_jcp.dst_dt);
     create_reduce_kernel(reduce_kernel, reduce_jcp);
 
     // set_use_aux_kernel being false means this is a dynamic case, and prepareParams() hasn't been invoked yet.
@@ -2255,7 +2258,7 @@ void Reduce::reduce_type(const uint8_t *in_ptr, uint8_t *out_ptr) {
 }
 
 void Reduce::reduce_PLN(const uint8_t *in_ptr, uint8_t *out_ptr) {
-    output_info_reassign(out_ptr);
+    output_info_reassign(&out_ptr);
     init_dst_data(out_ptr, dst_size);
 
     if (ReduceN && !ReduceC && !ReduceD && !ReduceH && !ReduceW) {
@@ -2472,7 +2475,7 @@ void Reduce::reduce_PLN(const uint8_t *in_ptr, uint8_t *out_ptr) {
 void Reduce::reduce_BLK(const uint8_t *in_ptr, uint8_t *out_ptr) {
     size_t ICB = div_up(IC, blk_size);
     size_t OCB = div_up(OC, blk_size);
-    output_info_reassign(out_ptr);
+    output_info_reassign(&out_ptr);
     init_dst_data(out_ptr, dst_size);
 
     for (size_t ib = 0; ib < IB; ib++) {
@@ -2552,7 +2555,7 @@ void Reduce::reduce_BLK(const uint8_t *in_ptr, uint8_t *out_ptr) {
 void Reduce::reduce_BLK_concern_padding(const uint8_t *in_ptr, uint8_t *out_ptr) {
     size_t ICB = div_up(IC, blk_size);
     size_t OCB = div_up(OC, blk_size);
-    output_info_reassign(out_ptr);
+    output_info_reassign(&out_ptr);
     init_dst_data(out_ptr, dst_size);
 
     auto reduceSkipPadding = [&](const uint8_t *in_ptr_ncd, uint8_t *out_ptr_ncd, size_t ic) {
@@ -2720,10 +2723,10 @@ inline void Reduce::reduce_kernel_restore() {
     }
 }
 
-inline void Reduce::output_info_reassign(uint8_t *out_ptr) {
+inline void Reduce::output_info_reassign(uint8_t **out_ptr) {
     if (fuse_low_precision) {
-        tmp_ptr = out_ptr;
-        out_ptr = static_cast<uint8_t *>(&intermediate_buf[0]);
+        tmp_ptr = *out_ptr;
+        *out_ptr = static_cast<uint8_t *>(&intermediate_buf[0]);
         tmp_prec = output_prec;
         output_prec = intermediate_prec;
         tmp_data_size = dst_data_size;

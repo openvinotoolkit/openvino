@@ -9,7 +9,7 @@
 #include <memory>
 
 #include <gtest/gtest.h>
-#include <transformations/utils/utils.hpp>
+#include "transformations/utils/utils.hpp"
 
 // general transformations
 #include "low_precision/add.hpp"
@@ -39,21 +39,21 @@
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 
-#include "lpt_ngraph_functions/transformations_after_split_function.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "ov_lpt_models/transformations_after_split.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 
 namespace {
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 void getTransformerWithTransformationByName(
     SimpleLowPrecisionTransformer& transformer,
     const TestTransformationParams& params,
     const std::string name) {
-    using namespace pass::low_precision;
+    using namespace ov::pass::low_precision;
 
     if (name == "AddTransformationWithoutConcat" || name == "AddTransformationWithConcat") {
         transformer.add<AddTransformation, ov::op::v1::Add>(params);
@@ -96,7 +96,7 @@ void getTransformerWithTransformationByName(
         return;
     }
     if (name == "MVNTransformation") {
-        transformer.add<MVNTransformation, ngraph::op::MVN>(params);
+        transformer.add<MVNTransformation, ov::op::v0::MVN>(params);
         return;
     }
     if (name == "NormalizeL2Transformation") {
@@ -154,8 +154,8 @@ class TransformationsAfterSplitTransformation : public LayerTransformation, publ
 public:
     void SetUp() override {
         const auto layerName = GetParam();
-        function = ngraph::builder::subgraph::TransformationsAfterSplitFunction::get(layerName);
-        function->validate_nodes_and_infer_types();
+        model = ngraph::builder::subgraph::TransformationsAfterSplitFunction::get(layerName);
+        model->validate_nodes_and_infer_types();
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
@@ -167,7 +167,7 @@ public:
     }
 
 protected:
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Model> model;
 };
 
 TEST_P(TransformationsAfterSplitTransformation, Run) {
@@ -176,7 +176,7 @@ TEST_P(TransformationsAfterSplitTransformation, Run) {
     SimpleLowPrecisionTransformer transformer;
     getTransformerWithTransformationByName(transformer, params, layerName);
 
-    ASSERT_NO_THROW(transformer.transform(function));
+    ASSERT_NO_THROW(transformer.transform(model));
 }
 
 const std::vector<std::string> transformationNames = {

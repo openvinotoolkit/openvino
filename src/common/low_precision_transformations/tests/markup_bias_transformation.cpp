@@ -4,14 +4,14 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/markup_bias.hpp>
-#include <low_precision/rt_info/bias_attribute.hpp>
+#include "low_precision/markup_bias.hpp"
+#include "low_precision/rt_info/bias_attribute.hpp"
 #include <memory>
 #include <string>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/markup_bias_function.hpp"
+#include "ov_lpt_models/markup_bias.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -63,7 +63,7 @@ TEST_P(MarkupBiasTests, CompareFunctions) {
     EXPECT_EQ(1ul, addOps.size()) << "unexpected addOps size";
 
     const bool is_bias = std::get<1>(GetParam()).is_bias;
-    auto biasAttr = ngraph::pass::low_precision::getAttribute<ov::BiasAttribute>(addOps[0]);
+    auto biasAttr = ov::pass::low_precision::getAttribute<ov::BiasAttribute>(addOps[0]);
     EXPECT_EQ(!biasAttr.empty(), is_bias) << "Bias markup failed";
 }
 

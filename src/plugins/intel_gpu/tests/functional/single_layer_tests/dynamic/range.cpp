@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
@@ -129,7 +129,7 @@ protected:
         std::vector<float> inputValues;
         ElementType netType;
         std::map<std::string, std::string> additionalConfig;
-        ngraph::ParameterVector params;
+        ov::ParameterVector params;
         std::tie(inputShapes, inputValues, netType, targetDevice, additionalConfig) = basicParamsSet;
 
         input_values = inputValues;
@@ -139,10 +139,15 @@ protected:
 
         if (netType == ElementType::undefined) {
             std::vector<element::Type> types = { ElementType::f32, ElementType::i32, ElementType::f32 };
-            params = builder::makeDynamicParams(types, inputDynamicShapes);
+            for (size_t i = 0; i < types.size(); i++) {
+                auto paramNode = std::make_shared<ov::op::v0::Parameter>(types[i], inputDynamicShapes[i]);
+                params.push_back(paramNode);
+            }
             netType = ElementType::f32;
         } else {
-            params = builder::makeDynamicParams(netType, inputDynamicShapes);
+            for (auto&& shape : inputDynamicShapes) {
+                params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
+            }
         }
         const auto range = std::make_shared<ngraph::opset8::Range>(params[0], params[1], params[2], netType);
 

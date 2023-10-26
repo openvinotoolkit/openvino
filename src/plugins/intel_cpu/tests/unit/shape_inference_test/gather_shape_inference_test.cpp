@@ -4,12 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include <openvino/op/constant.hpp>
-#include <openvino/op/gather.hpp>
-#include <openvino/op/parameter.hpp>
-#include <openvino/util/common_util.hpp>
-#include <utils/shape_inference/shape_inference.hpp>
-
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/util/common_util.hpp"
+#include "shape_inference/shape_inference.hpp"
 #include "utils.hpp"
 
 using namespace ov;
@@ -61,7 +60,7 @@ TYPED_TEST_P(StaticShapeInferenceGatherTest, axis_const) {
 
         auto op = this->make_gather(this->input_shapes, &this->axis_val);
 
-        shape_inference(op.get(), this->input_shapes, this->output_shapes);
+        this->output_shapes = shape_inference(op.get(), this->input_shapes);
 
         ASSERT_EQ(this->output_shapes.front(), this->exp_shape)
             << "Failed for axis: " << this->axis_val
@@ -74,9 +73,9 @@ TYPED_TEST_P(StaticShapeInferenceGatherTest, axis_in_const_map) {
         std::tie(this->axis_val, this->input_shapes, this->exp_shape) = params;
 
         auto op = this->make_gather(this->input_shapes);
-        auto axis_tensor = std::make_shared<HostTensor>(element::i32, Shape{1}, &this->axis_val);
+        auto axis_tensor = ov::Tensor(element::i32, Shape{1}, &this->axis_val);
 
-        shape_inference(op.get(), this->input_shapes, this->output_shapes, {{2, axis_tensor}});
+        this->output_shapes = shape_inference(op.get(), this->input_shapes, {{2, axis_tensor}});
 
         ASSERT_EQ(this->output_shapes.front(), this->exp_shape)
             << "Failed for axis: " << this->axis_val

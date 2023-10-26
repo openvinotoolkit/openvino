@@ -19,6 +19,7 @@
 #include "graph_optimizer.h"
 #include "dnnl_extension_utils.h"
 #include "extension_mngr.h"
+#include "ie_ngraph_utils.hpp"
 #include "memory_solver.hpp"
 #include "itt.h"
 #include "infer_request.h"
@@ -198,8 +199,8 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
 void Graph::Replicate(const CNNNetwork &network) {
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::intel_cpu_LT, "Graph::Replicate", "CNNNetwork");
 
-    InputsDataMap inputsInfo = network.getInputsInfo();
-    OutputsDataMap outputsInfo = network.getOutputsInfo();
+    const InputsDataMap& inputsInfo = network.getInputsInfo();
+    const OutputsDataMap& outputsInfo = network.getOutputsInfo();
 
     this->_name = network.getName();
 
@@ -290,8 +291,6 @@ void Graph::Replicate(const CNNNetwork &network) {
         graphNodes.push_back(outNode);
     }
 
-    EnforceInferencePrecision();
-
     auto hasSubgraphConsumers = [] (const NodePtr& node) -> bool {
         const auto & childEdges = node->getChildEdges();
         return std::any_of(childEdges.begin(), childEdges.end(),
@@ -302,17 +301,27 @@ void Graph::Replicate(const CNNNetwork &network) {
                                return edgePtr->getChild()->getType() == Type::Subgraph;
                            });
     };
-
     // change precision for input/output nodes to avoid extra data conversion when set input/output blobs
-    // also we need to change input/output precisions for consumers/producers to avoid inserting reorder
     for (auto &input : inputNodesMap) {
         const auto precToSet = normalizeToSupportedPrecision(inputsInfo.at(input.first)->getPrecision());
         input.second->setOriginalOutputPrecisionAtPort(0, precToSet);
-        const auto childEdges = input.second->getChildEdgesAtPort(0);
+    }
+
+    for (auto &output : outputNodesMap) {
+        const auto precToSet = normalizeToSupportedPrecision(outputsInfo.at(output.first)->getPrecision());
+        output.second->setOriginalInputPrecisionAtPort(0, precToSet);
+    }
+    // enforce must be performed after inputs and outputs info are taken into account
+    EnforceInferencePrecision();
+    // also we need to change input/output precisions for consumers/producers to avoid inserting reorder
+    for (auto &input : inputNodesMap) {
+        const auto& inputNode = input.second;
+        const auto precToSet = inputNode->getOriginalOutputPrecisionAtPort(0);
+        const auto childEdges = inputNode->getChildEdgesAtPort(0);
         for (size_t i = 0; i < childEdges.size(); i++) {
             const auto child = childEdges[i]->getChild();
-            if (!one_of(child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum()),
-                Precision::BF16, Precision::FP16) &&
+            const auto child_prec = child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum());
+            if (!one_of(child_prec, Precision::BF16, Precision::FP16) &&
                 // remove this WA when #78939 is resolved
                 !hasSubgraphConsumers(child))
                 child->setOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum(), precToSet);
@@ -320,9 +329,9 @@ void Graph::Replicate(const CNNNetwork &network) {
     }
 
     for (auto &output : outputNodesMap) {
-        const auto precToSet = normalizeToSupportedPrecision(outputsInfo.at(output.first)->getPrecision());
-        output.second->setOriginalInputPrecisionAtPort(0, precToSet);
-        const auto parentEdges = output.second->getParentEdgesAtPort(0);
+        const auto& outputNode = output.second;
+        const auto precToSet = outputNode->getOriginalInputPrecisionAtPort(0);
+        const auto parentEdges = outputNode->getParentEdgesAtPort(0);
         for (size_t i = 0; i < parentEdges.size(); i++) {
             const auto parent = parentEdges[i]->getParent();
             parent->setOriginalOutputPrecisionAtPort(parentEdges[i]->getInputNum(), precToSet);
@@ -337,7 +346,7 @@ void Graph::Replicate(const CNNNetwork &network) {
         } else {
             outShape = inputNodesMap[input.first]->outputShapes.front();
         }
-        InputInfo::Ptr ii = inputsInfo[input.first];
+        InputInfo::Ptr ii = input.second;
         if (ii && ii->getPreProcess().getNumberOfChannels()) {
             _normalizePreprocMap[input.first].Load(outShape, ii);
         }
@@ -538,6 +547,14 @@ static bool isReorderAvailable(const MemoryDescPtr& parentDesc, const MemoryDesc
     dnnl_primitive_desc_t result = nullptr;
     auto status = dnnl_reorder_primitive_desc_create(&result, srcMemDesc.get(), eng.get(), dstMemDesc.get(), eng.get(),
                                                      attr.get());
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+    // temporary WA for slow FP32->FP16 conversion reorder in oneDNN on ARM
+    // pretend the reorder is not available to use Convert node instead
+    if (result && parse_impl_name(result->impl()->name()) == ref_any) {
+        dnnl_primitive_desc_destroy(result);
+        return false;
+    }
+#endif
     if (result) {
         dnnl_primitive_desc_destroy(result);
     }
@@ -1163,15 +1180,15 @@ public:
             m_completion.store(true, std::memory_order::memory_order_relaxed);
             throw;
         }
-        m_prepareCounter.store(stop_indx, std::memory_order::memory_order_release);
-        m_completion.store(true, std::memory_order::memory_order_relaxed);
+        m_prepareCounter.store(stop_indx, std::memory_order::memory_order_relaxed);
+        m_completion.store(true, std::memory_order::memory_order_release);
     }
 
     void updateDynParams(size_t node_indx, size_t /*unused*/) {
         size_t local_counter = node_indx;
         while (true) {
-            bool completion = m_completion.load(std::memory_order::memory_order_relaxed);
-            size_t prepareCounter = m_prepareCounter.load(std::memory_order::memory_order_acquire);
+            const bool completion = m_completion.load(std::memory_order::memory_order_acquire);
+            const size_t prepareCounter = m_prepareCounter.load(std::memory_order::memory_order_relaxed);
             if (completion && local_counter == prepareCounter) {
                 break;
             }
@@ -1291,17 +1308,16 @@ public:
         auto startCounter = m_prepareCounter.load();
 
         #pragma omp parallel
-        #pragma omp single
+        #pragma omp sections
         {
-            #pragma omp task
+            #pragma omp section
             {
                 updateDynParams(startCounter, stopIndx);
             }
-            #pragma omp task
+            #pragma omp section
             {
                 updateShapes(startCounter, stopIndx);
             }
-            #pragma omp taskwait
         }
     }
 };
@@ -1685,22 +1701,18 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
     return true;
 }
 
-// Set all non const data paths precision to BF16
+// Apply inference precision configuration
 void Graph::EnforceInferencePrecision() {
     CPU_DEBUG_CAP_ENABLE(static EnforceInferPrcDebug inferPrecDebug);
-    auto inferPrec = InferenceEngine::Precision::FP32;
-    switch (getConfig().inferencePrecision) {
-    case ov::element::bf16:
-        inferPrec = InferenceEngine::Precision::BF16;
-        break;
-    case ov::element::f16:
-        inferPrec = InferenceEngine::Precision::FP16;
-        break;
-    default:
-        return;
-        break;
-    }
 
+    const auto inferPrec = convertPrecision(getConfig().inferencePrecision);
+
+    if (inferPrec == Precision::FP32)
+        return; // nothing to do, only precision reduction is currently allowed
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+    if (inferPrec == Precision::FP16)
+        return; // precision of configured by ov::pass::ConvertPrecision
+#endif
     std::function<void(const NodePtr&, std::unordered_set<NodePtr>& skipNodes)> searchForNodesToSkip;
     searchForNodesToSkip = [&](const NodePtr& node, std::unordered_set<NodePtr>& skipNodes) -> void {
         for (size_t i = 0; i < node->getParentEdges().size(); i++) {
@@ -1743,44 +1755,66 @@ void Graph::EnforceInferencePrecision() {
     std::unordered_set<NodePtr> nodesToSkip;
     // starting from output nodes
     for (const auto& entry : outputNodesMap) {
-        const auto& node = entry.second;
-        if (node->getOriginalInputPrecisionAtPort(0) == Precision::BF16)
+        const auto& output = entry.second;
+        // do not skip outputs which precisions are explicitly set equal to inferPrec
+        if (output->getOriginalInputPrecisionAtPort(0) == inferPrec)
             continue;
-        searchForNodesToSkip(node, nodesToSkip);
+
+        searchForNodesToSkip(output, nodesToSkip);
     }
 
     for (const auto& node : graphNodes) {
         if (nodesToSkip.count(node) && !node->enforceBF16evenForGraphTail)
             continue;
 
-        if (node->getType() != Type::Input && node->getType() != Type::Output) {
+        if (one_of(node->getType(), Type::Input, Type::Output))
+            continue;
+
 #ifdef CPU_DEBUG_CAPS
-            if (!inferPrecDebug.enabled(NameFromType(node->getType()), node->getName()))
-                continue;
+        if (!inferPrecDebug.enabled(NameFromType(node->getType()), node->getName()))
+            continue;
 #endif
+        DEBUG_LOG("#", node->getExecIndex(), " ", node->getName(), " is enforced to use", inferPrec);
 
-            DEBUG_LOG("#", node->getExecIndex(),
-                      " ", node->getName(),
-                      " is enforced to use", inferPrec);
+        for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
+            auto keepOriginalInputPrecisionAtPort = [](const NodePtr& node, const size_t inPort) {
+                // keep non-float precisions
+                if (node->getOriginalInputPrecisionAtPort(inPort) != Precision::FP32)
+                    return true;
 
-            for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
-                const auto &parent = node->getParentEdgesAtPort(i)[0]->getParent();
+                const auto &parent = node->getParentEdgesAtPort(inPort)[0]->getParent();
                 /* Skip BF16 enforcement for nodes after Constant Inputs for maintaining precision for fusing.
-                * Precision conversion to BF16 does automatically, if convolution follows up after Constant Inputs
-                * and if activation is BF16 */
-                if (!(parent->getType() == Type::Input && parent->isConstant() &&
+                 * Precision conversion to BF16 is done automatically, if convolution follows up after Constant Inputs
+                 * and activation is BF16 */
+                if (parent->getType() == Type::Input && parent->isConstant() &&
                     // Concatenation node is exception because it doesn't change an accuracy for BF16 activation
-                    node->getType() != Type::Concatenation) &&
-                    // exclude Eltwise after Input since it supports conversion to BF16
-                    !(parent->getType() == Type::Input && (node->getType() == Type::Eltwise || node->getType() == Type::Subgraph)) &&
-                    node->getOriginalInputPrecisionAtPort(i) == Precision::FP32)
-                    node->setOriginalInputPrecisionAtPort(i, inferPrec);
-            }
+                    node->getType() != Type::Concatenation)
+                    return true;
+                // Eltwise and Subgraph (snippets) nodes support precision conversion
+                if (parent->getType() == Type::Input && one_of(node->getType(), Type::Eltwise, Type::Subgraph))
+                    return true;
 
-            for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
-                if (node->getOriginalOutputPrecisionAtPort(i) == Precision::FP32)
-                    node->setOriginalOutputPrecisionAtPort(i, inferPrec);
-            }
+                return false;
+            };
+
+            if (keepOriginalInputPrecisionAtPort(node, i))
+                continue;
+
+            node->setOriginalInputPrecisionAtPort(i, inferPrec);
+        }
+
+        for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
+            // keep non-float precisions
+            if (node->getOriginalOutputPrecisionAtPort(i) != Precision::FP32)
+                continue;
+
+            // exclude Convert before Range since it may cause precision loss when integter type to LP.
+            // TODO: Incorrect subgraph is generated by ONNX FE + ticket 117861.
+            const auto &child = node->getChildEdgesAtPort(i)[0]->getChild();
+            if (child->getType() == Type::Range && node->getType() == Type::Convert)
+                continue;
+
+            node->setOriginalOutputPrecisionAtPort(i, inferPrec);
         }
     }
 }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <low_precision/quantization_details.hpp>
+#include "low_precision/quantization_details.hpp"
 #include <math.h>
 
 #include <algorithm>
@@ -17,11 +17,11 @@
 
 #include "low_precision/lpt_itt.hpp"
 
-#include <low_precision/common/ie_lpt_exception.hpp>
-#include <low_precision/network_helper.hpp>
-#include <low_precision/layer_transformation.hpp>
+#include "low_precision/common/ie_lpt_exception.hpp"
+#include "low_precision/network_helper.hpp"
+#include "low_precision/layer_transformation.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -171,7 +171,7 @@ bool QuantizationDetails::empty() const noexcept {
 }
 
 bool QuantizationDetails::isSupportedLevel(const size_t level) {
-    using ngraph::pass::low_precision::levels;
+    using ov::pass::low_precision::levels;
     static const std::unordered_set<size_t> supported_levels = {
         levels::int4,  levels::int4_narrow_range,
         levels::int8,  levels::int8_narrow_range,
@@ -183,4 +183,4 @@ bool QuantizationDetails::isSupportedLevel(const size_t level) {
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

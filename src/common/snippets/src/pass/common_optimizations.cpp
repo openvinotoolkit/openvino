@@ -9,6 +9,8 @@
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
+#include "snippets/pass/transform_convert.hpp"
+#include "snippets/pass/validate.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/itt.hpp"
 
@@ -19,21 +21,35 @@ namespace ov {
 namespace snippets {
 namespace pass {
 
-bool CommonOptimizations::CanOptimizeParallelWA(const std::shared_ptr<const ov::Node>& node, size_t minimal_concurrency) {
-    if (!ov::is_type<ov::op::v0::MatMul>(node))
+namespace {
+size_t get_lcm(size_t a, size_t b) {
+    std::function<size_t(size_t, size_t)> get_gcd;
+    get_gcd = [&get_gcd](size_t a, size_t b) {
+        if (b == 0)
+            return a;
+        return get_gcd(b, a % b);
+    };
+    return a / get_gcd(a, b) * b;
+}
+
+bool is_supported_matmul_for_split_dim_m_optimization(const std::shared_ptr<const ov::Node>& node) {
+    const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(node);
+    return matmul && !matmul->get_transpose_a() && !matmul->is_dynamic() && node->get_shape().size() == 3; // It's needed only for 3D MHA patterns
+}
+}  // namespace
+
+bool CommonOptimizations::CanOptimizeParallelWA(const std::shared_ptr<const ov::Node>& node, size_t concurrency) {
+    if (!is_supported_matmul_for_split_dim_m_optimization(node))
         return false;
-    // It's needed only for 3D MHA patterns
     const auto mm_shape = node->get_shape();
-    if (mm_shape.size() != 3)
-        return false;
     const auto current_parallel_work_amount =
         std::accumulate(mm_shape.rbegin() + 2, mm_shape.rend(), size_t(1), std::multiplies<size_t>());
     const auto dim_M = *(mm_shape.rbegin() + 1);
-    return (current_parallel_work_amount < minimal_concurrency) &&
-           (current_parallel_work_amount * dim_M >= minimal_concurrency);
+    return (current_parallel_work_amount < concurrency) &&
+           (current_parallel_work_amount * dim_M >= concurrency);
 }
 
-void CommonOptimizations::SplitDimensionM(const std::shared_ptr<ov::snippets::op::Subgraph>& subgraph, size_t minimal_concurrency) {
+void CommonOptimizations::SplitDimensionM(const std::shared_ptr<ov::snippets::op::Subgraph>& subgraph, size_t concurrency) {
     // To increase parallelism work in 3D cases for MHA pattern,
     // we split 1st dimension (starting from 0th) into 2 new dimensions to get 4D Shapes where
     // - 0th and 1st dimensions are used in parallel scheduling,
@@ -58,8 +74,8 @@ void CommonOptimizations::SplitDimensionM(const std::shared_ptr<ov::snippets::op
     if (mm_it == ops.end())
         return;
 
-    const auto matmul0 = ov::as_type_ptr<ov::op::v0::MatMul>(*mm_it);
-    if (!matmul0 || !CanOptimizeParallelWA(matmul0, minimal_concurrency))
+    const auto matmul0 = *mm_it;
+    if (!is_supported_matmul_for_split_dim_m_optimization(matmul0))
         return;
 
     auto get_dim_M = [](const ov::Shape& shape) {
@@ -68,87 +84,87 @@ void CommonOptimizations::SplitDimensionM(const std::shared_ptr<ov::snippets::op
 
     const auto mm_shape = matmul0->get_shape();
     const auto m_dim = get_dim_M(mm_shape);  // M
-    const auto n_dim = mm_shape.back(); // N
-    // [113745] Heurestic is equal to double block size.
-    // When this optimization will be moved into Subgraph and blocking param will be implemented as dependents of shapes,
-    // need to implement common way (for all backends) to calculate optimal value of M dimension
-    const auto optimal_m_dim = 32 * 2;
-    const auto optimal_parallelism_work_amount = minimal_concurrency;
-    if (m_dim <= optimal_m_dim)
-        return;
-
     const auto batch_dim =
         std::accumulate(mm_shape.rbegin() + 2, mm_shape.rend(), size_t(1), std::multiplies<size_t>());  // B (batch)
+
+    // We skip optimization if the current batch is optimal for concurrency
+    const auto optimal_parallelism_work_amount = concurrency;
+    if (batch_dim % optimal_parallelism_work_amount == 0)
+        return;
+
     size_t batch_m_dim = 1;
     size_t new_m_dim = m_dim;
 
+    auto is_optimized = [&](size_t batch_m_dim) {
+        return batch_m_dim > 1;
+    };
+
+    // [ First Step ]
     // Need to find optimized dimension splitting: [b1..bk, m, n] -> [b1..bk, batch_m_dim, new_m_dim, n]
     // The work amount for parallelism should be divided by max thread count in ideal case
     // that all threads have the same full work amount (avoid of thread downtime)
-    // If it's impossible, it should be more than max thread count
-    // [115284]: Find solution for finding of optimal splitting in these cases
+    // If it's impossible, we select such values so that as many threads as possible have work (see [ Second Step ])
     // For example, there are 16 threads and shape [6, 512, 32]
     //              LCM(6, 16) = 48 <- ideal work amount for parallelism
     //              new_shape [6, 48 / 6, 512 / (48 / 6), 32 ] => [6, 8, 64, 32]
     //              Each thread has parallelism_work_amount = 6 * 8 / nthrs = 3
-    auto get_lcm = [](size_t a, size_t b) {
-        std::function<size_t(size_t, size_t)> get_gcd;
-        get_gcd = [&get_gcd](size_t a, size_t b) {
-            if (b == 0)
-                return a;
-            return get_gcd(b, a % b);
-        };
-        return a / get_gcd(a, b) * b;
-    };
     const auto lcm = get_lcm(batch_dim, optimal_parallelism_work_amount);  // LCM(b, nthrs)
     const auto batch_dim_multiplier = lcm / batch_dim;  // LCM(b, nthrs) / b
     const auto needed_new_dim = m_dim / batch_dim_multiplier;  // m / (LCM(b, nthrs) / b) - needed factors of dimension m
-
-    auto is_optimized = [&](size_t batch_m_dim, size_t new_m_dim) {
-        return batch_m_dim != 1 && new_m_dim >= static_cast<size_t>(optimal_m_dim);
-    };
-
-    if (batch_dim_multiplier * needed_new_dim == m_dim) {
+    if (batch_dim_multiplier * needed_new_dim == m_dim && is_optimized(batch_dim_multiplier)) {
         batch_m_dim = batch_dim_multiplier;
         new_m_dim = needed_new_dim;
-    }
-    if (!is_optimized(batch_m_dim, new_m_dim)) {
-        auto get_factors = [](size_t dim) -> std::vector<size_t> {
-            std::vector<size_t> factors;
-            size_t div = 2;
-            while (div <= dim) {
-                const auto res = dim / div;
-                if (res * div == dim) {
-                    factors.push_back(div);
-                    dim = res;
-                } else {
-                    div++;
-                }
-            }
-            return factors;
+    } else {
+        // [ Second Step ]
+        // If we couldn't optimally split on the previous step, try the second step.
+        // The algorithm finds the more optimal parallelism work amount [batch_dim * batch_m_dim],
+        // where batch_m_dim is divisor of dimension M.
+        // The optimal parallelism work amount means the case when as many threads as possible have work
+        // For example, there are 8 threads and shape [5, 384, 32]
+        //              768 = [2 x 192] = [3 x 128] = [4 x 96] = [6 x 64]
+        //               - [5, 2, 192, 32] - WA = 10 = 8 + 2 (6 threads calculates once and 2 threads twice)
+        //               - [5, 3, 128, 32] - WA = 15 = 8 + 7 (all threads have 2 kernel except one thread) <- the most optimal case
+        //               - [5, 4,  96, 32] - WA = 20 = 8 x 2 + 4
+        //               - [5, 6,  64, 32] - WA = 30 = 8 x 3 + 6
+        // The most optimal and possible case is [5, 3, 128, 32] - almost all threads executes kernel twice
+        // Heuristic value for a quick exit from the algorithm.
+        // The value shows the number of threads in percentages that perform the most equal work
+        const auto optimal_thread_num_percent = 0.8;
+        size_t optimal_remainder = 1;
+        auto get_remainder = [batch_dim, optimal_parallelism_work_amount](const size_t potential_batch_dim) {
+            return (batch_dim * potential_batch_dim) % optimal_parallelism_work_amount;
         };
-        const auto m_factors = get_factors(m_dim);
-        // If m_dim is Prime number
-        if (m_factors.size() == 2)
-            return;
 
-        batch_m_dim = 1;
-        new_m_dim = m_dim;
-        size_t idx = 0;
-        // [115284] The current solution is not enough optimized. For more details please go to the ticket
-        while (batch_m_dim * batch_dim < optimal_parallelism_work_amount && idx < m_factors.size()) {
-            auto tmp_batch_m_dim = batch_m_dim * m_factors[idx];
-            // There should be enough work for kernel execution
-            if (m_dim / tmp_batch_m_dim * n_dim < optimal_m_dim)
+        auto update_optimal_params = [&](size_t divisor_0, size_t divisor_1) {
+            const auto remainder = batch_dim * divisor_0 % optimal_parallelism_work_amount;
+            if (remainder > optimal_remainder || remainder == 0) {
+                optimal_remainder = remainder;
+                batch_m_dim = divisor_0;
+                new_m_dim = divisor_1;
+            }
+        };
+
+        // Firstly we have shape [batch, 1, m_dim, smth].
+        // So at the beginning we have parallel_work_amount = batch x 1
+        optimal_remainder = get_remainder(1);
+        const auto root = std::sqrt(m_dim) + 1;
+        for (size_t divisor_0 = 2; divisor_0 < root; ++divisor_0) {
+            const size_t divisor_1 = m_dim / divisor_0;
+            if (divisor_0 * divisor_1 != m_dim)
+                continue;
+
+            update_optimal_params(divisor_0, divisor_1);
+            update_optimal_params(divisor_1, divisor_0);
+            if ((static_cast<float>(optimal_remainder) / static_cast<float>(optimal_parallelism_work_amount) > optimal_thread_num_percent) ||
+                (optimal_remainder == 0)) {
                 break;
-            batch_m_dim = tmp_batch_m_dim;
+            }
         }
-        new_m_dim = m_dim / batch_m_dim;
     }
 
     OPENVINO_ASSERT(batch_m_dim * new_m_dim == m_dim, "Incorrect dimension M splitting!");
     // nothing to split
-    if (!is_optimized(batch_m_dim, new_m_dim))
+    if (!is_optimized(batch_m_dim))
         return;
 
     /***** Reshape insertion *****/
@@ -258,7 +274,7 @@ void CommonOptimizations::SplitDimensionM(const std::shared_ptr<ov::snippets::op
                 const auto shape_const = ov::as_type_ptr<ov::op::v0::Constant>(broadcast->input_value(1).get_node_shared_ptr());
                 OPENVINO_ASSERT(shape_const, "SplitDimensionM expects Broadcast with Constant output shape");
                 const auto new_shape = get_updated_shape(shape_const->cast_vector<size_t>(), true);
-                broadcast->set_argument(1, std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{new_shape.size()}, new_shape));
+                broadcast->set_argument(1, std::make_shared<ov::op::v0::Constant>(shape_const->get_element_type(), ov::Shape{new_shape.size()}, new_shape));
             }
         }
         subgraph->validate_and_infer_types();
@@ -358,7 +374,7 @@ CommonOptimizations::CommonOptimizations(const SnippetsTokenization::Config& con
 
         // Firstly, we should transform all original Converts inside body to ConvertTruncation to save original behavior.
         // Then if Subgraph contains FakeQuantize we enable specific transformation for quantized subgraphs.
-        ov::pass::Manager manager;
+        ov::pass::Manager manager(get_pass_config());
         manager.register_pass<ov::snippets::pass::TransformConvertToConvertTruncation>();
         manager.register_pass<ov::snippets::pass::ExplicitTransposeMatMulInputs>();
         if (is_quantized) {
@@ -376,8 +392,12 @@ CommonOptimizations::CommonOptimizations(const SnippetsTokenization::Config& con
         if (subgraph->has_domain_sensitive_ops()) {
             ExtractUnsupportedTransposes(subgraph);
             if (config.split_m_dimension)
-                SplitDimensionM(subgraph, config.minimal_concurrency);
+                SplitDimensionM(subgraph, config.concurrency);
         }
+
+        // Validate the body after all common optimizations
+        ov::snippets::pass::Validate(get_pass_config()).run_on_model(body);
+
         return true;
     };
 

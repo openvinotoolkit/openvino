@@ -13,9 +13,9 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 namespace DiagonalInsertionTestNs {
@@ -65,7 +65,7 @@ class DiagonalInsertionTest : public testing::WithParamInterface<DiagonalInserti
     }
 
     ParameterVector CreateInputVector(const Type& type, const vector<std::size_t>& shapes) {
-        return makeParams(type, {shapes});
+        return ov::ParameterVector{std::make_shared<ov::op::v0::Parameter>(type, ov::Shape(shapes))};
     }
 
     shared_ptr<FakeQuantize> CreateFQNode(const Type& type,
@@ -128,7 +128,7 @@ protected:
 
         // Create network
 
-        auto input_vect = makeParams(precision, {input_shape});
+        ov::ParameterVector input_vect{std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape(input_shape))};
         auto input_fq = CreateFQNode(precision, input_vect[0], fq_min_max[0][0], fq_min_max[0][1], fq_levels);
 
         auto reshape = CreateReshapeNode(ngraph::element::Type_t::i32, input_fq, {width, 1});

@@ -4,7 +4,9 @@
 
 #include "common_test_utils/postgres_helpers.hpp"
 
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 const char* PGQL_ENV_CONN_NAME = "OV_POSTGRES_CONN";    // Environment variable with connection settings
 const char* PGQL_ENV_SESS_NAME = "OV_TEST_SESSION_ID";  // Environment variable identifies current session
@@ -24,8 +26,15 @@ fnPQgetisnull PQgetisnull;
 fnPQclear PQclear;
 fnPQresultErrorMessage PQresultErrorMessage;
 
-char* PGPrefix(const char* text, ::testing::internal::GTestColor color) {
+const char* PGPrefix(const char* text, ::testing::internal::GTestColor color) {
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-security"
+#endif
     ::testing::internal::ColoredPrintf(color, text);
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
     return "";
 }
 
@@ -242,15 +251,17 @@ bool PostgreSQLConnection::load_libpq(void) {
         });
     }
     if (*modLibPQ == (HMODULE)0) {
-        modLibPQ = std::shared_ptr<HMODULE>(new HMODULE(dlopen("/opt/homebrew/opt/libpq/lib/libpq.dylib", RTLD_LAZY)), [](HMODULE* ptr) {
-            if (*ptr != (HMODULE)0) {
-                std::cerr << PG_INF << "Freeing /opt/homebrew/opt/libpq/lib/libPQ.dylib handle\n";
-                try {
-                    dlclose(*ptr);
-                } catch (...) {
+        modLibPQ = std::shared_ptr<HMODULE>(
+            new HMODULE(dlopen("/opt/homebrew/opt/libpq/lib/libpq.dylib", RTLD_LAZY)),
+            [](HMODULE* ptr) {
+                if (*ptr != (HMODULE)0) {
+                    std::cerr << PG_INF << "Freeing /opt/homebrew/opt/libpq/lib/libPQ.dylib handle\n";
+                    try {
+                        dlclose(*ptr);
+                    } catch (...) {
+                    }
                 }
-            }
-        });
+            });
     }
 #    endif
     if (*modLibPQ == (HMODULE)0) {
@@ -624,5 +635,6 @@ bool compile_string(const std::string& srcStr,
     return readPos = srcStr.length();
 }
 }  // namespace PostgreSQLHelpers
-
-}  // namespace CommonTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

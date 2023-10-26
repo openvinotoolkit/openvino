@@ -6,7 +6,7 @@
 set(TARGET_NAME ov_template_func_tests)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    ie_add_compiler_flags(/wd4305)
+    ov_add_compiler_flags(/wd4305)
 endif()
 
 ov_add_test_target(
@@ -18,21 +18,21 @@ ov_add_test_target(
             openvino::funcSharedTests
             openvino::runtime::dev
         INCLUDES
-            "${TEMPLATE_PLUGIN_SOURCE_DIR}/include"
+            "${OpenVINOTemplatePlugin_SOURCE_DIR}/include"
             "${CMAKE_CURRENT_SOURCE_DIR}/op_reference"
-        # ADD_CPPLINT
+        ADD_CLANG_FORMAT
         LABELS
-            TEMPLATE
+            OV UNIT TEMPLATE
 )
 
 find_package(OpenCV QUIET COMPONENTS core imgproc)
 
-if(OpenCV_FOUND)
-    message("-- Reference preprocessing: OpenCV tests are enabled")
+if(OpenCV_FOUND AND OpenCV_VERSION VERSION_GREATER_EQUAL 3.4)
+    message(STATUS "Reference preprocessing: OpenCV tests are enabled")
     target_compile_definitions(${TARGET_NAME} PRIVATE OPENCV_TEMPLATE_TESTS)
     target_link_libraries(${TARGET_NAME} PRIVATE opencv_imgproc opencv_core)
 else()
-    message("-- Reference preprocessing: OpenCV tests are disabled")
+    message(WARNING "Reference preprocessing: OpenCV tests are disabled, because OpenCV ver. 3.4+ is not found")
 endif()
 
 if (ENABLE_INTEL_CPU)

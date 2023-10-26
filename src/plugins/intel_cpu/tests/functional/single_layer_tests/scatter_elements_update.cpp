@@ -5,7 +5,7 @@
 #include "test_utils/cpu_test_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -105,16 +105,19 @@ protected:
         init_input_shapes(inputShapes);
         selectedType = makeSelectedTypeStr("unknown", inputPrecision);
 
-        auto dataParams = ngraph::builder::makeDynamicParams(inputPrecision, { inputDynamicShapes[0], inputDynamicShapes[2] });
-        auto indicesParam = ngraph::builder::makeDynamicParams(idxPrecision, { inputDynamicShapes[1] });
+        ov::ParameterVector dataParams;
+        for (auto&& shape : { inputDynamicShapes[0], inputDynamicShapes[2] }) {
+            dataParams.push_back(std::make_shared<ov::op::v0::Parameter>(inputPrecision, shape));
+        }
+        auto indicesParam = std::make_shared<ov::op::v0::Parameter>(idxPrecision, inputDynamicShapes[1]);
         dataParams[0]->set_friendly_name("Param_1");
-        indicesParam[0]->set_friendly_name("Param_2");
+        indicesParam->set_friendly_name("Param_2");
         dataParams[1]->set_friendly_name("Param_3");
 
         auto axisNode = ngraph::opset3::Constant::create(idxPrecision, {}, { axis });
-        auto scatter = std::make_shared<ngraph::opset3::ScatterElementsUpdate>(dataParams[0], indicesParam[0], dataParams[1], axisNode);
+        auto scatter = std::make_shared<ngraph::opset3::ScatterElementsUpdate>(dataParams[0], indicesParam, dataParams[1], axisNode);
 
-        ngraph::ParameterVector allParams{ dataParams[0], indicesParam[0], dataParams[1] };
+        ngraph::ParameterVector allParams{ dataParams[0], indicesParam, dataParams[1] };
         function = makeNgraphFunction(inputPrecision, allParams, scatter, "ScatterElementsUpdateLayerCPUTest");
     }
 };
@@ -128,28 +131,29 @@ const std::vector<std::int64_t> axes = { -3, -2, -1, 0, 1, 2 };
 
 const std::vector<ScatterElementsUpdateLayerParams> scatterParams = {
     ScatterElementsUpdateLayerParams{
-        ScatterElementsUpdateShapes{
-            {{-1, -1, -1}, {{10, 12, 15}, {8, 9, 10}, {11, 8, 12}}},
-            {{-1, -1, -1}, {{1, 2, 4}, {2, 1, 4}, {4, 1, 2}}},
-            {{-1, -1, -1}, {{1, 2, 4}, {2, 1, 4}, {4, 1, 2}}}
-        },
+        ScatterElementsUpdateShapes{{{-1, -1, -1}, {{10, 12, 15}, {8, 9, 10}, {11, 8, 12}}},
+                                    {{-1, -1, -1}, {{1, 2, 4}, {2, 1, 4}, {4, 1, 2}}},
+                                    {{-1, -1, -1}, {{1, 2, 4}, {2, 1, 4}, {4, 1, 2}}}},
         IndicesValues{1, 0, 4, 6, 2, 3, 7, 5},
     },
     ScatterElementsUpdateLayerParams{
-        ScatterElementsUpdateShapes{
-            {{-1, -1, -1, -1}, {{10, 9, 8, 12}, {8, 12, 10, 9}, {11, 10, 12, 9}}},
-            {{-1, -1, -1, -1}, {{1, 2, 2, 2}, {1, 2, 1, 4}, {1, 2, 2, 2}}},
-            {{-1, -1, -1, -1}, {{1, 2, 2, 2}, {1, 2, 1, 4}, {1, 2, 2, 2}}}
-        },
+        ScatterElementsUpdateShapes{{{-1, -1, -1, -1}, {{10, 9, 8, 12}, {8, 12, 10, 9}, {11, 10, 12, 9}}},
+                                    {{-1, -1, -1, -1}, {{1, 2, 2, 2}, {1, 2, 1, 4}, {1, 2, 2, 2}}},
+                                    {{-1, -1, -1, -1}, {{1, 2, 2, 2}, {1, 2, 1, 4}, {1, 2, 2, 2}}}},
         IndicesValues{1, 0, 4, 6, 2, 3, 7, 5},
     },
     ScatterElementsUpdateLayerParams{
         ScatterElementsUpdateShapes{
             {{{7, 15}, {9, 12}, {1, 12}, {8, 12}}, {{10, 9, 8, 12}, {8, 12, 10, 9}, {11, 10, 12, 9}}},
             {{-1, -1, -1, -1}, {{1, 2, 2, 2}, {1, 2, 1, 4}, {1, 2, 2, 2}}},
-            {{-1, -1, -1, -1}, {{1, 2, 2, 2}, {1, 2, 1, 4}, {1, 2, 2, 2}}}
-        },
+            {{-1, -1, -1, -1}, {{1, 2, 2, 2}, {1, 2, 1, 4}, {1, 2, 2, 2}}}},
         IndicesValues{1, 0, 4, 6, 2, 3, 7, 5},
+    },
+    ScatterElementsUpdateLayerParams{
+        ScatterElementsUpdateShapes{{{-1, -1, -1, -1}, {{11, 9, 8, 10}, {8, 12, 10, 9}, {11, 10, 12, 9}}},
+                                    {{-1, -1, -1, -1}, {{1, 2, 2, 2}, {1, 2, 1, 4}, {1, 2, 2, 2}}},
+                                    {{-1, -1, -1, -1}, {{1, 2, 2, 2}, {1, 2, 1, 4}, {1, 2, 2, 2}}}},
+        IndicesValues{-1, 0, -4, -6, -2, -3, -7, -5},
     },
 };
 

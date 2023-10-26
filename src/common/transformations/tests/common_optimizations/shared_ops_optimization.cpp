@@ -1,14 +1,16 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
+
 #include <gtest/gtest.h>
 
-#include <transformations/common_optimizations/shared_ops_optimization.hpp>
-
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/tile.hpp"
 
@@ -257,4 +259,248 @@ TEST_F(SharedTransformationTestsF, SharedConcatCheckOpWithResultIsntReplaced) {
         model = std::make_shared<ov::Model>(OutputVector{concat_0, concat_1}, ParameterVector{data});
         manager.register_pass<ov::pass::SharedOpOptimization>();
     }
+}
+
+TEST_F(SharedTransformationTestsF, SharedShapeOfTest) {
+    Shape input_shape{120, 4};
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, input_shape);
+
+        auto shapeof1_i32 = std::make_shared<v3::ShapeOf>(input, element::i32);
+        auto shapeof2_i64 = std::make_shared<v3::ShapeOf>(input, element::i64);
+        auto shapeof3_i32 = std::make_shared<v3::ShapeOf>(input, element::i32);
+        auto shapeof4_i32 = std::make_shared<v3::ShapeOf>(input, element::i32);
+        auto shapeof5_i64 = std::make_shared<v3::ShapeOf>(input, element::i64);
+        auto shapeof6_i32 = std::make_shared<v3::ShapeOf>(input, element::i32);
+        auto shapeof7_i32 = std::make_shared<v3::ShapeOf>(input, element::i32);
+
+        auto shapeof1_i32_convert = std::make_shared<v0::Convert>(shapeof1_i32, element::i64);
+        auto shapeof3_i32_convert = std::make_shared<v0::Convert>(shapeof3_i32, element::i64);
+        auto shapeof4_i32_convert = std::make_shared<v0::Convert>(shapeof4_i32, element::i64);
+        auto shapeof6_i32_convert = std::make_shared<v0::Convert>(shapeof6_i32, element::i64);
+        auto shapeof7_i32_convert = std::make_shared<v0::Convert>(shapeof7_i32, element::i64);
+
+        OutputVector inputs_of_concat{shapeof1_i32_convert,
+                                      shapeof2_i64,
+                                      shapeof3_i32_convert,
+                                      shapeof4_i32_convert,
+                                      shapeof5_i64,
+                                      shapeof6_i32_convert,
+                                      shapeof7_i32_convert};
+
+        auto concat = std::make_shared<v0::Concat>(inputs_of_concat, 0);
+        model = std::make_shared<Model>(NodeVector{concat}, ParameterVector{input});
+        manager.register_pass<pass::SharedOpOptimization>();
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, input_shape);
+
+        auto shapeof1_i32 = std::make_shared<v3::ShapeOf>(input, element::i32);
+        auto shapeof2_i64 = std::make_shared<v3::ShapeOf>(input, element::i64);
+
+        auto shapeof1_i32_convert = std::make_shared<v0::Convert>(shapeof1_i32, element::i64);
+
+        OutputVector inputs_of_concat{shapeof1_i32_convert,
+                                      shapeof2_i64,
+                                      shapeof1_i32_convert,
+                                      shapeof1_i32_convert,
+                                      shapeof2_i64,
+                                      shapeof1_i32_convert,
+                                      shapeof1_i32_convert};
+
+        auto concat = std::make_shared<v0::Concat>(inputs_of_concat, 0);
+        model_ref = std::make_shared<Model>(NodeVector{concat}, ParameterVector{input});
+    }
+}
+
+TEST_F(SharedTransformationTestsF, SharedShapeOfTestI64Only) {
+    Shape input_shape{120, 4};
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, input_shape);
+
+        auto shapeof1_i64 = std::make_shared<v3::ShapeOf>(input, element::i64);
+        auto shapeof2_i64 = std::make_shared<v3::ShapeOf>(input, element::i64);
+        auto shapeof3_i64 = std::make_shared<v3::ShapeOf>(input, element::i64);
+
+        OutputVector inputs_of_concat{shapeof1_i64, shapeof2_i64, shapeof3_i64};
+
+        auto concat = std::make_shared<v0::Concat>(inputs_of_concat, 0);
+        model = std::make_shared<Model>(NodeVector{concat}, ParameterVector{input});
+        manager.register_pass<pass::SharedOpOptimization>();
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, input_shape);
+        auto shapeof1_i64 = std::make_shared<v3::ShapeOf>(input, element::i64);
+
+        OutputVector inputs_of_concat{shapeof1_i64, shapeof1_i64, shapeof1_i64};
+
+        auto concat = std::make_shared<v0::Concat>(inputs_of_concat, 0);
+        model_ref = std::make_shared<Model>(NodeVector{concat}, ParameterVector{input});
+    }
+}
+
+TEST_F(SharedTransformationTestsF, SharedShapeOfTestI32Only) {
+    Shape input_shape{120, 4};
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, input_shape);
+
+        auto shapeof1_i32 = std::make_shared<v3::ShapeOf>(input, element::i32);
+        auto shapeof2_i32 = std::make_shared<v3::ShapeOf>(input, element::i32);
+        auto shapeof3_i32 = std::make_shared<v3::ShapeOf>(input, element::i32);
+        auto shapeof4_i32 = std::make_shared<v3::ShapeOf>(input, element::i32);
+        auto shapeof5_i32 = std::make_shared<v3::ShapeOf>(input, element::i32);
+
+        auto shapeof1_i32_convert = std::make_shared<v0::Convert>(shapeof1_i32, element::i64);
+        auto shapeof2_i32_convert = std::make_shared<v0::Convert>(shapeof2_i32, element::i64);
+        auto shapeof3_i32_convert = std::make_shared<v0::Convert>(shapeof3_i32, element::i64);
+        auto shapeof4_i32_convert = std::make_shared<v0::Convert>(shapeof4_i32, element::i64);
+        auto shapeof5_i32_convert = std::make_shared<v0::Convert>(shapeof5_i32, element::i64);
+
+        OutputVector inputs_of_concat{shapeof1_i32_convert,
+                                      shapeof2_i32_convert,
+                                      shapeof3_i32_convert,
+                                      shapeof4_i32_convert,
+                                      shapeof5_i32_convert};
+
+        auto concat = std::make_shared<v0::Concat>(inputs_of_concat, 0);
+        model = std::make_shared<Model>(NodeVector{concat}, ParameterVector{input});
+        manager.register_pass<pass::SharedOpOptimization>();
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, input_shape);
+
+        auto shapeof1_i32 = std::make_shared<v3::ShapeOf>(input, element::i32);
+
+        auto shapeof1_i32_convert = std::make_shared<v0::Convert>(shapeof1_i32, element::i64);
+
+        OutputVector inputs_of_concat{shapeof1_i32_convert,
+                                      shapeof1_i32_convert,
+                                      shapeof1_i32_convert,
+                                      shapeof1_i32_convert,
+                                      shapeof1_i32_convert};
+
+        auto concat = std::make_shared<v0::Concat>(inputs_of_concat, 0);
+        model_ref = std::make_shared<Model>(NodeVector{concat}, ParameterVector{input});
+    }
+}
+
+TEST_F(SharedTransformationTestsF, SharedShapeOfTestMixed) {
+    Shape input_shape{120, 4};
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, input_shape);
+
+        auto shapeof1 = std::make_shared<v0::ShapeOf>(input);
+        auto shapeof2_i64 = std::make_shared<v3::ShapeOf>(input, element::i64);
+        auto shapeof3_i32 = std::make_shared<v3::ShapeOf>(input, element::i32);
+        auto shapeof4 = std::make_shared<v0::ShapeOf>(input);
+        auto shapeof5_i64 = std::make_shared<v3::ShapeOf>(input, element::i64);
+        auto shapeof6_i32 = std::make_shared<v3::ShapeOf>(input, element::i32);
+        auto shapeof7_i32 = std::make_shared<v3::ShapeOf>(input, element::i32);
+
+        auto shapeof3_i32_convert = std::make_shared<v0::Convert>(shapeof3_i32, element::i64);
+        auto shapeof6_i32_convert = std::make_shared<v0::Convert>(shapeof6_i32, element::i64);
+        auto shapeof7_i32_convert = std::make_shared<v0::Convert>(shapeof7_i32, element::i64);
+
+        OutputVector inputs_of_concat{shapeof1,
+                                      shapeof2_i64,
+                                      shapeof3_i32_convert,
+                                      shapeof4,
+                                      shapeof5_i64,
+                                      shapeof6_i32_convert,
+                                      shapeof7_i32_convert};
+
+        auto concat = std::make_shared<v0::Concat>(inputs_of_concat, 0);
+        model = std::make_shared<Model>(NodeVector{concat}, ParameterVector{input});
+        manager.register_pass<pass::SharedOpOptimization>();
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(element::f32, input_shape);
+
+        auto shapeof1 = std::make_shared<v3::ShapeOf>(input, element::i64);
+        auto shapeof2_i32 = std::make_shared<v3::ShapeOf>(input, element::i32);
+
+        auto shapeof3_i32_convert = std::make_shared<v0::Convert>(shapeof2_i32, element::i64);
+
+        OutputVector inputs_of_concat{shapeof1,
+                                      shapeof1,
+                                      shapeof3_i32_convert,
+                                      shapeof1,
+                                      shapeof1,
+                                      shapeof3_i32_convert,
+                                      shapeof3_i32_convert};
+
+        auto concat = std::make_shared<v0::Concat>(inputs_of_concat, 0);
+        model_ref = std::make_shared<Model>(NodeVector{concat}, ParameterVector{input});
+    }
+}
+
+namespace {
+OutputVector createShapeNodesInMemory(const std::vector<size_t>& node_order_in_memory,
+                                      std::shared_ptr<void>& memory,
+                                      const std::string& node_name_prefix,
+                                      const std::shared_ptr<Node>& input,
+                                      element::Type output_type) {
+    OutputVector outputs;
+    memory.reset(::malloc(node_order_in_memory.size() * sizeof(v3::ShapeOf)), ::free);
+    for (size_t i = 0; i < node_order_in_memory.size(); ++i) {
+        v3::ShapeOf* node_addr = static_cast<v3::ShapeOf*>(memory.get()) + node_order_in_memory[i];
+        auto node_ptr =
+            std::shared_ptr<v3::ShapeOf>(new (node_addr) v3::ShapeOf(input, output_type), [](v3::ShapeOf* node) {
+                node->v3::ShapeOf::~ShapeOf();
+            });
+        std::stringstream ss;
+        ss << node_name_prefix << i;
+        node_ptr->set_friendly_name(ss.str());
+        outputs.push_back(node_ptr->output(0));
+    }
+
+    return outputs;
+}
+
+std::shared_ptr<Model> createModelWithShapes(const Shape& input_shape,
+                                             const std::vector<size_t>& node_order_in_memory,
+                                             const std::string& node_name_prefix,
+                                             std::shared_ptr<void>& buffer) {
+    auto input = std::make_shared<v0::Parameter>(element::f32, input_shape);
+    auto shape_nodes = createShapeNodesInMemory(node_order_in_memory, buffer, node_name_prefix, input, element::i64);
+
+    NodeVector inputs_of_concat;
+    for (const auto& shape_node : shape_nodes) {
+        auto node = std::make_shared<v0::Convert>(shape_node, element::i64);
+        inputs_of_concat.push_back(node);
+    }
+
+    auto concat = std::make_shared<v0::Concat>(inputs_of_concat, 0);
+    return std::make_shared<Model>(NodeVector{concat}, ParameterVector{input});
+}
+}  // namespace
+
+/**
+ * @brief Check that node address is not influenced on the transformation result
+ */
+TEST(TransformationTests, SharedShapeOfTestRandomOrder) {
+    Shape input_shape{120, 4};
+    std::shared_ptr<void> buffer;
+    // nodes are placed into pre-allocated memory in order that is specified in next variable
+    std::vector<std::vector<size_t>> node_orders_in_memory = {{0, 1}, {1, 0}};
+
+    std::vector<std::shared_ptr<Model>> models;
+    for (const auto& node_order_in_memory : node_orders_in_memory) {
+        auto model = createModelWithShapes(input_shape, node_order_in_memory, "Shape_", buffer);
+
+        ov::pass::Manager manager;
+        manager.register_pass<pass::SharedOpOptimization>();
+        manager.run_passes(model);
+
+        const auto model_ops = model->get_ops();
+        const auto op_it = std::find_if(model_ops.begin(), model_ops.end(), [](const std::shared_ptr<Node>& node) {
+            return node->get_friendly_name() == "Shape_0";
+        });
+        ASSERT_TRUE(op_it != model_ops.end()) << "node Shape_0 is not found in model";
+        // we need to clone while memory will be reused on the next iteration for the new model
+        models.push_back(model->clone());
+    }
+
+    FunctionsComparator comparator = FunctionsComparator::with_default();
+    comparator.compare(models[0], models[1]);
 }

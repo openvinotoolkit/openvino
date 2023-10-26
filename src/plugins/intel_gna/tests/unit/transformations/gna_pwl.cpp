@@ -10,7 +10,7 @@
 #include <type_traits>
 
 #include "common_test_utils/data_utils.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/pwl_approximation.hpp"
 
 using namespace ov::intel_gna::common;

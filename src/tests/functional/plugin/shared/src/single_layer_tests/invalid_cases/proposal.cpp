@@ -69,7 +69,10 @@ void ProposalBehTest::SetUp() {
     std::vector<size_t> imageInfoShape = {3};
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(InferenceEngine::Precision::FP16);
-    auto params = ngraph::builder::makeParams(ngPrc, {{"scores", scoresShape}, {"boxes", boxesShape}});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(scoresShape)),
+                               std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(boxesShape))};
+    params[0]->set_friendly_name("scores");
+    params[1]->set_friendly_name("boxes");
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     auto proposal = std::dynamic_pointer_cast<ngraph::opset1::Proposal>(

@@ -7,14 +7,9 @@
 from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
-from openvino.frontend.pytorch.utils import maybe_convert_max_int, make_constant, fetch_attr, pt_to_ov_type_map, ov_to_c_type_map
+from openvino.frontend.pytorch.utils import maybe_convert_max_int, make_constant, fetch_attr, pt_to_ov_type_map
 
-import typing
-from packaging.version import parse
 import torch
-import numpy as np
-import inspect
-import ctypes
 
 class TorchFXPythonDecoder (Decoder):
 
@@ -158,32 +153,13 @@ class TorchFXPythonDecoder (Decoder):
         else:
             return OVAny(OVType.f32)
 
-    def get_input_transpose_order(self, index):
-        return []
-        # TODO TBD
-
-        input = self._raw_input(index)
-        if input.type() is not None and input.type().kind() == 'TensorType':
-            strides = input.type().strides()
-            if strides is not None:
-                return [s[0] for s in sorted(enumerate(strides), key=lambda x:x[1], reverse=True)]
-        return []
-
-    def get_output_transpose_order(self, index):
-        return []
-
-        # old code
-        output = self._raw_output(index)
-        if output.type() is not None and output.type().kind() == 'TensorType':
-            strides = output.type().strides()
-            if strides is not None:
-                return [s[0] for s in sorted(enumerate(strides), key=lambda x:x[1], reverse=True)]
-        return []
-
     def get_subgraph_size(self):
         if issubclass(type(self.pt_module), torch.fx.Node):
             return 0
         return len(self.get_subgraphs()) if hasattr(self.pt_module, 'blocks') else 1
+
+    def decoder_type_name(self) -> str:
+        return "fx"
 
     def visit_subgraph(self, node_visitor):
         # make sure topological order is satisfied
@@ -247,11 +223,7 @@ class TorchFXPythonDecoder (Decoder):
         if self.pt_module.op == 'get_attr':
             # Extract Constant from FX module field
             ret = fetch_attr(self.fx_gm, self.pt_module.target)
-            ovshape = PartialShape(ret.size())
-            ovtype = pt_to_ov_type_map[str(ret.type())]
-            c_type = ctypes.POINTER(ov_to_c_type_map[ovtype])
-            data_c_ptr = ctypes.cast(ret.data_ptr(), c_type)
-            ov_const = op.Constant(ovtype, ovshape.get_shape(), data_c_ptr[:ret.nelement()])
+            ov_const = op.Constant(ret.numpy(), shared_memory=True)
             return ov_const.outputs()
 
 
@@ -393,7 +365,7 @@ class TorchFXPythonDecoder (Decoder):
         return result
 
     def may_produce_alias(self, in_index: int, out_index: int) -> bool:
-        if self.get_op_type() in ["aten::conv1d", "aten::conv2d", "aten::conv3d"]:
+        if self.get_op_type() in ["aten::conv1d", "aten::conv2d", "aten::conv3d", "aten::matmul"]:
             # AliasDB::may_contain_alias sometimes return True for tensors produced by convnd, we have to workaround that
             return False
         try:

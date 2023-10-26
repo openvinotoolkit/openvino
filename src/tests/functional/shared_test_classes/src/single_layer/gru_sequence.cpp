@@ -5,6 +5,8 @@
 #include "shared_test_classes/single_layer/gru_sequence.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/test_enums.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -70,7 +72,8 @@ namespace LayerTestsDefinitions {
         };
         m_max_seq_len = seq_lengths;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
+                                   std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[1]))};
 
         const auto& W_shape = inputShapes[3];
         const auto& R_shape = inputShapes[4];
@@ -80,7 +83,7 @@ namespace LayerTestsDefinitions {
         if (m_mode == SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM ||
             m_mode == SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM ||
             m_mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM) {
-            auto param = ngraph::builder::makeParams(ov::element::i64, {inputShapes[2]}).at(0);
+            auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape(inputShapes[2]));
             param->set_friendly_name("seq_lengths");
             params.push_back(param);
             seq_lengths_node = param;

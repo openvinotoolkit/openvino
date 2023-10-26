@@ -11,18 +11,22 @@
 namespace ov {
 namespace test {
 namespace utils {
-ov::Tensor create_and_fill_tensor(
-        const ov::element::Type element_type,
-        const ov::Shape& shape,
-        const uint32_t range,
-        const double_t start_from,
-        const int32_t resolution,
-        const int seed) {
+ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
+                                  const ov::Shape& shape,
+                                  const uint32_t range,
+                                  const double_t start_from,
+                                  const int32_t resolution,
+                                  const int seed) {
     auto tensor = ov::Tensor{element_type, shape};
-#define CASE(X) case X: fill_data_random(                   \
-    tensor.data<element_type_traits<X>::value_type>(),                         \
-    shape_size(shape),                                                         \
-    range, start_from, resolution, seed); break;
+#define CASE(X)                                                             \
+    case X:                                                                 \
+        fill_data_random(tensor.data<element_type_traits<X>::value_type>(), \
+                         shape_size(shape),                                 \
+                         range,                                             \
+                         start_from,                                        \
+                         resolution,                                        \
+                         seed);                                             \
+        break;
     switch (element_type) {
         CASE(ov::element::Type_t::boolean)
         CASE(ov::element::Type_t::i8)
@@ -37,34 +41,39 @@ ov::Tensor create_and_fill_tensor(
         CASE(ov::element::Type_t::f16)
         CASE(ov::element::Type_t::f32)
         CASE(ov::element::Type_t::f64)
-        case ov::element::Type_t::u1:
-        case ov::element::Type_t::i4:
-        case ov::element::Type_t::u4:
-            fill_data_random(
-                static_cast<uint8_t*>(tensor.data()),
-                tensor.get_byte_size(),
-                range, start_from, resolution, seed); break;
-        default: OPENVINO_THROW("Unsupported element type: ", element_type);
+    case ov::element::Type_t::u1:
+    case ov::element::Type_t::i4:
+    case ov::element::Type_t::u4:
+    case ov::element::Type_t::nf4:
+        fill_data_random(static_cast<uint8_t*>(tensor.data()),
+                         tensor.get_byte_size(),
+                         range,
+                         start_from,
+                         resolution,
+                         seed);
+        break;
+    default:
+        OPENVINO_THROW("Unsupported element type: ", element_type);
     }
 #undef CASE
     return tensor;
 }
 
 ov::Tensor create_and_fill_tensor_unique_sequence(const ov::element::Type element_type,
-                                                           const ov::Shape& shape,
-                                                           const int32_t start_from,
-                                                           const int32_t resolution,
-                                                           const int seed) {
+                                                  const ov::Shape& shape,
+                                                  const int32_t start_from,
+                                                  const int32_t resolution,
+                                                  const int seed) {
     auto tensor = ov::Tensor{element_type, shape};
     auto range = shape_size(shape) * 2;
-#define CASE(X)                                                                                           \
-    case X:                                                                                               \
+#define CASE(X)                                                                        \
+    case X:                                                                            \
         fill_random_unique_sequence(tensor.data<element_type_traits<X>::value_type>(), \
-                                                       shape_size(shape),                                 \
-                                                       range,                                             \
-                                                       start_from,                                        \
-                                                       resolution,                                        \
-                                                       seed);                                             \
+                                    shape_size(shape),                                 \
+                                    range,                                             \
+                                    start_from,                                        \
+                                    resolution,                                        \
+                                    seed);                                             \
         break;
 
     switch (element_type) {
@@ -85,11 +94,11 @@ ov::Tensor create_and_fill_tensor_unique_sequence(const ov::element::Type elemen
     case ov::element::Type_t::i4:
     case ov::element::Type_t::u4:
         fill_random_unique_sequence(static_cast<uint8_t*>(tensor.data()),
-                                                       tensor.get_byte_size(),
-                                                       range,
-                                                       start_from,
-                                                       resolution,
-                                                       seed);
+                                    tensor.get_byte_size(),
+                                    range,
+                                    start_from,
+                                    resolution,
+                                    seed);
         break;
     default:
         OPENVINO_THROW("Unsupported element type: ", element_type);
@@ -98,17 +107,20 @@ ov::Tensor create_and_fill_tensor_unique_sequence(const ov::element::Type elemen
     return tensor;
 }
 
-ov::runtime::Tensor create_and_fill_tensor_normal_distribution(
-        const ov::element::Type element_type,
-        const ov::Shape& shape,
-        const float mean,
-        const float stddev,
-        const int seed) {
+ov::runtime::Tensor create_and_fill_tensor_normal_distribution(const ov::element::Type element_type,
+                                                               const ov::Shape& shape,
+                                                               const float mean,
+                                                               const float stddev,
+                                                               const int seed) {
     auto tensor = ov::runtime::Tensor{element_type, shape};
-#define CASE(X) case X: fill_data_ptr_normal_random_float(  \
-    tensor.data<element_type_traits<X>::value_type>(),                         \
-    shape_size(shape),                                                         \
-    mean, stddev, seed); break;
+#define CASE(X)                                                                              \
+    case X:                                                                                  \
+        fill_data_ptr_normal_random_float(tensor.data<element_type_traits<X>::value_type>(), \
+                                          shape_size(shape),                                 \
+                                          mean,                                              \
+                                          stddev,                                            \
+                                          seed);                                             \
+        break;
     switch (element_type) {
         CASE(ov::element::Type_t::boolean)
         CASE(ov::element::Type_t::i8)
@@ -123,28 +135,36 @@ ov::runtime::Tensor create_and_fill_tensor_normal_distribution(
         CASE(ov::element::Type_t::f16)
         CASE(ov::element::Type_t::f32)
         CASE(ov::element::Type_t::f64)
-        case ov::element::Type_t::u1:
-        case ov::element::Type_t::i4:
-        case ov::element::Type_t::u4:
-            fill_data_ptr_normal_random_float(
-                    static_cast<uint8_t*>(tensor.data()),
-                    tensor.get_byte_size(),
-                    mean, stddev, seed); break;
-        default: OPENVINO_THROW("Unsupported element type: ", element_type);
+    case ov::element::Type_t::u1:
+    case ov::element::Type_t::i4:
+    case ov::element::Type_t::u4:
+        fill_data_ptr_normal_random_float(static_cast<uint8_t*>(tensor.data()),
+                                          tensor.get_byte_size(),
+                                          mean,
+                                          stddev,
+                                          seed);
+        break;
+    default:
+        OPENVINO_THROW("Unsupported element type: ", element_type);
     }
 #undef CASE
     return tensor;
 }
 
-ov::runtime::Tensor create_and_fill_tensor_consistently(
-        const ov::element::Type element_type,
-        const ov::Shape& shape,
-        const uint32_t range,
-        const int32_t start_from,
-        const int32_t resolution) {
+ov::runtime::Tensor create_and_fill_tensor_consistently(const ov::element::Type element_type,
+                                                        const ov::Shape& shape,
+                                                        const uint32_t range,
+                                                        const int32_t start_from,
+                                                        const int32_t resolution) {
     auto tensor = ov::runtime::Tensor{element_type, shape};
-#define CASE(X) case X: fill_data_ptr_consistently(tensor.data<element_type_traits<X>::value_type>(), \
-tensor.get_size(), range, start_from, resolution); break;
+#define CASE(X)                                                                       \
+    case X:                                                                           \
+        fill_data_ptr_consistently(tensor.data<element_type_traits<X>::value_type>(), \
+                                   tensor.get_size(),                                 \
+                                   range,                                             \
+                                   start_from,                                        \
+                                   resolution);                                       \
+        break;
     switch (element_type) {
         CASE(ov::element::Type_t::boolean)
         CASE(ov::element::Type_t::i8)
@@ -159,13 +179,17 @@ tensor.get_size(), range, start_from, resolution); break;
         CASE(ov::element::Type_t::f16)
         CASE(ov::element::Type_t::f32)
         CASE(ov::element::Type_t::f64)
-        case ov::element::Type_t::u1:
-        case ov::element::Type_t::i4:
-        case ov::element::Type_t::u4:
-            fill_data_ptr_consistently(
-                    static_cast<uint8_t*>(tensor.data()),
-                    tensor.get_byte_size(), range, start_from, resolution); break;
-        default: OPENVINO_THROW("Unsupported element type: ", element_type);
+    case ov::element::Type_t::u1:
+    case ov::element::Type_t::i4:
+    case ov::element::Type_t::u4:
+        fill_data_ptr_consistently(static_cast<uint8_t*>(tensor.data()),
+                                   tensor.get_byte_size(),
+                                   range,
+                                   start_from,
+                                   resolution);
+        break;
+    default:
+        OPENVINO_THROW("Unsupported element type: ", element_type);
     }
 #undef CASE
     return tensor;
@@ -205,16 +229,16 @@ inline double calculate_median(std::vector<double>& abs_values) {
     auto expected_shape = abs_values.size();
     if (expected_shape % 2) {
         std::nth_element(abs_values.begin(), abs_values.begin() + expected_shape / 2, abs_values.end());
-        abs_median =  abs_values[expected_shape / 2];
+        abs_median = abs_values[expected_shape / 2];
     } else {
         std::nth_element(abs_values.begin(), abs_values.begin() + expected_shape / 2, abs_values.end());
         std::nth_element(abs_values.begin(), abs_values.begin() + (expected_shape - 1) / 2, abs_values.end());
-        abs_median = (abs_values[(expected_shape - 1) / 2]  + abs_values[expected_shape / 2]) / 2.0;
+        abs_median = (abs_values[(expected_shape - 1) / 2] + abs_values[expected_shape / 2]) / 2.0;
     }
     return abs_median;
 }
 
-template<typename ExpectedT, typename ActualT>
+template <typename ExpectedT, typename ActualT>
 void compare(const ov::Tensor& expected,
              const ov::Tensor& actual,
              const double abs_threshold_ = std::numeric_limits<double>::max(),
@@ -224,7 +248,7 @@ void compare(const ov::Tensor& expected,
     if (expected_shape != actual_shape) {
         std::ostringstream out_stream;
         out_stream << "Expected and actual shape are different: " << expected_shape << " " << actual_shape;
-        throw  std::runtime_error(out_stream.str());
+        throw std::runtime_error(out_stream.str());
     }
     if (shape_size(actual_shape) == 0) {
         return;
@@ -281,52 +305,55 @@ void compare(const ov::Tensor& expected,
 
     if (!(less_or_equal(abs_error.max, abs_threshold) && less_or_equal(rel_error.max, rel_threshold))) {
         std::ostringstream out_stream;
-        out_stream << "abs_max < abs_threshold && rel_max < rel_threshold" <<
-                "\n\t abs_max: " << abs_error.max <<
-                "\n\t\t coordinate " << abs_error.max_coordinate<<
-                "; abs errors count "  << abs_error.count  << "; abs mean " <<
-                abs_error.mean  << "; abs threshold "  << abs_threshold <<
-                "\n\t rel_max: "  << rel_error.max <<
-                "\n\t\t coordinate "  << rel_error.max_coordinate <<
-                "; rel errors count "  << rel_error.count  << "; rel mean " <<
-                rel_error.mean  << "; rel threshold "  << rel_threshold;
+        out_stream << "abs_max < abs_threshold && rel_max < rel_threshold"
+                   << "\n\t abs_max: " << abs_error.max << "\n\t\t coordinate " << abs_error.max_coordinate
+                   << "; abs errors count " << abs_error.count << "; abs mean " << abs_error.mean << "; abs threshold "
+                   << abs_threshold << "\n\t rel_max: " << rel_error.max << "\n\t\t coordinate "
+                   << rel_error.max_coordinate << "; rel errors count " << rel_error.count << "; rel mean "
+                   << rel_error.mean << "; rel threshold " << rel_threshold;
         throw std::runtime_error(out_stream.str());
     }
 }
 
-void compare(
-        const ov::Tensor& expected,
-        const ov::Tensor& actual,
-        const double abs_threshold,
-        const double rel_threshold) {
-#define CASE0(X, Y) case Y : compare<                   \
-    element_type_traits<X>::value_type,                 \
-    element_type_traits<Y>::value_type>(                \
-        expected, actual, abs_threshold, rel_threshold); break;
+void compare(const ov::Tensor& expected,
+             const ov::Tensor& actual,
+             const double abs_threshold,
+             const double rel_threshold) {
+#define CASE0(X, Y)                                                                                     \
+    case Y:                                                                                             \
+        compare<element_type_traits<X>::value_type, element_type_traits<Y>::value_type>(expected,       \
+                                                                                        actual,         \
+                                                                                        abs_threshold,  \
+                                                                                        rel_threshold); \
+        break;
 
-#define CASE(X)                                                     \
-    case X:                                                         \
-    switch (actual.get_element_type()) {                            \
-        CASE0(X, ov::element::Type_t::boolean)                      \
-        CASE0(X, ov::element::Type_t::bf16)                         \
-        CASE0(X, ov::element::Type_t::f16)                          \
-        CASE0(X, ov::element::Type_t::f32)                          \
-        CASE0(X, ov::element::Type_t::f64)                          \
-        CASE0(X, ov::element::Type_t::i4)                           \
-        CASE0(X, ov::element::Type_t::i8)                           \
-        CASE0(X, ov::element::Type_t::i16)                          \
-        CASE0(X, ov::element::Type_t::i32)                          \
-        CASE0(X, ov::element::Type_t::i64)                          \
-        CASE0(X, ov::element::Type_t::u1)                           \
-        CASE0(X, ov::element::Type_t::u4)                           \
-        CASE0(X, ov::element::Type_t::u8)                           \
-        CASE0(X, ov::element::Type_t::u16)                          \
-        CASE0(X, ov::element::Type_t::u32)                          \
-        CASE0(X, ov::element::Type_t::u64)                          \
-        default: OPENVINO_THROW("Unsupported element type: ", \
-            "expected ", expected.get_element_type(),               \
-            ", actual ", actual.get_element_type());                \
-    } break;
+#define CASE(X)                                          \
+    case X:                                              \
+        switch (actual.get_element_type()) {             \
+            CASE0(X, ov::element::Type_t::boolean)       \
+            CASE0(X, ov::element::Type_t::bf16)          \
+            CASE0(X, ov::element::Type_t::f16)           \
+            CASE0(X, ov::element::Type_t::f32)           \
+            CASE0(X, ov::element::Type_t::f64)           \
+            CASE0(X, ov::element::Type_t::i4)            \
+            CASE0(X, ov::element::Type_t::i8)            \
+            CASE0(X, ov::element::Type_t::i16)           \
+            CASE0(X, ov::element::Type_t::i32)           \
+            CASE0(X, ov::element::Type_t::i64)           \
+            CASE0(X, ov::element::Type_t::u1)            \
+            CASE0(X, ov::element::Type_t::u4)            \
+            CASE0(X, ov::element::Type_t::u8)            \
+            CASE0(X, ov::element::Type_t::u16)           \
+            CASE0(X, ov::element::Type_t::u32)           \
+            CASE0(X, ov::element::Type_t::u64)           \
+        default:                                         \
+            OPENVINO_THROW("Unsupported element type: ", \
+                           "expected ",                  \
+                           expected.get_element_type(),  \
+                           ", actual ",                  \
+                           actual.get_element_type());   \
+        }                                                \
+        break;
 
     switch (expected.get_element_type()) {
         CASE(ov::element::Type_t::boolean)
@@ -345,7 +372,8 @@ void compare(
         CASE(ov::element::Type_t::u16)
         CASE(ov::element::Type_t::u32)
         CASE(ov::element::Type_t::u64)
-        default: OPENVINO_THROW("Unsupported element type: ", expected.get_element_type());
+    default:
+        OPENVINO_THROW("Unsupported element type: ", expected.get_element_type());
     }
 #undef CASE0
 #undef CASE

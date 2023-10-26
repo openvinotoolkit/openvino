@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief This is a header file for the Inference Engine plugin C++ API
+ * @brief This is a header file for the OpenVINO plugin C++ API
  *
  * @file plugin.hpp
  */
@@ -41,7 +41,7 @@ public:
 
     const ov::Version get_version() const;
 
-    void add_extension(const ie::IExtensionPtr& extension);
+    void add_extension(const InferenceEngine::IExtensionPtr& extension);
 
     void set_property(const ov::AnyMap& config);
 
@@ -77,6 +77,7 @@ public:
     T get_property(const ov::Property<T, M>& property, const AnyMap& arguments) const {
         return get_property(property.name(), arguments).template as<T>();
     }
+    bool supports_model_caching(bool check_old_api = true) const;
 };
 
 }  // namespace ov

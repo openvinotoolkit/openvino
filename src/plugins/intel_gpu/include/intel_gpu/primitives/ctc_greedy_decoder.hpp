@@ -13,8 +13,6 @@ struct ctc_greedy_decoder : public primitive_base<ctc_greedy_decoder> {
 
     ctc_greedy_decoder() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs ctc_greedy_decoder primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id (input, sequence_indicators, second_output(optional)).
@@ -32,7 +30,7 @@ struct ctc_greedy_decoder : public primitive_base<ctc_greedy_decoder> {
         , output_tensor(output_tensor) {}
 
     uint32_t blank_index;
-    bool ctc_merge_repeated;
+    bool ctc_merge_repeated = false;
     tensor output_tensor;
     primitive_id second_output;
 

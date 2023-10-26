@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program.hpp"
+#include "openvino/op/proposal.hpp"
+
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
-
-#include "ngraph/op/proposal.hpp"
-
 #include "intel_gpu/primitives/proposal.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -14,7 +13,7 @@
 namespace ov {
 namespace intel_gpu {
 
-static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::Proposal>& op) {
+static void CreateProposalOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Proposal>& op) {
     validate_inputs_count(op, {3});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
@@ -105,8 +104,8 @@ static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
     } else {
         if (op->get_output_size() == 2) {
             auto mutable_precision = op->get_output_element_type(1);
-            if (mutable_precision == ngraph::element::i64) {
-                mutable_precision = ngraph::element::i32;
+            if (mutable_precision == ov::element::i64) {
+                mutable_precision = ov::element::i32;
             }
 
             cldnn::layout mutableLayout = cldnn::layout(cldnn::element_type_to_data_type(mutable_precision),
@@ -185,7 +184,7 @@ static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
 
             p.add_primitive(*op, proposalPrim);
         } else {
-            IE_THROW() << op->get_friendly_name() << " Incorrect Proposal outputs number";
+            OPENVINO_THROW(op->get_friendly_name(), " Incorrect Proposal outputs number");
         }
     }
 }

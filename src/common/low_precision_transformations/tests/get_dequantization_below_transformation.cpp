@@ -11,21 +11,21 @@
 #include <vector>
 
 #include <gtest/gtest.h>
-#include <low_precision/fake_quantize_decomposition.hpp>
+#include "low_precision/fake_quantize_decomposition.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "lpt_ngraph_functions/get_dequantization_function.hpp"
-#include <low_precision/common/fake_quantize_dequantization.hpp>
+#include "common_test_utils/ov_test_utils.hpp"
+#include "ov_lpt_models/get_dequantization.hpp"
+#include "low_precision/common/fake_quantize_dequantization.hpp"
 #include "low_precision/network_helper.hpp"
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 class GetDequantizationBelowTestValues {
 public:
-    builder::subgraph::FakeQuantizeOnData fakeQuantize;
-    builder::subgraph::DequantizationOperations dequantization;
+    ngraph:: builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ngraph:: builder::subgraph::DequantizationOperations dequantization;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& values) {
@@ -45,25 +45,25 @@ inline std::ostream& operator<<(std::ostream& out, const GetDequantizationBelowT
 }
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::Shape,
+    ov::element::Type,
+    ov::Shape,
     GetDequantizationBelowTestValues> GetDequantizationBelowParams;
 
 class GetDequantizationBelowTransformation : public LayerTransformation, public testing::WithParamInterface<GetDequantizationBelowParams> {
 public:
     void SetUp() override {
-        const ngraph::element::Type precision = std::get<0>(GetParam());
-        const ngraph::Shape shape = std::get<1>(GetParam());
+        const ov::element::Type precision = std::get<0>(GetParam());
+        const ov::Shape shape = std::get<1>(GetParam());
         const GetDequantizationBelowTestValues testValues = std::get<2>(GetParam());
 
-        auto const function = ngraph::builder::subgraph::GetDequantizationFunction::get(
+        auto const model = ngraph::builder::subgraph::GetDequantizationFunction::get(
             precision,
             shape,
             testValues.fakeQuantize,
             testValues.dequantization);
 
-        auto const fakeQuantize = function->get_parameters()[0]->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
-        auto dequantization = ngraph::pass::low_precision::NetworkHelper::getDequantizationBelow(fakeQuantize);
+        auto const fakeQuantize = model->get_parameters()[0]->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
+        auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantizationBelow(fakeQuantize);
 
         actualFunction = ngraph::builder::subgraph::GetDequantizationFunction::get(
             precision,
@@ -79,8 +79,8 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<GetDequantizationBelowParams> obj) {
-        ngraph::element::Type precision;
-        ngraph::Shape shape;
+        ov::element::Type precision;
+        ov::Shape shape;
         GetDequantizationBelowTestValues testValues;
         std::tie(precision, shape, testValues) = obj.param;
 
@@ -96,30 +96,30 @@ TEST_P(GetDequantizationBelowTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
+const std::vector<ov::element::Type> precisions = {
+    ov::element::f32,
 };
 
 const std::vector<GetDequantizationBelowTestValues> testValues = {
     {
-        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ngraph::element::u8 },
-        { ngraph::element::f32, {}, { 0.01f } }
+        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ov::element::u8 },
+        { ov::element::f32, {}, { 0.01f } }
     },
     {
-        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ngraph::element::u8 },
-        { ngraph::element::f32, { 127.f }, { 0.01f } }
+        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ov::element::u8 },
+        { ov::element::f32, { 127.f }, { 0.01f } }
     },
     {
-        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ngraph::element::u8 },
+        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ov::element::u8 },
         {
-            ngraph::element::f32,
-            {{ 127.f }, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true},
+            ov::element::f32,
+            {{ 127.f }, ov::element::f32, {}, false, 1, ov::element::u8, true},
             { 0.01f }
         }
     }
 };
 
-const std::vector<ngraph::Shape> shapes = {
+const std::vector<ov::Shape> shapes = {
     { 1, 32, 72, 48 },
     // TODO: 3D tensor
 };

@@ -17,8 +17,8 @@ public:
                      const std::shared_ptr<ov::autobatch_plugin::CompiledModel::WorkerInferRequest>& worker_request,
                      int batch_id,
                      int num_batch,
-                     const std::set<std::string>& batched_inputs,
-                     const std::set<std::string>& batched_outputs);
+                     const std::set<std::string>& batched_inputs = {},
+                     const std::set<std::string>& batched_outputs = {});
 
     // Batch-Device impl specific: sets the data (blobs from the device request to the batched device request)
     void set_tensors_to_another_request(ov::SoPtr<ov::IAsyncInferRequest>& req);
@@ -42,6 +42,8 @@ public:
         BATCH_EXECUTED,
         TIMEOUT_EXECUTED
     } m_batched_request_status = eExecutionFlavor::NOT_EXECUTED;
+
+    size_t get_batch_size() const;
 
 protected:
     void copy_tensor_if_needed(const ov::SoPtr<ov::ITensor>& src, ov::SoPtr<ov::ITensor>& dst, const bool bInput);

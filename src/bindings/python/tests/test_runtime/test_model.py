@@ -7,12 +7,11 @@ import numpy as np
 import pytest
 import math
 
-import openvino.runtime.opset12 as ops
-from openvino.runtime import (
+import openvino.runtime.opset13 as ops
+from openvino import (
     Core,
     Model,
     Tensor,
-    Output,
     Dimension,
     Layout,
     Type,
@@ -22,8 +21,9 @@ from openvino.runtime import (
     get_batch,
     serialize,
 )
+from openvino.runtime import Output
 
-from tests.test_utils.test_utils import generate_add_model, create_filename_for_test
+from tests.utils.helpers import generate_add_model, create_filename_for_test
 
 
 def test_test_descriptor_tensor():
@@ -289,7 +289,7 @@ def test_evaluate_invalid_input_shape():
             [Tensor("float32", Shape([2, 1]))],
             [Tensor("float32", Shape([3, 1])), Tensor("float32", Shape([3, 1]))],
         )
-    assert "must be compatible with the partial shape: [2,1]" in str(e.value)
+    assert "Cannot evaluate model!" in str(e.value)
 
 
 def test_get_batch():
@@ -657,3 +657,12 @@ def test_model_add_remove_result_parameter_sink():
     assert ["Assign"] == [sink.get_type_name() for sink in assign_nodes]
     model.remove_sink(assign)
     assert len(model.sinks) == 0
+
+
+def test_model_get_raw_address():
+    model = generate_add_model()
+    model_with_same_addr = model
+    model_different = generate_add_model()
+
+    assert model._get_raw_address() == model_with_same_addr._get_raw_address()
+    assert model._get_raw_address() != model_different._get_raw_address()

@@ -7,17 +7,17 @@
 #include <legacy/ngraph_ops/nms_ie.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
 #include <memory>
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset5.hpp>
-#include <ngraph/pass/manager.hpp>
+#include <openvino/core/model.hpp>
+#include <openvino/opsets/opset5.hpp>
+#include <openvino/pass/manager.hpp>
 #include <string>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 
 using namespace testing;
-using namespace ngraph;
+using namespace ov;
 
 TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEStaticSixInputs) {
     {
@@ -26,7 +26,7 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEStaticSixInputs) {
         auto max_output_boxes_per_class = opset5::Constant::create(element::i64, Shape{}, {10});
         auto iou_threshold = opset5::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.7});
-        auto soft_nms_sigma = ngraph::opset5::Constant::create(element::f32, Shape{}, {0.25});
+        auto soft_nms_sigma = ov::opset5::Constant::create(element::f32, Shape{}, {0.25});
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes,
                                                                scores,
                                                                max_output_boxes_per_class,
@@ -37,9 +37,9 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEStaticSixInputs) {
                                                                true,
                                                                element::i32);
 
-        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
+        manager.register_pass<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
     }
 
     {
@@ -48,36 +48,36 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEStaticSixInputs) {
         auto max_output_boxes_per_class = opset5::Constant::create(element::i64, Shape{}, {10});
         auto iou_threshold = opset5::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.7});
-        auto soft_nms_sigma = ngraph::opset5::Constant::create(element::f32, Shape{}, {0.25});
+        auto soft_nms_sigma = ov::opset5::Constant::create(element::f32, Shape{}, {0.25});
 
         auto one_dim_shape = Shape{1};
-        auto new_max_per_class = std::make_shared<opset5::Reshape>(
-            max_output_boxes_per_class,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_iou_threshold = std::make_shared<opset5::Reshape>(
-            iou_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_score_threshold = std::make_shared<opset5::Reshape>(
-            score_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_soft_nms_sigma = std::make_shared<opset5::Reshape>(
-            soft_nms_sigma,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes,
-                                                              scores,
-                                                              new_max_per_class,
-                                                              new_iou_threshold,
-                                                              new_score_threshold,
-                                                              new_soft_nms_sigma,
-                                                              0,
-                                                              true,
-                                                              element::i32);
+        auto new_max_per_class =
+            std::make_shared<opset5::Reshape>(max_output_boxes_per_class,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_iou_threshold =
+            std::make_shared<opset5::Reshape>(iou_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_score_threshold =
+            std::make_shared<opset5::Reshape>(score_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_soft_nms_sigma =
+            std::make_shared<opset5::Reshape>(soft_nms_sigma,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto nms = std::make_shared<ngraph::op::NonMaxSuppressionIE3>(boxes,
+                                                                      scores,
+                                                                      new_max_per_class,
+                                                                      new_iou_threshold,
+                                                                      new_score_threshold,
+                                                                      new_soft_nms_sigma,
+                                                                      0,
+                                                                      true,
+                                                                      element::i32);
 
-        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -97,9 +97,9 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEStaticFiveInputs) {
                                                                true,
                                                                element::i32);
 
-        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
+        manager.register_pass<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
     }
 
     {
@@ -110,28 +110,28 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEStaticFiveInputs) {
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.7});
 
         auto one_dim_shape = Shape{1};
-        auto new_max_per_class = std::make_shared<opset5::Reshape>(
-            max_output_boxes_per_class,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_iou_threshold = std::make_shared<opset5::Reshape>(
-            iou_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_score_threshold = std::make_shared<opset5::Reshape>(
-            score_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes,
-                                                              scores,
-                                                              new_max_per_class,
-                                                              new_iou_threshold,
-                                                              new_score_threshold,
-                                                              0,
-                                                              true,
-                                                              element::i32);
+        auto new_max_per_class =
+            std::make_shared<opset5::Reshape>(max_output_boxes_per_class,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_iou_threshold =
+            std::make_shared<opset5::Reshape>(iou_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_score_threshold =
+            std::make_shared<opset5::Reshape>(score_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto nms = std::make_shared<ngraph::op::NonMaxSuppressionIE3>(boxes,
+                                                                      scores,
+                                                                      new_max_per_class,
+                                                                      new_iou_threshold,
+                                                                      new_score_threshold,
+                                                                      0,
+                                                                      true,
+                                                                      element::i32);
 
-        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -149,9 +149,9 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEStaticFourInputs) {
                                                                true,
                                                                element::i32);
 
-        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
+        manager.register_pass<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
     }
 
     {
@@ -162,28 +162,28 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEStaticFourInputs) {
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.0f});
 
         auto one_dim_shape = Shape{1};
-        auto new_max_per_class = std::make_shared<opset5::Reshape>(
-            max_output_boxes_per_class,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_iou_threshold = std::make_shared<opset5::Reshape>(
-            iou_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_score_threshold = std::make_shared<opset5::Reshape>(
-            score_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes,
-                                                              scores,
-                                                              new_max_per_class,
-                                                              new_iou_threshold,
-                                                              new_score_threshold,
-                                                              0,
-                                                              true,
-                                                              element::i32);
+        auto new_max_per_class =
+            std::make_shared<opset5::Reshape>(max_output_boxes_per_class,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_iou_threshold =
+            std::make_shared<opset5::Reshape>(iou_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_score_threshold =
+            std::make_shared<opset5::Reshape>(score_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto nms = std::make_shared<ngraph::op::NonMaxSuppressionIE3>(boxes,
+                                                                      scores,
+                                                                      new_max_per_class,
+                                                                      new_iou_threshold,
+                                                                      new_score_threshold,
+                                                                      0,
+                                                                      true,
+                                                                      element::i32);
 
-        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -199,9 +199,9 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEStaticThreeInputs) {
                                                                true,
                                                                element::i32);
 
-        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
+        manager.register_pass<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
     }
 
     {
@@ -212,28 +212,28 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEStaticThreeInputs) {
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.0f});
 
         auto one_dim_shape = Shape{1};
-        auto new_max_per_class = std::make_shared<opset5::Reshape>(
-            max_output_boxes_per_class,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_iou_threshold = std::make_shared<opset5::Reshape>(
-            iou_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_score_threshold = std::make_shared<opset5::Reshape>(
-            score_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes,
-                                                              scores,
-                                                              new_max_per_class,
-                                                              new_iou_threshold,
-                                                              new_score_threshold,
-                                                              0,
-                                                              true,
-                                                              element::i32);
+        auto new_max_per_class =
+            std::make_shared<opset5::Reshape>(max_output_boxes_per_class,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_iou_threshold =
+            std::make_shared<opset5::Reshape>(iou_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_score_threshold =
+            std::make_shared<opset5::Reshape>(score_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto nms = std::make_shared<ngraph::op::NonMaxSuppressionIE3>(boxes,
+                                                                      scores,
+                                                                      new_max_per_class,
+                                                                      new_iou_threshold,
+                                                                      new_score_threshold,
+                                                                      0,
+                                                                      true,
+                                                                      element::i32);
 
-        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -247,9 +247,9 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEStaticTwoInputs) {
                                                                true,
                                                                element::i32);
 
-        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
+        manager.register_pass<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
     }
 
     {
@@ -260,28 +260,28 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEStaticTwoInputs) {
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.0f});
 
         auto one_dim_shape = Shape{1};
-        auto new_max_per_class = std::make_shared<opset5::Reshape>(
-            max_output_boxes_per_class,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_iou_threshold = std::make_shared<opset5::Reshape>(
-            iou_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_score_threshold = std::make_shared<opset5::Reshape>(
-            score_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes,
-                                                              scores,
-                                                              new_max_per_class,
-                                                              new_iou_threshold,
-                                                              new_score_threshold,
-                                                              0,
-                                                              true,
-                                                              element::i32);
+        auto new_max_per_class =
+            std::make_shared<opset5::Reshape>(max_output_boxes_per_class,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_iou_threshold =
+            std::make_shared<opset5::Reshape>(iou_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_score_threshold =
+            std::make_shared<opset5::Reshape>(score_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto nms = std::make_shared<ngraph::op::NonMaxSuppressionIE3>(boxes,
+                                                                      scores,
+                                                                      new_max_per_class,
+                                                                      new_iou_threshold,
+                                                                      new_score_threshold,
+                                                                      0,
+                                                                      true,
+                                                                      element::i32);
 
-        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -292,7 +292,7 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic1SixInputs) {
         auto max_output_boxes_per_class = opset5::Constant::create(element::i64, Shape{}, {10});
         auto iou_threshold = opset5::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.7});
-        auto soft_nms_sigma = ngraph::opset5::Constant::create(element::f32, Shape{}, {0.25});
+        auto soft_nms_sigma = ov::opset5::Constant::create(element::f32, Shape{}, {0.25});
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes,
                                                                scores,
                                                                max_output_boxes_per_class,
@@ -303,9 +303,9 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic1SixInputs) {
                                                                true,
                                                                element::i32);
 
-        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
+        manager.register_pass<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
     }
 
     {
@@ -314,36 +314,36 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic1SixInputs) {
         auto max_output_boxes_per_class = opset5::Constant::create(element::i64, Shape{}, {10});
         auto iou_threshold = opset5::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.7});
-        auto soft_nms_sigma = ngraph::opset5::Constant::create(element::f32, Shape{}, {0.25});
+        auto soft_nms_sigma = ov::opset5::Constant::create(element::f32, Shape{}, {0.25});
 
         auto one_dim_shape = Shape{1};
-        auto new_max_per_class = std::make_shared<opset5::Reshape>(
-            max_output_boxes_per_class,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_iou_threshold = std::make_shared<opset5::Reshape>(
-            iou_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_score_threshold = std::make_shared<opset5::Reshape>(
-            score_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_soft_nms_sigma = std::make_shared<opset5::Reshape>(
-            soft_nms_sigma,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes,
-                                                              scores,
-                                                              new_max_per_class,
-                                                              new_iou_threshold,
-                                                              new_score_threshold,
-                                                              new_soft_nms_sigma,
-                                                              0,
-                                                              true,
-                                                              element::i32);
+        auto new_max_per_class =
+            std::make_shared<opset5::Reshape>(max_output_boxes_per_class,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_iou_threshold =
+            std::make_shared<opset5::Reshape>(iou_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_score_threshold =
+            std::make_shared<opset5::Reshape>(score_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_soft_nms_sigma =
+            std::make_shared<opset5::Reshape>(soft_nms_sigma,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto nms = std::make_shared<ngraph::op::NonMaxSuppressionIE3>(boxes,
+                                                                      scores,
+                                                                      new_max_per_class,
+                                                                      new_iou_threshold,
+                                                                      new_score_threshold,
+                                                                      new_soft_nms_sigma,
+                                                                      0,
+                                                                      true,
+                                                                      element::i32);
 
-        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -363,9 +363,9 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic1FiveInputs) {
                                                                true,
                                                                element::i32);
 
-        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
+        manager.register_pass<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
     }
 
     {
@@ -376,28 +376,28 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic1FiveInputs) {
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.7});
 
         auto one_dim_shape = Shape{1};
-        auto new_max_per_class = std::make_shared<opset5::Reshape>(
-            max_output_boxes_per_class,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_iou_threshold = std::make_shared<opset5::Reshape>(
-            iou_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_score_threshold = std::make_shared<opset5::Reshape>(
-            score_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes,
-                                                              scores,
-                                                              new_max_per_class,
-                                                              new_iou_threshold,
-                                                              new_score_threshold,
-                                                              0,
-                                                              true,
-                                                              element::i32);
+        auto new_max_per_class =
+            std::make_shared<opset5::Reshape>(max_output_boxes_per_class,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_iou_threshold =
+            std::make_shared<opset5::Reshape>(iou_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_score_threshold =
+            std::make_shared<opset5::Reshape>(score_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto nms = std::make_shared<ngraph::op::NonMaxSuppressionIE3>(boxes,
+                                                                      scores,
+                                                                      new_max_per_class,
+                                                                      new_iou_threshold,
+                                                                      new_score_threshold,
+                                                                      0,
+                                                                      true,
+                                                                      element::i32);
 
-        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -415,9 +415,9 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic1FourInputs) {
                                                                true,
                                                                element::i32);
 
-        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
+        manager.register_pass<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
     }
 
     {
@@ -428,28 +428,28 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic1FourInputs) {
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.0f});
 
         auto one_dim_shape = Shape{1};
-        auto new_max_per_class = std::make_shared<opset5::Reshape>(
-            max_output_boxes_per_class,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_iou_threshold = std::make_shared<opset5::Reshape>(
-            iou_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_score_threshold = std::make_shared<opset5::Reshape>(
-            score_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes,
-                                                              scores,
-                                                              new_max_per_class,
-                                                              new_iou_threshold,
-                                                              new_score_threshold,
-                                                              0,
-                                                              true,
-                                                              element::i32);
+        auto new_max_per_class =
+            std::make_shared<opset5::Reshape>(max_output_boxes_per_class,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_iou_threshold =
+            std::make_shared<opset5::Reshape>(iou_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_score_threshold =
+            std::make_shared<opset5::Reshape>(score_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto nms = std::make_shared<ngraph::op::NonMaxSuppressionIE3>(boxes,
+                                                                      scores,
+                                                                      new_max_per_class,
+                                                                      new_iou_threshold,
+                                                                      new_score_threshold,
+                                                                      0,
+                                                                      true,
+                                                                      element::i32);
 
-        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -465,9 +465,9 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic1ThreeInputs) {
                                                                true,
                                                                element::i32);
 
-        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
+        manager.register_pass<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
     }
 
     {
@@ -478,28 +478,28 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic1ThreeInputs) {
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.0f});
 
         auto one_dim_shape = Shape{1};
-        auto new_max_per_class = std::make_shared<opset5::Reshape>(
-            max_output_boxes_per_class,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_iou_threshold = std::make_shared<opset5::Reshape>(
-            iou_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_score_threshold = std::make_shared<opset5::Reshape>(
-            score_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes,
-                                                              scores,
-                                                              new_max_per_class,
-                                                              new_iou_threshold,
-                                                              new_score_threshold,
-                                                              0,
-                                                              true,
-                                                              element::i32);
+        auto new_max_per_class =
+            std::make_shared<opset5::Reshape>(max_output_boxes_per_class,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_iou_threshold =
+            std::make_shared<opset5::Reshape>(iou_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_score_threshold =
+            std::make_shared<opset5::Reshape>(score_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto nms = std::make_shared<ngraph::op::NonMaxSuppressionIE3>(boxes,
+                                                                      scores,
+                                                                      new_max_per_class,
+                                                                      new_iou_threshold,
+                                                                      new_score_threshold,
+                                                                      0,
+                                                                      true,
+                                                                      element::i32);
 
-        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -513,9 +513,9 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic1TwoInputs) {
                                                                true,
                                                                element::i32);
 
-        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
+        manager.register_pass<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
     }
 
     {
@@ -526,28 +526,28 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic1TwoInputs) {
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.0f});
 
         auto one_dim_shape = Shape{1};
-        auto new_max_per_class = std::make_shared<opset5::Reshape>(
-            max_output_boxes_per_class,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_iou_threshold = std::make_shared<opset5::Reshape>(
-            iou_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_score_threshold = std::make_shared<opset5::Reshape>(
-            score_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes,
-                                                              scores,
-                                                              new_max_per_class,
-                                                              new_iou_threshold,
-                                                              new_score_threshold,
-                                                              0,
-                                                              true,
-                                                              element::i32);
+        auto new_max_per_class =
+            std::make_shared<opset5::Reshape>(max_output_boxes_per_class,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_iou_threshold =
+            std::make_shared<opset5::Reshape>(iou_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_score_threshold =
+            std::make_shared<opset5::Reshape>(score_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto nms = std::make_shared<ngraph::op::NonMaxSuppressionIE3>(boxes,
+                                                                      scores,
+                                                                      new_max_per_class,
+                                                                      new_iou_threshold,
+                                                                      new_score_threshold,
+                                                                      0,
+                                                                      true,
+                                                                      element::i32);
 
-        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -558,7 +558,7 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic2SixInputs) {
         auto max_output_boxes_per_class = opset5::Constant::create(element::i64, Shape{}, {10});
         auto iou_threshold = opset5::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.7});
-        auto soft_nms_sigma = ngraph::opset5::Constant::create(element::f32, Shape{}, {0.25});
+        auto soft_nms_sigma = ov::opset5::Constant::create(element::f32, Shape{}, {0.25});
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes,
                                                                scores,
                                                                max_output_boxes_per_class,
@@ -569,9 +569,9 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic2SixInputs) {
                                                                true,
                                                                element::i32);
 
-        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
+        manager.register_pass<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
     }
 
     {
@@ -580,36 +580,36 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic2SixInputs) {
         auto max_output_boxes_per_class = opset5::Constant::create(element::i64, Shape{}, {10});
         auto iou_threshold = opset5::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.7});
-        auto soft_nms_sigma = ngraph::opset5::Constant::create(element::f32, Shape{}, {0.25});
+        auto soft_nms_sigma = ov::opset5::Constant::create(element::f32, Shape{}, {0.25});
 
         auto one_dim_shape = Shape{1};
-        auto new_max_per_class = std::make_shared<opset5::Reshape>(
-            max_output_boxes_per_class,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_iou_threshold = std::make_shared<opset5::Reshape>(
-            iou_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_score_threshold = std::make_shared<opset5::Reshape>(
-            score_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_soft_nms_sigma = std::make_shared<opset5::Reshape>(
-            soft_nms_sigma,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes,
-                                                              scores,
-                                                              new_max_per_class,
-                                                              new_iou_threshold,
-                                                              new_score_threshold,
-                                                              new_soft_nms_sigma,
-                                                              0,
-                                                              true,
-                                                              element::i32);
+        auto new_max_per_class =
+            std::make_shared<opset5::Reshape>(max_output_boxes_per_class,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_iou_threshold =
+            std::make_shared<opset5::Reshape>(iou_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_score_threshold =
+            std::make_shared<opset5::Reshape>(score_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_soft_nms_sigma =
+            std::make_shared<opset5::Reshape>(soft_nms_sigma,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto nms = std::make_shared<ngraph::op::NonMaxSuppressionIE3>(boxes,
+                                                                      scores,
+                                                                      new_max_per_class,
+                                                                      new_iou_threshold,
+                                                                      new_score_threshold,
+                                                                      new_soft_nms_sigma,
+                                                                      0,
+                                                                      true,
+                                                                      element::i32);
 
-        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -629,9 +629,9 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic2FiveInputs) {
                                                                true,
                                                                element::i32);
 
-        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
+        manager.register_pass<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
     }
 
     {
@@ -642,28 +642,28 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic2FiveInputs) {
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.7});
 
         auto one_dim_shape = Shape{1};
-        auto new_max_per_class = std::make_shared<opset5::Reshape>(
-            max_output_boxes_per_class,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_iou_threshold = std::make_shared<opset5::Reshape>(
-            iou_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_score_threshold = std::make_shared<opset5::Reshape>(
-            score_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes,
-                                                              scores,
-                                                              new_max_per_class,
-                                                              new_iou_threshold,
-                                                              new_score_threshold,
-                                                              0,
-                                                              true,
-                                                              element::i32);
+        auto new_max_per_class =
+            std::make_shared<opset5::Reshape>(max_output_boxes_per_class,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_iou_threshold =
+            std::make_shared<opset5::Reshape>(iou_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_score_threshold =
+            std::make_shared<opset5::Reshape>(score_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto nms = std::make_shared<ngraph::op::NonMaxSuppressionIE3>(boxes,
+                                                                      scores,
+                                                                      new_max_per_class,
+                                                                      new_iou_threshold,
+                                                                      new_score_threshold,
+                                                                      0,
+                                                                      true,
+                                                                      element::i32);
 
-        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -681,9 +681,9 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic2FourInputs) {
                                                                true,
                                                                element::i32);
 
-        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
+        manager.register_pass<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
     }
 
     {
@@ -694,28 +694,28 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic2FourInputs) {
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.0f});
 
         auto one_dim_shape = Shape{1};
-        auto new_max_per_class = std::make_shared<opset5::Reshape>(
-            max_output_boxes_per_class,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_iou_threshold = std::make_shared<opset5::Reshape>(
-            iou_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_score_threshold = std::make_shared<opset5::Reshape>(
-            score_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes,
-                                                              scores,
-                                                              new_max_per_class,
-                                                              new_iou_threshold,
-                                                              new_score_threshold,
-                                                              0,
-                                                              true,
-                                                              element::i32);
+        auto new_max_per_class =
+            std::make_shared<opset5::Reshape>(max_output_boxes_per_class,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_iou_threshold =
+            std::make_shared<opset5::Reshape>(iou_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_score_threshold =
+            std::make_shared<opset5::Reshape>(score_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto nms = std::make_shared<ngraph::op::NonMaxSuppressionIE3>(boxes,
+                                                                      scores,
+                                                                      new_max_per_class,
+                                                                      new_iou_threshold,
+                                                                      new_score_threshold,
+                                                                      0,
+                                                                      true,
+                                                                      element::i32);
 
-        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -731,9 +731,9 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic2ThreeInputs) {
                                                                true,
                                                                element::i32);
 
-        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
+        manager.register_pass<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
     }
 
     {
@@ -744,28 +744,28 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic2ThreeInputs) {
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.0f});
 
         auto one_dim_shape = Shape{1};
-        auto new_max_per_class = std::make_shared<opset5::Reshape>(
-            max_output_boxes_per_class,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_iou_threshold = std::make_shared<opset5::Reshape>(
-            iou_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_score_threshold = std::make_shared<opset5::Reshape>(
-            score_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes,
-                                                              scores,
-                                                              new_max_per_class,
-                                                              new_iou_threshold,
-                                                              new_score_threshold,
-                                                              0,
-                                                              true,
-                                                              element::i32);
+        auto new_max_per_class =
+            std::make_shared<opset5::Reshape>(max_output_boxes_per_class,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_iou_threshold =
+            std::make_shared<opset5::Reshape>(iou_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_score_threshold =
+            std::make_shared<opset5::Reshape>(score_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto nms = std::make_shared<ngraph::op::NonMaxSuppressionIE3>(boxes,
+                                                                      scores,
+                                                                      new_max_per_class,
+                                                                      new_iou_threshold,
+                                                                      new_score_threshold,
+                                                                      0,
+                                                                      true,
+                                                                      element::i32);
 
-        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -778,9 +778,9 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic2TwoInputs) {
                                                                opset5::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                true);
 
-        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
+        manager.register_pass<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
     }
 
     {
@@ -791,29 +791,29 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic2TwoInputs) {
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.0f});
 
         auto one_dim_shape = Shape{1};
-        auto new_max_per_class = std::make_shared<opset5::Reshape>(
-            max_output_boxes_per_class,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_iou_threshold = std::make_shared<opset5::Reshape>(
-            iou_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto new_score_threshold = std::make_shared<opset5::Reshape>(
-            score_threshold,
-            opset5::Constant::create(ngraph::element::i64, one_dim_shape, one_dim_shape),
-            true);
-        auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes,
-                                                              scores,
-                                                              new_max_per_class,
-                                                              new_iou_threshold,
-                                                              new_score_threshold,
-                                                              0,
-                                                              true,
-                                                              element::i32);
+        auto new_max_per_class =
+            std::make_shared<opset5::Reshape>(max_output_boxes_per_class,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_iou_threshold =
+            std::make_shared<opset5::Reshape>(iou_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto new_score_threshold =
+            std::make_shared<opset5::Reshape>(score_threshold,
+                                              opset5::Constant::create(ov::element::i64, one_dim_shape, one_dim_shape),
+                                              true);
+        auto nms = std::make_shared<ngraph::op::NonMaxSuppressionIE3>(boxes,
+                                                                      scores,
+                                                                      new_max_per_class,
+                                                                      new_iou_threshold,
+                                                                      new_score_threshold,
+                                                                      0,
+                                                                      true,
+                                                                      element::i32);
 
         auto convert_0 = std::make_shared<ov::op::v0::Convert>(nms->output(0), element::i64);
 
-        function_ref = std::make_shared<Function>(NodeVector{convert_0}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(NodeVector{convert_0}, ParameterVector{boxes, scores});
     }
 }

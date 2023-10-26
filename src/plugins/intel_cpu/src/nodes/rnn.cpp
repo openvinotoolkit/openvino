@@ -13,7 +13,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <common/primitive_hashing_utils.hpp>
 #include <memory>
-#include <utils/shape_inference/shape_inference_ngraph.hpp>
+#include <shape_inference/shape_inference_ngraph.hpp>
 #include "transformations/utils/utils.hpp"
 
 #include "ov_ops/augru_cell.hpp"
@@ -133,6 +133,7 @@ inline bool haveAttention(const dnnl::algorithm& alg) {
 const std::map<memory::data_type, memory::data_type> RNN::weightsByinputDataType {
     // layer data type        weights data type
     {memory::data_type::f32,  memory::data_type::f32},
+    {memory::data_type::f16,  memory::data_type::f16},
     {memory::data_type::bf16, memory::data_type::bf16},
     {memory::data_type::u8,   memory::data_type::s8},
     {memory::data_type::s8,   memory::data_type::s8},
@@ -351,9 +352,9 @@ bool RNN::testNativeOrder(const std::shared_ptr<const ngraph::Node>& op) {
 
 namespace {
 /**
- * Extends Rnn ngraph shape inference implementation. The main purpose of this class is to do the trick with 
+ * Extends Rnn ngraph shape inference implementation. The main purpose of this class is to do the trick with
  * dimentions permutation, necessary due to the mismatch between the ngrpah and the oneDNN RNN node descriptions.
- *  
+ *
  */
 class RnnShapeInfer : public NgraphShapeInfer {
 public:
@@ -504,6 +505,10 @@ void RNN::configurePortDataTypes() {
 
     if (one_of(memory::data_type::bf16, inDataTypes[xIdx], inDataTypes[hIdx]))
         inDataTypes[xIdx] = outDataTypes[yIdx] = outDataTypes[hoIdx] = inDataTypes[hIdx] = memory::data_type::bf16; // required by oneDNN.
+
+    if (one_of(memory::data_type::f16, inDataTypes[xIdx], inDataTypes[hIdx]))
+        // onednn doesn't have fp16 instance
+        inDataTypes[xIdx] = outDataTypes[yIdx] = outDataTypes[hoIdx] = inDataTypes[hIdx] = memory::data_type::f32; // required by oneDNN.
 
     if (outDataTypes[yIdx] == memory::data_type::bf16 && one_of(inDataTypes[xIdx], memory::data_type::s8, memory::data_type::u8))
         outDataTypes[yIdx] = memory::data_type::f32; // oneDNN does not support bf16 output precision for quantized rnn primitive yet
@@ -882,7 +887,7 @@ void RNN::copyWeightsData() {
     }
 
     const auto& dataType = inDataTypes[xIdx];
-    if (dataType == memory::data_type::bf16) {
+    if (one_of(dataType, memory::data_type::bf16, memory::data_type::f16)) {
         fillWeights<uint16_t>(gate_map, wIdx, rIdx);
     } else if (dataType == memory::data_type::f32) {
         // WA To avoid different weights layer and iter formats in FP32 case

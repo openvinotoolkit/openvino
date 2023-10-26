@@ -5,14 +5,11 @@
 #include "transformations/op_conversions/batch_norm_decomposition.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/or.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <openvino/core/validation_util.hpp>
-#include <transformations/utils/utils.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/batch_norm.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -23,6 +20,9 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sqrt.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov;
 
@@ -38,9 +38,9 @@ ov::pass::BatchNormDecomposition::BatchNormDecomposition() {
                                                                     pattern::any_input(pattern::has_static_shape()),
                                                                     pattern::any_input(pattern::has_static_shape()),
                                                                     pattern::any_input(pattern::has_static_shape())});
-    auto bn = std::make_shared<ngraph::pattern::op::Or>(OutputVector{bn_1, bn_5});
+    auto bn = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{bn_1, bn_5});
 
-    matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
+    matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
         auto m_bn = m.get_match_root();
         Output<Node> m_input, m_gamma, m_beta, m_mean, m_var;
         double eps;
@@ -113,6 +113,6 @@ ov::pass::BatchNormDecomposition::BatchNormDecomposition() {
 
         return true;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(bn, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(bn, matcher_name);
     this->register_matcher(m, callback);
 }

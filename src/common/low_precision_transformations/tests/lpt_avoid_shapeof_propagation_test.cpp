@@ -7,9 +7,9 @@
 #include <memory>
 #include <sstream>
 #include <string>
-#include <transformations/utils/utils.hpp>
+#include "transformations/utils/utils.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "low_precision/add.hpp"
 #include "low_precision/avg_pool.hpp"
 #include "low_precision/clamp.hpp"
@@ -22,7 +22,7 @@
 #include "low_precision/interpolate.hpp"
 #include "low_precision/mat_mul.hpp"
 #include "low_precision/max_pool.hpp"
-#include "low_precision/multiply.hpp"
+#include "low_precision/multiply_partial.hpp"
 #include "low_precision/mvn.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/normalize_l2.hpp"
@@ -41,11 +41,11 @@
 #include "low_precision/transpose.hpp"
 #include "low_precision/unsqueeze.hpp"
 #include "low_precision/variadic_split.hpp"
-#include "lpt_ngraph_functions/common/builders.hpp"
+#include "ov_lpt_models/common/builders.hpp"
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 TEST(LPT, AvoidDequantizationToShapeOfPropagationAddTransformation) {
     auto input1 = std::make_shared<ov::op::v0::Parameter>(element::u8, PartialShape{1, 3, 16, 16});
@@ -63,12 +63,12 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationAddTransformation) {
     auto result1 = std::make_shared<ov::op::v0::Result>(add);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input1, input2});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input1, input2});
     pass::Manager m;
-    m.register_pass<pass::low_precision::AddTransformation>();
+    m.register_pass<ov::pass::low_precision::AddTransformation>();
     m.run_passes(f);
 
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -84,12 +84,12 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationAvgPoolTransformation) {
     auto result1 = std::make_shared<ov::op::v0::Result>(avgPool);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::AvgPoolTransformation>();
+    m.register_pass<ov::pass::low_precision::AvgPoolTransformation>();
     m.run_passes(f);
 
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -104,12 +104,12 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationClampTransformation) {
     auto result1 = std::make_shared<ov::op::v0::Result>(clamp);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::ClampTransformation>();
+    m.register_pass<ov::pass::low_precision::ClampTransformation>();
     m.run_passes(f);
 
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -129,12 +129,12 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationConcatTransformation) {
     auto result1 = std::make_shared<ov::op::v0::Result>(concat);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input1, input2});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input1, input2});
     pass::Manager m;
-    m.register_pass<pass::low_precision::ConcatTransformation>();
+    m.register_pass<ov::pass::low_precision::ConcatTransformation>();
     m.run_passes(f);
 
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -160,11 +160,11 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationConvolutionTransformation) {
     auto result1 = std::make_shared<ov::op::v0::Result>(convolution);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::ConvolutionTransformation>();
+    m.register_pass<ov::pass::low_precision::ConvolutionTransformation>();
     m.run_passes(f);
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -190,11 +190,11 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationConvolutionBackpropDataTransfor
     auto result1 = std::make_shared<ov::op::v0::Result>(convolutionBackpropData);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::ConvolutionBackpropDataTransformation>();
+    m.register_pass<ov::pass::low_precision::ConvolutionBackpropDataTransformation>();
     m.run_passes(f);
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -209,12 +209,12 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationDepthToSpaceTransformation) {
     auto result1 = std::make_shared<ov::op::v0::Result>(d2s);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::DepthToSpaceTransformation>();
+    m.register_pass<ov::pass::low_precision::DepthToSpaceTransformation>();
     m.run_passes(f);
 
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -226,18 +226,18 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationFakeQuantizeDecompositionTransf
     auto shapeOf = std::make_shared<ov::op::v0::ShapeOf>(fakeQuantize);
 
     auto& outInfo = fakeQuantize->output(0).get_rt_info();
-    outInfo.emplace(PrecisionsAttribute::get_type_info_static(),
-                    PrecisionsAttribute(element::TypeVector{element::u8, element::i8}));
+    outInfo.emplace(ov::PrecisionsAttribute::get_type_info_static(),
+                    ov::PrecisionsAttribute(element::TypeVector{element::u8, element::i8}));
 
     auto result1 = std::make_shared<ov::op::v0::Result>(fakeQuantize);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::FakeQuantizeDecompositionTransformation>();
+    m.register_pass<ov::pass::low_precision::FakeQuantizeDecompositionTransformation>();
     m.run_passes(f);
 
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -264,11 +264,11 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationGroupConvolutionTransformation)
     auto result1 = std::make_shared<ov::op::v0::Result>(groupConvolution);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::GroupConvolutionTransformation>();
+    m.register_pass<ov::pass::low_precision::GroupConvolutionTransformation>();
     m.run_passes(f);
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -278,7 +278,7 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationInterpolateTransformation) {
     auto mul = std::make_shared<ov::op::v1::Multiply>(convert, ov::op::v0::Constant::create(element::f32, {}, {2.f}));
 
     auto outShape = ov::op::v0::Constant::create(element::i32, {4}, {1, 3, 18, 18});
-    op::v0::InterpolateAttrs attributes;
+    op::v0::Interpolate::Attributes attributes;
     attributes.align_corners = false;
     attributes.antialias = false;
     attributes.axes = AxisSet{2, 3};
@@ -291,12 +291,12 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationInterpolateTransformation) {
     auto result1 = std::make_shared<ov::op::v0::Result>(interpolate);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::InterpolateTransformation>();
+    m.register_pass<ov::pass::low_precision::InterpolateTransformation>();
     m.run_passes(f);
 
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -316,11 +316,11 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationMatMulTransformation) {
     auto result1 = std::make_shared<ov::op::v0::Result>(matmul);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::MatMulTransformation>();
+    m.register_pass<ov::pass::low_precision::MatMulTransformation>();
     m.run_passes(f);
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -335,11 +335,11 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationMaxPoolTransformation) {
     auto result1 = std::make_shared<ov::op::v0::Result>(maxPool);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::MaxPoolTransformation>();
+    m.register_pass<ov::pass::low_precision::MaxPoolTransformation>();
     m.run_passes(f);
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -359,12 +359,12 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationMultiplyTransformation) {
     auto result1 = std::make_shared<ov::op::v0::Result>(mul);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input1, input2});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input1, input2});
     pass::Manager m;
-    m.register_pass<pass::low_precision::MultiplyTransformation>();
+    m.register_pass<ov::pass::low_precision::MultiplyPartialTransformation>();
     m.run_passes(f);
 
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -379,12 +379,12 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationMVNTransformation) {
     auto result1 = std::make_shared<ov::op::v0::Result>(MVN);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::MVNTransformation>();
+    m.register_pass<ov::pass::low_precision::MVNTransformation>();
     m.run_passes(f);
 
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -400,12 +400,12 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationNormalizeL2Transformation) {
     auto result1 = std::make_shared<ov::op::v0::Result>(normalize);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::NormalizeL2Transformation>();
+    m.register_pass<ov::pass::low_precision::NormalizeL2Transformation>();
     m.run_passes(f);
 
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -422,12 +422,12 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationPadTransformation) {
     auto result1 = std::make_shared<ov::op::v0::Result>(pad);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::PadTransformation>();
+    m.register_pass<ov::pass::low_precision::PadTransformation>();
     m.run_passes(f);
 
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -443,12 +443,12 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationPReluTransformation) {
     auto result1 = std::make_shared<ov::op::v0::Result>(prelu);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::PReluTransformation>();
+    m.register_pass<ov::pass::low_precision::PReluTransformation>();
     m.run_passes(f);
 
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -464,12 +464,12 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationReduceMaxTransformation) {
     auto result1 = std::make_shared<ov::op::v0::Result>(reduce);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::ReduceMaxTransformation>();
+    m.register_pass<ov::pass::low_precision::ReduceMaxTransformation>();
     m.run_passes(f);
 
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -485,12 +485,12 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationReduceMeanTransformation) {
     auto result1 = std::make_shared<ov::op::v0::Result>(reduce);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::ReduceMeanTransformation>();
+    m.register_pass<ov::pass::low_precision::ReduceMeanTransformation>();
     m.run_passes(f);
 
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -506,12 +506,12 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationReduceMinTransformation) {
     auto result1 = std::make_shared<ov::op::v0::Result>(reduce);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::ReduceMinTransformation>();
+    m.register_pass<ov::pass::low_precision::ReduceMinTransformation>();
     m.run_passes(f);
 
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -527,12 +527,12 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationReduceSumTransformation) {
     auto result1 = std::make_shared<ov::op::v0::Result>(reduce);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::ReduceSumTransformation>();
+    m.register_pass<ov::pass::low_precision::ReduceSumTransformation>();
     m.run_passes(f);
 
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -548,12 +548,12 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationReshapeTransformation) {
     auto result1 = std::make_shared<ov::op::v0::Result>(reshape);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::ReshapeTransformation>();
+    m.register_pass<ov::pass::low_precision::ReshapeTransformation>();
     m.run_passes(f);
 
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -568,12 +568,12 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationReluTransformation) {
     auto result1 = std::make_shared<ov::op::v0::Result>(relu);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::ReluTransformation>();
+    m.register_pass<ov::pass::low_precision::ReluTransformation>();
     m.run_passes(f);
 
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -589,12 +589,12 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationSqueezeTransformation) {
     auto result1 = std::make_shared<ov::op::v0::Result>(squeeze);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::SqueezeTransformation>();
+    m.register_pass<ov::pass::low_precision::SqueezeTransformation>();
     m.run_passes(f);
 
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -612,12 +612,12 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationSplitTransformation) {
     auto result3 = std::make_shared<ov::op::v0::Result>(split->output(2));
     auto result4 = std::make_shared<ov::op::v0::Result>(shapeOf->output(0));
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2, result3, result4}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2, result3, result4}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::SplitTransformation>();
+    m.register_pass<ov::pass::low_precision::SplitTransformation>();
     m.run_passes(f);
 
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -632,12 +632,12 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationShuffleChannelsTransformation) 
     auto result1 = std::make_shared<ov::op::v0::Result>(shuffleChannels);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::ShuffleChannelsTransformation>();
+    m.register_pass<ov::pass::low_precision::ShuffleChannelsTransformation>();
     m.run_passes(f);
 
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -646,9 +646,9 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationStridedSliceTransformation) {
     auto convert = std::make_shared<ov::op::v0::Convert>(input, element::f32);
     auto mul = std::make_shared<ov::op::v1::Multiply>(convert, ov::op::v0::Constant::create(element::f32, {}, {2.f}));
 
-    auto beginParam = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 0, 0, 0});
-    auto endParam = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 2, 1, 1});
-    auto stridesParam = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 1, 1, 1});
+    auto beginParam = ngraph::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 0, 0, 0});
+    auto endParam = ngraph::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 2, 1, 1});
+    auto stridesParam = ngraph::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 1, 1, 1});
     auto stridedSlice = std::make_shared<ov::op::v1::StridedSlice>(mul,
                                                                    beginParam,
                                                                    endParam,
@@ -660,12 +660,12 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationStridedSliceTransformation) {
     auto result1 = std::make_shared<ov::op::v0::Result>(stridedSlice);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::StridedSliceTransformation>();
+    m.register_pass<ov::pass::low_precision::StridedSliceTransformation>();
     m.run_passes(f);
 
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -674,19 +674,19 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationTransposeTransformation) {
     auto convert = std::make_shared<ov::op::v0::Convert>(input, element::f32);
     auto mul = std::make_shared<ov::op::v1::Multiply>(convert, ov::op::v0::Constant::create(element::f32, {}, {2.f}));
 
-    auto constant = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 1, 3, 2});
+    auto constant = ngraph::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 3, 2});
     auto transpose = std::make_shared<ov::op::v1::Transpose>(mul, constant);
     auto shapeOf = std::make_shared<ov::op::v0::ShapeOf>(transpose);
 
     auto result1 = std::make_shared<ov::op::v0::Result>(transpose);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::TransposeTransformation>();
+    m.register_pass<ov::pass::low_precision::TransposeTransformation>();
     m.run_passes(f);
 
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -702,12 +702,12 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationUnsqueezeTransformation) {
     auto result1 = std::make_shared<ov::op::v0::Result>(unsqueeze);
     auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::UnsqueezeTransformation>();
+    m.register_pass<ov::pass::low_precision::UnsqueezeTransformation>();
     m.run_passes(f);
 
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }
 
@@ -725,11 +725,11 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationVariadicSplitTransformation) {
     auto result2 = std::make_shared<ov::op::v0::Result>(variadicSplit->output(1));
     auto result3 = std::make_shared<ov::op::v0::Result>(shapeOf);
 
-    auto f = std::make_shared<Function>(ResultVector{result1, result2, result3}, ParameterVector{input});
+    auto f = std::make_shared<Model>(ResultVector{result1, result2, result3}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<pass::low_precision::VariadicSplitTransformation>();
+    m.register_pass<ov::pass::low_precision::VariadicSplitTransformation>();
     m.run_passes(f);
 
-    auto dqBeforeShapeOf = low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
+    auto dqBeforeShapeOf = ov::pass::low_precision::NetworkHelper::getDequantization(result2->get_input_node_shared_ptr(0));
     ASSERT_TRUE(dqBeforeShapeOf.empty());
 }

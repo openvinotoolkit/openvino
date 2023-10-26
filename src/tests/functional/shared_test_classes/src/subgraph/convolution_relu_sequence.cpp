@@ -48,7 +48,7 @@ void ConvolutionReluSequenceTest::SetUp() {
         this->GetParam();
     configuration.insert(config.begin(), config.end());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, { convParamsAll.inputShape});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(convParamsAll.inputShape))};
     auto lastOutputs = ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params).front();
     auto inputChannels = convParamsAll.inputShape[1];
 

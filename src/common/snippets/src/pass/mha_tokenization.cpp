@@ -40,7 +40,7 @@ auto is_valid_transpose(const std::shared_ptr<ov::opset1::Transpose>& node, std:
         return transpose_pattern->cast_vector<int64_t>() == expected_order;
     };
     auto is_supported_transpose_tensor = [](const ov::descriptor::Tensor& t) {
-        return is_supported_tensor(t) && ov::snippets::pass::TokenizeSnippets::supported_element_types.count(t.get_element_type()) != 0;
+        return is_supported_tensor(t) && ov::snippets::pass::TokenizeSnippets::get_supported_element_types().count(t.get_element_type()) != 0;
     };
 
     return node && node->get_output_target_inputs(0).size() == 1 && node->get_shape().size() == 4 &&
@@ -175,7 +175,7 @@ auto update_intermediate_supported_ops(std::shared_ptr<ov::Node>& interm_op, ov:
         interm_op = interm_op->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
     }
     return true;
-};
+}
 }  // namespace
 
 bool ov::snippets::pass::TokenizeMHASnippets::is_matmul0_supported(const std::shared_ptr<ov::opset1::MatMul>& matmul) {
@@ -191,7 +191,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
     MATCHER_SCOPE(TokenizeMHASnippets);
 
     auto m_matmul0 = std::make_shared<ov::opset1::MatMul>(ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()),
-                                                              ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()));
+                                                          ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()));
 
     register_matcher(std::make_shared<ov::pass::pattern::Matcher>(m_matmul0, matcher_name),
         [=](ov::pass::pattern::Matcher &m) {
@@ -388,14 +388,9 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
             }
         };
 
-        auto get_transpose = [config](const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<ov::opset1::Transpose> {
-            return config.mha_token_enable_transpose ? ov::as_type_ptr<ov::opset1::Transpose>(node)
-                                                     : nullptr;
-        };
-
-        const auto transpose1 = get_transpose(parent);
-        const auto transpose0 = get_transpose(matmul0->get_input_node_shared_ptr(0));
-        const auto transpose2 = get_transpose(matmul1->get_input_node_shared_ptr(1));
+        const auto transpose1 = ov::as_type_ptr<ov::opset1::Transpose>(parent);
+        const auto transpose0 = ov::as_type_ptr<ov::opset1::Transpose>(matmul0->get_input_node_shared_ptr(0));
+        const auto transpose2 = ov::as_type_ptr<ov::opset1::Transpose>(matmul1->get_input_node_shared_ptr(1));
         tokenize_transpose(transpose1, is_transposed_b_0, {0, 2, 3, 1}, ordered_ops.begin());
         tokenize_transpose(transpose0, matmul0->get_transpose_a(), {0, 2, 1, 3}, ordered_ops.begin());
         tokenize_transpose(transpose2, matmul1->get_transpose_b(), {0, 2, 1, 3}, ordered_ops.end());
@@ -431,7 +426,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
         //  <Supported ops>
         //    Transpose3
         if (!are_ops_after_matmul1) {
-            auto transpose3 = get_transpose(child);
+            auto transpose3 = config.mha_token_enable_transpose_on_output ? ov::as_type_ptr<ov::opset1::Transpose>(child) : nullptr;
             if (is_valid_transpose(transpose3, {0, 2, 1, 3}) &&
                 transpose3->get_input_element_type(0) == matmul1_out_type) {  // To avoid Convert between MatMul1 and Transpose3
                 ordered_ops.push_back(transpose3);

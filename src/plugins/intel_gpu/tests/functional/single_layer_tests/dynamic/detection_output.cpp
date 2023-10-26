@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/detection_output.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include <string>
 
@@ -195,11 +195,29 @@ protected:
 
         init_input_shapes({ inShapes });
 
-        auto params = ngraph::builder::makeDynamicParams(ngraph::element::f32, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, shape));
+        }
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
-        auto detOut = ngraph::builder::makeDetectionOutput(paramOuts, attrs);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
-        function = std::make_shared<ngraph::Function>(results, params, "DetectionOutputDynamic");
+
+        if (attrs.num_classes == -1) {
+            std::shared_ptr<ov::op::v8::DetectionOutput> detOut;
+
+            if (paramOuts.size() == 3)
+                detOut = std::make_shared<ov::op::v8::DetectionOutput>(paramOuts[0], paramOuts[1], paramOuts[2], attrs);
+            else if (paramOuts.size() == 5)
+                detOut = std::make_shared<ov::op::v8::DetectionOutput>(paramOuts[0], paramOuts[1], paramOuts[2], paramOuts[3], paramOuts[4], attrs);
+            else
+                throw std::runtime_error("DetectionOutput layer supports only 3 or 5 inputs");
+
+            ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
+            function = std::make_shared<ngraph::Function>(results, params, "DetectionOutputDynamic");
+        } else {
+            auto detOut = ngraph::builder::makeDetectionOutput(paramOuts, attrs);
+            ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
+            function = std::make_shared<ngraph::Function>(results, params, "DetectionOutputDynamic");
+        }
     }
 
 private:
@@ -242,7 +260,7 @@ TEST_P(DetectionOutputLayerGPUTest, CompareWithRefs) {
 
 namespace {
 
-const int numClasses = 11;
+const std::vector<int> numClasses = {11, -1};
 const int backgroundLabelId = 0;
 const std::vector<int> topK = {75};
 const std::vector<std::vector<int>> keepTopK = { {50}, {100} };
@@ -256,7 +274,7 @@ const float objectnessScore = 0.4f;
 const std::vector<size_t> numberBatch = {1, 2};
 
 const auto commonAttributes = ::testing::Combine(
-    ::testing::Values(numClasses),
+    ::testing::Values(numClasses[0]),
     ::testing::Values(backgroundLabelId),
     ::testing::ValuesIn(topK),
     ::testing::ValuesIn(keepTopK),
@@ -268,6 +286,18 @@ const auto commonAttributes = ::testing::Combine(
     ::testing::ValuesIn(decreaseLabelId)
 );
 
+const auto commonAttributes_v8 = ::testing::Combine(
+    ::testing::Values(numClasses[1]),
+    ::testing::Values(backgroundLabelId),
+    ::testing::Values(topK[0]),
+    ::testing::Values(keepTopK[0]),
+    ::testing::ValuesIn(codeType),
+    ::testing::Values(nmsThreshold),
+    ::testing::Values(confidenceThreshold),
+    ::testing::Values(clipAfterNms[0]),
+    ::testing::Values(clipBeforeNms[0]),
+    ::testing::Values(decreaseLabelId[0])
+);
 /* =============== 3 inputs cases =============== */
 
 const std::vector<ParamsWhichSizeDependsDynamic> specificParams3InDynamic = {
@@ -362,9 +392,21 @@ const auto params3InputsDynamic = ::testing::Combine(
         ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 
+const auto params3InputsDynamic_v8 = ::testing::Combine(
+        commonAttributes_v8,
+        ::testing::Values(specificParams3InDynamic[0]),
+        ::testing::ValuesIn(numberBatch),
+        ::testing::Values(objectnessScore),
+        ::testing::Values(true),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)
+);
+
 INSTANTIATE_TEST_SUITE_P(smoke_GPUDetectionOutputDynamic3In, DetectionOutputLayerGPUTest,
                          params3InputsDynamic,
                          DetectionOutputLayerGPUTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_GPUDetectionOutputV8Dynamic3In, DetectionOutputLayerGPUTest,
+                         params3InputsDynamic_v8,
+                         DetectionOutputLayerGPUTest::getTestCaseName);
 } // namespace
 } // namespace GPULayerTestsDefinitions

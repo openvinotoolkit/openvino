@@ -2,22 +2,34 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/logical_not.hpp"
+
+#include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/op/not.hpp"
-#include "ngraph/op/op.hpp"
-#include "ngraph/op/util/elementwise_args.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/not.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/reference/logical_not.hpp"
 
-using namespace ngraph;
-using namespace std;
+namespace ov {
+namespace op {
+namespace logical_not {
 
-op::v1::LogicalNot::LogicalNot(const Output<Node>& arg) : Op({arg}) {
+struct Evaluate : element::NoAction<bool> {
+    using element::NoAction<bool>::visit;
+
+    template <element::Type_t ET, class T = fundamental_type_for<ET>>
+    static result_type visit(const Tensor& in, Tensor& out, const size_t count) {
+        reference::logical_not(in.data<const T>(), out.data<T>(), count);
+        return true;
+    }
+};
+}  // namespace logical_not
+
+namespace v1 {
+
+LogicalNot::LogicalNot(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
 }
 
-void op::v1::LogicalNot::validate_and_infer_types() {
+void LogicalNot::validate_and_infer_types() {
     OV_OP_SCOPE(v1_LogicalNot_validate_and_infer_types);
     const auto& element_type = get_input_element_type(0);
     // No boolean element_type validation for backward compatibility
@@ -25,63 +37,43 @@ void op::v1::LogicalNot::validate_and_infer_types() {
     set_output_type(0, element_type, arg_pshape);
 }
 
-shared_ptr<Node> op::v1::LogicalNot::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> LogicalNot::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_LogicalNot_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v1::LogicalNot>(new_args.at(0));
+    return std::make_shared<LogicalNot>(new_args.at(0));
 }
 
-namespace notop {
-namespace {
-template <element::Type_t ET>
-inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::logical_not<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
-    return true;
-}
-
-bool evaluate_not(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
-    bool rc = true;
-    out->set_unary(arg0);
-
-    switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_not, boolean, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_not, i32, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_not, i64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_not, u32, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_not, u64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_not, f16, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_not, f32, arg0, out, count);
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
-}
-}  // namespace
-}  // namespace notop
-
-bool op::v1::LogicalNot::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool LogicalNot::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v1_LogicalNot_evaluate);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    return notop::evaluate_not(inputs[0], outputs[0], inputs[0]->get_element_count());
+    OPENVINO_ASSERT(outputs.size() == 1);
+    OPENVINO_ASSERT(inputs.size() == 1);
+
+    outputs[0].set_shape(inputs[0].get_shape());
+
+    using namespace ov::element;
+    return IfTypeOf<boolean, i32, i64, u32, u64, f16, f32>::apply<logical_not::Evaluate>(
+        inputs[0].get_element_type(),
+        inputs[0],
+        outputs[0],
+        shape_size(inputs[0].get_shape()));
 }
 
-bool op::v1::LogicalNot::has_evaluate() const {
+bool LogicalNot::has_evaluate() const {
     OV_OP_SCOPE(v1_LogicalNot_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::boolean:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
+    case element::boolean:
+    case element::f16:
+    case element::f32:
+    case element::i32:
+    case element::i64:
+    case element::u32:
+    case element::u64:
         return true;
     default:
-        break;
+        return false;
     }
-    return false;
 }
+
+}  // namespace v1
+}  // namespace op
+}  // namespace ov

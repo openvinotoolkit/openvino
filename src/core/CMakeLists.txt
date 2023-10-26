@@ -8,14 +8,12 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 add_definitions(-DIN_OV_CORE_LIBRARY)
 
 set(OV_CORE_INCLUDE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/include)
-
-if(CMAKE_COMPILER_IS_GNUCXX)
-    ie_add_compiler_flags(-Wmissing-declarations)
-endif()
+set(OV_CORE_DEV_API_PATH ${CMAKE_CURRENT_SOURCE_DIR}/dev_api)
 
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
-file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
+file(GLOB_RECURSE PUBLIC_HEADERS ${OV_CORE_INCLUDE_PATH}/*.hpp)
+file(GLOB_RECURSE DEV_HEADERS ${OV_CORE_DEV_API_PATH}/*.hpp)
 
 add_subdirectory(builder)
 add_subdirectory(reference)
@@ -38,26 +36,38 @@ source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
 #
-# Create ov_core_dev library
+# Create openvino_core_dev library
 #
 
-add_library(ov_core_dev INTERFACE)
-add_library(openvino::core::dev ALIAS ov_core_dev)
+add_library(openvino_core_dev INTERFACE)
+add_library(openvino::core::dev ALIAS openvino_core_dev)
 
-target_include_directories(ov_core_dev INTERFACE
+target_include_directories(openvino_core_dev INTERFACE
     $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/common/include>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>)
 
-target_link_libraries(ov_core_dev INTERFACE openvino::itt openvino::util)
+target_link_libraries(openvino_core_dev INTERFACE openvino::itt openvino::util)
 
-set_target_properties(ov_core_dev PROPERTIES EXPORT_NAME core::dev)
-openvino_developer_export_targets(COMPONENT core TARGETS openvino::core::dev)
+set_target_properties(openvino_core_dev PROPERTIES EXPORT_NAME core::dev)
+ov_developer_package_export_targets(TARGET openvino::core::dev
+                                    INSTALL_INCLUDE_DIRECTORIES
+                                        "${OV_CORE_DEV_API_PATH}/"
+                                        "${OpenVINO_SOURCE_DIR}/src/common/transformations/include/"
+                                        "${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include/")
 
 # Install interface libraries for case BUILD_SHARED_LIBS=OFF
-ov_install_static_lib(ov_core_dev ${OV_CPACK_COMP_CORE})
+ov_install_static_lib(openvino_core_dev ${OV_CPACK_COMP_CORE})
 
+# Fix error LNK1248: image size (...) exceeds maximum allowable size (FFFFFFFF)
+# the symbolic debugging information will be stored in a separate .pdb file.
+if(WIN32)
+    string(REPLACE "/Z7" "/Zi" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+    string(REPLACE "/Z7" "/Zi" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+    string(REPLACE "/Z7" "/Zi" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+    string(REPLACE "/Z7" "/Zi" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+endif()
 #
 # Create static or shared library depending on BUILD_SHARED_LIBS
 #
@@ -72,16 +82,16 @@ endif()
 
 target_compile_definitions(ngraph_obj PRIVATE IMPLEMENT_OPENVINO_API)
 
-ie_faster_build(ngraph_obj
+ov_build_target_faster(ngraph_obj
     UNITY
     PCH PRIVATE "src/precomp.hpp")
 
 ov_add_version_defines(src/version.cpp ngraph_obj)
 
-target_link_libraries(ngraph_obj PRIVATE ngraph::builder ngraph::reference openvino::util
-                                         openvino::pugixml ov_shape_inference openvino::core::dev)
+target_link_libraries(ngraph_obj PRIVATE openvino::builders openvino::reference openvino::util
+                                         openvino::pugixml openvino::shape_inference openvino::core::dev)
 
-ie_mark_target_as_cc(ngraph_obj)
+ov_mark_target_as_cc(ngraph_obj)
 
 # ngraph is public API => need to mark this library as important for ABI free
 ov_abi_free_target(ngraph_obj)
@@ -89,19 +99,19 @@ ov_abi_free_target(ngraph_obj)
 ov_ncc_naming_style(FOR_TARGET ngraph_obj
                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-add_clang_format_target(ngraph_clang FOR_TARGETS ngraph_obj)
+ov_add_clang_format_target(ngraph_clang FOR_SOURCES ${LIBRARY_SRC} ${PUBLIC_HEADERS} ${DEV_HEADERS})
 
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(ngraph_obj PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # ngraph is linked against ngraph_builders, ngraph_reference, ov_shape_inference static libraries
+    # ngraph is linked against openvino::builders, openvino::reference, openvino::shape_inference static libraries
     # which include ngraph headers with dllimport attribute. Linker complains about it
     # but no way to fix this: linking with no attribute defaults to dllexport and we have
     # multiple defitions for ngraph symbols.
     #
-    # The possible way is to use object libraries for ngraph_builders, ngraph_reference
+    # The possible way is to use object libraries for openvino::builders, openvino::reference
     # but it's not convinient since these libraries are exported from build tree
     # and it's better to use them as static libraries in 3rd party projects
     if(BUILD_SHARED_LIBS)
@@ -118,7 +128,6 @@ file(GLOB_RECURSE smart_reshape_srcs ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/smart_
 file(GLOB_RECURSE rt_info_srcs ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/rt_info/*.cpp)
 set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precision.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_fp32_to_fp16.cpp"
-                            "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/fix_rt_info.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/init_node_info.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/serialize.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/op/type_relaxed.cpp"

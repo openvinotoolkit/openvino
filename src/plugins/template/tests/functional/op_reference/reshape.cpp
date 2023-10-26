@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/reshape.hpp"
+
 #include <gtest/gtest.h>
 
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/constant.hpp"
 #include "base_reference_test.hpp"
+#include "openvino/op/constant.hpp"
 
 using namespace reference_tests;
 using namespace ov;
-//using T1 = typename element_type_traits<IT>::value_type;
+// using T1 = typename element_type_traits<IT>::value_type;
 namespace {
 
 struct ReshapeParams {
@@ -27,15 +28,13 @@ struct ReshapeParams {
         m_input_type = input_type;
         m_expected_type = expected_type;
         m_zero_flag = zero_flag;
-        m_input_value = input_shape.size() > 0
-            ? CreateTensor(input_shape, input_type, input_value)
-            : CreateTensor(input_type, input_value);
-        m_expected_value = expected_shape.size() > 0
-            ? CreateTensor(expected_shape, expected_type, expected_value)
-            : CreateTensor(expected_type, expected_value);
+        m_input_value = input_shape.size() > 0 ? CreateTensor(input_shape, input_type, input_value)
+                                               : CreateTensor(input_type, input_value);
+        m_expected_value = expected_shape.size() > 0 ? CreateTensor(expected_shape, expected_type, expected_value)
+                                                     : CreateTensor(expected_type, expected_value);
     }
 
-    template<class T>
+    template <class T>
     ReshapeParams(const Shape& input_shape,
                   const Shape& expected_shape,
                   const element::Type& input_type,
@@ -69,7 +68,7 @@ struct ReshapeParams {
 };
 
 struct ReshapeShuffleParams {
-    template<class T>
+    template <class T>
     ReshapeShuffleParams(const Shape& input_shape1,
                          const Shape& input_shape2,
                          const Shape& input_shape3,
@@ -130,10 +129,10 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const element::Type& input_type,
-                                                    const element::Type& expected_type,
-                                                    const Shape& input_shape,
-                                                    const Shape& expected_shape,
-                                                    const bool zero_flag) {
+                                                 const element::Type& expected_type,
+                                                 const Shape& input_shape,
+                                                 const Shape& expected_shape,
+                                                 const bool zero_flag) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto reshape = std::make_shared<op::v1::Reshape>(
             in,
@@ -143,7 +142,8 @@ private:
     }
 };
 
-class ReferenceReshapeShuffleLayerTest : public testing::TestWithParam<ReshapeShuffleParams>, public CommonReferenceTest {
+class ReferenceReshapeShuffleLayerTest : public testing::TestWithParam<ReshapeShuffleParams>,
+                                         public CommonReferenceTest {
 public:
     void SetUp() override {
         const auto params = GetParam();
@@ -172,12 +172,12 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const element::Type& input_type,
-                                                    const element::Type& expected_type,
-                                                    const Shape& input_shape1,
-                                                    const Shape& input_shape2,
-                                                    const Shape& input_shape3,
-                                                    const Shape& expected_shape,
-                                                    const bool zero_flag) {
+                                                 const element::Type& expected_type,
+                                                 const Shape& input_shape1,
+                                                 const Shape& input_shape2,
+                                                 const Shape& input_shape3,
+                                                 const Shape& expected_shape,
+                                                 const bool zero_flag) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape1);
         const auto reshape1 = std::make_shared<op::v1::Reshape>(
             in,
@@ -215,41 +215,11 @@ std::vector<ReshapeParams> generateParamsForReshape() {
                       std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
                       std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
                       false),
-        ReshapeParams(Shape{1, 1, 1},
-                      Shape{},
-                      ET,
-                      ET,
-                      std::vector<T>{6},
-                      std::vector<T>{6},
-                      false),
-        ReshapeParams(Shape{},
-                      Shape{1, 1, 1, 1, 1, 1},
-                      ET,
-                      ET,
-                      std::vector<T>{42},
-                      std::vector<T>{42},
-                      false),
-        ReshapeParams(Shape{3},
-                      Shape{3, 1},
-                      ET,
-                      ET,
-                      std::vector<T>{1, 2, 3},
-                      std::vector<T>{1, 2, 3},
-                      false),
-        ReshapeParams(Shape{3},
-                      Shape{1, 3},
-                      ET,
-                      ET,
-                      std::vector<T>{1, 2, 3},
-                      std::vector<T>{1, 2, 3},
-                      false),
-        ReshapeParams(Shape{3},
-                      Shape{1, 3, 1},
-                      ET,
-                      ET,
-                      std::vector<T>{1, 2, 3},
-                      std::vector<T>{1, 2, 3},
-                      false),
+        ReshapeParams(Shape{1, 1, 1}, Shape{}, ET, ET, std::vector<T>{6}, std::vector<T>{6}, false),
+        ReshapeParams(Shape{}, Shape{1, 1, 1, 1, 1, 1}, ET, ET, std::vector<T>{42}, std::vector<T>{42}, false),
+        ReshapeParams(Shape{3}, Shape{3, 1}, ET, ET, std::vector<T>{1, 2, 3}, std::vector<T>{1, 2, 3}, false),
+        ReshapeParams(Shape{3}, Shape{1, 3}, ET, ET, std::vector<T>{1, 2, 3}, std::vector<T>{1, 2, 3}, false),
+        ReshapeParams(Shape{3}, Shape{1, 3, 1}, ET, ET, std::vector<T>{1, 2, 3}, std::vector<T>{1, 2, 3}, false),
         ReshapeParams(Shape{3, 3},
                       Shape{3, 3},
                       ET,
@@ -257,34 +227,10 @@ std::vector<ReshapeParams> generateParamsForReshape() {
                       std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9},
                       std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9},
                       false),
-        ReshapeParams(Shape{1},
-                      Shape{},
-                      ET,
-                      ET,
-                      std::vector<T>{1},
-                      std::vector<T>{1},
-                      false),
-        ReshapeParams(Shape{},
-                      Shape{},
-                      ET,
-                      ET,
-                      std::vector<T>{1},
-                      std::vector<T>{1},
-                      false),
-        ReshapeParams(Shape{2, 2, 3, 3, 2, 4},
-                      Shape{3, 2, 2, 4, 3, 2},
-                      ET,
-                      ET,
-                      false,
-                      static_cast<T>(1)),
-        ReshapeParams(Shape{2, 2, 5, 5},
-                      Shape{2, 5, 5, 2},
-                      ET,
-                      ET,
-                      true,
-                      static_cast<T>(1),
-                      Shape{0, 5, 0, 2})
-    };
+        ReshapeParams(Shape{1}, Shape{}, ET, ET, std::vector<T>{1}, std::vector<T>{1}, false),
+        ReshapeParams(Shape{}, Shape{}, ET, ET, std::vector<T>{1}, std::vector<T>{1}, false),
+        ReshapeParams(Shape{2, 2, 3, 3, 2, 4}, Shape{3, 2, 2, 4, 3, 2}, ET, ET, false, static_cast<T>(1)),
+        ReshapeParams(Shape{2, 2, 5, 5}, Shape{2, 5, 5, 2}, ET, ET, true, static_cast<T>(1), Shape{0, 5, 0, 2})};
 
     return params;
 }
@@ -301,56 +247,13 @@ std::vector<ReshapeParams> generateParamsForReshape8Bit() {
                       std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
                       std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
                       false),
-        ReshapeParams(Shape{1, 1, 1},
-                      Shape{},
-                      ET,
-                      ET,
-                      std::vector<T>{6},
-                      std::vector<T>{6},
-                      false),
-        ReshapeParams(Shape{},
-                      Shape{1, 1, 1, 1, 1, 1},
-                      ET,
-                      ET,
-                      std::vector<T>{42},
-                      std::vector<T>{42},
-                      false),
-        ReshapeParams(Shape{3},
-                      Shape{3, 1},
-                      ET,
-                      ET,
-                      std::vector<T>{1, 2, 3},
-                      std::vector<T>{1, 2, 3},
-                      false),
-        ReshapeParams(Shape{3},
-                      Shape{1, 3},
-                      ET,
-                      ET,
-                      std::vector<T>{1, 2, 3},
-                      std::vector<T>{1, 2, 3},
-                      false),
-        ReshapeParams(Shape{3},
-                      Shape{1, 3, 1},
-                      ET,
-                      ET,
-                      std::vector<T>{1, 2, 3},
-                      std::vector<T>{1, 2, 3},
-                      false),
-        ReshapeParams(Shape{1},
-                      Shape{},
-                      ET,
-                      ET,
-                      std::vector<T>{1},
-                      std::vector<T>{1},
-                      false),
-        ReshapeParams(Shape{},
-                      Shape{},
-                      ET,
-                      ET,
-                      std::vector<T>{1},
-                      std::vector<T>{1},
-                      false)
-    };
+        ReshapeParams(Shape{1, 1, 1}, Shape{}, ET, ET, std::vector<T>{6}, std::vector<T>{6}, false),
+        ReshapeParams(Shape{}, Shape{1, 1, 1, 1, 1, 1}, ET, ET, std::vector<T>{42}, std::vector<T>{42}, false),
+        ReshapeParams(Shape{3}, Shape{3, 1}, ET, ET, std::vector<T>{1, 2, 3}, std::vector<T>{1, 2, 3}, false),
+        ReshapeParams(Shape{3}, Shape{1, 3}, ET, ET, std::vector<T>{1, 2, 3}, std::vector<T>{1, 2, 3}, false),
+        ReshapeParams(Shape{3}, Shape{1, 3, 1}, ET, ET, std::vector<T>{1, 2, 3}, std::vector<T>{1, 2, 3}, false),
+        ReshapeParams(Shape{1}, Shape{}, ET, ET, std::vector<T>{1}, std::vector<T>{1}, false),
+        ReshapeParams(Shape{}, Shape{}, ET, ET, std::vector<T>{1}, std::vector<T>{1}, false)};
 
     return params;
 }
@@ -359,32 +262,28 @@ template <element::Type_t ET>
 std::vector<ReshapeShuffleParams> generateParamsForReshapeShuffle() {
     using T = typename element_type_traits<ET>::value_type;
 
-    std::vector<ReshapeShuffleParams> params{
-        ReshapeShuffleParams(Shape{1, 112, 56, 56},
-                      Shape{1, 4, 28, 56, 56},
-                      Shape{1, 28, 4, 56, 56},
-                      Shape{1, 112, 56, 56},
-                      ET,
-                      ET,
-                      false,
-                      static_cast<T>(1))
-    };
+    std::vector<ReshapeShuffleParams> params{ReshapeShuffleParams(Shape{1, 112, 56, 56},
+                                                                  Shape{1, 4, 28, 56, 56},
+                                                                  Shape{1, 28, 4, 56, 56},
+                                                                  Shape{1, 112, 56, 56},
+                                                                  ET,
+                                                                  ET,
+                                                                  false,
+                                                                  static_cast<T>(1))};
 
     return params;
 }
 
 std::vector<ReshapeParams> generateCombinedParamsForReshape() {
-    const std::vector<std::vector<ReshapeParams>> allTypeParams{
-        generateParamsForReshape<element::Type_t::f32>(),
-        generateParamsForReshape<element::Type_t::i64>(),
-        generateParamsForReshape<element::Type_t::i32>(),
-        generateParamsForReshape<element::Type_t::i16>(),
-        generateParamsForReshape<element::Type_t::u64>(),
-        generateParamsForReshape<element::Type_t::u32>(),
-        generateParamsForReshape<element::Type_t::u16>(),
-        generateParamsForReshape8Bit<element::Type_t::i8>(),
-        generateParamsForReshape8Bit<element::Type_t::u8>()
-    };
+    const std::vector<std::vector<ReshapeParams>> allTypeParams{generateParamsForReshape<element::Type_t::f32>(),
+                                                                generateParamsForReshape<element::Type_t::i64>(),
+                                                                generateParamsForReshape<element::Type_t::i32>(),
+                                                                generateParamsForReshape<element::Type_t::i16>(),
+                                                                generateParamsForReshape<element::Type_t::u64>(),
+                                                                generateParamsForReshape<element::Type_t::u32>(),
+                                                                generateParamsForReshape<element::Type_t::u16>(),
+                                                                generateParamsForReshape8Bit<element::Type_t::i8>(),
+                                                                generateParamsForReshape8Bit<element::Type_t::u8>()};
 
     std::vector<ReshapeParams> combinedParams;
 
@@ -417,16 +316,14 @@ std::vector<ReshapeShuffleParams> generateCombinedParamsForReshapeShuffle() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Reshape_With_Hardcoded_Refs,
-    ReferenceReshapeLayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForReshape()),
-    ReferenceReshapeLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Reshape_With_Hardcoded_Refs,
+                         ReferenceReshapeLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForReshape()),
+                         ReferenceReshapeLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Reshape_Shuffle_With_Hardcoded_Refs,
-    ReferenceReshapeShuffleLayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForReshapeShuffle()),
-    ReferenceReshapeShuffleLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Reshape_Shuffle_With_Hardcoded_Refs,
+                         ReferenceReshapeShuffleLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForReshapeShuffle()),
+                         ReferenceReshapeShuffleLayerTest::getTestCaseName);
 
 }  // namespace

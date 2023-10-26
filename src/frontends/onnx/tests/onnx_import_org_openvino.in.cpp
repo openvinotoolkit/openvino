@@ -24,12 +24,12 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "default_opset.hpp"
-#include "engines_util/test_case.hpp"
-#include "engines_util/test_engines.hpp"
+#include "common_test_utils/test_case.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/pass/manager.hpp"
+#include "ngraph/file_util.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "onnx_import/onnx.hpp"
 #include "onnx_import/onnx_utils.hpp"
@@ -38,13 +38,14 @@
 #include "common_test_utils/test_control.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "common_test_utils/type_prop.hpp"
+#include "onnx_utils.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 using namespace ngraph;
 
-static std::string s_manifest = "${MANIFEST}";
-static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
+static std::string s_manifest = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(), "${MANIFEST}");
+static std::string s_device = backend_name_to_device("${BACKEND_NAME}");
 
 using Inputs = std::vector<std::vector<float>>;
 using Outputs = std::vector<std::vector<float>>;
@@ -52,7 +53,7 @@ using Outputs = std::vector<std::vector<float>>;
 OPENVINO_TEST(${BACKEND_NAME}, onnx_prior_box) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/prior_box.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> A(3 * 2 * 2);
     std::vector<float> B(3 * 6 * 6);
     std::vector<float> output = {
@@ -76,7 +77,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_priorbox_clustered) {
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/priorbox_clustered.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> A{15.0f};
     std::vector<float> B{10.0f};
     std::vector<float> output = {
@@ -95,7 +96,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_most_attrs_default) {
                                                             SERIALIZED_ZOO,
                                                             "onnx/priorbox_clustered_most_attrs_default.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> A(1 * 1 * 2 * 1);
     std::iota(std::begin(A), std::end(A), 0.0f);
     std::vector<float> B(1 * 1 * 3 * 3);
@@ -153,7 +154,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_second_input_bad_shape) {
 OPENVINO_TEST(${BACKEND_NAME}, onnx_detection_output) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/detection_output.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     auto gen_vector = [](size_t size, float min, float max) -> std::vector<float> {
         float step = (max - min) / size;
@@ -185,7 +186,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_detection_output) {
 OPENVINO_TEST(${BACKEND_NAME}, onnx_group_norm) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/group_norm.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     Shape shape{2, 8, 2, 2};
     const auto size = shape_size(shape);
     std::vector<float> data(size);
@@ -211,7 +212,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_group_norm_squeeze_bias_and_scale) {
         onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/group_norm_4D_bias_and_scale.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     Shape shape{2, 8, 2, 2};
     const auto size = shape_size(shape);
     std::vector<float> data(size);
@@ -235,7 +236,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_group_norm_squeeze_bias_and_scale) {
 OPENVINO_TEST(${BACKEND_NAME}, onnx_group_norm_5d) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/group_norm_5d.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     Shape shape{2, 8, 1, 2, 1};
     const auto size = shape_size(shape);
     std::vector<float> data(size);
@@ -256,7 +257,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_group_norm_5d) {
 OPENVINO_TEST(${BACKEND_NAME}, onnx_normalize) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/normalize.onnx"));
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> data(12);
     std::iota(data.begin(), data.end(), 1.f);
     std::vector<float> output = {
@@ -283,7 +284,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_swish_with_beta) {
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/swish_with_beta.onnx"));
 
     const Shape expected_output_shape{3};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> input_data{-0.5f, 0, 0.5f};
     test_case.add_input<float>(input_data);
     test_case.add_expected_output<float>(expected_output_shape, {-0.2036667f, 0.0f, 0.2963333f});
@@ -297,7 +298,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_swish_without_beta) {
                                                                         "onnx/swish_without_beta.onnx"));
 
     const Shape expected_output_shape{3};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     std::vector<float> input_data{-0.5f, 0, 0.5f};
     test_case.add_input<float>(input_data);
     test_case.add_expected_output<float>(expected_output_shape, {-0.18877034f, 0.0f, 0.31122968f});
@@ -311,7 +312,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_detection_outpu
                              SERIALIZED_ZOO,
                              "onnx/org.openvinotoolkit/experimental_detectron/detection_output.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     // rois
     test_case.add_input<float>({1.0f, 1.0f, 10.0f, 10.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
                                 1.0f, 1.0f, 1.0f,  4.0f,  1.0f, 8.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
@@ -372,7 +373,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_detection_outpu
                                                             "onnx/org.openvinotoolkit/experimental_detectron/"
                                                             "detection_output_most_attrs_default.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     // rois
     test_case.add_input<float>({1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
                                 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
@@ -415,7 +416,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_generate_propos
                                                             "onnx/org.openvinotoolkit/experimental_detectron/"
                                                             "generate_proposals_single_image.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     // im_info
     test_case.add_input<float>({1.0f, 1.0f, 1.0f});
     // anchors
@@ -464,7 +465,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_group_norm) {
                              SERIALIZED_ZOO,
                              "onnx/org.openvinotoolkit/experimental_detectron/group_norm.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     Shape shape{2, 8, 2, 2};
     const auto size = shape_size(shape);
     std::vector<float> data(size);
@@ -491,7 +492,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_prior_grid_gene
                              SERIALIZED_ZOO,
                              "onnx/org.openvinotoolkit/experimental_detectron/prior_grid_generator.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     std::vector<float> priors(shape_size(Shape{3, 4}));
     std::iota(priors.begin(), priors.end(), 0.f);
@@ -518,7 +519,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_roi_feature_ext
                              SERIALIZED_ZOO,
                              "onnx/org.openvinotoolkit/experimental_detectron/roi_feature_extractor.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     std::vector<float> rois(shape_size(Shape{2, 4}));
     std::iota(rois.begin(), rois.end(), 0.f);
@@ -577,7 +578,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_topk_rios) {
                              SERIALIZED_ZOO,
                              "onnx/org.openvinotoolkit/experimental_detectron/topk_rios.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<float>({1.0f, 1.0f, 3.0f, 4.0f, 2.0f, 1.0f, 5.0f, 7.0f});
     test_case.add_input<float>({0.5f, 0.3f});
@@ -592,7 +593,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deformable_conv_2d) {
                                                             SERIALIZED_ZOO,
                                                             "onnx/org.openvinotoolkit/deformable_conv_2d.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // data
     test_case.add_input<float>(
@@ -625,7 +626,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_generate_proposals) {
                                                             SERIALIZED_ZOO,
                                                             "onnx/org.openvinotoolkit/generate_proposals.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // scores
     test_case.add_input<float>(
@@ -678,7 +679,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_generate_proposals_batch) {
                                                             SERIALIZED_ZOO,
                                                             "onnx/org.openvinotoolkit/generate_proposals_batch2.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // scores
     test_case.add_input<float>(Shape{2, 3, 2, 3}, {5, 1, 1, 1, 1, 1, 1, 1, 1, 3, 1, 1, 1, 7, 1, 1, 1, 1,

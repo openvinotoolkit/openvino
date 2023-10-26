@@ -14,8 +14,6 @@ struct slice : public primitive_base<slice> {
 
     slice() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs slice primitive.
     /// @param id This primitive id.
     /// @param inputs List of primitive ids.

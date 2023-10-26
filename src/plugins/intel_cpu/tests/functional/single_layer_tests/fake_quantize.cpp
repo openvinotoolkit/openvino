@@ -3,7 +3,7 @@
 //
 
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
@@ -111,7 +111,10 @@ protected:
         std::tie(inDataLowBounds, inDataHighBounds, rangesBounds[2], rangesBounds[3], levels) = fqParams;
 
         auto ngInPrec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrec);
-        ParameterVector params = builder::makeDynamicParams(ngInPrec, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(ngInPrec, shape));
+        }
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset5::Parameter>(params));
 
         auto il = builder::makeConstant(ngInPrec, ranges[0], rangesBounds[0], rangesBounds[0].empty());

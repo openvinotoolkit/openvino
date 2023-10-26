@@ -16,20 +16,21 @@
 #include "common_test_utils/all_close.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ndarray.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_control.hpp"
 #include "common_test_utils/test_tools.hpp"
-#include "engines_util/test_case.hpp"
-#include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
+#include "ngraph/file_util.hpp"
 #include "ngraph/ngraph.hpp"
 #include "onnx_import/onnx.hpp"
+#include "onnx_utils.hpp"
 
 using namespace ngraph;
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-static std::string s_manifest = "${MANIFEST}";
-static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
+static std::string s_manifest = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(), "${MANIFEST}");
+static std::string s_device = backend_name_to_device("${BACKEND_NAME}");
 
 using Inputs = std::vector<std::vector<float>>;
 using Outputs = std::vector<std::vector<float>>;
@@ -39,7 +40,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_const_scale_const_zero
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/quantize_linear_const.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(std::vector<float>{32.25f, 48.34f, 50.f, 83.f});
 
     test_case.add_expected_output(std::vector<std::uint8_t>{64, 97, 100, 166});
@@ -50,7 +51,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/quantize_linear.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(std::vector<float>{32.25f, 48.34f, 50.f, 83.f});
     test_case.add_input(std::vector<float>{0.5f});
 
@@ -63,7 +64,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_zero_point) {
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/quantize_linear_zero_point.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(std::vector<float>{0.f, 2.f, 3.f, 1000.f, -254.f, -1000.f});  // x
     test_case.add_input(std::vector<float>{2.0f});                                    // y_scale
     test_case.add_input(std::vector<std::uint8_t>{128});                              // y_zero_point
@@ -77,7 +78,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_axis_zero) {
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/quantize_linear_axis_zero.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(std::vector<float>{0.f, 2.f, 3.f, 1000.f, 0.f, 2.f, 3.f, 1000.f, 0.f, 2.f, 3.f, 1000.f});  // x
     test_case.add_input(std::vector<float>{1.f, 2.f, 4.f});   // y_scale
     test_case.add_input(std::vector<std::uint8_t>{0, 0, 0});  // y_zero_point
@@ -95,7 +96,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_axis_negative) {
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/quantize_linear_axis_negative.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(std::vector<float>{0.f, 2.f, 3.f, 1000.f, 0.f, 2.f, 3.f, 1000.f, 0.f, 2.f, 3.f, 1000.f});  // x
     test_case.add_input(std::vector<float>{1.f, 2.f, 4.f});   // y_scale
     test_case.add_input(std::vector<std::uint8_t>{0, 0, 0});  // y_zero_point
@@ -114,7 +115,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_scalar_ignore_axis) {
                                                             SERIALIZED_ZOO,
                                                             "onnx/quantize_linear_scalar_ignore_axis.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(std::vector<float>{-256.0f, -250.0f, 0.0f, 254.0f});  // x
     test_case.add_input(std::vector<float>{2.0f});                            // scale
     test_case.add_input(std::vector<uint8_t>{128});                           // zero_point
@@ -127,7 +128,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/dequant_lin.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(std::vector<std::uint8_t>{19, 210, 21, 10});
 
     test_case.add_expected_output(std::vector<float>{76.f, 840.f, 84.f, 40.f});
@@ -140,7 +141,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_scale_and_zer
                                                             SERIALIZED_ZOO,
                                                             "onnx/dequantize_linear_scalar_scale_and_zero_point.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(std::vector<std::uint8_t>{19, 210, 21, 10});  // x
     test_case.add_input(std::vector<float>{2.0f});                    // scale
     test_case.add_input(std::vector<uint8_t>{128});                   // zero_point
@@ -154,7 +155,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_scale) {
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dequantize_linear_scalar_scale.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(std::vector<std::uint8_t>{19, 210, 21, 10});  // x
     test_case.add_input(std::vector<float>{2.0f});                    // scale
     test_case.add_input(std::vector<uint8_t>{128, 7});                // zero_point
@@ -168,7 +169,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_inputs) {
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dequantize_linear_scalar_inputs.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(std::vector<std::uint8_t>{19});  // x
     test_case.add_input(std::vector<float>{2.0f});       // scale
     test_case.add_input(std::vector<uint8_t>{128});      // zero_point
@@ -183,7 +184,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_zero_point) {
                                                             SERIALIZED_ZOO,
                                                             "onnx/dequantize_linear_scalar_zero_point.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(std::vector<std::uint8_t>{19, 210, 21, 10});  // x
     test_case.add_input(std::vector<float>{2.0f, 1.0f});              // scale
     test_case.add_input(std::vector<uint8_t>{128});                   // zero_point
@@ -197,7 +198,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_no_zero_point) {
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dequantize_linear_no_zero_point.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(std::vector<std::uint8_t>{19, 210, 21, 10});  // x
     test_case.add_input(std::vector<float>{2.0f, 1.0f});              // scale
 
@@ -210,7 +211,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_zero_scale_ui
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dequantize_linear_0.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(std::vector<uint8_t>{0, 3, 128, 255});  // x
     test_case.add_input(std::vector<float>{2.0f});              // scale
     test_case.add_input(std::vector<uint8_t>{128});             // zero_point
@@ -224,7 +225,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_zero_scale_in
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dequantize_linear_1.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input(std::vector<int8_t>{-30, -3, 100, 127});  // x
     test_case.add_input(std::vector<float>{2.0f});                // scale
@@ -239,7 +240,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_uint8)
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dequantize_linear_2.onnx"));
 
-    auto test_case = ngraph::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input(std::vector<uint8_t>{0, 1, 2, 3, 0, 1, 2, 3, 0, 10, 20, 30});  // x
     test_case.add_input(std::vector<float>{1.0f, 2.0f, 4.0f});                         // scale
@@ -256,7 +257,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_int8) 
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dequantize_linear_3.onnx"));
 
-    auto test_case = ngraph::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input(std::vector<int8_t>{0, 1, 2, 3, 0, 2, 4, 6, 0, 10, 20, 30});  // x
     test_case.add_input(std::vector<float>{1.0f, 2.0f, 4.0f, 8.0f});                  // scale
@@ -273,7 +274,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_int8_4
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dequantize_linear_4_dynamic.onnx"));
 
-    auto test_case = ngraph::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // The `axis` sttribute is set to 1
     // The data input shape in the onnx model is {-1, -1, -1, -1}
@@ -298,7 +299,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_int8_4
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dequantize_linear_4.onnx"));
 
-    auto test_case = ngraph::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input(std::vector<int8_t>{7, 9, 10, 10, 5,  8, 9, 1, 8, 6, 7, 9, 10, 0, 7, 10,
                                             8, 2, 6,  0,  5,  9, 8, 1, 2, 7, 5, 3, 2,  4, 1, 3,
@@ -321,7 +322,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_uint8_
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dequantize_linear_5.onnx"));
 
-    auto test_case = ngraph::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input(std::vector<uint8_t>{0, 1, 2, 3, 0, 1, 2, 3, 0, 10, 20, 30});  // x
     test_case.add_input(std::vector<float>{1.0f, 2.0f, 4.0f});                         // scale
@@ -339,7 +340,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_ignore_axis) 
                                                             SERIALIZED_ZOO,
                                                             "onnx/dequantize_linear_scalar_ignore_axis.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(std::vector<uint8_t>{0, 3, 128, 255});  // x
     test_case.add_input(std::vector<float>{2.0f});              // scale
     test_case.add_input(std::vector<uint8_t>{128});             // zero_point
@@ -354,7 +355,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dynamic_quantize_linear) {
                                                             SERIALIZED_ZOO,
                                                             "onnx/quantization/dynamic_quantize_linear.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({0.f, 2.f, -3.f, -2.5f, 1.34f, 0.5f});
     test_case.add_expected_output<uint8_t>(Shape{6}, {153, 255, 0, 25, 221, 179});
     test_case.add_expected_output<float>(Shape{}, {0.0196078438f});
@@ -368,7 +369,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dynamic_quantize_linear_255) {
                                                             SERIALIZED_ZOO,
                                                             "onnx/quantization/dynamic_quantize_linear.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({-1.f, -2.1f, -1.3f, -2.5f, -3.34f, -4.f});
     test_case.add_expected_output<uint8_t>(Shape{6}, {191, 121, 172, 96, 42, 0});
     test_case.add_expected_output<float>(Shape{}, {0.0156862754f});
@@ -382,7 +383,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dynamic_quantize_linear_3x4) {
                                                             SERIALIZED_ZOO,
                                                             "onnx/quantization/dynamic_quantize_linear_3x4.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // don't change style for better readibility
     // clang-format off
@@ -403,7 +404,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/quant_conv_lin.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // don't change style for better readibility
     // clang-format off
@@ -434,7 +435,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_2d) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/qlinear_conv_2d.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input_from_file<uint8_t>(
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/files/qlinearconv2d/x.bin"));
@@ -455,7 +456,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_3d) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/qlinear_conv_3d.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // don't change style for better readibility
     // clang-format off
@@ -516,7 +517,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_onnx_example) {
                                                             SERIALIZED_ZOO,
                                                             "onnx/quantization/quant_conv_linear_onnx_example.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // don't change style for better readibility
     // clang-format off
@@ -550,7 +551,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_qlinear_matmul_2d) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/qlinear_matmul.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input(std::vector<uint8_t>{208, 236, 0, 238, 3, 214, 255, 29});                      // T1
     test_case.add_input(std::vector<float>{0.0066f});                                                  // a_scale
@@ -569,7 +570,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_2d_simple_zero_point) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/matmul_integer.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // don't change style for better readibility
     // clang-format off
@@ -596,7 +597,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_int8) {
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/matmul_integer_int8.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // don't change style for better readibility
     // clang-format off
@@ -621,7 +622,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_vectorized_zero_point) 
                                                             SERIALIZED_ZOO,
                                                             "onnx/matmul_integer_vectorized_zero_point.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // don't change style for better readibility
     // clang-format off
@@ -650,7 +651,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_no_zero_point) {
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/matmul_integer_no_zero_point.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // don't change style for better readibility
     // clang-format off
@@ -677,7 +678,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_2d_x_3d) {
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/matmul_integer_2d_x_3d.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // don't change style for better readibility
     // clang-format off
@@ -708,7 +709,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_3d_x_2d) {
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/matmul_integer_3d_x_2d.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // don't change style for better readibility
     // clang-format off
@@ -737,7 +738,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_3d) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/matmul_integer_3d.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // don't change style for better readibility
     // clang-format off
@@ -772,7 +773,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_4d) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/matmul_integer_4d.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // don't change style for better readibility
     // clang-format off
@@ -811,7 +812,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_4d_zero_point) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/matmul_integer_4d.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // don't change style for better readibility
     // clang-format off
@@ -850,7 +851,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_matrix_zero_point) {
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/matmul_integer_matrix_zero_point.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // don't change style for better readibility
     // clang-format off
@@ -890,7 +891,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_qlinear_matmul_3d) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/qlinear_matmul_3d.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input(
         std::vector<uint8_t>{208, 236, 0, 238, 3, 214, 255, 29, 208, 236, 0, 238, 3, 214, 255, 29});  // T1
@@ -912,7 +913,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_conv_integer_simple_zero_point) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/conv_integer.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // don't change style for better readibility
     // clang-format off
@@ -935,7 +936,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_conv_integer_scalar_zp) {
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/conv_integer_scalar_zp.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // clang-format off
     test_case.add_input(std::vector<uint8_t>{11, 22, 33,
@@ -956,7 +957,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_conv_integer_int8) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/conv_integer_int8.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // don't change style for better readibility
     // clang-format off
@@ -979,7 +980,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_conv_integer_no_zero_point) {
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/conv_integer_no_zero_point.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // don't change style for better readibility
     // clang-format off
@@ -1000,7 +1001,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_conv_integer_vector_w_zero_point) {
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/conv_integer_vector_w_zero_point.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // don't change style for better readibility
     // clang-format off
@@ -1045,7 +1046,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_conv_integer_overload) {
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/conv_integer_overload.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
     // don't change style for better readibility
     // clang-format off
@@ -1087,7 +1088,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_fake_quantize_const_inputs_infer) {
     std::vector<float> input_data(n_elements);
     std::iota(std::begin(input_data), std::end(input_data), 0.f);
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(input_data);
     test_case.add_expected_output<float>(
         data_shape,
@@ -1107,7 +1108,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_fake_quantize_nonconst_inputs_infer) {
     std::vector<float> input_data(n_elements);
     std::iota(std::begin(input_data), std::end(input_data), 0.f);
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>(input_data);
     // input_low
     test_case.add_input<float>({3.f});
@@ -1130,7 +1131,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_opset10) {
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/quantize_linear_opset10.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(std::vector<float>{32.25f, 48.34f, 50.f, 83.f});
     test_case.add_input(std::vector<float>{0.5f});
     test_case.add_input(std::vector<uint8_t>{0});
@@ -1145,7 +1146,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_opsets_10_and_13_axis0
                                                             SERIALIZED_ZOO,
                                                             "onnx/quantize_linear_opsets_10_and_13_axis0.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(std::vector<float>{32.25f, 48.34f, 50.f, 83.f});
     test_case.add_input(std::vector<float>{0.5f, 1.0f});
     test_case.add_input(std::vector<uint8_t>{0, 0});
@@ -1160,7 +1161,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_opsets_10_and_13_axis1
                                                             SERIALIZED_ZOO,
                                                             "onnx/quantize_linear_opsets_10_and_13_axis1.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(std::vector<float>{32.25f, 48.34f, 50.f, 83.f});
     test_case.add_input(std::vector<float>{1.0f, 0.5f});
     test_case.add_input(std::vector<uint8_t>{0, 0});

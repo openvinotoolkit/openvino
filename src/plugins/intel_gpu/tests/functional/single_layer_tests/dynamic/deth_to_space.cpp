@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/depth_to_space.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include <string>
 
@@ -64,7 +64,10 @@ protected:
         targetDevice = ov::test::utils::DEVICE_GPU;
         init_input_shapes({shapes});
 
-        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
+        }
         auto d2s = ngraph::builder::makeDepthToSpace(params[0], mode, blockSize);
 
         ngraph::ResultVector results;

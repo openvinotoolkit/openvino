@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 
@@ -126,11 +128,13 @@ class TestBinaryOps(CommonTFLayerTest):
                               'Xdivy'])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122716')
     def test_binary_op(self, params, ie_device, precision, ir_version, temp_dir, op_type,
                        use_new_frontend, use_old_api):
-        if ie_device == 'GPU' and precision == "FP16":
-            pytest.skip("BinaryOps tests temporary skipped on GPU with FP16 precision."
-                        "Several tests don't pass accuracy checks.")
+        if precision == "FP16":
+            pytest.skip("BinaryOps tests are skipped with FP16 precision."
+                        "They don't pass accuracy checks because chaotic output.")
         self._test(
             *self.create_add_placeholder_const_net(**params, ir_version=ir_version, op_type=op_type,
                                                    use_new_frontend=use_new_frontend), ie_device,

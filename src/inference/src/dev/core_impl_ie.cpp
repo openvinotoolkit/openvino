@@ -11,9 +11,9 @@
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "dev/converter_utils.hpp"
 #include "dev/icompiled_model_wrapper.hpp"
-#include "ie_itt.hpp"
 #include "ie_network_reader.hpp"
 #include "iplugin_wrapper.hpp"
+#include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "openvino/itt.hpp"
@@ -33,7 +33,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::LoadNetwork
     ov::Plugin& plugin,
     const std::map<std::string, std::string>& parsedConfig,
     const InferenceEngine::RemoteContext::Ptr& context) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::LoadNetworkImpl");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "CoreImpl::LoadNetworkImpl");
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> execNetwork;
     auto wrapper = std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr);
     OPENVINO_ASSERT(wrapper);
@@ -49,27 +49,26 @@ InferenceEngine::RemoteContext::Ptr ov::CoreImpl::GetDefaultContext(const std::s
 }
 
 InferenceEngine::CNNNetwork ov::CoreImpl::ReadNetwork(const std::string& modelPath, const std::string& binPath) const {
-    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::ReadNetwork from file");
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::ReadNetwork from file");
     return InferenceEngine::details::ReadNetwork(modelPath,
                                                  binPath,
                                                  extensions,
-                                                 ov_extensions,
-                                                 is_new_api(),
+                                                 isNewAPI(),
                                                  coreConfig.get_enable_mmap());
 }
 
 InferenceEngine::CNNNetwork ov::CoreImpl::ReadNetwork(const std::string& model,
                                                       const InferenceEngine::Blob::CPtr& weights,
                                                       bool frontendMode) const {
-    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::ReadNetwork from memory");
-    return InferenceEngine::details::ReadNetwork(model, weights, extensions, ov_extensions, is_new_api(), frontendMode);
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::ReadNetwork from memory");
+    return InferenceEngine::details::ReadNetwork(model, weights, extensions, isNewAPI(), frontendMode);
 }
 
 ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::LoadNetwork(
     const InferenceEngine::CNNNetwork& network,
     const std::shared_ptr<InferenceEngine::RemoteContext>& context,
     const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "Core::LoadNetwork::RemoteContext");
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::LoadNetwork::RemoteContext");
     if (network.getFunction()) {
         auto ctx = ov::legacy_convert::convert_remote_context(context);
         auto compiled_model =
@@ -90,7 +89,7 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
     const InferenceEngine::CNNNetwork& network,
     const std::string& deviceName,
     const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "Core::LoadNetwork::CNN");
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::LoadNetwork::CNN");
     if (network.getFunction()) {
         auto compiled_model =
             compile_model(ov::legacy_convert::convert_model(network, isNewAPI()), deviceName, any_copy(config));
@@ -107,7 +106,7 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
     const std::string& deviceName,
     const std::map<std::string, std::string>& config,
     const std::function<void(const InferenceEngine::CNNNetwork&)>& val) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::Path");
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::LoadNetwork::Path");
 
     auto compiled_model = compile_model(modelPath, deviceName, any_copy(config));
     return {ov::legacy_convert::convert_compiled_model(compiled_model), compiled_model._so};
@@ -119,7 +118,7 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
     const std::string& deviceName,
     const std::map<std::string, std::string>& config,
     const std::function<void(const InferenceEngine::CNNNetwork&)>& val) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "Core::LoadNetwork::Memory");
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::LoadNetwork::Memory");
 
     auto compiled_model =
         compile_model(modelStr,
@@ -143,8 +142,8 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::ImportNetwork(
 InferenceEngine::QueryNetworkResult ov::CoreImpl::QueryNetwork(const InferenceEngine::CNNNetwork& network,
                                                                const std::string& deviceName,
                                                                const std::map<std::string, std::string>& config) const {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::QueryNetwork");
-    ie::QueryNetworkResult ret;
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::QueryNetwork");
+    InferenceEngine::QueryNetworkResult ret;
     if (!network.getFunction()) {
         ret.rc = InferenceEngine::GENERAL_ERROR;
         return ret;
@@ -268,10 +267,17 @@ std::map<std::string, InferenceEngine::Version> ov::CoreImpl::GetVersions(const 
         ov::DeviceIDParser parser(deviceName_);
         std::string deviceNameLocal = parser.get_device_name();
 
-        ov::Plugin cppPlugin = get_plugin(deviceNameLocal);
-
-        versions[deviceNameLocal] =
-            ov::legacy_convert::convert_plugin(ov::SoPtr<ov::IPlugin>{cppPlugin.m_ptr, cppPlugin.m_so})->GetVersion();
+        try {
+            ov::Plugin cppPlugin = get_plugin(deviceNameLocal);
+            auto convertedPlugin =
+                ov::legacy_convert::convert_plugin(ov::SoPtr<ov::IPlugin>{cppPlugin.m_ptr, cppPlugin.m_so});
+            versions[deviceNameLocal] = convertedPlugin->GetVersion();
+        } catch (const ov::Exception& ex) {
+            std::string exception(ex.what());
+            if (exception.find("not registered in the OpenVINO Runtime") == std::string::npos) {
+                throw;
+            }
+        }
     }
 
     return versions;

@@ -9,21 +9,29 @@
 
 #include <pugixml.hpp>
 
-#include "ngraph_functions/builders.hpp"
+#include "shared_test_classes/base/utils/ranges.hpp"
+#include "shared_test_classes/base/utils/generate_inputs.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
 #include "functional_test_utils/crash_handler.hpp"
 #include "functional_test_utils/summary/op_info.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
+#include "input_info.hpp"
 #include "conformance.hpp"
 #include "read_ir_test/read_ir.hpp"
 
 #include "common_test_utils/postgres_link.hpp"
 
 #include <setjmp.h>
+
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/runtime/common.hpp"
 
 namespace ov {
 namespace test {
@@ -47,6 +55,9 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
     std::reverse(splittedFilename.begin(), splittedFilename.end());
     bool is_valid_path_format = true;
 
+    std::string subgrapth_dir = "subgraph";
+    std::vector<std::string> graphConvertLogicTypes = { "fused_names", "repeat_pattern" };
+
     // Check that op is valid
     if (splittedFilename.size() > 2) {
         auto pos = splittedFilename[2].find('-');
@@ -64,22 +75,34 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
             }
             message += "_";
             result << message;
-        } else {
+        } else if (splittedFilename[2] != subgrapth_dir) {
             is_valid_path_format = false;
         }
     }
+
     // Check the element_type
     if (splittedFilename.size() > 1) {
         if (std::find(ov::test::conformance::element_type_names.begin(),
                       ov::test::conformance::element_type_names.end(),
                       splittedFilename[1]) != ov::test::conformance::element_type_names.end()) {
             result << "Type=" << splittedFilename[1] << "_";
+        } else if (std::find(graphConvertLogicTypes.begin(),
+                             graphConvertLogicTypes.end(),
+                             splittedFilename[1]) != graphConvertLogicTypes.end()) {
+            result << "ConvertLogic=" << splittedFilename[1] << "_";
         } else {
             is_valid_path_format = false;
         }
     }
     result << "IR=" << (is_valid_path_format ? ov::test::utils::replaceExt(splittedFilename[0], "") : path_to_model) << "_";
     result << "Device=" << deviceName << "_";
+
+    std::vector<std::string> shapeModes = { "static", "dynamic" };
+    // Check the shape type
+    if (splittedFilename.size() > 3 &&
+        std::find(shapeModes.begin(), shapeModes.end(), splittedFilename[3]) != shapeModes.end()) {
+        result << "Shape=" << splittedFilename[3] << "_";
+    }
     result << "Config=(";
     auto configItem = config.begin();
     while (configItem != config.end()) {
@@ -113,7 +136,7 @@ void ReadIRTest::query_model() {
         }
         s.setDeviceName(targetDevice);
 
-        if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+        if (ov::test::utils::current_test_is_disabled()) {
             s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::SKIPPED, rel_influence_coef);
             GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
         } else {
@@ -191,6 +214,9 @@ uint64_t clip(uint64_t n, uint64_t lower, uint64_t upper) {
 }
 
 void ReadIRTest::SetUp() {
+    // todo: find the optimal way to find TEST_P instances
+    // inference + query_model + import_export
+    summary.setDowngradeCoefficient(3);
     std::pair<std::string, std::string> model_pair;
     std::tie(model_pair, targetDevice, configuration) = this->GetParam();
     std::tie(path_to_model, path_to_cache) = model_pair;
@@ -199,68 +225,45 @@ void ReadIRTest::SetUp() {
     if (ov::test::utils::fileExists(metaFile)) {
         pugi::xml_document doc;
         doc.load_file(metaFile.c_str());
-        auto models = doc.child("meta_info").child("models");
-        size_t model_len = 0, occurance = 0;
-        for (const auto &model : models.children("model")) {
-            ocurance_in_models.push_back({model.attribute("name").as_string(), model.attribute("count").as_uint()});
-            model_len++;
-            occurance += model.attribute("count").as_uint();
-        }
         rel_influence_coef = doc.child("meta_info").child("graph_priority").attribute("value").as_double();
         // TODO: remove after cache update w/a
         if (rel_influence_coef == 0) {
             rel_influence_coef = 1.f;
         }
-        auto portsInfo = doc.child("meta_info").child("ports_info");
-        auto getPortInfo = [&](size_t id) {
-            LayerTestsUtils::PortInfo info;
-            for (const auto &p : portsInfo.children()) {
-                if (p.attribute("id").as_uint() == id) {
-                    info.convert_to_const = p.attribute("convert_to_const").as_bool();
-                    if (std::strcmp(p.attribute("min").as_string(), "undefined") != 0) {
-                        info.min = p.attribute("min").as_double();
-                    } else {
-                        info.min = -10;
-                    }
-                    if (std::strcmp(p.attribute("max").as_string(), "undefined") != 0) {
-                        info.max = p.attribute("max").as_double();
-                    } else {
-                        info.max = 10;
-                    }
-                    break;
-                }
+        auto input_info_xml = doc.child("meta_info").child("input_info");
+        std::map<std::string, ov::tools::subgraph_dumper::InputInfo> input_info;
+        for (const auto &input : input_info_xml.children()) {
+            auto in_name = std::string(input.attribute("id").value());
+            ov::tools::subgraph_dumper::InputInfo in_info;
+            in_info.is_const = input.attribute("convert_to_const").as_bool();
+            if (std::string(input.attribute("min").value()) != "undefined") {
+                in_info.ranges.min = input.attribute("min").as_double();
             }
-            return info;
-        };
-
-        auto params = function->get_parameters();
-        for (const auto &param : params) {
-            auto idx = -1;
-            for (size_t i = 0; i < param->get_output_size(); i++) {
-                for (const auto &node : param->get_output_target_inputs(i)) {
-                    const auto nodePtr = node.get_node()->shared_from_this();
-                    for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
-                        if (nodePtr->get_input_node_ptr(port)->shared_from_this() == param->shared_from_this()) {
-                            idx = port;
-                            break;
-                        }
-                    }
-                }
+            if (std::string(input.attribute("max").value()) != "undefined") {
+                in_info.ranges.max = input.attribute("max").as_double();
             }
-            EXPECT_GE(idx, 0);
-
-            auto info = getPortInfo(idx);
-            if (info.convert_to_const) {
-                const auto constant = ngraph::builder::makeConstant(param->get_element_type(),
-                                                                    param->get_shape(),
-                                                                    std::vector<double>{},
-                                                                    true,
-                                                                    info.max,
-                                                                    info.min,
-                                                                    1);
-                ov::replace_node(param, constant);
-                function->remove_parameter(param);
+            input_info.insert({in_name, in_info});
+        }
+        auto inputMap = utils::getInputMap();
+        std::vector<std::shared_ptr<ov::op::v0::Parameter>> parameter_to_remove;
+        for (const auto& param : function->get_parameters()) {
+            auto in_info = input_info.find(param->get_friendly_name())->second;
+            if (!in_info.is_const) {
+                continue;
             }
+            utils::ConstRanges::set(in_info.ranges.min, in_info.ranges.max);
+            // auto next_node = param->get_default_output().get_node_shared_ptr();
+            auto next_node = param->get_default_output().get_target_inputs().begin()->get_node()->shared_from_this();
+            auto it = inputMap.find(next_node->get_type_info());
+            auto tensor = it->second(next_node, function->get_parameter_index(param), param->get_element_type(), param->get_shape());
+            auto const_node = std::make_shared<ov::op::v0::Constant>(tensor);
+            const_node->set_friendly_name(param->get_friendly_name());
+            ov::replace_node(param, const_node);
+            parameter_to_remove.push_back(param);
+            utils::ConstRanges::reset();
+        }
+        for (const auto& param : parameter_to_remove) {
+            function->remove_parameter(param);
         }
     }
 

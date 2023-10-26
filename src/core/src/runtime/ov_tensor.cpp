@@ -7,12 +7,12 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/core/shape_util.hpp"
 #include "openvino/core/strides.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "shape_util.hpp"
 
 namespace ov {
 

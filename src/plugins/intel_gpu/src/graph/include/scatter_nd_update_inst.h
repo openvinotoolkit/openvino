@@ -24,6 +24,11 @@ public:
 
 public:
     typed_primitive_inst(network& network, scatter_nd_update_node const& desc);
+    void update_output_memory() override;
+
+private:
+    void on_execute() override;
+    void reuse_input();
 };
 
 using scatter_nd_update_inst = typed_primitive_inst<scatter_nd_update>;

@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "async_infer_request.hpp"
-#include "ie_plugin_config.hpp"
 #include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
@@ -33,9 +32,6 @@ ov::template_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Mode
     // In this case, m_wait_executor should also be created per device.
     try {
         compile_model(m_model);
-    } catch (const InferenceEngine::Exception& e) {
-        // Some transformations can throw legacy exception
-        OPENVINO_THROW(e.what());
     } catch (const std::exception& e) {
         OPENVINO_THROW("Standard exception from compilation library: ", e.what());
     } catch (...) {
@@ -130,9 +126,6 @@ std::shared_ptr<const ov::template_plugin::Plugin> ov::template_plugin::Compiled
 
 // ! [compiled_model:get_property]
 ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name) const {
-    const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
-        properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
-    };
     const auto& default_ro_properties = []() {
         std::vector<ov::PropertyName> ro_properties{ov::model_name,
                                                     ov::supported_properties,
@@ -145,29 +138,7 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
         std::vector<ov::PropertyName> rw_properties{ov::device::id, ov::enable_profiling};
         return rw_properties;
     };
-    const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
-        std::vector<std::string> ret;
-        for (const auto& property : properties) {
-            ret.emplace_back(property);
-        }
-        return ret;
-    };
-    // TODO: return more supported values for metrics
-    if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
-        auto metrics = default_ro_properties();
-        add_ro_properties(METRIC_KEY(SUPPORTED_METRICS), metrics);
-        add_ro_properties(METRIC_KEY(SUPPORTED_CONFIG_KEYS), metrics);
-        return to_string_vector(metrics);
-    } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        auto configs = default_rw_properties();
-        auto streamExecutorConfigKeys = ov::threading::IStreamsExecutor::Config{}
-                                            .get_property(ov::supported_properties.name())
-                                            .as<std::vector<std::string>>();
-        for (auto&& configKey : streamExecutorConfigKeys) {
-            configs.emplace_back(configKey);
-        }
-        return to_string_vector(configs);
-    } else if (ov::model_name == name) {
+    if (ov::model_name == name) {
         auto model_name = m_model->get_friendly_name();
         return decltype(ov::model_name)::value_type(model_name);
     } else if (ov::loaded_from_cache == name) {

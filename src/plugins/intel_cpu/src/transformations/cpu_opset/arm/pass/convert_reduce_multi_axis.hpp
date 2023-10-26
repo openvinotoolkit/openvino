@@ -49,7 +49,7 @@
 namespace ov {
 namespace intel_cpu {
 
-class ConvertReduceMultiAxisBase: public ngraph::pass::MatcherPass {
+class ConvertReduceMultiAxisBase: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertReduceMultiAxisBase", "0");
     template <class T>
@@ -80,7 +80,7 @@ public:
     ConvertReduceSum();
 };
 
-class ConvertReduceMultiAxis: public ngraph::pass::GraphRewrite {
+class ConvertReduceMultiAxis: public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("ConvertReduceMultiAxis", "0");
     ConvertReduceMultiAxis() {

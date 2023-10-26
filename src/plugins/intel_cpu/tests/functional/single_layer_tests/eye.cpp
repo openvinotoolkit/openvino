@@ -5,7 +5,7 @@
 #include <ngraph/opsets/opset9.hpp>
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 using namespace InferenceEngine;
@@ -84,7 +84,10 @@ protected:
     }
 
     std::shared_ptr<ngraph::Function> createFunction() {
-        auto inputParams = ngraph::builder::makeDynamicParams(ngraph::element::i32, inputDynamicShapes);
+        ov::ParameterVector inputParams;
+        for (auto&& shape : inputDynamicShapes) {
+            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::i32, shape));
+        }
         auto rowsPar = inputParams[0];
         rowsPar->set_friendly_name("rows");
         auto colsPar = inputParams[1];

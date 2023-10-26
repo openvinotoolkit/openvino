@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/pass/manager.hpp"
+#include "openvino/pass/manager.hpp"
 
 #include <algorithm>
 #include <iomanip>
@@ -12,14 +12,10 @@
 #include <unordered_map>
 
 #include "itt.hpp"
-#include "ngraph/function.hpp"
-#include "ngraph/graph_util.hpp"
-#include "ngraph/log.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/pass/graph_rewrite.hpp"
 #include "ngraph/pass/pass.hpp"
-#include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/log.hpp"
 #include "perf_counters.hpp"
@@ -61,7 +57,7 @@ void ov::pass::Manager::set_per_pass_validation(bool new_state) {
 }
 
 bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
+    OPENVINO_SUPPRESS_DEPRECATED_START
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "pass::Manager::run_passes");
 
     static bool profile_enabled =
@@ -93,7 +89,7 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
                 continue;
             }
             // GraphRewrite is a temporary container for MatcherPass to make execution
-            // on on entire ngraph::Function
+            // on on entire ov::Model
             pass_applied = GraphRewrite(matcher_pass).run_on_model(func);
         } else if (auto function_pass = dynamic_pointer_cast<ModelPass>(pass)) {
             // This checks is to skip the graph transformation when the graph pass relies on
@@ -139,7 +135,8 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
         index++;
         pass_timer.stop();
         if (profile_enabled) {
-            cout << setw(7) << pass_timer.get_milliseconds() << "ms " << pass->get_name() << "\n";
+            cout << setw(7) << pass_timer.get_milliseconds() << "ms" << (pass_applied ? " + " : "   ")
+                 << pass->get_name() << "\n";
         }
         function_changed = function_changed || pass_applied;
         needs_validate = pass_applied;
@@ -147,7 +144,7 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
     if (profile_enabled) {
         cout << "passes done in " << overall_timer.get_milliseconds() << "ms\n";
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return function_changed;
 }

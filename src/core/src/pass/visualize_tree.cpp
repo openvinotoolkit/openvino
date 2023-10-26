@@ -2,25 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/pass/visualize_tree.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 
 #include <cmath>
 #include <fstream>
-#include <openvino/cc/pass/itt.hpp>
 
-#include "ngraph/env_util.hpp"
-#include "ngraph/file_util.hpp"
-#include "ngraph/function.hpp"
-#include "ngraph/graph_util.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/parameter.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/pass/pass.hpp"
-#include "ngraph/util.hpp"
-
-using namespace ngraph;
-using namespace std;
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/util/common_util.hpp"
+#include "openvino/util/env_util.hpp"
+#include "openvino/util/file_util.hpp"
 
 /*
  * As we are visualizing the graph, we will make some tweaks to the generated dot file to make
@@ -105,7 +100,7 @@ using namespace std;
 class HeightMap {
 public:
     HeightMap() {}
-    HeightMap(std::set<Node*> initials) {
+    HeightMap(std::set<ov::Node*> initials) {
         for (auto& n : initials) {
             m_heights[n] = 0;
         }
@@ -130,29 +125,27 @@ public:
     }
 
 private:
-    std::unordered_map<Node*, int64_t> m_heights;
+    std::unordered_map<ov::Node*, int64_t> m_heights;
 };
 
-static std::string label_edge(const std::shared_ptr<Node>& /* src */,
-                              const std::shared_ptr<Node>& dst,
+static std::string label_edge(const std::shared_ptr<ov::Node>& /* src */,
+                              const std::shared_ptr<ov::Node>& dst,
                               size_t arg_index,
                               int64_t jump_distance) {
     std::stringstream ss;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (getenv_bool("OV_VISUALIZE_TREE_EDGE_LABELS")) {
+    if (ov::util::getenv_bool("OV_VISUALIZE_TREE_EDGE_LABELS")) {
         ss << "[label=\" " << dst->input_value(arg_index).get_index() << " -> " << arg_index << " \"]";
-    } else if (getenv_bool("OV_VISUALIZE_TREE_EDGE_JUMP_DISTANCE")) {
+    } else if (ov::util::getenv_bool("OV_VISUALIZE_TREE_EDGE_JUMP_DISTANCE")) {
         if (jump_distance > 1) {
             ss << "[label=\"jump=" << jump_distance << "\"]";
         }
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
     return ss.str();
 }
 
 static std::string get_attribute_values(const std::map<std::string, ov::Any>& attributes,
                                         const std::string& delimiter = ", ") {
-    stringstream ss;
+    std::stringstream ss;
     bool first = true;
     for (const auto& item : attributes) {
         ss << (first ? " " : delimiter) << item.first;
@@ -173,9 +166,22 @@ static std::string get_attribute_values(const std::map<std::string, ov::Any>& at
     return ss.str();
 }
 
-bool pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) {
+static std::string name_of_subgraph_file(const std::shared_ptr<ov::Node> op,
+                                         const std::string& current_file_name,
+                                         const size_t& i) {
+    // friendly is never empty it is either friendly (set by user) or unique (auto-generated) name
+    auto node_name = op->get_friendly_name();
+    std::replace(node_name.begin(), node_name.end(), '/', '-');
+    auto postfix = "_node_" + node_name + "_subgraph_#" + std::to_string(i);
+    auto file_name = current_file_name;
+    auto insert_pos = file_name.find_last_of('.');
+    file_name.insert(insert_pos, postfix);
+    return file_name;
+}
+
+bool ov::pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_MODEL_SCOPE(VisualizeTree);
-    unordered_map<Node*, HeightMap> height_maps;
+    std::unordered_map<Node*, HeightMap> height_maps;
 
     for (auto& node : f->get_ops()) {
         if (node->description() == "Result") {
@@ -189,6 +195,14 @@ bool pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) {
 
     for (auto it = nodes.rbegin(); it != nodes.rend(); ++it) {
         auto& node = *it;
+        if (auto multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(node)) {
+            for (size_t i = 0; i < multi_subgraph_op->get_internal_subgraphs_size(); ++i)
+                if (const auto& sub_graph = multi_subgraph_op->get_function(i))
+                    ov::pass::VisualizeTree(name_of_subgraph_file(multi_subgraph_op, m_name, i),
+                                            m_node_modifiers,
+                                            m_dot_only)
+                        .run_on_model(sub_graph);
+        }
         for (auto& output : node->outputs()) {
             for (auto& input : output.get_target_inputs()) {
                 auto target_node = input.get_node();
@@ -201,7 +215,7 @@ bool pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) {
 
     size_t fake_node_ctr = 0;
 
-    traverse_nodes(f, [&](shared_ptr<Node> node) {
+    traverse_nodes(f, [&](std::shared_ptr<Node> node) {
         add_node_arguments(node, height_maps, fake_node_ctr);
     });
 
@@ -213,30 +227,27 @@ bool pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) {
     return false;
 }
 
-pass::VisualizeTree::VisualizeTree(const string& file_name, node_modifiers_t nm, bool dot_only)
+ov::pass::VisualizeTree::VisualizeTree(const std::string& file_name, node_modifiers_t nm, bool dot_only)
     : m_name{file_name},
       m_node_modifiers{nm},
       m_dot_only(dot_only) {}
 
-void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
-                                             unordered_map<Node*, HeightMap>& height_maps,
-                                             size_t& fake_node_ctr) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    static const int const_max_elements = getenv_int("OV_VISUALIZE_TREE_CONST_MAX_ELEMENTS", 7);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
+void ov::pass::VisualizeTree::add_node_arguments(std::shared_ptr<Node> node,
+                                                 std::unordered_map<Node*, HeightMap>& height_maps,
+                                                 size_t& fake_node_ctr) {
     size_t arg_index = 0;
     for (auto input_value : node->input_values()) {
         auto arg = input_value.get_node_shared_ptr();
         size_t jump_distance = height_maps[arg.get()].max_jump_to(height_maps[node.get()]);
-        if (ov::is_type<ngraph::op::Constant>(arg) || ov::is_type<ngraph::op::Parameter>(arg)) {
-            auto clone_name = "CLONE_" + to_string(fake_node_ctr);
-            auto color = string("color=\"") + (arg->description() == "Parameter" ? "blue" : "black") + string("\"");
+        if (ov::is_type<ov::op::v0::Constant>(arg) || ov::is_type<ov::op::v0::Parameter>(arg)) {
+            auto clone_name = "CLONE_" + std::to_string(fake_node_ctr);
+            auto color =
+                std::string("color=\"") + (arg->description() == "Parameter" ? "blue" : "black") + std::string("\"");
             std::vector<std::string> attributes{"shape=\"box\"",
                                                 "style=\"dashed\"",
                                                 color,
-                                                string("label=\"") + get_node_name(arg) + string("\n") +
-                                                    get_constant_value(arg, const_max_elements) + string("\"")};
+                                                std::string("label=\"") + get_node_name(arg) + std::string("\n") +
+                                                    get_constant_value(arg) + std::string("\"")};
 
             if (m_node_modifiers && !arg->output(0).get_rt_info().empty()) {
                 m_node_modifiers(*arg, attributes);
@@ -253,8 +264,8 @@ void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
         } else if (jump_distance > max_jump_distance) {
             m_ss << add_attributes(arg);
             m_ss << add_attributes(node);
-            auto recv_node_name = "RECV_" + to_string(fake_node_ctr);
-            auto send_node_name = "SEND_" + to_string(fake_node_ctr);
+            auto recv_node_name = "RECV_" + std::to_string(fake_node_ctr);
+            auto send_node_name = "SEND_" + std::to_string(fake_node_ctr);
             m_ss << "    " << recv_node_name
                  << "[shape=\"box\" style=\"solid,filled\" "
                     "fillcolor=\"#ffcccc\" label=\"Receive["
@@ -278,8 +289,8 @@ void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
     }
 }
 
-string pass::VisualizeTree::add_attributes(shared_ptr<Node> node) {
-    string rc;
+std::string ov::pass::VisualizeTree::add_attributes(std::shared_ptr<Node> node) {
+    std::string rc;
     if (m_nodes_with_attributes.find(node) == m_nodes_with_attributes.end()) {
         m_nodes_with_attributes.insert(node);
         rc = get_attributes(node);
@@ -287,20 +298,14 @@ string pass::VisualizeTree::add_attributes(shared_ptr<Node> node) {
     return rc;
 }
 
-static std::string pretty_partial_shape(const PartialShape& shape) {
+static std::string pretty_partial_shape(const ov::PartialShape& shape) {
     std::stringstream ss;
-
-    if (shape.rank().is_dynamic()) {
-        ss << "?";
-    } else {
-        ss << shape;
-    }
-
+    ss << shape;
     return ss.str();
 }
 
 template <typename T>
-static std::string pretty_min_max_denormal_value(const vector<T>& values) {
+static std::string pretty_min_max_denormal_value(const std::vector<T>& values) {
     std::stringstream ss;
 
     T min_value = values[0];
@@ -336,21 +341,11 @@ static std::string pretty_min_max_denormal_value(const vector<T>& values) {
 }
 
 template <typename T>
-static std::string pretty_value(const vector<T>& values, size_t max_elements, bool allow_obfuscate = false) {
+static std::string pretty_value(const std::vector<T>& values, bool allow_obfuscate = false) {
     std::stringstream ss;
     for (size_t i = 0; i < values.size(); ++i) {
-        if (i < max_elements) {
-            if (i != 0 && i % 8 == 0) {
-                ss << std::endl;
-            }
-        } else {
-            bool all_same = std::all_of(values.begin(), values.end(), [&](const T& el) {
-                return el == values[0];
-            });
-            ss << "..." << (all_same ? " same" : "");
-            break;
-        }
-
+        if (i != 0 && i % 8 == 0)
+            ss << std::endl;
         const auto& value = values[i];
         if (i > 0)
             ss << ", ";
@@ -362,56 +357,55 @@ static std::string pretty_value(const vector<T>& values, size_t max_elements, bo
             ss << value;
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
     const std::string additional_ss =
-        getenv_bool("OV_VISUALIZE_TREE_MIN_MAX_DENORMAL") ? pretty_min_max_denormal_value(values) : "";
+        ov::util::getenv_bool("OV_VISUALIZE_TREE_MIN_MAX_DENORMAL") ? pretty_min_max_denormal_value(values) : "";
     if (!additional_ss.empty()) {
         ss << std::endl << "(" << additional_ss << ")";
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
     return ss.str();
 }
 
-static std::string get_value(const shared_ptr<ov::op::v0::Constant>& constant,
-                             size_t max_elements,
-                             bool allow_obfuscate = false) {
+static std::string get_value(const std::shared_ptr<ov::op::v0::Constant>& constant, bool allow_obfuscate = false) {
+    static const int max_elements = ov::util::getenv_int("OV_VISUALIZE_TREE_CONST_MAX_ELEMENTS", 7);
     std::stringstream ss;
+    ss << "[ ";
     switch (constant->get_output_element_type(0)) {
-    case element::Type_t::undefined:
-        ss << "[ undefined value ]";
+    case ov::element::Type_t::undefined:
+    case ov::element::Type_t::dynamic:
+    case ov::element::Type_t::u1:
+    case ov::element::Type_t::u4:
+    case ov::element::Type_t::nf4:
+    case ov::element::Type_t::i4:
+        ss << constant->get_output_element_type(0).get_type_name() << " value";
         break;
-    case element::Type_t::dynamic:
-        ss << "[ dynamic value ]";
+    case ov::element::Type_t::bf16:
+    case ov::element::Type_t::f16:
+    case ov::element::Type_t::f32:
+    case ov::element::Type_t::f64:
+        ss << pretty_value(constant->cast_vector<double>(max_elements), allow_obfuscate);
         break;
-    case element::Type_t::u1:
-        ss << "[ u1 value ]";
+    case ov::element::Type_t::i8:
+    case ov::element::Type_t::i16:
+    case ov::element::Type_t::i32:
+    case ov::element::Type_t::i64:
+        ss << pretty_value(constant->cast_vector<int64_t>(max_elements), allow_obfuscate);
         break;
-    case element::Type_t::u4:
-        ss << "[ u4 value ]";
-        break;
-    case element::Type_t::i4:
-        ss << "[ i4 value ]";
-        break;
-    case element::Type_t::bf16:
-    case element::Type_t::f16:
-    case element::Type_t::f32:
-    case element::Type_t::f64:
-        ss << "[" << pretty_value(constant->cast_vector<double>(), max_elements, allow_obfuscate) << "]";
-        break;
-    case element::Type_t::i8:
-    case element::Type_t::i16:
-    case element::Type_t::i32:
-    case element::Type_t::i64:
-        ss << "[" << pretty_value(constant->cast_vector<int64_t>(), max_elements, allow_obfuscate) << "]";
-        break;
-    case element::Type_t::boolean:
-    case element::Type_t::u8:
-    case element::Type_t::u16:
-    case element::Type_t::u32:
-    case element::Type_t::u64:
-        ss << "[" << pretty_value(constant->cast_vector<uint64_t>(), max_elements, allow_obfuscate) << "]";
+    case ov::element::Type_t::boolean:
+    case ov::element::Type_t::u8:
+    case ov::element::Type_t::u16:
+    case ov::element::Type_t::u32:
+    case ov::element::Type_t::u64:
+        ss << pretty_value(constant->cast_vector<uint64_t>(max_elements), allow_obfuscate);
         break;
     }
+    const auto num_elements_in_constant = static_cast<int>(shape_size(constant->get_shape()));
+    if (num_elements_in_constant == 0)
+        ss << "empty";
+    else if (max_elements == 0)
+        ss << "suppressed";
+    else if (num_elements_in_constant > max_elements)
+        ss << ", ...";
+    ss << " ]";
     return ss.str();
 }
 
@@ -429,19 +423,14 @@ static std::string get_bounds_and_label_info(const ov::Output<ov::Node> output) 
     if (size == 0) {
         label << "empty";
     } else {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        static const int const_max_elements = getenv_int("OV_VISUALIZE_TREE_CONST_MAX_ELEMENTS", 7);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-        label << " lower: "
-              << (lower ? get_value(std::make_shared<ov::op::v0::Constant>(lower), const_max_elements, true) : "NONE");
-        label << " upper: "
-              << (upper ? get_value(std::make_shared<ov::op::v0::Constant>(upper), const_max_elements, true) : "NONE");
-        label << " label: " << (value_label.empty() ? "NONE" : pretty_value(value_label, const_max_elements));
+        label << " lower: " << (lower ? get_value(std::make_shared<ov::op::v0::Constant>(lower), true) : "NONE");
+        label << " upper: " << (upper ? get_value(std::make_shared<ov::op::v0::Constant>(upper), true) : "NONE");
+        label << " label: " << (value_label.empty() ? "NONE" : pretty_value(value_label));
     }
     return label.str();
 }
 
-std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, size_t max_elements) {
+std::string ov::pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, size_t max_elements) {
     std::stringstream ss;
     ss << "{" << node->get_element_type().to_string() << "}";
     ss << pretty_partial_shape(node->get_output_partial_shape(0));
@@ -451,11 +440,11 @@ std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, 
     return ss.str();
 }
 
-string pass::VisualizeTree::get_attributes(shared_ptr<Node> node) {
-    vector<string> attributes;
+std::string ov::pass::VisualizeTree::get_attributes(std::shared_ptr<Node> node) {
+    std::vector<std::string> attributes;
     attributes.push_back("shape=box");
 
-    if (ngraph::op::is_output(node)) {
+    if (ov::op::util::is_output(node)) {
         attributes.push_back("color=crimson");
         attributes.push_back("penwidth=1.5");
     } else {
@@ -464,23 +453,21 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node) {
 
     // Construct the label attribute
     {
-        stringstream label;
+        std::stringstream label;
         label << "label=\"" << get_node_name(node);
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        static const bool nvtos =
-            getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_SHAPES") || getenv_bool("OV_VISUALIZE_TREE_OUTPUT_SHAPES");
-        static const bool nvtot =
-            getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES") || getenv_bool("OV_VISUALIZE_TREE_OUTPUT_TYPES");
-        static const bool nvtio = getenv_bool("OV_VISUALIZE_TREE_IO");
-        static const bool nvtrti = getenv_bool("OV_VISUALIZE_TREE_RUNTIME_INFO");
-        static const bool ovpvl = getenv_bool("OV_VISUALIZE_PARTIAL_VALUES_AND_LABELS");
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        static const bool nvtos = ov::util::getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_SHAPES") ||
+                                  ov::util::getenv_bool("OV_VISUALIZE_TREE_OUTPUT_SHAPES");
+        static const bool nvtot = ov::util::getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES") ||
+                                  ov::util::getenv_bool("OV_VISUALIZE_TREE_OUTPUT_TYPES");
+        static const bool nvtio = ov::util::getenv_bool("OV_VISUALIZE_TREE_IO");
+        static const bool nvtrti = ov::util::getenv_bool("OV_VISUALIZE_TREE_RUNTIME_INFO");
+        static const bool ovpvl = ov::util::getenv_bool("OV_VISUALIZE_PARTIAL_VALUES_AND_LABELS");
 
         if (nvtos || nvtot || nvtio) {
             if (nvtio) {
                 for (const auto& input : node->inputs()) {
-                    label << "\\nin" << to_string(input.get_index()) << ": ";
+                    label << "\\nin" << std::to_string(input.get_index()) << ": ";
                     if (nvtot)
                         label << "{" << input.get_element_type().to_string() << "}";
                     if (nvtos)
@@ -495,7 +482,7 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node) {
             }
             for (const auto& output : node->outputs()) {
                 if (nvtio)
-                    label << "\\nout" << to_string(output.get_index()) << ": ";
+                    label << "\\nout" << std::to_string(output.get_index()) << ": ";
                 if (nvtot)
                     label << "{" << output.get_element_type().to_string() << "}";
                 if (nvtos)
@@ -521,26 +508,23 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node) {
         m_node_modifiers(*node, attributes);
     }
 
-    stringstream ss;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ss << "    " << node->get_name() << " [" << join(attributes, " ") << "]\n";
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    std::stringstream ss;
+    ss << "    " << node->get_name() << " [" << ov::util::join(attributes, " ") << "]\n";
 
     return ss.str();
 }
 
-string pass::VisualizeTree::get_node_name(shared_ptr<Node> node) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    static const bool nvtmn = getenv_bool("OV_VISUALIZE_TREE_MEMBERS_NAME");
-    string rc = (nvtmn ? string("friendly_name: ") : "") + node->get_friendly_name();
+std::string ov::pass::VisualizeTree::get_node_name(std::shared_ptr<Node> node) {
+    static const bool nvtmn = ov::util::getenv_bool("OV_VISUALIZE_TREE_MEMBERS_NAME");
+    std::string rc = (nvtmn ? std::string("friendly_name: ") : "") + node->get_friendly_name();
     if (node->get_friendly_name() != node->get_name()) {
-        rc += "\\n" + (nvtmn ? string("name: ") : "") + node->get_name();
+        rc += "\\n" + (nvtmn ? std::string("name: ") : "") + node->get_name();
     }
     const auto type_info = node->get_type_info();
-    rc += "\\n" + (nvtmn ? string("type_name: ") : "") + std::string(type_info.version_id) +
+    rc += "\\n" + (nvtmn ? std::string("type_name: ") : "") + std::string(type_info.version_id) +
           "::" + std::string(type_info.name);
 
-    static const bool nvttn = getenv_bool("OV_VISUALIZE_TREE_TENSORS_NAME");
+    static const bool nvttn = ov::util::getenv_bool("OV_VISUALIZE_TREE_TENSORS_NAME");
     if (nvttn) {
         auto to_string = [](const std::unordered_set<std::string>& names) {
             std::stringstream ss;
@@ -553,7 +537,7 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node) {
         };
 
         if (node->get_input_size() != 0) {
-            rc += "\\n" + (nvtmn ? string("in_tensor_names: ") : "");
+            rc += "\\n" + (nvtmn ? std::string("in_tensor_names: ") : "");
             for (size_t i = 0; i < node->get_input_size(); ++i) {
                 const auto input = node->input(i);
                 const auto tensor_ptr = input.get_tensor_ptr();
@@ -565,7 +549,7 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node) {
             }
         }
         if (node->get_output_size() != 0) {
-            rc += "\\n" + (nvtmn ? string("out_tensor_names: ") : "");
+            rc += "\\n" + (nvtmn ? std::string("out_tensor_names: ") : "");
             for (size_t i = 0; i < node->get_output_size(); ++i) {
                 const auto output = node->output(i);
                 const auto tensor_ptr = output.get_tensor_ptr();
@@ -578,35 +562,33 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node) {
         }
     }
 
-    static const bool nvtrti = getenv_bool("OV_VISUALIZE_TREE_RUNTIME_INFO");
+    static const bool nvtrti = ov::util::getenv_bool("OV_VISUALIZE_TREE_RUNTIME_INFO");
     if (nvtrti) {
         const auto rt = node->get_rt_info();
         if (!rt.empty()) {
             rc += "\\nrt info: " + get_attribute_values(rt, "\\n");
         }
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
     return rc;
 }
 
-void pass::VisualizeTree::render() const {
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    string ext = file_util::get_file_ext(m_name);
-    string output_format = ext.substr(1);
-    string dot_file = m_name;
-    if (to_lower(ext) != ".dot") {
+void ov::pass::VisualizeTree::render() const {
+    std::string ext = ov::util::get_file_ext(m_name);
+    std::string output_format = ext.substr(1);
+    std::string dot_file = m_name;
+    if (ov::util::to_lower(ext) != ".dot") {
         dot_file += ".dot";
     }
-    ofstream out(dot_file);
+    std::ofstream out(dot_file);
     if (out) {
         out << "digraph \n{\n";
         out << m_ss.str();
         out << "}\n";
         out.close();
 
-        if (!m_dot_only && to_lower(ext) != ".dot") {
+        if (!m_dot_only && ov::util::to_lower(ext) != ".dot") {
 #ifndef _WIN32
-            stringstream ss;
+            std::stringstream ss;
             ss << "dot -T" << output_format << " " << dot_file << " -o" << m_name;
             auto cmd = ss.str();
             auto stream = popen(cmd.c_str(), "r");
@@ -616,5 +598,4 @@ void pass::VisualizeTree::render() const {
 #endif
         }
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }

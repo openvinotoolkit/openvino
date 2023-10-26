@@ -6,10 +6,10 @@ import numpy as np
 import pytest
 
 import openvino.runtime as ov
-from openvino.runtime import Tensor
+from openvino import Tensor
 from openvino.runtime.op import Constant
 
-from tests.test_utils.test_utils import generate_image
+from tests.utils.helpers import generate_image
 
 
 @pytest.mark.parametrize(("cls", "cls_str"), [

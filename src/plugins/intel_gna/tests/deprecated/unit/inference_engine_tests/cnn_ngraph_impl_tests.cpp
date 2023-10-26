@@ -6,7 +6,7 @@
 #include <gtest/gtest.h>
 #include <legacy/net_pass.h>
 
-#include <common_test_utils/ngraph_test_utils.hpp>
+#include <common_test_utils/ov_test_utils.hpp>
 #include <fstream>
 #include <ie_core.hpp>
 #include <ie_parameter.hpp>

@@ -16,8 +16,6 @@ struct reorg_yolo : public primitive_base<reorg_yolo> {
 
     reorg_yolo() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs region_yolo primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -31,7 +29,7 @@ struct reorg_yolo : public primitive_base<reorg_yolo> {
     /// @brief Defines a scope of a reorg yolo normalization
     /// @details
     /// Specific behaviour is determined by these parameters, as follows:
-    uint32_t stride;
+    uint32_t stride = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

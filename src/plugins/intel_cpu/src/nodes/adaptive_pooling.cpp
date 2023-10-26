@@ -14,6 +14,7 @@
 #include <utils/bfloat16.hpp>
 #include <utils/general_utils.h>
 #include <vector>
+#include "shape_inference/custom/adaptive_pooling.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl;
@@ -22,57 +23,6 @@ using namespace dnnl::impl::cpu::x64;
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
-namespace {
-/**
- * Implements Adaptive Pooling shape inference algorithm. The output tensor shape consists of the input [N, C] dimensions and
- * the [D_out, H_out, W_out] dimensions, which are placed in the second input parameter.
- * 
- */
-class AdaptivePoolingShapeInfer : public ShapeInferEmptyPads {
-public:
-    explicit AdaptivePoolingShapeInfer(size_t outputs_count) : m_outputs_count(outputs_count) {}
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        const auto& inputDims = input_shapes[0].get();
-        const auto& spatialDims = input_shapes[1].get();
-        const auto inputRank = inputDims.size();
-        const auto spatialDimsSize = spatialDims[0];
-
-        VectorDims outputDims(inputRank);
-        outputDims[0] = inputDims[0];
-        outputDims[1] = inputDims[1];
-        auto newSpatialDimsPtr = reinterpret_cast<int32_t *>(data_dependency.at(1)->getData());
-        for (size_t i = 0; i < spatialDimsSize; i++) {
-            outputDims[i + 2] = newSpatialDimsPtr[i];
-        }
-
-        std::vector<VectorDims> result(m_outputs_count, outputDims);
-        return {std::move(result), ShapeInferStatus::success};
-    }
-
-    port_mask_t get_port_mask() const override {
-        return PortMask(1);
-    }
-
-private:
-    size_t m_outputs_count;
-};
-
-class AdaptivePoolingShapeInferFactory : public ShapeInferFactory {
-public:
-    AdaptivePoolingShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
-    ShapeInferPtr makeShapeInfer() const override {
-        size_t outputs_count = m_op->get_output_size();
-        return std::make_shared<AdaptivePoolingShapeInfer>(outputs_count);
-    }
-
-private:
-    std::shared_ptr<ov::Node> m_op;
-};
-
-} // namespace
 
 bool AdaptivePooling::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {

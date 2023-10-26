@@ -21,6 +21,7 @@
 #include "mvn_inst.h"
 #include "concatenation_inst.h"
 #include "shape_of_inst.h"
+#include "arg_max_min_inst.h"
 #include "gather_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
@@ -345,13 +346,13 @@ TEST(remove_redundant_reorders, not_to_fuse_concat_with_reorder_inside_shape_of_
     topology.add(data("data_1", data_1));
     topology.add(data("data_2", data_2));
     topology.add(shape_of("shape_of", input_info("input"), 4, data_types::i32));
-    topology.add(gather("gather0", input_info("shape_of"), input_info("data_0"), 0, {}, 0, true));
+    topology.add(gather("gather0", input_info("shape_of"), input_info("data_0"), 0, {}, {}, 0, true));
     topology.add(reorder("reorder0", input_info("gather0"), format::any, data_types::f32,
                          std::vector<float>(), reorder_mean_mode::subtract, padding(), true));
     topology.add(eltwise("eltwise0", input_info("reorder0"), input_info("data_1"), eltwise_mode::prod, broadcast_spec));
     topology.add(reshape("reshape0", input_info("eltwise0"), false, {},
                          ov::PartialShape{1}, reshape::reshape_mode::unsqueeze));
-    topology.add(gather("gather1", input_info("shape_of"), input_info("data_0"), 0, {}, 0, true));
+    topology.add(gather("gather1", input_info("shape_of"), input_info("data_0"), 0, {}, {}, 0, true));
     topology.add(reorder("reorder1", input_info("gather1"), format::any, data_types::f32,
                          std::vector<float>(), reorder_mean_mode::subtract, padding(), true));
     topology.add(eltwise("eltwise1", input_info("reorder1"), input_info("data_1"), eltwise_mode::prod, broadcast_spec));
@@ -378,4 +379,96 @@ TEST(remove_redundant_reorders, not_to_fuse_concat_with_reorder_inside_shape_of_
     auto concat_layout = concat_node.get_output_layout();
 
     ASSERT_EQ(concat_layout.data_type, data_types::f32);
+}
+
+TEST(remove_redundant_reorders, reorder_of_non_default_port) {
+    static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
+    auto& engine = get_test_engine();
+    const int top_k = 2;
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
+    auto top_k_input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1 , 1 } });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(cldnn::data("const", {top_k_input}));
+    auto arg_max_min_prim = arg_max_min("arg_max",
+                                        { input_info("input"), input_info("const") },
+                                        ov::op::TopKMode::MAX, top_k,
+                                        0,
+                                        ov::op::TopKSortType::SORT_VALUES,
+                                        false,
+                                        false,
+                                        padding(),
+                                        data_types::f32,
+                                        2);
+    arg_max_min_prim.output_paddings = {padding(), padding()};
+    arg_max_min_prim.output_data_types = {optional_data_type{data_types::f32}, optional_data_type{data_types::f32}};
+    topology.add(arg_max_min_prim);
+    topology.add(reorder("reorder_1", input_info("arg_max", 0), format::bfyx, data_types::f32));
+    topology.add(reorder("reorder_2", input_info("arg_max", 1), format::bfyx, data_types::f32));
+    topology.add(permute("permute_1", input_info("reorder_1", 0), {0, 1, 2, 3}, padding()));
+    topology.add(permute("permute_2", input_info("reorder_2", 0), {0, 1, 2, 3}, padding()));
+    topology.add(concatenation("concat", { input_info("permute_1"), input_info("permute_2") }, 0));
+
+    std::vector<float> input_vec = {
+            //y0x0 y0x1 y1x0 y1x1
+            /*b0f0*/0.1f, 0.2f, 0.3f,  0.4f,
+            /*b0f1*/0.5f, 0.6f,  0.7f, 0.8f,
+            /*b0f2*/0.9f, 1.0f,  1.1f, 1.2f,
+            /*b0f3*/1.3f, 1.4f,  1.5f, 1.6f,
+
+            /*b1f0*/2.1f, 2.2f, 2.3f, 2.4f,
+            /*b1f1*/2.5f, 2.6f, 2.7f, 2.8f,
+            /*b1f2*/2.9f, 3.0f, 3.1f, 3.2f,
+            /*b1f3*/3.3f, 3.4f, 3.5f, 3.6f,
+    };
+
+    std::vector<float> ref_result = {
+            /*indexes*/
+            /*b0*/
+            1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1, 1, 1, 1,
+            /*b1*/
+            0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0,
+            /**values*/
+            /*b0*/
+            2.1f, 2.2f, 2.3f, 2.4f,
+            2.5f, 2.6f, 2.7f, 2.8f,
+            2.9f, 3.0f, 3.1f, 3.2f,
+            3.3f, 3.4f, 3.5f, 3.6f,
+            /*b1*/
+            0.1f, 0.2f, 0.3f,  0.4f,
+            0.5f, 0.6f,  0.7f, 0.8f,
+            0.9f, 1.0f,  1.1f, 1.2f,
+            1.3f, 1.4f,  1.5f, 1.6f,
+    };
+
+    set_values(input, input_vec);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+
+    ASSERT_NE(network.get_program(), nullptr);
+    ASSERT_FALSE(has_node_with_type<reorder>(*network.get_program()));
+
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "concat");
+    const int out_size = y_size * feature_num * x_size * top_k * 2;
+    auto output = outputs.at("concat").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    float out_buffer[out_size];
+    for (uint32_t i = 0; i < out_size; i++) {
+        out_buffer[i] = get_value<float>(output_ptr.data(), i);
+    }
+    for (int i = 0; i < out_size; i++) {
+        ASSERT_EQ(out_buffer[i], ref_result[i]);
+    }
 }

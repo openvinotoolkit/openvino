@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/mat_mul.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <string>
 
 using namespace ngraph;
@@ -116,7 +116,7 @@ protected:
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        auto params = builder::makeDynamicParams(netType, {inShapeA});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netType, inShapeA)};
 
         auto matrixB = builder::makeDynamicInputLayer(netType, secondaryInputType, inShapeB);
         if (secondaryInputType == helpers::InputLayerType::PARAMETER) {

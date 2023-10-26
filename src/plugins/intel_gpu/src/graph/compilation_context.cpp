@@ -2,18 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
 #include "compilation_context.hpp"
 #include <mutex>
 #include <atomic>
 #include <unordered_set>
+#include <future>
 #include "intel_gpu/runtime/utils.hpp"
 
 namespace cldnn {
 class CompilationContext : public ICompilationContext {
 public:
     CompilationContext(ov::threading::IStreamsExecutor::Config task_executor_config) : _task_executor_config(task_executor_config) {
-        _task_executor_config._streams = 4;
         _task_executor = std::make_shared<ov::threading::CPUStreamsExecutor>(_task_executor_config);
     }
 
@@ -21,11 +20,19 @@ public:
         if (_stop_compilation)
             return;
 
+        auto promise = std::make_shared<std::promise<void>>();
+
         std::lock_guard<std::mutex> lock(_mutex);
+        futures.emplace_back(promise->get_future());
+
         if (_task_keys.find(key) == _task_keys.end()) {
             _task_keys.insert(key);
-            if (_task_executor != nullptr)
-                _task_executor->run(task);
+            if (_task_executor != nullptr) {
+                _task_executor->run([task, promise] {
+                    task();
+                    promise->set_value();
+                });
+            }
         }
     }
 
@@ -61,12 +68,19 @@ public:
         }
     }
 
+    void wait_all() override {
+        for (auto&& future : futures) {
+            future.wait();
+        }
+    }
+
 private:
     ov::threading::IStreamsExecutor::Config _task_executor_config;
     std::shared_ptr<ov::threading::IStreamsExecutor> _task_executor;
     std::mutex _mutex;
     std::unordered_set<kernel_impl_params, kernel_impl_params::Hasher> _task_keys;
     std::atomic_bool _stop_compilation{false};
+    std::vector<std::future<void>> futures;
 };
 
 std::unique_ptr<ICompilationContext> ICompilationContext::create(ov::threading::IStreamsExecutor::Config task_executor_config) {

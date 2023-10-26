@@ -32,7 +32,7 @@ class ConvertGatherToGatherIEMatcher;
  *     we unsqueeze indices input and squeeze GatherIE output.
  */
 
-class ngraph::pass::ConvertGatherToGatherIEMatcher : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertGatherToGatherIEMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertGatherToGatherIEMatcher", "0");
     ConvertGatherToGatherIEMatcher();

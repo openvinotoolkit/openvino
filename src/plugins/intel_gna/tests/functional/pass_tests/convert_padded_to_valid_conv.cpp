@@ -13,7 +13,7 @@
 
 #include "../shared_tests_instances/skip_tests_check.hpp"
 #include "common_test_utils/test_common.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "transformations/init_node_info.hpp"
 
@@ -130,7 +130,7 @@ protected:
         Shape maxpoolShape{maxpoolPool};
         Strides maxpoolStrides{maxpoolStride};
 
-        auto input = builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         auto transposeInOrder = op::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
         auto transposeIn = std::make_shared<Transpose>(input[0], transposeInOrder);
         auto filterSize = std::accumulate(std::begin(kernel), std::end(kernel), 1ull, std::multiplies<size_t>());
@@ -225,6 +225,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::
                                                                InferenceEngine::Precision::FP16};
 
 const std::vector<std::map<std::string, std::string>> configs1D = {
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1"}, {"GNA_EXEC_TARGET", "GNA_TARGET_1_0"}},
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1"}, {"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}},
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "1"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};

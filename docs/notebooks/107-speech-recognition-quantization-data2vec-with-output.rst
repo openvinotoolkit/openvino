@@ -19,8 +19,23 @@ steps:
 -  Compare performance of the original and quantized models.
 -  Compare Accuracy of the Original and Quantized Models.
 
+**Table of contents:**
+
+- `Download and prepare model <#download-and-prepare-model>`__
+
+  - `Obtain Pytorch model representation <#obtain-pytorch-model-representation>`__
+  - `Convert model to OpenVINO Intermediate Representation <#convert-model-to-openvino-intermediate-representation>`__
+  - `Prepare inference data <#prepare-inference-data>`__
+
+- `Check model inference result <#check-model-inference-result>`__
+- `Validate model accuracy on dataset <#validate-model-accuracy-on-dataset>`__
+- `Quantization <#quantization>`__
+- `Check INT8 model inference result <#check-int8-model-inference-result>`__
+- `Compare Performance of the Original and Quantized Models <#compare-performance-of-the-original-and-quantized-models>`__
+- `Compare Accuracy of the Original and Quantized Models <#compare-accuracy-of-the-original-and-quantized-models>`__
+
 Download and prepare model
---------------------------
+###############################################################################################################################
 
 data2vec is a framework for self-supervised representation learning for
 images, speech, and text as described in `data2vec: A General Framework
@@ -39,7 +54,7 @@ finetuned on 960 hours of audio from LibriSpeech Automatic Speech
 Recognition corpus and distributed as part of HuggingFace transformers.
 
 Obtain Pytorch model representation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 For instantiating PyTorch model class, we should use
 ``Data2VecAudioForCTC.from_pretrained`` method with providing model ID
@@ -53,7 +68,8 @@ model specific pre- and post-processing steps.
 
 .. code:: ipython3
 
-    !pip install -q 'openvino-dev>=2023.0.0' 'nncf>=2.5.0'
+    !pip install -q "openvino==2023.1.0.dev20230811" "nncf>=2.5.0"
+    !pip install -q datasets "torchmetrics>=0.11.0"
     !pip install -q soundfile librosa transformers onnx
 
 .. code:: ipython3
@@ -64,7 +80,7 @@ model specific pre- and post-processing steps.
     model = Data2VecAudioForCTC.from_pretrained("facebook/data2vec-audio-base-960h")
 
 Convert model to OpenVINO Intermediate Representation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -75,11 +91,10 @@ Convert model to OpenVINO Intermediate Representation
 
 .. code:: ipython3
 
-    from openvino.tools import mo
-    from openvino.runtime import serialize, Core
+    import openvino as ov
     import torch
     
-    core = Core()
+    core = ov.Core()
     
     BATCH_SIZE = 1
     MAX_SEQ_LENGTH = 30480
@@ -120,8 +135,8 @@ Convert model to OpenVINO Intermediate Representation
     if not ir_model_path.exists():
         if not onnx_model_path.exists():
             export_model_to_onnx(model, onnx_model_path)
-        ov_model = mo.convert_model(onnx_model_path, compress_to_fp16=True)
-        serialize(ov_model, str(ir_model_path))
+        ov_model = ov.convert_model(onnx_model_path)
+        ov.save_model(ov_model, str(ir_model_path))
         print("IR model saved to {}".format(ir_model_path))
     else:
         print("Read IR model from {}".format(ir_model_path))
@@ -135,17 +150,13 @@ Convert model to OpenVINO Intermediate Representation
 
 
 Prepare inference data
-~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 For demonstration purposes, we will use short dummy version of
-librispeach dataset - ``patrickvonplaten/librispeech_asr_dummy`` to
+LibriSpeech dataset - ``patrickvonplaten/librispeech_asr_dummy`` to
 speed up model evaluation. Model accuracy can be different from reported
 in the paper. For reproducing original accuracy, use ``librispeech_asr``
 dataset.
-
-.. code:: ipython3
-
-    !pip install -q datasets "torchmetrics>=0.11.0"
 
 .. code:: ipython3
 
@@ -167,15 +178,8 @@ dataset.
     
     test_sample = ds[0]["audio"]
 
-
-.. parsed-literal::
-
-    Found cached dataset librispeech_asr_dummy (/home/adrian/.cache/huggingface/datasets/patrickvonplaten___librispeech_asr_dummy/clean/2.1.0/f2c70a4d03ab4410954901bde48c54b85ca1b7f9bf7d616e7e2a72b5ee6ddbfc)
-    Loading cached processed dataset at /home/adrian/.cache/huggingface/datasets/patrickvonplaten___librispeech_asr_dummy/clean/2.1.0/f2c70a4d03ab4410954901bde48c54b85ca1b7f9bf7d616e7e2a72b5ee6ddbfc/cache-4e0f4916cd205b24.arrow
-
-
 Check model inference result
-----------------------------
+###############################################################################################################################
 
 The code below is used for running model inference on a single sample
 from the dataset. It contains the following steps:
@@ -211,7 +215,7 @@ For reference, see the same function provided for OpenVINO model.
 
 .. code:: ipython3
 
-    core = Core()
+    core = ov.Core()
     
     pt_transcription = torch_infer(model, dataset[0])
     compiled_model = core.compile_model(ov_model)
@@ -248,7 +252,7 @@ For reference, see the same function provided for OpenVINO model.
 
 
 Validate model accuracy on dataset
-----------------------------------
+###############################################################################################################################
 
 For model accuracy evaluation, `Word Error
 Rate <https://en.wikipedia.org/wiki/Word_error_rate>`__ metric can be
@@ -257,7 +261,7 @@ the total words spoken. A lower WER in speech-to-text means better
 accuracy in recognizing speech.
 
 For WER calculation, we will use
-`torchmetrics <https://torchmetrics.readthedocs.io/en/stable/text/word_error_rate.html>`__
+```torchmetrics`` <https://torchmetrics.readthedocs.io/en/stable/text/word_error_rate.html>`__
 library.
 
 .. code:: ipython3
@@ -308,7 +312,7 @@ library.
 
 
 Quantization
-------------
+###############################################################################################################################
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -318,9 +322,11 @@ Create a quantized model from the pre-trained ``FP16`` model and the
 calibration dataset. The optimization process contains the following
 steps:
 
-1. Create a Dataset for quantization.
-2. Run ``nncf.quantize`` for getting an optimized model. The ``nncf.quantize`` function provides an interface for model quantization. It requires an instance of the  OpenVINO Model and quantization dataset. Optionally, some additional parameters for the configuration quantization process (number of samples for quantization, preset, ignored scope, etc.) can be provided. For more accurate results, we should keep the operation in the postprocessing subgraph in floating point precision, using the ``ignored_scope`` parameter. ``advanced_parameters`` can be used to specify advanced quantization parameters for fine-tuning the quantization algorithm. In this tutorial we pass range estimator parameters for activations. For more information, see `Tune quantization parameters <https://docs.openvino.ai/2023.0/basic_quantization_flow.html#tune-quantization-parameters>`__.
-3. Serialize OpenVINO IR model using ``openvino.runtime.serialize`` function.
+::
+
+   1. Create a Dataset for quantization.
+   2. Run `nncf.quantize` for getting an optimized model. The `nncf.quantize` function provides an interface for model quantization. It requires an instance of the OpenVINO Model and quantization dataset. Optionally, some additional parameters for the configuration quantization process (number of samples for quantization, preset, ignored scope, etc.) can be provided. For more accurate results, we should keep the operation in the postprocessing subgraph in floating point precision, using the `ignored_scope` parameter. `advanced_parameters` can be used to specify advanced quantization parameters for fine-tuning the quantization algorithm. In this tutorial we pass range estimator parameters for activations. For more information see [Tune quantization parameters](https://docs.openvino.ai/2023.0/basic_quantization_flow.html#tune-quantization-parameters).
+   3. Serialize OpenVINO IR model using `ov.save_model` function.
 
 .. code:: ipython3
 
@@ -587,10 +593,10 @@ saved using ``serialize`` function.
 
     MODEL_NAME = 'quantized_data2vec_base'
     quantized_model_path = Path(f"{MODEL_NAME}_openvino_model/{MODEL_NAME}_quantized.xml")
-    serialize(quantized_model, str(quantized_model_path))
+    ov.save_model(quantized_model, str(quantized_model_path))
 
 Check INT8 model inference result
----------------------------------
+###############################################################################################################################
 
 ``INT8`` model is the same in usage like the original one. We need to
 read it, using the ``core.read_model`` method and load on the device,
@@ -629,14 +635,16 @@ using ``core.compile_model``. After that, we can reuse the same
 
 
 Compare Performance of the Original and Quantized Models
---------------------------------------------------------
+###############################################################################################################################
 
 `Benchmark
 Tool <https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 is used to measure the inference performance of the ``FP16`` and
 ``INT8`` models.
 
-   **NOTE**: For more accurate performance, it is recommended to run
+.. note::
+   
+   For more accurate performance, it is recommended to run
    ``benchmark_app`` in a terminal/command prompt after closing other
    applications. Run ``benchmark_app -m model.xml -d CPU`` to benchmark
    async inference on CPU for one minute. Change ``CPU`` to ``GPU`` to
@@ -792,7 +800,7 @@ is used to measure the inference performance of the ``FP16`` and
 
 
 Compare Accuracy of the Original and Quantized Models
------------------------------------------------------
+###############################################################################################################################
 
 Finally, calculate WER metric for the ``INT8`` model representation and
 compare it with the ``FP16`` result.

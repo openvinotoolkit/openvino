@@ -26,8 +26,6 @@ struct pyramid_roi_align : public primitive_base<pyramid_roi_align> {
 
     pyramid_roi_align() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @param id This primitive id.
     /// @param rois Input RoI boxes as tuple [x1, y1, x2, y2] describing two opposite corners of the region.
     /// @param P2 First level of the image pyramid.
@@ -58,10 +56,10 @@ struct pyramid_roi_align : public primitive_base<pyramid_roi_align> {
         , pyramid_starting_level(pyramid_starting_level)
     {}
 
-    int output_size;
-    int sampling_ratio;
+    int output_size = 0;
+    int sampling_ratio = 0;
     std::vector<int> pyramid_scales;
-    int pyramid_starting_level;
+    int pyramid_starting_level = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

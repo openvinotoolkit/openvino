@@ -6,7 +6,7 @@
 #include <tuple>
 #include <vector>
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 namespace GPULayerTestsDefinitions {
@@ -73,7 +73,7 @@ void TopKLayerTestGPU::SetUp() {
         this->GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto paramIn = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     auto k = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, &keepK);

@@ -10,7 +10,6 @@
 #include <limits>
 #include "common_types.h"
 #include "tensor_type.h"
-#include "document.h"
 #include <vector>
 #include <utility>
 #include <bitset>
@@ -130,6 +129,7 @@ public:
                 uint32_t asym_w_quantization : 1;
                 uint32_t asym_d_quantization : 1;
                 uint32_t dynamic_shapes : 1;
+                uint32_t compressed_weights : 1;
 
                 union dedicated_t {
                     struct argm_t {
@@ -216,6 +216,8 @@ public:
                         uint32_t bilinear_interp : 1;
                         uint32_t cubic : 1;
                         uint32_t linear_onnx : 1;
+                        uint32_t bilinear_pillow : 1;
+                        uint32_t bicubic_pillow : 1;
                     } resample;
                     struct reorder_t {
                         uint32_t winograd : 1;
@@ -250,6 +252,8 @@ public:
 
         typedef union DataTypesKey_t {
             struct val_t {
+                uint32_t int4 : 1;
+                uint32_t uint4 : 1;
                 uint32_t int8 : 1;
                 uint32_t uint8 : 1;
                 uint32_t int16 : 1;
@@ -316,6 +320,7 @@ public:
     void EnablePoolRemainder(PoolRemainder r);
     void EnablePoolDilation() { key.restrict.val.dedicated.pooling.dilation = 1; }
     void EnablePoolIndicesOutput() { key.restrict.val.dedicated.pooling.indices_output = 1; }
+    void EnableWeightsCompression() { key.restrict.val.compressed_weights = 1; }
     void EnableQuantization(QuantizationType q);
     void EnablePositionSensitivePooling() { key.restrict.val.dedicated.pooling.position_sensitive = 1; }
     void EnableDilation() { key.restrict.val.dedicated.conv.dilation = 1; }
@@ -685,7 +690,7 @@ struct base_params : public Params {
             out.SetDynamicShapeOffset(offset);
             if (out.is_dynamic()) {
                 offset += DataTensor::max_rank();
-                for (auto dim : out.GetDims()) {
+                for (auto& dim : out.GetDims()) {
                     if (dim.pad.is_dynamic)
                         offset += Tensor::Pad::NumPadOffsetsPerDim();
                 }

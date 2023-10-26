@@ -1,6 +1,8 @@
 Infinite Zoom Stable Diffusion v2 and OpenVINO™
 ===============================================
 
+
+
 Stable Diffusion v2 is the next generation of Stable Diffusion model a
 Text-to-Image latent diffusion model created by the researchers and
 engineers from `Stability AI <https://stability.ai/>`__ and
@@ -31,16 +33,35 @@ Stable Diffusion v2: What’s new?
 The new stable diffusion model offers a bunch of new features inspired
 by the other models that have emerged since the introduction of the
 first iteration. Some of the features that can be found in the new model
-are: 
+are:
 
-* The model comes with a new robust encoder, OpenCLIP, created by LAION and aided by Stability AI; this version v2 significantly enhances the produced photos over the V1 versions.
-* The model can now generate images in a 768x768 resolution, offering more information to be shown in the generated images.
-* The model finetuned with `v-objective <https://arxiv.org/abs/2202.00512>`__. The v-parameterization is particularly useful for numerical stability throughout the diffusion process to enable progressive distillation for models. For models that operate at higher resolution, it is also discovered that the v-parameterization avoids color shifting artifacts that are known to affect high resolution diffusion models, and in the video setting it avoids temporal color shifting that sometimes appears with epsilon-prediction used in Stable Diffusion v1.
-* The model also comes with a new diffusion model capable of running upscaling on the images generated. Upscaled images can be adjusted up to 4 times the original image. Provided as separated model, for more details please check `stable-diffusion-x4-upscaler <https://huggingface.co/stabilityai/stable-diffusion-x4-upscaler>`__
-* The model comes with a new refined depth architecture capable of preserving context from prior generation layers in an img2img setting.
-This structure preservation helps generate images that preserving forms
-and shadow of objects, but with different content.
-* The model comes with an updated inpainting module built upon the previous model. This text-guided inpainting makes switching out parts in the image easier than before.
+-  The model comes with a new robust encoder, OpenCLIP, created by LAION
+   and aided by Stability AI; this version v2 significantly enhances the
+   produced photos over the V1 versions.
+-  The model can now generate images in a 768x768 resolution, offering
+   more information to be shown in the generated images.
+-  The model finetuned with
+   `v-objective <https://arxiv.org/abs/2202.00512>`__. The
+   v-parameterization is particularly useful for numerical stability
+   throughout the diffusion process to enable progressive distillation
+   for models. For models that operate at higher resolution, it is also
+   discovered that the v-parameterization avoids color shifting
+   artifacts that are known to affect high resolution diffusion models,
+   and in the video setting it avoids temporal color shifting that
+   sometimes appears with epsilon-prediction used in Stable Diffusion
+   v1.
+-  The model also comes with a new diffusion model capable of running
+   upscaling on the images generated. Upscaled images can be adjusted up
+   to 4 times the original image. Provided as separated model, for more
+   details please check
+   `stable-diffusion-x4-upscaler <https://huggingface.co/stabilityai/stable-diffusion-x4-upscaler>`__
+-  The model comes with a new refined depth architecture capable of
+   preserving context from prior generation layers in an image-to-image
+   setting. This structure preservation helps generate images that
+   preserving forms and shadow of objects, but with different content.
+-  The model comes with an updated inpainting module built upon the
+   previous model. This text-guided inpainting makes switching out parts
+   in the image easier than before.
 
 This notebook demonstrates how to convert and run Stable Diffusion v2
 model using OpenVINO.
@@ -48,11 +69,32 @@ model using OpenVINO.
 Notebook contains the following steps:
 
 1. Convert PyTorch models to ONNX format.
-2. Convert ONNX models to OpenVINO IR format, using Model Optimizer tool.
-3. Run Stable Diffusion v2 inpainting pipeline for generation infinity zoom video.
+2. Convert ONNX models to OpenVINO IR format, using model conversion
+   API.
+3. Run Stable Diffusion v2 inpainting pipeline for generation infinity
+   zoom video
 
-Stable Diffusion v2 Infinite Zoom Showcase
-------------------------------------------
+.. _top:
+
+**Table of contents**:
+
+- `Stable Diffusion v2 Infinite Zoom Showcase <#stable-diffusion-v2-infinite-zoom-showcase>`__
+
+  - `Stable Diffusion Text guided Inpainting <#stable-diffusion-text-guided-inpainting>`__
+
+- `Prerequisites <#prerequisites>`__
+
+  - `Stable Diffusion in Diffusers library <#stable-diffusion-in-diffusers-library>`__
+  - `Convert models to OpenVINO Intermediate representation (IR) format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
+  - `Prepare Inference pipeline <#prepare-inference-pipeline>`__
+  - `Zoom Video Generation <#zoom-video-generation>`__
+  - `Configure Inference Pipeline <#configure-inference-pipeline>`__
+  - `Select inference device <#select-inference-device>`__
+  - `Run Infinite Zoom video generation <#run-infinite-zoom-video-generation>`__
+
+Stable Diffusion v2 Infinite Zoom Showcase `⇑ <#top>`__
+###############################################################################################################################
+
 
 In this tutorial we consider how to use Stable Diffusion v2 model for
 generation sequence of images for infinite zoom video effect. To do
@@ -60,13 +102,12 @@ this, we will need
 `stabilityai/stable-diffusion-2-inpainting <https://huggingface.co/stabilityai/stable-diffusion-2-inpainting>`__
 model.
 
-Stable Diffusion Text guided Inpainting
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Stable Diffusion Text guided Inpainting `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-In image editing, inpainting is a process of restoring missing parts of
-pictures. Most commonly applied to reconstructing old deteriorated
-images, removing cracks, scratches, dust spots, or red-eyes from
-photographs.
+In image editing, inpainting is a process of restoring missing parts of pictures. Most
+commonly applied to reconstructing old deteriorated images, removing
+cracks, scratches, dust spots, or red-eyes from photographs.
 
 But with the power of AI and the Stable Diffusion model, inpainting can
 be used to achieve more than that. For example, instead of just
@@ -74,7 +115,7 @@ restoring missing parts of an image, it can be used to render something
 entirely new in any part of an existing picture. Only your imagination
 limits it.
 
-The workflow diagram explains how Stable Diffusion inpaining pipeline
+The workflow diagram explains how Stable Diffusion inpainting pipeline
 for inpainting works:
 
 .. figure:: https://github.com/openvinotoolkit/openvino_notebooks/assets/22090501/9ac6de45-186f-4a3c-aa20-825825a337eb
@@ -94,10 +135,10 @@ Using this inpainting feature, decreasing image by certain margin and
 masking this border for every new frame we can create interesting Zoom
 Out video based on our prompt.
 
-Prerequisites
--------------
+Prerequisites `⇑ <#top>`__
+###############################################################################################################################
 
-install required packages
+Install required packages:
 
 .. code:: ipython3
 
@@ -107,12 +148,12 @@ install required packages
 .. parsed-literal::
 
     
-    [notice] A new release of pip available: 22.3.1 -> 23.0.1
+    [notice] A new release of pip is available: 23.1.2 -> 23.2
     [notice] To update, run: pip install --upgrade pip
 
 
-Stable Diffusion in Diffusers library
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Stable Diffusion in Diffusers library `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 To work with Stable Diffusion v2, we will use Hugging Face
 `Diffusers <https://github.com/huggingface/diffusers>`__ library. To
@@ -135,16 +176,96 @@ The code below demonstrates how to create
     scheduler_inpaint = DPMSolverMultistepScheduler.from_config(pipe_inpaint.scheduler.config)
 
 
+.. parsed-literal::
+
+    2023-07-16 15:45:16.540634: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-07-16 15:45:16.577870: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2023-07-16 15:45:17.175991: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
+
+
+.. parsed-literal::
+
+    Downloading (…)ain/model_index.json:   0%|          | 0.00/544 [00:00<?, ?B/s]
+
+
 
 .. parsed-literal::
 
     Fetching 13 files:   0%|          | 0/13 [00:00<?, ?it/s]
 
 
+
 .. parsed-literal::
 
-    /home/ea/work/transformers/src/transformers/models/clip/feature_extraction_clip.py:28: FutureWarning: The class CLIPFeatureExtractor is deprecated and will be removed in version 5 of Transformers. Please use CLIPImageProcessor instead.
-      warnings.warn(
+    Downloading (…)okenizer_config.json:   0%|          | 0.00/829 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Downloading (…)cial_tokens_map.json:   0%|          | 0.00/460 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Downloading (…)cheduler_config.json:   0%|          | 0.00/308 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Downloading (…)rocessor_config.json:   0%|          | 0.00/342 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Downloading (…)_encoder/config.json:   0%|          | 0.00/638 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Downloading (…)tokenizer/merges.txt:   0%|          | 0.00/525k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Downloading (…)tokenizer/vocab.json:   0%|          | 0.00/1.06M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Downloading (…)4590/vae/config.json:   0%|          | 0.00/616 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Downloading (…)590/unet/config.json:   0%|          | 0.00/914 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Downloading model.safetensors:   0%|          | 0.00/1.36G [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Downloading (…)ch_model.safetensors:   0%|          | 0.00/335M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Downloading (…)ch_model.safetensors:   0%|          | 0.00/3.46G [00:00<?, ?B/s]
 
 
 .. code:: ipython3
@@ -161,8 +282,8 @@ The code below demonstrates how to create
     del pipe_inpaint
     gc.collect();
 
-Convert models to OpenVINO Intermediate representation (IR) format
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Convert models to OpenVINO Intermediate representation (IR) format. `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Conversion part of model stayed remain as in `Text-to-Image generation
 notebook <./236-stable-diffusion-v2-text-to-image.ipynb>`__. Except
@@ -329,28 +450,27 @@ generated latents channels + 4 for latent representation of masked image
 
 .. parsed-literal::
 
-    /tmp/ipykernel_384919/3505677505.py:19: FutureWarning: 'torch.onnx._export' is deprecated in version 1.12.0 and will be removed in version 1.14. Please use `torch.onnx.export` instead.
+    /tmp/ipykernel_1181138/3505677505.py:19: FutureWarning: 'torch.onnx._export' is deprecated in version 1.12.0 and will be removed in version 1.14. Please use `torch.onnx.export` instead.
       torch.onnx._export(
-    /home/ea/work/transformers/src/transformers/models/clip/modeling_clip.py:759: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
-      mask.fill_(torch.tensor(torch.finfo(dtype).min))
-    /home/ea/work/transformers/src/transformers/models/clip/modeling_clip.py:284: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:684: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+      mask = torch.full((tgt_len, tgt_len), torch.tensor(torch.finfo(dtype).min, device=device), device=device)
+    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:284: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attn_weights.size() != (bsz * self.num_heads, tgt_len, src_len):
-    /home/ea/work/transformers/src/transformers/models/clip/modeling_clip.py:292: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:292: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if causal_attention_mask.size() != (bsz, 1, tgt_len, src_len):
-    /home/ea/work/transformers/src/transformers/models/clip/modeling_clip.py:324: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:324: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attn_output.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
-    /home/ea/work/notebooks_env/lib/python3.8/site-packages/torch/onnx/symbolic_helper.py:710: UserWarning: Type cannot be inferred, which might cause exported graph to produce incorrect results.
+    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/torch/onnx/symbolic_helper.py:710: UserWarning: Type cannot be inferred, which might cause exported graph to produce incorrect results.
       warnings.warn(
-    /home/ea/work/notebooks_env/lib/python3.8/site-packages/torch/onnx/symbolic_opset9.py:5408: UserWarning: Exporting aten::index operator of advanced indexing in opset 14 is achieved by combination of multiple ONNX operators, including Reshape, Transpose, Concat, and Gather. If indices include negative values, the exported graph will produce incorrect results.
+    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/torch/onnx/symbolic_opset9.py:5408: UserWarning: Exporting aten::index operator of advanced indexing in opset 14 is achieved by combination of multiple ONNX operators, including Reshape, Transpose, Concat, and Gather. If indices include negative values, the exported graph will produce incorrect results.
       warnings.warn(
 
 
 .. parsed-literal::
 
     Text Encoder successfully converted to ONNX
-    Warning: One or more of the values of the Constant can't fit in the float16 data type. Those values were casted to the nearest limit value, the model can produce incorrect results.
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.1/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2_inpainting/text_encoder.xml
     [ SUCCESS ] BIN file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2_inpainting/text_encoder.bin
@@ -375,19 +495,19 @@ generated latents channels + 4 for latent representation of masked image
 
 .. parsed-literal::
 
-    /tmp/ipykernel_384919/3505677505.py:56: FutureWarning: 'torch.onnx._export' is deprecated in version 1.12.0 and will be removed in version 1.14. Please use `torch.onnx.export` instead.
+    /tmp/ipykernel_1181138/3505677505.py:56: FutureWarning: 'torch.onnx._export' is deprecated in version 1.12.0 and will be removed in version 1.14. Please use `torch.onnx.export` instead.
       torch.onnx._export(
-    /home/ea/work/diffusers/src/diffusers/models/unet_2d_condition.py:526: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/diffusers/models/unet_2d_condition.py:752: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if any(s % default_overall_up_factor != 0 for s in sample.shape[-2:]):
-    /home/ea/work/diffusers/src/diffusers/models/resnet.py:185: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/diffusers/models/resnet.py:214: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert hidden_states.shape[1] == self.channels
-    /home/ea/work/diffusers/src/diffusers/models/resnet.py:190: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/diffusers/models/resnet.py:219: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert hidden_states.shape[1] == self.channels
-    /home/ea/work/diffusers/src/diffusers/models/resnet.py:112: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/diffusers/models/resnet.py:138: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert hidden_states.shape[1] == self.channels
-    /home/ea/work/diffusers/src/diffusers/models/resnet.py:125: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/diffusers/models/resnet.py:151: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if hidden_states.shape[0] >= 64:
-    /home/ea/work/diffusers/src/diffusers/models/unet_2d_condition.py:651: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/diffusers/models/unet_2d_condition.py:977: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if not return_dict:
 
 
@@ -395,7 +515,7 @@ generated latents channels + 4 for latent representation of masked image
 
     U-Net successfully converted to ONNX
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.1/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2_inpainting/unet.xml
     [ SUCCESS ] BIN file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2_inpainting/unet.bin
@@ -429,11 +549,11 @@ generated latents channels + 4 for latent representation of masked image
 
 .. parsed-literal::
 
-    /home/ea/work/notebooks_env/lib/python3.8/site-packages/torch/onnx/_internal/jit_utils.py:258: UserWarning: Constant folding - Only steps=1 can be constant folded for opset >= 10 onnx::Slice op. Constant folding not applied. (Triggered internally at ../torch/csrc/jit/passes/onnx/constant_fold.cpp:179.)
+    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/torch/onnx/_internal/jit_utils.py:258: UserWarning: Constant folding - Only steps=1 can be constant folded for opset >= 10 onnx::Slice op. Constant folding not applied. (Triggered internally at ../torch/csrc/jit/passes/onnx/constant_fold.cpp:179.)
       _C._jit_pass_onnx_node_shape_type_inference(node, params_dict, opset_version)
-    /home/ea/work/notebooks_env/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: Constant folding - Only steps=1 can be constant folded for opset >= 10 onnx::Slice op. Constant folding not applied. (Triggered internally at ../torch/csrc/jit/passes/onnx/constant_fold.cpp:179.)
+    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: Constant folding - Only steps=1 can be constant folded for opset >= 10 onnx::Slice op. Constant folding not applied. (Triggered internally at ../torch/csrc/jit/passes/onnx/constant_fold.cpp:179.)
       _C._jit_pass_onnx_graph_shape_type_inference(
-    /home/ea/work/notebooks_env/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: Constant folding - Only steps=1 can be constant folded for opset >= 10 onnx::Slice op. Constant folding not applied. (Triggered internally at ../torch/csrc/jit/passes/onnx/constant_fold.cpp:179.)
+    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: Constant folding - Only steps=1 can be constant folded for opset >= 10 onnx::Slice op. Constant folding not applied. (Triggered internally at ../torch/csrc/jit/passes/onnx/constant_fold.cpp:179.)
       _C._jit_pass_onnx_graph_shape_type_inference(
 
 
@@ -441,7 +561,7 @@ generated latents channels + 4 for latent representation of masked image
 
     VAE encoder successfully converted to ONNX
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.1/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2_inpainting/vae_encoder.xml
     [ SUCCESS ] BIN file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2_inpainting/vae_encoder.bin
@@ -450,11 +570,11 @@ generated latents channels + 4 for latent representation of masked image
 
 .. parsed-literal::
 
-    /home/ea/work/notebooks_env/lib/python3.8/site-packages/torch/onnx/_internal/jit_utils.py:258: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/torch/onnx/_internal/jit_utils.py:258: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_node_shape_type_inference(node, params_dict, opset_version)
-    /home/ea/work/notebooks_env/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_graph_shape_type_inference(
-    /home/ea/work/notebooks_env/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_graph_shape_type_inference(
 
 
@@ -462,17 +582,18 @@ generated latents channels + 4 for latent representation of masked image
 
     VAE decoder successfully converted to ONNX
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.1/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2_inpainting/vae_decoder.xml
     [ SUCCESS ] BIN file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2_inpainting/vae_decoder.bin
     VAE decoder successfully converted to IR
 
 
-Prepare Inference pipeline
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Prepare Inference pipeline `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-As it was descussed previously, Inpainting inference pipeline is based
+
+As it was discussed previously, Inpainting inference pipeline is based
 on Text-to-Image inference pipeline with addition mask processing step.
 We will reuse ``OVStableDiffusionPipeline`` basic utilities in
 ``OVStableDiffusionInpaintingPipeline`` class.
@@ -538,6 +659,13 @@ We will reuse ``OVStableDiffusionPipeline`` basic utilities in
         masked_image = image * (mask < 0.5)
     
         return mask, masked_image
+
+
+.. parsed-literal::
+
+    /tmp/ipykernel_1181138/859685649.py:8: FutureWarning: Importing `DiffusionPipeline` or `ImagePipelineOutput` from diffusers.pipeline_utils is deprecated. Please import from diffusers.pipelines.pipeline_utils instead.
+      from diffusers.pipeline_utils import DiffusionPipeline
+
 
 .. code:: ipython3
 
@@ -899,14 +1027,15 @@ We will reuse ``OVStableDiffusionPipeline`` basic utilities in
     
             return timesteps, num_inference_steps - t_start 
 
-Zoom Video Generation
-~~~~~~~~~~~~~~~~~~~~~
+Zoom Video Generation `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 For achieving zoom effect, we will use inpainting to expand images
 beyond their original borders. We run our
-OVStableDiffusionInpaintingPipeline in the loop, where each next frame
-will add edges to previous. The frame generation process illustrated on
-diagram below:
+``OVStableDiffusionInpaintingPipeline`` in the loop, where each next
+frame will add edges to previous. The frame generation process
+illustrated on diagram below:
 
 .. figure:: https://user-images.githubusercontent.com/29454499/228739686-436f2759-4c79-42a2-a70f-959fb226834c.png
    :alt: frame generation)
@@ -920,10 +1049,10 @@ image scaling.
 
 There are 2 zooming directions:
 
-* Zoom Out - move away from object
-* Zoom In - move closer to object
+-  Zoom Out - move away from object
+-  Zoom In - move closer to object
 
-Zoom In will be processed in the same way like Zoom Out, but after
+Zoom In will be processed in the same way as Zoom Out, but after
 generation is finished, we record frames in reversed order.
 
 .. code:: ipython3
@@ -1134,14 +1263,15 @@ generation is finished, we record frames in reversed order.
                 loop=0,
             )
 
-Configure Inference Pipeline
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Configure Inference Pipeline `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Configuration steps:
 
 1. Load models on device.
 2. Configure tokenizer and scheduler.
-3. Create instance of OvStableDiffusionInpaintingPipeline class.
+3. Create instance of ``OVStableDiffusionInpaintingPipeline`` class.
 
 .. code:: ipython3
 
@@ -1150,11 +1280,42 @@ Configuration steps:
     core = Core()
     
     tokenizer = CLIPTokenizer.from_pretrained('openai/clip-vit-large-patch14')
+
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+Select device from dropdown list for running inference using OpenVINO:
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
     
-    text_enc_inpaint = core.compile_model(TEXT_ENCODER_OV_PATH_INPAINT, "CPU")
-    unet_model_inpaint = core.compile_model(UNET_OV_PATH_INPAINT, "CPU")
-    vae_decoder_inpaint = core.compile_model(VAE_DECODER_OV_PATH_INPAINT, "CPU")
-    vae_encoder_inpaint = core.compile_model(VAE_ENCODER_OV_PATH_INPAINT, "CPU")
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
+    
+    text_enc_inpaint = core.compile_model(TEXT_ENCODER_OV_PATH_INPAINT, device.value)
+    unet_model_inpaint = core.compile_model(UNET_OV_PATH_INPAINT, device.value)
+    vae_decoder_inpaint = core.compile_model(VAE_DECODER_OV_PATH_INPAINT, device.value)
+    vae_encoder_inpaint = core.compile_model(VAE_ENCODER_OV_PATH_INPAINT, device.value)
     
     ov_pipe_inpaint = OVStableDiffusionInpaintingPipeline(
         tokenizer=tokenizer,
@@ -1165,8 +1326,9 @@ Configuration steps:
         scheduler=scheduler_inpaint,
     )
 
-Run Infinite Zoom video generation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run Infinite Zoom video generation `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -1215,3 +1377,18 @@ Run Infinite Zoom video generation
     )
     ipaddr = gethostbyname(gethostname())
     demo.queue().launch(share=True)
+
+
+.. parsed-literal::
+
+    Running on local URL:  http://127.0.0.1:7861
+    Running on public URL: https://462b1833bf3b980731.gradio.live
+    
+    This share link expires in 72 hours. For free permanent hosting and GPU upgrades, run `gradio deploy` from Terminal to deploy to Spaces (https://huggingface.co/spaces)
+
+
+
+.. .. raw:: html
+
+..     <div><iframe src="https://462b1833bf3b980731.gradio.live" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+

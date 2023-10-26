@@ -9,7 +9,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "legacy/ngraph_ops/eltwise.hpp"
 #include "legacy/ngraph_ops/scaleshift.hpp"
 #include "transformations/broadcast_const.hpp"

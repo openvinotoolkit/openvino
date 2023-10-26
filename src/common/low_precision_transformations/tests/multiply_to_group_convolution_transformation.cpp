@@ -10,37 +10,37 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/multiply_to_group_convolution_function.hpp"
+#include "ov_lpt_models/multiply_to_group_convolution.hpp"
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 using namespace ngraph::builder::subgraph;
 
 class MultiplyToGroupConvolutionTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
-        ngraph::element::Type inputPrecision;
+        ov::element::Type inputPrecision;
         std::shared_ptr<ov::op::v0::Constant> weights;
         std::shared_ptr<ov::op::v0::Constant> biases;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     TestTransformationParams params;
     bool transformed;
     bool haveMultiplyWithNoConstBeforeDequantization;
@@ -61,15 +61,15 @@ public:
             testValues.actual.dequantization,
             testValues.haveMultiplyWithNoConstBeforeDequantization);
 
-        auto precisionRestrictions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
-            ngraph::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Multiply>({
-                {{0}, {ngraph::element::u8}},
-                {{1}, {ngraph::element::i8}}
+        auto precisionRestrictions = std::vector<ov::pass::low_precision::PrecisionsRestriction>({
+            ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Multiply>({
+                {{0}, {ov::element::u8}},
+                {{1}, {ov::element::i8}}
             })
         });
 
         SimpleLowPrecisionTransformer transformer(precisionRestrictions);
-        transformer.add<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation, ov::op::v1::Multiply>(testValues.params);
+        transformer.add<ov::pass::low_precision::MultiplyToGroupConvolutionTransformation, ov::op::v1::Multiply>(testValues.params);
         transformer.transform(actualFunction);
 
         if (testValues.transformed) {
@@ -118,16 +118,16 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
         true,
         false,
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
+                {ov::element::f32},
                 {},
                 {{0.45f, 0.82f, 0.71f, 0.37f}}
             }
         },
         {
-            ngraph::element::u8,
-            std::make_shared<ov::op::v0::Constant>(ngraph::element::i8, Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
+            ov::element::u8,
+            std::make_shared<ov::op::v0::Constant>(ov::element::i8, Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
             nullptr,
             {
                 {},
@@ -143,16 +143,16 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
         true,
         false,
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
+                {ov::element::f32},
                 {},
                 {{0.45f, 0.82f, 0.71f, 0.37f}}
             }
         },
         {
-            ngraph::element::u8,
-            std::make_shared<ov::op::v0::Constant>(ngraph::element::i8, Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
+            ov::element::u8,
+            std::make_shared<ov::op::v0::Constant>(ov::element::i8, Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
             nullptr,
             {
                 {},
@@ -168,9 +168,9 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
         false,
         false,
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
+                {ov::element::f32},
                 {},
                 {{0.45f, 0.82f, 0.71f, 0.37f}}
             }
@@ -184,17 +184,17 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
         true,
         false,
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
+                {ov::element::f32},
                 {{-0.77f, 0.8f, 0.1f, 1.5f}},
                 {{0.45f, 0.82f, 0.71f, 0.37f}}
             }
         },
         {
-            ngraph::element::u8,
-            std::make_shared<ov::op::v0::Constant>(ngraph::element::i8, Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
-            std::make_shared<ov::op::v0::Constant>(ngraph::element::f32, Shape{1, 4, 1, 1}, std::vector<float>{0.77f, -0.8f, -0.1f, -1.5f}),
+            ov::element::u8,
+            std::make_shared<ov::op::v0::Constant>(ov::element::i8, Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{1, 4, 1, 1}, std::vector<float>{0.77f, -0.8f, -0.1f, -1.5f}),
             {
                 {},
                 {},
@@ -209,17 +209,17 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
         true,
         false,
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
+                {ov::element::f32},
                 {{-0.77f, 0.8f, 0.1f, 1.5f}},
                 {{0.45f, 0.82f, 0.71f, 0.37f}}
             }
         },
         {
-            ngraph::element::u8,
-            std::make_shared<ov::op::v0::Constant>(ngraph::element::i8, Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
-            std::make_shared<ov::op::v0::Constant>(ngraph::element::f32, Shape{1, 4, 1, 1}, std::vector<float>{0.77f, -0.8f, -0.1f, -1.5f}),
+            ov::element::u8,
+            std::make_shared<ov::op::v0::Constant>(ov::element::i8, Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{1, 4, 1, 1}, std::vector<float>{0.77f, -0.8f, -0.1f, -1.5f}),
             {
                 {},
                 {},
@@ -234,9 +234,9 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
         false,
         false,
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
+                {ov::element::f32},
                 {{-0.77f, 0.8f, 0.1f, 1.5f}},
                 {{0.45f, 0.82f, 0.71f, 0.37f}}
             }
@@ -250,17 +250,17 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
         true,
         false,
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
-                {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {1, 4, 1, 1}, true, 1, ngraph::element::u8, true},
+                {ov::element::f32},
+                {{1.f, 2.f, 3.f, 4.f}, ov::element::f32, {1, 4, 1, 1}, true, 1, ov::element::u8, true},
                 {{0.45f, 0.82f, 0.71f, 0.37f}}
             }
         },
         {
-            ngraph::element::u8,
-            std::make_shared<ov::op::v0::Constant>(ngraph::element::i8, Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
-            std::make_shared<ov::op::v0::Constant>(ngraph::element::f32, Shape{1, 4, 1, 1}, std::vector<float>{-1.f, -2.f, -3.f, -4.f}),
+            ov::element::u8,
+            std::make_shared<ov::op::v0::Constant>(ov::element::i8, Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{1, 4, 1, 1}, std::vector<float>{-1.f, -2.f, -3.f, -4.f}),
             {
                 {},
                 {},
@@ -275,7 +275,7 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
         true,
         false,
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
                 {},
                 DequantizationOperations::Subtract{{1.f, 2.f, 3.f, 4.f}, element::f32}.setConstantPrecision(element::f32),
@@ -283,9 +283,9 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
             }
         },
         {
-            ngraph::element::u8,
-            std::make_shared<ov::op::v0::Constant>(ngraph::element::i8, Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
-            std::make_shared<ov::op::v0::Constant>(ngraph::element::f32, Shape{1, 4, 1, 1}, std::vector<float>{-1.f, -2.f, -3.f, -4.f}),
+            ov::element::u8,
+            std::make_shared<ov::op::v0::Constant>(ov::element::i8, Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{1, 4, 1, 1}, std::vector<float>{-1.f, -2.f, -3.f, -4.f}),
             {
                 {},
                 {},
@@ -300,7 +300,7 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
         true,
         false,
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
                 {},
                 DequantizationOperations::Subtract{{1.f, 2.f, 3.f, 4.f}, element::f32}.setConstantPrecision(element::f32),
@@ -308,9 +308,9 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
             }
         },
         {
-            ngraph::element::u8,
-            std::make_shared<ov::op::v0::Constant>(ngraph::element::i8, Shape{4, 1, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
-            std::make_shared<ov::op::v0::Constant>(ngraph::element::f32, Shape{1, 4, 1, 1, 1}, std::vector<float>{-1.f, -2.f, -3.f, -4.f}),
+            ov::element::u8,
+            std::make_shared<ov::op::v0::Constant>(ov::element::i8, Shape{4, 1, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{1, 4, 1, 1, 1}, std::vector<float>{-1.f, -2.f, -3.f, -4.f}),
             {
                 {},
                 {},
@@ -321,15 +321,15 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
     // TODO: LPT: not implemented
 //    // i8 (not transformed)
 //    {
-//        ngraph::Shape{ 1, 4, 1, 1 },
+//        ov::Shape{ 1, 4, 1, 1 },
 //        LayerTransformation::createParamsU8I8(),
 //        false,
 //        false,
 //        {
-//            ngraph::element::i8,
+//            ov::element::i8,
 //            {
 //                {},
-//                {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32},
+//                {{1.f, 2.f, 3.f, 4.f}, ov::element::f32},
 //                {{0.45f, 0.82f, 0.71f, 0.37f}}
 //            }
 //        },
@@ -342,11 +342,11 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
         false,
         false,
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
                 {},
-                {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32,  { 1, 1, 2, 2 }},
-                {{0.45f, 0.82f, 0.71f, 0.37f}, ngraph::element::f32,  { 1, 1, 2, 2 }}
+                {{1.f, 2.f, 3.f, 4.f}, ov::element::f32,  { 1, 1, 2, 2 }},
+                {{0.45f, 0.82f, 0.71f, 0.37f}, ov::element::f32,  { 1, 1, 2, 2 }}
             }
         },
         {}
@@ -358,11 +358,11 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
         false,
         false,
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
                 {},
-                {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, { 1, 4, 1 }},
-                {{0.45f, 0.82f, 0.71f, 0.37f}, ngraph::element::f32, { 1, 4, 1 }}
+                {{1.f, 2.f, 3.f, 4.f}, ov::element::f32, { 1, 4, 1 }},
+                {{0.45f, 0.82f, 0.71f, 0.37f}, ov::element::f32, { 1, 4, 1 }}
             }
         },
         {}
@@ -373,7 +373,7 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
         false,
         true,
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
                 {},
                 {},
@@ -381,8 +381,8 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
             }
         },
         {
-            ngraph::element::u8,
-            std::make_shared<ov::op::v0::Constant>(ngraph::element::i8, Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
+            ov::element::u8,
+            std::make_shared<ov::op::v0::Constant>(ov::element::i8, Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
             nullptr,
             {
                 {},
@@ -397,7 +397,7 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
         false,
         true,
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
                 {},
                 {},
@@ -405,8 +405,8 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
             }
         },
         {
-            ngraph::element::u8,
-            std::make_shared<ov::op::v0::Constant>(ngraph::element::i8, Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
+            ov::element::u8,
+            std::make_shared<ov::op::v0::Constant>(ov::element::i8, Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
             nullptr,
             {
                 {},

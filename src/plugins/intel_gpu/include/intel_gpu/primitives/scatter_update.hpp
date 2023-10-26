@@ -14,8 +14,6 @@ struct scatter_update : public primitive_base<scatter_update> {
 
     scatter_update() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     enum scatter_update_axis {
         along_b,
         along_f,
@@ -40,7 +38,7 @@ struct scatter_update : public primitive_base<scatter_update> {
         : primitive_base(id, {dict, idx, idupd}, {output_padding}), axis(axis) {}
 
     /// @brief ScatterUpdate axis
-    int64_t axis;
+    int64_t axis = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

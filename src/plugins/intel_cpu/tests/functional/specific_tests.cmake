@@ -40,7 +40,7 @@ if(DEFINED ENABLE_CPU_SUBSET_TESTS_PATH)
     ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/fusing_test_utils.cpp
     ${CPU_SUBSET_TEST_ABS_PATH})
 
-  addIeTargetTest(
+  ov_add_test_target(
     NAME ${SUBSET_TARGET_NAME}
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}
     INCLUDES ${INCLUDES}
@@ -49,9 +49,8 @@ if(DEFINED ENABLE_CPU_SUBSET_TESTS_PATH)
     DEFINES ${DEFINES}
     DEPENDENCIES ${DEPENDENCIES}
     LINK_LIBRARIES ${LINK_LIBRARIES}
-    LABELS
-    CPU
+    LABELS OV CPU
   )
 
-  set_ie_threading_interface_for(${SUBSET_TARGET_NAME})
+  ov_set_threading_interface_for(${SUBSET_TARGET_NAME})
 endif()

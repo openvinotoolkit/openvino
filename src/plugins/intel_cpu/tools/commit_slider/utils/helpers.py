@@ -3,6 +3,7 @@ import shutil
 import os
 import sys
 import subprocess
+from enum import Enum
 import re
 import json
 import logging as log
@@ -101,10 +102,10 @@ def absolutizePaths(cfg):
         path = cfg[item]
         path = os.path.abspath(path)
         cfg[item] = path
-    if "preprocess" in cfg["runConfig"]:
+    if "preprocess" in cfg["runConfig"] and "file" in cfg["runConfig"]["preprocess"]:
         prepFile = cfg["runConfig"]["preprocess"]["file"]
         prepFile = os.path.abspath(prepFile)
-        cfg["runConfig"]["preprocommArgcess"]["file"] = prepFile
+        cfg["runConfig"]["preprocess"]["file"] = prepFile
     if "envVars" in cfg:
         updatedEnvVars = []
         for env in cfg["envVars"]:
@@ -157,15 +158,16 @@ def runCommandList(commit, cfgData, enforceClean=False):
     else:
         skipCleanInterval = cfgData["trySkipClean"] and not enforceClean
     commitLogger = getCommitLogger(cfgData, commit)
-    commandList = cfgData["commandList"]
+    if not cfgData["extendBuildCommand"]:
+        commandList = cfgData["commandList"]
+    else:
+        commandList = cfgData["extendedCommandList"]
     gitPath = cfgData["gitPath"]
     buildPath = cfgData["buildPath"]
     defRepo = gitPath
     for cmd in commandList:
         if "tag" in cmd:
-            if cmd["tag"] == "clean" and skipCleanInterval:
-                continue
-            elif cmd["tag"] == "preprocess":
+            if cmd["tag"] == "preprocess":
                 if not (
                     "preprocess" in cfgData["runConfig"]
                     and "name" in cfgData["runConfig"]["preprocess"]
@@ -176,7 +178,7 @@ def runCommandList(commit, cfgData, enforceClean=False):
                     "utils.preprocess.{pp}".format(pp=prePrName)
                 )
                 preProcess = getattr(mod, prePrName)
-                preProcess(cfgData)
+                preProcess(cfgData, commit)
                 continue
         makeCmd = cfgData["makeCmd"]
         strCommand = cmd["cmd"].format(commit=commit, makeCmd=makeCmd)
@@ -189,30 +191,22 @@ def runCommandList(commit, cfgData, enforceClean=False):
         )
         proc = subprocess.Popen(
             formattedCmd, cwd=cwd, stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT
+            stderr=subprocess.STDOUT,
+            encoding="utf-8", errors="replace"
         )
         for line in proc.stdout:
-            # decode if line is byte-type
-            try:
-                line = line.decode("utf-8")
-            except (UnicodeDecodeError, AttributeError):
-                pass
             sys.stdout.write(line)
             commitLogger.info(line)
+            if "catchMsg" in cmd:
+                isErrFound = re.search(cmd["catchMsg"], line)
+                if isErrFound:
+                    raise BuildError(
+                        errType=BuildError.BuildErrType.UNDEFINED,
+                        message="error while executing: {}".
+                            format(cmd["cmd"]), commit=commit
+                        )
         proc.wait()
         checkOut, err = proc.communicate()
-        try:
-            checkOut = checkOut.decode("utf-8")
-        except (UnicodeDecodeError, AttributeError):
-            pass
-        if "catchMsg" in cmd:
-            isErrFound = re.search(cmd["catchMsg"], checkOut)
-            if isErrFound:
-                if skipCleanInterval:
-                    commitLogger.info("Build error: clean is necessary")
-                    raise NoCleanFailedError()
-                else:
-                    raise CmdError(checkOut)
 
 
 def fetchAppOutput(cfg, commit):
@@ -245,14 +239,52 @@ def fetchAppOutput(cfg, commit):
 
 
 def handleCommit(commit, cfgData):
+    commitLogger = getCommitLogger(cfgData, commit)
     if "skipCleanInterval" in cfgData["serviceConfig"]:
         skipCleanInterval = cfgData["serviceConfig"]["skipCleanInterval"]
         cfgData["trySkipClean"] = skipCleanInterval
     try:
         runCommandList(commit, cfgData)
-    except (NoCleanFailedError):
-        cfgData["trySkipClean"] = False
-        runCommandList(commit, cfgData)
+        if cfgData["skipMode"]["flagSet"]["enableRebuild"]:
+            cfgData["skipMode"]["flagSet"]["switchOnSimpleBuild"] = True
+            cfgData["skipMode"]["flagSet"]["switchOnExtendedBuild"] = False
+            cfgData["extendBuildCommand"] = False
+    except BuildError as be:
+        if cfgData["skipMode"]["flagSet"]["enableSkips"]:
+            commitLogger.info("Build error: commit {} skipped".format(commit))
+            raise BuildError(
+                errType=BuildError.BuildErrType.TO_SKIP,
+                message="build error handled by skip",
+                commit=commit
+                ) from be
+        elif cfgData["skipMode"]["flagSet"]["enableRebuild"]:
+            if cfgData["skipMode"]["flagSet"]["switchOnSimpleBuild"]:
+                cfgData["skipMode"]["flagSet"]["switchOnSimpleBuild"] = False
+                cfgData["skipMode"]["flagSet"]["switchOnExtendedBuild"] = True
+                commitLogger.info("Build error: commit {} rebuilded".format(commit))
+                raise BuildError(
+                    errType=BuildError.BuildErrType.TO_REBUILD,
+                    message="build error handled by rebuilding",
+                    commit=commit
+                    ) from be
+            elif cfgData["skipMode"]["flagSet"]["switchOnExtendedBuild"]:
+                raise BuildError(
+                    errType=BuildError.BuildErrType.TO_STOP,
+                    message="cannot rebuild commit",
+                    commit=commit
+                    ) from be
+            else:
+                raise BuildError(
+                    errType=BuildError.BuildErrType.WRONG_STATE,
+                    message="incorrect case with commit",
+                    commit=commit
+                    ) from be
+        else:
+            raise BuildError(
+                        message = "error occured during handling",
+                        errType = BuildError.BuildErrType.WRONG_STATE,
+                        commit=commit
+                        )
 
 
 def returnToActualVersion(cfg):
@@ -324,12 +356,25 @@ class CmdError(Exception):
     pass
 
 
-class NoCleanFailedError(Exception):
-    pass
-
-
 class RepoError(Exception):
     pass
+
+
+class BuildError(Exception):
+    class BuildErrType(Enum):
+        # Undefined - unresolved behaviour, to-do ...
+        UNDEFINED = 0
+        TO_REBUILD = 1
+        TO_SKIP = 2
+        TO_STOP = 3
+        # throwed in unexpected case
+        WRONG_STATE = 4
+    def __init__(self, commit, message, errType):
+        self.message = message
+        self.errType = errType
+        self.commit = commit
+    def __str__(self):
+        return self.message
 
 
 def checkAndGetClassnameByConfig(cfg, mapName, specialCfg):

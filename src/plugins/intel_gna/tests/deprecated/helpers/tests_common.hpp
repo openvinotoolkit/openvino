@@ -22,7 +22,6 @@
 #include <ie_input_info.hpp>
 
 #include "helpers/test_model_repo.hpp"
-#include "test_model_path.hpp"
 #include <tests_file_utils.hpp>
 #include <chrono>
 
@@ -45,7 +44,7 @@ protected:
     void SetUp() override;
 
     static std::string make_so_name(const std::string & input) {
-        return ov::test::utils::pre + input + IE_BUILD_POSTFIX + ov::test::utils::ext;
+        return ov::test::utils::pre + input + OV_BUILD_POSTFIX + ov::test::utils::ext;
     }
 
     void TearDown() override;

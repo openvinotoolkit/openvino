@@ -104,7 +104,7 @@ public:
      * @param target_tile_id Desired tile id within given context for multi-tile system. Default value (-1) means
      * that root device should be used
      */
-    VAContext(Core& core, VADisplay device, int target_tile_id = -1) : ClContext(core, (cl_context) nullptr) {
+    VAContext(Core& core, VADisplay device, int target_tile_id = -1) : ClContext() {
         AnyMap context_params = {{ov::intel_gpu::context_type.name(), ov::intel_gpu::ContextType::VA_SHARED},
                                  {ov::intel_gpu::va_device.name(), static_cast<gpu_handle_param>(device)},
                                  {ov::intel_gpu::tile_id.name(), target_tile_id}};
@@ -125,9 +125,9 @@ public:
         AnyMap tensor_params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::VA_SURFACE},
                                 {ov::intel_gpu::dev_object_handle.name(), nv12_surf},
                                 {ov::intel_gpu::va_plane.name(), uint32_t(0)}};
-        auto y_tensor = create_tensor(element::u8, {1, 1, height, width}, tensor_params);
+        auto y_tensor = create_tensor(element::u8, {1, height, width, 1}, tensor_params);
         tensor_params[ov::intel_gpu::va_plane.name()] = uint32_t(1);
-        auto uv_tensor = create_tensor(element::u8, {1, 2, height / 2, width / 2}, tensor_params);
+        auto uv_tensor = create_tensor(element::u8, {1, height / 2, width / 2, 2}, tensor_params);
         return std::make_pair(y_tensor.as<VASurfaceTensor>(), uv_tensor.as<VASurfaceTensor>());
     }
 

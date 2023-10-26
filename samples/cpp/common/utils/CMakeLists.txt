@@ -11,12 +11,12 @@ add_library(${TARGET_NAME} STATIC EXCLUDE_FROM_ALL ${SOURCES})
 set_target_properties(${TARGET_NAME} PROPERTIES FOLDER "src")
 
 target_include_directories(${TARGET_NAME}
-    PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>")
 
 find_package(OpenVINO REQUIRED COMPONENTS Runtime)
 
 target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime PRIVATE ${GFLAGS_TARGET})
 
-if(COMMAND add_clang_format_target)
-    add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+if(COMMAND ov_add_clang_format_target)
+    ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 endif()

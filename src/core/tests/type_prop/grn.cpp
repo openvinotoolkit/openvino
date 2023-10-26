@@ -2,17 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/grn.hpp"
+
+#include <gtest/gtest.h>
+
 #include "common_test_utils/type_prop.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, grn) {
     float bias = 1.25f;
     Shape data_shape{2, 3, 4, 5};
-    auto A = make_shared<op::Parameter>(element::f32, data_shape);
+    auto A = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
     auto grn = make_shared<op::v0::GRN>(A, bias);
 
     EXPECT_EQ(grn->get_element_type(), element::f32);
@@ -22,7 +24,7 @@ TEST(type_prop, grn) {
 TEST(type_prop, grn_dynamic) {
     float bias = 1.25f;
     PartialShape data_shape{2, Dimension::dynamic(), 3, Dimension(4, 6)};
-    auto A = make_shared<op::Parameter>(element::f32, data_shape);
+    auto A = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
     auto grn = make_shared<op::v0::GRN>(A, bias);
 
     EXPECT_EQ(grn->get_element_type(), element::f32);
@@ -31,7 +33,7 @@ TEST(type_prop, grn_dynamic) {
 
 TEST(type_prop, grn_invalid_data_rank) {
     float bias = 1.25f;
-    auto A = make_shared<op::Parameter>(element::f32, Shape{4});
+    auto A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4});
 
     try {
         auto grn = make_shared<op::v0::GRN>(A, bias);
@@ -43,7 +45,7 @@ TEST(type_prop, grn_invalid_data_rank) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 
-    A = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4, 5});
+    A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4, 5});
 
     try {
         auto grn = make_shared<op::v0::GRN>(A, bias);

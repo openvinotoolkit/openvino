@@ -103,7 +103,7 @@ public:
     bool is_fused_dep(size_t dep_idx) const;
 
     bool has_fused_dep() const {
-        for (auto fused : get_fused_primitives()) {
+        for (auto& fused : get_fused_primitives()) {
             if (fused.has_outer_dep())
                 return true;
         }
@@ -113,7 +113,7 @@ public:
     int32_t get_first_fused_dep_idx() const {
         if (!has_fused_dep())
             return -1;
-        for (auto fused : get_fused_primitives()) {
+        for (auto& fused : get_fused_primitives()) {
             if (fused.has_outer_dep())
                 return fused.outer_dep_start_idx;
         }
@@ -127,7 +127,8 @@ public:
     }
 
     virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const {
-        auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_program().get_stream_ptr(), get_primitive(),
+        auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_program().get_engine().get_device_info().dev_type,
+                                                                                 get_program().get_stream_ptr(), get_primitive(),
                                                                                  get_unique_id(), in_layouts, out_layouts, get_fused_primitives()));
         params->memory_deps = get_const_memory_deps();
         params->_can_be_optimized = this->optimized;
@@ -194,9 +195,11 @@ public:
 
     // replaces idx-th dependency of 'this' with 'new_dep', calls program::remove_if_dangling(old_dep)
     void replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling = true);
+    void replace_dependency(size_t idx, std::pair<program_node*, int32_t> new_dep, bool remove_if_dangling = true);
     // searches for 'old_dep' in dependencies list of 'this' and replaces it with 'new_dep', calls
     // program::remove_if_dangling(old_dep)
     void replace_dependency(program_node const& old_dep, program_node& new_dep, bool remove_if_dangling = true);
+    void replace_dependency(program_node const& old_dep, std::pair<program_node*, int32_t> new_dep, bool remove_if_dangling = true);
 
     std::vector<primitive_id> get_dependencies_ids() const;
 
@@ -318,6 +321,8 @@ public:
     bool support_padding(int axis) const { return _support_padding_in_axis[axis]; }
     // Checks whether with current format specified padding is supported;
     bool is_padding_supported(int axis, int padding) const;
+    // Check if layout has padding in any spatial axis
+    bool is_padded_spatial(size_t idx = 0) const;
 
     primitive_id get_org_primitive_id() const { return org_id; }
 
@@ -382,8 +387,16 @@ public:
     std::vector<fused_primitive_desc>& get_fused_primitives() { return fused_prims; }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    const std::shared_ptr<dnnl::primitive_attr>& get_onednn_primitive_attributes() const { return onednn_attrs; }
-    std::shared_ptr<dnnl::primitive_attr>& get_onednn_primitive_attributes() { return onednn_attrs; }
+    const std::shared_ptr<dnnl::primitive_attr>& get_onednn_primitive_attributes() const {
+        if (onednn_attrs == nullptr)
+            const_cast<program_node*>(this)->init_onednn_primitive_attributes();
+        return onednn_attrs;
+    }
+    std::shared_ptr<dnnl::primitive_attr>& get_onednn_primitive_attributes() {
+        if (onednn_attrs == nullptr)
+            init_onednn_primitive_attributes();
+        return onednn_attrs;
+    }
 
     const std::vector<fused_primitive_desc_onednn>& get_fused_primitives_onednn() const { return fused_prims_onednn; }
     std::vector<fused_primitive_desc_onednn>& get_fused_primitives_onednn() { return fused_prims_onednn; }

@@ -1,0 +1,3 @@
+# CreatePrecisionsDependentAttribute transformation {#openvino_docs_OV_UG_lpt_CreatePrecisionsDependentAttribute}
+
+ov::pass::low_precision::CreatePrecisionsDependentAttribute class represents the `CreatePrecisionsDependentAttribute` transformation.

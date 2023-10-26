@@ -30,63 +30,6 @@ namespace {
             {{InferenceEngine::PluginConfigParams::KEY_DEVICE_ID, "DEVICE_UNKNOWN"}}};
     };
 
-    auto multiinconfigs = []() {
-        return std::vector<std::map<std::string, std::string>>{
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_GPU},
-             {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, "DOESN'T EXIST"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_GPU},
-             {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
-             {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "-1"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_GPU},
-             {InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, "ON"}}};
-    };
-
-    auto autoinconfigs = []() {
-        return std::vector<std::map<std::string, std::string>>{
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_GPU},
-             {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, "DOESN'T EXIST"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_GPU},
-             {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
-             {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "-1"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_GPU},
-             {InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, "ON"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_GPU},
-             {InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE, "unknown_file"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_GPU},
-             {InferenceEngine::PluginConfigParams::KEY_DEVICE_ID, "DEVICE_UNKNOWN"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_CPU},
-             {InferenceEngine::PluginConfigParams::KEY_LOG_LEVEL, "NAN"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_GPU},
-             {InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY, "-1"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_GPU},
-             {InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY, "ABC"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
-              ov::test::utils::DEVICE_GPU + std::string(",") + ov::test::utils::DEVICE_CPU},
-             {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, "DOESN'T EXIST"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
-              ov::test::utils::DEVICE_GPU + std::string(",") + ov::test::utils::DEVICE_CPU},
-             {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
-             {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "-1"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
-              ov::test::utils::DEVICE_GPU + std::string(",") + ov::test::utils::DEVICE_CPU},
-             {InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, "ON"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
-              ov::test::utils::DEVICE_GPU + std::string(",") + ov::test::utils::DEVICE_CPU},
-             {InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE, "unknown_file"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
-              ov::test::utils::DEVICE_GPU + std::string(",") + ov::test::utils::DEVICE_CPU},
-             {InferenceEngine::PluginConfigParams::KEY_DEVICE_ID, "DEVICE_UNKNOWN"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
-              ov::test::utils::DEVICE_GPU + std::string(",") + ov::test::utils::DEVICE_CPU},
-             {InferenceEngine::PluginConfigParams::KEY_LOG_LEVEL, "NAN"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
-              ov::test::utils::DEVICE_GPU + std::string(",") + ov::test::utils::DEVICE_CPU},
-             {InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY, "-1"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
-              ov::test::utils::DEVICE_GPU + std::string(",") + ov::test::utils::DEVICE_CPU},
-             {InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY, "ABC"}}};
-    };
-
     auto auto_batch_inconfigs = []() {
         return std::vector<std::map<std::string, std::string>>{
             {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), ov::test::utils::DEVICE_GPU},
@@ -110,19 +53,6 @@ namespace {
                                      ::testing::ValuesIn(inconfigs())),
                              IncorrectConfigTests::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, IncorrectConfigTests,
-                            ::testing::Combine(
-                                ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                ::testing::ValuesIn(multiinconfigs())),
-                            IncorrectConfigTests::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, IncorrectConfigTests,
-                            ::testing::Combine(
-                                ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                ::testing::ValuesIn(autoinconfigs())),
-                            IncorrectConfigTests::getTestCaseName);
-
-
     INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, IncorrectConfigTests,
              ::testing::Combine(
                      ::testing::Values(ov::test::utils::DEVICE_BATCH),
@@ -138,6 +68,8 @@ namespace {
             {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), ov::test::utils::DEVICE_GPU}},
             {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), ov::test::utils::DEVICE_GPU},
              {CONFIG_KEY(AUTO_BATCH_TIMEOUT), "1"}},
+            {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), ov::test::utils::DEVICE_GPU},
+             {ov::num_streams.name(), "AUTO"}},
         };
     };
 
@@ -153,17 +85,6 @@ namespace {
                     ::testing::ValuesIn(inconfigs())),
              IncorrectConfigAPITests::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, IncorrectConfigAPITests,
-            ::testing::Combine(
-                    ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                    ::testing::ValuesIn(multiinconfigs())),
-            IncorrectConfigAPITests::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, IncorrectConfigAPITests,
-            ::testing::Combine(
-                    ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                    ::testing::ValuesIn(autoinconfigs())),
-            IncorrectConfigAPITests::getTestCaseName);
     INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, IncorrectConfigAPITests,
              ::testing::Combine(
                      ::testing::Values(ov::test::utils::DEVICE_BATCH),
@@ -190,41 +111,10 @@ namespace {
         {InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES},
     }};
 
-    auto auto_multi_prop_config = []() {
-        return std::vector<std::map<std::string, std::string>>{
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_GPU},
-             {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT,
-              InferenceEngine::PluginConfigParams::THROUGHPUT},
-             {InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY,
-              InferenceEngine::PluginConfigParams::MODEL_PRIORITY_MED}}};
-    };
-
-    auto auto_multi_loadNetWork_config = []() {
-        return std::vector<std::map<std::string, std::string>>{
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, ov::test::utils::DEVICE_GPU},
-             {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::THROUGHPUT},
-             {InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY,
-              InferenceEngine::PluginConfigParams::MODEL_PRIORITY_HIGH}}};
-    };
-
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                              SetPropLoadNetWorkGetPropTests,
                              ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
                                                 ::testing::ValuesIn(gpu_prop_config),
                                                 ::testing::ValuesIn(gpu_loadNetWork_config)),
-                             SetPropLoadNetWorkGetPropTests::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
-                             SetPropLoadNetWorkGetPropTests,
-                             ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                                ::testing::ValuesIn(auto_multi_prop_config()),
-                                                ::testing::ValuesIn(auto_multi_loadNetWork_config())),
-                             SetPropLoadNetWorkGetPropTests::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
-                             SetPropLoadNetWorkGetPropTests,
-                             ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                                ::testing::ValuesIn(auto_multi_prop_config()),
-                                                ::testing::ValuesIn(auto_multi_loadNetWork_config())),
                              SetPropLoadNetWorkGetPropTests::getTestCaseName);
 } // namespace

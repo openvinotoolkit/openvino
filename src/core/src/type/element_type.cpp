@@ -9,8 +9,7 @@
 #include <iostream>
 #include <unordered_map>
 
-#include "ngraph/log.hpp"
-#include "ngraph/type/element_type_traits.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 
 namespace {
 struct TypeInfo {
@@ -70,6 +69,8 @@ inline TypeInfo get_type_info(ov::element::Type_t type) {
         return {32, false, false, false, "uint32_t", "u32"};
     case ov::element::Type_t::u64:
         return {64, false, false, false, "uint64_t", "u64"};
+    case ov::element::Type_t::nf4:
+        return {4, false, false, true, "nfloat4", "nf4"};
     default:
         OPENVINO_THROW("ov::element::Type_t not supported: ", type);
     }
@@ -112,6 +113,8 @@ ov::element::Type type_from_string(const std::string& type) {
         return ::ov::element::Type(::ov::element::Type_t::undefined);
     } else if (type == "dynamic") {
         return ::ov::element::Type(::ov::element::Type_t::dynamic);
+    } else if (type == "nf4" || type == "NF4") {
+        return ::ov::element::Type(::ov::element::Type_t::nf4);
     } else {
         OPENVINO_THROW("Incorrect type: ", type);
     }
@@ -164,6 +167,7 @@ ov::element::Type::Type(size_t bitwidth,
         {ov::element::Type_t::u16, {16, false, false, false, "uint16_t", "u16"}},
         {ov::element::Type_t::u32, {32, false, false, false, "uint32_t", "u32"}},
         {ov::element::Type_t::u64, {64, false, false, false, "uint64_t", "u64"}},
+        {ov::element::Type_t::u4, {4, false, false, false, "uint4_t", "nf4"}},
     };
     for (const auto& t : elements_map) {
         const TypeInfo& info = t.second;
@@ -320,6 +324,7 @@ std::istream& ov::element::operator>>(std::istream& in, ov::element::Type& obj) 
         {"FP64", ov::element::f64},
         {"FP16", ov::element::f16},
         {"BIN", ov::element::u1},
+        {"NF4", ov::element::nf4},
     };
     std::string str;
     in >> str;
@@ -401,6 +406,7 @@ inline size_t compiler_byte_size(ov::element::Type_t et) {
         ET_CASE(u16);
         ET_CASE(u32);
         ET_CASE(u64);
+        ET_CASE(nf4);
 #undef ET_CASE
     case ov::element::Type_t::undefined:
         return 0;
@@ -413,7 +419,7 @@ inline size_t compiler_byte_size(ov::element::Type_t et) {
 
 namespace ov {
 template <>
-NGRAPH_API EnumNames<element::Type_t>& EnumNames<element::Type_t>::get() {
+OPENVINO_API EnumNames<element::Type_t>& EnumNames<element::Type_t>::get() {
     static auto enum_names = EnumNames<element::Type_t>("element::Type_t",
                                                         {{"undefined", element::Type_t::undefined},
                                                          {"dynamic", element::Type_t::dynamic},
@@ -432,7 +438,8 @@ NGRAPH_API EnumNames<element::Type_t>& EnumNames<element::Type_t>::get() {
                                                          {"u8", element::Type_t::u8},
                                                          {"u16", element::Type_t::u16},
                                                          {"u32", element::Type_t::u32},
-                                                         {"u64", element::Type_t::u64}});
+                                                         {"u64", element::Type_t::u64},
+                                                         {"nf4", element::Type_t::nf4}});
     return enum_names;
 }
 

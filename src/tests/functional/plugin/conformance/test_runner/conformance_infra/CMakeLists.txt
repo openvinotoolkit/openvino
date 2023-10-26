@@ -4,16 +4,18 @@
 
 set(TARGET_NAME conformanceShared)
 
-addIeTarget(
+ov_add_target(
         NAME ${TARGET_NAME}
         TYPE STATIC
         ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include"
         ADDITIONAL_SOURCE_DIRS
-            ${CMAKE_CURRENT_SOURCE_DIR}/src
+                ${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper_new/include/cache/meta/
+                ${CMAKE_CURRENT_SOURCE_DIR}/src
         ADD_CPPLINT
         INCLUDES
             PUBLIC
-                "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+                "$<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper_new/include/cache/meta>"
         LINK_LIBRARIES
             PUBLIC
                 gflags
@@ -24,4 +26,4 @@ if(ENABLE_CONFORMANCE_PGQL)
     target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_CONFORMANCE_PGQL)
 endif()
 
-ie_faster_build(${TARGET_NAME} UNITY)
+ov_build_target_faster(${TARGET_NAME} UNITY)

@@ -7,7 +7,7 @@
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "common_test_utils/test_common.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 
 #include <openvino/opsets/opset9.hpp>
@@ -23,7 +23,7 @@ std::shared_ptr<ov::Model> MakeMatMulModel() {
     const ov::Shape input_shape = {1, 4096};
     const ov::element::Type precision = ov::element::f32;
 
-    auto params = ngraph::builder::makeParams(precision, {input_shape});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape(input_shape))};
     auto matmul_const = ngraph::builder::makeConstant(precision, {4096, 1024}, std::vector<float>{}, true);
     auto matmul = ngraph::builder::makeMatMul(params[0], matmul_const);
 

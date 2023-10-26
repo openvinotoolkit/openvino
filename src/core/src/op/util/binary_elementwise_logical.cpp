@@ -2,13 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/binary_elementwise_logical.hpp"
+#include "openvino/op/util/binary_elementwise_logical.hpp"
 
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/util/elementwise_args.hpp"
-
-using namespace std;
+#include "openvino/op/util/elementwise_args.hpp"
 
 ov::op::util::BinaryElementwiseLogical::BinaryElementwiseLogical() = default;
 

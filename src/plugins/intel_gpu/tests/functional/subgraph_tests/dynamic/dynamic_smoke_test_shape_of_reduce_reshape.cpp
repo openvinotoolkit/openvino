@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_layer/shape_of.hpp"
 #include "shared_test_classes/single_layer/strided_slice.hpp"
@@ -83,7 +83,10 @@ protected:
         init_input_shapes(inputShapes);
         const auto inShapeShapeOf = inputDynamicShapes[0];
         const auto inShapeElt = inputDynamicShapes[1];
-        auto params = builder::makeDynamicParams(netType, {inShapeShapeOf, inShapeElt});
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
+        }
         auto paramOuts = helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
 
         auto addOp = ngraph::builder::makeEltwise(paramOuts[1], paramOuts[1], ngraph::helpers::EltwiseTypes::ADD);
@@ -140,7 +143,7 @@ const std::vector<std::vector<ov::test::InputShape>> dynInputShapes = {
         // Input for ShapeOf
         {{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 10, 4}, {1, 4, 12}}},
         // Input for Add
-        {{ov::Dimension::dynamic()}, {{1, 10, 4}, {2, 2, 12}}}
+        {{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 10, 4}, {2, 2, 12}}}
     },
     // 4D
     {

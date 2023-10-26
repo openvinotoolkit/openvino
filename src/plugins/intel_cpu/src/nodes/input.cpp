@@ -21,7 +21,7 @@
 #include "utils/cpu_utils.hpp"
 #include <cpu/x64/jit_generator.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "utils/shape_inference/shape_inference_pass_through.hpp"
+#include "shape_inference/shape_inference_pass_through.hpp"
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -92,19 +92,20 @@ protected:
         pop(rsi);
     }
 
-    void check_subnormals(const Xbyak::Reg64& src, const Xbyak::Ymm &mask, const Xbyak::Ymm &zero) {
+    void check_subnormals(const Xbyak::Reg64& src, const Xbyak::Ymm &exponent_mask, const Xbyak::Ymm &mantissa_mask, const Xbyak::Ymm &zero) {
         auto a = ymm1;
         auto b = ymm2;
         auto c = ymm3;
 
         vmovdqu(a, yword[src]);         // load 8 floats
-        vpcmpeqd(b, a, zero);           // if (a == 0) b = 1 else b = 0
-        vpand(c, a, mask);              // c = a & 01111111100000000000000000000000
+        vpand(b, a, mantissa_mask);     // b = a & 00000000011111111111111111111111
+        vpcmpeqd(b, b, zero);           // if (b == 0) b = 1 else b = 0
+        vpand(c, a, exponent_mask);     // c = a & 01111111100000000000000000000000
         vpcmpeqd(c, c, zero);           // if (c == 0) c = 1 else c = 0
         vptest(b, c);                   // if ((!b & c) == 0) CF = 1 else CF = 0
     }
 
-    void check_subnormals(const Xbyak::Reg64& src, const Xbyak::Xmm &mask, const Xbyak::Xmm &zero) {
+    void check_subnormals(const Xbyak::Reg64& src, const Xbyak::Xmm &exponent_mask, const Xbyak::Xmm &mantissa_mask, const Xbyak::Xmm &zero) {
         auto a = xmm1;
         auto b = xmm2;
         auto c = xmm3;
@@ -112,14 +113,12 @@ protected:
         uni_vmovdqu(a, xword[src]);          // load 4 floats
         uni_vmovdqu(b, a);                   // b = a
         uni_vmovdqu(c, a);                   // c = a
-        uni_vpcmpeqd(b, b, zero);               // if (a == 0) b = 1 else b = 0
-        uni_vpand(c, c, mask);                  // c = a & 01111111100000000000000000000000
-        uni_vpcmpeqd(c, c, zero);               // if (c == 0) c = 1 else c = 0
-        uni_vtestps(b, c);                    // if ((!b & c) == 0) CF = 1 else CF = 0
+        uni_vpand(b, b, mantissa_mask);      // b = a & 00000000011111111111111111111111
+        uni_vpcmpeqd(b, b, zero);            // if (b == 0) b = 1 else b = 0
+        uni_vpand(c, c, exponent_mask);      // c = a & 01111111100000000000000000000000
+        uni_vpcmpeqd(c, c, zero);            // if (c == 0) c = 1 else c = 0
+        uni_vtestps(b, c);                   // if ((!b & c) == 0) CF = 1 else CF = 0
     }
-
-    template<cpu_isa_t isa>
-    struct reg;
 
 protected:
     Label exit, has_subnormals, no_subnormals;
@@ -130,36 +129,36 @@ protected:
     const Reg64 &reg_idx = rsi;
     const Reg64 &reg_mask_addr = r15;
 
-    static const uint32_t mask_data[8];
+    static const uint32_t exponent_mask_data[8];
+    static const uint32_t mantissa_mask_data[8];
 };
 
-const uint32_t jit_has_subnormals_base::mask_data[8] = {
-    0xFF << 23, 0xFF << 23, 0xFF << 23, 0xFF << 23,
-    0xFF << 23, 0xFF << 23, 0xFF << 23, 0xFF << 23
+const uint32_t jit_has_subnormals_base::exponent_mask_data[8] = {
+    0x7f800000, 0x7f800000, 0x7f800000, 0x7f800000,
+    0x7f800000, 0x7f800000, 0x7f800000, 0x7f800000
 };
 
-template<>
-struct jit_has_subnormals_base::reg<cpu_isa_t::avx2> {
-    constexpr static uint32_t length = 8;
-    constexpr static const Xbyak::Ymm & rmm4 = Xbyak::util::ymm4;
-    constexpr static const Xbyak::Ymm & rmm5 = Xbyak::util::ymm5;
-};
-
-template<>
-struct jit_has_subnormals_base::reg<cpu_isa_t::sse41> {
-    constexpr static uint32_t length = 4;
-    constexpr static const Xbyak::Xmm & rmm4 = Xbyak::util::xmm4;
-    constexpr static const Xbyak::Xmm & rmm5 = Xbyak::util::xmm5;
+const uint32_t jit_has_subnormals_base::mantissa_mask_data[8] = {
+    0x007fffff, 0x007fffff, 0x007fffff, 0x007fffff,
+    0x007fffff, 0x007fffff, 0x007fffff, 0x007fffff
 };
 
 template<cpu_isa_t isa>
 struct jit_has_subnormals : public jit_has_subnormals_base {
+    using Vmm = typename dnnl::impl::utils::conditional<isa == sse41, Xbyak::Xmm, Xbyak::Ymm>::type;
+
+    const Vmm rmm4 = Vmm(4);
+    const Vmm rmm5 = Vmm(5);
+    const Vmm rmm6 = Vmm(6);
+    const int length = isa == sse41 ? 4 : 8;
+
     void generate() override final { // NOLINT
-        size_t const vlen = reg<isa>::length;
+        size_t const vlen = length;
         const int sh_bits = std::ilogb(vlen);
 
-        auto zero = reg<isa>::rmm4;
-        auto mask = reg<isa>::rmm5;
+        auto zero = rmm4;
+        auto exponent_mask = rmm5;
+        auto mantissa_mask = rmm6;
 
         preamble();
 
@@ -167,11 +166,13 @@ struct jit_has_subnormals : public jit_has_subnormals_base {
         mov(reg_src, ptr[param1 + offsetof(args_t, src)]);
         lea(reg_dst, ptr[param1 + offsetof(args_t, hasSubnormals)]);
         mov(reg_sz, ptr[param1 + offsetof(args_t, count)]);
-        mov(reg_mask_addr, (size_t)mask_data);
 
         // Initialize necessary consts
         uni_vpxor(zero, zero, zero);
-        uni_vmovdqu(mask, ptr[reg_mask_addr]);
+        mov(reg_mask_addr, (size_t)exponent_mask_data);
+        uni_vmovdqu(exponent_mask, ptr[reg_mask_addr]);
+        mov(reg_mask_addr, (size_t)mantissa_mask_data);
+        uni_vmovdqu(mantissa_mask, ptr[reg_mask_addr]);
 
         // Main loop
         xor_(reg_idx, reg_idx);
@@ -179,7 +180,7 @@ struct jit_has_subnormals : public jit_has_subnormals_base {
         shr(r8, sh_bits);
 
         foreach(reg_idx, 1, r8, [&, this](const Xbyak::Reg64& idx) {
-            check_subnormals(reg_src, mask, zero);
+            check_subnormals(reg_src, exponent_mask, mantissa_mask, zero);
             jnc(has_subnormals);
             add(reg_src, sizeof(float) * vlen);
         });
@@ -197,7 +198,7 @@ struct jit_has_subnormals : public jit_has_subnormals_base {
         uni_vmovdqu(ptr[r8], zero);
 
         copy_floats(r8, reg_src, reg_sz);
-        check_subnormals(r8, mask, zero);
+        check_subnormals(r8, exponent_mask, mantissa_mask, zero);
         jc(no_subnormals);
         add(rsp, vlen * sizeof(float));
 
@@ -287,7 +288,15 @@ void Input::cloneBlobIfRequired() {
 
     auto isBlobAligned = [&, this] () {
         const void *ptr = constOp->get_data_ptr();
-        return prec.size() > 1 ? (reinterpret_cast<size_t>(ptr) % prec.size()) == 0 : true;
+        bool blobAlignedOnSSE = true;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+        // Majority of arithmetic and data processing instructions in legacy SSE isa requires
+        // the memory address in the operands must be aligned on 16-byte boundary. To ensure
+        // safely reusing ngraph const blob memory, need to check address alignment.
+        blobAlignedOnSSE = mayiuse(cpu_isa_t::avx2) || ((reinterpret_cast<uintptr_t>(ptr) & 15) == 0);
+#endif
+        const bool blobAlignedWithPrec = prec.size() > 1 ? (reinterpret_cast<size_t>(ptr) % prec.size()) == 0 : true;
+        return blobAlignedWithPrec && blobAlignedOnSSE;
     };
 
     // The presence of subnormals is better to determined at IR read time.
@@ -323,8 +332,10 @@ void Input::cloneBlobIfRequired() {
             }
 #endif
 
+            uint32_t mantissaMask = 0x007fffff;
+            uint32_t exponentMask = 0x7f800000;
             for (size_t i = 0; i < size; ++i) {
-                if (u32data[i] && (u32data[i] & (0xFF << 23)) == 0) {
+                if ((u32data[i] & exponentMask) == 0 && (u32data[i] & mantissaMask) != 0) {
                     return true;
                 }
             }
@@ -363,6 +374,7 @@ void Input::cloneBlobIfRequired() {
     };
 
     auto weightCache = context->getWeightsCache();
+
     if (weightCache) {
         MemoryPtr ptr = *weightCache->findOrCreate(blobKey(), cloneBlob);
         memoryPtr = std::const_pointer_cast<const IMemory>(ptr);

@@ -4,11 +4,10 @@
 
 #include "openvino/op/util/scatter_elements_update_base.hpp"
 
-#include <scatter_elements_update_shape_inference.hpp>
-
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "scatter_elements_update_shape_inference.hpp"
 
 namespace ov {
 namespace op {
@@ -107,8 +106,9 @@ bool op::util::ScatterElementsUpdateBase::evaluate_label(TensorLabelVector& outp
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 int64_t op::util::ScatterElementsUpdateBase::get_normalized_axis(const HostTensorVector& inputs) const {
-    NGRAPH_CHECK(inputs[3]->get_element_type().is_integral_number(), "axis element type is not integral data type");
+    OPENVINO_ASSERT(inputs[3]->get_element_type().is_integral_number(), "axis element type is not integral data type");
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     int64_t axis = host_tensor_2_vector<int64_t>(inputs[3])[0];
@@ -119,11 +119,11 @@ int64_t op::util::ScatterElementsUpdateBase::get_normalized_axis(const HostTenso
     if (normalized_axis < 0) {
         if (input_rank.is_static()) {
             OPENVINO_SUPPRESS_DEPRECATED_START
-            normalized_axis = ngraph::normalize_axis(this, axis, input_rank);
+            normalized_axis = ov::normalize_axis(this, axis, input_rank);
             OPENVINO_SUPPRESS_DEPRECATED_END
         } else {
             OPENVINO_SUPPRESS_DEPRECATED_START
-            normalized_axis = ngraph::normalize_axis(this, axis, static_cast<int64_t>(inputs[0]->get_shape().size()));
+            normalized_axis = ov::normalize_axis(this, axis, static_cast<int64_t>(inputs[0]->get_shape().size()));
             OPENVINO_SUPPRESS_DEPRECATED_END
         }
     }

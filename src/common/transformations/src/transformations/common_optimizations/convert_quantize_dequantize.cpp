@@ -5,17 +5,17 @@
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/validation_util.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 // ConvertQuantizeDequantize converts Quantize/Dequantize pair to a single FakeQuantize.
@@ -65,20 +65,20 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
     auto data_pattern = pass::pattern::any_input();
     auto input_low_pattern = pass::pattern::any_input();
     auto input_high_pattern = pass::pattern::any_input();
-    auto output_low_pattern = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto output_high_pattern = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto fq_pattern = ngraph::pattern::wrap_type<ov::op::v0::FakeQuantize>(
+    auto output_low_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto output_high_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto fq_pattern = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>(
         {data_pattern, input_low_pattern, input_high_pattern, output_low_pattern, output_high_pattern});
     auto convert1_pattern =
-        ngraph::pattern::wrap_type<ov::op::v0::Convert>({fq_pattern},
-                                                        pattern::type_matches_any({element::i8, element::u8}));
+        ov::pass::pattern::wrap_type<ov::op::v0::Convert>({fq_pattern},
+                                                          pattern::type_matches_any({element::i8, element::u8}));
     auto convert2_pattern =
-        ngraph::pattern::wrap_type<ov::op::v0::Convert>({convert1_pattern}, pattern::type_matches(element::f32));
+        ov::pass::pattern::wrap_type<ov::op::v0::Convert>({convert1_pattern}, pattern::type_matches(element::f32));
     auto zero_point_pattern = pass::pattern::any_input();
-    auto sub_pattern = ngraph::pattern::wrap_type<ov::op::v1::Subtract>({convert2_pattern, zero_point_pattern},
-                                                                        pattern::consumers_count(1));
+    auto sub_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({convert2_pattern, zero_point_pattern},
+                                                                          pattern::consumers_count(1));
     auto scale_pattern = pass::pattern::any_input();
-    auto mul_pattern = ngraph::pattern::wrap_type<ov::op::v1::Multiply>({sub_pattern, scale_pattern});
+    auto mul_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({sub_pattern, scale_pattern});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
@@ -178,6 +178,6 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

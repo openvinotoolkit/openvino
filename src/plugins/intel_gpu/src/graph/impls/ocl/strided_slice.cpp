@@ -46,7 +46,7 @@ struct strided_slice_impl : typed_primitive_impl_ocl<strided_slice> {
     using kernel_selector_t = kernel_selector::strided_slice_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::strided_slice_params, kernel_selector::strided_slice_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::strided_slice_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<strided_slice_impl>(*this);
@@ -118,9 +118,9 @@ public:
         std::vector<uint8_t> end_mask(end_mask_.begin(), end_mask_.end());
         std::vector<uint8_t> new_axis_mask(new_axis_mask_.begin(), new_axis_mask_.end());
         std::vector<uint8_t> shrink_axis_mask(shrink_axis_mask_.begin(), shrink_axis_mask_.end());
-        params.end_mask = end_mask;
+        params.end_mask = std::move(end_mask);
         pad_vector_to_size(params.end_mask, dims_num, 0);
-        params.begin_mask = begin_mask;
+        params.begin_mask = std::move(begin_mask);
         pad_vector_to_size(params.begin_mask, dims_num, 0);
 
         params.new_axis_mask = new_axis_mask;
@@ -202,7 +202,8 @@ attach_strided_slice_impl::attach_strided_slice_impl() {
 
     auto formats = {
         format::bfyx,
-        format::bfzyx
+        format::bfzyx,
+        format::bfwzyx,
     };
 
     implementation_map<strided_slice>::add(impl_types::ocl,

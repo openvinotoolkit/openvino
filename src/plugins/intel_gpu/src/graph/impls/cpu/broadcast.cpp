@@ -23,7 +23,7 @@ struct broadcast_impl : public typed_primitive_impl<broadcast> {
 
     std::shared_ptr<ov::op::v3::Broadcast> op;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::broadcast_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<broadcast_impl>(*this);

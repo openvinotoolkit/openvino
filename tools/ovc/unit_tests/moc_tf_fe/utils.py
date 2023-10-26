@@ -17,7 +17,7 @@ def basic_check(input_model, argv_input, input_data, expected_dtype, expected_va
     else:
         input_model = os.path.join(path, "test_models", input_model)
 
-    ov_model = convert_model(input_model, input=argv_input, extensions=extensions)
+    ov_model = convert_model(input_model, input=argv_input, extension=extensions)
 
     if only_conversion:
         return ov_model

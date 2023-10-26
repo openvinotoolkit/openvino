@@ -41,16 +41,24 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
             const auto tensor_out = softmax_expr->get_output_port_descriptor(0)->get_shape();
             const auto inner_work_amount = *(tensor_out.rbegin());
 
+            // Float constant values in byte representation
+            const auto float_min_constant = uint32_t(0xff7fffff);
+            const auto zero_constant = uint32_t(0x00000000);
+            const bool is_dynamic = softmax->is_dynamic();
             // We need an iterator to the inserted element
-            auto push_node = [&linear_ir, &expr_it](const std::shared_ptr<Node>& n) {
+            auto push_node = [&linear_ir, &expr_it, is_dynamic](const std::shared_ptr<Node>& n) {
                 const auto expr = linear_ir.insert(expr_it, n);
+                if (is_dynamic)
+                    expr->get()->updateShapes();
                 return std::make_pair(expr, n);
             };
-
+            const ov::PartialShape broadcasted_shape(softmax_expr->get_input_port_descriptor(0)->get_shape());
             // Note: VectorBuffer is a special case, since it should go before the initial Load. So we handle it separately
             const auto& vector_buffer_max = push_node(std::make_shared<op::VectorBuffer>());
+            // Init value of vector buffer for ReduceMax is -FLOAT_MIN.
+            const auto fill_max = push_node(std::make_shared<op::Fill>(vector_buffer_max.second, 0, float_min_constant));
             // ReduceMax loop
-            const auto& max = push_node(std::make_shared<ov::op::v1::Maximum>(softmax->get_input_source_output(0), vector_buffer_max.second));
+            const auto& max = push_node(std::make_shared<ov::op::v1::Maximum>(softmax->get_input_source_output(0), fill_max.second));
 
             const auto horizon_max = push_node(std::make_shared<op::HorizonMax>(max.second));
 
@@ -59,15 +67,16 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
                                     std::vector<ExpressionPort>{(*max.first)->get_input_port(0),
                                                                 (*max.first)->get_input_port(1)},
                                     std::vector<ExpressionPort>{(*max.first)->get_output_port(0)});
-
             const auto broadcast_horizon_max = push_node(
-                    std::make_shared<op::BroadcastMove>(horizon_max.second, horizon_max.second->get_input_partial_shape(0)));
+                    std::make_shared<op::BroadcastMove>(horizon_max.second, broadcasted_shape));
             const auto vector_buffer_sum = push_node(std::make_shared<op::VectorBuffer>());
+            // Init value of vector buffer for ReduceSum is zero.
+            const auto fill_sum = push_node(std::make_shared<op::Fill>(vector_buffer_sum.second, 0, zero_constant));
 
             // Sub + Exp + ReduceSum Loop
             const auto sub = push_node(std::make_shared<ov::op::v1::Subtract>(softmax->get_input_source_output(0), broadcast_horizon_max.second));
             const auto exp = push_node(std::make_shared<ov::op::v0::Exp>(sub.second));
-            const auto sum = push_node(std::make_shared<ov::op::v1::Add>(exp.second, vector_buffer_sum.second));
+            const auto sum = push_node(std::make_shared<ov::op::v1::Add>(exp.second, fill_sum.second));
 
             const auto horizon_sum = push_node(std::make_shared<op::HorizonSum>(sum.second));
 
@@ -81,7 +90,7 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
 
             // Divide is expensive operation, so we decompose it into 1 / x * y, where 1 / x is executed outside loop
             const auto pow = push_node(std::make_shared<op::PowerStatic>(horizon_sum.second, -1.f));
-            const auto broadcast_pow = push_node(std::make_shared<op::BroadcastMove>(pow.second, horizon_sum.second->get_input_partial_shape(0)));
+            const auto broadcast_pow = push_node(std::make_shared<op::BroadcastMove>(pow.second, broadcasted_shape));
 
             // Mul (pseudo-Divide loop)
             const auto mul = push_node(std::make_shared<ov::op::v1::Multiply>(exp.second, broadcast_pow.second));
@@ -114,8 +123,8 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
             // For tail loop we should fill input of Max by float min and
             // input of Sum by zero to avoid math incorrect calculations
             // TODO [111383]: It should be covered via general pipeline (for example, via analyze in InsertTailLoop?)
-            max.second->input(0).get_rt_info()["set_fill"] = uint32_t(0xff7fffff);
-            sum.second->input(0).get_rt_info()["set_fill"] = uint32_t(0x00000000);
+            max.second->input(0).get_rt_info()["set_fill"] = float_min_constant;
+            sum.second->input(0).get_rt_info()["set_fill"] = zero_constant;
             modified = true;
         }
     }

@@ -26,15 +26,11 @@
 #include "file_utils.h"
 #include "ie_cache_manager.hpp"
 #include "ie_icore.hpp"
-#include "ie_itt.hpp"
 #include "ie_network_reader.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_remote_context.hpp"
-#include "ngraph/graph_util.hpp"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset.hpp"
-#include "ngraph/pass/constant_folding.hpp"
+#include "itt.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/so_extension.hpp"
 #include "openvino/op/parameter.hpp"
@@ -86,12 +82,16 @@ public:
 Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
 
-    std::string xmlConfigFile_ = ov::findPluginXML(xmlConfigFile);
-    if (!xmlConfigFile_.empty())
-        // If XML is default, load default plugins by absolute paths
-        _impl->register_plugins_in_registry(xmlConfigFile_, xmlConfigFile.empty());
-    // Load plugins from pre-compiled list
-    _impl->register_compile_time_plugins();
+    try {
+        std::string xmlConfigFile_ = ov::find_plugins_xml(xmlConfigFile);
+        if (!xmlConfigFile_.empty())
+            // If XML is default, load default plugins by absolute paths
+            _impl->register_plugins_in_registry(xmlConfigFile_, xmlConfigFile.empty());
+        // Load plugins from pre-compiled list
+        _impl->register_compile_time_plugins();
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 std::map<std::string, Version> Core::GetVersions(const std::string& deviceName) const {
@@ -101,66 +101,102 @@ std::map<std::string, Version> Core::GetVersions(const std::string& deviceName) 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 CNNNetwork Core::ReadNetwork(const std::wstring& modelPath, const std::wstring& binPath) const {
-    return ReadNetwork(ov::util::wstring_to_string(modelPath), ov::util::wstring_to_string(binPath));
+    try {
+        return ReadNetwork(ov::util::wstring_to_string(modelPath), ov::util::wstring_to_string(binPath));
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 #endif
 
 CNNNetwork Core::ReadNetwork(const std::string& modelPath, const std::string& binPath) const {
-    return _impl->ReadNetwork(modelPath, binPath);
+    try {
+        return _impl->ReadNetwork(modelPath, binPath);
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 CNNNetwork Core::ReadNetwork(const std::string& model, const Blob::CPtr& weights) const {
-    return _impl->ReadNetwork(model, weights);
+    try {
+        return _impl->ReadNetwork(model, weights);
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) {
-    return LoadNetwork(network, ov::DEFAULT_DEVICE_NAME, config);
+    try {
+        return LoadNetwork(network, ov::DEFAULT_DEVICE_NAME, config);
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
                                     const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) {
     auto valid = ::CheckStatic(network);
-    OPENVINO_ASSERT(std::get<0>(valid),
-                    "InferenceEngine::Core::LoadNetwork doesn't support inputs having dynamic shapes. ",
-                    "Use ov::Core::compile_model API instead. Dynamic inputs are :",
-                    std::get<1>(valid));
-    auto exec = _impl->LoadNetwork(network, deviceName, config);
-    return {exec._ptr, exec._so};
+    try {
+        OPENVINO_ASSERT(std::get<0>(valid),
+                        "InferenceEngine::Core::LoadNetwork doesn't support inputs having dynamic shapes. ",
+                        "Use ov::Core::compile_model API instead. Dynamic inputs are :",
+                        std::get<1>(valid));
+        auto exec = _impl->LoadNetwork(network, deviceName, config);
+        return {exec._ptr, exec._so};
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
                                     RemoteContext::Ptr context,
                                     const std::map<std::string, std::string>& config) {
     auto valid = ::CheckStatic(network);
-    OPENVINO_ASSERT(std::get<0>(valid),
-                    "InferenceEngine::Core::LoadNetwork doesn't support inputs having dynamic shapes. ",
-                    "Use ov::Core::compile_model API instead. Dynamic inputs are :",
-                    std::get<1>(valid));
-    auto exec = _impl->LoadNetwork(network, std::dynamic_pointer_cast<RemoteContext>(context), config);
-    return {exec._ptr, exec._so};
+    try {
+        OPENVINO_ASSERT(std::get<0>(valid),
+                        "InferenceEngine::Core::LoadNetwork doesn't support inputs having dynamic shapes. ",
+                        "Use ov::Core::compile_model API instead. Dynamic inputs are :",
+                        std::get<1>(valid));
+        auto exec = _impl->LoadNetwork(network, std::dynamic_pointer_cast<RemoteContext>(context), config);
+        return {exec._ptr, exec._so};
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 ExecutableNetwork Core::LoadNetwork(const std::string& modelPath,
                                     const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) {
-    auto exec = _impl->LoadNetwork(modelPath, deviceName, config, [](const CNNNetwork& network) {
-        auto valid = ::CheckStatic(network);
-        OPENVINO_ASSERT(std::get<0>(valid),
-                        "InferenceEngine::Core::LoadNetwork doesn't support inputs having dynamic shapes. ",
-                        "Use ov::Core::compile_model API instead. Dynamic inputs are :",
-                        std::get<1>(valid));
-    });
-    return {exec._ptr, exec._so};
+    try {
+        auto exec = _impl->LoadNetwork(modelPath, deviceName, config, [](const CNNNetwork& network) {
+            auto valid = ::CheckStatic(network);
+            OPENVINO_ASSERT(std::get<0>(valid),
+                            "InferenceEngine::Core::LoadNetwork doesn't support inputs having dynamic shapes. ",
+                            "Use ov::Core::compile_model API instead. Dynamic inputs are :",
+                            std::get<1>(valid));
+        });
+        return {exec._ptr, exec._so};
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 ExecutableNetwork Core::LoadNetwork(const std::string& modelPath, const std::map<std::string, std::string>& config) {
-    return LoadNetwork(modelPath, ov::DEFAULT_DEVICE_NAME, config);
+    try {
+        return LoadNetwork(modelPath, ov::DEFAULT_DEVICE_NAME, config);
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 RemoteContext::Ptr Core::CreateContext(const std::string& deviceName, const ParamMap& params) {
-    return _impl->CreateContext(deviceName, params);
+    try {
+        return _impl->CreateContext(deviceName, params);
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName) {
@@ -173,7 +209,11 @@ RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName) {
     if (deviceName.find("AUTO") == 0) {
         IE_THROW() << "AUTO device does not support remote context";
     }
-    return _impl->GetDefaultContext(deviceName);
+    try {
+        return _impl->GetDefaultContext(deviceName);
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 void Core::AddExtension(IExtensionPtr extension, const std::string& deviceName_) {
@@ -187,35 +227,51 @@ void Core::AddExtension(IExtensionPtr extension, const std::string& deviceName_)
         IE_THROW() << "AUTO device does not support extensions. Please, set extensions directly to fallback devices";
     }
 
-    _impl->AddExtension(extension);
+    try {
+        _impl->AddExtension(extension);
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 void Core::AddExtension(const IExtensionPtr& extension) {
-    _impl->AddExtension(extension);
+    try {
+        _impl->AddExtension(extension);
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName,
                                       const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::ImportNetwork");
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ov::any_copy(config));
     std::ifstream modelStream(modelFileName, std::ios::binary);
     if (!modelStream.is_open())
         IE_THROW(NetworkNotRead) << "Model file " << modelFileName << " cannot be opened!";
-    auto exec = _impl->get_plugin(parsed._deviceName).import_model(modelStream, parsed._config);
-    return {ov::legacy_convert::convert_compiled_model(exec), exec._so};
+    try {
+        auto exec = _impl->get_plugin(parsed._deviceName).import_model(modelStream, parsed._config);
+        return {ov::legacy_convert::convert_compiled_model(exec), exec._so};
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
                                       const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
-    auto exec = _impl->ImportNetwork(networkModel, deviceName, config);
-    return {exec._ptr, exec._so};
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::ImportNetwork");
+    try {
+        auto exec = _impl->ImportNetwork(networkModel, deviceName, config);
+        return {exec._ptr, exec._so};
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::ImportNetwork");
 
     using ExportMagic = std::array<char, 4>;
     constexpr static const ExportMagic exportMagic = {{0x1, 0xE, 0xE, 0x1}};
@@ -232,14 +288,18 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel) {
     }
     networkModel.seekg(currentPos, networkModel.beg);
 
-    auto exec = _impl->get_plugin(deviceName).import_model(networkModel, {});
-    return {ov::legacy_convert::convert_compiled_model(exec), exec._so};
+    try {
+        auto exec = _impl->get_plugin(deviceName).import_model(networkModel, {});
+        return {ov::legacy_convert::convert_compiled_model(exec), exec._so};
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
                                       const RemoteContext::Ptr& context,
                                       const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::ImportNetwork");
 
     if (context == nullptr) {
         IE_THROW() << "Remote context is null";
@@ -249,22 +309,31 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
     ov::DeviceIDParser device(deviceName_);
     std::string deviceName = device.get_device_name();
 
-    auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ov::any_copy(config));
-    auto exec = _impl->get_plugin(deviceName)
-                    .import_model(networkModel, ov::legacy_convert::convert_remote_context(context), parsed._config);
-    return {ov::legacy_convert::convert_compiled_model(exec), exec._so};
+    try {
+        auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ov::any_copy(config));
+        auto exec =
+            _impl->get_plugin(deviceName)
+                .import_model(networkModel, ov::legacy_convert::convert_remote_context(context), parsed._config);
+        return {ov::legacy_convert::convert_compiled_model(exec), exec._so};
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 QueryNetworkResult Core::QueryNetwork(const CNNNetwork& network,
                                       const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) const {
-    auto valid = ::CheckStatic(network);
-    OPENVINO_ASSERT(std::get<0>(valid),
-                    "InferenceEngine::Core::QueryNetwork doesn't support inputs having dynamic shapes. ",
-                    "Use ov::Core::compile_model API instead. Dynamic inputs are :",
-                    std::get<1>(valid));
+    try {
+        auto valid = ::CheckStatic(network);
+        OPENVINO_ASSERT(std::get<0>(valid),
+                        "InferenceEngine::Core::QueryNetwork doesn't support inputs having dynamic shapes. ",
+                        "Use ov::Core::compile_model API instead. Dynamic inputs are :",
+                        std::get<1>(valid));
 
-    return _impl->QueryNetwork(network, deviceName, config);
+        return _impl->QueryNetwork(network, deviceName, config);
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 void Core::SetConfig(const std::map<std::string, std::string>& config, const std::string& deviceName) {
@@ -287,10 +356,14 @@ void Core::SetConfig(const std::map<std::string, std::string>& config, const std
     }
 
     ov::AnyMap conf = ov::any_copy(config);
-    if (deviceName.empty()) {
-        _impl->set_property_for_device(conf, std::string());
-    } else {
-        _impl->set_property_for_device(conf, deviceName);
+    try {
+        if (deviceName.empty()) {
+            _impl->set_property_for_device(conf, std::string());
+        } else {
+            _impl->set_property_for_device(conf, deviceName);
+        }
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
     }
 }
 
@@ -322,31 +395,55 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
         return flag ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
     }
 
-    auto parsed = ov::parseDeviceNameIntoConfig(deviceName);
-    return _impl->get_plugin(parsed._deviceName).get_property(name, parsed._config);
+    try {
+        auto parsed = ov::parseDeviceNameIntoConfig(deviceName);
+        return _impl->get_plugin(parsed._deviceName).get_property(name, parsed._config);
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 Parameter Core::GetMetric(const std::string& deviceName, const std::string& name, const ParamMap& options) const {
-    return _impl->GetMetric(deviceName, name, options);
+    try {
+        return _impl->GetMetric(deviceName, name, options);
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 std::vector<std::string> Core::GetAvailableDevices() const {
-    return _impl->GetAvailableDevices();
+    try {
+        return _impl->GetAvailableDevices();
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 void Core::RegisterPlugin(const std::string& pluginName, const std::string& deviceName) {
-    _impl->register_plugin(pluginName, deviceName, {});
+    try {
+        _impl->register_plugin(pluginName, deviceName, {});
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 void Core::RegisterPlugins(const std::string& xmlConfigFile) {
-    _impl->register_plugins_in_registry(xmlConfigFile);
+    try {
+        _impl->register_plugins_in_registry(xmlConfigFile);
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 void Core::UnregisterPlugin(const std::string& deviceName_) {
-    ov::DeviceIDParser parser(deviceName_);
-    std::string deviceName = parser.get_device_name();
+    try {
+        ov::DeviceIDParser parser(deviceName_);
+        std::string deviceName = parser.get_device_name();
 
-    _impl->unload_plugin(deviceName);
+        _impl->unload_plugin(deviceName);
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what() << std::endl;
+    }
 }
 
 }  // namespace InferenceEngine

@@ -8,16 +8,12 @@
 
 namespace cldnn {
 
-
-
 /// @brief Constructs experimental_detectron_prior_grid_generator primitive.
 struct experimental_detectron_prior_grid_generator
     : public primitive_base<experimental_detectron_prior_grid_generator> {
     CLDNN_DECLARE_PRIMITIVE(experimental_detectron_prior_grid_generator)
 
     experimental_detectron_prior_grid_generator() : primitive_base("", {}) {}
-
-    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     experimental_detectron_prior_grid_generator(const primitive_id& id,
                                                 const std::vector<input_info>& inputs,
@@ -41,15 +37,15 @@ struct experimental_detectron_prior_grid_generator
           image_height{image_height},
           image_width{image_width} {}
 
-    bool flatten;
-    uint64_t h;
-    uint64_t w;
-    float stride_x;
-    float stride_y;
-    uint64_t featmap_height;
-    uint64_t featmap_width;
-    uint64_t image_height;
-    uint64_t image_width;
+    bool flatten = false;
+    uint64_t h = 0;
+    uint64_t w = 0;
+    float stride_x = 0.0f;
+    float stride_y = 0.0f;
+    uint64_t featmap_height = 0;
+    uint64_t featmap_width = 0;
+    uint64_t image_height = 0;
+    uint64_t image_width = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

@@ -11,7 +11,7 @@
 
 using namespace ::testing;
 using namespace std;
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 class PrecisionDetailsTests : public ::testing::Test {
 protected:
@@ -26,7 +26,7 @@ TEST_F(PrecisionDetailsTests, getPrecisionDetailsI8levels255WithoutZeroPoint) {
     LayerTransformation::Params params = LayerTransformation::Params();
     FakeQuantizeTransformation fakeQuantizeTransformation(params);
     const LayerTransformation::PrecisionDetails precisionDetails = fakeQuantizeTransformation.getPrecisionDetails(i8levels255WithoutZeroPoint);
-    ASSERT_EQ(ngraph::element::i8, precisionDetails.precision);
+    ASSERT_EQ(ov::element::i8, precisionDetails.precision);
     ASSERT_TRUE(precisionDetails.hasNegativeOutput);
     ASSERT_FALSE(precisionDetails.hasZeroPoint);
 }
@@ -35,7 +35,7 @@ TEST_F(PrecisionDetailsTests, getPrecisionDetailsI8levels255WithZeroPoint) {
     LayerTransformation::Params params = LayerTransformation::Params();
     FakeQuantizeTransformation fakeQuantizeTransformation(params);
     const LayerTransformation::PrecisionDetails precisionDetails = fakeQuantizeTransformation.getPrecisionDetails(i8levels255WithZeroPoint);
-    ASSERT_EQ(ngraph::element::undefined, precisionDetails.precision);
+    ASSERT_EQ(ov::element::undefined, precisionDetails.precision);
     ASSERT_TRUE(precisionDetails.hasNegativeOutput);
     ASSERT_TRUE(precisionDetails.hasZeroPoint);
 }
@@ -44,7 +44,7 @@ TEST_F(PrecisionDetailsTests, getPrecisionDetailsI8levels256WithoutZeroPoint) {
     LayerTransformation::Params params = LayerTransformation::Params();
     FakeQuantizeTransformation fakeQuantizeTransformation(params);
     const LayerTransformation::PrecisionDetails precisionDetails = fakeQuantizeTransformation.getPrecisionDetails(i8levels256WithoutZeroPoint);
-    ASSERT_EQ(ngraph::element::i8, precisionDetails.precision);
+    ASSERT_EQ(ov::element::i8, precisionDetails.precision);
     ASSERT_TRUE(precisionDetails.hasNegativeOutput);
     ASSERT_FALSE(precisionDetails.hasZeroPoint);
 }
@@ -53,7 +53,7 @@ TEST_F(PrecisionDetailsTests, getPrecisionDetailsU8levels256WithoutZeroPoint) {
     LayerTransformation::Params params = LayerTransformation::Params();
     FakeQuantizeTransformation fakeQuantizeTransformation(params);
     const LayerTransformation::PrecisionDetails precisionDetails = fakeQuantizeTransformation.getPrecisionDetails(u8levels256WithoutZeroPoint);
-    ASSERT_EQ(ngraph::element::u8, precisionDetails.precision);
+    ASSERT_EQ(ov::element::u8, precisionDetails.precision);
     ASSERT_FALSE(precisionDetails.hasNegativeOutput);
     ASSERT_FALSE(precisionDetails.hasZeroPoint);
 }
@@ -62,7 +62,7 @@ TEST_F(PrecisionDetailsTests, getPrecisionDetailsU8levels256WithZeroPoint) {
     LayerTransformation::Params params = LayerTransformation::Params();
     FakeQuantizeTransformation fakeQuantizeTransformation(params);
     const LayerTransformation::PrecisionDetails precisionDetails = fakeQuantizeTransformation.getPrecisionDetails(u8levels256WithZeroPoint);
-    ASSERT_EQ(ngraph::element::undefined, precisionDetails.precision);
+    ASSERT_EQ(ov::element::undefined, precisionDetails.precision);
     ASSERT_FALSE(precisionDetails.hasNegativeOutput);
     ASSERT_TRUE(precisionDetails.hasZeroPoint);
 }

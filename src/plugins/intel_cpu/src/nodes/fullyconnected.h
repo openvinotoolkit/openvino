@@ -56,6 +56,12 @@ public:
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
     bool canBeExecutedInInt8() const override;
+    void keepWeightsNonTransposed(bool weightsNonTransposed) {
+        this->weightsNonTransposed = weightsNonTransposed;
+    }
+
+    void fuseDecompressionMultiply(const MemoryCPtr& memory);
+    void fuseDecompressionSubtract(const MemoryCPtr& memory);
 
 private:
     void createDescriptorInternal(const dnnl::memory::desc &inputDesc,
@@ -93,6 +99,7 @@ private:
                                     const dnnl::engine& engine);
 
     bool canBeExecutedInConv1x1() const;
+    void fuseDecompressionConstant(const MemoryCPtr& memory, MemoryCPtr& decompressionValuesPtr);
 
     // sparse weights
     bool useSparseWeights = false;
@@ -107,6 +114,16 @@ private:
     void executeMLAS();
     void prepackMLASWeight();
 #endif
+#if defined(OV_CPU_WITH_ACL)
+    void prepareWeightsUsingDummyShape();
+#endif
+    bool useWeightsDecompressionImpl = false;
+    MemoryCPtr decompressionSubtractPtr = nullptr;
+    MemoryCPtr decompressionMultiplyPtr = nullptr;
+
+    // FC with transposed weights
+    bool weightsNonTransposed = false;
+    DnnlMemoryDescPtr makeTransposedWeightDescriptor(DnnlMemoryDescPtr desc);
 };
 
 }   // namespace node

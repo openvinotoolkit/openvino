@@ -14,8 +14,6 @@ struct tile : public primitive_base<tile> {
 
     tile() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs tile primitive with static input.
     /// @param id This primitive id.
     /// @param repeats Per-dimension replication factor.

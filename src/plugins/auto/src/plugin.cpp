@@ -128,7 +128,6 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
 
     // parsing the string and splitting to tokens
     std::vector<std::string> devices_with_requests = m_plugin_config.parse_priorities_devices(priorities);
-
     auto set_default_hint = [&](const std::string& target_device,
                               ov::AnyMap& device_config,
                               const ov::AnyMap& properties) {
@@ -172,6 +171,10 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
     auto get_device_config = [&] (const DeviceName & device_with_id) {
         auto device_config = get_core()->get_supported_property(device_with_id, properties);
         set_default_hint(device_with_id, device_config, properties);
+        // only in case of cumulative, update to tput for hardware device
+        auto && iter = device_config.find(ov::hint::performance_mode.name());
+        if (iter != device_config.end() && iter->second.as<std::string>() == "CUMULATIVE_THROUGHPUT")
+            iter->second = ov::hint::PerformanceMode::THROUGHPUT;
         // validate the device validity
         get_core()->get_property(device_with_id, ov::supported_properties, device_config);
         return device_config;
@@ -412,8 +415,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     load_config.set_user_property(pre_process_config(properties));
     load_config.apply_user_properties();
     if (!work_mode_auto) {
-        if (iter_config != properties.end() && iter_config->second != ov::hint::PerformanceMode::THROUGHPUT) {
-            LOG_WARNING_TAG("User set perf_hint:%s, but MULTI supports THROUGHPUT only", iter_config->second.as<std::string>().c_str());
+        if (iter_config != properties.end() && iter_config->second.as<std::string>() != "THROUGHPUT") {
+            LOG_WARNING_TAG("User set perf_hint:%s, but MULTI supports THROUGHPUT only",
+                            iter_config->second.as<std::string>().c_str());
         }
         load_config.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
     }
@@ -446,7 +450,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     auto_s_context->m_model_priority = map_priority_value(load_config.get_property(ov::hint::model_priority));
     auto_s_context->m_batching_disabled = load_config.is_batching_disabled();
     // set performanceHint for AutoCompiledModel
-    auto_s_context->m_performance_hint = load_config.get_property(ov::hint::performance_mode.name());
+    auto_s_context->m_performance_hint = load_config.get_property(ov::hint::performance_mode);
     // filter the device that supports filter configure
     meta_devices = parse_meta_devices(str_devices, full_property);
     auto support_devices_by_property = filter_device(meta_devices, filter_property);
@@ -623,7 +627,12 @@ std::list<DeviceInformation> Plugin::get_valid_device(
     std::list<DeviceInformation> Others;
     auto is_supported_model = [this, model_precision](const std::string& device_name) {
         // Check if candidate device supported the specified model precision.
-        auto capability = get_core()->get_property(device_name, ov::device::capabilities);
+        std::vector<std::string> capability;
+        try {
+            capability = get_core()->get_property(device_name, ov::device::capabilities);
+        } catch (std::exception&) {
+            LOG_DEBUG_TAG("cannot get device capabity from device: %s", device_name.c_str());
+        }
         auto support_model = std::find(capability.begin(), capability.end(), (model_precision));
         bool is_support_fp16 =
             model_precision == "FP32" && std::find(capability.begin(), capability.end(), ("FP16")) != capability.end();

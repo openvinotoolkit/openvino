@@ -6,12 +6,11 @@
 
 #include <gmock/gmock.h>
 
+#include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
+#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
 #include <map>
 #include <string>
 #include <vector>
-
-#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
-#include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 
 class MockIInferRequestInternal : public InferenceEngine::IInferRequestInternal {
 public:
@@ -20,7 +19,7 @@ public:
     MOCK_METHOD1(Wait, InferenceEngine::StatusCode(int64_t));
     MOCK_METHOD0(Infer, void());
     MOCK_CONST_METHOD0(GetPerformanceCounts, std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>());
-    MOCK_METHOD2(SetBlob, void(const std::string&, const InferenceEngine::Blob::Ptr &));
+    MOCK_METHOD2(SetBlob, void(const std::string&, const InferenceEngine::Blob::Ptr&));
     MOCK_METHOD1(GetBlob, InferenceEngine::Blob::Ptr(const std::string&));
     MOCK_CONST_METHOD1(GetPreProcess, const InferenceEngine::PreProcessInfo&(const std::string&));
     MOCK_METHOD1(SetCallback, void(std::function<void(std::exception_ptr)>));

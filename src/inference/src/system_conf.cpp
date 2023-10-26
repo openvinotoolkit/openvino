@@ -103,6 +103,9 @@ bool with_cpu_x86_avx() {
 bool with_cpu_x86_avx2() {
     return false;
 }
+bool with_cpu_x86_avx2_vnni() {
+    return false;
+}
 bool with_cpu_x86_avx512f() {
     return false;
 }
@@ -247,7 +250,7 @@ int get_num_numa_nodes() {
     return cpu_info()._numa_nodes;
 }
 int get_num_sockets() {
-    return -1;
+    return cpu_info()._sockets;
 }
 void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table,
                             std::vector<std::vector<int>>& stream_processors,
@@ -255,6 +258,12 @@ void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_tab
 void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {}
 
 int get_socket_by_numa_node(int numa_node_id) {
+    CPU& cpu = cpu_info();
+    for (size_t i = 0; i < cpu._proc_type_table.size(); i++) {
+        if (cpu._proc_type_table[i][PROC_NUMA_NODE_ID] == numa_node_id) {
+            return cpu._proc_type_table[i][PROC_SOCKET_ID];
+        }
+    }
     return -1;
 };
 
@@ -362,6 +371,14 @@ void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_tab
         OPENVINO_DEBUG << streams_info_table[i][NUMBER_OF_STREAMS] << " " << streams_info_table[i][PROC_TYPE] << " "
                        << streams_info_table[i][THREADS_PER_STREAM] << " " << streams_info_table[i][STREAM_NUMA_NODE_ID]
                        << " " << streams_info_table[i][STREAM_SOCKET_ID];
+    }
+    OPENVINO_DEBUG << "[ threading ] stream_processors:";
+    for (size_t i = 0; i < stream_processors.size(); i++) {
+        OPENVINO_DEBUG << "{";
+        for (size_t j = 0; j < stream_processors[i].size(); j++) {
+            OPENVINO_DEBUG << stream_processors[i][j] << ",";
+        }
+        OPENVINO_DEBUG << "},";
     }
 }
 

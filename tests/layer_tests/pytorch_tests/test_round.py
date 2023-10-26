@@ -10,6 +10,10 @@ class TestRound(PytorchLayerTest):
     def _prepare_input(self, out=False, dtype="float32"):
         import numpy as np
         input = np.random.randn(1, 3, 224, 224).astype(dtype)
+        if dtype == "float64":
+            # fp64 can fail by accuracy, because pytorch rounds fp64 value and ov will round fp32 value.
+            # To remove sporadic accuracy fails we will round the number to 6 decimal places.
+            input = np.round(input, 6)
         if not out:
             return (input, )
         return (input, np.zeros_like(input))

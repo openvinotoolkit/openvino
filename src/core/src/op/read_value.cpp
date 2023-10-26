@@ -83,6 +83,7 @@ void op::v6::ReadValue::revalidate_and_infer_types() {
     Node::revalidate_and_infer_types();
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs,
                                  const EvaluationContext& evaluation_context) const {
@@ -97,8 +98,8 @@ bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs,
 
     // initial value (inputs[0]) is not supported, use zeros
     auto zero_const = make_shared<v0::Constant>(inputs[0]->get_element_type(), inputs[0]->get_shape(), 0);
-    auto zero_tensor = make_shared<HostTensor>(zero_const);
     OPENVINO_SUPPRESS_DEPRECATED_START
+    auto zero_tensor = make_shared<HostTensor>(zero_const);
     const auto& input_tensor = use_context ? var_value->second->get_value() : zero_tensor;
     OPENVINO_SUPPRESS_DEPRECATED_END
     outputs[0]->set_unary(input_tensor);
@@ -107,6 +108,7 @@ bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs,
     outputs[0]->write(input, outputs[0]->get_size_in_bytes());
     return true;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::v6::ReadValue::has_evaluate() const {
     OV_OP_SCOPE(v6_ReadValue_has_evaluate);

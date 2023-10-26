@@ -9,7 +9,9 @@
 #include <map>
 #include <string>
 
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 /// \brief Class-container for PostgreSQLLink-specific data, declared and implemented
 ///        out of header. Definition mustn't be a part of this header.
@@ -72,8 +74,9 @@ public:
     /// Works only if previously called set_manual_start()
     void manual_start(void) const;
 };
-
-}  // namespace CommonTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov
 
 #ifdef ENABLE_CONFORMANCE_PGQL
 namespace PostgreSQLLink {

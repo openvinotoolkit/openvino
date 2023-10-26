@@ -6,14 +6,9 @@
 
 #include <fstream>
 
-#include "engines_util/test_engines.hpp"
-#include "ngraph/ngraph.hpp"
-#include "paddle_utils.hpp"
 #include "common_test_utils/test_control.hpp"
+#include "paddle_utils.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
-using namespace ngraph;
 using namespace ov::frontend;
 
 using PaddleFuzzyOpTest = FrontEndFuzzyOpTest;
@@ -112,6 +107,7 @@ static const std::vector<std::string> models{
     std::string("conv2d_transpose_strides_padding/conv2d_transpose_strides_padding.pdmodel"),
     std::string("conv2d_transpose_VALID_padding/conv2d_transpose_VALID_padding.pdmodel"),
     std::string("conv2d_VALID_padding/conv2d_VALID_padding.pdmodel"),
+    std::string("cos"),
     std::string("cumsum"),
     std::string("cumsum_i32"),
     std::string("cumsum_i64"),
@@ -175,6 +171,7 @@ static const std::vector<std::string> models{
     std::string("elementwise_floordiv_int64_1"),
     std::string("elementwise_floordiv_int64_2"),
     std::string("elementwise_floordiv_int64_3"),
+    std::string("elementwise_mul_bool1"),
     std::string("embedding_0/embedding_0.pdmodel"),
     std::string("embedding_sparse/embedding_sparse.pdmodel"),
     std::string("embedding_none_weight/embedding_none_weight.pdmodel"),
@@ -199,8 +196,11 @@ static const std::vector<std::string> models{
     std::string("fill_any_like_f16"),
     std::string("fill_any_like_f32"),
     std::string("fill_any_like_f64"),
+    std::string("fill_any_like_i16"),
     std::string("fill_any_like_i32"),
     std::string("fill_any_like_i64"),
+    std::string("fill_any_like_bool"),
+    std::string("fill_any_like_bool_2"),
     std::string("fill_constant"),
     std::string("fill_constant_batch_size_like"),
     std::string("fill_constant_int32"),
@@ -404,6 +404,12 @@ static const std::vector<std::string> models{
     std::string("range0"),
     std::string("range1"),
     std::string("range2"),
+    std::string("reduce_all_test_0"),
+    std::string("reduce_all_test_1"),
+    std::string("reduce_all_test_2"),
+    std::string("reduce_all_test_3"),
+    std::string("reduce_all_test_4"),
+    std::string("reduce_all_test_5"),
     std::string("reduce_max_test_0"),
     std::string("reduce_max_test_1"),
     std::string("reduce_max_test_2"),
@@ -474,6 +480,7 @@ static const std::vector<std::string> models{
     // std::string("set_value_dynamic1"),
     std::string("set_value_dynamic2"),
     std::string("shape"),
+    std::string("share_data_test_0"),
     std::string("sigmoid"),
     std::string("silu_static_test1"),
     std::string("silu_static_test2"),
@@ -483,6 +490,7 @@ static const std::vector<std::string> models{
     std::string("silu_dynamic_test2"),
     std::string("silu_dynamic_test3"),
     std::string("silu_dynamic_test4"),
+    std::string("sin"),
     std::string("slice"),
     std::string("slice_1d"),
     std::string("slice_decrease_axis/slice_decrease_axis.pdmodel"),

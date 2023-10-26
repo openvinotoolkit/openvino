@@ -14,7 +14,6 @@
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
-#include "intel_gpu/runtime/half.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 
 #include "intel_gpu/graph/program.hpp"
@@ -75,7 +74,9 @@ void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<p
         return s.str();
     };
 
-    const std::string perf_raw_csv_header = "prim_id,prim_type,stage,net_in_shapes,in_shapes,out_shapes,impl,iters,time_usec\n";
+    const bool per_iter_mode = cldnn::debug_configuration::get_instance()->dump_profiling_data_per_iter != 0;
+    const std::string perf_raw_csv_header = per_iter_mode ? "prim_id,prim_type,stage,net_in_shapes,in_shapes,out_shapes,impl,iter,time_usec\n"
+                                                          : "prim_id,prim_type,stage,net_in_shapes,in_shapes,out_shapes,impl,iters,time_usec\n";
     std::ofstream of(dump_path);
     if (of.is_open()) {
         of << perf_raw_csv_header;
@@ -114,8 +115,8 @@ void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<p
                 auto& key = perf_info.at(hash);
                 auto& entry = perf_data.at(hash);
                 auto& time = std::get<0>(entry);
-                auto& num_iters = std::get<1>(entry);
-                int64_t time_avg = time / num_iters;
+                auto num_iters = per_iter_mode ? key.iteration_num : std::get<1>(entry);
+                int64_t time_avg = per_iter_mode ? time : time / num_iters;
                 std::string net_in_l_str = layouts_to_str(key.network_input_layouts);
                 std::string in_l_str = layouts_to_str(key.input_layouts);
                 std::string out_l_str = layouts_to_str(key.output_layouts);
@@ -138,7 +139,7 @@ float convert_element(int32_t i) { return static_cast<float>(i); }
 
 float convert_element(float f) { return f; }
 
-float convert_element(half_t h) { return half_to_float(h); }
+float convert_element(ov::float16 h) { return static_cast<float>(h); }
 
 size_t get_x_pitch(const layout& layout) {
     try {
@@ -246,7 +247,7 @@ void dump<uint32_t>(memory::ptr mem, stream& stream, std::ofstream& file_stream,
     }
 }
 
-void log_memory_to_file(memory::ptr mem, stream& stream, std::string layerName, bool dump_raw) {
+void log_memory_to_file(memory::ptr mem, layout data_layout, stream& stream, std::string layerName, bool dump_raw) {
     std::cout << "Dump " << (dump_raw ? "raw " : "") << layerName << std::endl;
     GPU_DEBUG_GET_INSTANCE(debug_config);
     std::string filename = debug_config->get_name_for_dump(layerName);
@@ -257,21 +258,24 @@ void log_memory_to_file(memory::ptr mem, stream& stream, std::string layerName, 
         return;
     }
 
-    auto mem_dt = mem->get_layout().data_type;
+    // Reinterpret buffer to represent actual data layout
+    auto actual_mem = mem->get_engine()->reinterpret_buffer(*mem, data_layout);
+
+    auto mem_dt = actual_mem->get_layout().data_type;
     if (mem_dt == cldnn::data_types::f32)
-        dump<float>(mem, stream, file_stream, dump_raw);
+        dump<float>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::f16)
-        dump<half_t>(mem, stream, file_stream, dump_raw);
-    else if (mem_dt == cldnn::data_types::bin)
-        dump<uint32_t>(mem, stream, file_stream, dump_raw);
+        dump<ov::float16>(actual_mem, stream, file_stream, dump_raw);
+    else if (mem_dt == cldnn::data_types::u1)
+        dump<uint32_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::i64)
-        dump<int64_t>(mem, stream, file_stream, dump_raw);
+        dump<int64_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::i32)
-        dump<int32_t>(mem, stream, file_stream, dump_raw);
+        dump<int32_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::i8)
-        dump<int8_t>(mem, stream, file_stream, dump_raw);
+        dump<int8_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::u8)
-        dump<uint8_t>(mem, stream, file_stream, dump_raw);
+        dump<uint8_t>(actual_mem, stream, file_stream, dump_raw);
 }
 
 void wait_for_the_turn() {
@@ -294,7 +298,7 @@ void wait_for_the_turn() {
 
 #else
 void dump_perf_data_raw(std::string, const std::list<std::shared_ptr<primitive_inst>>&) {}
-void log_memory_to_file(memory::ptr, stream&, std::string, bool dump_raw) {}
+void log_memory_to_file(memory::ptr, layout, stream&, std::string, bool dump_raw) {}
 void wait_for_the_turn() {}
 #endif
 }  // namespace
@@ -306,7 +310,7 @@ static uint32_t get_unique_net_id() {
 
 static std::string get_file_path_for_binary_dump(cldnn::layout layout, std::string name) {
     std::string filename;
-    std::string data_type = data_type_traits::name(layout.data_type);
+    std::string data_type = ov::element::Type(layout.data_type).get_type_name();
     std::string format = layout.format.to_string();
     std::string tensor;
     auto dims = layout.get_dims();
@@ -754,16 +758,19 @@ void network::reset_execution(bool wait) {
             get_stream().wait_for_events(events);
         }
     }
-    _events.clear();
+
+    // Move events to temporarily map to deallocate them at the end of network::execute() call for better overlapping with
+    // kernels execution, since it may take significant time for high amount of events
+    _old_events = std::move(_events);
 }
 
 event::ptr network::set_input_data(const primitive_id& id, memory::ptr data) {
+    GPU_DEBUG_TRACE_DETAIL << "Set input " << id << " " << data->get_layout().to_short_string() << std::endl;
     std::shared_ptr<primitive_inst> primitive_inst;
 
     primitive_inst = find_primitive(id);
 
-    if (primitive_inst == nullptr)
-        throw std::runtime_error("topology doesn't contain primitive:" + id);
+    OPENVINO_ASSERT(primitive_inst != nullptr, "[GPU] topology doesn't contain primitive: ", id);
 
     if (primitive_inst->type() != input_layout::type_id()) {
         CLDNN_ERROR_MESSAGE(id, "primitive " + id + " is not an input");
@@ -900,12 +907,12 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
 }
 
 std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memory::ptr mem_new) {
+    GPU_DEBUG_TRACE_DETAIL << "Set output " << id << " " << mem_new->get_layout().to_short_string() << std::endl;
     std::shared_ptr<primitive_inst> p_inst;
     std::vector<event::ptr> ret_ev;
     p_inst = find_primitive(id);
 
-    if (!p_inst)
-        throw std::runtime_error("topology doesn't contain primitive: " + id);
+    OPENVINO_ASSERT(p_inst != nullptr, "[GPU] topology doesn't contain primitive: ", id);
 
     auto iter = std::find(_outputs.begin(), _outputs.end(), p_inst);
     if (iter == _outputs.end())
@@ -920,7 +927,11 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
     }
 
     for (auto& prim : o_iter->second) {
-        ret_ev.push_back(prim->set_output_memory(eng.reinterpret_buffer(*mem_new, prim->output_memory().get_layout()), false));
+        auto mem = mem_new;
+        if (!prim->is_dynamic() && mem_new && prim->output_memory_ptr())
+            mem = eng.reinterpret_buffer(*mem_new, prim->output_memory().get_layout());
+
+        ret_ev.push_back(prim->set_output_memory(mem));
         if (!_reset_arguments &&
             (prim->type() != cldnn::data::type_id() && !(prim->type() == cldnn::mutable_data::type_id() && prim->dependencies().empty()))) {
             prim->set_arguments();
@@ -970,7 +981,7 @@ std::string network::get_primitive_info(const primitive_id& id) const {
 bool network::is_cpu_impl(const primitive_id& id) const {
     auto prim_inst = find_primitive(id);
 
-    OPENVINO_ASSERT(prim_inst, "[GPU] Can't get implementation type, since topology",
+    OPENVINO_ASSERT(prim_inst, "[GPU] Can't get implementation type, since topology ",
                                "doesn't contain primitive with requested id: ", id);
 
     return prim_inst->get_impl() ? prim_inst->get_impl()->is_cpu() : true;
@@ -1170,10 +1181,21 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
 
 void network::execute_impl(const std::vector<event::ptr>& events) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "NetworkImpl::Execute");
+    int64_t curr_iter = -1;
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+#ifdef GPU_DEBUG_CONFIG
+    curr_iter = iteration++;
+#endif
+
     // Wait for previous execution completion
     reset_execution(false);
-    GPU_DEBUG_TRACE << "----------------------------------------------" << std::endl;
-    GPU_DEBUG_TRACE << "Start network execution" << std::endl;
+    GPU_DEBUG_IF(debug_config->dump_runtime_memory_pool > 0) {
+        GPU_DEBUG_COUT << "----------------------------------------------" << std::endl;
+        GPU_DEBUG_COUT << "Start network execution (net_id : " << get_id() << ", iter :" << curr_iter << ")" << std::endl;
+    } else {
+        GPU_DEBUG_TRACE << "----------------------------------------------" << std::endl;
+        GPU_DEBUG_TRACE << "Start network execution (net_id : " << get_id() << ", iter :" << curr_iter << ")" << std::endl;
+    }
 
     std::vector<memory::ptr> in_out_mem;
     auto is_surface_lock_check_needed = [&](const shared_mem_type& shared_mem_type) {
@@ -1209,26 +1231,28 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     auto surf_lock = surfaces_lock::create(get_engine().type(), in_out_mem, get_stream());
 
     set_arguments();
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->list_layers == 1) {
         for (auto& inst : _exec_order) {
             GPU_DEBUG_COUT << inst->id() << std::endl;
             if (inst->get_node().is_type<loop>()) {
                 auto& loop_node = inst->get_node().as<loop>();
-                auto loop_body_primitives = loop_node.get_body_topology().get_primitives_ids();
-                for (auto& primitive_id : loop_body_primitives) {
-                    GPU_DEBUG_COUT << "\t" << primitive_id << std::endl;
+                for (auto& prim : loop_node.get_body_program()->get_processing_order()) {
+                    GPU_DEBUG_COUT << "\t" << prim->id() << std::endl;
+                }
+            } else if (inst->get_node().is_type<condition>()) {
+                auto& cond_node = inst->get_node().as<condition>();
+                GPU_DEBUG_COUT << "* Branch_True" << std::endl;
+                for (auto& prim : cond_node.get_branch_true().inner_program->get_processing_order()) {
+                    GPU_DEBUG_COUT << "\t" << prim->id() << std::endl;
+                }
+                GPU_DEBUG_COUT << "* Branch_False" << std::endl;
+                for (auto& prim : cond_node.get_branch_false().inner_program->get_processing_order()) {
+                    GPU_DEBUG_COUT << "\t" << prim->id() << std::endl;
                 }
             }
         }
         if (!is_internal()) exit(0);
     }
-    int64_t curr_iter = -1;
-#ifdef GPU_DEBUG_CONFIG
-    GPU_DEBUG_IF(!debug_config->dump_iteration.empty()) {
-        curr_iter = iteration++;
-    }
-#endif
     auto get_iteration_prefix = [](int64_t iter) {
         if (iter < 0)
             return std::string("");
@@ -1320,9 +1344,10 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                                         "_" + get_iteration_prefix(curr_iter) +
                                         layer_name + "_src" + std::to_string(i);
                     auto input_mem = get_primitive(inst->id())->dep_memory_ptr(i);
+                    auto dep = inst->dependencies().at(i);
+                    auto input_layout = dep.first->get_output_layout(dep.second);
                     GPU_DEBUG_IF(debug_config->dump_layers_binary) {
                         // Binary dump : raw
-                        auto input_layout = inst->get_input_layout(i);
                         auto filename = get_file_path_for_binary_dump(input_layout, name);
 
                         mem_lock<char, mem_lock_type::read> lock(input_mem, get_stream());
@@ -1331,6 +1356,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                         debug_str_for_bin_load += (filename + ",");
                     } else {
                         log_memory_to_file(input_mem,
+                                        input_layout,
                                         get_stream(),
                                         name,
                                         debug_config->dump_layers_raw);
@@ -1377,7 +1403,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                         debug_str_for_bin_load += (filename + ",");
                     } else {
                         // Text dump
-                        log_memory_to_file(output_mem, get_stream(), name, debug_config->dump_layers_raw);
+                        log_memory_to_file(output_mem, inst->get_output_layout(i), get_stream(), name, debug_config->dump_layers_raw);
                     }
                 }
 
@@ -1433,6 +1459,13 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     // provide proper event to execution. Flushing pipeline should prevent this kind of issues.
     // In scenarios with a big number of very small networks it can provide performance drop.
     get_stream().flush();
+
+    // Deallocate events from the previos iteration
+    _old_events.clear();
+
+    GPU_DEBUG_IF(debug_config->dump_runtime_memory_pool > 0) {
+        get_memory_pool().dump(get_id());
+    }
 }
 
 std::vector<primitive_id> network::get_input_ids() const {
@@ -1684,6 +1717,7 @@ void network::update_variable_memory(const std::string& variable_id, const cldnn
             it->second->set_memory(get_engine().reinterpret_buffer(*it->second->memory, layout));
         else
             it->second->set_memory(get_engine().allocate_memory(layout, false));
+        it->second->is_set = false;
     }
     for (auto primitive : _variable_state_primitives) {
         if (const auto& memory_state_primitive = std::dynamic_pointer_cast<memory_state::variable>(primitive)) {
@@ -1702,6 +1736,10 @@ void network::allocate_variables_memories() {
             _variables_states.insert({info.first, std::make_shared<cldnn::network::VariableState>(get_engine().allocate_memory(variable_layout, false))});
         }
     }
+}
+
+const cldnn::network::variables_state_info_map& network::get_variables_state_info() const {
+    return _variables_state_info;
 }
 
 void network::set_variables_state_info(const std::string& variable_id, const cldnn::layout& layout) {

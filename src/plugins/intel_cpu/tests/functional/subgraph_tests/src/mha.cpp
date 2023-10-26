@@ -8,7 +8,7 @@
 #include <memory>
 #include <debug.h>
 #include <shared_test_classes/base/ov_subgraph.hpp>
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include "common_test_utils/common_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "functional_test_utils/skip_tests_config.hpp"
@@ -21,12 +21,14 @@ using namespace ngraph::helpers;
 
 namespace CPUSubgraphTestsDefinitions {
 
+using ExpectedNodes = std::vector<std::pair<std::string, size_t>>;
+
 typedef std::tuple<
         std::vector<InputShape>,   // Input shapes
         std::vector<ElementType>,  // Input precisions
         std::vector<ElementType>,  // MatMul input #0 precisions
         size_t,                    // pattern type #
-        std::string,               // Expected node
+        ExpectedNodes,             // Expected node -> count
         std::string                // Device name
 > MHATuple;
 
@@ -157,9 +159,9 @@ public:
         std::vector<ElementType> inputPrecisions;
         std::vector<ElementType> matMulIn0Precisions;
         size_t patternType;
-        std::string expectedNode;
+        ExpectedNodes expectedNodes;
         std::string targetName;
-        std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNode, targetName) = obj.param;
+        std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNodes, targetName) = obj.param;
         std::ostringstream results;
 
         results << "IS=(";
@@ -176,7 +178,10 @@ public:
             results << "InPRC" << std::to_string(i) << "=" << inputPrecisions[i] << "_";
         }
         results << "patternType=" << patternType;
-        results << "expect=" << expectedNode;
+        results << "expect=";
+        for (const auto& node : expectedNodes) {
+            results << node.first << "[" << node.second << "]" << "_";
+        }
         results << "targetDevice=" << targetName;
 
         return results.str();
@@ -188,24 +193,23 @@ public:
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
-            // TODO: after snippets fixed should remove 2nd condition, ticket: 105339
-            if (patternType == 0 || expectedNode == "Subgraph")
-                tensor = ov::test::utils::create_and_fill_tensor_normal_distribution(funcInput.get_element_type(), targetInputStaticShapes[i], 1.0f, 0.5f);
+            if (funcInput.get_element_type() == ov::element::bf16)
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 2, -1, 256);
             else
-                // generate all negative inputs
-                tensor = ov::test::utils::create_and_fill_tensor_unique_sequence(funcInput.get_element_type(), targetInputStaticShapes[i], -1, -5);
+                tensor = ov::test::utils::create_and_fill_tensor_unique_sequence(funcInput.get_element_type(), targetInputStaticShapes[i], -1, 5);
+            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
 
 protected:
     size_t patternType;
-    std::string expectedNode;
+    ExpectedNodes expectedNodes;
     void SetUp() override {
         std::vector<InputShape> inputShapes;
         std::vector<ElementType> inputPrecisions;
         std::vector<ElementType> matMulIn0Precisions;
-        std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNode, targetDevice) = this->GetParam();
+        std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNodes, targetDevice) = this->GetParam();
 
         init_input_shapes(inputShapes);
 
@@ -240,8 +244,8 @@ TEST_P(MHATest, CompareWithRefs) {
     std::vector<ElementType> inputPrecisions;
     std::vector<ElementType> matMulIn0Precisions;
     size_t patternType;
-    std::string expectedNode;
-    std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNode, targetDevice) = this->GetParam();
+    ExpectedNodes expectedNodes;
+    std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNodes, targetDevice) = this->GetParam();
 
     if (inputPrecisions[0] == ElementType::bf16 && !InferenceEngine::with_cpu_x86_bfloat16())
         GTEST_SKIP();
@@ -250,7 +254,10 @@ TEST_P(MHATest, CompareWithRefs) {
         GTEST_SKIP();
 
     run();
-    CheckNumberOfNodesWithType(compiledModel, expectedNode, 1);
+
+    for (const auto& node : expectedNodes) {
+        CheckNumberOfNodesWithType(compiledModel, node.first, node.second);
+    }
 }
 
 namespace {
@@ -273,23 +280,24 @@ std::vector<size_t> patternTypes = {
     0, 1
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA, MHATest,
+INSTANTIATE_TEST_SUITE_P(smoke_MHA, MHATest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(static_shapes_to_test_representation(inputShapes)),
                                 ::testing::Values(std::vector<ElementType>{ ElementType::f32, ElementType::f32, ElementType::f32, ElementType::f32 }),
                                 ::testing::ValuesIn(matMulIn0Precisions),
                                 ::testing::ValuesIn(patternTypes),
-                                ::testing::Values("Subgraph"),
+                                ::testing::Values(ExpectedNodes{{"Subgraph", 1}}),
                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         MHATest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_MHA, MHATest,
+INSTANTIATE_TEST_SUITE_P(smoke_MHA_BF16, MHATest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(static_shapes_to_test_representation(inputShapes)),
                                  ::testing::Values(std::vector<ElementType>{ ElementType::bf16, ElementType::bf16, ElementType::bf16, ElementType::bf16 }),
                                  ::testing::ValuesIn(matMulIn0Precisions),
                                  ::testing::ValuesIn(patternTypes),
-                                 ::testing::Values("MHA"),  // Snippets don't support BF16 MHA pattern yet
+                                 ::testing::Values(ExpectedNodes{{"Subgraph", 1},
+                                                                 {"Transpose", 1}}),  // Plugin disables tokenization of Transpose on output
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MHATest::getTestCaseName);
 
@@ -454,8 +462,8 @@ public:
         std::vector<ElementType> matMulIn0Precisions;
         size_t patternType;
         std::string targetName;
-        std::string expectedNode;
-        std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNode, targetName) = obj.param;
+        ExpectedNodes expectedNodes;
+        std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNodes, targetName) = obj.param;
         std::ostringstream results;
 
         results << "IS=(";
@@ -475,7 +483,10 @@ public:
             results << "MatMulIn0PRC" << std::to_string(i) << "=" << matMulIn0Precisions[i] << "_";
         }
         results << "patternType=" << patternType;
-        results << "expect=" << expectedNode;
+        results << "expect=";
+        for (const auto& node : expectedNodes) {
+            results << node.first << "[" << node.second << "]" << "_";
+        }
         results << "targetDevice=" << targetName;
 
         return results.str();
@@ -505,8 +516,8 @@ protected:
         std::vector<ElementType> inputPrecisions;
         std::vector<ElementType> matMulIn0Precisions;
         size_t patternType;
-        std::string expectedNode;
-        std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNode, targetDevice) = this->GetParam();
+        ExpectedNodes expectedNodes;
+        std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNodes, targetDevice) = this->GetParam();
 
         init_input_shapes(inputShapes);
 
@@ -534,8 +545,8 @@ TEST_P(MHAQuantTest, CompareWithRefs) {
     std::vector<ElementType> inputPrecisions;
     std::vector<ElementType> matMulIn0Precisions;
     size_t patternType;
-    std::string expectedNode;
-    std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNode, targetDevice) = this->GetParam();
+    ExpectedNodes expectedNodes;
+    std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNodes, targetDevice) = this->GetParam();
 
     if (inputPrecisions[0] == ElementType::bf16 && !InferenceEngine::with_cpu_x86_bfloat16())
         GTEST_SKIP();
@@ -544,7 +555,10 @@ TEST_P(MHAQuantTest, CompareWithRefs) {
         GTEST_SKIP();
 
     run();
-    CheckNumberOfNodesWithType(compiledModel, expectedNode, 1);
+
+    for (const auto& node : expectedNodes) {
+        CheckNumberOfNodesWithType(compiledModel, node.first, node.second);
+    }
 }
 
 namespace {
@@ -570,17 +584,37 @@ std::vector<std::vector<ElementType>> matMulIn0PrecisionsQuant = {
     { ElementType::i8, ElementType::u8 },
 };
 
-std::vector<size_t> patternTypesQuant = {
-    0, 1, 2
-};
-
-INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant, MHAQuantTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant_Pattern0, MHAQuantTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesQuant)),
                                 ::testing::ValuesIn(inputPrecisionsQuant),
                                 ::testing::ValuesIn(matMulIn0PrecisionsQuant),
-                                ::testing::ValuesIn(patternTypesQuant),
-                                ::testing::Values("MHA"),
+                                ::testing::Values(0),
+                                ::testing::Values(ExpectedNodes{{"Subgraph", 5},  // FQs on inputs x 3 + MHA + Deq Mul
+                                                                {"Transpose", 1}}),  // Transpose between MHA and Deq Mul
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                        MHAQuantTest::getTestCaseName);
+
+
+INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant_Pattern1, MHAQuantTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesQuant)),
+                                ::testing::ValuesIn(inputPrecisionsQuant),
+                                ::testing::ValuesIn(matMulIn0PrecisionsQuant),
+                                ::testing::Values(1),
+                                ::testing::Values(ExpectedNodes{{"Subgraph", 3},  // FQ on input + MHA + Deq Mul
+                                                                {"Transpose", 1}}),  // Transpose between MHA and Deq Mul
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                        MHAQuantTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant_Pattern2, MHAQuantTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesQuant)),
+                                ::testing::ValuesIn(inputPrecisionsQuant),
+                                ::testing::ValuesIn(matMulIn0PrecisionsQuant),
+                                ::testing::Values(2),
+                                ::testing::Values(ExpectedNodes{{"Subgraph", 2},  // MHA + Deq Mul
+                                                                {"Transpose", 0}}), // Transpose is fused
                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         MHAQuantTest::getTestCaseName);
 

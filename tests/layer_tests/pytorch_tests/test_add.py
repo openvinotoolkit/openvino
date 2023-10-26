@@ -9,10 +9,11 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 
 @pytest.mark.parametrize('alpha', (-0.5, 0, 0.5, 1, 2))
-@pytest.mark.parametrize('input_rhs', (np.random.randn(2, 5, 3, 4).astype(np.float32),
-                                       np.random.randn(
-                                           1, 5, 3, 4).astype(np.float32),
-                                       np.random.randn(1).astype(np.float32)))
+@pytest.mark.parametrize('input_shape_rhs', [
+    [2, 5, 3, 4],
+    [1, 5, 3, 4],
+    [1]
+])
 class TestAdd(PytorchLayerTest):
 
     def _prepare_input(self):
@@ -41,20 +42,20 @@ class TestAdd(PytorchLayerTest):
     @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("op_type", ["add", "add_"])
-    def test_add(self, ie_device, precision, ir_version, alpha, input_rhs, op_type):
-        self.input_rhs = input_rhs
-        self._test(*self.create_model(alpha, op_type), ie_device, precision, ir_version)
+    def test_add(self, ie_device, precision, ir_version, alpha, input_shape_rhs, op_type):
+        self.input_rhs = np.random.randn(*input_shape_rhs).astype(np.float32)
+        self._test(*self.create_model(alpha, op_type), ie_device, precision, ir_version, use_convert_model=True)
 
 
 class TestAddTypes(PytorchLayerTest):
 
     def _prepare_input(self):
         if len(self.lhs_shape) == 0:
-            return (torch.randn(self.rhs_shape).to(self.rhs_type).numpy(),)
+            return (torch.randint(0, 10, self.rhs_shape).to(self.rhs_type).numpy(),)
         elif len(self.rhs_shape) == 0:
-            return (torch.randn(self.lhs_shape).to(self.lhs_type).numpy(),)
-        return (torch.randn(self.lhs_shape).to(self.lhs_type).numpy(),
-                torch.randn(self.rhs_shape).to(self.rhs_type).numpy())
+            return (torch.randint(0, 10, self.lhs_shape).to(self.lhs_type).numpy(),)
+        return (torch.randint(0, 10, self.lhs_shape).to(self.lhs_type).numpy(),
+                torch.randint(0, 10, self.rhs_shape).to(self.rhs_type).numpy())
 
     def create_model(self, lhs_type, lhs_shape, rhs_type, rhs_shape):
 
@@ -71,10 +72,10 @@ class TestAddTypes(PytorchLayerTest):
                     self.forward = self.forward3
 
             def forward1(self, rhs):
-                return torch.add(torch.tensor(3).to(self.lhs_type), rhs.to(self.rhs_type), alpha=2)
+                return torch.add(torch.tensor(1).to(self.lhs_type), rhs.to(self.rhs_type), alpha=2)
 
             def forward2(self, lhs):
-                return torch.add(lhs.to(self.lhs_type), torch.tensor(3).to(self.rhs_type), alpha=2)
+                return torch.add(lhs.to(self.lhs_type), torch.tensor(1).to(self.rhs_type), alpha=2)
 
             def forward3(self, lhs, rhs):
                 return torch.add(lhs.to(self.lhs_type), rhs.to(self.rhs_type), alpha=2)
@@ -84,8 +85,11 @@ class TestAddTypes(PytorchLayerTest):
         return aten_add(lhs_type, lhs_shape, rhs_type, rhs_shape), ref_net, "aten::add"
 
     @pytest.mark.parametrize(("lhs_type", "rhs_type"),
-                             [[torch.int32, torch.int64],
-                              [torch.int32, torch.float32],
+                             [[torch.bool, torch.uint8],
+                              [torch.bool, torch.int8],
+                              [torch.int8, torch.uint8],
+                              [torch.uint8, torch.int8],
+                              [torch.int32, torch.int64],
                               [torch.int32, torch.float64],
                               [torch.int64, torch.int32],
                               [torch.int64, torch.float32],
@@ -93,6 +97,12 @@ class TestAddTypes(PytorchLayerTest):
                               [torch.float32, torch.int32],
                               [torch.float32, torch.int64],
                               [torch.float32, torch.float64],
+                              [torch.float16, torch.uint8],
+                              [torch.uint8, torch.float16],
+                              [torch.float16, torch.int32],
+                              [torch.int32, torch.float16],
+                              [torch.float16, torch.int64],
+                              [torch.int64, torch.float16]
                               ])
     @pytest.mark.parametrize(("lhs_shape", "rhs_shape"), [([2, 3], [2, 3]),
                                                           ([2, 3], []),
@@ -108,7 +118,7 @@ class TestAddTypes(PytorchLayerTest):
         self.rhs_type = rhs_type
         self.rhs_shape = rhs_shape
         self._test(*self.create_model(lhs_type, lhs_shape, rhs_type, rhs_shape),
-                   ie_device, precision, ir_version)
+                   ie_device, precision, ir_version, freeze_model=False, trace_model=True)
 
 class TestAddLists(PytorchLayerTest):
 

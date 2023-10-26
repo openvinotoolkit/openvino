@@ -112,21 +112,6 @@ bool Edge::enforceReorder() {
         }
     }
 
-    // In case the parent node is an input constant, the memory is unaligned and the child primitive isa is SSE,
-    // we have to insert reorder since the vast majority of arithmetic and data processing instructions in legacy SSE isa requires
-    // the memory address in the operands must be aligned on 16-byte boundary.
-    if ((childSPD->getImplementationType() & impl_desc_type::sse42) &&
-        Type::Input == parentNode->getType() &&
-        parentNode->isConstant()) {
-        if (auto pInputNode = std::dynamic_pointer_cast<node::Input>(parentNode)) {
-            auto rawMemPtr = pInputNode->getMemoryPtr()->getData();
-            bool isAligned = (reinterpret_cast<uintptr_t>(rawMemPtr) & 15) == 0;
-            if (!isAligned) {
-                return true;
-            }
-        }
-    }
-
     return false;
 }
 
@@ -465,7 +450,9 @@ void Edge::init() {
         DEBUG_LOG(*this, " getBaseEdge() return itself");
         changeStatus(Status::NeedAllocation);
     } else {
-        if (edgePtr->getParent()->isConstant() && !edgePtr->getChild()->isConstant()) {
+        if (Type::Input == edgePtr->getParent()->getType() &&
+            edgePtr->getParent()->isConstant() &&
+            !edgePtr->getChild()->isConstant()) {
             changeStatus(Status::NeedAllocation);
             DEBUG_LOG(*this, " edge inplace from ", *edgePtr, " is broken!");
             return;
@@ -512,7 +499,7 @@ EdgePtr Edge::getBaseEdge(int look) {
     for (auto edge : edgesForSamePort) {
         if (edge.get() != this) {
             // Return once found the first inplace consumer
-            if (edge->inPlace() && edge != edgesForSamePort[0]) return edge;
+            if (edge->inPlace()) return edge;
         }
     }
 

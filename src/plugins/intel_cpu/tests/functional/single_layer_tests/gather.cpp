@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
@@ -148,7 +148,7 @@ protected:
 
 typedef std::tuple<
         InputShape,                        // Input shapes
-        std::vector<size_t>,               // Indices
+        std::vector<int64_t>,              // Indices
         int,                               // Axis
         ElementType,                       // Network precision
         CPUSpecificParams                 // CPU specific params
@@ -159,7 +159,7 @@ class GatherInPlaceLayerTestCPU : public testing::WithParamInterface<GatherInPla
 public:
     static std::string getTestCaseName(testing::TestParamInfo<GatherInPlaceLayerTestCPUParams> obj) {
         InputShape inputShapes;
-        std::vector<size_t> indices;
+        std::vector<int64_t> indices;
         int axis;
         ElementType netPrecision;
         CPUSpecificParams cpuParams;
@@ -187,7 +187,7 @@ public:
 protected:
     void SetUp() override {
         InputShape inputShapes;
-        std::vector<size_t> indices;
+        std::vector<int64_t> indices;
         int axis;
         ElementType netPrecision;
         CPUSpecificParams cpuParams;
@@ -924,31 +924,40 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_4D_ref8_Bmax, GatherLayerTestCPU,
 // InPlace
 
 const std::vector<ov::test::InputShape> shapesInPlace4D_0 = {
-    { {}, { {5, 4, 4, 19} } },   // Static shapes
-    { {5, 4, -1, -1}, { {5, 4, 4, 19}, {5, 4, 4, 25}, {5, 4, 2, 19} } },   // Static shapes
+    { {}, { {5, 4, 4, 19} } },
+    { {5, 4, -1, -1}, { {5, 4, 4, 19}, {5, 4, 4, 25}, {5, 4, 2, 19} } },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_inplace_4D_0, GatherInPlaceLayerTestCPU,
                 ::testing::Combine(
                     ::testing::ValuesIn(shapesInPlace4D_0),
-                    ::testing::Values(std::vector<size_t>{ 2 }),
+                    ::testing::Values(std::vector<int64_t>{ 2 }),
                     ::testing::Values(0),
                     ::testing::Values(ElementType::f32),
                     ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"})),
                 GatherInPlaceLayerTestCPU::getTestCaseName);
 
 const std::vector<ov::test::InputShape> shapesInPlace4D_1 = {
-    { {}, { {1, 9, 4, 19} } },   // Static shapes
-    { {1, 9, -1, -1}, { {1, 9, 4, 19}, {1, 9, 4, 25}, {1, 9, 2, 19} } },   // Static shapes
+    { {}, { {1, 9, 4, 19} } },
+    { {1, 9, -1, -1}, { {1, 9, 4, 19}, {1, 9, 4, 25}, {1, 9, 2, 19} } },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_inplace_4D_1, GatherInPlaceLayerTestCPU,
                 ::testing::Combine(
                     ::testing::ValuesIn(shapesInPlace4D_1),
-                    ::testing::Values(std::vector<size_t>{ 4 }),
+                    ::testing::Values(std::vector<int64_t>{ -4 }, std::vector<int64_t>{ 5 }),
                     ::testing::Values(1),
                     ::testing::Values(ElementType::f32),
                     ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"})),
+                GatherInPlaceLayerTestCPU::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_4D_out_of_range, GatherInPlaceLayerTestCPU,
+                ::testing::Combine(
+                    ::testing::ValuesIn(shapesInPlace4D_1),
+                    ::testing::Values(std::vector<int64_t>{ 10 }, std::vector<int64_t>{ -15 }),
+                    ::testing::Values(1),
+                    ::testing::Values(ElementType::f32),
+                    ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_any"})),
                 GatherInPlaceLayerTestCPU::getTestCaseName);
 
 } // namespace
