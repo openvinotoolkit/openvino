@@ -2,83 +2,65 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/negative.hpp"
+#include "openvino/op/negative.hpp"
 
+#include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/negate.hpp"
 
-using namespace std;
-using namespace ngraph;
+namespace ov {
+namespace op {
+namespace negative {
+struct Evaluate : element::NoAction<bool> {
+    using element::NoAction<bool>::visit;
 
-op::Negative::Negative(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
+    template <element::Type_t ET, class T = fundamental_type_for<ET>>
+    static result_type visit(const Tensor& arg0, Tensor& out, const size_t count) {
+        reference::negate(arg0.data<const T>(), out.data<T>(), count);
+        return true;
+    }
+};
+}  // namespace negative
+
+namespace v0 {
+
+Negative::Negative(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::Negative::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v0_Negative_visit_attributes);
-    return true;
-}
-
-shared_ptr<Node> op::Negative::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> Negative::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Negative_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<Negative>(new_args.at(0));
+    return std::make_shared<Negative>(new_args.at(0));
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace negativeop {
-namespace {
-template <element::Type_t ET>
-inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
-    using T = typename element_type_traits<ET>::value_type;
-    ov::reference::negate<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
-    return true;
-}
-
-bool evaluate_negative(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
-    bool rc = true;
-    out->set_unary(arg0);
-
-    switch (arg0->get_element_type()) {
-        OPENVINO_TYPE_CASE(evaluate_negative, i32, arg0, out, count);
-        OPENVINO_TYPE_CASE(evaluate_negative, i64, arg0, out, count);
-        OPENVINO_TYPE_CASE(evaluate_negative, bf16, arg0, out, count);
-        OPENVINO_TYPE_CASE(evaluate_negative, f16, arg0, out, count);
-        OPENVINO_TYPE_CASE(evaluate_negative, f32, arg0, out, count);
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
-}
-}  // namespace
-}  // namespace negativeop
-
-bool op::Negative::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool Negative::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v0_Negative_evaluate);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    OPENVINO_ASSERT(validate_host_tensor_vector(inputs, 1));
-    OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    return negativeop::evaluate_negative(inputs[0], outputs[0], shape_size(inputs[0]->get_shape()));
+    OPENVINO_ASSERT(outputs.size() == 1);
+    OPENVINO_ASSERT(inputs.size() == 1);
+
+    outputs[0].set_shape(inputs[0].get_shape());
+    using namespace ov::element;
+    return IfTypeOf<bf16, f16, f32, i32, i64>::apply<negative::Evaluate>(inputs[0].get_element_type(),
+                                                                         inputs[0],
+                                                                         outputs[0],
+                                                                         shape_size(inputs[0].get_shape()));
 }
 
-bool op::Negative::has_evaluate() const {
+bool Negative::has_evaluate() const {
     OV_OP_SCOPE(v0_Negative_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
+    case element::bf16:
+    case element::f16:
+    case element::f32:
+    case element::i32:
+    case element::i64:
         return true;
     default:
-        break;
+        return false;
     }
-    return false;
 }
-
-shared_ptr<Node> ngraph::operator-(const Output<Node>& arg0) {
-    return make_shared<op::Negative>(arg0);
-}
+}  // namespace v0
+}  // namespace op
+}  // namespace ov
