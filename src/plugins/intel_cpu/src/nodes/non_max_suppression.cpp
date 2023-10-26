@@ -113,31 +113,26 @@ void NonMaxSuppression::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    const std::vector<Precision> supportedFloatPrecision = {Precision::FP32, Precision::BF16, Precision::FP16};
-    const std::vector<Precision> supportedIntOutputPrecision = {Precision::I32, Precision::I64};
+    const auto inputs_num = inputShapes.size();
+    if (inputs_num > NMS_MAX_OUTPUT_BOXES_PER_CLASS) {
+        check1DInput(getInputShapeAtPort(NMS_MAX_OUTPUT_BOXES_PER_CLASS), "max_output_boxes_per_class", NMS_MAX_OUTPUT_BOXES_PER_CLASS);
+    }
+    if (inputs_num > NMS_IOU_THRESHOLD) {
+        check1DInput(getInputShapeAtPort(NMS_IOU_THRESHOLD), "iou_threshold", NMS_IOU_THRESHOLD);
+    }
+    if (inputs_num > NMS_SCORE_THRESHOLD) {
+        check1DInput(getInputShapeAtPort(NMS_SCORE_THRESHOLD), "score_threshold", NMS_SCORE_THRESHOLD);
+    }
+    if (inputs_num > NMS_SOFT_NMS_SIGMA) {
+        check1DInput(getInputShapeAtPort(NMS_SCORE_THRESHOLD), "soft_nms_sigma", NMS_SCORE_THRESHOLD);
+    }
 
-    checkPrecision(getOriginalInputPrecisionAtPort(NMS_BOXES), supportedFloatPrecision, "boxes", inType);
-    checkPrecision(getOriginalInputPrecisionAtPort(NMS_SCORES), supportedFloatPrecision, "scores", inType);
-    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_VALID_OUTPUTS), supportedIntOutputPrecision, "valid_outputs", outType);
-
-    const std::vector<Precision> supportedPrecision = {Precision::I16, Precision::U8, Precision::I8, Precision::U16, Precision::I32,
-                                                       Precision::U32, Precision::I64, Precision::U64};
-
-    if (inputShapes.size() > NMS_MAX_OUTPUT_BOXES_PER_CLASS)
-        check1DInput(getInputShapeAtPort(NMS_MAX_OUTPUT_BOXES_PER_CLASS), supportedPrecision, "max_output_boxes_per_class", NMS_MAX_OUTPUT_BOXES_PER_CLASS);
-    if (inputShapes.size() > NMS_IOU_THRESHOLD)
-        check1DInput(getInputShapeAtPort(NMS_IOU_THRESHOLD), supportedFloatPrecision, "iou_threshold", NMS_IOU_THRESHOLD);
-    if (inputShapes.size() > NMS_SCORE_THRESHOLD)
-        check1DInput(getInputShapeAtPort(NMS_SCORE_THRESHOLD), supportedFloatPrecision, "score_threshold", NMS_SCORE_THRESHOLD);
-    if (inputShapes.size() > NMS_SOFT_NMS_SIGMA)
-        check1DInput(getInputShapeAtPort(NMS_SCORE_THRESHOLD), supportedFloatPrecision, "soft_nms_sigma", NMS_SCORE_THRESHOLD);
-
-    checkOutput(getOutputShapeAtPort(NMS_SELECTED_INDICES), supportedIntOutputPrecision, "selected_indices", NMS_SELECTED_INDICES);
-    checkOutput(getOutputShapeAtPort(NMS_SELECTED_SCORES), supportedFloatPrecision, "selected_scores", NMS_SELECTED_SCORES);
+    checkOutput(getOutputShapeAtPort(NMS_SELECTED_INDICES), "selected_indices", NMS_SELECTED_INDICES);
+    checkOutput(getOutputShapeAtPort(NMS_SELECTED_SCORES), "selected_scores", NMS_SELECTED_SCORES);
 
     std::vector<PortConfigurator> inDataConf;
-    inDataConf.reserve(inputShapes.size());
-    for (size_t i = 0; i < inputShapes.size(); ++i) {
+    inDataConf.reserve(inputs_num);
+    for (size_t i = 0; i < inputs_num; ++i) {
         Precision inPrecision = i == NMS_MAX_OUTPUT_BOXES_PER_CLASS ? Precision::I32 : Precision::FP32;
         inDataConf.emplace_back(LayoutType::ncsp, inPrecision);
     }
@@ -318,22 +313,12 @@ void NonMaxSuppression::execute(dnnl::stream strm) {
 
     if (m_defined_outputs[NMS_SELECTED_INDICES]) {
         const size_t stride = 3lu;
-        const auto edges = getChildEdgesAtPort(NMS_SELECTED_INDICES);
-        auto memory = edges[0]->getMemoryPtr();
 
         if (!m_out_static_shape) {
-            VectorDims new_shape{ valid_outputs, stride };
-
-            const auto& curr_shape = memory->getDesc().getShape();
-            if (!curr_shape.isStatic() || curr_shape.getStaticDims() != new_shape) {
-                const auto new_mem_desc = getBaseMemDescAtOutputPort(NMS_SELECTED_INDICES)->cloneWithNewDims(new_shape, (valid_outputs == 0lu));
-                for (size_t i = 0lu; i < edges.size(); i++) {
-                    edges[i]->getMemoryPtr()->redefineDesc(new_mem_desc);
-                }
-            }
+            redefineOutputMemory(NMS_SELECTED_INDICES, { valid_outputs, stride });
         }
 
-        auto out_ptr = reinterpret_cast<int32_t *>(memory->getData());
+        auto out_ptr = reinterpret_cast<int32_t *>(getChildEdgesAtPort(NMS_SELECTED_INDICES)[0]->getMemoryPtr()->getData());
         int32_t* boxes_ptr = &(m_filtered_boxes[0].batch_index);
 
         size_t idx = 0lu;
@@ -350,22 +335,12 @@ void NonMaxSuppression::execute(dnnl::stream strm) {
 
     if (m_defined_outputs[NMS_SELECTED_SCORES]) {
         const size_t stride = 3lu;
-        const auto edges = getChildEdgesAtPort(NMS_SELECTED_SCORES);
-        auto memory = edges[0]->getMemoryPtr();
 
         if (!m_out_static_shape) {
-            VectorDims new_shape{ valid_outputs, stride };
-
-            const auto& curr_shape = memory->getDesc().getShape();
-            if (!curr_shape.isStatic() || curr_shape.getStaticDims() != new_shape) {
-                const auto new_mem_desc = getBaseMemDescAtOutputPort(NMS_SELECTED_SCORES)->cloneWithNewDims(new_shape, (valid_outputs == 0lu));
-                for (size_t i = 0lu; i < edges.size(); i++) {
-                    edges[i]->getMemoryPtr()->redefineDesc(new_mem_desc);
-                }
-            }
+            redefineOutputMemory(NMS_SELECTED_SCORES, { valid_outputs, stride });
         }
 
-        auto out_ptr = reinterpret_cast<float *>(memory->getData());
+        auto out_ptr = reinterpret_cast<float *>(getChildEdgesAtPort(NMS_SELECTED_SCORES)[0]->getMemoryPtr()->getData());
 
         size_t idx = 0lu;
         for (; idx < valid_outputs; idx++) {
@@ -608,15 +583,15 @@ struct RotatedBox {
     float x_ctr, y_ctr, w, h, a;
 };
 
-inline float dot_2d(const Point2D& A, const Point2D& B) {
+inline float dot_2d(const NonMaxSuppression::Point2D& A, const NonMaxSuppression::Point2D& B) {
     return A.x * B.x + A.y * B.y;
 }
 
-inline float cross_2d(const Point2D& A, const Point2D& B) {
+inline float cross_2d(const NonMaxSuppression::Point2D& A, const NonMaxSuppression::Point2D& B) {
     return A.x * B.y - B.x * A.y;
 }
 
-inline void getRotatedVertices(const float* box, Point2D (&pts)[4], bool clockwise) {
+inline void getRotatedVertices(const float* box, NonMaxSuppression::Point2D (&pts)[4], bool clockwise) {
     auto theta = clockwise ? box[4] : -box[4];
 
     auto cos_theta = std::cos(theta) * 0.5f;
@@ -637,7 +612,7 @@ inline void getRotatedVertices(const float* box, Point2D (&pts)[4], bool clockwi
     pts[3].y = 2 * box[1] - pts[1].y;
 }
 
-inline float polygonArea(const Point2D (&q)[24], const int64_t& m) {
+inline float polygonArea(const NonMaxSuppression::Point2D (&q)[24], const int64_t& m) {
     if (m <= 2l) {
         return 0.f;
     }
@@ -651,9 +626,9 @@ inline float polygonArea(const Point2D (&q)[24], const int64_t& m) {
     return area / 2.f;
 }
 
-inline size_t convexHullGraham(const Point2D (&p)[24],
+inline size_t convexHullGraham(const NonMaxSuppression::Point2D (&p)[24],
                                const size_t num_in,
-                               Point2D (&q)[24]) {
+                               NonMaxSuppression::Point2D (&q)[24]) {
     OPENVINO_ASSERT(num_in >= 2lu);
 
     // Step 1:
@@ -686,7 +661,7 @@ inline size_t convexHullGraham(const Point2D (&p)[24],
         dist[i] = dot_2d(q[i], q[i]);
     }
 
-    std::sort(q + 1, q + num_in, [](const Point2D& A, const Point2D& B) -> bool {
+    std::sort(q + 1, q + num_in, [](const NonMaxSuppression::Point2D& A, const NonMaxSuppression::Point2D& B) -> bool {
         float temp = cross_2d(A, B);
         if (std::abs(temp) < 1e-6f) {
             return dot_2d(A, A) < dot_2d(B, B);
@@ -732,12 +707,12 @@ inline size_t convexHullGraham(const Point2D (&p)[24],
     return m;
 }
 
-inline size_t getIntersectionPoints(const Point2D (&pts1)[4],
-                                    const Point2D (&pts2)[4],
-                                    Point2D (&intersections)[24]) {
+inline size_t getIntersectionPoints(const NonMaxSuppression::Point2D (&pts1)[4],
+                                    const NonMaxSuppression::Point2D (&pts2)[4],
+                                    NonMaxSuppression::Point2D (&intersections)[24]) {
     // Line vector
     // A line from p1 to p2 is: p1 + (p2-p1)*t, t=[0,1]
-    Point2D vec1[4], vec2[4];
+    NonMaxSuppression::Point2D vec1[4], vec2[4];
     for (size_t i = 0lu; i < 4lu; i++) {
         vec1[i] = pts1[(i + 1lu) % 4lu] - pts1[i];
         vec2[i] = pts2[(i + 1lu) % 4lu] - pts2[i];
@@ -809,11 +784,11 @@ inline size_t getIntersectionPoints(const Point2D (&pts1)[4],
     return num;
 }
 
-inline float rotatedBoxesIntersection(const Point2D (&vertices_0)[4], const float* box_1, const bool clockwise) {
+inline float rotatedBoxesIntersection(const NonMaxSuppression::Point2D (&vertices_0)[4], const float* box_1, const bool clockwise) {
     // There are up to 4 x 4 + 4 + 4 = 24 intersections (including duplicates) returned
-    Point2D intersect_pts[24], ordered_pts[24];
+    NonMaxSuppression::Point2D intersect_pts[24], ordered_pts[24];
 
-    Point2D vertices_1[4];
+    NonMaxSuppression::Point2D vertices_1[4];
     getRotatedVertices(box_1, vertices_1, clockwise);
 
     auto num = getIntersectionPoints(vertices_0, vertices_1, intersect_pts);
@@ -826,7 +801,7 @@ inline float rotatedBoxesIntersection(const Point2D (&vertices_0)[4], const floa
     return polygonArea(ordered_pts, num_convex);
 }
 
-inline float NonMaxSuppression::rotatedIntersectionOverUnion(const Point2D (&vertices_0)[4], const float area_0, const float* box_1) {
+inline float NonMaxSuppression::rotatedIntersectionOverUnion(const NonMaxSuppression::Point2D (&vertices_0)[4], const float area_0, const float* box_1) {
     const auto area_1 = box_1[2] * box_1[3]; // W x H
     if (area_1 <= 0.f) {
         return 0.f;
@@ -878,7 +853,7 @@ void NonMaxSuppression::nmsRotated(const float* boxes, const float* scores, cons
                         const auto area_0 = box_0[2] * box_0[3]; // W x H
 
                         if (area_0 > 0.f) {
-                            Point2D vertices_0[4];
+                            NonMaxSuppression::Point2D vertices_0[4];
                             getRotatedVertices(box_0, vertices_0, m_clockwise);
                             auto trg_boxes = reinterpret_cast<int32_t *>(&((*filtered_boxes_ptr).box_index));
                             for (size_t selected_idx = 0lu; selected_idx < io_selection_size; selected_idx++, trg_boxes -= 4) {
@@ -943,17 +918,7 @@ float NonMaxSuppression::intersectionOverUnion(const float *boxesI, const float 
     return intersection_area / (areaI + areaJ - intersection_area);
 }
 
-void NonMaxSuppression::checkPrecision(const Precision& prec, const std::vector<Precision>& precList,
-                                                           const std::string& name, const std::string& type) {
-    if (std::find(precList.begin(), precList.end(), prec) == precList.end()) {
-        THROW_CPU_NODE_ERR("has unsupported '", name, "' ", type, " precision: ", prec);
-    }
-}
-
-void NonMaxSuppression::check1DInput(const Shape& shape, const std::vector<Precision>& precList,
-                                                         const std::string& name, const size_t port) {
-    checkPrecision(getOriginalInputPrecisionAtPort(port), precList, name, inType);
-
+void NonMaxSuppression::check1DInput(const Shape& shape, const std::string& name, const size_t port) {
     if (shape.getRank() != 0 && shape.getRank() != 1)
         THROW_CPU_NODE_ERR("has unsupported '", name, "' input rank: ", shape.getRank());
     if (shape.getRank() == 1)
@@ -961,10 +926,7 @@ void NonMaxSuppression::check1DInput(const Shape& shape, const std::vector<Preci
             THROW_CPU_NODE_ERR("has unsupported '", name, "' input 1st dimension size: ", MemoryDescUtils::dim2str(shape.getDims()[0]));
 }
 
-void NonMaxSuppression::checkOutput(const Shape& shape, const std::vector<Precision>& precList,
-                                                        const std::string& name, const size_t port) {
-    checkPrecision(getOriginalOutputPrecisionAtPort(port), precList, name, outType);
-
+void NonMaxSuppression::checkOutput(const Shape& shape, const std::string& name, const size_t port) {
     if (shape.getRank() != 2)
         THROW_CPU_NODE_ERR("has unsupported '", name, "' output rank: ", shape.getRank());
     if (shape.getDims()[1] != 3)

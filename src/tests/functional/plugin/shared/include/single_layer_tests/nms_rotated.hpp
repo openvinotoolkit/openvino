@@ -9,7 +9,7 @@
 namespace LayerTestsDefinitions {
 
 TEST_P(NmsRotatedLayerTest, CompareWithRefs) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions
