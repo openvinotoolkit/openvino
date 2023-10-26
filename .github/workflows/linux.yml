@@ -89,30 +89,27 @@ jobs:
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
           # default-jdk - Java API
-          # libssl1.1 - 'python3 -m pip' in self-hosted runner
-          apt install --assume-yes --no-install-recommends default-jdk libssl1.1
+          apt install --assume-yes --no-install-recommends default-jdk
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.3
         with:
           version: "v0.5.4"
 
-      - uses: actions/setup-python@v4
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          version: ${{ env.PYTHON_VERSION }}
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
 
-      - name: Setup pip cache dir
+      - name: Check pip vars set by setup action
         run: |
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
-          echo "Using pip version: ${PIP_VER}"
-          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
-      - name: Get pip cache info
-        run: |
-          echo "Cache size: "
-          du -h -d2 ${PIP_CACHE_DIR}
-          echo "Cache info: "
-          python -m pip cache info
-        continue-on-error: true
+          echo ${{ env.PIP_CACHE_DIR }}
+          echo ${{ env.PIP_INSTALL_PATH }}
+          echo
+          echo ${PIP_CACHE_DIR}
+          echo ${PIP_INSTALL_PATH}
 
       - name: Install python dependencies
         run: |
@@ -345,15 +342,12 @@ jobs:
       - name: Install 'actions/setup-python@v4' dependencies
         run: apt-get update && apt-get install -y libssl1.1
 
-      - uses: actions/setup-python@v4
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Setup pip cache dir
-        run: |
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
-          echo "Using pip version: ${PIP_VER}"
-          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
 
       - name: Install OpenVINO dependencies
         run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
@@ -421,7 +415,6 @@ jobs:
           - TEST_TYPE: 'OP'
           - TEST_TYPE: 'API'
     env:
-      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       CONFORMANCE_TOOLS_DIR: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary
@@ -459,16 +452,16 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
-      - uses: actions/setup-python@v4
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
 
       - name: Install Dependencies
         run: |
           sudo -E ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
-
-          # Needed for downloading IRs from storage.openvinotoolkit with Python urllib
-          sudo apt-get update && sudo apt-get install --assume-yes --no-install-recommends ca-certificates
 
           python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
 
@@ -541,9 +534,11 @@ jobs:
           apt-get update
           apt-get install --assume-yes --no-install-recommends git ca-certificates
 
-      - uses: actions/setup-python@v4
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
 
       #
       # Initialize OpenVINO
@@ -904,19 +899,12 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
-      - name: Install 'actions/setup-python@v4' dependencies
-        run: apt-get update && apt-get install -y libssl1.1 ca-certificates
-      - uses: actions/setup-python@v4
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-        env:
-          PIP_CACHE_DIR: ${{ env.PIP_CACHE_PATH }}
-      - name: Setup pip cache dir
-        run: |
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
-          echo "Using pip version: ${PIP_VER}"
-          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
-          echo "PIP_INSTALL_PATH=${Python_ROOT_DIR}/lib/python${PYTHON_VERSION}/site-packages" >> $GITHUB_ENV
+          version: ${{ env.PYTHON_VERSION }}
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
 
       - name: Install OpenVINO Python wheels
         run: |
@@ -1126,12 +1114,11 @@ jobs:
       - name: Install OpenVINO dependencies
         run: bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
 
-      - name: Install 'actions/setup-python@v4' dependencies
-        run: apt-get update && apt-get install -y libssl1.1
-
-      - uses: actions/setup-python@v4
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
 
       - name: Install python dependencies for run_parallel.py
         run: python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
@@ -1195,18 +1182,12 @@ jobs:
       - name: Check sudo
         run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
 
-      - name: Install 'actions/setup-python@v4' dependencies
-        run: sudo apt-get update && sudo apt-get install -y libssl1.1 ca-certificates
-
-      - uses: actions/setup-python@v4
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Setup pip cache dir
-        run: |
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
-          echo "Using pip version: ${PIP_VER}"
-          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
@@ -1305,14 +1286,12 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
-      - uses: actions/setup-python@v4
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: Setup pip cache dir
-        run: |
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
-          echo "Using pip version: ${PIP_VER}"
-          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
 
       - name: Install OpenVINO Python wheels
         run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
