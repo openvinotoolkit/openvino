@@ -4,7 +4,6 @@
 
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "ie_metric_helpers.hpp"
-#include <ie_ngraph_utils.hpp>
 #include "ie_plugin_config.hpp"
 #include "gpu/gpu_config.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"

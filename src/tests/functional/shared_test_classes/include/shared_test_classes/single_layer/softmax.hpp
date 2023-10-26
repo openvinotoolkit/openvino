@@ -4,10 +4,12 @@
 
 #pragma once
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 #include "common_test_utils/common_utils.hpp"
 
+#include "openvino/op/result.hpp"
+#include "openvino/op/softmax.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
@@ -67,10 +69,10 @@ protected:
             params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, shape));
         }
         const auto paramOuts =
-            ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+            ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
 
         const auto softMax = std::make_shared<SoftmaxOpType>(paramOuts.at(0), axis);
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(softMax)};
+        const ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(softMax)};
 
         // TODO: This workaround is needed as there is no full support for f16 type in the reference implementation
         if (ngPrc == element::Type_t::f16) {
@@ -83,8 +85,8 @@ protected:
 
 } // namespace aux
 
-using SoftMax1LayerTest = aux::SoftMaxLayerTestBase<size_t, ngraph::opset1::Softmax>;
-using SoftMax8LayerTest = aux::SoftMaxLayerTestBase<int64_t, ngraph::opset8::Softmax>;
+using SoftMax1LayerTest = aux::SoftMaxLayerTestBase<size_t, ov::op::v1::Softmax>;
+using SoftMax8LayerTest = aux::SoftMaxLayerTestBase<int64_t, ov::op::v8::Softmax>;
 
 using SoftMaxLayerTest = SoftMax1LayerTest;
 

@@ -4,15 +4,15 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/split.hpp>
+#include "low_precision/split.hpp"
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <transformations/init_node_info.hpp>
+
+#include "transformations/init_node_info.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/split_function.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/split.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
@@ -36,7 +36,7 @@ public:
         std::vector<ngraph::builder::subgraph::DequantizationOperations> dequantizationAfter;
     };
 
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     std::int64_t splitedAxis;
     size_t numSplits;
     TestTransformationParams params;
@@ -61,7 +61,7 @@ public:
                                                                   testValues.numSplits);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::SplitTransformation, ov::op::v1::Split>(testValues.params);
+        transformer.add<ov::pass::low_precision::SplitTransformation, ov::op::v1::Split>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction =

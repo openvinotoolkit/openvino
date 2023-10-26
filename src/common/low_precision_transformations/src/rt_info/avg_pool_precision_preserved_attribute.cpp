@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-using namespace ngraph;
+using namespace ov;
 using namespace ov;
 
 

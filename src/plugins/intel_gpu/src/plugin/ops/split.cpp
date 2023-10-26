@@ -13,6 +13,21 @@
 namespace ov {
 namespace intel_gpu {
 
+static bool IsDynamic(const std::shared_ptr<ov::Node>& op) {
+    if (op->is_dynamic()) {
+        return true;
+    }
+
+    for (size_t i = 0; i < op->get_output_size(); i++) {
+        const auto outPartialShape = op->get_output_partial_shape(i);
+        if (outPartialShape.is_dynamic()) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static void CreateCommonSplitOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op) {
     auto get_layer_name = [&](size_t idx)->std::string {
         return layer_type_name_ID(op) + ((op->get_output_size() == 1)? "" : ".out" + std::to_string(idx));
@@ -22,11 +37,15 @@ static void CreateCommonSplitOp(ProgramBuilder& p, const std::shared_ptr<ov::Nod
     if (p.use_new_shape_infer() || op->is_dynamic()) {
         std::vector<cldnn::tensor> offsets;
 
-        if (!op->is_dynamic()) {
+        // op->is_dynamic() does not check if output shape is dynamic. it only check dynamism for input shapes
+        // Even if op->is_dynamic() is false, output shape can be dynamic.
+        // Thus, it is necessary to check if output shape is dynamic.
+        if (!IsDynamic(op)) {
             auto input_pshape = op->get_input_partial_shape(0);
             ov::Shape start_offset(input_pshape.size());
             for (size_t i = 0; i < op->get_output_size(); i++) {
                 const auto outPartialShape = op->get_output_partial_shape(i);
+
                 auto offsetTensor = tensor_from_dims(start_offset, 0);
                 offsets.push_back(offsetTensor);
 
@@ -49,7 +68,7 @@ static void CreateCommonSplitOp(ProgramBuilder& p, const std::shared_ptr<ov::Nod
             auto cropPrim = cldnn::crop(get_layer_name(i),
                                         inputs,
                                         cldnn::tensor(1),
-                                        (op->is_dynamic() ? cldnn::tensor(0) : offsets[i]),
+                                        (offsets.empty() ? cldnn::tensor(0) : offsets[i]),
                                         op_mode,
                                         static_cast<int>(i),
                                         num_splits);

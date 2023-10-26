@@ -7,17 +7,17 @@
 #include <memory>
 #include <vector>
 
-#include <ngraph/node.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "openvino/core/node.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
-#include <low_precision/lpt_visibility.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <ngraph/opsets/opset1.hpp>
+#include "low_precision/lpt_visibility.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "rt_info/precision_preserved_attribute.hpp"
 #include "network_helper.hpp"
 #include "lpt_itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -26,7 +26,7 @@ class CreatePrecisionsDependentAttribute;
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -38,12 +38,12 @@ class CreatePrecisionsDependentAttribute;
  * in the Inference Engine Developer Guide.
  */
 template <typename AttributeType, typename OperationType>
-class ngraph::pass::low_precision::CreatePrecisionsDependentAttribute : public ov::pass::MatcherPass {
+class ov::pass::low_precision::CreatePrecisionsDependentAttribute : public ov::pass::MatcherPass {
 public:
     CreatePrecisionsDependentAttribute() {
         auto operation = pattern::wrap_type<OperationType>();
 
-        ngraph::graph_rewrite_callback callback = [&](pattern::Matcher& m) {
+        ov::graph_rewrite_callback callback = [&](pattern::Matcher& m) {
             auto node = m.get_match_root();
             if (transformation_callback(node)) {
                 return false;
@@ -65,7 +65,7 @@ public:
                 rt[AttributeType::get_type_info_static()] = attribute;
 
                 // Step #3: assign the same shared value to enable PrecisionPreservedAttribute update during AttributeType propagation
-                ngraph::pass::low_precision::NetworkHelper::reassign<AttributeType>(
+                ov::pass::low_precision::NetworkHelper::reassign<AttributeType>(
                     targetSharedValue,
                     {
                         attribute.attribute,
@@ -75,7 +75,7 @@ public:
             return true;
         };
 
-        auto matcher = std::make_shared<ngraph::pattern::Matcher>(operation, "CreatePrecisionsDependentAttribute");
+        auto matcher = std::make_shared<ov::pass::pattern::Matcher>(operation, "CreatePrecisionsDependentAttribute");
         this->register_matcher(matcher, callback);
     }
 };

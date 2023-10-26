@@ -6,14 +6,10 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-
-
 struct cum_sum : public primitive_base<cum_sum> {
     CLDNN_DECLARE_PRIMITIVE(cum_sum)
 
     cum_sum() : primitive_base("", {}) {}
-
-    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Constructs cum_sum primitive.
     /// @param id This primitive id.

@@ -42,8 +42,6 @@ struct detection_output : public primitive_base<detection_output> {
           clip_after_nms(false),
           objectness_score(0.0f) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs detection output primitive.
     /// @param id This primitive id.
     /// @param inputs Inputs for primitive id.

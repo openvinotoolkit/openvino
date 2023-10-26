@@ -1,22 +1,15 @@
 Hello Image Segmentation
 ========================
 
-
-
 A very basic introduction to using segmentation models with OpenVINO™.
 
 In this tutorial, a pre-trained
-`road-segmentation-adas-0001 <https://docs.openvino.ai/2023.1/omz_models_model_road_segmentation_adas_0001.html>`__
-model from the `Open Model
-Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used.
+`road-segmentation-adas-0001 <https://docs.openvino.ai/2023.0/omz_models_model_road_segmentation_adas_0001.html>`__
+model from the `Open Model Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used.
 ADAS stands for Advanced Driver Assistance Services. The model
 recognizes four classes: background, road, curb and mark.
 
-
-
-.. _top:
-
-**Table of contents**:
+**Table of contents:**
 
 - `Imports <#imports>`__
 - `Download model weights <#download-model-weights>`__
@@ -27,7 +20,12 @@ recognizes four classes: background, road, curb and mark.
 - `Prepare Data for Visualization <#prepare-data-for-visualization>`__
 - `Visualize data <#visualize-data>`__
 
-Imports `⇑ <#top>`__
+.. code:: ipython3
+
+    # Install openvino package
+    !pip install -q "openvino==2023.1.0.dev20230811"
+
+Imports
 #########################################
 
 .. code:: ipython3
@@ -35,15 +33,14 @@ Imports `⇑ <#top>`__
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
+    import openvino as ov
     import sys
-    from openvino.runtime import Core
     
     sys.path.append("../utils")
     from notebook_utils import segmentation_map_to_image, download_file
 
-Download model weights `⇑ <#top>`__
+Download model weights
 #############################################################################################################################
-
 
 .. code:: ipython3
 
@@ -79,9 +76,8 @@ Download model weights `⇑ <#top>`__
     model/road-segmentation-adas-0001.bin:   0%|          | 0.00/720k [00:00<?, ?B/s]
 
 
-Select inference device `⇑ <#top>`__
+Select inference device
 #############################################################################################################################
-
 
 Select device from dropdown list for running inference using OpenVINO:
 
@@ -89,9 +85,9 @@ Select device from dropdown list for running inference using OpenVINO:
 
     import ipywidgets as widgets
     
-    ie = Core()
+    core = ov.Core()
     device = widgets.Dropdown(
-        options=ie.available_devices + ["AUTO"],
+        options=core.available_devices + ["AUTO"],
         value='AUTO',
         description='Device:',
         disabled=False,
@@ -108,13 +104,12 @@ Select device from dropdown list for running inference using OpenVINO:
 
 
 
-Load the Model `⇑ <#top>`__
+Load the Model
 #############################################################################################################################
-
 
 .. code:: ipython3
 
-    core = Core()
+    core = ov.Core()
     
     model = core.read_model(model=model_xml_path)
     compiled_model = core.compile_model(model=model, device_name=device.value)
@@ -122,7 +117,7 @@ Load the Model `⇑ <#top>`__
     input_layer_ir = compiled_model.input(0)
     output_layer_ir = compiled_model.output(0)
 
-Load an Image `⇑ <#top>`__
+Load an Image
 #############################################################################################################################
 
 A sample image from the `Mapillary Vistas <https://www.mapillary.com/dataset/vistas>`__ dataset is
@@ -153,17 +148,16 @@ provided.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f1f2c248430>
+    <matplotlib.image.AxesImage at 0x7fe21c3c5970>
 
 
 
 
-.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_10_1.png
+.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_11_1.png
 
 
-Do Inference `⇑ <#top>`__
+Do Inference
 #############################################################################################################################
-
 
 .. code:: ipython3
 
@@ -179,17 +173,16 @@ Do Inference `⇑ <#top>`__
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f1f2c18bfd0>
+    <matplotlib.image.AxesImage at 0x7fe21c2a7940>
 
 
 
 
-.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_12_1.png
+.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_13_1.png
 
 
-Prepare Data for Visualization `⇑ <#top>`__
+Prepare Data for Visualization
 #############################################################################################################################
-
 
 .. code:: ipython3
 
@@ -206,9 +199,8 @@ Prepare Data for Visualization `⇑ <#top>`__
     # Create an image with mask.
     image_with_mask = cv2.addWeighted(resized_mask, alpha, rgb_image, 1 - alpha, 0)
 
-Visualize data `⇑ <#top>`__
+Visualize data
 #############################################################################################################################
-
 
 .. code:: ipython3
 
@@ -229,5 +221,5 @@ Visualize data `⇑ <#top>`__
 
 
 
-.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_16_0.png
+.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_17_0.png
 

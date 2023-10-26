@@ -9,12 +9,12 @@
 #include <memory>
 
 #include <gtest/gtest.h>
-#include <low_precision/fuse_multiply_to_fake_quantize.hpp>
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "low_precision/fuse_multiply_to_fake_quantize.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/fuse_multiply_to_fake_quantize_function.hpp"
+#include "ov_lpt_models/fuse_multiply_to_fake_quantize.hpp"
 
 #include "simple_low_precision_transformer.hpp"
 
@@ -44,7 +44,7 @@ public:
 
 typedef std::tuple<
     size_t,
-    ngraph::PartialShape,
+    ov::PartialShape,
     FuseMultiplyToFakeQuantizeTransformationTestValues> FuseMultiplyToFakeQuantizeTransformationTestParams;
 
 class FuseMultiplyToFakeQuantizeTransformation : public LayerTransformation,
@@ -52,7 +52,7 @@ class FuseMultiplyToFakeQuantizeTransformation : public LayerTransformation,
 public:
     void SetUp() override {
         const size_t quantizationLevel = std::get<0>(GetParam());
-        const ngraph::PartialShape inputShape = std::get<1>(GetParam());
+        const ov::PartialShape inputShape = std::get<1>(GetParam());
         FuseMultiplyToFakeQuantizeTransformationTestValues testValues = std::get<2>(GetParam());
 
         if (!testValues.actual.fakeQuantizeOnData.empty()) {
@@ -68,7 +68,7 @@ public:
             testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation, ov::op::v1::Multiply>(testValues.params);
+        transformer.add<ov::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation, ov::op::v1::Multiply>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FuseMultiplyToFakeQuantizeFunction::get(
@@ -79,7 +79,7 @@ public:
 
     static std::string getTestCaseName(testing::TestParamInfo<FuseMultiplyToFakeQuantizeTransformationTestParams> obj) {
         const size_t quantizationLevel = std::get<0>(obj.param);
-        const ngraph::PartialShape inputShape = std::get<1>(obj.param);
+        const ov::PartialShape inputShape = std::get<1>(obj.param);
         FuseMultiplyToFakeQuantizeTransformationTestValues testValues = std::get<2>(obj.param);
 
         if (!testValues.actual.fakeQuantizeOnData.empty()) {
@@ -110,7 +110,7 @@ TEST_P(FuseMultiplyToFakeQuantizeTransformation, CompareFunctions) {
 std::vector<size_t> quantizationLevels = { 256ul, 128ul };
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> inputShapes = {
+const std::vector<ov::PartialShape> inputShapes = {
     {1, 3, 16, 16},
     {Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic()}
 };
@@ -177,9 +177,9 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> inputShapesWithDynamicChannels = {
+const std::vector<ov::PartialShape> inputShapesWithDynamicChannels = {
     {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
-    ngraph::PartialShape::dynamic()
+    ov::PartialShape::dynamic()
 };
 
 const std::vector<FuseMultiplyToFakeQuantizeTransformationTestValues> testValues = {

@@ -7,8 +7,6 @@
 #include "adaptive_avg_pool_shape_inference.hpp"
 #include "itt.hpp"
 
-using namespace std;
-
 namespace ov {
 
 op::v8::AdaptiveAvgPool::AdaptiveAvgPool(const Output<Node>& data, const Output<Node>& output_shape)
@@ -25,10 +23,10 @@ void op::v8::AdaptiveAvgPool::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_shape);
 }
 
-shared_ptr<Node> op::v8::AdaptiveAvgPool::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v8::AdaptiveAvgPool::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v8_AdaptiveAvgPool_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v8::AdaptiveAvgPool>(new_args.at(0), new_args.at(1));
+    return std::make_shared<v8::AdaptiveAvgPool>(new_args.at(0), new_args.at(1));
 }
 
 }  // namespace ov

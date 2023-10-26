@@ -14,8 +14,6 @@ struct shape_of : public primitive_base<shape_of> {
 
     shape_of() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs shape_of primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.

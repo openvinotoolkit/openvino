@@ -2,111 +2,81 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/add.hpp"
+#include "openvino/op/add.hpp"
 
+#include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 #include "openvino/reference/add.hpp"
+#include "utils.hpp"
 
-using namespace std;
-using namespace ngraph;
-
-OPENVINO_SUPPRESS_DEPRECATED_START
+namespace ov {
+namespace op {
 namespace add {
-namespace {
-template <element::Type_t ET>
-bool evaluate(const HostTensorPtr& arg0,
-              const HostTensorPtr& arg1,
-              const HostTensorPtr& out,
-              const op::AutoBroadcastSpec& broadcast_spec) {
-    ov::reference::add(arg0->get_data_ptr<ET>(),
-                       arg1->get_data_ptr<ET>(),
-                       out->get_data_ptr<ET>(),
-                       arg0->get_shape(),
-                       arg1->get_shape(),
-                       broadcast_spec);
-    return true;
-}
+struct Evaluate : element::NoAction<bool> {
+    using ov::element::NoAction<bool>::visit;
 
-bool evaluate_add(const HostTensorPtr& arg0,
-                  const HostTensorPtr& arg1,
-                  const HostTensorPtr& out,
-                  const op::AutoBroadcastSpec& broadcast_spec) {
-    bool rc = true;
-    out->set_broadcast(broadcast_spec, arg0, arg1);
-    switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_add, i8, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_add, i16, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_add, i32, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_add, i64, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_add, u8, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_add, u16, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_add, u32, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_add, u64, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_add, bf16, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_add, f16, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_add, f32, arg0, arg1, out, broadcast_spec);
-    default:
-        rc = false;
-        break;
+    template <element::Type_t ET>
+    static result_type visit(const Tensor& in0,
+                             const Tensor& in1,
+                             Tensor& out,
+                             const Shape& shape0,
+                             const Shape& shape1,
+                             const AutoBroadcastSpec& broadcast_spec) {
+        using T = typename element_type_traits<ET>::value_type;
+        reference::add(in0.data<const T>(), in1.data<const T>(), out.data<T>(), shape0, shape1, broadcast_spec);
+        return true;
     }
-    return rc;
-}
-}  // namespace
+};
 }  // namespace add
 
 // ------------------------------- v1 ------------------------------------------
-
-op::v1::Add::Add(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
+namespace v1 {
+Add::Add(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {
     constructor_validate_and_infer_types();
 }
 
-bool op::v1::Add::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v1_Add_visit_attributes);
-    BinaryElementwiseArithmetic::visit_attributes(visitor);
-    return true;
-}
-
-shared_ptr<Node> op::v1::Add::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> Add::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_Add_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::v1::Add>(new_args.at(0), new_args.at(1), this->get_autob());
+    return std::make_shared<op::v1::Add>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
-bool op::v1::Add::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool Add::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     OV_OP_SCOPE(v1_Add_evaluate);
-    return add::evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
+    OPENVINO_ASSERT(outputs.size() == 1);
+
+    outputs[0].set_shape(infer_broadcast_shape(this, inputs));
+    using namespace ov::element;
+    return IfTypeOf<bf16, f16, f32, i8, i16, i32, i64, u8, u16, u32, u64>::apply<add::Evaluate>(
+        inputs[0].get_element_type(),
+        inputs[0],
+        inputs[1],
+        outputs[0],
+        inputs[0].get_shape(),
+        inputs[1].get_shape(),
+        get_autob());
 }
 
-bool op::v1::Add::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
-    OV_OP_SCOPE(v1_Add_evaluate);
-    if (std::none_of(inputs.cbegin(), inputs.cend(), [](const ov::Tensor& t) {
-            return is_vector(t.get_shape()) && t.get_shape().front() == 0;
-        })) {
-        return BinaryElementwiseArithmetic::evaluate(outputs, inputs);
-    } else {
-        return true;
-    }
-}
-
-bool op::v1::Add::has_evaluate() const {
+bool Add::has_evaluate() const {
     OV_OP_SCOPE(v1_Add_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::i8:
-    case ngraph::element::i16:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u8:
-    case ngraph::element::u16:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
+    case element::i8:
+    case element::i16:
+    case element::i32:
+    case element::i64:
+    case element::u8:
+    case element::u16:
+    case element::u32:
+    case element::u64:
+    case element::bf16:
+    case element::f16:
+    case element::f32:
         return true;
     default:
-        break;
+        return false;
     }
-    return false;
 }
+}  // namespace v1
+}  // namespace op
+}  // namespace ov

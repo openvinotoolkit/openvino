@@ -146,7 +146,7 @@ void compute_fused_batch_norm_inference(const NodeContext& node,
     // retrieve attributes
     auto epsilon = node.get_attribute<float>("epsilon", 0.0001f);
     auto data_format = node.get_attribute<string>("data_format", "NHWC");
-    bool is_nhwc = (data_format == "NHWC");
+    bool is_nhwc = (data_format == "NHWC" || data_format == "NDHWC");
 
     // create auxiliary Constant nodes for some attributes: epsilon and exponential_avg_factor
     auto eps_const = create_same_type_const_scalar<float>(x, epsilon);

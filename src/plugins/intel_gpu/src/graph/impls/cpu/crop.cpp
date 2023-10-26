@@ -21,7 +21,7 @@ struct crop_impl : public typed_primitive_impl<crop> {
 
     std::shared_ptr<ov::op::Op> op;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::crop_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<crop_impl>(*this);

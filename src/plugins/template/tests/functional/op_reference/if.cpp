@@ -5,11 +5,11 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
-#include <ie_core.hpp>
 #include <limits>
-#include <shared_test_classes/base/layer_test_utils.hpp>
 
 #include "base_reference_test.hpp"
+#include "ie_core.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -17,13 +17,13 @@ using namespace InferenceEngine;
 
 struct IfFunctionalBase {
     virtual std::shared_ptr<Model> create_function(const std::vector<reference_tests::Tensor>& if_inputs,
-                                                      const std::vector<reference_tests::Tensor>& results) = 0;
+                                                   const std::vector<reference_tests::Tensor>& results) = 0;
     IfFunctionalBase() {}
 };
 
 struct IfCondConst : public IfFunctionalBase {
     std::shared_ptr<Model> create_function(const std::vector<reference_tests::Tensor>& if_inputs,
-                                              const std::vector<reference_tests::Tensor>& results) override {
+                                           const std::vector<reference_tests::Tensor>& results) override {
         OPENVINO_ASSERT(if_inputs.size() == 2, "Incorrect test case! Number of inputs is not 2.");
         OPENVINO_ASSERT(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
 
@@ -55,7 +55,7 @@ struct IfCondConst : public IfFunctionalBase {
 
 struct IfCondIsNonConst : public IfFunctionalBase {
     std::shared_ptr<Model> create_function(const std::vector<reference_tests::Tensor>& if_inputs,
-                                              const std::vector<reference_tests::Tensor>& results) override {
+                                           const std::vector<reference_tests::Tensor>& results) override {
         OPENVINO_ASSERT(if_inputs.size() == 3, "Incorrect test case! Number of inputs is not 3.");
         OPENVINO_ASSERT(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
 
@@ -89,7 +89,7 @@ struct IfCondIsNonConst : public IfFunctionalBase {
 
 struct IfWithoutAdditionalInputs : IfFunctionalBase {
     std::shared_ptr<Model> create_function(const std::vector<reference_tests::Tensor>& if_inputs,
-                                              const std::vector<reference_tests::Tensor>& results) override {
+                                           const std::vector<reference_tests::Tensor>& results) override {
         OPENVINO_ASSERT(if_inputs.size() == 1, "Incorrect test case! Number of inputs is not 1.");
         OPENVINO_ASSERT(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
 
@@ -111,7 +111,7 @@ struct IfWithoutAdditionalInputs : IfFunctionalBase {
 
 struct IfDynamismCaseWithStaticInputs : public IfFunctionalBase {
     std::shared_ptr<Model> create_function(const std::vector<reference_tests::Tensor>& if_inputs,
-                                              const std::vector<reference_tests::Tensor>& results) override {
+                                           const std::vector<reference_tests::Tensor>& results) override {
         OPENVINO_ASSERT(if_inputs.size() == 4, "Incorrect test case! Number of inputs is not 4.");
         OPENVINO_ASSERT(results.size() == 2, "Incorrect test case! Number of outputs is not 2.");
 
@@ -153,7 +153,7 @@ struct IfDynamismCaseWithStaticInputs : public IfFunctionalBase {
 
 struct IfConditionIsScalar : public IfFunctionalBase {
     std::shared_ptr<Model> create_function(const std::vector<reference_tests::Tensor>& if_inputs,
-                                              const std::vector<reference_tests::Tensor>& results) override {
+                                           const std::vector<reference_tests::Tensor>& results) override {
         OPENVINO_ASSERT(if_inputs.size() == 3, "Incorrect test case! Number of inputs is not 3.");
         OPENVINO_ASSERT(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
 
@@ -189,7 +189,7 @@ struct IfConditionIsScalar : public IfFunctionalBase {
 
 struct IfConditionIsDynamic : public IfFunctionalBase {
     std::shared_ptr<Model> create_function(const std::vector<reference_tests::Tensor>& if_inputs,
-                                              const std::vector<reference_tests::Tensor>& results) override {
+                                           const std::vector<reference_tests::Tensor>& results) override {
         OPENVINO_ASSERT(if_inputs.size() == 3, "Incorrect test case! Number of inputs is not 3.");
         OPENVINO_ASSERT(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
 
@@ -318,97 +318,117 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_If_With_Hardcoded_Refs,
     ReferenceIfLayerTest,
     ::testing::Values(
-        IfParams(
-            std::make_shared<IfCondConst>(true),
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 1.0, 1.0, 1.0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 2.0, 2.0, 2.0})},
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 2.0, 2.0, 2.0})},
-            "if_condition_const_is_true"),
-        IfParams(
-            std::make_shared<IfCondConst>(false),
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 1.0, 1.0, 1.0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 2.0, 2.0, 2.0})},
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 1.0, 1.0, 1.0})},
-            "if_condition_const_is_false"),
-        IfParams(
-            std::make_shared<IfCondIsNonConst>(),
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1}, ov::element::boolean, std::vector<unsigned char>{1}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 2.0, 6.0, 12.0})},
-            "if_condition_si_non_const_true"),
-        IfParams(
-            std::make_shared<IfCondIsNonConst>(),
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1}, ov::element::boolean, std::vector<unsigned char>{0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{3.0, 3.0, 5.0, 7.0})},
-            "if_condition_is_non_const_false"),
+        IfParams(std::make_shared<IfCondConst>(true),
+                 std::vector<reference_tests::Tensor>{
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 1.0, 1.0, 1.0}),
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 2.0, 2.0, 2.0})},
+                 std::vector<reference_tests::Tensor>{
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 2.0, 2.0, 2.0})},
+                 "if_condition_const_is_true"),
+        IfParams(std::make_shared<IfCondConst>(false),
+                 std::vector<reference_tests::Tensor>{
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 1.0, 1.0, 1.0}),
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 2.0, 2.0, 2.0})},
+                 std::vector<reference_tests::Tensor>{
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 1.0, 1.0, 1.0})},
+                 "if_condition_const_is_false"),
+        IfParams(std::make_shared<IfCondIsNonConst>(),
+                 std::vector<reference_tests::Tensor>{
+                     reference_tests::Tensor(Shape{1}, ov::element::boolean, std::vector<unsigned char>{1}),
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
+                 std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2},
+                                                                              ov::element::f32,
+                                                                              std::vector<float>{2.0, 2.0, 6.0, 12.0})},
+                 "if_condition_si_non_const_true"),
+        IfParams(std::make_shared<IfCondIsNonConst>(),
+                 std::vector<reference_tests::Tensor>{
+                     reference_tests::Tensor(Shape{1}, ov::element::boolean, std::vector<unsigned char>{0}),
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
+                 std::vector<reference_tests::Tensor>{
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{3.0, 3.0, 5.0, 7.0})},
+                 "if_condition_is_non_const_false"),
         IfParams(std::make_shared<IfWithoutAdditionalInputs>(),
-                 std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1}, ov::element::boolean, std::vector<unsigned char>{1})},
-                 std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1}, ov::element::f32, std::vector<float>{8.0})},
+                 std::vector<reference_tests::Tensor>{
+                     reference_tests::Tensor(Shape{1}, ov::element::boolean, std::vector<unsigned char>{1})},
+                 std::vector<reference_tests::Tensor>{
+                     reference_tests::Tensor(Shape{1}, ov::element::f32, std::vector<float>{8.0})},
                  "if_without_addition_inputs_condition_is_true"),
         IfParams(std::make_shared<IfWithoutAdditionalInputs>(),
-                 std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1}, ov::element::boolean, std::vector<unsigned char>{0})},
-                 std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1}, ov::element::f32, std::vector<float>{2.0})},
+                 std::vector<reference_tests::Tensor>{
+                     reference_tests::Tensor(Shape{1}, ov::element::boolean, std::vector<unsigned char>{0})},
+                 std::vector<reference_tests::Tensor>{
+                     reference_tests::Tensor(Shape{1}, ov::element::f32, std::vector<float>{2.0})},
                  "if_without_addition_inputs_condition_is_false"),
-        IfParams(
-            std::make_shared<IfConditionIsScalar>(),
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{}, ov::element::boolean, std::vector<unsigned char>{1}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 2.0, 6.0, 12.0})},
-            "if_condition_is_scalar_cond_true"),
-        IfParams(
-            std::make_shared<IfConditionIsScalar>(),
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{}, ov::element::boolean, std::vector<unsigned char>{0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{3.0, 3.0, 5.0, 7.0})},
-            "if_condition_is_scalar_cond_false"),
-        IfParams(
-            std::make_shared<IfDynamismCaseWithStaticInputs>(),
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{}, ov::element::boolean, std::vector<unsigned char>{1}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
-                                reference_tests::Tensor(Shape{4, 2, 2}, ov::element::f32, Y_gen()),
-                                reference_tests::Tensor(Shape{8, 8, 8}, ov::element::f32, Z_gen())},
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 4.0, 9.0, 16.0}),
-                                reference_tests::Tensor(Shape{4, 2, 2}, ov::element::f32, Y_gen())},
-            "If_dynamism_case_with_static_inputs_condition_true"),
-        IfParams(
-            std::make_shared<IfDynamismCaseWithStaticInputs>(),
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{}, ov::element::boolean, std::vector<unsigned char>{0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
-                                reference_tests::Tensor(Shape{4, 2, 2}, ov::element::f32, Y_gen()),
-                                reference_tests::Tensor(Shape{8, 8, 8}, ov::element::f32, Z_gen())},
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 4.0, 6.0, 8.0}),
-                                reference_tests::Tensor(Shape{8, 8, 8}, ov::element::f32, Z_gen())},
-            "If_dynamism_case_with_static_inputs_condition_false"),
-        IfParams(
-            std::make_shared<IfConditionIsDynamic>(),
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{}, ov::element::boolean, std::vector<unsigned char>{1}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 2.0, 6.0, 12.0})},
-            "if_condition_is_dynamic_cond_true"),
-        IfParams(
-            std::make_shared<IfConditionIsDynamic>(),
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{}, ov::element::boolean, std::vector<unsigned char>{0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{3.0, 3.0, 5.0, 7.0})},
-            "if_condition_is_dynamic_cond_false"),
-        IfParams(
-            std::make_shared<IfDynamicInputs>(),
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{}, ov::element::boolean, std::vector<unsigned char>{1}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 2.0, 6.0, 12.0})},
-            "if_dynamic_inputs_cond_true"),
-        IfParams(
-            std::make_shared<IfDynamicInputs>(),
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{}, ov::element::boolean, std::vector<unsigned char>{0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{3.0, 3.0, 5.0, 7.0})},
-            "if_dynamic_inputs_cond_false")));
+        IfParams(std::make_shared<IfConditionIsScalar>(),
+                 std::vector<reference_tests::Tensor>{
+                     reference_tests::Tensor(Shape{}, ov::element::boolean, std::vector<unsigned char>{1}),
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
+                 std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2},
+                                                                              ov::element::f32,
+                                                                              std::vector<float>{2.0, 2.0, 6.0, 12.0})},
+                 "if_condition_is_scalar_cond_true"),
+        IfParams(std::make_shared<IfConditionIsScalar>(),
+                 std::vector<reference_tests::Tensor>{
+                     reference_tests::Tensor(Shape{}, ov::element::boolean, std::vector<unsigned char>{0}),
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
+                 std::vector<reference_tests::Tensor>{
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{3.0, 3.0, 5.0, 7.0})},
+                 "if_condition_is_scalar_cond_false"),
+        IfParams(std::make_shared<IfDynamismCaseWithStaticInputs>(),
+                 std::vector<reference_tests::Tensor>{
+                     reference_tests::Tensor(Shape{}, ov::element::boolean, std::vector<unsigned char>{1}),
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
+                     reference_tests::Tensor(Shape{4, 2, 2}, ov::element::f32, Y_gen()),
+                     reference_tests::Tensor(Shape{8, 8, 8}, ov::element::f32, Z_gen())},
+                 std::vector<reference_tests::Tensor>{
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 4.0, 9.0, 16.0}),
+                     reference_tests::Tensor(Shape{4, 2, 2}, ov::element::f32, Y_gen())},
+                 "If_dynamism_case_with_static_inputs_condition_true"),
+        IfParams(std::make_shared<IfDynamismCaseWithStaticInputs>(),
+                 std::vector<reference_tests::Tensor>{
+                     reference_tests::Tensor(Shape{}, ov::element::boolean, std::vector<unsigned char>{0}),
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
+                     reference_tests::Tensor(Shape{4, 2, 2}, ov::element::f32, Y_gen()),
+                     reference_tests::Tensor(Shape{8, 8, 8}, ov::element::f32, Z_gen())},
+                 std::vector<reference_tests::Tensor>{
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 4.0, 6.0, 8.0}),
+                     reference_tests::Tensor(Shape{8, 8, 8}, ov::element::f32, Z_gen())},
+                 "If_dynamism_case_with_static_inputs_condition_false"),
+        IfParams(std::make_shared<IfConditionIsDynamic>(),
+                 std::vector<reference_tests::Tensor>{
+                     reference_tests::Tensor(Shape{}, ov::element::boolean, std::vector<unsigned char>{1}),
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
+                 std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2},
+                                                                              ov::element::f32,
+                                                                              std::vector<float>{2.0, 2.0, 6.0, 12.0})},
+                 "if_condition_is_dynamic_cond_true"),
+        IfParams(std::make_shared<IfConditionIsDynamic>(),
+                 std::vector<reference_tests::Tensor>{
+                     reference_tests::Tensor(Shape{}, ov::element::boolean, std::vector<unsigned char>{0}),
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
+                 std::vector<reference_tests::Tensor>{
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{3.0, 3.0, 5.0, 7.0})},
+                 "if_condition_is_dynamic_cond_false"),
+        IfParams(std::make_shared<IfDynamicInputs>(),
+                 std::vector<reference_tests::Tensor>{
+                     reference_tests::Tensor(Shape{}, ov::element::boolean, std::vector<unsigned char>{1}),
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
+                 std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2},
+                                                                              ov::element::f32,
+                                                                              std::vector<float>{2.0, 2.0, 6.0, 12.0})},
+                 "if_dynamic_inputs_cond_true"),
+        IfParams(std::make_shared<IfDynamicInputs>(),
+                 std::vector<reference_tests::Tensor>{
+                     reference_tests::Tensor(Shape{}, ov::element::boolean, std::vector<unsigned char>{0}),
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
+                 std::vector<reference_tests::Tensor>{
+                     reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{3.0, 3.0, 5.0, 7.0})},
+                 "if_dynamic_inputs_cond_false")));

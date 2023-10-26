@@ -75,6 +75,6 @@ const ov::SoPtr<ov::IRemoteContext>& ov::proxy::RemoteContext::get_hardware_cont
     return context;
 }
 
-const ov::SoPtr<ov::IRemoteContext>& ov::proxy::get_hardware_context(const ov::SoPtr<ov::IRemoteContext>& context) {
+ov::SoPtr<ov::IRemoteContext> ov::proxy::get_hardware_context(const ov::SoPtr<ov::IRemoteContext>& context) {
     return ov::proxy::RemoteContext::get_hardware_context(context);
 }

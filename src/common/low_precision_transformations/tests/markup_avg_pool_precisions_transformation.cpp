@@ -4,23 +4,23 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/avg_pool.hpp>
-#include <low_precision/convolution.hpp>
-#include <low_precision/fake_quantize.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/fuse_multiply_to_fake_quantize.hpp>
-#include <low_precision/fuse_subtract_to_fake_quantize.hpp>
-#include <low_precision/low_precision.hpp>
-#include <low_precision/max_pool.hpp>
-#include <low_precision/rt_info/avg_pool_precision_preserved_attribute.hpp>
+#include "low_precision/avg_pool.hpp"
+#include "low_precision/convolution.hpp"
+#include "low_precision/fake_quantize.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/fuse_multiply_to_fake_quantize.hpp"
+#include "low_precision/fuse_subtract_to_fake_quantize.hpp"
+#include "low_precision/low_precision.hpp"
+#include "low_precision/max_pool.hpp"
+#include "low_precision/rt_info/avg_pool_precision_preserved_attribute.hpp"
 #include <memory>
 #include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/markup_avg_pool_precisions_function.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/markup_avg_pool_precisions.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -79,22 +79,22 @@ public:
                                                                                     1,
                                                                                     0);
 
-        ngraph::pass::low_precision::TypeRelaxedReplacer pass;
+        ov::pass::low_precision::TypeRelaxedReplacer pass;
         pass.run_on_model(actualFunction);
 
-        auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>(
-            {ngraph::pass::low_precision::PrecisionsRestriction::create<ov::opset1::Convolution>(
+        auto supportedPrecisionsOnActivation = std::vector<ov::pass::low_precision::PrecisionsRestriction>(
+            {ov::pass::low_precision::PrecisionsRestriction::create<ov::opset1::Convolution>(
                 {{{0}, {ov::element::u8}}, {{1}, {ov::element::i8}}})});
 
         SimpleLowPrecisionTransformer transform(supportedPrecisionsOnActivation);
-        transform.commonGraphRewrite->add_matcher<ngraph::pass::low_precision::AvgPoolTransformation>();
-        transform.commonGraphRewrite->add_matcher<ngraph::pass::low_precision::ConvolutionTransformation>();
+        transform.commonGraphRewrite->add_matcher<ov::pass::low_precision::AvgPoolTransformation>();
+        transform.commonGraphRewrite->add_matcher<ov::pass::low_precision::ConvolutionTransformation>();
         transform.commonGraphRewrite
-            ->add_matcher<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation>();
-        transform.commonGraphRewrite->add_matcher<ngraph::pass::low_precision::MaxPoolTransformation>();
-        transform.cleanup->add_matcher<ngraph::pass::low_precision::FakeQuantizeTransformation>();
-        transform.cleanup->add_matcher<ngraph::pass::low_precision::FuseSubtractToFakeQuantizeTransformation>();
-        transform.cleanup->add_matcher<ngraph::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation>();
+            ->add_matcher<ov::pass::low_precision::FakeQuantizeDecompositionTransformation>();
+        transform.commonGraphRewrite->add_matcher<ov::pass::low_precision::MaxPoolTransformation>();
+        transform.cleanup->add_matcher<ov::pass::low_precision::FakeQuantizeTransformation>();
+        transform.cleanup->add_matcher<ov::pass::low_precision::FuseSubtractToFakeQuantizeTransformation>();
+        transform.cleanup->add_matcher<ov::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation>();
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::MarkupAvgPoolPrecisionsFunction::getReference(
@@ -137,13 +137,13 @@ TEST_P(MarkupAvgPoolPrecisionsTransformation, CompareFunctions) {
 
     {
         auto avgPoolPrecisioinPreservedAttribute =
-            ngraph::pass::low_precision::getAttribute<ngraph::AvgPoolPrecisionPreservedAttribute>(*avgPoolOperations.begin());
+            ov::pass::low_precision::getAttribute<ov::AvgPoolPrecisionPreservedAttribute>(*avgPoolOperations.begin());
         ASSERT_FALSE(avgPoolPrecisioinPreservedAttribute.empty());
-        ASSERT_EQ(true, avgPoolPrecisioinPreservedAttribute.as<ngraph::AvgPoolPrecisionPreservedAttribute>().value());
+        ASSERT_EQ(true, avgPoolPrecisioinPreservedAttribute.as<ov::AvgPoolPrecisionPreservedAttribute>().value());
     }
 
     const auto precisionPreserved = LayerTransformation::get<ov::op::v1::MaxPool>(actualFunction);
-    ASSERT_TRUE(checkIfAttributesAreTheSame<ngraph::AvgPoolPrecisionPreservedAttribute>(precisionPreserved))
+    ASSERT_TRUE(checkIfAttributesAreTheSame<ov::AvgPoolPrecisionPreservedAttribute>(precisionPreserved))
         << "AvgPoolPrecisionPreservedAttribute are not the same";
 
     // auto res = compare_functions(actualFunction, referenceFunction, true, true);

@@ -19,6 +19,8 @@
 #include "openvino/op/roi_align.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/op/loop.hpp"
+#include "openvino/op/tensor_iterator.hpp"
 
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -67,38 +69,45 @@ struct ConstProperties {
     bool needsBatchInterpretation;
 };
 
-static void create_data(ProgramBuilder& p, const ov::Shape& constDims, const std::shared_ptr<ov::op::v0::Constant>& op, const ConstProperties& props) {
-    cldnn::tensor constTensor = getConstTensor(constDims);
-    auto constFormat = cldnn::format::get_default_format(constDims.size());
+static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const std::shared_ptr<ov::op::v0::Constant>& op, const ConstProperties& props) {
+    cldnn::tensor constTensor = getConstTensor(const_shape);
+    auto constFormat = cldnn::format::get_default_format(const_shape.size());
 
     if (props.needsBatchInterpretation) {
         constTensor.batch[0] = static_cast<cldnn::tensor::value_type>(constTensor.count());
         constTensor.feature[0] = 1;
     }
 
-    // If constDims has a dimension = 0, then create tensor with single value
+    // If const_shape has a dimension = 0, then create tensor with single value
     // TODO: check if dim=0 is a valid case
-    if (std::accumulate(constDims.begin(), constDims.end(), size_t(1), std::multiplies<size_t>()) == 0)
+    if (std::accumulate(const_shape.begin(), const_shape.end(), size_t(1), std::multiplies<size_t>()) == 0)
         constTensor = cldnn::tensor{1};
 
-    auto newDims = constDims;
     cldnn::data_types out_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
-    cldnn::layout constLayout = p.use_new_shape_infer() ? cldnn::layout(newDims, out_dtype, constFormat) :
+    cldnn::layout constLayout = p.use_new_shape_infer() ? cldnn::layout(const_shape, out_dtype, constFormat) :
                                                           cldnn::layout(out_dtype, constFormat, constTensor);
 
     cldnn::primitive_id initialconstPrimID = layer_type_name_ID(op);
     cldnn::primitive_id constPrimID;
     auto data = op->get_data_ptr<char>();
 
-    auto bufIter = p.blobMemCache.find(std::make_pair(data, newDims));
+    const auto cache_key = std::make_tuple(data, const_shape, op->get_output_element_type(0));
+
+    auto bufIter = p.blobMemCache.find(cache_key);
 
     if (bufIter != p.blobMemCache.end()) {
         constPrimID = bufIter->second;
         p.primitive_ids[initialconstPrimID] = constPrimID;
         p.profiling_ids.push_back(initialconstPrimID);
     } else {
-        GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant]" << std::endl;
+        if (constLayout.count() == 0) {
+            // Convert zero dimension constant layout to 1 dimension to fix the issue
+            // that memory allocation is failed on windows when constant layout is zero dimension.
+            constLayout = cldnn::layout(ov::PartialShape({1}), constLayout.data_type, constLayout.format);
+        }
         cldnn::memory::ptr mem = p.get_engine().allocate_memory(constLayout, false);
+        GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] layout: "
+                        << constLayout.to_short_string() << ", mem_ptr(" << mem << ", " << mem->size() << " bytes)"<< std::endl;
         auto& stream = p.get_engine().get_service_stream();
         cldnn::mem_lock<char> lock{mem, stream};
         auto buf = lock.data();
@@ -106,7 +115,7 @@ static void create_data(ProgramBuilder& p, const ov::Shape& constDims, const std
 
         std::memcpy(&buf[0], &data[0], bufSize);
         p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
-        p.blobMemCache[std::make_pair(data, newDims)] = initialconstPrimID;
+        p.blobMemCache[cache_key] = initialconstPrimID;
         constPrimID = initialconstPrimID;
     }
 }
@@ -198,6 +207,13 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
                 constDims.push_back(1);                             // The weight cldnn tensor adds 1d to the end as the input cldnn tensor does
             }
         } else if (ov::is_type<ov::op::v3::ROIAlign>(outOp) || ov::is_type<ov::op::v9::ROIAlign>(outOp)) {
+            consts[op].needsBatchInterpretation = constDims.size() == 1;
+        } else if ((ov::is_type<ov::op::v5::Loop>(outOp) || ov::is_type<ov::op::v0::TensorIterator>(outOp))) {
+            // when inner network has 1d parameter which is connected to outer loop's constant 1d data,
+            // outer constant 1d data and inner 1d parameter has same bytes_count but layout is different
+            // (outer constant is [1, N, 1, 1] but inner parameter is [N, 1, 1, 1]).
+            // To pass check_memory_to_set in input_layout::set_data for this case, Set constDims to [N, 1, 1, 1]
+            // when constDims is one dim and user op is Loop or TensorIterator.
             consts[op].needsBatchInterpretation = constDims.size() == 1;
         }
     }

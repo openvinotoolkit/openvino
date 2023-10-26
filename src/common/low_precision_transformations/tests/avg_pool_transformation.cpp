@@ -4,17 +4,17 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/avg_pool.hpp>
-#include <low_precision/max_pool.hpp>
+#include "low_precision/avg_pool.hpp"
+#include "low_precision/max_pool.hpp"
 #include <memory>
 #include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/avg_pool_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/avg_pool.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -43,7 +43,7 @@ public:
 };
 
 typedef std::tuple<ov::element::Type,
-                   ngraph::PartialShape,
+                   ov::PartialShape,
                    bool,         // additional FakeQuantize After
                    std::string,  // additional layer before FQ
                    AvgPoolTransformationTestValues>
@@ -54,7 +54,7 @@ class AvgPoolTransformation : public LayerTransformation,
 public:
     void SetUp() override {
         ov::element::Type precision;
-        ngraph::PartialShape shape;
+        ov::PartialShape shape;
         bool addFakeQuantize;
         std::string additionalLayer;
         AvgPoolTransformationTestValues testValues;
@@ -67,8 +67,8 @@ public:
                                                                                  testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ov::op::v1::AvgPool>(testValues.params);
-        transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);
+        transform.add<ov::pass::low_precision::AvgPoolTransformation, ov::op::v1::AvgPool>(testValues.params);
+        transform.add<ov::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction =
@@ -85,7 +85,7 @@ public:
 
     static std::string getTestCaseName(testing::TestParamInfo<AvgPoolTransformationParams> obj) {
         ov::element::Type precision;
-        ngraph::PartialShape shape;
+        ov::PartialShape shape;
         bool addFakeQuantize;
         std::string additionalLayer;
         AvgPoolTransformationTestValues testValues;
@@ -123,7 +123,7 @@ const std::vector<std::string> additionalLayer = {
 
 const std::vector<bool> addFQ = {true, false};
 
-const std::vector<ngraph::PartialShape> shapes = {{1, 3, 72, 48}, {-1, -1, -1, -1}};
+const std::vector<ov::PartialShape> shapes = {{1, 3, 72, 48}, {-1, -1, -1, -1}};
 
 const std::vector<AvgPoolTransformationTestValues> testValues = {
     // U8 per tensor quantization
@@ -199,7 +199,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> shapesWithDynamicChannel = {PartialShape::dynamic()};
+const std::vector<ov::PartialShape> shapesWithDynamicChannel = {PartialShape::dynamic()};
 
 const std::vector<AvgPoolTransformationTestValues> testValues = {
     // U8 per tensor quantization

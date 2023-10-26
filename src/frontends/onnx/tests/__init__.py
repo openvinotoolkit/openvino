@@ -127,6 +127,7 @@ xfail_issue_52463 = xfail_test(reason="test_operator_add_size1_singleton_broadca
                                       "Not equal to tolerance")
 xfail_issue_58033 = xfail_test(reason="Einsum operation misses support for complex ellipsis equations")
 xfail_issue_58676 = xfail_test(reason="AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
+skip_issue_58676 = pytest.mark.skip(reason="AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
 xfail_issue_onnx_models_140 = xfail_test(reason="https://github.com/onnx/models/issues/140")
 
 xfail_issue_63033 = xfail_test(reason="BatchNormalization: Training mode is not supported")
@@ -150,3 +151,18 @@ xfail_issue_91151 = xfail_test(reason="RuntimeError: model input (shape={3,4}) a
 xfail_issue_91490 = xfail_test(reason="y has zero dimension which is not allowed")
 xfail_issue_101965 = xfail_test(reason="Mismatch with numpy-based expected results.")
 xfail_issue_113506 = xfail_test(reason="Unsupported operation of type: LSTMSequence Node expects 7 inputs. Actual: 8")
+
+skip_dynamic_model = pytest.mark.skip(reason="CPU plug-in can't load a model with dynamic output shapes via legacy API")
+
+xfail_issue_119896 = xfail_test(reason="Unsupported element type: FLOAT8")
+xfail_issue_119900 = xfail_test(reason="While validating ONNX node '<Node(Resize): Y>': "
+                                       "half_pixel_symmetric - this type of coordinate transformation mode "
+                                       "is not supported. Choose one of the following modes: "
+                                       "tf_half_pixel_for_nn, asymmetric, align_corners, pytorch_half_pixel, "
+                                       "half_pixel")
+xfail_issue_119903 = xfail_test(reason="DeformConv operation is not supported")
+xfail_issue_119906 = xfail_test(reason="LpPool operation is not supported")
+xfail_issue_119919 = xfail_test(reason="While validating ONNX node '<Node(Pad): y>': Unsupported padding mode: [wrap]")
+xfail_issue_119922 = xfail_test(reason="ai.onnx.ml operators domain isn't supported")
+xfail_issue_119925 = xfail_test(reason="AveragePool AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
+xfail_issue_119926 = xfail_test(reason="ROIAlign AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")

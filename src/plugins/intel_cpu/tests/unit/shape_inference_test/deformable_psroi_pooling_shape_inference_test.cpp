@@ -1,10 +1,11 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <gmock/gmock.h>
+
 #include <array>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "gmock/gmock.h"
 #include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
@@ -36,13 +37,13 @@ TEST_F(DeformablePSROIPoolingV1StaticShapeInferenceTest, default_ctor) {
     // 2 inputs
     {
         input_shapes = {StaticShape{2, 4, 8, 6}, StaticShape{rois_dim, 5}};
-        shape_inference(op.get(), input_shapes, output_shapes);
+        output_shapes = shape_inference(op.get(), input_shapes);
         EXPECT_EQ(output_shapes[0], expected_output);
     }
     // 3 inputs
     {
         input_shapes = {StaticShape{2, 4, 8, 6}, StaticShape{rois_dim, 5}, StaticShape{rois_dim, 20, group_size, group_size}};
-        shape_inference(op.get(), input_shapes, output_shapes);
+        output_shapes = shape_inference(op.get(), input_shapes);
         EXPECT_EQ(output_shapes[0], expected_output);
     }
 }
@@ -62,7 +63,7 @@ TEST_F(DeformablePSROIPoolingV1StaticShapeInferenceTest, no_offsets_input) {
     StaticShape expected_output{rois_dim, output_dim, group_size, group_size};
     input_shapes = {StaticShape{2, 4, 8, 6}, StaticShape{rois_dim, 5}};
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], expected_output);
 }
 
@@ -82,6 +83,6 @@ TEST_F(DeformablePSROIPoolingV1StaticShapeInferenceTest, offsets_input) {
     StaticShape expected_output{rois_dim, output_dim, group_size, group_size};
     input_shapes = {StaticShape{2, 4, 8, 6}, StaticShape{rois_dim, 5}, StaticShape{rois_dim, 20, group_size, group_size}};
 
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], expected_output);
 }

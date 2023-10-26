@@ -15,6 +15,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "ngraph/validation_util.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -175,6 +176,27 @@ TEST(eval, evaluate_dynamic_range_sum) {
     auto cval = read_vector<float>(result_tensor);
     vector<float> seq{8.0f, 11.0f, 14.0f};
     ASSERT_EQ(cval, seq);
+}
+
+TEST(eval, evaluate_dynamic_range_fp16_out) {
+    auto p_start = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{});
+    auto p_stop = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{});
+    auto p_step = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{});
+    auto range = make_shared<op::v4::Range>(p_start, p_stop, p_step, ov::element::f16);
+    auto model = make_shared<Model>(OutputVector{range}, ParameterVector{p_start, p_stop, p_step});
+    auto result_tensor = ov::Tensor();
+    auto out_vector = ov::TensorVector{result_tensor};
+    auto in_vector = ov::TensorVector{make_tensor<element::Type_t::i32>({}, {0}),
+                                      make_tensor<element::Type_t::i32>({}, {3087}),
+                                      make_tensor<element::Type_t::i32>({}, {1})};
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
+    EXPECT_EQ(result_tensor.get_element_type(), element::f16);
+    EXPECT_EQ(result_tensor.get_shape(), (Shape{3087}));
+    auto cval = read_vector<ov::float16>(result_tensor);
+    for (size_t i = 0; i < 3087; i++) {
+        ASSERT_EQ(cval[i], ov::float16(i));
+    }
 }
 
 TEST(eval, evaluate_broadcast_v3_bidirectional) {
@@ -2663,4 +2685,16 @@ TEST(eval, evaluate_cum_sum_v0_exclusive_reversed) {
     EXPECT_EQ(outputs[0].get_element_type(), data->get_element_type());
     EXPECT_EQ(outputs[0].get_shape(), data->get_shape());
     EXPECT_EQ(memcmp(outputs[0].data(), out_expected, sizeof(out_expected)), 0);
+}
+
+TEST(eval, invalid_shape) {
+    auto p1 = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 2});
+    auto p2 = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 2});
+    auto add = make_shared<op::v1::Add>(p1, p2);
+    auto model = make_shared<Model>(OutputVector{add}, ParameterVector{p1, p2});
+    auto result_tensor = ov::Tensor(element::f32, {1, 2});
+    auto out_vector = ov::TensorVector{result_tensor};
+    auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>({1, 3}, {1.0f, 1.0f, 1.0f}),
+                                      make_tensor<element::Type_t::f32>({1, 3}, {7.0f, 6.0f, 1.0f})};
+    ASSERT_THROW(model->evaluate(out_vector, in_vector), ov::Exception);
 }

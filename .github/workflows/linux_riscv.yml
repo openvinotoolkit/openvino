@@ -1,0 +1,187 @@
+name: Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)
+on:
+  schedule:
+    # at 00:00 on Wednesday and Saturday
+    - cron: '0 0 * * 3,6'
+  workflow_dispatch:
+  pull_request:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+  push:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+    branches:
+      - master
+      - 'releases/**'
+
+concurrency:
+  # github.ref is not unique in post-commit
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-riscv
+  cancel-in-progress: true
+
+jobs:
+  Build:
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    runs-on: aks-linux-16-cores
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
+      volumes:
+        - /mount/caches:/mount/caches
+    env:
+      CMAKE_BUILD_TYPE: 'Release'
+      CMAKE_GENERATOR: 'Ninja'
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      OPENVINO_REPO: /__w/openvino/openvino/openvino
+      OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
+      INSTALL_DIR: /__w/openvino/openvino/openvino_install
+      CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_Release/.conan
+      CCACHE_DIR: /mount/caches/ccache/ubuntu22_riscv64_Release
+      CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
+      CCACHE_MAXSIZE: 50G
+    steps:
+      - name: Install git
+        run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates
+
+      - name: Clone OpenVINO
+        uses: actions/checkout@v4
+        with:
+          path: 'openvino'
+
+      - name: Init submodules for non-Conan dependencies
+        run: |
+          pushd ${OPENVINO_REPO}
+            git submodule update --init -- ${OPENVINO_REPO}/src/plugins/intel_cpu
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gtest
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/open_model_zoo
+          popd
+
+      #
+      # Dependencies
+      #
+
+      - name: Install build dependencies
+        run: |
+          # create build directory
+          mkdir -p ${OPENVINO_BUILD_DIR}
+
+          # install compilers to build OpenVINO for RISC-V 64
+          apt --assume-yes install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu
+          apt --assume-yes install gcc g++ python3-pip python3-venv python3-dev
+          # generic dependencies
+          apt --assume-yes install cmake ccache ninja-build fdupes patchelf
+
+          python3 -m venv ${OPENVINO_BUILD_DIR}/env
+          source ${OPENVINO_BUILD_DIR}/env/bin/activate
+          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
+          python3 -m pip install conan
+
+      - name: Install RISC-V native debian packages
+        run: |
+          echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy main restricted > riscv64-sources.list
+          echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates main restricted >> riscv64-sources.list
+          echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy universe >> riscv64-sources.list
+          echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates universe >> riscv64-sources.list
+          echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy multiverse >> riscv64-sources.list
+          echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates multiverse >> riscv64-sources.list
+          echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-backports main restricted universe multiverse >> riscv64-sources.list
+          echo deb [arch=amd64] http://security.ubuntu.com/ubuntu/ jammy-security main restricted >> riscv64-sources.list
+          echo deb [arch=amd64] http://security.ubuntu.com/ubuntu/ jammy-security universe >> riscv64-sources.list
+          echo deb [arch=amd64] http://security.ubuntu.com/ubuntu/ jammy-security multiverse >> riscv64-sources.list
+          echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy main >> riscv64-sources.list
+          echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy universe >> riscv64-sources.list
+          echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-updates main >> riscv64-sources.list
+          echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-security main >> riscv64-sources.list
+          mv riscv64-sources.list /etc/apt/sources.list.d/
+          dpkg --add-architecture riscv64
+          apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/riscv64-sources.list
+          apt-get install -y --no-install-recommends libpython3-dev:riscv64
+
+      - name: Create conan_toolchain.cmake file
+        run: |
+          source ${OPENVINO_BUILD_DIR}/env/bin/activate
+          # generate build profile
+          conan profile detect
+          # patch settings.yml to contain riscv64 architecture
+          sed -i 's/sparcv9/riscv64/g' ~/.conan2/settings.yml
+          # generate host profile for linux_riscv64
+          echo "include(default)" > ${CONAN_LINUX_RISCV64_PROFILE}
+          echo "[buildenv]" >> ${CONAN_LINUX_RISCV64_PROFILE}
+          echo "CC=riscv64-linux-gnu-gcc" >> ${CONAN_LINUX_RISCV64_PROFILE}
+          echo "CXX=riscv64-linux-gnu-g++" >> ${CONAN_LINUX_RISCV64_PROFILE}
+          # install OpenVINO dependencies
+          conan install ${OPENVINO_REPO}/conanfile.txt \
+            -pr:h ${CONAN_LINUX_RISCV64_PROFILE} \
+            -s:h arch=riscv64 \
+            -s:h build_type=${CMAKE_BUILD_TYPE} \
+            -o:h onetbb/*:tbbbind=False \
+            -of ${OPENVINO_BUILD_DIR}/dependencies \
+            -b missing
+        env:
+          CONAN_LINUX_RISCV64_PROFILE: ${{ env.OPENVINO_BUILD_DIR }}/linux_riscv64
+
+      #
+      # Build
+      #
+
+      - name: CMake - Configure
+        run: |
+          source ${OPENVINO_BUILD_DIR}/env/bin/activate
+          source ${OPENVINO_BUILD_DIR}/dependencies/conanbuild.sh
+          cmake \
+            -G 'Ninja' \
+            -DENABLE_CPPLINT=OFF \
+            -DENABLE_INTEL_GPU=ON \
+            -DENABLE_PYTHON=ON \
+            -DENABLE_WHEEL=ON \
+            -DPYTHON_MODULE_EXTENSION=$(riscv64-linux-gnu-python3-config --extension-suffix) \
+            -DPYBIND11_PYTHON_EXECUTABLE_LAST=${OPENVINO_BUILD_DIR}/env/bin/python3.10 \
+            -DENABLE_TESTS=ON \
+            -DENABLE_PYTHON_PACKAGING=ON \
+            -DENABLE_SYSTEM_PROTOBUF=ON \
+            -DENABLE_SYSTEM_SNAPPY=ON \
+            -DENABLE_SYSTEM_PUGIXML=ON \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_CXX_FLAGS="-Wno-deprecated-declarations" \
+            -DCMAKE_C_FLAGS="-Wno-deprecated-declarations" \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
+            -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_BUILD_DIR}/dependencies/conan_toolchain.cmake \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
+            -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
+            -S ${OPENVINO_REPO} \
+            -B ${OPENVINO_BUILD_DIR}
+          source ${OPENVINO_BUILD_DIR}/dependencies/deactivate_conanbuild.sh
+
+      - name: Cmake - Build
+        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel
+
+      - name: Show ccache stats
+        run: ccache --show-stats
+
+      - name: Cmake - Install
+        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel --target install
+
+      - name: Build OpenVINO C++ samples
+        run: |
+          source ${OPENVINO_BUILD_DIR}/dependencies/conanbuild.sh
+          ${INSTALL_DIR}/samples/cpp/build_samples.sh
+          source ${OPENVINO_BUILD_DIR}/dependencies/deactivate_conanbuild.sh
+        env:
+          CMAKE_TOOLCHAIN_FILE: ${{ env.OPENVINO_BUILD_DIR }}/dependencies/conan_toolchain.cmake

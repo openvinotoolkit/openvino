@@ -10,16 +10,12 @@
 
 namespace cldnn {
 
-
-
 /// @brief ExperimentalDetectronTopKROIs-6 primitive
 /// @details
 struct experimental_detectron_topk_rois : public primitive_base<experimental_detectron_topk_rois> {
     CLDNN_DECLARE_PRIMITIVE(experimental_detectron_topk_rois)
 
     experimental_detectron_topk_rois() : primitive_base("", {}) {}
-
-    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /**
      * Construct ExperimentalDetectronTopKROIs privitive.

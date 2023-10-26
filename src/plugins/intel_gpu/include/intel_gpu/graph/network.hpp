@@ -244,7 +244,7 @@ public:
 
     using variables_state_info_map = std::map<std::string, cldnn::layout>;
     void set_variables_state_info(const std::string& variable_id, const cldnn::layout& layout);
-
+    const variables_state_info_map& get_variables_state_info() const;
     const ExecutionConfig& get_config() const { return _config; }
 
     ShapePredictor& get_shape_predictor() { return *_shape_predictor; }
@@ -283,6 +283,8 @@ private:
     size_t _weights_cache_capacity = 1;
 
     std::unordered_map<primitive_id, event::ptr> _events;
+    // This map is used to temporarily hold events that will be deallocated later
+    std::unordered_map<primitive_id, event::ptr> _old_events;
     output_chains_map _output_chains;
 
     std::unique_ptr<ShapePredictor> _shape_predictor;

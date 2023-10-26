@@ -19,7 +19,7 @@ struct reorder_onednn : typed_primitive_onednn_impl<reorder, dnnl::reorder::prim
     using parent = typed_primitive_onednn_impl<reorder, dnnl::reorder::primitive_desc, dnnl::reorder>;
     using parent::parent;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::reorder_onednn)
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
@@ -32,8 +32,9 @@ protected:
         int input_idx = DNNL_ARG_FROM;
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
             auto& input = instance.input_memory(i);
-            auto offset = onednn::get_offset(instance.get_input_layout(i), _pd.dnnl::primitive_desc_base::src_desc(i));
-            args.insert({input_idx++, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(i), offset)});
+            auto offset = onednn::get_offset(instance.get_input_layout(i),
+                                             _pd.dnnl::primitive_desc_base::src_desc(static_cast<int>(i)));
+            args.insert({input_idx++, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(static_cast<int>(i)), offset)});
         }
 
         {

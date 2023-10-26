@@ -17,7 +17,7 @@ struct extract_image_patches_impl : typed_primitive_impl_ocl<extract_image_patch
     using kernel_selector_t = kernel_selector::extract_image_patches_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::extract_image_patches_params, kernel_selector::extract_image_patches_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::extract_image_patches_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<extract_image_patches_impl>(*this);

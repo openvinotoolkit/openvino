@@ -8,8 +8,7 @@ import sys
 
 import cv2
 import numpy as np
-from openvino.preprocess import PrePostProcessor, ResizeAlgorithm
-from openvino.runtime import Core, Layout, Type
+import openvino as ov
 
 
 def main():
@@ -26,7 +25,7 @@ def main():
 
 # --------------------------- Step 1. Initialize OpenVINO Runtime Core ------------------------------------------------
     log.info('Creating OpenVINO Runtime Core')
-    core = Core()
+    core = ov.Core()
 
 # --------------------------- Step 2. Read a model --------------------------------------------------------------------
     log.info(f'Reading the model: {model_path}')
@@ -48,7 +47,7 @@ def main():
     input_tensor = np.expand_dims(image, 0)
 
 # --------------------------- Step 4. Apply preprocessing -------------------------------------------------------------
-    ppp = PrePostProcessor(model)
+    ppp = ov.preprocess.PrePostProcessor(model)
 
     _, h, w, _ = input_tensor.shape
 
@@ -58,19 +57,19 @@ def main():
     # - layout of data is 'NHWC'
     ppp.input().tensor() \
         .set_shape(input_tensor.shape) \
-        .set_element_type(Type.u8) \
-        .set_layout(Layout('NHWC'))  # noqa: ECE001, N400
+        .set_element_type(ov.Type.u8) \
+        .set_layout(ov.Layout('NHWC'))  # noqa: ECE001, N400
 
     # 2) Adding explicit preprocessing steps:
     # - apply linear resize from tensor spatial dims to model spatial dims
-    ppp.input().preprocess().resize(ResizeAlgorithm.RESIZE_LINEAR)
+    ppp.input().preprocess().resize(ov.preprocess.ResizeAlgorithm.RESIZE_LINEAR)
 
     # 3) Here we suppose model has 'NCHW' layout for input
-    ppp.input().model().set_layout(Layout('NCHW'))
+    ppp.input().model().set_layout(ov.Layout('NCHW'))
 
     # 4) Set output tensor information:
     # - precision of tensor is supposed to be 'f32'
-    ppp.output().tensor().set_element_type(Type.f32)
+    ppp.output().tensor().set_element_type(ov.Type.f32)
 
     # 5) Apply preprocessing modifying the original 'model'
     model = ppp.build()

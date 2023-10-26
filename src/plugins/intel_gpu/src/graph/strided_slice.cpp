@@ -44,8 +44,20 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
     if ((begin_data.empty() && !constant_mem.count(1))
         || (end_data.empty() && !constant_mem.count(2))
         || (strides_data.empty() && !constant_mem.count(3))) {
-        auto out_shape = ov::PartialShape::dynamic(input0_layout.get_partial_shape().size());
-        return { layout{out_shape, input0_layout.data_type, format::get_default_format(out_shape.rank().get_length())} };
+        auto input0_pshape = input0_layout.get_partial_shape();
+        auto input0_len = input0_pshape.size();
+        auto out_shape = ov::PartialShape::dynamic(input0_len);
+        if (input0_layout.is_dynamic()) {
+            // fill with static shape until it finds dynamic
+            for (size_t i = 0; i < input0_len; i++) {
+                if (input0_pshape[i].is_static())
+                    out_shape[i] = input0_pshape[i];
+                else
+                    break;
+            }
+        }
+
+        return { layout{out_shape, input0_layout.data_type, format::get_default_format(input0_len)} };
     }
 
     ov::op::v1::StridedSlice op;
@@ -116,8 +128,8 @@ std::string strided_slice_inst::to_string(strided_slice_node const& node) {
     json_composite strided_slice_info;
     strided_slice_info.add("input id", input.id());
     std::vector<std::string> dependencies_info = {"begin_param id", "end_param id", "stride_param id"};
-    for (size_t i = 0; i < node.get_dependencies().size(); ++i) {
-        strided_slice_info.add(dependencies_info[i], node.get_dependency(i).id());
+    for (size_t i = 1; i < node.get_dependencies().size(); ++i) {
+        strided_slice_info.add(dependencies_info[i - 1], node.get_dependency(i).id());
     }
     strided_slice_info.add("begin", node.get_primitive()->begin);
     strided_slice_info.add("end", node.get_primitive()->end);

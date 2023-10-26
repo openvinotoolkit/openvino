@@ -3,11 +3,12 @@
 //
 
 #include "ngraph/opsets/opset8.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "openvino/runtime/core.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <cpp/ie_cnn_network.h>
 #include <ie_plugin_config.hpp>
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/common_utils.hpp"
 
@@ -96,6 +97,7 @@ protected:
 };
 
 TEST_P(MemoryDynamicBatch, MultipleInferencesOnTheSameInferRequest) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto compiledModel = core_->compile_model(model_, ov::test::utils::DEVICE_GPU, { });
     auto inferRequest = compiledModel.create_infer_request();
     input_ = generateInput(inputShape_);
@@ -112,6 +114,7 @@ TEST_P(MemoryDynamicBatch, MultipleInferencesOnTheSameInferRequest) {
 }
 
 TEST_P(MemoryDynamicBatch, ResetVariableState) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto compiledModel = core_->compile_model(model_, ov::test::utils::DEVICE_GPU, { });
     auto inferRequest = compiledModel.create_infer_request();
     input_ = generateInput(inputShape_);
@@ -129,6 +132,7 @@ TEST_P(MemoryDynamicBatch, ResetVariableState) {
 }
 
 TEST_P(MemoryDynamicBatch, GetVariableState) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto compiledModel = core_->compile_model(model_, ov::test::utils::DEVICE_GPU, { });
     auto inferRequest = compiledModel.create_infer_request();
     input_ = generateInput(inputShape_);
@@ -145,6 +149,7 @@ TEST_P(MemoryDynamicBatch, GetVariableState) {
 }
 
 TEST_P(MemoryDynamicBatch, SetVariableState) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto compiledModel = core_->compile_model(model_, ov::test::utils::DEVICE_GPU, { });
     auto inferRequest = compiledModel.create_infer_request();
     input_ = generateInput(inputShape_);

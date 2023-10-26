@@ -1,8 +1,6 @@
 Grammatical Error Correction with OpenVINO
 ==========================================
 
-
-
 AI-based auto-correction products are becoming increasingly popular due
 to their ease of use, editing speed, and affordability. These products
 improve the quality of written text in emails, blogs, and chats.
@@ -41,11 +39,9 @@ It consists of the following steps:
 -  Download and convert models from a public source using the `OpenVINO
    integration with Hugging Face
    Optimum <https://huggingface.co/blog/openvino>`__.
--  Create an inference pipeline for grammatical error checking 
+-  Create an inference pipeline for grammatical error checking
 
-.. _top:
-
-**Table of contents**:
+**Table of contents:**
 
 - `How does it work? <#how-does-it-work>`__
 - `Prerequisites <#prerequisites>`__
@@ -55,11 +51,10 @@ It consists of the following steps:
   - `Grammar Checker <#grammar-checker>`__
   - `Grammar Corrector <#grammar-corrector>`__
 
--  `Prepare Demo Pipeline <#prepare-demo-pipeline>`__
+- `Prepare Demo Pipeline <#prepare-demo-pipeline>`__
 
-How does it work? `⇑ <#top>`__
+How does it work?
 ###############################################################################################################################
-
 
 A Grammatical Error Correction task can be thought of as a
 sequence-to-sequence task where a model is trained to take a
@@ -108,9 +103,8 @@ documentation <https://huggingface.co/docs/transformers/model_doc/roberta>`__
 
 Now that we know more about FLAN-T5 and RoBERTa, let us get started. 🚀
 
-Prerequisites `⇑ <#top>`__
+Prerequisites
 ###############################################################################################################################
-
 
 First, we need to install the `Hugging Face
 Optimum <https://huggingface.co/docs/transformers/index>`__ library
@@ -122,7 +116,7 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 
 .. code:: ipython3
 
-    !pip install -q "git+https://github.com/huggingface/optimum-intel.git" onnx onnxruntime
+    !pip install -q "git+https://github.com/huggingface/optimum-intel.git" "openvino>=2023.0.0" onnx onnxruntime gradio
 
 
 .. parsed-literal::
@@ -132,9 +126,8 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
     [notice] To update, run: pip install --upgrade pip
 
 
-Download and Convert Models `⇑ <#top>`__
+Download and Convert Models
 ###############################################################################################################################
-
 
 Optimum Intel can be used to load optimized models from the `Hugging
 Face Hub <https://huggingface.co/docs/optimum/intel/hf.co/models>`__ and
@@ -188,9 +181,8 @@ Tokenizer class and pipelines API are compatible with Optimum models.
     comet_ml is installed but `COMET_API_KEY` is not set.
 
 
-Select inference device `⇑ <#top>`__
+Select inference device
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 Select device from dropdown list for running inference using OpenVINO:
 
@@ -219,9 +211,8 @@ Select device from dropdown list for running inference using OpenVINO:
 
 
 
-Grammar Checker `⇑ <#top>`__
+Grammar Checker
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 .. code:: ipython3
 
@@ -272,9 +263,8 @@ Hugging Face inference pipelines in this
 
 Great! Looks like the model can detect errors in the sample.
 
-Grammar Corrector `⇑ <#top>`__
+Grammar Corrector
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 The steps for loading the Grammar Corrector model are very similar,
 except for the model class that is used. Because FLAN-T5 is a
@@ -338,9 +328,8 @@ to run it.
 
 Nice! The result looks pretty good!
 
-Prepare Demo Pipeline `⇑ <#top>`__
+Prepare Demo Pipeline
 ###############################################################################################################################
-
 
 Now let us put everything together and create the pipeline for grammar
 correction. The pipeline accepts input text, verifies its correctness,
@@ -435,30 +424,18 @@ several steps:
     
         return corrected_text
 
-Let us see it in action. Enter text to be corrected in the text box and
-execute the following cells.
+Let us see it in action.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    default_text = (
+        "Most of the course is about semantic or  content of language but there are also interesting"
+        " topics to be learned from the servicefeatures except statistics in characters in documents.At"
+        " this point, He introduces herself as his native English speaker and goes on to say that if"
+        " you contine to work on social scnce"
+    )
     
-    text_widget = widgets.Textarea(value="Most of the course is about semantic or  content of language but there are also interesting topics to be learned from the servicefeatures except statistics in characters in documents."
-                                   "At this point, He introduces herself as his native English speaker and goes on to say that if you contine to work on social scnce", 
-                                   description='your text', layout=widgets.Layout(width="auto"))
-    text_widget
-
-
-
-
-.. parsed-literal::
-
-    Textarea(value='Most of the course is about semantic or  content of language but there are also interesting to…
-
-
-
-.. code:: ipython3
-
-    corrected_text = correct_text(text_widget.value, grammar_checker_pipe, grammar_corrector_pipe)
+    corrected_text = correct_text(default_text, grammar_checker_pipe, grammar_corrector_pipe)
 
 
 .. parsed-literal::
@@ -477,7 +454,7 @@ execute the following cells.
 
 .. code:: ipython3
 
-    print(f"input text:     {text_widget.value}\n") 
+    print(f"input text:     {default_text}\n") 
     print(f'generated text: {corrected_text}') 
 
 
@@ -487,3 +464,30 @@ execute the following cells.
     
     generated text: Most of the course is about the semantic content of language but there are also interesting topics to be learned from the service features except statistics in characters in documents. At this point, she introduces herself as a native English speaker and goes on to say that if you continue to work on social science, you will continue to be successful.
 
+
+Interactive demo
+###############################################################################################################################
+
+.. code:: ipython3
+
+    import gradio as gr
+    
+    
+    def correct(text, _=gr.Progress(track_tqdm=True)):
+        return correct_text(text, grammar_checker_pipe, grammar_corrector_pipe)
+    
+    
+    demo = gr.Interface(
+        correct,
+        gr.Textbox(label="Text"),
+        gr.Textbox(label="Correction"),
+        examples=[default_text],
+        allow_flagging="never",
+    )
+    try:
+        demo.queue().launch(debug=False)
+    except Exception:
+        demo.queue().launch(share=True, debug=False)
+    # if you are launching remotely, specify server_name and server_port
+    # demo.launch(server_name='your server name', server_port='server port in int')
+    # Read more in the docs: https://gradio.app/docs/

@@ -17,6 +17,7 @@
 #include "convert.h"
 #include <common/primitive_hashing_utils.hpp>
 #include <shape_inference/shape_inference_pass_through.hpp>
+#include "executors/transpose_list.hpp"
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -116,6 +117,60 @@ void Reorder::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+void Reorder::prepareReorderAsTranspose(MemoryDescPtr parentDesc, MemoryDescPtr childDesc) {
+    auto getOrderAndBlockedDims = [](const MemoryDesc& lhs, const MemoryDesc& rhs) -> std::pair<std::vector<size_t>, std::vector<size_t>> {
+        const auto& in = lhs.as<BlockedMemoryDesc>()->getBlockDims();
+        const auto rank = lhs.getShape().getRank();
+
+        if (lhs.hasLayoutType(LayoutType::ncsp) && rhs.hasLayoutType(LayoutType::nspc)) {
+            if (rank == 4)
+                return {{0, 2, 3, 1}, {in[0], in[2], in[3], in[1]}};
+            else
+                return {{0, 2, 1}, {in[0], in[2], in[1]}};
+
+        } else if (lhs.hasLayoutType(LayoutType::nspc) && rhs.hasLayoutType(LayoutType::ncsp)) {
+            if (rank == 4)
+                return {{0, 3, 1, 2}, {in[0], in[3], in[1], in[2]}};
+            else
+                return {{0, 2, 1}, {in[0], in[2], in[1]}};
+        } else {
+            if (rank == 4)
+                return {{0, 1, 2, 3}, in};
+            else
+                return {{0, 1, 2}, in};
+        }
+    };
+
+    auto order = getOrderAndBlockedDims(*parentDesc, *childDesc);
+    const auto& transposeOrder = order.first;
+    const auto& transposedBlockDims = order.second;
+
+    auto transposedDesc = std::make_shared<CpuBlockedMemoryDesc>(parentDesc->getPrecision(), Shape{transposedBlockDims});
+
+    TransposeParams transposeParams;
+    transposeParams.permuteParams.src_block_dims = parentDesc->as<BlockedMemoryDesc>()->getBlockDims();
+    transposeParams.permuteParams.src_block_order = parentDesc->as<BlockedMemoryDesc>()->getOrder();
+    transposeParams.permuteParams.dst_block_dims = transposedBlockDims;
+    transposeParams.permuteParams.dst_block_order = transposeParams.permuteParams.src_block_order;
+    transposeParams.permuteParams.order = transposeOrder;
+    transposeParams.permuteParams.data_size = parentDesc->getPrecision().size();
+
+    auto transpose_context = std::make_shared<ExecutorContext>(context, getImplPriority());
+    auto factory = std::make_shared<TransposeExecutorFactory>(transposeParams,
+                                                              std::vector<MemoryDescPtr>{parentDesc},
+                                                              std::vector<MemoryDescPtr>{transposedDesc},
+                                                              transpose_context);
+    dnnl::primitive_attr attr;
+    transposeExecutor = factory->makeExecutor(transposeParams,
+                                              {parentDesc},
+                                              {transposedDesc},
+                                              attr);
+    getSelectedPrimitiveDescriptor()->setImplementationType(transposeExecutor->getImplType());
+    return;
+}
+#endif // OV_CPU_ARM_ENABLE_FP16
+
 void Reorder::prepareParams() {
     if (isOptimized)
         return;
@@ -142,15 +197,27 @@ void Reorder::prepareParams() {
         return true;
     };
 
-    const auto&  parentDesc = srcMemPtr->getDesc();
-    const auto&  childDesc = dstMemPtr->getDesc();
-    if ((isNspc2NcspCase || isNcsp2NspcCase) && isSupportedDesc(childDesc) && isSupportedDesc(parentDesc)) {
+    const auto&  parentDesc = srcMemPtr->getDescPtr();
+    const auto&  childDesc = dstMemPtr->getDescPtr();
+
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+    // @todo current oneDNN v3.2 lacks optimized jit implementation for fp16 reorders.
+    // Use transpose executor as a temporary WA.
+    if (everyone_is(Precision::FP16, parentDesc->getPrecision(), childDesc->getPrecision()) &&
+        ((parentDesc->hasLayoutType(LayoutType::ncsp) && childDesc->hasLayoutType(LayoutType::nspc)) ||
+         (parentDesc->hasLayoutType(LayoutType::nspc) && childDesc->hasLayoutType(LayoutType::ncsp))) &&
+        one_of(parentDesc->getShape().getRank(), 3, 4)) {
+        return prepareReorderAsTranspose(parentDesc, childDesc);
+    }
+#endif
+
+    if ((isNspc2NcspCase || isNcsp2NspcCase) && isSupportedDesc(*childDesc) && isSupportedDesc(*parentDesc)) {
         const auto &inDims = srcMemPtr->getStaticDims();
         // Check that child strides are consistent with parent dims if the child is inplace.
         // The strides must be dense except for the channel one (since the child num channels might differ)
         const auto childSubBlocksAreDense = [&]() {
-            const auto& dstStrides = childDesc.as<BlockedMemoryDesc>()->getStrides();
-            const auto& dstOrder = childDesc.as<BlockedMemoryDesc>()->getOrder();
+            const auto& dstStrides = childDesc->as<BlockedMemoryDesc>()->getStrides();
+            const auto& dstOrder = childDesc->as<BlockedMemoryDesc>()->getOrder();
             const size_t channelDim = 1;
             if (dstStrides.back() != 1)
                 return false;
@@ -162,7 +229,7 @@ void Reorder::prepareParams() {
         };
         if (isNspc2NcspCase) {
             canUseNspc2Ncsp = inDims[1] <= 64 && inDims[1] >= 16 &&
-                (parentDesc.as<BlockedMemoryDesc>()->getPaddedElementsCount() / inDims[1]) >= 128 &&
+                (parentDesc->as<BlockedMemoryDesc>()->getPaddedElementsCount() / inDims[1]) >= 128 &&
                 childSubBlocksAreDense();
         } else if (isNcsp2NspcCase) {
             canUseNcsp2Nspc = childSubBlocksAreDense();
@@ -326,6 +393,15 @@ void Reorder::optimizedNspc2Ncsp() {
 }
 
 void Reorder::execute(dnnl::stream strm) {
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+    if (transposeExecutor) {
+        auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+        int MB = srcMemPtr->getStaticDims()[0];
+        return transposeExecutor->exec({srcMemPtr}, {dstMemPtr}, MB);
+    }
+#endif
+
     if (isOptimized) {
         DEBUG_LOG("#", getExecIndex(), " Reorder ", getName(), "  is Optimized.",
                    " input @", getParentEdgeAt(0)->getMemory().getData(),

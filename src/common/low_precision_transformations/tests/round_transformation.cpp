@@ -10,8 +10,8 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
 #include "low_precision/network_helper.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/round_function.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/round.hpp"
 
 namespace {
 using namespace testing;
@@ -36,16 +36,16 @@ public:
                                                                                testValues.inputShape,
                                                                                testValues.actualDequantization);
         const auto lastNode = actualFunction->get_output_op(0)->get_input_node_shared_ptr(0);
-        const auto dequantization = ngraph::pass::low_precision::NetworkHelper::getDequantization(lastNode);
+        const auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(lastNode);
         const auto subtractConstant = dequantization.subtract->get_input_node_shared_ptr(1);
         const auto roundedConst =
-            ngraph::pass::low_precision::NetworkHelper::round(subtractConstant, testValues.inputPrecision);
+            ov::pass::low_precision::NetworkHelper::round(subtractConstant, testValues.inputPrecision);
 
         if (roundedConst->get_element_type() == testValues.inputPrecision) {
             const auto replacement =
                 std::make_shared<ov::op::TypeRelaxed<opset1::Subtract>>(dequantization.data, roundedConst);
-            ngraph::pass::low_precision::NetworkHelper::copyInfo(dequantization.subtract, replacement);
-            ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(
+            ov::pass::low_precision::NetworkHelper::copyInfo(dequantization.subtract, replacement);
+            ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(
                 replacement,
                 dequantization.convert->get_element_type());
             replace_node(dequantization.subtract, replacement);

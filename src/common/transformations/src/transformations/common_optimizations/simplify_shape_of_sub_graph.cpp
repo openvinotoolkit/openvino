@@ -21,6 +21,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -291,8 +292,10 @@ bool pass::SimplifyShapeOfSubGraph::run_on_model(const std::shared_ptr<Model>& f
     Manager manager;
     manager.set_per_pass_validation(false);
 
+    REGISTER_PASS(manager, PrepareShapeOpsForEliminationAroundBE)
     REGISTER_PASS(manager, SharedOpOptimization)
     REGISTER_PASS(manager, EliminateGatherUnsqueeze)  // should run after SharedOpOptimization
+    REGISTER_PASS(manager, NopElimination, m_use_shapes)
     REGISTER_PASS(manager, GroupedGatherElimination)
     // GatherNopElimination depends on shape, so it requires shape propagation
     // if previous transformations has resolved some dynamic shapes.

@@ -21,12 +21,11 @@ TEST_P(ReadIRTest, Inference) {
     run();
 }
 
-// temporarty disable to provide correct numbers for release
-TEST_P(ReadIRTest, DISABLED_QueryModel) {
+TEST_P(ReadIRTest, QueryModel) {
     query_model();
 }
 
-TEST_P(ReadIRTest, DISABLED_ImportExport) {
+TEST_P(ReadIRTest, ImportExport) {
     import_export();
 }
 
@@ -42,11 +41,11 @@ TEST_P(ReadIRTest, DISABLED_ImportExport) {
 #include "openvino/opsets/opset12_tbl.hpp"
 #undef _OPENVINO_OP_REG
 
-INSTANTIATE_TEST_SUITE_P(conformance_other,
+INSTANTIATE_TEST_SUITE_P(conformance_subgraph,
                         ReadIRTest,
                         ::testing::Combine(::testing::ValuesIn(getModelPaths(IRFolderPaths)),
-                                        ::testing::Values(targetDevice),
-                                        ::testing::Values(pluginConfig)),
+                                           ::testing::Values(targetDevice),
+                                           ::testing::Values(pluginConfig)),
                         ReadIRTest::getTestCaseName);
 
 }  // namespace

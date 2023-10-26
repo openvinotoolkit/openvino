@@ -12,8 +12,8 @@ from unittest.mock import patch
 
 import numpy as np
 
-from openvino.tools.ovc.cli_parser import input_to_input_cut_info, check_positive, writable_dir, \
-    readable_file_or_object, get_all_cli_parser, get_mo_convert_params
+from openvino.tools.ovc.cli_parser import input_to_input_cut_info, \
+    readable_file_or_object, get_all_cli_parser, get_mo_convert_params, parse_inputs
 from openvino.tools.ovc.convert_impl import pack_params_to_args_namespace, arguments_post_parsing, args_to_argv
 from openvino.tools.ovc.error import Error
 from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
@@ -26,6 +26,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
     def test_get_shapes_several_inputs_several_shapes2(self):
         # shapes specified using --input command line parameter and no values
         argv_input = "inp1[1,22,333,123],inp2[-1,45,7,1]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
         inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([1,22,333,123])),
                       _InputCutInfo(name='inp2', shape=PartialShape([-1,45,7,1]))]
@@ -33,30 +34,31 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
 
     def test_raises_get_shapes_1(self):
         argv_input = "[h,y]"
-        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+        self.assertRaises(Error, parse_inputs, argv_input)
 
     def test_raises_get_shapes_2(self):
         argv_input = "(2, 3)"
-        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+        self.assertRaises(Error, parse_inputs, argv_input)
 
     def test_raises_get_shapes_3(self):
         argv_input = "input_1(2, 3)"
-        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+        self.assertRaises(Error, parse_inputs, argv_input)
 
     def test_raises_get_shapes_4(self):
         argv_input = "(2, 3),(10, 10)"
-        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+        self.assertRaises(Error, parse_inputs, argv_input)
 
     def test_raises_get_shapes_5(self):
         argv_input = "<2,3,4>"
-        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+        self.assertRaises(Error, parse_inputs, argv_input)
 
     def test_raises_get_shapes_6(self):
         argv_input = "sd<2,3>"
-        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+        self.assertRaises(Error, parse_inputs, argv_input)
 
     def test_get_shapes_complex_input(self):
         argv_input = "[10, -1, 100],mask[],[?,?]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
         inputs_ref = [_InputCutInfo(shape=PartialShape([10, -1, 100])),
                       _InputCutInfo(name='mask', shape=PartialShape([])),
@@ -66,6 +68,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
     def test_get_shapes_and_freezing_with_scalar_and_without_shapes_in_input(self):
         # shapes and value for freezing specified using --input command line parameter
         argv_input = "inp1,inp2"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
         inputs_ref = [_InputCutInfo(name='inp1'),
                       _InputCutInfo(name='inp2')]
@@ -75,6 +78,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
     def test_get_shapes_and_freezing_with_scalar(self):
         # shapes and value for freezing specified using --input command line parameter
         argv_input = "inp1,inp2[]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
         inputs_ref = [_InputCutInfo(name='inp1'),
                       _InputCutInfo(name='inp2', shape=PartialShape([]))]
@@ -83,6 +87,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
     def test_get_shapes_several_inputs_several_shapes3(self):
         # shapes and value for freezing specified using --input command line parameter
         argv_input = "inp1[3 1],inp2[3,2,3],inp3[5]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
         inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([3,1])),
                       _InputCutInfo(name='inp2', shape=PartialShape([3,2,3])),
@@ -92,6 +97,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
     def test_get_shapes_several_inputs_several_shapes3_comma_sep(self):
         # shapes and value for freezing specified using --input command line parameter
         argv_input = "inp1[3 1],inp2[3 2 3],inp3[5]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
         inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([3,1])),
                       _InputCutInfo(name='inp2', shape=PartialShape([3,2,3])),
@@ -101,6 +107,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
     def test_get_shapes_several_inputs_several_shapes6(self):
         # 0D value for freezing specified using --input command line parameter without shape
         argv_input = "inp1[3,1],inp2[3,2,3],inp3"
+        argv_input = parse_inputs(argv_input)
         inputs_list, result, _ = input_to_input_cut_info(argv_input)
         inputs = input_to_input_cut_info(argv_input)
         inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([3,1])),
@@ -111,6 +118,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
     def test_get_shapes_several_inputs_several_shapes7(self):
         # 0D shape and value for freezing specified using --input command line parameter
         argv_input = "inp1[3,1],inp2[3,2,3],inp3[]"
+        argv_input = parse_inputs(argv_input)
         inputs_list, result, _ = input_to_input_cut_info(argv_input)
         inputs = input_to_input_cut_info(argv_input)
         inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([3,1])),
@@ -121,6 +129,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
 
     def test_get_shapes_and_data_types_shape_only(self):
         argv_input = "placeholder1[3 1],placeholder2,placeholder3"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
         inputs_ref = [_InputCutInfo(name='placeholder1', shape=PartialShape([3,1])),
                       _InputCutInfo(name='placeholder2'),
@@ -129,6 +138,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
 
     def test_get_shapes_and_data_types_shape_with_ports_only(self):
         argv_input = "placeholder1:4[3 1],placeholder2,2:placeholder3"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
         inputs_ref = [_InputCutInfo(name='placeholder1:4', shape=PartialShape([3,1])),
                       _InputCutInfo(name='placeholder2'),
@@ -137,15 +147,16 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
 
     def test_wrong_data_types(self):
         argv_input = "inp1[3 1]->[1.0 2.0 3.0],inp2[3 2 3]{abracadabra},inp3[5]{f32}->[1.0 1.0 2.0 3.0 5.0]"
-        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+        self.assertRaises(Error, parse_inputs, argv_input)
 
     def test_shape_and_value_shape_mismatch(self):
         # size of value tensor does not correspond to specified shape for the third node
         argv_input = "inp1[3 1]->[1.0 2.0 3.0],inp2[3 2 3],inp3[5 3]->[2.0 3.0 5.0]"
-        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+        self.assertRaises(Error, parse_inputs, argv_input)
 
     def test_get_shapes_no_input_no_shape(self):
         argv_input = ""
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
         inputs_ref = []
         self.assertEqual(inputs, inputs_ref)
@@ -153,18 +164,21 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
 
     def test_get_shapes_no_input_one_shape2(self):
         argv_input = "[12,4,1]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
         inputs_ref = [_InputCutInfo(shape=PartialShape([12,4,1]))]
         self.assertEqual(inputs, inputs_ref)
 
     def test_get_shapes_for_scalar_inputs(self):
         argv_input = "[]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
         inputs_ref = [_InputCutInfo(shape=PartialShape([]))]
         self.assertEqual(inputs, inputs_ref)
 
     def test_get_shapes_two_input_shapes_with_scalar(self):
         argv_input = "[12,4,1],[]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
         inputs_ref = [_InputCutInfo(shape=PartialShape([12,4,1])),
                       _InputCutInfo(shape=PartialShape([]))]
@@ -172,6 +186,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
 
     def test_get_shapes_two_input_shapes(self):
         argv_input = "[12,4,1],[10]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
         inputs_ref = [_InputCutInfo(shape=PartialShape([12,4,1])),
                       _InputCutInfo(shape=PartialShape([10])),]
@@ -179,6 +194,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
 
     def test_get_shapes_one_input_no_shape(self):
         argv_input = "inp1"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
         inputs_ref = [_InputCutInfo(name='inp1')]
         self.assertEqual(inputs, inputs_ref)
@@ -186,6 +202,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
     def test_get_shapes_several_inputs_several_partial_shapes2(self):
         # shapes specified using --input command line parameter and no values
         argv_input = "inp1[1,?,50..100,123],inp2[-1,45..,..7,1]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
         inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape("[1,?,50..100,123]")),
                       _InputCutInfo(name='inp2', shape=PartialShape("[-1,45..,..7,1]"))]
@@ -194,6 +211,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
     def test_get_shapes_several_inputs_several_partial_shapes3(self):
         # shapes and value for freezing specified using --input command line parameter
         argv_input = "inp1[3,1],inp2[3..,..2,5..10,?,-1],inp3[5]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
         inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([3,1])),
                       _InputCutInfo(name='inp2', shape=PartialShape("[3..,..2,5..10,?,-1]")),
@@ -203,6 +221,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
     def test_get_shapes_several_inputs_several_partial_shapes6(self):
         # 0D value for freezing specified using --input command line parameter without shape
         argv_input = "inp1[3 1],inp2[3.. ..2 5..10 ? -1],inp3"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
         inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([3,1])),
                       _InputCutInfo(name='inp2', shape=PartialShape("[3..,..2,5..10,?,-1]")),
@@ -212,6 +231,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
     def test_get_shapes_several_inputs_several_partial_shapes7(self):
         # 0D shape and value for freezing specified using --input command line parameter
         argv_input = "inp1[3 1],inp2[3.. ..2 5..10 ? -1],inp3[]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
         inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([3,1])),
                       _InputCutInfo(name='inp2', shape=PartialShape("[3..,..2,5..10,?,-1]")),
@@ -220,15 +240,16 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
 
     def test_partial_shapes_freeze_dynamic_negative_case1(self):
         argv_input = "inp1:1[3 1..10]->[1.0 2.0 3.0]"
-        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+        self.assertRaises(Error, parse_inputs, argv_input)
 
     def test_partial_shapes_freeze_dynamic_negative_case2(self):
         argv_input = "inp1:1[1 2 -1]->[1.0 2.0 3.0]"
-        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+        self.assertRaises(Error, parse_inputs, argv_input)
 
     def test_get_shapes_several_inputs_several_partial_shapes2_comma_separator(self):
         # shapes specified using --input command line parameter and no values
         argv_input = "inp1[1,?,50..100,123],inp2[-1,45..,..7,1]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
         inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape("[1,?,50..100,123]")),
                       _InputCutInfo(name='inp2', shape=PartialShape("[-1,45..,..7,1]"))]
@@ -237,6 +258,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
     def test_get_shapes_several_inputs_several_partial_shapes3_comma_separator(self):
         # shapes and value for freezing specified using --input command line parameter
         argv_input = "inp1[3,1],inp2[3..,..2,5..10,?,-1],inp3[5]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
         inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([3,1])),
                       _InputCutInfo(name='inp2', shape=PartialShape("[3..,..2,5..10,?,-1]")),
@@ -246,6 +268,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
     def test_get_shapes_several_inputs_several_partial_shapes6_comma_separator(self):
         # 0D value for freezing specified using --input command line parameter without shape
         argv_input = "inp1[3, 1],inp2[3.., ..2, 5..10, ?,-1],inp3"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
         inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([3,1])),
                       _InputCutInfo(name='inp2', shape=PartialShape("[3..,..2,5..10,?,-1]")),
@@ -255,6 +278,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
     def test_get_shapes_several_inputs_several_partial_shapes7_comma_separator(self):
         # 0D shape and value for freezing specified using --input command line parameter
         argv_input = "inp1[3,1],inp2[3.., ..2,5..10, ?,-1],inp3[]"
+        argv_input = parse_inputs(argv_input)
         inputs = input_to_input_cut_info(argv_input)
         inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([3,1])),
                       _InputCutInfo(name='inp2', shape=PartialShape("[3..,..2,5..10,?,-1]")),
@@ -263,36 +287,25 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
 
     def test_partial_shapes_freeze_dynamic_negative_case1_comma_separator(self):
         argv_input = "inp1:1[3,1..10]->[1.0 2.0 3.0]"
-        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+        self.assertRaises(Error, parse_inputs, argv_input)
 
     def test_partial_shapes_freeze_dynamic_negative_case2_comma_separator(self):
         argv_input = "inp1:1[1,2,-1]->[1.0 2.0 3.0]"
-        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+        self.assertRaises(Error, parse_inputs, argv_input)
 
     def test_partial_shapes_freeze_dynamic_negative_case3_comma_separator(self):
         argv_input = "inp1:1[3,1..10]->[1.0 2.0 3.0]"
-        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+        self.assertRaises(Error, parse_inputs, argv_input)
 
     def test_partial_shapes_freeze_dynamic_negative_case4_comma_separator(self):
         argv_input = "inp1:1[1, 2, -1]->[1.0 2.0 3.0]"
-        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+        self.assertRaises(Error, parse_inputs, argv_input)
 
     def test_not_supported_arrow(self):
         with self.assertRaisesRegex(Exception,
                                     "Incorrect format of input."):
-            input_to_input_cut_info("inp1->[1.0]")
-
-
-class PositiveChecker(unittest.TestCase):
-    def test_positive_checker_batch(self):
-        res = check_positive('1')
-        self.assertEqual(res, 1)
-
-    def test_positive_checker_batch_negative(self):
-        self.assertRaises(argparse.ArgumentTypeError, check_positive, '-1')
-
-    def test_positive_checker_batch_not_int(self):
-        self.assertRaises(argparse.ArgumentTypeError, check_positive, 'qwe')
+            argv_input = parse_inputs("inp1->[1.0]")
+            input_to_input_cut_info(argv_input)
 
 
 class PathCheckerFunctions(unittest.TestCase):
@@ -331,27 +344,6 @@ class PathCheckerFunctions(unittest.TestCase):
             shutil.rmtree(os.path.dirname(__class__.NOT_WRITABLE_SUB_DIR), ignore_errors=True)
         if os.path.exists(__class__.EXISTING_FILE):
             os.remove(__class__.EXISTING_FILE)
-
-    def test_single_writable_dir(self):
-        self.assertEqual(__class__.WRITABLE_DIR, writable_dir(__class__.WRITABLE_DIR))
-
-    @unittest.skip("Temporary disabled since chmod() is temporary not working on Linux. (Windows do not support not writable dir at all)")
-    def test_single_non_writable_dir(self):
-        with self.assertRaises(Error) as cm:
-            writable_dir(__class__.NOT_WRITABLE_DIR)
-
-    @unittest.skip("Temporary disabled since chmod() is temporary not working on Linux. (Windows do not support not writable dir at all)")
-    def test_single_non_writable_sub_dir(self):
-        with self.assertRaises(Error) as cm:
-            writable_dir(__class__.NOT_WRITABLE_SUB_DIR)
-
-    def test_multiple_writable_dirs(self):
-        dirs_str = ','.join([__class__.WRITABLE_DIR, __class__.WRITABLE_NON_EXISTING_DIR])
-        self.assertEqual(dirs_str, writable_dir(dirs_str))
-
-    def test_single_writable_non_existing_dir(self):
-        self.assertEqual(__class__.WRITABLE_NON_EXISTING_DIR, writable_dir(__class__.WRITABLE_NON_EXISTING_DIR))
-
 
     def test_readable_file(self):
         self.assertEqual(__class__.EXISTING_FILE, readable_file_or_object(__class__.EXISTING_FILE))
@@ -526,4 +518,3 @@ class TestConvertModelParamsParsing(unittest.TestCase):
                     assert param_name not in cli_parser._option_string_actions
                 else:
                     assert param_name in cli_parser._option_string_actions
-

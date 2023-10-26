@@ -2,84 +2,71 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/reduce_l1.hpp"
+#include "openvino/op/reduce_l1.hpp"
 
-#include <ngraph/validation_util.hpp>
-
+#include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/graph_util.hpp"
-#include "ngraph/op/util/evaluate_helpers.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/shape_util.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/util/axes_util.hpp"
 #include "openvino/reference/reduce_l1.hpp"
+#include "reduce_shape_inference.hpp"
 
-using namespace std;
-using namespace ngraph;
+namespace ov {
+namespace op {
 
-op::v4::ReduceL1::ReduceL1(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims)
+namespace reduce_l1 {
+struct Evaluate : element::NoAction<bool> {
+    using element::NoAction<bool>::visit;
+
+    template <element::Type_t ET>
+    static result_type visit(const Tensor& in0, Tensor& out, const AxisSet& reduction_axes) {
+        using T = fundamental_type_for<ET>;
+        reference::reduce_l1(in0.data<const T>(), out.data<T>(), in0.get_shape(), reduction_axes);
+        return true;
+    }
+};
+}  // namespace reduce_l1
+namespace v4 {
+
+ReduceL1::ReduceL1(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims)
     : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims) {
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::v4::ReduceL1::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> ReduceL1::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v4_ReduceL1_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::v4::ReduceL1>(new_args.at(0), new_args.at(1), get_keep_dims());
+    return std::make_shared<ReduceL1>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace reduce_l1 {
-namespace {
-template <element::Type_t ET>
-bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    ov::reference::reduce_l1(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
-    return true;
-}
-
-bool evaluate_sum(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims) {
-    bool rc = true;
-    switch (arg->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_reducel1_sum, i32, arg, out, axes, keep_dims);
-        NGRAPH_TYPE_CASE(evaluate_reducel1_sum, i64, arg, out, axes, keep_dims);
-        NGRAPH_TYPE_CASE(evaluate_reducel1_sum, bf16, arg, out, axes, keep_dims);
-        NGRAPH_TYPE_CASE(evaluate_reducel1_sum, f16, arg, out, axes, keep_dims);
-        NGRAPH_TYPE_CASE(evaluate_reducel1_sum, f32, arg, out, axes, keep_dims);
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
-}
-}  // namespace
-}  // namespace reduce_l1
-
-bool op::v4::ReduceL1::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ReduceL1::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v4_ReduceL1_evaluate);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_ASSERT(outputs.size() == 1);
+    OPENVINO_ASSERT(inputs.size() == 2);
 
-    const auto reduction_axes =
-        get_normalized_axes_from_tensor(inputs[1], inputs[0]->get_partial_shape().rank(), get_friendly_name());
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto reduction_axes = get_normalized_axes_from_tensor(this, inputs[1], inputs[0].get_shape().size());
+    outputs[0].set_shape(ov::util::reduce(inputs[0].get_shape(), reduction_axes, get_keep_dims()));
 
-    return reduce_l1::evaluate_sum(inputs[0], outputs[0], reduction_axes, get_keep_dims());
+    using namespace ov::element;
+    return IfTypeOf<bf16, f16, f32, i32, i64>::apply<reduce_l1::Evaluate>(inputs[0].get_element_type(),
+                                                                          inputs[0],
+                                                                          outputs[0],
+                                                                          reduction_axes);
 }
 
-bool op::v4::ReduceL1::has_evaluate() const {
+bool ReduceL1::has_evaluate() const {
     OV_OP_SCOPE(v4_ReduceL1_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
+    case element::i32:
+    case element::i64:
+    case element::bf16:
+    case element::f16:
+    case element::f32:
         return true;
     default:
-        break;
+        return false;
     }
-    return false;
 }
+}  // namespace v4
+}  // namespace op
+}  // namespace ov

@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/select.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include <string>
 
@@ -261,6 +261,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplitsCheck6D, VariadicSplitLayerGPUDynam
                                 ::testing::Values(std::vector<int32_t>{2, 3, 2, -1}),       // splitLength
                                 ::testing::Values(ElementType::i8),                         // netPrec
                                 ::testing::ValuesIn(inputShapes6d),                         // inShapes
+                                ::testing::ValuesIn(restInputTypes)),                       // input type of splitLength
+                        VariadicSplitLayerGPUDynamicTest::getTestCaseName);
+
+
+const std::vector<InputShape> inputShapes4d_static = {
+        {
+            {5, 16, 10, 8}, {{5, 16, 10, 8}, }
+        }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplitsCheck4D_static_input_dyn_output, VariadicSplitLayerGPUDynamicTest,
+                        ::testing::Combine(
+                                ::testing::Values(1),                                       // axes
+                                ::testing::Values(std::vector<int32_t>{2, 1, -1}),          // splitLength
+                                ::testing::Values(ElementType::f16),                        // netPrec
+                                ::testing::ValuesIn(inputShapes4d_static),                         // inShapes
                                 ::testing::ValuesIn(restInputTypes)),                       // input type of splitLength
                         VariadicSplitLayerGPUDynamicTest::getTestCaseName);
 

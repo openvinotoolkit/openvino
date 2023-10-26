@@ -26,7 +26,7 @@ using namespace testing;
 
 namespace {
 
-using reshape_map = std::map<std::string, std::vector<size_t>>;
+using reshape_map = std::map<std::string, ov::PartialShape>;
 
 struct ReshapeMatMulTestCase {
     bool reshape_is_A_input;
@@ -75,8 +75,10 @@ public:
         {
             auto input_A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, test_case.A_shape);
             input_A->set_friendly_name("input_A");
+            input_A->output(0).set_names({"input_A"});
             auto input_B = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, test_case.B_shape);
             input_B->set_friendly_name("input_B");
+            input_B->output(0).set_names({"input_B"});
 
             auto reshape_pattern = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                                           ov::Shape{test_case.reshape_pattern.size()},
@@ -99,15 +101,13 @@ public:
             ov::ResultVector results = {result};
             model = std::make_shared<ov::Model>(results, params);
         }
-
-        InferenceEngine::details::CNNNetworkNGraphImpl network(model);
-        const auto& resp = network.reshape(test_case.new_shapes, nullptr);
-        ASSERT_EQ(resp, InferenceEngine::StatusCode::OK);
+        ASSERT_NO_THROW(model->reshape(test_case.new_shapes));
     }
 };
 
 TEST_P(SmartReshapeMatMulTests, ReshapeMatMul) {}
 
+// clang-format off
 INSTANTIATE_TEST_SUITE_P(
     OVModel,
     SmartReshapeMatMulTests,
@@ -116,11 +116,14 @@ INSTANTIATE_TEST_SUITE_P(
         ReshapeMatMulTestCase{true, {1, 20, 30}, {40, 30}, {20, -1}, false, true, {{"input_A", {2, 20, 30}}}},
         ReshapeMatMulTestCase{true, {1, 30, 20}, {30, 20}, {-1, 20}, true, false, {{"input_A", {2, 30, 20}}}},
         ReshapeMatMulTestCase{true, {1, 30, 20}, {40, 30}, {-1, 20}, true, true, {{"input_A", {2, 30, 20}}}},
+        ReshapeMatMulTestCase{true, {-1, 30, 40}, {-1, 1, 1200}, {1200, 1200}, false, true, {{"input_A", {1200, 30, 40}}}},
         ReshapeMatMulTestCase{false, {20, 30}, {1, 30, 40}, {-1, 40}, false, false, {{"input_B", {2, 30, 40}}}},
         ReshapeMatMulTestCase{false, {20, 30}, {1, 40, 30}, {40, -1}, false, true, {{"input_B", {2, 40, 30}}}},
         ReshapeMatMulTestCase{false, {30, 20}, {1, 30, 40}, {-1, 40}, true, false, {{"input_B", {2, 30, 40}}}},
-        ReshapeMatMulTestCase{false, {30, 20}, {1, 40, 30}, {40, -1}, true, true, {{"input_B", {2, 40, 30}}}}),
+        ReshapeMatMulTestCase{false, {30, 20}, {1, 40, 30}, {40, -1}, true, true, {{"input_B", {2, 40, 30}}}},
+        ReshapeMatMulTestCase{false, {-1, 1, 1200}, {-1, 30, 40}, {1200, 1200}, false, false, {{"input_B", {1200, 30, 40}}}}),
     SmartReshapeMatMulTests::getTestCaseName);
+// clang-format on
 }  // namespace
 
 TEST(SmartReshapeTransposeMatMulTests, TransposeAMatMulFuse) {

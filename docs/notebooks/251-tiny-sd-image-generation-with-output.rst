@@ -1056,83 +1056,83 @@ found in this
 .. image:: 251-tiny-sd-image-generation-with-output_files/251-tiny-sd-image-generation_39_1.png
 
 
-Interactive Demo `⇑ <#top>`__
-###############################################################################################################################
+.. Interactive Demo `⇑ <#top>`__
+.. ###############################################################################################################################
 
-.. code:: ipython3
+.. .. code:: ipython3
 
-    import gradio as gr
+..     import gradio as gr
     
-    sample_img_url = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/tower.jpg"
+..     sample_img_url = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/tower.jpg"
     
-    img = load_image(sample_img_url).save("tower.jpg")
+..     img = load_image(sample_img_url).save("tower.jpg")
     
-    def generate_from_text(text, negative_text, seed, num_steps, _=gr.Progress(track_tqdm=True)):
-        result = ov_pipe(text, negative_prompt=negative_text, num_inference_steps=num_steps, seed=seed)
-        return result["sample"][0]
-    
-    
-    def generate_from_image(img, text, negative_text, seed, num_steps, strength, _=gr.Progress(track_tqdm=True)):
-        result = ov_pipe(text, img, negative_prompt=negative_text, num_inference_steps=num_steps, seed=seed, strength=strength)
-        return result["sample"][0]
+..     def generate_from_text(text, negative_text, seed, num_steps, _=gr.Progress(track_tqdm=True)):
+..         result = ov_pipe(text, negative_prompt=negative_text, num_inference_steps=num_steps, seed=seed)
+..         return result["sample"][0]
     
     
-    with gr.Blocks() as demo:
-        with gr.Tab("Text-to-Image generation"):
-            with gr.Row():
-                with gr.Column():
-                    text_input = gr.Textbox(lines=3, label="Positive prompt")
-                    negative_text_input = gr.Textbox(lines=3, label="Negative prompt")
-                    seed_input = gr.Slider(0, 10000000, value=751, label="Seed")
-                    steps_input = gr.Slider(1, 50, value=20, step=1, label="Steps")
-                out = gr.Image(label="Result", type="pil")
-            sample_text = "futuristic synthwave city, retro sunset, crystals, spires, volumetric lighting, studio Ghibli style, rendered in unreal engine with clean details"
-            sample_text2 = "RAW studio photo of tiny cute happy  cat in a yellow raincoat in the woods, rain, a character portrait, soft lighting, high resolution, photo realistic, extremely detailed"
-            negative_sample_text = ""
-            negative_sample_text2 = "bad anatomy, blurry, noisy, jpeg artifacts, low quality, geometry, mutation, disgusting. ugly"
-            btn = gr.Button()
-            btn.click(generate_from_text, [text_input, negative_text_input, seed_input, steps_input], out)
-            gr.Examples([[sample_text, negative_sample_text, 42, 20], [sample_text2, negative_sample_text2, 1561, 25]], [text_input, negative_text_input, seed_input, steps_input])
-        with gr.Tab("Image-to-Image generation"):
-            with gr.Row():
-                with gr.Column():
-                    i2i_input = gr.Image(label="Image", type="pil")
-                    i2i_text_input = gr.Textbox(lines=3, label="Text")
-                    i2i_negative_text_input = gr.Textbox(lines=3, label="Negative prompt")
-                    i2i_seed_input = gr.Slider(0, 10000000, value=42, label="Seed")
-                    i2i_steps_input = gr.Slider(1, 50, value=10, step=1, label="Steps")
-                    strength_input = gr.Slider(0, 1, value=0.5, label="Strength")
-                i2i_out = gr.Image(label="Result", type="pil")
-            i2i_btn = gr.Button()
-            sample_i2i_text = "amazing watercolor painting"
-            i2i_btn.click(
-                generate_from_image,
-                [i2i_input, i2i_text_input, i2i_negative_text_input, i2i_seed_input, i2i_steps_input, strength_input],
-                i2i_out,
-            )
-            gr.Examples(
-                [["tower.jpg", sample_i2i_text, "", 6400023, 40, 0.3]],
-                [i2i_input, i2i_text_input, i2i_negative_text_input, i2i_seed_input, i2i_steps_input, strength_input],
-            )
+..     def generate_from_image(img, text, negative_text, seed, num_steps, strength, _=gr.Progress(track_tqdm=True)):
+..         result = ov_pipe(text, img, negative_prompt=negative_text, num_inference_steps=num_steps, seed=seed, strength=strength)
+..         return result["sample"][0]
     
-    try:
-        demo.queue().launch(debug=True)
-    except Exception:
-        demo.queue().launch(share=True, debug=True)
-    # if you are launching remotely, specify server_name and server_port
-    # demo.launch(server_name='your server name', server_port='server port in int')
-    # Read more in the docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
     
-    To create a public link, set `share=True` in `launch()`.
+..     with gr.Blocks() as demo:
+..         with gr.Tab("Text-to-Image generation"):
+..             with gr.Row():
+..                 with gr.Column():
+..                     text_input = gr.Textbox(lines=3, label="Positive prompt")
+..                     negative_text_input = gr.Textbox(lines=3, label="Negative prompt")
+..                     seed_input = gr.Slider(0, 10000000, value=751, label="Seed")
+..                     steps_input = gr.Slider(1, 50, value=20, step=1, label="Steps")
+..                 out = gr.Image(label="Result", type="pil")
+..             sample_text = "futuristic synthwave city, retro sunset, crystals, spires, volumetric lighting, studio Ghibli style, rendered in unreal engine with clean details"
+..             sample_text2 = "RAW studio photo of tiny cute happy  cat in a yellow raincoat in the woods, rain, a character portrait, soft lighting, high resolution, photo realistic, extremely detailed"
+..             negative_sample_text = ""
+..             negative_sample_text2 = "bad anatomy, blurry, noisy, jpeg artifacts, low quality, geometry, mutation, disgusting. ugly"
+..             btn = gr.Button()
+..             btn.click(generate_from_text, [text_input, negative_text_input, seed_input, steps_input], out)
+..             gr.Examples([[sample_text, negative_sample_text, 42, 20], [sample_text2, negative_sample_text2, 1561, 25]], [text_input, negative_text_input, seed_input, steps_input])
+..         with gr.Tab("Image-to-Image generation"):
+..             with gr.Row():
+..                 with gr.Column():
+..                     i2i_input = gr.Image(label="Image", type="pil")
+..                     i2i_text_input = gr.Textbox(lines=3, label="Text")
+..                     i2i_negative_text_input = gr.Textbox(lines=3, label="Negative prompt")
+..                     i2i_seed_input = gr.Slider(0, 10000000, value=42, label="Seed")
+..                     i2i_steps_input = gr.Slider(1, 50, value=10, step=1, label="Steps")
+..                     strength_input = gr.Slider(0, 1, value=0.5, label="Strength")
+..                 i2i_out = gr.Image(label="Result", type="pil")
+..             i2i_btn = gr.Button()
+..             sample_i2i_text = "amazing watercolor painting"
+..             i2i_btn.click(
+..                 generate_from_image,
+..                 [i2i_input, i2i_text_input, i2i_negative_text_input, i2i_seed_input, i2i_steps_input, strength_input],
+..                 i2i_out,
+..             )
+..             gr.Examples(
+..                 [["tower.jpg", sample_i2i_text, "", 6400023, 40, 0.3]],
+..                 [i2i_input, i2i_text_input, i2i_negative_text_input, i2i_seed_input, i2i_steps_input, strength_input],
+..             )
     
+..     try:
+..         demo.queue().launch(debug=True)
+..     except Exception:
+..         demo.queue().launch(share=True, debug=True)
+..     # if you are launching remotely, specify server_name and server_port
+..     # demo.launch(server_name='your server name', server_port='server port in int')
+..     # Read more in the docs: https://gradio.app/docs/
 
 
-.. raw:: html
+.. .. parsed-literal::
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..     Running on local URL:  http://127.0.0.1:7860
+    
+..     To create a public link, set `share=True` in `launch()`.
+    
+
+
+.. .. raw:: html
+
+..     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

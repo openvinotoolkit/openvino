@@ -4,8 +4,8 @@
 
 #include "layer_transformation.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
-#include <low_precision/network_helper.hpp>
+#include "openvino/opsets/opset1.hpp"
+#include "low_precision/network_helper.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -81,8 +81,8 @@ TestTransformationParams LayerTransformation::createParamsU8I8AndI8() {
     return TestTransformationParams(true, { ov::element::u8, ov::element::i8 }, { ov::element::i8 });
 }
 
-ngraph::pass::low_precision::LayerTransformation::Params TestTransformationParams::toParams(const TestTransformationParams& params) {
-    return ngraph::pass::low_precision::LayerTransformation::Params(
+ov::pass::low_precision::LayerTransformation::Params TestTransformationParams::toParams(const TestTransformationParams& params) {
+    return ov::pass::low_precision::LayerTransformation::Params(
         params.updatePrecisions,
         params.deqPrecision,
         params.defaultPrecisions);
@@ -101,7 +101,7 @@ std::string LayerTransformation::toString(const TestTransformationParams& params
 
 std::string LayerTransformation::getTestCaseNameByParams(
     const ov::element::Type& type,
-    const ngraph::PartialShape& shape,
+    const ov::PartialShape& shape,
     const TestTransformationParams& params) {
     std::ostringstream result;
     result << type << "_" << shape << "_" << toString(params);
@@ -109,7 +109,7 @@ std::string LayerTransformation::getTestCaseNameByParams(
 }
 
 ngraph::builder::subgraph::DequantizationOperations LayerTransformation::toDequantizationOperations(
-    const ngraph::pass::low_precision::FakeQuantizeDequantization& dequantization) {
+    const ov::pass::low_precision::FakeQuantizeDequantization& dequantization) {
     const auto convert = dequantization.convert != nullptr ?
         ngraph::builder::subgraph::DequantizationOperations::Convert(dequantization.convert->output(0).get_element_type()) :
         ngraph::builder::subgraph::DequantizationOperations::Convert();
@@ -121,8 +121,8 @@ ngraph::builder::subgraph::DequantizationOperations LayerTransformation::toDequa
             true;
 
         const size_t constantIndex = dequantization.subtractConstant && dequantization.subtract ?
-            ngraph::pass::low_precision::NetworkHelper::getChildInputIndex(
-                dequantization.subtractConvert ? std::dynamic_pointer_cast<ngraph::Node>(dequantization.subtractConvert) : dequantization.subtractConstant,
+            ov::pass::low_precision::NetworkHelper::getChildInputIndex(
+                dequantization.subtractConvert ? std::dynamic_pointer_cast<ov::Node>(dequantization.subtractConvert) : dequantization.subtractConstant,
                 dequantization.subtract) :
             0ul;
 
@@ -141,7 +141,7 @@ ngraph::builder::subgraph::DequantizationOperations LayerTransformation::toDequa
     ngraph::builder::subgraph::DequantizationOperations::Multiply multiply;
     {
         const size_t constantIndex = dequantization.multiplyConstant && dequantization.multiply ?
-            ngraph::pass::low_precision::NetworkHelper::getChildInputIndex(dequantization.multiplyConstant, dequantization.multiply) :
+            ov::pass::low_precision::NetworkHelper::getChildInputIndex(dequantization.multiplyConstant, dequantization.multiply) :
             0ul;
 
         multiply = dequantization.multiplyConstant != nullptr ?

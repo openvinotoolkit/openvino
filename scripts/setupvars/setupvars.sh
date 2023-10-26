@@ -35,7 +35,7 @@ if [ -e "$INSTALLDIR/runtime" ]; then
     export ngraph_DIR=$INSTALLDIR/runtime/cmake
     export OpenVINO_DIR=$INSTALLDIR/runtime/cmake
 
-    system_type=$(ls "$INSTALLDIR/runtime/lib/")
+    system_type=$(/bin/ls "$INSTALLDIR/runtime/lib/")
     OV_PLUGINS_PATH=$INSTALLDIR/runtime/lib/$system_type
 
     if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -56,7 +56,7 @@ if [ -e "$INSTALLDIR/runtime" ]; then
             fi
         fi
 
-        if ls "$tbb_lib_path"/libtbb* >/dev/null 2>&1; then
+        if /bin/ls "$tbb_lib_path"/libtbb* >/dev/null 2>&1; then
             if [[ "$OSTYPE" == "darwin"* ]]; then
                 export DYLD_LIBRARY_PATH=$tbb_lib_path:${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}
             fi
@@ -64,6 +64,7 @@ if [ -e "$INSTALLDIR/runtime" ]; then
         else
             echo "[setupvars.sh] WARNING: Directory with TBB libraries is not detected. Please, add TBB libraries to LD_LIBRARY_PATH / DYLD_LIBRARY_PATH manually"
         fi
+        unset tbb_lib_path
 
         if [ -e "$INSTALLDIR/runtime/3rdparty/tbb/lib/cmake/TBB" ]; then
             export TBB_DIR=$INSTALLDIR/runtime/3rdparty/tbb/lib/cmake/TBB
@@ -77,6 +78,8 @@ if [ -e "$INSTALLDIR/runtime" ]; then
             echo "[setupvars.sh] WARNING: TBB_DIR directory is not defined automatically by setupvars.sh. Please, set it manually to point to TBBConfig.cmake"
         fi
     fi
+
+    unset system_type
 fi
 
 # OpenCV environment
@@ -96,7 +99,7 @@ if command -v lsb_release >/dev/null 2>&1; then
 fi
 
 PYTHON_VERSION_MAJOR="3"
-MIN_REQUIRED_PYTHON_VERSION_MINOR="7"
+MIN_REQUIRED_PYTHON_VERSION_MINOR="8"
 MAX_SUPPORTED_PYTHON_VERSION_MINOR="11"
 
 check_python_version () {
@@ -115,18 +118,22 @@ check_python_version () {
         echo "[setupvars.sh] WARNING: Unsupported Python version ${python_version}. Please install one of Python" \
         "${PYTHON_VERSION_MAJOR}.${MIN_REQUIRED_PYTHON_VERSION_MINOR} -" \
         "${PYTHON_VERSION_MAJOR}.${MAX_SUPPORTED_PYTHON_VERSION_MINOR} (64-bit) from https://www.python.org/downloads/"
+        unset python_version
         return 0
     fi
+
     if command -v python"$python_version" > /dev/null 2>&1; then
         python_interp=python"$python_version"
     else
         python_interp=python"$python_version_major"
     fi
     python_bitness=$("$python_interp" -c 'import sys; print(64 if sys.maxsize > 2**32 else 32)')
+    unset python_interp
 
     if [ "$python_bitness" != "" ] && [ "$python_bitness" != "64" ] && [ "$OS_NAME" != "Raspbian" ]; then
         echo "[setupvars.sh] WARNING: 64 bitness for Python $python_version is required"
     fi
+    unset python_bitness
 
     if [ -n "$python_version" ]; then
         if [[ -d $INTEL_OPENVINO_DIR/python ]]; then
@@ -153,5 +160,12 @@ if ! command -v python"$python_version_to_check" > /dev/null 2>&1; then
 else
     check_python_version
 fi
+
+unset python_version
+unset python_version_to_check
+unset PYTHON_VERSION_MAJOR
+unset MIN_REQUIRED_PYTHON_VERSION_MINOR
+unset MAX_SUPPORTED_PYTHON_VERSION_MINOR
+unset OS_NAME
 
 echo "[setupvars.sh] OpenVINO environment initialized"

@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/fake_quantize.hpp>
+#include "low_precision/fake_quantize.hpp"
 #include <map>
 #include <memory>
 #include <string>
@@ -13,9 +13,9 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
 #include "low_precision/network_helper.hpp"
-#include "lpt_ngraph_functions/common/builders.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/fold_fake_quantize_function.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/fold_fake_quantize.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -67,7 +67,7 @@ public:
 
         const auto params = TestTransformationParams(testValues.params).setUpdatePrecisions(testValues.updatePrecision);
 
-        std::shared_ptr<ngraph::Node> dataSource;
+        std::shared_ptr<ov::Node> dataSource;
         std::shared_ptr<ov::op::v0::Parameter> parameter;
         bool useParameterAsDataSource = (testValues.actual.constValues.size() == 0);
 
@@ -86,9 +86,9 @@ public:
             ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(dataSource,
                                                                    element::f32,
                                                                    testValues.actual.fakeQuantize);
-        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(as_type_ptr<ov::op::v0::FakeQuantize>(fq),
+        ov::pass::low_precision::NetworkHelper::setOutDataPrecision(as_type_ptr<ov::op::v0::FakeQuantize>(fq),
                                                                         testValues.actual.fqOutPrecision);
-        fq = ngraph::pass::low_precision::NetworkHelper::fold_fake_quantize(as_type_ptr<ov::op::v0::FakeQuantize>(fq),
+        fq = ov::pass::low_precision::NetworkHelper::fold_fake_quantize(as_type_ptr<ov::op::v0::FakeQuantize>(fq),
                                                                             testValues.roundValues);
         ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(fq)};
         actualFunction = std::make_shared<ov::Model>(

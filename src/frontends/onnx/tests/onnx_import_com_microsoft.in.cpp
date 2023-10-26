@@ -18,13 +18,14 @@
 #include "common_test_utils/test_case.hpp"
 #include "onnx_import/onnx.hpp"
 #include "onnx_utils.hpp"
+#include "ngraph/file_util.hpp"
 #include "common_test_utils/test_control.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 using namespace ngraph;
 
-static std::string s_manifest = "${MANIFEST}";
+static std::string s_manifest = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(), "${MANIFEST}");
 static std::string s_device = backend_name_to_device("${BACKEND_NAME}");
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bias_gelu) {

@@ -14,8 +14,6 @@ struct eye : public primitive_base<eye> {
 
     eye() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs eye primitive.
     /// @param id This primitive id.
     /// @param inputs List of primitive ids.

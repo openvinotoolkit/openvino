@@ -1,3 +1,4 @@
-setuptools>=65.6.1
-wheel>=0.38.1
-patchelf<=0.17.2.1; sys_platform == 'linux' and platform_machine == 'x86_64'
+-c ../constraints.txt
+setuptools
+wheel
+patchelf; sys_platform == 'linux' and platform_machine == 'x86_64'

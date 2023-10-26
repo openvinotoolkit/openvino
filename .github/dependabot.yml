@@ -154,6 +154,7 @@ updates:
       time: "09:00"
       timezone: "Asia/Dubai"
     assignees:
-      - "ilyachur"
+      - "akashchi"
+      - "mryzhov"
       - "ilya-lavrenov"
     open-pull-requests-limit: 3

@@ -12,8 +12,8 @@
 #include "ngraph/op/op.hpp"
 #include <transformations/init_node_info.hpp>
 #include "low_precision_transformations/unsqueeze_transformation.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
-#include "lpt_ngraph_functions/unsqueeze_function.hpp"
+#include "ov_models/subgraph_builders.hpp"
+#include "ov_lpt_models/unsqueeze.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -31,7 +31,7 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& valu
 
 InferenceEngine::Blob::Ptr UnsqueezeTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     ngraph::element::Type netPrecision;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     UnsqueezeTransformationParam squeezeParam;
     std::string targetDevice;
 
@@ -48,7 +48,7 @@ InferenceEngine::Blob::Ptr UnsqueezeTransformation::GenerateInput(const Inferenc
 
 std::string UnsqueezeTransformation::getTestCaseName(const testing::TestParamInfo<UnsqueezeTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::string targetDevice;
     UnsqueezeTransformationParam unsqueezeParam;
     std::tie(netPrecision, targetDevice, params, unsqueezeParam) = obj.param;
@@ -64,7 +64,7 @@ std::string UnsqueezeTransformation::getTestCaseName(const testing::TestParamInf
 }
 void UnsqueezeTransformation::SetUp() {
     ngraph::element::Type netPrecision;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     UnsqueezeTransformationParam unsqueezeParam;
 
     std::tie(netPrecision, targetDevice, params, unsqueezeParam) = this->GetParam();

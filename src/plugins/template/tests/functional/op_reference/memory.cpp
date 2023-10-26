@@ -286,7 +286,6 @@ protected:
     void CommonTestSteps(const std::function<void(size_t, ov::InferRequest&)>& custom_step = nullptr) {
         auto params = GetParam();
 
-        const auto& functionParams = function->get_parameters();
         inferRequest.set_tensor(executableNetwork.input(0), params.m_input_data);
         for (size_t i = 0; i < params.m_count_runs; ++i) {
             if (custom_step) {
@@ -700,7 +699,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Memory_With_Hardcoded_Refs,
                          ::testing::ValuesIn(generateCombinedParamsForReadValueAssignAddReset()),
                          ReferenceReadValueAssignAddResetLayerTest::getTestCaseName);
 
-
 class ReferenceReadValueAssignAddModifyLayerTest : public ReferenceMemoryTest {
 protected:
     std::shared_ptr<ov::Model> CreateFunction(const ov::Shape& input_shape,
@@ -862,7 +860,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Memory_With_Hardcoded_Refs,
                          ::testing::ValuesIn(generateCombinedParamsForReadValueAssignAddModify()),
                          ReferenceReadValueAssignAddModifyLayerTest::getTestCaseName);
 
-
 class ReferenceReadValueAssignAddMultiVariableModifyLayerTest : public ReferenceMemoryTest {
 protected:
     std::shared_ptr<ov::Model> CreateFunction(const ov::Shape& input_shape,
@@ -924,20 +921,20 @@ std::vector<MemoryTestParams> generateParamsForReadValueAssignAddMultiVariableMo
     }
 
     std::transform(first_result_shape1.begin(),
-                first_result_shape1.end(),
-                first_result_shape1.begin(),
-                first_result_shape1.begin(),
-                std::plus<T>());
+                   first_result_shape1.end(),
+                   first_result_shape1.begin(),
+                   first_result_shape1.begin(),
+                   std::plus<T>());
     std::transform(first_result_shape22.begin(),
-                first_result_shape22.end(),
-                first_result_shape22.begin(),
-                first_result_shape22.begin(),
-                std::plus<T>());
+                   first_result_shape22.end(),
+                   first_result_shape22.begin(),
+                   first_result_shape22.begin(),
+                   std::plus<T>());
     std::transform(first_result_shape123.begin(),
-                first_result_shape123.end(),
-                first_result_shape123.begin(),
-                first_result_shape123.begin(),
-                std::plus<T>());
+                   first_result_shape123.end(),
+                   first_result_shape123.begin(),
+                   first_result_shape123.begin(),
+                   std::plus<T>());
 
     for (size_t i = count_runs - reset_on_run; i < count_runs; i++) {
         std::transform(new_result_shape1.begin(),

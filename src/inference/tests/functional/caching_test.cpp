@@ -15,7 +15,6 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "ie_plugin_config.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/layout.hpp"
@@ -30,6 +29,7 @@
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_iasync_infer_request.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icompiled_model.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_iplugin.hpp"
@@ -161,7 +161,7 @@ public:
     static std::string get_mock_engine_path() {
         std::string mockEngineName("mock_engine");
         return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                  mockEngineName + IE_BUILD_POSTFIX);
+                                                  mockEngineName + OV_BUILD_POSTFIX);
     }
 
     void initParamTest() {
@@ -232,7 +232,7 @@ public:
         ov::Core core;
         injectPlugin(mockPlugin.get());
         core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                                std::string("mock_engine") + IE_BUILD_POSTFIX),
+                                                                std::string("mock_engine") + OV_BUILD_POSTFIX),
                              deviceName);
         func(core);
         core.unload_plugin(deviceName);

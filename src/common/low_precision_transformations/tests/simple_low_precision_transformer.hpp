@@ -6,7 +6,7 @@
 
 #include <map>
 
-#include <ngraph/ngraph.hpp>
+
 
 #include "layer_transformation.hpp"
 #include "common_test_utils/test_common.hpp"
@@ -17,17 +17,22 @@
 class SimpleLowPrecisionTransformer : public ngraph::pass::FunctionPass{
 public:
     SimpleLowPrecisionTransformer(
-        const std::vector<ngraph::pass::low_precision::PrecisionsRestriction>& precisionRestrictions = {},
-        const std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>& quantizationRestrictions = {},
-        const AttributeParameters& params = AttributeParameters());
+        const std::vector<ov::pass::low_precision::PrecisionsRestriction>& precisionRestrictions = {},
+        const std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>& quantizationRestrictions = {},
+        const AttributeParameters& params = AttributeParameters(),
+        const bool addCleanup = false);
 
     template <class T, class Operation>
     void add(const TestTransformationParams& params) {
         commonGraphRewrite->add_matcher<T>(TestTransformationParams::toParams(params));
     }
     template <class T, class Operation>
-    void add(const std::shared_ptr<ov::Model> function, const TestTransformationParams& params) {
-        commonGraphRewrite->add_matcher<T>(function, TestTransformationParams::toParams(params));
+    void add(const std::shared_ptr<ov::Model> model, const TestTransformationParams& params) {
+        commonGraphRewrite->add_matcher<T>(model, TestTransformationParams::toParams(params));
+    }
+    template <class T>
+    void add(const TestTransformationParams& params) {
+        commonGraphRewrite->add_matcher<T>(TestTransformationParams::toParams(params));
     }
 
     void transform(std::shared_ptr<ov::Model>& model);

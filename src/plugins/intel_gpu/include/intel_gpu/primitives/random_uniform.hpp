@@ -10,8 +10,6 @@
 
 namespace cldnn {
 
-
-
 /// @brief RandomUniform-8 primitive
 /// @details
 struct random_uniform : public primitive_base<random_uniform> {
@@ -21,8 +19,6 @@ struct random_uniform : public primitive_base<random_uniform> {
                        global_seed(0),
                        op_seed(0),
                        output_shape{} {}
-
-    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /**
      * Construct Random Uniform privitive.

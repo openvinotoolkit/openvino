@@ -9,22 +9,22 @@
 #include <string>
 #include <vector>
 
-#include <ngraph/pattern/op/or.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
 
-using namespace ngraph;
-using namespace ngraph::pass;
-using namespace ngraph::pass::low_precision;
+using namespace ov;
+using namespace ov::pass;
+using namespace ov::pass::low_precision;
 
 MatMulTransformation::MatMulTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(MatMulTransformation);
     auto mul1 = pattern::wrap_type<ov::opset1::Multiply>();
     auto mul2 = pattern::wrap_type<ov::opset1::Multiply>();
     auto fq2 = pattern::wrap_type<ov::opset1::FakeQuantize>();
-    auto matcher = pattern::wrap_type<ov::opset1::MatMul>({ mul1, std::make_shared<pattern::op::Or>(OutputVector{ mul2, fq2 })});
+    auto matcher = pattern::wrap_type<ov::opset1::MatMul>({ mul1, std::make_shared<pass::pattern::op::Or>(OutputVector{ mul2, fq2 })});
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -34,11 +34,11 @@ MatMulTransformation::MatMulTransformation(const Params& params) : LayerTransfor
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool MatMulTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) {
+bool MatMulTransformation::transform(TransformationContext &context, ov::pass::pattern::Matcher &m) {
     std::shared_ptr<ov::opset1::MatMul> matMul = ov::as_type_ptr<ov::opset1::MatMul>(m.get_match_root());
     if ((matMul == nullptr) || !canBeTransformed(context, matMul)) {
         return false;
@@ -107,7 +107,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         // broadcasted sub const to form [1, ..., 1, Y]
         const auto broadcastedConst = fold<ov::opset1::Broadcast>(
             dequantization1.subtractConstant,
-            ov::opset1::Constant::create(ngraph::element::i32, { broadcastShape.size() }, broadcastShape));
+            ov::opset1::Constant::create(ov::element::i32, { broadcastShape.size() }, broadcastShape));
 
         // multiply by weights: [1, ..., 1, Y] x [Y, Z] => [1, ..., 1, Z]
         const auto newSubConst = NetworkHelper::toScalarIfPossible(fold<ov::opset1::MatMul>(

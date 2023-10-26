@@ -1768,35 +1768,38 @@ private:
 
 #endif // OPENVINO_ARCH_X86_64
 
-const std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, Reduce&)>> Reduce::initializers = {
-    {ngraph::opset4::ReduceL1::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
-        node.algorithm = Algorithm::ReduceL1;
-    }},
-    {ngraph::opset4::ReduceL2::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
-        node.algorithm = Algorithm::ReduceL2;
-    }},
-    {ngraph::opset1::ReduceLogicalAnd::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
-        node.algorithm = Algorithm::ReduceAnd;
-    }},
-    {ngraph::opset1::ReduceLogicalOr::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
-        node.algorithm = Algorithm::ReduceOr;
-    }},
-    {ngraph::opset1::ReduceMax::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
-        node.algorithm = Algorithm::ReduceMax;
-    }},
-    {ngraph::opset1::ReduceMean::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
-        node.algorithm = Algorithm::ReduceMean;
-    }},
-    {ngraph::opset1::ReduceMin::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
-        node.algorithm = Algorithm::ReduceMin;
-    }},
-    {ngraph::opset1::ReduceProd::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
-        node.algorithm = Algorithm::ReduceProd;
-    }},
-    {ngraph::opset1::ReduceSum::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
-        node.algorithm = Algorithm::ReduceSum;
-    }}
-};
+const std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>& op, Reduce& node)>>& Reduce::getInitializers() {
+    static const std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, Reduce&)>> initializers = {
+        {ngraph::opset4::ReduceL1::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+            node.algorithm = Algorithm::ReduceL1;
+        }},
+        {ngraph::opset4::ReduceL2::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+            node.algorithm = Algorithm::ReduceL2;
+        }},
+        {ngraph::opset1::ReduceLogicalAnd::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+            node.algorithm = Algorithm::ReduceAnd;
+        }},
+        {ngraph::opset1::ReduceLogicalOr::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+            node.algorithm = Algorithm::ReduceOr;
+        }},
+        {ngraph::opset1::ReduceMax::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+            node.algorithm = Algorithm::ReduceMax;
+        }},
+        {ngraph::opset1::ReduceMean::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+            node.algorithm = Algorithm::ReduceMean;
+        }},
+        {ngraph::opset1::ReduceMin::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+            node.algorithm = Algorithm::ReduceMin;
+        }},
+        {ngraph::opset1::ReduceProd::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+            node.algorithm = Algorithm::ReduceProd;
+        }},
+        {ngraph::opset1::ReduceSum::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+            node.algorithm = Algorithm::ReduceSum;
+        }}
+    };
+    return initializers;
+}
 
 bool Reduce::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -1819,7 +1822,7 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
                 return false;
             }
         }
-        if (initializers.find(op->get_type_info()) == initializers.end()) {
+        if (getInitializers().find(op->get_type_info()) == getInitializers().end()) {
             errorMessage = "Doesn't support Reduce algorithm: " +  std::string(op->get_type_info().name);
             return false;
         }
@@ -1838,7 +1841,7 @@ Reduce::Reduce(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Reduce node with name '" + getName() + "'";
-        initializers.at(op->get_type_info())(op, *this);
+        getInitializers().at(op->get_type_info())(op, *this);
         if (const auto reduce = std::dynamic_pointer_cast<ngraph::op::util::ArithmeticReductionKeepDims>(op)) {
             keep_dims = reduce->get_keep_dims();
             auto reduceConst = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));

@@ -1,17 +1,15 @@
 Optical Character Recognition (OCR) with OpenVINO™
 ==================================================
 
-
-
 This tutorial demonstrates how to perform optical character recognition
 (OCR) with OpenVINO models. It is a continuation of the
 `004-hello-detection <004-hello-detection-with-output.html>`__
 tutorial, which shows only text detection.
 
 The
-`horizontal-text-detection-0001 <https://docs.openvino.ai/2023.1/omz_models_model_horizontal_text_detection_0001.html>`__
+`horizontal-text-detection-0001 <https://docs.openvino.ai/2023.0/omz_models_model_horizontal_text_detection_0001.html>`__
 and
-`text-recognition-resnet <https://docs.openvino.ai/2023.1/omz_models_model_text_recognition_resnet_fc.html>`__
+`text-recognition-resnet <https://docs.openvino.ai/2023.0/omz_models_model_text_recognition_resnet_fc.html>`__
 models are used together for text detection and then text recognition.
 
 In this tutorial, Open Model Zoo tools including Model Downloader, Model
@@ -21,9 +19,7 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo>`__. For more
 information, refer to the
 `104-model-tools <104-model-tools-with-output.html>`__ tutorial.
 
-.. _top:
-
-**Table of contents**:
+**Table of contents:**
 
 - `Imports <#imports>`__
 - `Settings <#settings>`__
@@ -48,9 +44,13 @@ information, refer to the
   - `Show the OCR Result per Bounding Box <#show-the-ocr-result-per-bounding-box>`__
   - `Print Annotations in Plain Text Format <#print-annotations-in-plain-text-format>`__
 
-Imports `⇑ <#top>`__
-###############################################################################################################################
+.. code:: ipython3
 
+    # Install openvino-dev package
+    !pip install -q "openvino-dev==2023.1.0.dev20230811"
+
+Imports
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -60,20 +60,19 @@ Imports `⇑ <#top>`__
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
+    import openvino as ov
     from IPython.display import Markdown, display
     from PIL import Image
-    from openvino.runtime import Core
     
     sys.path.append("../utils")
     from notebook_utils import load_image
 
-Settings `⇑ <#top>`__
+Settings
 ###############################################################################################################################
-
 
 .. code:: ipython3
 
-    core = Core()
+    core = ov.Core()
     
     model_dir = Path("model")
     precision = "FP16"
@@ -82,9 +81,8 @@ Settings `⇑ <#top>`__
     
     model_dir.mkdir(exist_ok=True)
 
-Download Models `⇑ <#top>`__
+Download Models
 ###############################################################################################################################
-
 
 The next cells will run Model Downloader to download the detection and
 recognition models. If the models have been downloaded before, they will
@@ -301,9 +299,8 @@ text-recognition-resnet-fc.
     # for line in download_result:
     #    print(line)
 
-Convert Models `⇑ <#top>`__
+Convert Models
 ###############################################################################################################################
-
 
 The downloaded detection model is an Intel model, which is already in
 OpenVINO Intermediate Representation (OpenVINO IR) format. The text
@@ -335,26 +332,25 @@ Converting text-recognition-resnet-fc…
 .. parsed-literal::
 
     ========== Converting text-recognition-resnet-fc to ONNX
-    Conversion to ONNX command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/model_zoo/internal_scripts/pytorch_to_onnx.py --model-path=/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/model_zoo/models/public/text-recognition-resnet-fc --model-path=model/public/text-recognition-resnet-fc --model-name=get_model --import-module=model '--model-param=file_config=r"model/public/text-recognition-resnet-fc/vedastr/configs/resnet_fc.py"' '--model-param=weights=r"model/public/text-recognition-resnet-fc/vedastr/ckpt/resnet_fc.pth"' --input-shape=1,1,32,100 --input-names=input --output-names=output --output-file=model/public/text-recognition-resnet-fc/resnet_fc.onnx
+    Conversion to ONNX command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/model_zoo/internal_scripts/pytorch_to_onnx.py --model-path=/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/model_zoo/models/public/text-recognition-resnet-fc --model-path=model/public/text-recognition-resnet-fc --model-name=get_model --import-module=model '--model-param=file_config=r"model/public/text-recognition-resnet-fc/vedastr/configs/resnet_fc.py"' '--model-param=weights=r"model/public/text-recognition-resnet-fc/vedastr/ckpt/resnet_fc.pth"' --input-shape=1,1,32,100 --input-names=input --output-names=output --output-file=model/public/text-recognition-resnet-fc/resnet_fc.onnx
     
     ONNX check passed successfully.
     
     ========== Converting text-recognition-resnet-fc to IR (FP16)
-    Conversion command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/bin/mo --framework=onnx --output_dir=/tmp/tmppkwl27u7 --model_name=text-recognition-resnet-fc --input=input '--mean_values=input[127.5]' '--scale_values=input[127.5]' --output=output --input_model=model/public/text-recognition-resnet-fc/resnet_fc.onnx '--layout=input(NCHW)' '--input_shape=[1, 1, 32, 100]' --compress_to_fp16=True
+    Conversion command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/bin/mo --framework=onnx --output_dir=model/public/text-recognition-resnet-fc/FP16 --model_name=text-recognition-resnet-fc --input=input '--mean_values=input[127.5]' '--scale_values=input[127.5]' --output=output --input_model=model/public/text-recognition-resnet-fc/resnet_fc.onnx '--layout=input(NCHW)' '--input_shape=[1, 1, 32, 100]' --compress_to_fp16=True
     
-    [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression by removing argument --compress_to_fp16 or set it to false --compress_to_fp16=False.
-    Find more information about compression to FP16 at https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_FP16_Compression.html
+    [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
+    Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.1/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /tmp/tmppkwl27u7/text-recognition-resnet-fc.xml
-    [ SUCCESS ] BIN file: /tmp/tmppkwl27u7/text-recognition-resnet-fc.bin
+    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/208-optical-character-recognition/model/public/text-recognition-resnet-fc/FP16/text-recognition-resnet-fc.xml
+    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/208-optical-character-recognition/model/public/text-recognition-resnet-fc/FP16/text-recognition-resnet-fc.bin
     
 
 
-Select inference device `⇑ <#top>`__
+Select inference device
 ###############################################################################################################################
-
 
 Select device from dropdown list for running inference using OpenVINO:
 
@@ -380,16 +376,14 @@ Select device from dropdown list for running inference using OpenVINO:
 
 
 
-Object Detection `⇑ <#top>`__
+Object Detection
 ###############################################################################################################################
-
 
 Load a detection model, load an image, do inference and get the
 detection inference result.
 
-Load a Detection Model `⇑ <#top>`__
+Load a Detection Model
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 .. code:: ipython3
 
@@ -400,9 +394,8 @@ Load a Detection Model `⇑ <#top>`__
     
     detection_input_layer = detection_compiled_model.input(0)
 
-Load an Image `⇑ <#top>`__
+Load an Image
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 .. code:: ipython3
 
@@ -424,12 +417,11 @@ Load an Image `⇑ <#top>`__
 
 
 
-.. image:: 208-optical-character-recognition-with-output_files/208-optical-character-recognition-with-output_15_0.png
+.. image:: 208-optical-character-recognition-with-output_files/208-optical-character-recognition-with-output_16_0.png
 
 
-Do Inference `⇑ <#top>`__
+Do Inference
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 Text boxes are detected in the images and returned as blobs of data in
 the shape of ``[100, 5]``. Each description of detection has the
@@ -443,9 +435,8 @@ the shape of ``[100, 5]``. Each description of detection has the
     # Remove zero only boxes.
     boxes = boxes[~np.all(boxes == 0, axis=1)]
 
-Get Detection Results `⇑ <#top>`__
+Get Detection Results
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 .. code:: ipython3
 
@@ -513,16 +504,14 @@ Get Detection Results `⇑ <#top>`__
     
         return rgb_image
 
-Text Recognition `⇑ <#top>`__
+Text Recognition
 ###############################################################################################################################
-
 
 Load the text recognition model and do inference on the detected boxes
 from the detection model.
 
-Load Text Recognition Model `⇑ <#top>`__
+Load Text Recognition Model
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 .. code:: ipython3
 
@@ -538,12 +527,8 @@ Load Text Recognition Model `⇑ <#top>`__
     # Get the height and width of the input layer.
     _, _, H, W = recognition_input_layer.shape
 
-
-.. _do-the-inference:
-
-Do Inference `⇑ <#top>`__
+Do Inference
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 .. code:: ipython3
 
@@ -588,13 +573,11 @@ Do Inference `⇑ <#top>`__
     
     boxes_with_annotations = list(zip(boxes, annotations))
 
-Show Results `⇑ <#top>`__
+Show Results
 ###############################################################################################################################
 
-
-Show Detected Text Boxes and OCR Results for the Image `⇑ <#top>`__
+Show Detected Text Boxes and OCR Results for the Image
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 Visualize the result by drawing boxes around recognized text and showing
 the OCR result from the text recognition model.
@@ -606,12 +589,11 @@ the OCR result from the text recognition model.
 
 
 
-.. image:: 208-optical-character-recognition-with-output_files/208-optical-character-recognition-with-output_25_0.png
+.. image:: 208-optical-character-recognition-with-output_files/208-optical-character-recognition-with-output_26_0.png
 
 
-Show the OCR Result per Bounding Box `⇑ <#top>`__
+Show the OCR Result per Bounding Box
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 Depending on the image, the OCR result may not be readable in the image
 with boxes, as displayed in the cell above. Use the code below to
@@ -624,7 +606,7 @@ display the extracted boxes and the OCR result per box.
 
 
 
-.. image:: 208-optical-character-recognition-with-output_files/208-optical-character-recognition-with-output_27_0.png
+.. image:: 208-optical-character-recognition-with-output_files/208-optical-character-recognition-with-output_28_0.png
 
 
 
@@ -632,7 +614,7 @@ building
 
 
 
-.. image:: 208-optical-character-recognition-with-output_files/208-optical-character-recognition-with-output_27_2.png
+.. image:: 208-optical-character-recognition-with-output_files/208-optical-character-recognition-with-output_28_2.png
 
 
 
@@ -640,7 +622,7 @@ noyce
 
 
 
-.. image:: 208-optical-character-recognition-with-output_files/208-optical-character-recognition-with-output_27_4.png
+.. image:: 208-optical-character-recognition-with-output_files/208-optical-character-recognition-with-output_28_4.png
 
 
 
@@ -648,7 +630,7 @@ noyce
 
 
 
-.. image:: 208-optical-character-recognition-with-output_files/208-optical-character-recognition-with-output_27_6.png
+.. image:: 208-optical-character-recognition-with-output_files/208-optical-character-recognition-with-output_28_6.png
 
 
 
@@ -656,7 +638,7 @@ n
 
 
 
-.. image:: 208-optical-character-recognition-with-output_files/208-optical-character-recognition-with-output_27_8.png
+.. image:: 208-optical-character-recognition-with-output_files/208-optical-character-recognition-with-output_28_8.png
 
 
 
@@ -664,16 +646,15 @@ center
 
 
 
-.. image:: 208-optical-character-recognition-with-output_files/208-optical-character-recognition-with-output_27_10.png
+.. image:: 208-optical-character-recognition-with-output_files/208-optical-character-recognition-with-output_28_10.png
 
 
 
 robert
 
 
-Print Annotations in Plain Text Format `⇑ <#top>`__
+Print Annotations in Plain Text Format
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 Print annotations for detected text based on their position in the input
 image, starting from the upper left corner.

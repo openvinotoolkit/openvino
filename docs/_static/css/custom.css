@@ -94,6 +94,38 @@ ul#navbar-main-elements > li:hover {
     font-weight: bold;
 }
 
+/* Move sidebar menu arrows to the left */
+.bd-sidebar label {
+    left: 0px;
+    height: 20px;
+    width: 20px;
+    top: 5px;
+}
+
+/* Moving dropdown arrows to the left */
+details.sd-dropdown .sd-summary-up,
+details.sd-dropdown .sd-summary-down {
+    left: 10px;
+}
+
+
+/* Ttile is at the same place for both open and close states */
+details.sd-dropdown:not([open]).sd-card {
+    padding: 0px;
+}
+
+
+/* Ttile is at the same place for both open and close states */
+details.sd-dropdown[open].sd-card {
+    padding: 0px;
+}
+
+/* Move title 40px away from the arrow */
+details.sd-dropdown .sd-summary-title {
+    padding-left: 40px;
+}
+
+
 
 /* Second level items                 */
 #bd-docs-nav > div > ul > li > ul {

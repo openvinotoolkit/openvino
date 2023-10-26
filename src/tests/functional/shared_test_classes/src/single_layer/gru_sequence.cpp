@@ -5,6 +5,8 @@
 #include "shared_test_classes/single_layer/gru_sequence.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/test_enums.hpp"
 
 namespace LayerTestsDefinitions {
 

@@ -1,11 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
-
 import numpy as np
 import onnx
-from generator import generator, generate
+import pytest
 
 from openvino.tools.mo.front.onnx.squeeze_ext import SqueezeFrontExtractor
 from openvino.tools.mo.ops.op import Op
@@ -13,8 +11,7 @@ from openvino.tools.mo.ops.squeeze import Squeeze
 from unit_tests.utils.extractors import PB
 
 
-@generator
-class TestSqueezeONNXExt(unittest.TestCase):
+class TestSqueezeONNXExt():
     @staticmethod
     def _create_squeeze_node(axes):
         if axes is None:
@@ -38,7 +35,7 @@ class TestSqueezeONNXExt(unittest.TestCase):
     def setUpClass(cls):
         Op.registered_ops['Squeeze'] = Squeeze
 
-    @generate(*[[0, 1, 2, 3], [1], None])
+    @pytest.mark.parametrize("axes",[[0, 1, 2, 3], [1], None])
     def test_squeeze_ext(self, axes):
         node = self._create_squeeze_node(axes)
         SqueezeFrontExtractor.extract(node)
@@ -50,6 +47,6 @@ class TestSqueezeONNXExt(unittest.TestCase):
 
         for key in exp_res.keys():
             if type(node[key]) in [list, np.ndarray]:
-                self.assertTrue(np.array_equal(np.array(node[key]), np.array(exp_res[key])))
+                assert np.array_equal(np.array(node[key]), np.array(exp_res[key]))
             else:
-                self.assertEqual(node[key], exp_res[key])
+                assert node[key] ==  exp_res[key]

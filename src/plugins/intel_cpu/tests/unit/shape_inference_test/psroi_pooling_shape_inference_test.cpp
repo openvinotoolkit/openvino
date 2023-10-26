@@ -33,7 +33,7 @@ TEST_F(PSROIPoolingV0StaticShapeInferenceTest, default_ctor_avg_mode) {
 
     input_shapes = ShapeVector{{1, 45, 10, 10}, {3, 5}};
     auto shape_infer = make_shape_inference(op);
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({3, 5, 3, 3}));
@@ -50,7 +50,7 @@ TEST_F(PSROIPoolingV0StaticShapeInferenceTest, default_ctor_bilinear_mode) {
 
     input_shapes = ShapeVector{{1, 75, 10, 10}, {2, 5}};
     auto shape_infer = make_shape_inference(op);
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({2, 5, 8, 8}));
@@ -63,7 +63,7 @@ TEST_F(PSROIPoolingV0StaticShapeInferenceTest, inputs_dynamic_rank) {
     op = make_op(feat, rois, 4, group, scale, 0, 0, "average");
 
     input_shapes = ShapeVector{{2, 36, 100, 100}, {10, 5}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({10, 4, 3, 3}));
@@ -76,7 +76,7 @@ TEST_F(PSROIPoolingV0StaticShapeInferenceTest, inputs_static_rank) {
     op = make_op(feat, rois, 2, 1, scale, bins_x, bins_y, "bilinear");
 
     input_shapes = ShapeVector{{2, 24, 20, 100}, {1, 5}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 2, 1, 1}));
@@ -90,7 +90,7 @@ TEST_F(PSROIPoolingV0StaticShapeInferenceTest, invalid_rois_batch_size) {
 
     input_shapes = ShapeVector{{2, 24, 20, 100}, {1, 6}};
 
-    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
+    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,
                     HasSubstr("The second dimension of ROIs input should contain batch id and box coordinates. This "
                               "dimension is expected to be equal to 5"));

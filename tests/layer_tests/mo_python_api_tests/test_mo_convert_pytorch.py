@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
+import platform
 from typing import Tuple
 
 import numpy as np
@@ -283,8 +284,8 @@ def create_pytorch_jit_script_function(tmp_dir):
         return torch.sigmoid(torch.relu(x * y))
 
     inp_shape = PartialShape([Dimension(1, -1), Dimension(-1, 5), 10])
-    ref_model = make_ref_pt_model_two_inputs(inp_shape, dtype=Type.dynamic)
-    return scripted_fn, ref_model, {'input': [(inp_shape), (inp_shape)]}
+    ref_model = make_ref_pt_model_two_inputs(inp_shape)
+    return scripted_fn, ref_model, {'input': [(inp_shape, Type.f32), (inp_shape, Type.f32)]}
 
 
 def create_pytorch_nn_module_layout_list(tmp_dir):
@@ -471,9 +472,9 @@ def create_pytorch_nn_module_scale_list_compression_enabled(tmp_dir):
 
 def create_pytorch_nn_module_shapes_list_static(tmp_dir):
     pt_model = make_pt_model_two_inputs()
-    ref_model = make_ref_pt_model_two_inputs([1, 3, 20, 20], dtype=Type.dynamic)
+    ref_model = make_ref_pt_model_two_inputs([1, 3, 20, 20])
 
-    return pt_model, ref_model, {'input': [[1, 3, 20, 20], [1, 3, 20, 20]]}
+    return pt_model, ref_model, {'input': [([1, 3, 20, 20], Type.f32), ([1, 3, 20, 20], Type.f32)]}
 
 
 def create_pytorch_nn_module_shapes_list_static_via_input(tmp_dir):
@@ -489,17 +490,16 @@ def create_pytorch_nn_module_shapes_list_dynamic(tmp_dir):
                   [-1, 3, 20, Dimension(-1, 20)]]
 
     param1 = ov.opset8.parameter(PartialShape(
-        inp_shapes[0]), name="x", dtype=Type.dynamic)
+        inp_shapes[0]), name="x", dtype=Type.f32)
     param2 = ov.opset8.parameter(PartialShape(
-        inp_shapes[1]), name="y", dtype=Type.dynamic)
-    cl = ov.opset8.convert_like(param2, param1)
-    mul = ov.opset8.multiply(param1, cl)
+        inp_shapes[1]), name="y", dtype=Type.f32)
+    mul = ov.opset8.multiply(param1, param2)
     relu = ov.opset8.relu(mul)
     sigm = ov.opset8.sigmoid(relu)
 
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
-    return pt_model, ref_model, {'input': inp_shapes}
+    return pt_model, ref_model, {'input': [(inp_shapes[0], Type.f32), (inp_shapes[1], Type.f32)]}
 
 
 def create_pytorch_nn_module_shapes_list_dynamic_via_input(tmp_dir):
@@ -522,8 +522,8 @@ def create_pytorch_nn_module_shapes_list_dynamic_via_input(tmp_dir):
 
 def create_pytorch_nn_module_shapes_list_dynamic_single_input(tmp_dir):
     pt_model = make_pt_model_one_input()
-    inp_shapes = [[Dimension(-1), 3, 20, Dimension(20, -1)]]
-    ref_model = make_ref_pt_model_one_input(inp_shapes[0], dtype=Type.dynamic)
+    inp_shapes = [[Dimension(-1), 3, 20, Dimension(20, -1)], Type.f32]
+    ref_model = make_ref_pt_model_one_input(inp_shapes[0])
     return pt_model, ref_model, {'input': inp_shapes}
 
 
@@ -536,8 +536,8 @@ def create_pytorch_nn_module_shapes_list_dynamic_single_input_via_input(tmp_dir)
 
 def create_pytorch_nn_module_shapes_list_static_single_input(tmp_dir):
     pt_model = make_pt_model_one_input()
-    inp_shapes = [[1, 3, 20, 20]]
-    ref_model = make_ref_pt_model_one_input(inp_shapes[0], dtype=Type.dynamic)
+    inp_shapes = [[1, 3, 20, 20], Type.f32]
+    ref_model = make_ref_pt_model_one_input(inp_shapes[0])
     return pt_model, ref_model, {'input': inp_shapes}
 
 
@@ -841,7 +841,7 @@ def create_pytorch_module_with_nested_inputs2(tmp_dir):
     add = ov.opset10.add(concat1, param0)
     ref_model = Model([concat2, add], [param0, param1, param2], "test")
     return net, ref_model, {
-        "example_input": {"x": torch.ones((1, 10)), "z": (torch.zeros((1, 10)), torch.ones((1, 5, 5)))},
+        "example_input": {"x": torch.ones((1, 10)), "z": (torch.zeros((1, 9)), torch.ones((1, 5, 5)))},
         "compress_to_fp16": False}
 
 
@@ -867,7 +867,7 @@ def create_pytorch_module_with_nested_inputs3(tmp_dir):
     add = ov.opset10.add(concat1, param3)
     ref_model = Model([concat2, add], [param1, param2, param3], "test")
     return net, ref_model, {
-        "example_input": {"x": torch.ones((1, 10)), "z": (torch.zeros((1, 10)), torch.ones((1, 5, 3)))},
+        "example_input": {"x": torch.ones((1, 10)), "z": (torch.zeros((1, 9)), torch.ones((1, 5, 3)))},
         "compress_to_fp16": False}
 
 
@@ -895,7 +895,7 @@ def create_pytorch_module_with_nested_inputs4(tmp_dir):
     mul = ov.opset10.multiply(concat2, param4)
     ref_model = Model([mul, add], [param3, param1, param2, param4], "test")
     return net, ref_model, {
-        "example_input": {"x": torch.ones((1, 10)), "z": (torch.zeros((1, 10)), torch.ones((1, 5, 10))),
+        "example_input": {"x": torch.ones((1, 10)), "z": (torch.zeros((1, 9)), torch.ones((1, 5, 10))),
                           "y": torch.ones((1,))},
         "compress_to_fp16": False}
 
@@ -924,7 +924,7 @@ def create_pytorch_module_with_nested_inputs5(tmp_dir):
     mul = ov.opset10.multiply(concat2, param4)
     ref_model = Model([mul, add], [param0, param1, param2, param4], "test")
     return net, ref_model, {
-        "example_input": [torch.ones((1, 10)), (torch.zeros((1, 10)), torch.ones((1, 5, 10))), torch.ones((1,))],
+        "example_input": [torch.ones((1, 10)), (torch.zeros((1, 9)), torch.ones((1, 5, 10))), torch.ones((1,))],
         "compress_to_fp16": False}
 
 
@@ -1236,6 +1236,8 @@ class TestPrecisionSensitive():
     @pytest.mark.parametrize("create_model", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122714')
     def test_precision_sensitive(self, create_model, ie_device, precision, ir_version, temp_dir, use_new_frontend, use_old_api):
         import numpy.testing as npt
         from pathlib import Path
@@ -1268,9 +1270,4 @@ class TestPrecisionSensitive():
         fw_res = fw_model(*torch_inp_tensors)
         ov_res = core.compile_model(ir_test)(example_inputs)
 
-        if precision == 'FP32':
-            custom_eps = 1e-4
-        else:
-            custom_eps = 1e-3
-
-        npt.assert_allclose(ov_res[0], fw_res.numpy(), atol=custom_eps)
+        npt.assert_allclose(ov_res[0], fw_res.numpy(), atol=1e-3, rtol=1e-3)

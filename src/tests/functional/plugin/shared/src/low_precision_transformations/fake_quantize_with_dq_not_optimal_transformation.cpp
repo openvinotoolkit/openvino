@@ -11,7 +11,7 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "lpt_ngraph_functions/fake_quantize_and_convolution_function.hpp"
+#include "ov_lpt_models/fake_quantize_and_convolution.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -19,7 +19,7 @@ std::string FakeQuantizeWithNotOptimalTransformation::getTestCaseName(const test
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShapes;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizeWithNotOptimalTransformationTestValues testValues;
     std::tie(netPrecision, inputShapes, targetDevice, params, testValues) = obj.param;
 
@@ -32,7 +32,7 @@ void FakeQuantizeWithNotOptimalTransformation::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ngraph::PartialShape inputShape;
     ngraph::element::Type netPrecision;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizeWithNotOptimalTransformationTestValues testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, testValues) = this->GetParam();
 

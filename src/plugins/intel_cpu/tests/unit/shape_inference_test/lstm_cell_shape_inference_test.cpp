@@ -30,7 +30,7 @@ TEST_F(LSTMCellV4StaticShapeInferenceTest, default_ctor) {
                     StaticShape{gates_count * hidden_size, input_size},
                     StaticShape{gates_count * hidden_size, hidden_size},
                     StaticShape{gates_count * hidden_size}},
-    shape_inference(lstm_cell.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(lstm_cell.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], StaticShape({batch_size, hidden_size}));
     EXPECT_EQ(output_shapes[1], StaticShape({batch_size, hidden_size}));
 }
@@ -55,7 +55,7 @@ TEST_F(LSTMCellV4StaticShapeInferenceTest, basic_shape_infer) {
                     StaticShape{gates_count * hidden_size, input_size},
                     StaticShape{gates_count * hidden_size, hidden_size},
                     StaticShape{gates_count * hidden_size}},
-    shape_inference(lstm_cell.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(lstm_cell.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], StaticShape({batch_size, hidden_size}));
     EXPECT_EQ(output_shapes[1], StaticShape({batch_size, hidden_size}));
 }
@@ -81,9 +81,8 @@ TEST(StaticShapeInferenceTest, LSTMCellV0Test) {
                                                     StaticShape{gates_count * hidden_size, input_size},
                                                     StaticShape{gates_count * hidden_size, hidden_size},
                                                     StaticShape{gates_count * hidden_size},
-                                                    StaticShape{3 * hidden_size}},
-                             static_output_shapes = {StaticShape{}, StaticShape{}};
-    shape_inference(lstm_cell.get(), static_input_shapes, static_output_shapes);
+                                                    StaticShape{3 * hidden_size}};
+    const auto static_output_shapes = shape_inference(lstm_cell.get(), static_input_shapes);
     ASSERT_EQ(static_output_shapes[0], StaticShape({batch_size, hidden_size}));
     ASSERT_EQ(static_output_shapes[1], StaticShape({batch_size, hidden_size}));
 }

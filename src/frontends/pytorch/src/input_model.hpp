@@ -17,18 +17,12 @@ class Place;
 class TorchDecoder;
 
 struct PlaceDesc {
-    PlaceDesc(const element::Type& type, const PartialShape& pshape)
-        : m_type(type),
-          m_pshape(pshape),
-          m_value(nullptr) {}
-    element::Type m_type;
-    PartialShape m_pshape;
+    PlaceDesc(std::shared_ptr<Node> value) : m_value(value) {}
     std::shared_ptr<Node> m_value;
 };
 
 class InputModel : public ov::frontend::InputModel {
     friend class ::ov::frontend::pytorch::TranslateSession;
-    friend class ::ov::frontend::pytorch::Place;
 
 public:
     explicit InputModel(const std::shared_ptr<TorchDecoder>& model_decoder);
@@ -41,11 +35,16 @@ public:
     void set_element_type(const frontend::Place::Ptr& place, const ov::element::Type& type) override;
     ov::element::Type get_element_type(const frontend::Place::Ptr& place) const override;
     void set_tensor_value(const frontend::Place::Ptr& place, const void* value) override;
+    void override_all_outputs(const std::vector<frontend::Place::Ptr>& outputs) override;
+    void override_all_inputs(const std::vector<frontend::Place::Ptr>& inputs) override;
     const std::string& decoder_type_name() const;
+    std::shared_ptr<TorchDecoder> get_decoder() const;
 
 private:
     std::shared_ptr<TorchDecoder> m_model_decoder;
     std::unordered_map<std::string, std::shared_ptr<frontend::Place>> m_name_to_place;
+    std::vector<std::shared_ptr<frontend::Place>> m_inputs;
+    std::vector<std::shared_ptr<frontend::Place>> m_outputs;
     std::unordered_map<size_t, PlaceDesc> m_descriptors;
 };
 

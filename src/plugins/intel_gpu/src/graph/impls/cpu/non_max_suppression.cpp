@@ -149,9 +149,9 @@ vector2D<bounding_box> load_boxes(stream& stream, memory::ptr mem, bool center_p
     auto data_type = mem->get_layout().data_type;
     switch (data_type) {
     case cldnn::data_types::f16:
-        return load_boxes_impl<data_type_to_type<data_types::f16>::type>(stream, mem, center_point);
+        return load_boxes_impl<ov::element_type_traits<data_types::f16>::value_type>(stream, mem, center_point);
     case cldnn::data_types::f32:
-        return load_boxes_impl<data_type_to_type<data_types::f32>::type>(stream, mem, center_point);
+        return load_boxes_impl<ov::element_type_traits<data_types::f32>::value_type>(stream, mem, center_point);
     default:
         throw std::runtime_error("Non max suppression - unsupported boxes data type");
     }
@@ -186,9 +186,9 @@ vector3D<float> load_scores(stream& stream, memory::ptr mem) {
     auto data_type = mem->get_layout().data_type;
     switch (data_type) {
     case cldnn::data_types::f16:
-        return load_scores_impl<data_type_to_type<data_types::f16>::type>(stream, mem);
+        return load_scores_impl<ov::element_type_traits<data_types::f16>::value_type>(stream, mem);
     case cldnn::data_types::f32:
-        return load_scores_impl<data_type_to_type<data_types::f32>::type>(stream, mem);
+        return load_scores_impl<ov::element_type_traits<data_types::f32>::value_type>(stream, mem);
     default:
         throw std::runtime_error("Non max suppression - unsupported scores data type");
     }
@@ -207,11 +207,11 @@ T load_scalar(stream& stream, memory::ptr mem) {
     auto data_type = mem->get_layout().data_type;
     switch (data_type) {
     case cldnn::data_types::i32:
-        return load_scalar_impl<T, data_type_to_type<data_types::i32>::type>(stream, mem);
+        return load_scalar_impl<T, ov::element_type_traits<data_types::i32>::value_type>(stream, mem);
     case cldnn::data_types::f16:
-        return load_scalar_impl<T, data_type_to_type<data_types::f16>::type>(stream, mem);
+        return load_scalar_impl<T, ov::element_type_traits<data_types::f16>::value_type>(stream, mem);
     case cldnn::data_types::f32:
-        return load_scalar_impl<T, data_type_to_type<data_types::f32>::type>(stream, mem);
+        return load_scalar_impl<T, ov::element_type_traits<data_types::f32>::value_type>(stream, mem);
     default:
         throw std::runtime_error("Non max suppression - unsupported data type");
     }
@@ -244,13 +244,13 @@ void store_result(stream& stream, memory::ptr mem, const std::vector<result_indi
     auto data_type = mem->get_layout().data_type;
     switch (data_type) {
     case cldnn::data_types::i32:
-        store_result_impl<data_type_to_type<data_types::i32>::type>(stream, mem, result);
+        store_result_impl<ov::element_type_traits<data_types::i32>::value_type>(stream, mem, result);
         break;
     case cldnn::data_types::f16:
-        store_result_impl<data_type_to_type<data_types::f16>::type>(stream, mem, result);
+        store_result_impl<ov::element_type_traits<data_types::f16>::value_type>(stream, mem, result);
         break;
     case cldnn::data_types::f32:
-        store_result_impl<data_type_to_type<data_types::f32>::type>(stream, mem, result);
+        store_result_impl<ov::element_type_traits<data_types::f32>::value_type>(stream, mem, result);
         break;
     default:
         throw std::runtime_error("Non max suppression - unsupported output data type");
@@ -261,10 +261,10 @@ void store_first_output(stream& stream, memory::ptr mem, const std::vector<resul
     auto data_type = mem->get_layout().data_type;
     switch (data_type) {
     case cldnn::data_types::i32:
-        store_result_impl<data_type_to_type<data_types::i32>::type>(stream, mem, result);
+        store_result_impl<ov::element_type_traits<data_types::i32>::value_type>(stream, mem, result);
         break;
     case cldnn::data_types::i64:
-        store_result_impl<data_type_to_type<data_types::i32>::type>(stream, mem, result);
+        store_result_impl<ov::element_type_traits<data_types::i32>::value_type>(stream, mem, result);
         break;
     default:
         throw std::runtime_error("Non max suppression - unsupported output data type");
@@ -298,10 +298,10 @@ void store_second_output(stream& stream, memory::ptr mem, const std::vector<resu
     auto data_type = mem->get_layout().data_type;
     switch (data_type) {
     case cldnn::data_types::f16:
-        store_second_output_impl<data_type_to_type<data_types::f16>::type>(stream, mem, result);
+        store_second_output_impl<ov::element_type_traits<data_types::f16>::value_type>(stream, mem, result);
         break;
     case cldnn::data_types::f32:
-        store_second_output_impl<data_type_to_type<data_types::f32>::type>(stream, mem, result);
+        store_second_output_impl<ov::element_type_traits<data_types::f32>::value_type>(stream, mem, result);
         break;
     default:
         throw std::runtime_error("Non max suppression - unsupported second output data type");
@@ -319,10 +319,10 @@ void store_third_output(stream& stream, memory::ptr mem, const std::vector<resul
     auto data_type = mem->get_layout().data_type;
     switch (data_type) {
     case cldnn::data_types::i32:
-        store_third_output_impl<data_type_to_type<data_types::i32>::type>(stream, mem, result);
+        store_third_output_impl<ov::element_type_traits<data_types::i32>::value_type>(stream, mem, result);
         break;
     case cldnn::data_types::i64:
-        store_third_output_impl<data_type_to_type<data_types::i32>::type>(stream, mem, result);
+        store_third_output_impl<ov::element_type_traits<data_types::i32>::value_type>(stream, mem, result);
         break;
     default:
         throw std::runtime_error("Non max suppression - unsupported third output data type");
@@ -394,7 +394,7 @@ void run(non_max_suppression_inst& instance) {
 struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
     using parent = typed_primitive_impl<non_max_suppression>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::non_max_suppression_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<non_max_suppression_impl>(*this);

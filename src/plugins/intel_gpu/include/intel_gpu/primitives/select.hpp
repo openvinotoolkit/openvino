@@ -22,8 +22,6 @@ struct select : public primitive_base<select> {
 
     select() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs select primitive.
     /// @param id This primitive id.
     /// @param mask Input primitive id with values needed for select computation.

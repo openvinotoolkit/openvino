@@ -14,8 +14,6 @@ struct convert_color : public primitive_base<convert_color> {
 
     convert_color() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     enum color_format : uint32_t {
         RGB,       ///< RGB color format
         BGR,       ///< BGR color format, default in OpenVINO
@@ -36,24 +34,20 @@ struct convert_color : public primitive_base<convert_color> {
     /// @param input_color_format Color to convert from.
     /// @param output_color_format Color to convert to.
     /// @param mem_type Memory type.
-    /// @param output_layout Requested memory layout.
     convert_color(const primitive_id& id,
                   const std::vector<input_info>& inputs,
                   const color_format input_color_format,
                   const color_format output_color_format,
                   const memory_type mem_type,
-                  const layout& output_layout,
                   const padding& output_padding = padding())
         : primitive_base(id, inputs, {output_padding}),
           input_color_format(input_color_format),
           output_color_format(output_color_format),
-          mem_type(mem_type),
-          output_layout(output_layout) {}
+          mem_type(mem_type) {}
 
     color_format input_color_format = color_format::RGB;
     color_format output_color_format = color_format::RGB;
     memory_type mem_type = memory_type::buffer;
-    layout output_layout;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -71,8 +65,7 @@ struct convert_color : public primitive_base<convert_color> {
 
         return input_color_format == rhs_casted.input_color_format &&
                output_color_format == rhs_casted.output_color_format &&
-               mem_type == rhs_casted.mem_type &&
-               output_layout == rhs_casted.output_layout;
+               mem_type == rhs_casted.mem_type;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -80,7 +73,6 @@ struct convert_color : public primitive_base<convert_color> {
         ob << make_data(&input_color_format, sizeof(color_format));
         ob << make_data(&output_color_format, sizeof(color_format));
         ob << make_data(&mem_type, sizeof(memory_type));
-        ob << output_layout;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -88,7 +80,6 @@ struct convert_color : public primitive_base<convert_color> {
         ib >> make_data(&input_color_format, sizeof(color_format));
         ib >> make_data(&output_color_format, sizeof(color_format));
         ib >> make_data(&mem_type, sizeof(memory_type));
-        ib >> output_layout;
     }
 };
 }  // namespace cldnn

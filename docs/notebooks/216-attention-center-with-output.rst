@@ -51,8 +51,6 @@ The attention center model has been trained with images from the `COCO
 dataset <https://cocodataset.org/#home>`__ annotated with saliency from
 the `SALICON dataset <http://salicon.net/>`__.
 
-.. _top:
-
 **Table of contents**:
 
 - `Imports <#imports>`__
@@ -65,7 +63,7 @@ the `SALICON dataset <http://salicon.net/>`__.
 - `Load input image <#load-input-image>`__
 - `Get result with OpenVINO IR model <#get-result-with-openvino-ir-model>`__
 
-Imports `⇑ <#top>`__
+Imports 
 ###############################################################################################################################
 
 
@@ -90,7 +88,7 @@ Imports `⇑ <#top>`__
     2023-08-15 23:14:52.969814: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-Download the attention-center model `⇑ <#top>`__
+Download the attention-center model 
 ###############################################################################################################################
 
 
@@ -115,7 +113,7 @@ include model in folder ``./model``.
     Resolving deltas: 100% (73/73), done.
 
 
-Convert Tensorflow Lite model to OpenVINO IR format `⇑ <#top>`__
+Convert Tensorflow Lite model to OpenVINO IR format 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -153,7 +151,7 @@ find example in
     IR model saved to model/ir_center_model.xml
 
 
-Select inference device `⇑ <#top>`__
+Select inference device 
 ###############################################################################################################################
 
 
@@ -185,7 +183,7 @@ Select device from dropdown list for running inference using OpenVINO:
 
     compiled_model = core.compile_model(model=model, device_name=device.value)
 
-Prepare image to use with attention-center model `⇑ <#top>`__
+Prepare image to use with attention-center model 
 ###############################################################################################################################
 
 
@@ -237,7 +235,7 @@ input.
     
             plt.imshow(cv2.cvtColor(image_to_print, cv2.COLOR_BGR2RGB))
 
-Load input image `⇑ <#top>`__
+Load input image 
 ###############################################################################################################################
 
 
@@ -285,7 +283,7 @@ Upload input image using file loading button
 .. image:: 216-attention-center-with-output_files/216-attention-center-with-output_14_1.png
 
 
-Get result with OpenVINO IR model `⇑ <#top>`__
+Get result with OpenVINO IR model 
 ###############################################################################################################################
 
 

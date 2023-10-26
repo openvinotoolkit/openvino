@@ -1,8 +1,6 @@
 Speaker diarization
 ===================
 
-
-
 Speaker diarization is the process of partitioning an audio stream
 containing human speech into homogeneous segments according to the
 identity of each speaker. It can enhance the readability of an automatic
@@ -39,9 +37,7 @@ card <https://huggingface.co/pyannote/speaker-diarization>`__,
 `repo <https://github.com/pyannote/pyannote-audio>`__ and
 `paper <https://arxiv.org/abs/1911.01255>`__.
 
-.. _top:
-
-**Table of contents**:
+**Table of contents:**
 
 - `Prerequisites <#prerequisites>`__
 - `Prepare pipeline <#prepare-pipeline>`__
@@ -52,9 +48,8 @@ card <https://huggingface.co/pyannote/speaker-diarization>`__,
 - `Replace segmentation model with OpenVINO <#replace-segmentation-model-with-openvino>`__
 - `Run speaker diarization with OpenVINO <#run-speaker-diarization-with-openvino>`__
 
-Prerequisites `⇑ <#top>`__
+Prerequisites
 ###############################################################################################################################
-
 
 .. code:: ipython3
 
@@ -65,16 +60,18 @@ Prerequisites `⇑ <#top>`__
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    onnx 1.14.0 requires protobuf>=3.20.2, but you have protobuf 3.20.1 which is incompatible.
+    onnx 1.14.1 requires protobuf>=3.20.2, but you have protobuf 3.20.1 which is incompatible.
+    onnxconverter-common 1.14.0 requires protobuf==3.20.2, but you have protobuf 3.20.1 which is incompatible.
     paddlepaddle 2.5.0rc0 requires protobuf>=3.20.2; platform_system != "Windows", but you have protobuf 3.20.1 which is incompatible.
+    ppgan 2.1.0 requires imageio==2.9.0, but you have imageio 2.31.3 which is incompatible.
     ppgan 2.1.0 requires librosa==0.8.1, but you have librosa 0.9.2 which is incompatible.
     ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.8.0.76 which is incompatible.
     tensorflow 2.12.0 requires protobuf!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0dev,>=3.20.3, but you have protobuf 3.20.1 which is incompatible.
+    tf2onnx 1.15.1 requires protobuf~=3.20.2, but you have protobuf 3.20.1 which is incompatible.
     
 
-Prepare pipeline `⇑ <#top>`__
+Prepare pipeline
 ###############################################################################################################################
-
 
 Traditional Speaker Diarization systems can be generalized into a
 five-step process:
@@ -132,7 +129,6 @@ hub <https://huggingface.co/pyannote/speaker-diarization>`__.
    You can log in on HuggingFace Hub in the notebook environment using
    the following code:
 
-
 .. code:: python
 
 
@@ -151,9 +147,17 @@ hub <https://huggingface.co/pyannote/speaker-diarization>`__.
     
     pipeline = Pipeline.from_pretrained("philschmid/pyannote-speaker-diarization-endpoint")
 
-Load test audio file `⇑ <#top>`__
-###############################################################################################################################
 
+.. parsed-literal::
+
+    2023-09-08 23:36:40.468953: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-09-08 23:36:40.503440: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2023-09-08 23:36:41.110289: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
+
+Load test audio file
+###############################################################################################################################
 
 .. code:: ipython3
 
@@ -208,9 +212,8 @@ Load test audio file `⇑ <#top>`__
 .. image:: 212-pyannote-speaker-diarization-with-output_files/212-pyannote-speaker-diarization-with-output_9_1.png
 
 
-Run inference pipeline `⇑ <#top>`__
+Run inference pipeline
 ###############################################################################################################################
-
 
 For running inference, we should provide a path to input audio to the
 pipeline
@@ -231,7 +234,7 @@ pipeline
 
 .. parsed-literal::
 
-    Diarization pipeline took 15.37 s
+    Diarization pipeline took 15.75 s
 
 
 The result of running the pipeline can be represented as a diagram
@@ -270,7 +273,7 @@ We can also print each time frame and corresponding speaker:
     start=27.8s stop=29.5s speaker_SPEAKER_02
 
 
-Convert model to OpenVINO Intermediate Representation format. `⇑ <#top>`__
+Convert model to OpenVINO Intermediate Representation format
 ###############################################################################################################################
 
 For best results with OpenVINO, it is recommended to convert the model
@@ -310,9 +313,8 @@ with ``openvino.runtime.serialize``.
     Model successfully converted to IR and saved to pyannote-segmentation.xml
 
 
-Select inference device `⇑ <#top>`__
+Select inference device
 ###############################################################################################################################
-
 
 Select device from dropdown list for running inference using OpenVINO:
 
@@ -338,9 +340,8 @@ Select device from dropdown list for running inference using OpenVINO:
 
 
 
-Replace segmentation model with OpenVINO `⇑ <#top>`__
+Replace segmentation model with OpenVINO
 ###############################################################################################################################
-
 
 .. code:: ipython3
 
@@ -371,9 +372,8 @@ Replace segmentation model with OpenVINO `⇑ <#top>`__
     
     pipeline._segmentation.infer = infer_segm
 
-Run speaker diarization with OpenVINO `⇑ <#top>`__
+Run speaker diarization with OpenVINO
 ###############################################################################################################################
-
 
 .. code:: ipython3
 
@@ -388,7 +388,7 @@ Run speaker diarization with OpenVINO `⇑ <#top>`__
 
 .. parsed-literal::
 
-    Diarization pipeline took 14.69 s
+    Diarization pipeline took 15.15 s
 
 
 .. code:: ipython3

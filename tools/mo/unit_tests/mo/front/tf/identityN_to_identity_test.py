@@ -14,12 +14,12 @@ nodes = {
     **regular_op_with_shaped_data('placeholder_0', [1, 227, 227, 3], {'type': 'Parameter'}),
     **regular_op_with_shaped_data('placeholder_1', [1, 227, 227, 3], {'type': 'Parameter'}),
 
-    **regular_op_with_empty_data('identityN', {'op': 'IdentityN', 'type': None, 'data_types': [np.int32, np.float],
+    **regular_op_with_empty_data('identityN', {'op': 'IdentityN', 'type': None, 'data_types': [np.int32, np.float32],
                                                'name': 'my_identity'}),
     **empty_data('identityN_1_d'),
     **regular_op_with_empty_data('identity0', {'op': 'Identity', 'type': None, 'data_type': np.int32,
                                                'name': 'my_identity/0_port'}),
-    **regular_op_with_empty_data('identity1', {'op': 'Identity', 'type': None, 'data_type': np.float,
+    **regular_op_with_empty_data('identity1', {'op': 'Identity', 'type': None, 'data_type': np.float32,
                                                'name': 'my_identity/1_port'}),
 
     **result('output0'),

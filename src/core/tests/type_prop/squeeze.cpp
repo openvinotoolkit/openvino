@@ -27,6 +27,12 @@ TEST(type_prop, squeeze_axes_invalid_value) {
                     HasSubstr("provided axis value is invalid. Only axes of size 1 may be removed."));
 }
 
+TEST(type_prop, squeeze_single_input) {
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, -1, 3, 4});
+    auto s = make_shared<op::v0::Squeeze>(param);
+    EXPECT_EQ(s->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
 TEST(type_prop, squeeze_axes_invalid_rank) {
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto axes_node = make_shared<ov::op::v0::Constant>(element::i32, Shape{2, 1}, vector<int32_t>{0, 2});
@@ -254,7 +260,7 @@ const auto empty_axes_test_values =
                            std::vector<int64_t>{},
                            PartialShape{Dimension(2, 5), Dimension(3, 4), 6}),
            std::make_tuple(PartialShape::dynamic(6), std::vector<int64_t>{}, PartialShape::dynamic()),
-           std::make_tuple(PartialShape{Dimension(0, 1)}, std::vector<int64_t>{}, PartialShape{}),
+           std::make_tuple(PartialShape{Dimension(0, 1)}, std::vector<int64_t>{}, PartialShape::dynamic()),
            std::make_tuple(PartialShape{Dimension::dynamic(), 1, Dimension::dynamic()},
                            std::vector<int64_t>{},
                            PartialShape::dynamic()),

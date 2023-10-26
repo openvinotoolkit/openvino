@@ -11,7 +11,7 @@ using namespace ::testing;
 using namespace std;
 
 using namespace ov;
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 class EltwiseTransformationIsBroadcastedTests : public ::testing::Test {
 protected:

@@ -14,8 +14,6 @@ struct gather_elements : public primitive_base<gather_elements> {
 
     gather_elements() : primitive_base("", {}), output_format({}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     /// @brief Constructs gather_elements primitive.
     /// @param id This primitive id.
     /// @param data Input data primitive id.

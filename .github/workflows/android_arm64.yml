@@ -1,0 +1,151 @@
+name: Android ARM64 with vcpkg
+on:
+  workflow_dispatch:
+  pull_request:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+  push:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+    branches:
+      - master
+
+concurrency:
+  # github.ref is not unique in post-commit
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-android-arm64-vcpkg
+  cancel-in-progress: true
+
+jobs:
+  Build:
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    runs-on: aks-linux-16-cores
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount/caches:/mount/caches
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      CMAKE_GENERATOR: 'Ninja'
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_C_COMPILER_LAUNCHER: sccache
+      OPENVINO_REPO: '/__w/openvino/openvino/openvino'
+      VCPKG_ROOT: '/__w/openvino/openvino/vcpkg'
+      BUILD_DIR: '/__w/openvino/openvino/build'
+      ANDROID_TOOLS: '/__w/openvino/openvino/android_tools'
+      ANDROID_NDK_HOME: '/__w/openvino/openvino/android_tools/ndk-bundle'
+      ANDROID_SDK_VERSION: 29
+      ANDROID_ABI_CONFIG: arm64-v8a
+      VCPKG_DEFAULT_BINARY_CACHE: '/mount/caches/ccache/android_arm64/vcpkg_cache'
+      VCPKG_FORCE_SYSTEM_BINARIES: '1'
+      SCCACHE_AZURE_KEY_PREFIX: android_arm64
+    steps:
+      - name: Install git
+        run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates
+
+      - name: Clone OpenVINO
+        uses: actions/checkout@v4
+        with:
+          path: 'openvino'
+
+      - name: Init submodules for non vcpkg dependencies
+        run: |
+          pushd ${OPENVINO_REPO}
+            git submodule update --init -- ${OPENVINO_REPO}/src/plugins
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gtest
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gflags
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/open_model_zoo
+          popd
+
+      - name: Clone vcpkg
+        uses: actions/checkout@v4
+        with:
+          repository: 'microsoft/vcpkg'
+          path: 'vcpkg'
+          fetch-depth: '0'
+
+      #
+      # Dependencies
+      #
+
+      - name: Install dependencies
+        run: |
+          # generic dependencies
+          apt --assume-yes install ccache scons ninja-build build-essential python3-pip
+
+          # vcpkg requires cmake 3.19 or later
+          python3 -m pip install -U pip cmake
+          # vcpkg's tool dependencies
+          apt --assume-yes install curl zip unzip tar
+          # vcpkg 'python3' port dependencies
+          apt --assume-yes install autoconf libtool autoconf-archive
+          # vcpkg tree of dependencies require extra packages
+          apt --assume-yes install pkg-config linux-libc-dev
+
+          # Install Android SDK, NDK and Tools
+          apt -y --no-install-recommends install unzip wget default-jdk
+          wget https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip
+          unzip commandlinetools-linux-7583922_latest.zip
+          echo "yes" | ./cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_TOOLS} --install "ndk-bundle" "platform-tools" "platforms;android-${{ env.ANDROID_SDK_VERSION }}"
+
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@v0.0.3
+        with:
+          version: "v0.5.4"
+
+      #
+      # Build
+      #
+
+      - name: Build vcpkg
+        run: |
+          mkdir -p ${VCPKG_DEFAULT_BINARY_CACHE}
+          ${VCPKG_ROOT}/bootstrap-vcpkg.sh
+          # patch vcpkg default toolchain to build only Release configuration
+          echo "set(VCPKG_BUILD_TYPE release)" >> ${VCPKG_ROOT}/triplets/arm64-android.cmake
+
+      - name: CMake - configure
+        run: |
+          cmake \
+            -G '${{ env.CMAKE_GENERATOR }}' \
+            -DENABLE_INTEL_GPU=ON \
+            -DENABLE_TESTS=ON \
+            -DENABLE_SYSTEM_OPENCL=ON \
+            -DENABLE_SYSTEM_PROTOBUF=ON \
+            -DENABLE_SYSTEM_PUGIXML=ON \
+            -DENABLE_SYSTEM_SNAPPY=ON \
+            -DENABLE_SYSTEM_TBB=ON \
+            -DENABLE_SYSTEM_FLATBUFFERS=ON \
+            -DANDROID_ABI=${{ env.ANDROID_ABI_CONFIG }} \
+            -DANDROID_PLATFORM=${{ env.ANDROID_SDK_VERSION }} \
+            -DVCPKG_TARGET_TRIPLET=arm64-android \
+            -DVCPKG_HOST_TRIPLET=x64-linux-release \
+            -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake \
+            -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake \
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
+            -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
+            -S ${OPENVINO_REPO} \
+            -B ${BUILD_DIR}
+
+      - name: Clean ccache stats
+        run: sccache --zero-stats
+
+      - name: Cmake - build
+        run: cmake --build ${BUILD_DIR} --parallel
+
+      - name: Show ccache stats
+        run: ${SCCACHE_PATH} --show-stats

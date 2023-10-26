@@ -44,8 +44,6 @@ struct space_to_depth : public primitive_base<space_to_depth> {
 
     space_to_depth() : primitive_base("", {}) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     enum depth_mode {
         depth_first,
         blocks_first

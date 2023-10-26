@@ -20,11 +20,6 @@ class FrontEndManager::Impl {
     std::mutex m_loading_mutex;
     std::vector<PluginInfo> m_plugins;
 
-    /// \brief map of shared object per frontend <frontend_name, frontend_so_ptr>
-    static std::unordered_map<std::string, std::shared_ptr<void>> m_shared_objects_map;
-    /// \brief Mutex to guard access the shared object map
-    static std::mutex m_shared_objects_map_mutex;
-
 public:
     Impl() {
         search_all_plugins();
@@ -36,10 +31,6 @@ public:
         auto fe_obj = std::make_shared<FrontEnd>();
         fe_obj->m_shared_object = std::make_shared<FrontEndSharedData>(plugin.get_so_pointer());
         fe_obj->m_actual = plugin.get_creator().m_creator();
-
-        std::lock_guard<std::mutex> guard(m_shared_objects_map_mutex);
-        m_shared_objects_map.emplace(plugin.get_creator().m_name, fe_obj->m_shared_object);
-
         return fe_obj;
     }
 
@@ -128,8 +119,8 @@ public:
     }
 
     static void shutdown() {
-        std::lock_guard<std::mutex> guard(m_shared_objects_map_mutex);
-        m_shared_objects_map.clear();
+        std::lock_guard<std::mutex> guard(get_shared_objects_mutex());
+        get_shared_objects_map().clear();
     }
 
 private:
@@ -154,6 +145,7 @@ private:
             {".xml", {"ir", "ir"}},
             {".onnx", {"onnx", "onnx"}},
             {".pb", {"tf", "tensorflow"}},
+            {".pbtxt", {"tf", "tensorflow"}},
             {".tflite", {"tflite", "tensorflow_lite"}},
             {".pdmodel", {"paddle", "paddle"}},
             // {".ts", {"pytorch", "pytorch"}},
@@ -223,9 +215,6 @@ private:
             find_plugins(fe_lib_dir, m_plugins);
     }
 };
-
-std::unordered_map<std::string, std::shared_ptr<void>> FrontEndManager::Impl::m_shared_objects_map{};
-std::mutex FrontEndManager::Impl::m_shared_objects_map_mutex{};
 
 FrontEndManager::FrontEndManager() : m_impl(new Impl()) {}
 

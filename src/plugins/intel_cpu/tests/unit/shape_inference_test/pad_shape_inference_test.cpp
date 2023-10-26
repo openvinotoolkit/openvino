@@ -30,12 +30,11 @@ TYPED_TEST_P(PadStaticShapeInference, default_ctor) {
     int64_t pads_begin[] = {3, 2, 1, 1};
     int32_t pads_end[] = {0, 1, 2, 3};
 
-    const auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i64, Shape{4}, pads_begin)},
-                                        {2, std::make_shared<HostTensor>(element::i32, Shape{4}, pads_end)}};
+    const auto const_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::i64, Shape{4}, pads_begin}},
+                                                                   {2, {element::i32, Shape{4}, pads_end}}};
 
     this->input_shapes = ShapeVector{{3, 6, 5, 5}, {4}, {4}};
-    shape_inference(op.get(), this->input_shapes, this->output_shapes, const_data);
+    this->output_shapes = shape_inference(op.get(), this->input_shapes, const_data);
 
     EXPECT_EQ(this->output_shapes.size(), 1);
     EXPECT_EQ(this->output_shapes.front(), StaticShape({6, 9, 8, 9}));
@@ -51,7 +50,7 @@ TYPED_TEST_P(PadStaticShapeInference, pads_begin_end_value_as_constants) {
     const auto op = this->make_op(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT);
 
     this->input_shapes = ShapeVector{{3, 6, 5, 5}, {4}, {4}, {}};
-    shape_inference(op.get(), this->input_shapes, this->output_shapes);
+    this->output_shapes = shape_inference(op.get(), this->input_shapes);
 
     EXPECT_EQ(this->output_shapes.size(), 1);
     EXPECT_EQ(this->output_shapes.front(), StaticShape({6, 9, 8, 8}));
@@ -65,14 +64,13 @@ TYPED_TEST_P(PadStaticShapeInference, pads_begin_end_in_constant_map) {
     uint64_t pads_begin_data[] = {0, 2, 2, 0};
     uint32_t pads_end_data[] = {0, 1, 2, 0};
 
-    const auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::u64, Shape{4}, pads_begin_data)},
-                                        {2, std::make_shared<HostTensor>(element::u32, Shape{4}, pads_end_data)}};
+    const auto const_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::u64, Shape{4}, pads_begin_data}},
+                                                                   {2, {element::u32, Shape{4}, pads_end_data}}};
 
     const auto op = this->make_op(data, pads_begin, pads_end, op::PadMode::REFLECT);
 
     this->input_shapes = ShapeVector{{3, 6, 5, 1}, {4}, {4}};
-    shape_inference(op.get(), this->input_shapes, this->output_shapes, const_data);
+    this->output_shapes = shape_inference(op.get(), this->input_shapes, const_data);
 
     EXPECT_EQ(this->output_shapes.front(), StaticShape({3, 9, 9, 1}));
 }
@@ -84,13 +82,12 @@ TYPED_TEST_P(PadStaticShapeInference, pads_begin_got_negative_value) {
 
     int8_t pads_begin_data[] = {0, -2, -2, 0};
 
-    const auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i8, Shape{4}, pads_begin_data)}};
+    const auto const_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::i8, Shape{4}, pads_begin_data}}};
 
     const auto op = this->make_op(data, pads_begin, pads_end, op::PadMode::REFLECT);
     this->input_shapes = ShapeVector{{3, SIZE_MAX, 5, 2}, {4}, {4}};
 
-    shape_inference(op.get(), this->input_shapes, this->output_shapes, const_data);
+    this->output_shapes = shape_inference(op.get(), this->input_shapes, const_data);
 
     EXPECT_EQ(this->output_shapes.front(), StaticShape({3, SIZE_MAX, 3, 2}));
 }
@@ -103,12 +100,11 @@ TYPED_TEST_P(PadStaticShapeInference, pads_end_got_negative_value) {
 
     int8_t pads_end_data[] = {0, -3, -2, 0};
 
-    const auto const_data =
-        std::map<size_t, HostTensorPtr>{{2, std::make_shared<HostTensor>(element::i8, Shape{4}, pads_end_data)}};
+    const auto const_data = std::unordered_map<size_t, ov::Tensor>{{2, {element::i8, Shape{4}, pads_end_data}}};
 
     this->input_shapes = ShapeVector{{3, 6, 5, SIZE_MAX}, {4}, {4}};
 
-    shape_inference(op.get(), this->input_shapes, this->output_shapes, const_data);
+    this->output_shapes = shape_inference(op.get(), this->input_shapes, const_data);
 
     EXPECT_EQ(this->output_shapes.front(), StaticShape({4, 4, 5, SIZE_MAX}));
 }
@@ -119,11 +115,11 @@ TYPED_TEST_P(PadStaticShapeInference, pads_begin_is_empty) {
     const auto pads_end = Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
     const auto op = this->make_op(data, pads_begin, pads_end, op::PadMode::REFLECT);
 
-    const auto const_data = std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::u64, Shape{0})}};
+    const auto const_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::u64, Shape{0}}}};
 
     this->input_shapes = ShapeVector{{3, 6, 5, 2}, {0}, {4}};
 
-    OV_EXPECT_THROW(shape_inference(op.get(), this->input_shapes, this->output_shapes, const_data),
+    OV_EXPECT_THROW(shape_inference(op.get(), this->input_shapes, const_data),
                     NodeValidationFailure,
                     HasSubstr("length of pads_begin mismatches with rank of input"));
 }
@@ -134,11 +130,11 @@ TYPED_TEST_P(PadStaticShapeInference, pads_end_is_empty) {
     const auto pads_end = std::make_shared<Parameter>(element::i8, PartialShape::dynamic());
     const auto op = this->make_op(data, pads_begin, pads_end, op::PadMode::REFLECT);
 
-    const auto const_data = std::map<size_t, HostTensorPtr>{{2, std::make_shared<HostTensor>(element::i8, Shape{0})}};
+    const auto const_data = std::unordered_map<size_t, ov::Tensor>{{2, {element::i8, Shape{0}}}};
 
     this->input_shapes = ShapeVector{{3, 6, 5, 2}, {4}, {0}};
 
-    OV_EXPECT_THROW(shape_inference(op.get(), this->input_shapes, this->output_shapes, const_data),
+    OV_EXPECT_THROW(shape_inference(op.get(), this->input_shapes, const_data),
                     NodeValidationFailure,
                     HasSubstr("length of pads_end mismatches with rank of input"));
 }

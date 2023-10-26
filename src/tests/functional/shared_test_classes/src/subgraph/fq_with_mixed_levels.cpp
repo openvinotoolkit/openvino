@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/fq_with_mixed_levels.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 

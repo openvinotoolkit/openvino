@@ -1175,3 +1175,29 @@ TEST_F(TransformationTestsF, GroupedSliceToVSplitSameSourceDifferentAxis) {
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{concat_2}, ov::ParameterVector{data});
     }
 }
+
+TEST_F(TransformationTestsF, GroupedSliceToVSplitNegativeStartStop) {
+    {
+        auto data = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{-1, 5, -1, -1});
+        auto relu = std::make_shared<ov::opset8::Relu>(data);
+
+        auto slice_0 = make_slice(relu, -50, 1, 1, -3);
+        auto slice_1 = make_slice(relu, -4, -2, 1, 1);
+        auto slice_2 = make_slice(relu, -2, INT32_MAX, 1, 1);
+
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{slice_0, slice_2, slice_1}, 1);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{data});
+        manager.register_pass<ov::pass::GroupedSliceToVSplitOptimization>();
+    }
+    {
+        auto data = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{-1, 5, -1, -1});
+        auto relu = std::make_shared<ov::opset8::Relu>(data);
+
+        auto vsplit = make_vsplit(relu, 1, {1, 2, 2});
+
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{vsplit[0], vsplit[2], vsplit[1]}, 1);
+
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{data});
+    }
+}

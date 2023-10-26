@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "openvino/core/except.hpp"
+#include "openvino/core/shape_util.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -63,8 +64,10 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
                     " != dst: ",
                     dst->get_element_type(),
                     ")");
-    if (dst->get_shape() == ov::Shape{0})
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    if (dst->get_shape() == ov::Shape{0} || ov::util::is_dynamic_shape(dst->get_shape()))
         dst->set_shape(get_shape());
+    OPENVINO_SUPPRESS_DEPRECATED_END
     OPENVINO_ASSERT(shapes_equal(get_shape(), dst->get_shape()),
                     "Tensor shapes are not equal. (src: ",
                     get_shape(),

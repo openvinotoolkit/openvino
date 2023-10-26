@@ -7,8 +7,9 @@
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <functional_test_utils/core_config.hpp>
 #include "ngraph/opsets/opset7.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "ngraph/pass/low_latency.hpp"
+#include "openvino/op/util/variable_context.hpp"
 #include "shared_test_classes/single_layer/memory.hpp"
 
 using namespace ngraph;
@@ -46,7 +47,7 @@ namespace LayerTestsDefinitions {
         }
 
         auto hostTensor = std::make_shared<HostTensor>(ngPrc, inputShape);
-        auto variable_context = VariableContext();
+        auto variable_context = ov::op::util::VariableContext();
         auto variable_value = std::make_shared<VariableValue>(hostTensor);
         variable_context.set_variable_value(function->get_variable_by_id("v0"), variable_value);
         eval_context["VariableContext"] = variable_context;
@@ -66,7 +67,7 @@ namespace LayerTestsDefinitions {
 
         auto &s = ov::test::utils::OpSummary::getInstance();
         s.setDeviceName(targetDevice);
-        if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+        if (ov::test::utils::current_test_is_disabled()) {
             s.updateOPsStats(function, ov::test::utils::PassRate::Statuses::SKIPPED);
             GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
         } else {

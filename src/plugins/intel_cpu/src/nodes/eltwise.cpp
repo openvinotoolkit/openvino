@@ -11,6 +11,7 @@
 
 #include <ie_parallel.hpp>
 
+#include "config.h"
 #include "cpu_types.h"
 #include "utils/bfloat16.hpp"
 #include "ie_ngraph_utils.hpp"
@@ -948,217 +949,220 @@ Eltwise::BroadcastingPolicy Eltwise::determineBroadcastingPolicy(const std::shar
         return PerChannel;
 }
 
-const std::map<const ngraph::DiscreteTypeInfo, Eltwise::Initializer> Eltwise::initializers = {
-    {ngraph::op::v1::Add::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseAdd;
-        node.broadcastingPolicy = determineBroadcastingPolicy(op);
-    }},
-    {ngraph::op::v1::Subtract::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseSubtract;
-        node.broadcastingPolicy = determineBroadcastingPolicy(op);
-    }},
-    {ngraph::op::v1::Multiply::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseMultiply;
-        node.broadcastingPolicy = determineBroadcastingPolicy(op);
-    }},
-    {ngraph::op::v1::Divide::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseDivide;
-        node.broadcastingPolicy = determineBroadcastingPolicy(op);
-    }},
-    {ngraph::op::v0::SquaredDifference::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseSquaredDifference;
-    }},
-    {ngraph::op::v1::Maximum::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseMaximum;
-    }},
-    {ngraph::op::v1::Minimum::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseMinimum;
-    }},
-    {ngraph::op::v1::Mod::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseMod;
-    }},
-    {ngraph::op::v1::FloorMod::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseFloorMod;
-    }},
-    {ngraph::op::v1::Power::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwisePowerDynamic;
-    }},
-    {PowerStaticNode::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        auto powerStatic = getNgraphOpAs<PowerStaticNode>(op);
-        node.algorithm = Algorithm::EltwisePowerStatic;
-        node.alpha = powerStatic->get_power();
-        node.beta = powerStatic->get_scale();
-        node.gamma = powerStatic->get_shift();
-        node.broadcastingPolicy = PerTensor;
-    }},
-    {ngraph::op::v1::Equal::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseEqual;
-    }},
-    {ngraph::op::v1::NotEqual::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseNotEqual;
-    }},
-    {ov::op::v10::IsFinite::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseIsFinite;
-    }},
-    {ov::op::v10::IsInf::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseIsInf;
-        const auto& attributes = ov::as_type_ptr<ov::op::v10::IsInf>(op)->get_attributes();
-        node.alpha = attributes.detect_negative;
-        node.beta  = attributes.detect_positive;
-    }},
-    {ov::op::v10::IsNaN::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseIsNaN;
-    }},
-    {ngraph::op::v1::Greater::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseGreater;
-    }},
-    {ngraph::op::v1::GreaterEqual::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseGreaterEqual;
-    }},
-    {ngraph::op::v1::Less::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseLess;
-    }},
-    {ngraph::op::v1::LessEqual::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseLessEqual;
-    }},
-    {ngraph::op::v1::LogicalAnd::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseLogicalAnd;
-    }},
-    {ngraph::op::v1::LogicalOr::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseLogicalOr;
-    }},
-    {ngraph::op::v1::LogicalXor::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseLogicalXor;
-    }},
-    {ngraph::op::v1::LogicalNot::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseLogicalNot;
-    }},
-    {ngraph::op::v0::Relu::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseRelu;
-        node.onednnAlgorithm = dnnl::algorithm::eltwise_relu;
-    }},
-    {LeakyReluNode::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        auto leakyRelu = getNgraphOpAs<LeakyReluNode>(op);
-        node.algorithm = Algorithm::EltwiseRelu;
-        node.onednnAlgorithm = dnnl::algorithm::eltwise_relu;
-        node.alpha = leakyRelu->get_slope();
-        node.beta = 0.0f;
-    }},
-    {ngraph::op::v0::Gelu::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseGeluErf;
-        node.onednnAlgorithm = dnnl::algorithm::eltwise_gelu_erf;
-    }},
-    {ngraph::op::v7::Gelu::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        auto gelu = getNgraphOpAs<ngraph::op::v7::Gelu>(op);
-        ngraph::op::GeluApproximationMode approximationMode = gelu->get_approximation_mode();
-        if (approximationMode == ngraph::op::GeluApproximationMode::ERF) {
+const std::map<const ngraph::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getInitializers() {
+    static const std::map<const ngraph::DiscreteTypeInfo, Eltwise::Initializer> initializers = {
+        {ngraph::op::v1::Add::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseAdd;
+            node.broadcastingPolicy = determineBroadcastingPolicy(op);
+        }},
+        {ngraph::op::v1::Subtract::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseSubtract;
+            node.broadcastingPolicy = determineBroadcastingPolicy(op);
+        }},
+        {ngraph::op::v1::Multiply::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseMultiply;
+            node.broadcastingPolicy = determineBroadcastingPolicy(op);
+        }},
+        {ngraph::op::v1::Divide::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseDivide;
+            node.broadcastingPolicy = determineBroadcastingPolicy(op);
+        }},
+        {ngraph::op::v0::SquaredDifference::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseSquaredDifference;
+        }},
+        {ngraph::op::v1::Maximum::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseMaximum;
+        }},
+        {ngraph::op::v1::Minimum::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseMinimum;
+        }},
+        {ngraph::op::v1::Mod::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseMod;
+        }},
+        {ngraph::op::v1::FloorMod::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseFloorMod;
+        }},
+        {ngraph::op::v1::Power::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwisePowerDynamic;
+        }},
+        {PowerStaticNode::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            auto powerStatic = getNgraphOpAs<PowerStaticNode>(op);
+            node.algorithm = Algorithm::EltwisePowerStatic;
+            node.alpha = powerStatic->get_power();
+            node.beta = powerStatic->get_scale();
+            node.gamma = powerStatic->get_shift();
+            node.broadcastingPolicy = PerTensor;
+        }},
+        {ngraph::op::v1::Equal::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseEqual;
+        }},
+        {ngraph::op::v1::NotEqual::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseNotEqual;
+        }},
+        {ov::op::v10::IsFinite::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseIsFinite;
+        }},
+        {ov::op::v10::IsInf::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseIsInf;
+            const auto& attributes = ov::as_type_ptr<ov::op::v10::IsInf>(op)->get_attributes();
+            node.alpha = attributes.detect_negative;
+            node.beta  = attributes.detect_positive;
+        }},
+        {ov::op::v10::IsNaN::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseIsNaN;
+        }},
+        {ngraph::op::v1::Greater::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseGreater;
+        }},
+        {ngraph::op::v1::GreaterEqual::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseGreaterEqual;
+        }},
+        {ngraph::op::v1::Less::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseLess;
+        }},
+        {ngraph::op::v1::LessEqual::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseLessEqual;
+        }},
+        {ngraph::op::v1::LogicalAnd::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseLogicalAnd;
+        }},
+        {ngraph::op::v1::LogicalOr::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseLogicalOr;
+        }},
+        {ngraph::op::v1::LogicalXor::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseLogicalXor;
+        }},
+        {ngraph::op::v1::LogicalNot::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseLogicalNot;
+        }},
+        {ngraph::op::v0::Relu::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseRelu;
+            node.onednnAlgorithm = dnnl::algorithm::eltwise_relu;
+        }},
+        {LeakyReluNode::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            auto leakyRelu = getNgraphOpAs<LeakyReluNode>(op);
+            node.algorithm = Algorithm::EltwiseRelu;
+            node.onednnAlgorithm = dnnl::algorithm::eltwise_relu;
+            node.alpha = leakyRelu->get_slope();
+            node.beta = 0.0f;
+        }},
+        {ngraph::op::v0::Gelu::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
             node.algorithm = Algorithm::EltwiseGeluErf;
             node.onednnAlgorithm = dnnl::algorithm::eltwise_gelu_erf;
-        } else if (approximationMode == ngraph::op::GeluApproximationMode::TANH) {
-            node.algorithm = Algorithm::EltwiseGeluTanh;
-            node.onednnAlgorithm = dnnl::algorithm::eltwise_gelu_tanh;
-        } else {
-            IE_THROW(NotImplemented) << "CPU Eltwise node doesn't support ngraph operation Gelu with approximation mode: " << approximationMode;
-        }
-    }},
-    {ngraph::op::v0::Elu::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        auto eluOp = getNgraphOpAs<ngraph::op::v0::Elu>(op);
-        node.alpha = static_cast<float>(eluOp->get_alpha());
-        node.algorithm = Algorithm::EltwiseElu;
-        node.onednnAlgorithm = dnnl::algorithm::eltwise_elu;
-    }},
-    {ngraph::op::v0::Tanh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseTanh;
-        node.onednnAlgorithm = dnnl::algorithm::eltwise_tanh;
-    }},
-    {ngraph::op::v0::Sigmoid::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseSigmoid;
-        node.onednnAlgorithm = dnnl::algorithm::eltwise_logistic;
-    }},
-    {ngraph::op::v0::Abs::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseAbs;
-        node.onednnAlgorithm = dnnl::algorithm::eltwise_abs;
-    }},
-    {ngraph::op::v0::Sqrt::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseSqrt;
-        node.onednnAlgorithm = dnnl::algorithm::eltwise_sqrt;
-    }},
-    {ngraph::op::v0::Clamp::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        auto clampOp = getNgraphOpAs<ngraph::op::v0::Clamp>(op);
+        }},
+        {ngraph::op::v7::Gelu::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            auto gelu = getNgraphOpAs<ngraph::op::v7::Gelu>(op);
+            ngraph::op::GeluApproximationMode approximationMode = gelu->get_approximation_mode();
+            if (approximationMode == ngraph::op::GeluApproximationMode::ERF) {
+                node.algorithm = Algorithm::EltwiseGeluErf;
+                node.onednnAlgorithm = dnnl::algorithm::eltwise_gelu_erf;
+            } else if (approximationMode == ngraph::op::GeluApproximationMode::TANH) {
+                node.algorithm = Algorithm::EltwiseGeluTanh;
+                node.onednnAlgorithm = dnnl::algorithm::eltwise_gelu_tanh;
+            } else {
+                IE_THROW(NotImplemented) << "CPU Eltwise node doesn't support ngraph operation Gelu with approximation mode: " << approximationMode;
+            }
+        }},
+        {ngraph::op::v0::Elu::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            auto eluOp = getNgraphOpAs<ngraph::op::v0::Elu>(op);
+            node.alpha = static_cast<float>(eluOp->get_alpha());
+            node.algorithm = Algorithm::EltwiseElu;
+            node.onednnAlgorithm = dnnl::algorithm::eltwise_elu;
+        }},
+        {ngraph::op::v0::Tanh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseTanh;
+            node.onednnAlgorithm = dnnl::algorithm::eltwise_tanh;
+        }},
+        {ngraph::op::v0::Sigmoid::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseSigmoid;
+            node.onednnAlgorithm = dnnl::algorithm::eltwise_logistic;
+        }},
+        {ngraph::op::v0::Abs::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseAbs;
+            node.onednnAlgorithm = dnnl::algorithm::eltwise_abs;
+        }},
+        {ngraph::op::v0::Sqrt::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseSqrt;
+            node.onednnAlgorithm = dnnl::algorithm::eltwise_sqrt;
+        }},
+        {ngraph::op::v0::Clamp::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            auto clampOp = getNgraphOpAs<ngraph::op::v0::Clamp>(op);
 
-        float alpha_ = static_cast<float>(clampOp->get_min());
-        float beta_ = static_cast<float>(clampOp->get_max());
-        if (clampOp->get_input_element_type(0).is_integral_number()) {
-            // according to spec, when Clamp has integer element type, min and max mist be converted to integer
-            alpha_ = std::ceil(alpha_);
-            beta_ = std::floor(beta_);
-        }
-        node.alpha = alpha_;
-        node.beta = beta_;
-        node.algorithm = Algorithm::EltwiseClamp;
-        node.onednnAlgorithm = dnnl::algorithm::eltwise_clip;
-    }},
-    {ngraph::op::v0::Exp::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseExp;
-        node.onednnAlgorithm = dnnl::algorithm::eltwise_exp;
-    }},
-    {SwishNode::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        auto swishOp = getNgraphOpAs<SwishNode>(op);
-        node.algorithm = Algorithm::EltwiseSwish;
-        node.onednnAlgorithm = dnnl::algorithm::eltwise_swish;
-        node.alpha = swishOp->get_alpha();
-    }},
-    {ngraph::op::v4::HSwish::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        // since v3.0 version, oneDNN has flexible implementation of hardswish, ov still uses the one with hardcoded alpha and beta
-        node.alpha = 1.f / 6.f;
-        node.beta = 0.5f;
-        node.algorithm = Algorithm::EltwiseHswish;
-        node.onednnAlgorithm = dnnl::algorithm::eltwise_hardswish;
-    }},
-    {ngraph::op::v4::Mish::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseMish;
-        node.onednnAlgorithm = dnnl::algorithm::eltwise_mish;
-    }},
-    {ngraph::op::v5::HSigmoid::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseHsigmoid;
-        node.onednnAlgorithm = dnnl::algorithm::eltwise_hsigmoid;
-    }},
-    {ngraph::op::v5::Round::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        auto roundOp = getNgraphOpAs<ngraph::op::v5::Round>(op);
+            float alpha_ = static_cast<float>(clampOp->get_min());
+            float beta_ = static_cast<float>(clampOp->get_max());
+            if (clampOp->get_input_element_type(0).is_integral_number()) {
+                // according to spec, when Clamp has integer element type, min and max mist be converted to integer
+                alpha_ = std::ceil(alpha_);
+                beta_ = std::floor(beta_);
+            }
+            node.alpha = alpha_;
+            node.beta = beta_;
+            node.algorithm = Algorithm::EltwiseClamp;
+            node.onednnAlgorithm = dnnl::algorithm::eltwise_clip;
+        }},
+        {ngraph::op::v0::Exp::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseExp;
+            node.onednnAlgorithm = dnnl::algorithm::eltwise_exp;
+        }},
+        {SwishNode::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            auto swishOp = getNgraphOpAs<SwishNode>(op);
+            node.algorithm = Algorithm::EltwiseSwish;
+            node.onednnAlgorithm = dnnl::algorithm::eltwise_swish;
+            node.alpha = swishOp->get_alpha();
+        }},
+        {ngraph::op::v4::HSwish::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            // since v3.0 version, oneDNN has flexible implementation of hardswish, ov still uses the one with hardcoded alpha and beta
+            node.alpha = 1.f / 6.f;
+            node.beta = 0.5f;
+            node.algorithm = Algorithm::EltwiseHswish;
+            node.onednnAlgorithm = dnnl::algorithm::eltwise_hardswish;
+        }},
+        {ngraph::op::v4::Mish::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseMish;
+            node.onednnAlgorithm = dnnl::algorithm::eltwise_mish;
+        }},
+        {ngraph::op::v5::HSigmoid::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseHsigmoid;
+            node.onednnAlgorithm = dnnl::algorithm::eltwise_hsigmoid;
+        }},
+        {ngraph::op::v5::Round::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            auto roundOp = getNgraphOpAs<ngraph::op::v5::Round>(op);
 
-        switch (roundOp->get_mode()) {
-            case ngraph::op::v5::Round::RoundMode::HALF_TO_EVEN:
-                node.algorithm = Algorithm::EltwiseRoundHalfToEven;
-                node.onednnAlgorithm = dnnl::algorithm::eltwise_round_half_to_even;
-                break;
-            case ngraph::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO:
-                node.algorithm = Algorithm::EltwiseRoundHalfAwayFromZero;
-                node.onednnAlgorithm = dnnl::algorithm::eltwise_round_half_away_from_zero;
-                break;
-        }
-    }},
-    {ngraph::op::v0::PRelu::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwisePrelu;
-        node.broadcastingPolicy = determineBroadcastingPolicy(op);
-    }},
-    {ngraph::op::v0::Erf::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseErf;
-    }},
-    {ngraph::op::v4::SoftPlus::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseSoftRelu;
-        node.alpha = 1.f;
-        node.onednnAlgorithm = dnnl::algorithm::eltwise_soft_relu;
-    }},
-    {ngraph::op::v9::SoftSign::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseSoftSign;
-    }},
-    {ngraph::op::v1::Select::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseSelect;
-    }},
-    {ngraph::op::v0::Log::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        node.algorithm = Algorithm::EltwiseLog;
-    }},
-};
+            switch (roundOp->get_mode()) {
+                case ngraph::op::v5::Round::RoundMode::HALF_TO_EVEN:
+                    node.algorithm = Algorithm::EltwiseRoundHalfToEven;
+                    node.onednnAlgorithm = dnnl::algorithm::eltwise_round_half_to_even;
+                    break;
+                case ngraph::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO:
+                    node.algorithm = Algorithm::EltwiseRoundHalfAwayFromZero;
+                    node.onednnAlgorithm = dnnl::algorithm::eltwise_round_half_away_from_zero;
+                    break;
+            }
+        }},
+        {ngraph::op::v0::PRelu::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwisePrelu;
+            node.broadcastingPolicy = determineBroadcastingPolicy(op);
+        }},
+        {ngraph::op::v0::Erf::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseErf;
+        }},
+        {ngraph::op::v4::SoftPlus::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseSoftRelu;
+            node.alpha = 1.f;
+            node.onednnAlgorithm = dnnl::algorithm::eltwise_soft_relu;
+        }},
+        {ngraph::op::v9::SoftSign::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseSoftSign;
+        }},
+        {ngraph::op::v1::Select::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseSelect;
+        }},
+        {ngraph::op::v0::Log::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseLog;
+        }},
+    };
+    return initializers;
+}
 
 
 namespace {
@@ -1796,7 +1800,7 @@ static Eltwise::executorPtr buildExecutor(const EltwiseKey& key) {
 
 bool Eltwise::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (initializers.find(op->get_type_info()) == initializers.end()) {
+        if (getInitializers().find(op->get_type_info()) == getInitializers().end()) {
             errorMessage = "Doesn't support Eltwise algorithm: " +  std::string(op->get_type_name());
             return false;
         }
@@ -1826,7 +1830,7 @@ Eltwise::Eltwise(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CP
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
-    initializers.at(op->get_type_info())(op, *this);
+    getInitializers().at(op->get_type_info())(op, *this);
 }
 
 size_t Eltwise::getOpInputsNum() const {
@@ -2171,15 +2175,23 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 
 #if defined (OV_CPU_WITH_ACL)
     eltwiseAttrs = {algorithm, alpha, beta, gamma};
-    if (isChannelsFirstApplicable) {
-        auto channelFirstDesc = initDesc(ChannelsFirst, true);
-        if (channelFirstDesc.getExecutorFactory())
-            supportedPrimitiveDescriptors.emplace_back(channelFirstDesc);
-    }
 
-    auto planarDesc = initDesc(Planar, true);
-    if (planarDesc.getExecutorFactory())
-        supportedPrimitiveDescriptors.emplace_back(planarDesc);
+    auto addDesc = [&initDesc](std::vector<NodeDesc>& supportedPrimitiveDescriptors, const LayoutType layoutType) {
+        auto nodeDesc = initDesc(layoutType, true);
+        if (nodeDesc.getExecutorFactory())
+            supportedPrimitiveDescriptors.emplace_back(nodeDesc);
+    };
+
+    // @todo should be handled in scope of selectPreferPrimitiveDescriptor
+    if (context->getConfig().modelType == Config::ModelType::CNN) {
+        if (isChannelsFirstApplicable)
+            addDesc(supportedPrimitiveDescriptors, ChannelsFirst);
+        addDesc(supportedPrimitiveDescriptors, Planar);
+    } else {
+        addDesc(supportedPrimitiveDescriptors, Planar);
+        if (isChannelsFirstApplicable)
+            addDesc(supportedPrimitiveDescriptors, ChannelsFirst);
+    }
 
     canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
     if (canUseAclExecutor)

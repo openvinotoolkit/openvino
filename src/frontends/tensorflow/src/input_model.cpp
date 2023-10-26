@@ -137,6 +137,10 @@ void InputModel::InputModelTFImpl::load_places() {
         auto op_name = node_decoder->get_op_name();
         auto op_type = node_decoder->get_op_type();
 
+        if (op_type == "Placeholder" && op_name.rfind("unused_control_flow_input", 0) != std::string::npos) {
+            continue;
+        }
+
         if (m_telemetry) {
             op_statistics[op_type]++;
         }
@@ -259,15 +263,26 @@ void InputModel::InputModelTFImpl::load_places() {
         return;
     }
 
-    // treat terminal nodes as the models outputs for the frozen TF1 format
-    std::set<std::string> op_names_without_consumers;
-    std::set_difference(all_op_names.begin(),
-                        all_op_names.end(),
-                        op_names_with_consumers.begin(),
-                        op_names_with_consumers.end(),
-                        std::inserter(op_names_without_consumers, op_names_without_consumers.begin()));
-
-    for (const auto& output_name : op_names_without_consumers) {
+    auto out_names = m_graph_iterator->get_output_names();
+    if (!out_names.size()) {
+        // treat terminal nodes as the models outputs for the frozen TF1 format
+        std::set<std::string> op_names_without_consumers;
+        std::set_difference(all_op_names.begin(),
+                            all_op_names.end(),
+                            op_names_with_consumers.begin(),
+                            op_names_with_consumers.end(),
+                            std::inserter(op_names_without_consumers, op_names_without_consumers.begin()));
+        for (const auto& output_name : op_names_without_consumers) {
+            auto output_place = std::make_shared<TensorPlace>(m_input_model,
+                                                              ov::PartialShape({}),
+                                                              ov::element::dynamic,
+                                                              std::vector<std::string>{output_name});
+            m_tensor_places[output_name] = output_place;
+            m_outputs.push_back(output_place);
+        }
+        return;
+    }
+    for (const auto& output_name : out_names) {
         auto output_place = std::make_shared<TensorPlace>(m_input_model,
                                                           ov::PartialShape({}),
                                                           ov::element::dynamic,
@@ -309,10 +324,6 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
     std::stack<std::shared_ptr<OpPlace>> ops_to_do;
     std::unordered_set<std::shared_ptr<OpPlace>> ops_done;
 
-    // TODO: implement logic to check direct cycles in the graph
-    // and break them
-    // probably not only NextIteration can generate cycles
-
     for (const auto& output_place : m_outputs) {
         FRONT_END_GENERAL_CHECK(output_place->get_names().size() > 0, "TensorPlace must have at least one name.");
         auto output_place_name = output_place->get_names()[0];
@@ -324,6 +335,23 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
                                 "Custom specified output is incorrect: " + output_place_name);
         auto output_operation_place = m_op_places_map.at(operation_name);
         ops_to_do.push(output_operation_place);
+    }
+
+    // walk through all NextIteration nodes and put their producers into ops_to_do
+    // this is needed to avoid missed nodes in the body graph of TF1 While operation
+    for (const auto& op_place : m_op_places) {
+        auto op_decoder = op_place->get_decoder();
+        if (op_decoder->get_op_type() == "NextIteration") {
+            std::string producer_name;
+            std::string producer_output_port_name;
+            size_t producer_output_port_idx;
+            op_decoder->get_input_node(0, producer_name, producer_output_port_name, producer_output_port_idx);
+            FRONT_END_GENERAL_CHECK(m_op_places_map.count(producer_name),
+                                    "[TensorFlow Frontend] internal error or inconsistent model: producer of "
+                                    "NextIteration is not found among operation places " +
+                                        producer_name);
+            ops_to_do.push(m_op_places_map.at(producer_name));
+        }
     }
 
     // the traversing algorithm to compute topologically sorted nodes is taken from topological_sort in
@@ -340,6 +368,14 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
             if (current_operation_type == "NextIteration") {
                 // break the cycle created by NextIteration
                 input_count = 0;
+                std::string producer_name;
+                std::string producer_output_port_name;
+                size_t producer_output_port_idx;
+                current_operation_decoder->get_input_node(0,
+                                                          producer_name,
+                                                          producer_output_port_name,
+                                                          producer_output_port_idx);
+                current_operation_place->set_next_iteration_back_edge(producer_name, producer_output_port_idx);
             }
 
             for (size_t input_port_idx = 0; input_port_idx < input_count; ++input_port_idx) {

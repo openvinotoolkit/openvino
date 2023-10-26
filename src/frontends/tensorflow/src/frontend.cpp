@@ -14,6 +14,7 @@
 #include "helper_transforms/embedding_segments_feature_fusing.hpp"
 #include "helper_transforms/gru_block_cell_replacer.hpp"
 #include "helper_transforms/saved_model_unused_remover.hpp"
+#include "helper_transforms/tensor_array_v3_replacer.hpp"
 #include "input_model.hpp"
 #include "op_table.hpp"
 #include "openvino/core/so_extension.hpp"
@@ -347,7 +348,23 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     else if (variants[0].is<GraphIterator::Ptr>()) {
         // this is used for OpenVINO with TensorFlow Integration
         auto graph_iterator = variants[0].as<GraphIterator::Ptr>();
-        return std::make_shared<InputModel>(graph_iterator, m_telemetry);
+        std::shared_ptr<std::map<std::string, std::string>> input_names_map = nullptr;
+        std::shared_ptr<std::map<std::string, std::string>> output_names_map = nullptr;
+        if (graph_iterator->get_input_names_map().size() > 0) {
+            input_names_map =
+                std::make_shared<std::map<std::string, std::string>>(graph_iterator->get_input_names_map());
+        }
+        if (graph_iterator->get_output_names_map().size() > 0) {
+            output_names_map =
+                std::make_shared<std::map<std::string, std::string>>(graph_iterator->get_output_names_map());
+        }
+        return std::make_shared<InputModel>(graph_iterator,
+                                            m_telemetry,
+                                            nullptr,
+                                            input_names_map,
+                                            output_names_map,
+                                            nullptr,
+                                            false);
     }
 
     FRONT_END_GENERAL_CHECK(false,
@@ -475,6 +492,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
     manager.register_pass<pass::BlockLSTMReplacer>();
     manager.register_pass<pass::GRUBlockCellReplacer>();
+    manager.register_pass<pass::TensorArrayV3Replacer>();
     manager.register_pass<pass::ConstToResultRemover>();
     manager.register_pass<pass::SwitchMergeResolver>();
     manager.register_pass<ov::pass::UnrollIf>();

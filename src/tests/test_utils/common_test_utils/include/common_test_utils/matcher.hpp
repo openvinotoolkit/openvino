@@ -12,8 +12,7 @@ class TestMatcher : public ov::pass::pattern::Matcher {
 
 public:
     TestMatcher() = default;
-    bool match_value(const ov::Output<ov::Node>& pattern_value,
-                     const ov::Output<ov::Node>& graph_value) override {
+    bool match_value(const ov::Output<ov::Node>& pattern_value, const ov::Output<ov::Node>& graph_value) override {
         if (ov::is_type<ov::op::v0::Parameter>(pattern_value.get_node_shared_ptr())) {
             bool result = pattern_value == graph_value;
             if (result) {
@@ -28,7 +27,7 @@ public:
 public:
     bool match(const std::shared_ptr<ov::Node>& pattern_node, const std::shared_ptr<ov::Node>& graph_node) {
         OPENVINO_ASSERT(pattern_node && graph_node);  // the same condition throws an exception in the
-                                                   // non-test version of `match`
+                                                      // non-test version of `match`
         OPENVINO_DEBUG << "Starting match pattern = " << pattern_node->get_name()
                        << " , graph_node = " << graph_node->get_name();
 

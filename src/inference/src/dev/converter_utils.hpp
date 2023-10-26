@@ -15,6 +15,7 @@
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
+#include "remote_utils.hpp"
 
 namespace ov {
 namespace legacy_convert {
@@ -40,11 +41,9 @@ ov::SoPtr<::ov::IAsyncInferRequest> convert_infer_request(
     const std::string& plugin_name = "");
 
 std::shared_ptr<InferenceEngine::RemoteContext> convert_remote_context(const ov::SoPtr<ov::IRemoteContext>& context);
-ov::SoPtr<ov::IRemoteContext> convert_remote_context(const std::shared_ptr<InferenceEngine::RemoteContext>& context);
 
 std::vector<ov::Extension::Ptr> convert_extension(const std::vector<InferenceEngine::IExtensionPtr>& exts);
 std::vector<InferenceEngine::IExtensionPtr> convert_extension(const std::vector<ov::Extension::Ptr>& exts);
 
 }  // namespace legacy_convert
 }  // namespace ov
-

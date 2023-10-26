@@ -81,7 +81,7 @@ public:
 
     explicit FrameworkNode(const OutputVector& inputs, size_t output_size = 1, size_t num_subgraphs = 0);
 
-    void validate_and_infer_types() override;
+    virtual void validate_and_infer_types() override;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 

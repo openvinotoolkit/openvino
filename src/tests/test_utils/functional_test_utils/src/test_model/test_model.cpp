@@ -2,39 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <fstream>
-#include <memory>
-#include <string>
-#include <algorithm>
-#include <vector>
-
 #include "functional_test_utils/test_model/test_model.hpp"
-#include "functional_test_utils/precision_utils.hpp"
-#include <ngraph_functions/subgraph_builders.hpp>
-#include <ngraph/pass/manager.hpp>
+
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
-#include "ie_ngraph_utils.hpp"
+#include "ov_models/subgraph_builders.hpp"
 
-namespace FuncTestUtils {
-namespace TestModel {
+namespace ov {
+namespace test {
+namespace utils {
 
-/**
- * @brief generates IR files (XML and BIN files) with the test model.
- *        Passed reference vector is filled with CNN layers to validate after the network reading.
- * @param modelPath used to serialize the generated network
- * @param weightsPath used to serialize the generated weights
- * @param netPrc precision of the generated network
- * @param inputDims dims on the input layer of the generated network
- */
-void generateTestModel(const std::string &modelPath,
-                       const std::string &weightsPath,
-                       const InferenceEngine::Precision &netPrc,
-                       const InferenceEngine::SizeVector &inputDims) {
-    ngraph::pass::Manager manager;
-    manager.register_pass<ov::pass::Serialize>(modelPath, weightsPath);
-    manager.run_passes(ngraph::builder::subgraph::makeConvPoolRelu(
-            inputDims, InferenceEngine::details::convertPrecision(netPrc)));
+void generate_test_model(const std::string& model_path,
+                         const std::string& weights_path,
+                         const ov::element::Type& input_type,
+                         const ov::PartialShape& input_shape) {
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::Serialize>(model_path, weights_path);
+    manager.run_passes(ngraph::builder::subgraph::makeConvPoolRelu(input_shape.to_shape(), input_type));
 }
 
-}  // namespace TestModel
-}  // namespace FuncTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

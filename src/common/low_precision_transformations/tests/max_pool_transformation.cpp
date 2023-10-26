@@ -9,14 +9,14 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <low_precision/max_pool.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
+#include "low_precision/max_pool.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/max_pool_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/max_pool.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 
 using namespace testing;
@@ -47,13 +47,13 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::PartialShape,
+    ov::PartialShape,
     MaxPoolTransformationTestValues> MaxPoolTransformationParams;
 
 class MaxPoolTransformation : public LayerTransformation, public testing::WithParamInterface<MaxPoolTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::PartialShape shape = std::get<0>(GetParam());
+        const ov::PartialShape shape = std::get<0>(GetParam());
         const MaxPoolTransformationTestValues testValues = std::get<1>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::MaxPoolFunction::get(
@@ -64,7 +64,7 @@ public:
             testValues.actual.dequantization2);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);
+        transform.add<ov::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::MaxPoolFunction::get(
@@ -76,7 +76,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MaxPoolTransformationParams> obj) {
-        const ngraph::PartialShape shape = std::get<0>(obj.param);
+        const ov::PartialShape shape = std::get<0>(obj.param);
         const MaxPoolTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
@@ -99,7 +99,7 @@ TEST_P(MaxPoolTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> shapes = {
+const std::vector<ov::PartialShape> shapes = {
     { 1, 3, 72, 48 },
     { 4, 3, 72, 48 },
     { -1, -1, -1, -1 },
@@ -238,7 +238,7 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> shapesWithDynamicChannels = {
+const std::vector<ov::PartialShape> shapesWithDynamicChannels = {
     PartialShape::dynamic()
 };
 

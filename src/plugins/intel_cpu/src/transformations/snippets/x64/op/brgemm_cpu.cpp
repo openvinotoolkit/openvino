@@ -7,6 +7,7 @@
 #include "snippets/utils.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "utils/general_utils.h"
+#include "snippets/utils.hpp"
 
 
 namespace ov {
@@ -78,19 +79,19 @@ void BrgemmCPU::custom_constructor_validate_and_infer_types(std::vector<size_t> 
     // So we use port descs from source inputs
     const auto brgemm_copy = is_with_data_repacking() ? get_brgemm_copy() : nullptr;
     const auto planar_input_shapes =
-        std::vector<ov::PartialShape>{ snippets::utils::get_reordered_planar_shape(get_input_partial_shape(0), layout_a),
-                                       brgemm_copy ? snippets::utils::get_port_planar_shape(brgemm_copy->input(0))
-                                                   : snippets::utils::get_reordered_planar_shape(get_input_partial_shape(1), layout_b) };
+        std::vector<ov::PartialShape>{ snippets::utils::get_planar_pshape(get_input_partial_shape(0), layout_a),
+                                       brgemm_copy ? snippets::utils::get_planar_pshape(brgemm_copy->input(0))
+                                                   : snippets::utils::get_planar_pshape(get_input_partial_shape(1), layout_b) };
     auto output_shape = get_output_partial_shape(planar_input_shapes);
-    set_output_type(0, get_output_type(), snippets::utils::get_reordered_planar_shape(output_shape, layout_c));
+    set_output_type(0, get_output_type(), snippets::utils::get_planar_pshape(output_shape, layout_c));
 
     // Additional check for 3rd input
     validate_with_scratchpad(planar_input_shapes[1].get_shape());
 }
 
 void BrgemmCPU::compute_block_size_values(const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n) {
-    const auto input_shape_0 = snippets::utils::get_port_planar_shape(input(0)).get_shape();
-    const auto input_shape_1 = snippets::utils::get_port_planar_shape(input(1)).get_shape();
+    const auto input_shape_0 = snippets::utils::get_planar_pshape(input(0)).get_shape();
+    const auto input_shape_1 = snippets::utils::get_planar_pshape(input(1)).get_shape();
     m_M_blk = blk_size_m != 0 ? blk_size_m : *(input_shape_0.rbegin() + 1);
     m_K_blk = blk_size_k != 0 ? blk_size_k : *input_shape_0.rbegin();
     m_N_blk = blk_size_n != 0 ? blk_size_n : *input_shape_1.rbegin();
@@ -113,21 +114,9 @@ void BrgemmCPU::validate_with_scratchpad(const ov::Shape& shape_b) const {
     // Additional check for 3rd input
     if (one_of(m_type, Type::WithCompensations, Type::AMX)) {
         const auto& pshape = get_input_partial_shape(2);
-        NGRAPH_CHECK(pshape.is_static(), "BRGEMM Scratch must have static shape");
-        const auto shape = pshape.to_shape();
-        const auto type = get_input_element_type(2);
+        OPENVINO_ASSERT(pshape.is_static(), "BRGEMM Scratch must have static shape");
         if (is_with_compensations()) {
-            const auto expected_type = ov::element::f32;
-            NGRAPH_CHECK(expected_type == type, "BRGEMM Scratch with compensations must have FP32 element type");
-            const auto N = *shape_b.rbegin();
-            // If N block size is not set, there is no meaning in validating the scratchpad shape
-            if (m_N_blk != N) {
-                const auto expected_shape = ov::Shape{rnd_up(N, m_N_blk)};
-                NGRAPH_CHECK(expected_shape == shape, "BRGEMM Scratch with compensations must have shape {rnd_up(N, m_N_blk)}");
-            }
-        } else {
-            NGRAPH_CHECK(ov::shape_size(shape) == SCRATCH_BYTE_SIZE && type == ov::element::u8,
-                         "BRGEMM Scratch for space workplace must be static, have U8 element type and size equal to " + std::to_string(SCRATCH_BYTE_SIZE));
+            OPENVINO_ASSERT(get_input_element_type(2) == ov::element::f32, "BRGEMM Scratch with compensations must have FP32 element type");
         }
     }
 }

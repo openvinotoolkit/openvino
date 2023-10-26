@@ -36,7 +36,7 @@ std::vector<std::pair<size_t, size_t>> compute_einsum_path(std::shared_ptr<const
     // TODO: implement algorithm for finding (pseudo-)optimal einsum_path
     std::vector<std::pair<size_t, size_t>> einsum_path;
     const size_t num_inputs = einsum_node->get_input_size();
-    NGRAPH_CHECK(num_inputs > 0);
+    OPENVINO_ASSERT(num_inputs > 0);
     for (size_t input_ind = num_inputs - 1; input_ind > 0; --input_ind) {
         einsum_path.push_back(std::make_pair(0, input_ind));
     }
@@ -141,9 +141,9 @@ std::string generate_grouping_subscript(const std::string& input_subscript, cons
 ///
 void update_operands(ov::OutputVector& input_nodes, std::vector<std::string>& input_subscripts, size_t input_ind1, size_t input_ind2,
                      const ov::Output<ov::Node>& new_node, const std::string& new_subscript) {
-    NGRAPH_CHECK(input_ind1 < input_ind2);
-    NGRAPH_CHECK(input_ind2 < input_nodes.size());
-    NGRAPH_CHECK(input_ind2 < input_subscripts.size());
+    OPENVINO_ASSERT(input_ind1 < input_ind2);
+    OPENVINO_ASSERT(input_ind2 < input_nodes.size());
+    OPENVINO_ASSERT(input_ind2 < input_subscripts.size());
     input_nodes.erase(input_nodes.begin() + input_ind2);
     input_nodes.erase(input_nodes.begin() + input_ind1);
     input_nodes.push_back(new_node);
@@ -163,7 +163,7 @@ void update_operands(ov::OutputVector& input_nodes, std::vector<std::string>& in
 /// \return     sub-shape
 ///
 ov::Shape compute_sub_shape(const ov::Shape& input_shape, size_t begin, size_t end, bool is_product = false) {
-    NGRAPH_CHECK(end <= input_shape.size());
+    OPENVINO_ASSERT(end <= input_shape.size());
     if (end <= begin) {
         return ov::Shape();
     }
@@ -260,12 +260,12 @@ LabelDimMap compute_label_dim_map(const ov::Rank& input_rank,
     static const std::string ellipsis = "...";
     const auto labels = ov::op::v7::Einsum::extract_labels(input_subscript);
     const auto static_input_rank = input_rank.is_static();
-    NGRAPH_CHECK(static_input_rank || (std::find(labels.begin(), labels.end(), ellipsis) == labels.end()),
+    OPENVINO_ASSERT(static_input_rank || (std::find(labels.begin(), labels.end(), ellipsis) == labels.end()),
                  "Input rank cannot be dynamic in case of ellipsis in input subscript");
     const size_t input_rank_length = static_input_rank ? input_rank.get_length() : labels.size();
-    NGRAPH_CHECK(input_rank_length >= labels.size());
+    OPENVINO_ASSERT(input_rank_length >= labels.size());
     const size_t num_broadcasted_dims = input_rank_length - labels.size() + 1;
-    NGRAPH_CHECK(num_broadcasted_dims > 0);
+    OPENVINO_ASSERT(num_broadcasted_dims > 0);
 
     LabelDimMap resulted_map;
     size_t current_dim = 0;
@@ -304,8 +304,8 @@ void transpose_input(ov::OutputVector& input_nodes, std::vector<std::string>& in
                      ov::NodeVector& subgraph_nodes) {
     // perform sanity check for arguments
     const auto num_inputs = input_nodes.size();
-    NGRAPH_CHECK(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
-    NGRAPH_CHECK(input_ind < num_inputs, "Input index is out of range.");
+    OPENVINO_ASSERT(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
+    OPENVINO_ASSERT(input_ind < num_inputs, "Input index is out of range.");
 
     // generate permutation vector by searching for bijection between input_subscripts
     // and required_subscript
@@ -322,11 +322,11 @@ void transpose_input(ov::OutputVector& input_nodes, std::vector<std::string>& in
     const auto& input_node = input_nodes[input_ind];
     const auto labels = ov::op::v7::Einsum::extract_labels(input_subscript);
     const auto required_labels = ov::op::v7::Einsum::extract_labels(required_subscript);
-    NGRAPH_CHECK(labels.size() == required_labels.size());
+    OPENVINO_ASSERT(labels.size() == required_labels.size());
     const auto label_dim_map = compute_label_dim_map(input_node.get_partial_shape().rank(), input_subscript);
     for (const auto& required_label : required_labels) {
         const auto label_dims_it = label_dim_map.find(required_label);
-        NGRAPH_CHECK(label_dims_it != label_dim_map.end());
+        OPENVINO_ASSERT(label_dims_it != label_dim_map.end());
         const auto& label_dims = label_dims_it->second;
         permutation.insert(permutation.end(), label_dims.begin(), label_dims.end());
     }
@@ -360,8 +360,8 @@ void reduce_input(EinsumDecomposition *einsum_decompose_ptr,
                   const std::string& output_subscript, size_t input_ind, ov::NodeVector& subgraph_nodes) {
     // perform sanity check for arguments
     const auto num_inputs = input_nodes.size();
-    NGRAPH_CHECK(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
-    NGRAPH_CHECK(input_ind < num_inputs, "Input index is out of range.");
+    OPENVINO_ASSERT(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
+    OPENVINO_ASSERT(input_ind < num_inputs, "Input index is out of range.");
 
     const auto& input_node = input_nodes[input_ind];
     const auto& input_subscript = input_subscripts[input_ind];
@@ -377,7 +377,7 @@ void reduce_input(EinsumDecomposition *einsum_decompose_ptr,
         // or the output subscript
         const bool is_dim_reduced = is_dimension_reduced(input_subscripts, output_subscript, label, {input_ind});
 
-        NGRAPH_CHECK(label_dim_map.find(label) != label_dim_map.end());
+        OPENVINO_ASSERT(label_dim_map.find(label) != label_dim_map.end());
         const auto& label_dims = label_dim_map[label];
 
         // if label is not met, dimension corresponding to the label is to reduce
@@ -416,7 +416,7 @@ void broadcast_input(ov::OutputVector& inputs,
                      const ov::Shape& reduced_shape,
                      bool is_separate_first,
                      ov::NodeVector& subgraph_nodes) {
-    NGRAPH_CHECK(input_ind < inputs.size());
+    OPENVINO_ASSERT(input_ind < inputs.size());
     const auto& input = inputs[input_ind];
 
     ov::Shape new_shape{new_common_shape.begin(), new_common_shape.end()};
@@ -434,7 +434,7 @@ void broadcast_input(ov::OutputVector& inputs,
     }
     const auto old_shape_size = old_shape.size();
     const auto new_shape_size = new_shape.size();
-    NGRAPH_CHECK(old_shape_size <= new_shape_size);
+    OPENVINO_ASSERT(old_shape_size <= new_shape_size);
 
     const auto new_shape_const = ov::op::v0::Constant::create(ov::element::Type_t::i64, ov::Shape {new_shape.size()}, new_shape);
     const auto broadcast = std::make_shared<ov::op::v3::Broadcast>(input, new_shape_const, ov::op::BroadcastType::NUMPY);
@@ -447,13 +447,13 @@ void broadcast_input(ov::OutputVector& inputs,
 ov::Output<ov::Node> build_identity(const ov::Output<ov::Node>& input_node,
                                             const std::vector<size_t>& repeated_label_dims,
                                             ov::NodeVector& subgraph_nodes) {
-    NGRAPH_CHECK(repeated_label_dims.size() > 1);
+    OPENVINO_ASSERT(repeated_label_dims.size() > 1);
     const auto input_shape = input_node.get_shape();
     ov::Shape identity_shape(input_shape.size(), 1);
     const size_t repeated_label_dim_size = input_shape[repeated_label_dims[0]];
     for (const auto dim : repeated_label_dims) {
-        NGRAPH_CHECK(dim < input_shape.size());
-        NGRAPH_CHECK(repeated_label_dim_size == input_shape[dim]);
+        OPENVINO_ASSERT(dim < input_shape.size());
+        OPENVINO_ASSERT(repeated_label_dim_size == input_shape[dim]);
         identity_shape[dim] = repeated_label_dim_size;
     }
 
@@ -481,11 +481,11 @@ ov::Output<ov::Node> build_multi_identity(EinsumDecomposition* einsum_decompose_
                                                   const std::vector<std::string>& repeated_labels,
                                                   const LabelDimMap& label_dim_map,
                                                   ov::NodeVector& subgraph_nodes) {
-    NGRAPH_CHECK(repeated_labels.size() > 0);
+    OPENVINO_ASSERT(repeated_labels.size() > 0);
 
     const auto get_identity = [&](size_t idx) {
         const auto repeated_label_dims = label_dim_map.find(repeated_labels[idx]);
-        NGRAPH_CHECK(repeated_label_dims != label_dim_map.end());
+        OPENVINO_ASSERT(repeated_label_dims != label_dim_map.end());
         return build_identity(input_node, repeated_label_dims->second, subgraph_nodes);
     };
 
@@ -522,11 +522,11 @@ void prepare_diagonal_extraction_data(
         }
 
         const auto dims_it = label_dim_map.find(label);
-        NGRAPH_CHECK(dims_it != label_dim_map.end());
+        OPENVINO_ASSERT(dims_it != label_dim_map.end());
 
         auto dims = dims_it->second;
         const auto dims_size = dims.size();
-        NGRAPH_CHECK(dims_size > 0);
+        OPENVINO_ASSERT(dims_size > 0);
 
         if (label != ellipsis && dims_size > 1) {
             // repeated label is found
@@ -539,7 +539,7 @@ void prepare_diagonal_extraction_data(
         }
         resultant_subscript += label;
         for (const auto dim : dims) {
-            NGRAPH_CHECK(dim < input_shape.size());
+            OPENVINO_ASSERT(dim < input_shape.size());
             result_shape.push_back(input_shape[dim]);
         }
     }
@@ -552,8 +552,8 @@ void extract_diagonal(EinsumDecomposition* einsum_decompose_ptr,
                       ov::NodeVector& subgraph_nodes) {
     // perform sanity check for arguments
     const auto num_inputs = inputs.size();
-    NGRAPH_CHECK(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
-    NGRAPH_CHECK(input_ind < num_inputs, "Input index is out of range.");
+    OPENVINO_ASSERT(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
+    OPENVINO_ASSERT(input_ind < num_inputs, "Input index is out of range.");
 
     const auto& input_node = inputs[input_ind];
     const auto& input_subscript = input_subscripts[input_ind];
@@ -604,19 +604,19 @@ void compute_ranges(const ov::Rank& input_rank,
 
     size_t common_rank = common_labels.size();
     if (std::find(common_labels.begin(), common_labels.end(), ellipsis) != common_labels.end()) {
-        NGRAPH_CHECK(label_to_dim_map.find(ellipsis) != label_to_dim_map.end());
+        OPENVINO_ASSERT(label_to_dim_map.find(ellipsis) != label_to_dim_map.end());
         common_rank += label_to_dim_map[ellipsis].size() - 1;
     }
 
     size_t sep_rank = sep_labels.size();
     if (std::find(sep_labels.begin(), sep_labels.end(), ellipsis) != sep_labels.end()) {
-        NGRAPH_CHECK(label_to_dim_map.find(ellipsis) != label_to_dim_map.end());
+        OPENVINO_ASSERT(label_to_dim_map.find(ellipsis) != label_to_dim_map.end());
         sep_rank += label_to_dim_map[ellipsis].size() - 1;
     }
 
     size_t reduced_rank = reduced_labels.size();
     if (std::find(reduced_labels.begin(), reduced_labels.end(), ellipsis) != reduced_labels.end()) {
-        NGRAPH_CHECK(label_to_dim_map.find(ellipsis) != label_to_dim_map.end());
+        OPENVINO_ASSERT(label_to_dim_map.find(ellipsis) != label_to_dim_map.end());
         reduced_rank += label_to_dim_map[ellipsis].size() - 1;
     }
 
@@ -660,8 +660,8 @@ void contract_two_inputs(EinsumDecomposition* einsum_decompose_ptr,
 
     // perform sanity check for arguments
     auto num_inputs = input_nodes.size();
-    NGRAPH_CHECK(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
-    NGRAPH_CHECK(input_ind2 < num_inputs && input_ind1 != input_ind2, "Incorrect input index is specified.");
+    OPENVINO_ASSERT(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
+    OPENVINO_ASSERT(input_ind2 < num_inputs && input_ind1 != input_ind2, "Incorrect input index is specified.");
 
     const auto& input_node1 = input_nodes[input_ind1];
     const auto& input_node2 = input_nodes[input_ind2];
@@ -746,7 +746,7 @@ void contract_two_inputs(EinsumDecomposition* einsum_decompose_ptr,
         std::vector<int64_t> unsqueeze_axis1;
         std::vector<int64_t> unsqueeze_axis2;
         for (const auto& sep_label2 : separate_labels2) {
-            NGRAPH_CHECK(label_to_dim_map2.find(sep_label2) != label_to_dim_map2.end());
+            OPENVINO_ASSERT(label_to_dim_map2.find(sep_label2) != label_to_dim_map2.end());
             const auto label_dims = label_to_dim_map2[sep_label2];
             for (size_t dim_ind = 0; dim_ind < label_dims.size(); ++dim_ind) {
                 unsqueeze_axis1.push_back(unsqueeze_dim + static_cast<int64_t>(dim_ind));
@@ -754,7 +754,7 @@ void contract_two_inputs(EinsumDecomposition* einsum_decompose_ptr,
             ++unsqueeze_dim;
         }
         for (const auto& sep_label1 : separate_labels1) {
-            NGRAPH_CHECK(label_to_dim_map1.find(sep_label1) != label_to_dim_map1.end());
+            OPENVINO_ASSERT(label_to_dim_map1.find(sep_label1) != label_to_dim_map1.end());
             const auto label_dims = label_to_dim_map1[sep_label1];
             for (const auto label_dim : label_dims) {
                 unsqueeze_axis2.push_back(label_dim);
@@ -928,7 +928,7 @@ EinsumDecomposition::EinsumDecomposition() {
         extract_diagonal(this, input_nodes, input_subscripts, 0, subgraph_nodes);
 
         // reduce dimensions for the remained input node
-        NGRAPH_CHECK(input_nodes.size() == 1);
+        OPENVINO_ASSERT(input_nodes.size() == 1);
         reduce_input(this, input_nodes, input_subscripts, output_subscript, 0, subgraph_nodes);
 
         // transpose dimensions to layout required by the output subscript

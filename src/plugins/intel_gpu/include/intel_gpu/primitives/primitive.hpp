@@ -70,7 +70,18 @@ struct input_info {
         ib >> pid;
         ib >> idx;
     }
+
+    std::string to_string() const {
+        std::stringstream ss;
+        ss << "input_info(pid:" << pid << ",idx:" << idx << ")";
+        return ss.str();
+    }
 };
+
+static inline std::ostream& operator<< (std::ostream& os, input_info& info) {
+    os << info.to_string();
+    return os;
+}
 
 struct prim_map_storage {
     static prim_map_storage& instance() {
@@ -150,7 +161,7 @@ public:
             return false;
 
         for (size_t i = 0; i < output_data_types.size(); ++i) {
-            if (output_data_types[i].value_or(data_types::bin) != rhs.output_data_types[i].value_or(data_types::bin))
+            if (output_data_types[i].value_or(data_types::undefined) != rhs.output_data_types[i].value_or(data_types::undefined))
                 return false;
         }
 
@@ -203,7 +214,7 @@ public:
 
     size_t num_outputs;
 
-    virtual std::string get_type() const { return "NONE"; }
+    virtual const std::string& get_type_info() const = 0;
     virtual void save(BinaryOutputBuffer& ob) const {
         ob << type_string();
         ob << id;
@@ -313,6 +324,7 @@ struct primitive_info {
     }
 
 #define CLDNN_DECLARE_PRIMITIVE(PType)       \
+    DECLARE_OBJECT_TYPE_SERIALIZATION(PType) \
     CLDNN_DEFINE_TYPE_ID(PType)              \
     CLDNN_DEFINE_TYPE_STRING(PType)
 

@@ -8,8 +8,6 @@
 #include <vector>
 
 namespace cldnn {
-
-
 struct roi_pooling : public primitive_base<roi_pooling> {
     CLDNN_DECLARE_PRIMITIVE(roi_pooling)
 
@@ -26,8 +24,6 @@ struct roi_pooling : public primitive_base<roi_pooling> {
                     group_size(0),
                     spatial_bins_x(1),
                     spatial_bins_y(1) {}
-
-    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     roi_pooling(const primitive_id& id,
                 const input_info& input_data,

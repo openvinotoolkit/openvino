@@ -176,7 +176,8 @@ std::vector<TRShape> shape_infer(const StridedSlice* op,
                 const auto& stop = end_mask.count(axis) ? default_stop : (*end)[axis];
                 auto sliced_dim = slice::make_dim(input_dim, start, stop, stride);
 
-                if (std::is_same<DimType, ov::Dimension>::value && (sliced_dim == input_dim)) {
+                if (std::is_same<DimType, ov::Dimension>::value &&
+                    (sliced_dim == input_dim && sliced_dim != Dimension::dynamic())) {
                     // for equal ov::Dimension do merge to get input label (always success)
                     DimType::merge(sliced_dim, sliced_dim, input_dim);
                 }

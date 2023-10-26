@@ -1,8 +1,6 @@
 Interactive question answering with OpenVINO™
 =============================================
 
-
-
 This demo shows interactive question answering with OpenVINO, using
 `small BERT-large-like
 model <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/bert-small-uncased-whole-word-masking-squad-int8-0002>`__
@@ -11,33 +9,29 @@ larger BERT-large model. The model comes from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__. Final part
 of this notebook provides live inference results from your inputs. 
 
-.. _top:
+**Table of contents:**
 
-**Table of contents**:
+- `Imports <#imports>`__ 
+- `The model <#the-model>`__ 
 
-- `Imports <#imports>`__
+  - `Download the model <#download-the-model>`__ 
+  - `Load the model <#load-the-model>`__ 
+  
+    - `Select inference device <#select-inference-device>`__ 
 
-- `The model <#the-model>`__
+- `Processing <#processing>`__ 
 
-  - `Download the model <#download-the-model>`__
-  - `Load the model <#load-the-model>`__
+  - `Preprocessing <#preprocessing>`__ 
+  - `Postprocessing <#postprocessing>`__ 
+  - `Main Processing Function <#main-processing-function>`__ 
+  
+- `Run <#Run>`__
 
-    - `Select inference device <#select-inference-device>`__
-
-- `Processing <#processing>`__
-
-  - `Preprocessing <#preprocessing>`__
-  - `Postprocessing <#postprocessing>`__
-  - `Main Processing Function <#main-processing-function>`__
-
-- `Run <#run>`__
-
-  - `Run on local paragraphs <#run-on-local-paragraphs>`__
+  - `Run on local paragraphs <#run-on-local-paragraphs>`__ 
   - `Run on websites <#run-on-websites>`__
 
-Imports `⇑ <#top>`__
+Imports
 ###############################################################################################################################
-
 
 .. code:: ipython3
 
@@ -51,13 +45,11 @@ Imports `⇑ <#top>`__
     import html_reader as reader
     import tokens_bert as tokens
 
-The model `⇑ <#top>`__
+The model
 ###############################################################################################################################
 
-
-Download the model `⇑ <#top>`__
+Download the model
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 Use ``omz_downloader``, which is a command-line tool from the
 ``openvino-dev`` package. The ``omz_downloader`` tool automatically
@@ -111,9 +103,8 @@ there is no need to use ``omz_converter``.
     
 
 
-Load the model `⇑ <#top>`__
+Load the model
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 Downloaded models are located in a fixed structure, which indicates a
 vendor, a model name and a precision. Only a few lines of code are
@@ -129,9 +120,8 @@ You can choose ``CPU`` or ``GPU`` for this model.
     # Read the network and corresponding weights from a file.
     model = core.read_model(model_path)
 
-Select inference device `⇑ <#top>`__
+Select inference device
 -------------------------------------------------------------------------------------------------------------------------------
-
 
 Select device from dropdown list for running inference using OpenVINO:
 
@@ -188,9 +178,8 @@ for BERT-large-like model.
 
 
 
-Processing `⇑ <#top>`__
+Processing
 ###############################################################################################################################
-
 
 NLP models usually take a list of tokens as a standard input. A token is
 a single word converted to some integer. To provide the proper input,
@@ -227,9 +216,8 @@ content from provided URLs.
         # Produce one big context string.
         return "\n".join(paragraphs)
 
-Preprocessing `⇑ <#top>`__
+Preprocessing
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 The input size in this case is 384 tokens long. The main input
 (``input_ids``) to used BERT model consists of two parts: question
@@ -311,9 +299,8 @@ documentation <https://github.com/openvinotoolkit/open_model_zoo/tree/master/mod
     
         return (input_ids, attention_mask, token_type_ids), diff_input_size
 
-Postprocessing `⇑ <#top>`__
+Postprocessing
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 The results from the network are raw (logits). Use the softmax function
 to get the probability distribution. Then, find the best answer in the
@@ -405,9 +392,8 @@ answer should come with the highest score.
         # Return the part of the context, which is already an answer.
         return context[answer[1]:answer[2]], answer[0]
 
-Main Processing Function `⇑ <#top>`__
+Main Processing Function
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 Run question answering on a specific knowledge base (websites) and
 iterate through the questions.
@@ -448,13 +434,11 @@ iterate through the questions.
                 print(f"Score: {score:.2f}")
                 print(f"Time: {end_time - start_time:.2f}s")
 
-Run `⇑ <#top>`__
+Run
 ###############################################################################################################################
 
-
-Run on local paragraphs `⇑ <#top>`__
+Run on local paragraphs
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 Change sources to your own to answer your questions. You can use as many
 sources as you want. Usually, you need to wait a few seconds for the
@@ -505,9 +489,8 @@ questions in the box.**
     Time: 0.03s
 
 
-Run on websites `⇑ <#top>`__
+Run on websites
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 You can also provide URLs. Note that the context (a knowledge base) is
 built from paragraphs on websites. If some information is outside the
@@ -542,6 +525,6 @@ questions in the box.**
     Context: ['https://en.wikipedia.org/wiki/OpenVINO']
     Question: What does OpenVINO mean?
     Answer: Open Visual Inference and Neural network Optimization
-    Score: 0.92
+    Score: 0.94
     Time: 0.06s
 

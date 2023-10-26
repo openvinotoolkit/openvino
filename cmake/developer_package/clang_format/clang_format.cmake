@@ -32,10 +32,10 @@ if(ENABLE_CLANG_FORMAT AND NOT TARGET clang_format_check_all)
 endif()
 
 #
-# add_clang_format_target(FOR_TARGETS <target1 target2 ...> | FOR_SOURCES <source1 source2 ...>
-#                         [EXCLUDE_PATTERNS <pattern1 pattern2 ...>])
+# ov_add_clang_format_target(FOR_TARGETS <target1 target2 ...> | FOR_SOURCES <source1 source2 ...>
+#                            [EXCLUDE_PATTERNS <pattern1 pattern2 ...>])
 #
-function(add_clang_format_target TARGET_NAME)
+function(ov_add_clang_format_target TARGET_NAME)
     if(NOT ENABLE_CLANG_FORMAT)
         return()
     endif()
@@ -88,10 +88,10 @@ function(add_clang_format_target TARGET_NAME)
             -D "CLANG_FORMAT=${CLANG_FORMAT}"
             -D "INPUT_FILE=${source_file}"
             -D "OUTPUT_FILE=${output_file}"
-            -P "${IEDevScripts_DIR}/clang_format/clang_format_check.cmake"
+            -P "${OpenVINODeveloperScripts_DIR}/clang_format/clang_format_check.cmake"
             DEPENDS
             "${source_file}"
-            "${IEDevScripts_DIR}/clang_format/clang_format_check.cmake"
+            "${OpenVINODeveloperScripts_DIR}/clang_format/clang_format_check.cmake"
             COMMENT
             "[clang-format] ${source_file}"
             VERBATIM)
@@ -110,10 +110,10 @@ function(add_clang_format_target TARGET_NAME)
         -D "CLANG_FORMAT=${CLANG_FORMAT}"
         -D "INPUT_FILES=${all_input_sources}"
         -D "EXCLUDE_PATTERNS=${CLANG_FORMAT_EXCLUDE_PATTERNS}"
-        -P "${IEDevScripts_DIR}/clang_format/clang_format_fix.cmake"
+        -P "${OpenVINODeveloperScripts_DIR}/clang_format/clang_format_fix.cmake"
         DEPENDS
         "${all_input_sources}"
-        "${IEDevScripts_DIR}/clang_format/clang_format_fix.cmake"
+        "${OpenVINODeveloperScripts_DIR}/clang_format/clang_format_fix.cmake"
         COMMENT
         "[clang-format] ${TARGET_NAME}_fix"
         VERBATIM)
@@ -129,4 +129,9 @@ function(add_clang_format_target TARGET_NAME)
 
     add_dependencies(clang_format_check_all ${TARGET_NAME})
     add_dependencies(clang_format_fix_all ${TARGET_NAME}_fix)
+endfunction()
+
+function(add_clang_format_target)
+    message(WARNING "add_clang_format_target is deprecated, use ov_add_clang_format_target instead")
+    ov_add_clang_format_target(${ARGV})
 endfunction()

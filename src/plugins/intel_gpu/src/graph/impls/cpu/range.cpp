@@ -19,7 +19,7 @@ struct range_impl : public typed_primitive_impl<range> {
 
     std::shared_ptr<ov::op::v4::Range> op;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::range_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<range_impl>(*this);
@@ -66,7 +66,7 @@ struct range_impl : public typed_primitive_impl<range> {
             const auto output_dt = params->get_output_layout().data_type;
 
             op = std::make_shared<ov::op::v4::Range>();
-            op->set_output_type(data_type_to_element_type(output_dt));
+            op->set_output_type(output_dt);
         }
 
         OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),

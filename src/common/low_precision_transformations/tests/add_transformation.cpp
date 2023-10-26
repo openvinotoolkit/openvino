@@ -4,18 +4,18 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/add.hpp>
+#include "low_precision/add.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 #include <utility>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/add_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/add.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
@@ -73,7 +73,7 @@ public:
 };
 
 typedef std::tuple<ov::element::Type,
-                   std::pair<ngraph::PartialShape, ngraph::PartialShape>,  // PShapes for each input
+                   std::pair<ov::PartialShape, ov::PartialShape>,  // PShapes for each input
                    AddTransformationTestValues>
     AddTransformationParams;
 
@@ -99,7 +99,7 @@ public:
                                                   testValues.postops_configuration);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::AddTransformation, ov::op::v1::Add>(testValues.params);
+        transform.add<ov::pass::low_precision::AddTransformation, ov::op::v1::Add>(testValues.params);
         transform.transform(actualFunction);
 
         auto inputShape1Ref = inputShapes.first;
@@ -153,7 +153,7 @@ TEST_P(AddTransformation, CompareFunctions) {
 const std::vector<ov::element::Type> netPrecision = {element::f32, element::f16};
 
 namespace testValues1 {
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputShapes4D = {
+const std::vector<std::pair<ov::PartialShape, ov::PartialShape>> inputShapes4D = {
     {{1, 4, 16, 16}, {1, 4, 16, 16}},
     {{Dimension::dynamic(), 4, Dimension::dynamic(), Dimension::dynamic()},
      {Dimension::dynamic(), 4, Dimension::dynamic(), Dimension::dynamic()}},
@@ -503,7 +503,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues1
 
 namespace testValues2 {
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputShapes4D = {
+const std::vector<std::pair<ov::PartialShape, ov::PartialShape>> inputShapes4D = {
     {{1, 4, 16, 16}, {1, 4, 16, 16}},
     {{1, 4, 16, 16}, {Dimension::dynamic(), 4, Dimension::dynamic(), Dimension::dynamic()}},
 };
@@ -562,7 +562,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues2
 
 namespace testValues3 {
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputShapes4D = {
+const std::vector<std::pair<ov::PartialShape, ov::PartialShape>> inputShapes4D = {
     {{1, 4, 16, 16}, {1, 4, 16, 16}},
     {{Dimension::dynamic(), 4, Dimension::dynamic(), Dimension::dynamic()}, {1, 4, 16, 16}},
 };
@@ -622,7 +622,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues3
 
 namespace spatialDimensions {
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputShapes4D = {
+const std::vector<std::pair<ov::PartialShape, ov::PartialShape>> inputShapes4D = {
     {{1, 2, 2, 2}, {1, 2, 2, 2}},
 };
 
@@ -676,7 +676,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace spatialDimensions
 
 namespace tensor2D {
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputShapes = {
+const std::vector<std::pair<ov::PartialShape, ov::PartialShape>> inputShapes = {
     {{4, 1}, {4, 1}},
 };
 
@@ -709,7 +709,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 namespace oneBranchQuantizationFp16 {
 const std::vector<ov::element::Type> netPrecision = {element::f16};
 
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputShapesWithDynamicChannels = {
+const std::vector<std::pair<ov::PartialShape, ov::PartialShape>> inputShapesWithDynamicChannels = {
     {{1, 4, 16, 16}, {1, 4, 16, 16}},
     {{1, 4, 16, 16}, {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}},
     {{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
@@ -766,7 +766,7 @@ const std::vector<ov::element::Type> netPrecision = {
     element::f32,
 };
 
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputShapesWithDynamicChannels = {
+const std::vector<std::pair<ov::PartialShape, ov::PartialShape>> inputShapesWithDynamicChannels = {
     {{1, 4, 16, 16}, {1, 4, 16, 16}},
     {{1, 4, 16, 16}, {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}},
     {{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
@@ -816,7 +816,7 @@ const std::vector<ov::element::Type> netPrecision = {
     element::f32,
 };
 
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputShapesWithDynamicChannels = {
+const std::vector<std::pair<ov::PartialShape, ov::PartialShape>> inputShapesWithDynamicChannels = {
     {{1, 4, 16, 16}, {1, 4, 16, 16}},
     {{1, 4, 16, 16}, {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}},
     {{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},

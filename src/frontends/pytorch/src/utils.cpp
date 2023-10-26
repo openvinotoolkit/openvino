@@ -4,6 +4,7 @@
 
 #include "utils.hpp"
 
+#include "helper_ops/align_types.hpp"
 #include "op_table.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
@@ -381,33 +382,17 @@ std::unordered_map<size_t, element::Type> bit_to_int{
 };
 }  // namespace
 
-void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Output<Node>& rhs, bool align_scalars) {
+element::Type infer_types(const Output<Node>& lhs, const Output<Node>& rhs, bool align_scalars) {
     const auto& lhs_type = lhs.get_element_type();
     const auto& rhs_type = rhs.get_element_type();
-    auto out_type = context.get_output_type(0);
-    if (out_type.is<element::Type>()) {
-        auto otype = out_type.as<element::Type>();
-        if (otype.is_real()) {
-            if (otype != lhs_type) {
-                lhs = context.mark_node(std::make_shared<ov::op::v0::Convert>(lhs, otype));
-            }
-            if (otype != rhs_type) {
-                rhs = context.mark_node(std::make_shared<ov::op::v0::Convert>(rhs, otype));
-            }
-            return;
-        }
-    }
     if (lhs_type.is_dynamic() || rhs_type.is_dynamic()) {
-        // if any of types is not known, align to lhs type.
-        // TODO: can be fixed with special operation?
-        rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));
-        return;
+        return element::dynamic;
     }
 
     // Both types are static, align types. If float and int types are used convert int type to f32, after that align
     // to the largest bitness, if both float or both int, just align bitness
     if (lhs_type == rhs_type)
-        return;
+        return lhs_type;
 
     // if one of operands is scalar, the resulting type is taken from the other operand except when scalar is float
     // type and other operand is int, in that case BOTH operands get fp32 type
@@ -422,24 +407,22 @@ void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Ou
         // if div we need to also align float types to highest bitness regardless of scalar
         if (!align_scalars)
             lhs_dst_type = element::f32;
-        rhs_dst_type = element::f32;
+        rhs_dst_type = lhs_type;
     } else if (is_rhs_scalar && !lhs_type.is_real() && rhs_type.is_real()) {
-        lhs_dst_type = element::f32;
+        lhs_dst_type = rhs_type;
         // if div we need to also align float types to highest bitness regardless of scalar
         if (!align_scalars)
             rhs_dst_type = element::f32;
     } else if (is_lhs_scalar && rhs_type != element::boolean) {
-        lhs = context.mark_node(std::make_shared<opset10::ConvertLike>(lhs, rhs));
-        return;
+        return rhs_type;
     } else if (is_rhs_scalar && lhs_type != element::boolean) {
-        rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));
-        return;
+        return lhs_type;
     }
 
     if (!lhs_dst_type.is_real() && rhs_dst_type.is_real()) {
-        lhs_dst_type = element::f32;
+        lhs_dst_type = rhs_dst_type;
     } else if (lhs_dst_type.is_real() && !rhs_dst_type.is_real()) {
-        rhs_dst_type = element::f32;
+        rhs_dst_type = lhs_dst_type;
     }
     // Align bool to other type
     if (lhs_dst_type == element::boolean) {
@@ -470,13 +453,39 @@ void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Ou
             }
         }
     }
+    return lhs_dst_type;
+}
 
-    // Cast to destination types
-    if (lhs_dst_type != lhs_type) {
-        lhs = context.mark_node(std::make_shared<opset10::Convert>(lhs, lhs_dst_type));
+void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Output<Node>& rhs, bool align_scalars) {
+    const auto& lhs_type = lhs.get_element_type();
+    const auto& rhs_type = rhs.get_element_type();
+    auto out_type = context.get_output_type(0);
+    if (out_type.is<element::Type>()) {
+        auto otype = out_type.as<element::Type>();
+        if (otype.is_real()) {
+            if (otype != lhs_type) {
+                lhs = context.mark_node(std::make_shared<ov::op::v0::Convert>(lhs, otype));
+            }
+            if (otype != rhs_type) {
+                rhs = context.mark_node(std::make_shared<ov::op::v0::Convert>(rhs, otype));
+            }
+            return;
+        }
     }
-    if (rhs_dst_type != rhs_type) {
-        rhs = context.mark_node(std::make_shared<opset10::Convert>(rhs, rhs_dst_type));
+    auto dst_type = infer_types(lhs, rhs, align_scalars);
+    if (dst_type.is_dynamic()) {
+        // We can't decide the type at this point, create a special operation
+        auto at = std::make_shared<AlignTypes>(lhs, rhs, align_scalars);
+        lhs = at->output(0);
+        rhs = at->output(1);
+        return;
+    }
+    // Cast to destination type
+    if (dst_type != lhs_type) {
+        lhs = context.mark_node(std::make_shared<opset10::Convert>(lhs, dst_type));
+    }
+    if (dst_type != rhs_type) {
+        rhs = context.mark_node(std::make_shared<opset10::Convert>(rhs, dst_type));
     }
 }
 

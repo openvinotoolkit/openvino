@@ -4,18 +4,18 @@
 
 #pragma once
 
-#include "openvino/core/partial_shape.hpp"
-
 #include <algorithm>
 #include <chrono>
+#include <fstream>
 #include <iterator>
 #include <memory>
 #include <ostream>
 #include <set>
 #include <sstream>
-#include <fstream>
 #include <string>
 #include <vector>
+
+#include "openvino/core/partial_shape.hpp"
 
 namespace ov {
 namespace test {
@@ -113,6 +113,10 @@ inline std::string set2str(const std::set<vecElementType>& set) {
         return result.str();
     }
     return std::string("()");
+}
+
+inline std::string bool2str(const bool val) {
+    return val ? "True" : "False";
 }
 
 template <typename master, typename slave>

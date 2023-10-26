@@ -6,15 +6,17 @@
 
 #include "evaluate_node.hpp"
 #include "evaluates_map.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/reference/utils/nms_common.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace matrix_nms_v8 {
-using SortResultType = ngraph::op::v8::MatrixNms::SortResultType;
+using SortResultType = ov::op::v8::MatrixNms::SortResultType;
 struct InfoForNMS {
-    ngraph::Shape selected_outputs_shape;
-    ngraph::Shape selected_indices_shape;
-    ngraph::Shape boxes_shape;
-    ngraph::Shape scores_shape;
+    ov::Shape selected_outputs_shape;
+    ov::Shape selected_indices_shape;
+    ov::Shape boxes_shape;
+    ov::Shape scores_shape;
     std::vector<float> boxes_data;
     std::vector<float> scores_data;
     size_t selected_outputs_shape_size;
@@ -24,50 +26,42 @@ struct InfoForNMS {
 constexpr size_t boxes_port = 0;
 constexpr size_t scores_port = 1;
 
-ngraph::PartialShape infer_selected_outputs_shape(const std::vector<std::shared_ptr<ngraph::HostTensor>>& inputs,
-                                                  int nms_top_k,
-                                                  int keep_top_k) {
-    const auto boxes_ps = inputs[boxes_port]->get_partial_shape();
-    const auto scores_ps = inputs[scores_port]->get_partial_shape();
+ov::PartialShape infer_selected_outputs_shape(const ov::TensorVector& inputs, int nms_top_k, int keep_top_k) {
+    const auto boxes_ps = inputs[boxes_port].get_shape();
+    const auto scores_ps = inputs[scores_port].get_shape();
 
-    ngraph::PartialShape result = {ngraph::Dimension::dynamic(), 6};
+    ov::PartialShape result = {ov::Dimension::dynamic(), 6};
 
-    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static()) {
-        const auto num_boxes_boxes = boxes_ps[1];
-        if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static()) {
-            const auto num_boxes = num_boxes_boxes.get_length();
-            const auto num_classes = scores_ps[1].get_length();
-            int64_t max_output_boxes_per_class = 0;
-            if (nms_top_k >= 0)
-                max_output_boxes_per_class = std::min(num_boxes, (int64_t)nms_top_k);
-            else
-                max_output_boxes_per_class = num_boxes;
+    if (ov::shape_size(boxes_ps) && ov::shape_size(scores_ps)) {
+        const auto num_boxes = boxes_ps[1];
+        const auto num_classes = scores_ps[1];
+        size_t max_output_boxes_per_class = 0;
+        if (nms_top_k >= 0)
+            max_output_boxes_per_class = std::min(num_boxes, (size_t)nms_top_k);
+        else
+            max_output_boxes_per_class = num_boxes;
 
-            auto max_output_boxes_per_batch = max_output_boxes_per_class * num_classes;
-            if (keep_top_k >= 0)
-                max_output_boxes_per_batch = std::min(max_output_boxes_per_batch, (int64_t)keep_top_k);
+        auto max_output_boxes_per_batch = max_output_boxes_per_class * num_classes;
+        if (keep_top_k >= 0)
+            max_output_boxes_per_batch = std::min(max_output_boxes_per_batch, (size_t)keep_top_k);
 
-            result[0] = max_output_boxes_per_batch * scores_ps[0].get_length();
-        }
+        result[0] = max_output_boxes_per_batch * scores_ps[0];
     }
 
     return result;
 }
 
-std::vector<float> prepare_boxes_data(const std::shared_ptr<ngraph::HostTensor>& boxes,
-                                      const ngraph::Shape& boxes_shape) {
+std::vector<float> prepare_boxes_data(const ov::Tensor& boxes, const ov::Shape& boxes_shape) {
     auto result = get_floats(boxes, boxes_shape);
     return result;
 }
 
-std::vector<float> prepare_scores_data(const std::shared_ptr<ngraph::HostTensor>& scores,
-                                       const ngraph::Shape& scores_shape) {
+std::vector<float> prepare_scores_data(const ov::Tensor& scores, const ov::Shape& scores_shape) {
     auto result = get_floats(scores, scores_shape);
     return result;
 }
 
-InfoForNMS get_info_for_nms_eval(const std::shared_ptr<ngraph::op::v8::MatrixNms>& nms,
-                                 const std::vector<std::shared_ptr<ngraph::HostTensor>>& inputs) {
+InfoForNMS get_info_for_nms_eval(const std::shared_ptr<ov::op::v8::MatrixNms>& nms, const ov::TensorVector& inputs) {
     InfoForNMS result;
     const auto& nms_attrs = nms->get_attrs();
     const auto nms_top_k = nms_attrs.nms_top_k;
@@ -77,23 +71,23 @@ InfoForNMS get_info_for_nms_eval(const std::shared_ptr<ngraph::op::v8::MatrixNms
     result.selected_outputs_shape = selected_outputs_shape.to_shape();
     result.selected_indices_shape = {result.selected_outputs_shape[0], 1};
 
-    result.boxes_shape = inputs[boxes_port]->get_shape();
-    result.scores_shape = inputs[scores_port]->get_shape();
+    result.boxes_shape = inputs[boxes_port].get_shape();
+    result.scores_shape = inputs[scores_port].get_shape();
 
     result.boxes_data = prepare_boxes_data(inputs[boxes_port], result.boxes_shape);
     result.scores_data = prepare_scores_data(inputs[scores_port], result.scores_shape);
 
-    result.selected_outputs_shape_size = ngraph::shape_size(result.selected_outputs_shape);
-    result.selected_indices_shape_size = ngraph::shape_size(result.selected_indices_shape);
+    result.selected_outputs_shape_size = ov::shape_size(result.selected_outputs_shape);
+    result.selected_indices_shape_size = ov::shape_size(result.selected_indices_shape);
 
     return result;
 }
 }  // namespace matrix_nms_v8
 
-template <ngraph::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ngraph::op::v8::MatrixNms>& op,
-              const ngraph::HostTensorVector& outputs,
-              const ngraph::HostTensorVector& inputs) {
+template <ov::element::Type_t ET>
+bool evaluate(const std::shared_ptr<ov::op::v8::MatrixNms>& op,
+              ov::TensorVector& outputs,
+              const ov::TensorVector& inputs) {
     auto info = matrix_nms_v8::get_info_for_nms_eval(op, inputs);
 
     std::vector<float> selected_outputs(info.selected_outputs_shape_size);
@@ -116,15 +110,15 @@ bool evaluate(const std::shared_ptr<ngraph::op::v8::MatrixNms>& op,
     void* prois;
     size_t num_selected = static_cast<size_t>(std::accumulate(valid_outputs.begin(), valid_outputs.end(), size_t(0)));
 
-    outputs[0]->set_shape({num_selected, 6});
-    prois = outputs[0]->get_data_ptr();
+    outputs[0].set_shape({num_selected, 6});
+    prois = outputs[0].data();
 
     if (outputs.size() >= 2) {
-        outputs[1]->set_shape({num_selected, 1});
-        pscores = outputs[1]->get_data_ptr();
+        outputs[1].set_shape({num_selected, 1});
+        pscores = outputs[1].data();
     }
     if (outputs.size() >= 3) {
-        pselected_num = outputs[2]->get_data_ptr();
+        pselected_num = outputs[2].data();
     }
 
     ov::reference::nms_common::nms_common_postprocessing(prois,
@@ -139,70 +133,47 @@ bool evaluate(const std::shared_ptr<ngraph::op::v8::MatrixNms>& op,
 }
 
 template <>
-bool evaluate_node<ngraph::op::v8::MatrixNms>(std::shared_ptr<ngraph::Node> node,
-                                              const ngraph::HostTensorVector& outputs,
-                                              const ngraph::HostTensorVector& inputs) {
+bool evaluate_node<ov::op::v8::MatrixNms>(std::shared_ptr<ov::Node> node,
+                                          ov::TensorVector& outputs,
+                                          const ov::TensorVector& inputs) {
     auto element_type = node->get_output_element_type(0);
-    if (ov::is_type<ngraph::op::v1::Select>(node) || ov::is_type<ngraph::op::util::BinaryElementwiseComparison>(node))
+    if (ov::is_type<ov::op::v1::Select>(node) || ov::is_type<ov::op::util::BinaryElementwiseComparison>(node))
         element_type = node->get_input_element_type(1);
 
     switch (element_type) {
-    case ngraph::element::Type_t::boolean:
-        return evaluate<ngraph::element::Type_t::boolean>(ov::as_type_ptr<ngraph::op::v8::MatrixNms>(node),
-                                                          outputs,
-                                                          inputs);
-    case ngraph::element::Type_t::bf16:
-        return evaluate<ngraph::element::Type_t::bf16>(ov::as_type_ptr<ngraph::op::v8::MatrixNms>(node),
-                                                       outputs,
-                                                       inputs);
-    case ngraph::element::Type_t::f16:
-        return evaluate<ngraph::element::Type_t::f16>(ov::as_type_ptr<ngraph::op::v8::MatrixNms>(node),
-                                                      outputs,
-                                                      inputs);
-    case ngraph::element::Type_t::f64:
-        return evaluate<ngraph::element::Type_t::f64>(ov::as_type_ptr<ngraph::op::v8::MatrixNms>(node),
-                                                      outputs,
-                                                      inputs);
-    case ngraph::element::Type_t::f32:
-        return evaluate<ngraph::element::Type_t::f32>(ov::as_type_ptr<ngraph::op::v8::MatrixNms>(node),
-                                                      outputs,
-                                                      inputs);
-    case ngraph::element::Type_t::i4:
-        return evaluate<ngraph::element::Type_t::i4>(ov::as_type_ptr<ngraph::op::v8::MatrixNms>(node), outputs, inputs);
-    case ngraph::element::Type_t::i8:
-        return evaluate<ngraph::element::Type_t::i8>(ov::as_type_ptr<ngraph::op::v8::MatrixNms>(node), outputs, inputs);
-    case ngraph::element::Type_t::i16:
-        return evaluate<ngraph::element::Type_t::i16>(ov::as_type_ptr<ngraph::op::v8::MatrixNms>(node),
-                                                      outputs,
-                                                      inputs);
-    case ngraph::element::Type_t::i32:
-        return evaluate<ngraph::element::Type_t::i32>(ov::as_type_ptr<ngraph::op::v8::MatrixNms>(node),
-                                                      outputs,
-                                                      inputs);
-    case ngraph::element::Type_t::i64:
-        return evaluate<ngraph::element::Type_t::i64>(ov::as_type_ptr<ngraph::op::v8::MatrixNms>(node),
-                                                      outputs,
-                                                      inputs);
-    case ngraph::element::Type_t::u1:
-        return evaluate<ngraph::element::Type_t::u1>(ov::as_type_ptr<ngraph::op::v8::MatrixNms>(node), outputs, inputs);
-    case ngraph::element::Type_t::u4:
-        return evaluate<ngraph::element::Type_t::u4>(ov::as_type_ptr<ngraph::op::v8::MatrixNms>(node), outputs, inputs);
-    case ngraph::element::Type_t::u8:
-        return evaluate<ngraph::element::Type_t::u8>(ov::as_type_ptr<ngraph::op::v8::MatrixNms>(node), outputs, inputs);
-    case ngraph::element::Type_t::u16:
-        return evaluate<ngraph::element::Type_t::u16>(ov::as_type_ptr<ngraph::op::v8::MatrixNms>(node),
-                                                      outputs,
-                                                      inputs);
-    case ngraph::element::Type_t::u32:
-        return evaluate<ngraph::element::Type_t::u32>(ov::as_type_ptr<ngraph::op::v8::MatrixNms>(node),
-                                                      outputs,
-                                                      inputs);
-    case ngraph::element::Type_t::u64:
-        return evaluate<ngraph::element::Type_t::u64>(ov::as_type_ptr<ngraph::op::v8::MatrixNms>(node),
-                                                      outputs,
-                                                      inputs);
+    case ov::element::boolean:
+        return evaluate<ov::element::boolean>(ov::as_type_ptr<ov::op::v8::MatrixNms>(node), outputs, inputs);
+    case ov::element::bf16:
+        return evaluate<ov::element::bf16>(ov::as_type_ptr<ov::op::v8::MatrixNms>(node), outputs, inputs);
+    case ov::element::f16:
+        return evaluate<ov::element::f16>(ov::as_type_ptr<ov::op::v8::MatrixNms>(node), outputs, inputs);
+    case ov::element::f64:
+        return evaluate<ov::element::f64>(ov::as_type_ptr<ov::op::v8::MatrixNms>(node), outputs, inputs);
+    case ov::element::f32:
+        return evaluate<ov::element::f32>(ov::as_type_ptr<ov::op::v8::MatrixNms>(node), outputs, inputs);
+    case ov::element::i4:
+        return evaluate<ov::element::i4>(ov::as_type_ptr<ov::op::v8::MatrixNms>(node), outputs, inputs);
+    case ov::element::i8:
+        return evaluate<ov::element::i8>(ov::as_type_ptr<ov::op::v8::MatrixNms>(node), outputs, inputs);
+    case ov::element::i16:
+        return evaluate<ov::element::i16>(ov::as_type_ptr<ov::op::v8::MatrixNms>(node), outputs, inputs);
+    case ov::element::i32:
+        return evaluate<ov::element::i32>(ov::as_type_ptr<ov::op::v8::MatrixNms>(node), outputs, inputs);
+    case ov::element::i64:
+        return evaluate<ov::element::i64>(ov::as_type_ptr<ov::op::v8::MatrixNms>(node), outputs, inputs);
+    case ov::element::u1:
+        return evaluate<ov::element::u1>(ov::as_type_ptr<ov::op::v8::MatrixNms>(node), outputs, inputs);
+    case ov::element::u4:
+        return evaluate<ov::element::u4>(ov::as_type_ptr<ov::op::v8::MatrixNms>(node), outputs, inputs);
+    case ov::element::u8:
+        return evaluate<ov::element::u8>(ov::as_type_ptr<ov::op::v8::MatrixNms>(node), outputs, inputs);
+    case ov::element::u16:
+        return evaluate<ov::element::u16>(ov::as_type_ptr<ov::op::v8::MatrixNms>(node), outputs, inputs);
+    case ov::element::u32:
+        return evaluate<ov::element::u32>(ov::as_type_ptr<ov::op::v8::MatrixNms>(node), outputs, inputs);
+    case ov::element::u64:
+        return evaluate<ov::element::u64>(ov::as_type_ptr<ov::op::v8::MatrixNms>(node), outputs, inputs);
     default:
-        OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
-                       std::string("in evaluate_node()"));
+        OPENVINO_THROW("Unhandled data type ", node->get_element_type().get_type_name(), " in evaluate_node()");
     }
 }

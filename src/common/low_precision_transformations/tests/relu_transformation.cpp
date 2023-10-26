@@ -10,13 +10,13 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <low_precision/relu.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
+#include "low_precision/relu.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/relu_function.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/relu.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
@@ -47,7 +47,7 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::PartialShape,
+    ov::PartialShape,
     ReluTransformationTestValues> ReluTransformationParams;
 
 class ReluTransformation : public LayerTransformation, public testing::WithParamInterface<ReluTransformationParams> {
@@ -62,7 +62,7 @@ public:
             testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::ReluTransformation, ov::op::v0::PRelu>(testValues.params);
+        transformer.add<ov::pass::low_precision::ReluTransformation, ov::op::v0::PRelu>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::ReluFunction::getReference(
@@ -101,7 +101,7 @@ TEST_P(ReluTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> shapes = {
+const std::vector<ov::PartialShape> shapes = {
     { 1, 3, 16, 16 },
     { -1, -1, -1, -1 },
 };
@@ -245,7 +245,7 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> shapesWithDynamicRank = {
+const std::vector<ov::PartialShape> shapesWithDynamicRank = {
     PartialShape::dynamic()
 };
 

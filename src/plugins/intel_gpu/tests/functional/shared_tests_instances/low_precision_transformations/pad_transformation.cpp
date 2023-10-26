@@ -21,7 +21,7 @@ const std::vector<ngraph::PartialShape> inputShapes = {
     { 1, 3, 16, 16},
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
@@ -75,6 +75,16 @@ const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -2.f }, { 10.5f }, { -2.f }, { 10.5f } },
         { 0, 0, 1, 1 },
         { 0, 0, 1, 1 },
+    },
+    {
+            { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -2.f }, { 10.5f }, { -2.f }, { 10.5f } },
+            { 0, 0, -1, 1 },
+            { 0, 0, 1, -1 },
+    },
+    {
+            { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -2.f }, { 10.5f }, { -2.f }, { 10.5f } },
+            { 0, 0, -1, -1 },
+            { 0, 0, -1, -1 },
     },
 };
 

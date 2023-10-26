@@ -1519,8 +1519,8 @@ private:
                 depthwise_injectors[depthwise_inj_idx]->compute_vector_range(
                         vmm_val.getIdx(), vmm_val.getIdx() + 1, reg_d_weights, reg_d_weights, is_broadcast);
 
-                depthwise_inj_idx++;
                 post_ops_data_offset += depthwise_injectors[depthwise_inj_idx]->memoryStep();
+                depthwise_inj_idx++;
             } else if (post_op.is_quantization()) {
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
                 bool do_rounding = do_dequantization || dst_prc == Precision::FP32 || i != p.len() - 1;

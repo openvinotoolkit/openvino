@@ -10,13 +10,13 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/prelu.hpp>
-#include <low_precision/convolution.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/max_pool.hpp>
+#include "low_precision/prelu.hpp"
+#include "low_precision/convolution.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/max_pool.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "lpt_ngraph_functions/fake_quantize_precision_selection_function.hpp"
+#include "ov_lpt_models/fake_quantize_precision_selection.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
@@ -89,18 +89,18 @@ public:
                 testValues.actual.fakeQuantizeOnWeights
             });
 
-        auto supportedPrecisions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
-           ngraph::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Convolution>({
+        auto supportedPrecisions = std::vector<ov::pass::low_precision::PrecisionsRestriction>({
+           ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Convolution>({
                {{0}, testValues.precisionsOnActivationForLimitedOperation},
                {{1}, { element::i8 }}
            })
         });
 
         SimpleLowPrecisionTransformer transform(supportedPrecisions);
-        transform.add<ngraph::pass::low_precision::PReluTransformation, ov::op::v0::PRelu>(params);
-        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(precisionLimitedOperationParams);
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(params);
-        transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(params);
+        transform.add<ov::pass::low_precision::PReluTransformation, ov::op::v0::PRelu>(params);
+        transform.add<ov::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(precisionLimitedOperationParams);
+        transform.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(params);
+        transform.add<ov::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FakeQuantizePrecisionSelectionFunction::getReference(

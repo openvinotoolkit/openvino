@@ -12,7 +12,7 @@
 
 #include "openvino/core/shape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace test {
 namespace init {
 // Recursively define types for N-deep initializer lists
@@ -73,7 +73,8 @@ typename std::enable_if<(N > 1), void>::type fill_shape(ov::Shape& shape, const 
 }
 
 template <typename T, size_t N>
-typename std::enable_if<(N > 1), void>::type check_shape(const ov::Shape& shape, const NestedInitializerList<T, N>& inits) {
+typename std::enable_if<(N > 1), void>::type check_shape(const ov::Shape& shape,
+                                                         const NestedInitializerList<T, N>& inits) {
     if (shape.at(shape.size() - N) != inits.size()) {
         throw std::invalid_argument("Initializers do not match shape");
     }
@@ -188,4 +189,4 @@ public:
     }
 };
 }  // namespace test
-}  // namespace ngraph
+}  // namespace ov
