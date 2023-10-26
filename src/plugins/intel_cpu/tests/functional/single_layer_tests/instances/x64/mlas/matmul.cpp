@@ -19,7 +19,7 @@ namespace {
 std::vector<CPUSpecificParams> filterSpecificParams_MLAS() {
     // replace with mlas primitive type
     std::vector<CPUSpecificParams> specificParams;
-    specificParams.push_back(CPUSpecificParams{{}, {}, {"acl"}, "acl"});
+    specificParams.push_back(CPUSpecificParams{{}, {}, {"gemm_mlas"}, "gemm_mlas"});
     return specificParams;
 }
 
