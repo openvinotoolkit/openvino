@@ -2542,6 +2542,8 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         std::string reorderlayerName = parentParentNode->getName() + "_" +
                 Reorder::getReorderArgs(*reorderInDesc, *reorderOutDesc) + "_" + "fake";
 
+        DEBUG_LOG("mergeTransposeAndReorder ", parentNode->getName(), " and ", childNode->getName(), " -> ", reorderlayerName);
+
         EdgePtr edge;
         for (auto &childEdge : parentParentNode->getChildEdges()) {
             if (childEdge.lock()->getChild() == childChildNode) {
@@ -2555,16 +2557,18 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
 
         std::vector<int> srcPerm;
         auto configReorder = [&]() {
-            // transposeNode support blocked input & non-blocked output, in the case, the reorder
+            // case 1. transposeNode support blocked input & non-blocked output, in the case, the reorder
             // cannot be optimized
+            // case 2. Transpose and Reorder do opposite permutation to each other as expected, but isOptimized is already set false
+            // due to some preliminarily checks. We need to reinterpret layout Transpose input without physical change of the memory.
             auto* transposeNode = dynamic_cast<Transpose*>(parentNode.get());
             if (transposeNode == nullptr) {
                 IE_THROW() << "[CPU] parent node of type:" << parentNode->getTypeStr() << " with name: "
                     << parentNode->getName() << " is not a transpose node";
             }
             auto inOrder = transposeNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->as<BlockedMemoryDesc>()->getOrder();
-
-            if (inOrder.size() > reorderOutDesc->as<BlockedMemoryDesc>()->getOrder().size()) {
+            auto outOrder = reorderOutDesc->as<BlockedMemoryDesc>()->getOrder();
+            if (!isOptimized || inOrder.size() > outOrder.size()) {
                 isOptimized = false;
                 // inDesc should be permuted before calling reorder
                 auto & ord = transposeNode->getOrder();
