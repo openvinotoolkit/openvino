@@ -25,8 +25,17 @@ enum class TensorOwner : uint8_t {
 };
 
 struct TensorWrapper {
+    TensorWrapper(const std::shared_ptr<ov::ITensor>& _ptr, TensorOwner _owner)
+        : ptr(_ptr)
+        , owner(_owner)
+        , actual_size(_ptr ? _ptr->get_byte_size() : 0) {}
+
+    TensorWrapper(const TensorWrapper& other) = default;
+    TensorWrapper() = default;
+
     std::shared_ptr<ov::ITensor> ptr;
     TensorOwner owner;
+    size_t actual_size;
 };
 
 class SyncInferRequest : public ov::ISyncInferRequest {
