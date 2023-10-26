@@ -195,6 +195,10 @@ TRANSFORMATIONS_API void visit_shape_path(ov::Node* node,
                                           std::unordered_set<ov::Node*>& visited,
                                           std::function<void(ov::Node*)> func);
 
+TRANSFORMATIONS_API void visit_constant_path(ov::Node* node,
+                                             std::unordered_set<ov::Node*>& visited,
+                                             std::function<void(ov::Node*)> func);
+
 template <typename T, typename... Args>
 std::shared_ptr<Node> make_try_fold(Args&&... args) {
     auto unary_output_node = std::make_shared<T>(std::forward<Args>(args)...);

@@ -221,6 +221,28 @@ void visit_shape_path(Node* node, std::unordered_set<ov::Node*>& visited, std::f
     }
 }
 
+void visit_constant_path(ov::Node* node, std::unordered_set<ov::Node*>& visited, std::function<void(ov::Node*)> func) {
+    if (!node)
+        return;
+    visited.insert(node);
+    std::deque<ov::Node*> nodes{node};
+    while (!nodes.empty()) {
+        auto curr_node = nodes.front();
+        nodes.pop_front();
+        OPENVINO_ASSERT(!ov::is_type<opset1::Parameter>(curr_node),
+                        "visit_constant_path is called for non-constant path.");
+
+        func(curr_node);
+        for (auto& input_value : curr_node->input_values()) {
+            const auto input_node = input_value.get_node();
+            if (visited.count(input_node))
+                continue;
+            nodes.push_front(input_node);
+            visited.insert(input_node);
+        }
+    }
+}
+
 bool is_dequantization_subgraph(const Output<Node>& node) {
     if (!is_type<opset8::Multiply>(node.get_node())) {
         return false;
