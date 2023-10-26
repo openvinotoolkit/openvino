@@ -176,7 +176,7 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
         }
         if (const auto multiSubGraph = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op)) {
             for (size_t i = 0; i < multiSubGraph->get_internal_subgraphs_size(); i++)
-                result = result || run_on_model(multiSubGraph->get_function(i));
+                result = run_on_model(multiSubGraph->get_function(i)) || result;
         }
     }
 
