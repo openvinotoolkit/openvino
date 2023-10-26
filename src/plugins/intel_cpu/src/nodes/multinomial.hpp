@@ -55,8 +55,8 @@ private:
     bool m_probs_1d = false;
     size_t m_input_elements_count = 0;
     size_t m_batches_count = 0;
+    size_t m_samples_count = 0;
     size_t m_probs_count = 0;
-    std::vector<float> m_input_vals;
     std::vector<float> m_cdf;
     std::vector<float> m_max_per_batch;
     std::vector<double> m_random_samples;

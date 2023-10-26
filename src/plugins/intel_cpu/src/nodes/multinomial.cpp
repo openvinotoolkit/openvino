@@ -156,8 +156,6 @@ bool Multinomial::needPrepareParams() const {
 void Multinomial::prepareParams() {
     const auto probs_shape = getParentEdgeAt(PROBS_PORT)->getMemory().getStaticDims();
     const auto num_samples_shape = getParentEdgeAt(NUM_SAMPLES_PORT)->getMemory().getStaticDims();
-    const auto num_samples = reinterpret_cast<const int*>(
-        getParentEdgeAt(NUM_SAMPLES_PORT)->getMemoryPtr()->getData())[0];  // reuse in execute?
 
     if (probs_shape.size() != 1 && probs_shape.size() != 2) {
         THROW_CPU_NODE_ERR("has incompatible 'probs' shape ",
@@ -172,49 +170,66 @@ void Multinomial::prepareParams() {
     }
 
     m_probs_1d = probs_shape.size() == 1;
-
     m_input_elements_count = std::accumulate(probs_shape.begin(), probs_shape.end(), 1, std::multiplies<size_t>());
+    m_samples_count = reinterpret_cast<const int*>(
+        getParentEdgeAt(NUM_SAMPLES_PORT)->getMemoryPtr()->getData())[0];
     m_batches_count = probs_shape.size() == 2 ? probs_shape[0] : 1;
     m_probs_count = probs_shape.size() == 2 ? probs_shape[1] : probs_shape[0];
 
     m_cdf.reserve(m_input_elements_count);
-    m_input_vals.reserve(m_input_elements_count);
     m_random_samples.reserve(m_input_elements_count);
     m_max_per_batch.reserve(probs_shape.size() == 1 ? 1 : probs_shape[1]);
 
     if (!m_probs_1d) {
         m_output_shape.push_back(m_batches_count);
     }
-    m_output_shape.push_back(num_samples);
+    m_output_shape.push_back(m_samples_count);
 }
 
 void Multinomial::execute(dnnl::stream strm) {
     const auto* probs = reinterpret_cast<const float*>(getParentEdgeAt(PROBS_PORT)->getMemoryPtr()->getData());
-    const auto num_samples =
-        reinterpret_cast<const int*>(getParentEdgeAt(NUM_SAMPLES_PORT)->getMemoryPtr()->getData())[0];
     auto* output = reinterpret_cast<int*>(getChildEdgeAt(OUTPUT_PORT)->getMemoryPtr()->getData());
+
+    std::cout << "probs" << "\n";
+    for(size_t q = 0; q < m_input_elements_count; q++) {
+        std::cout << probs[q] << " ";
+    } std::cout << "\n";
+    std::cout << "num_samples" << "\n";
+    std::cout << m_samples_count << " ";
+    std::cout << "\n";
 
     // exp & cumsum
     if (m_log_probs) {
-        parallel_for(m_input_elements_count, [&](size_t idx) {
-            m_input_vals[idx] = std::exp(probs[idx]);
+        parallel_for(m_batches_count, [&](size_t idx) {
+            auto start_idx = idx * m_probs_count;
+            m_cdf[start_idx] = std::exp(probs[start_idx]);
+            for (size_t i = 1; i < m_probs_count; ++i) {
+                m_cdf[start_idx + i] = std::exp(probs[start_idx + i]) + m_cdf[start_idx + i - 1];
+            }
         });
-        m_cdf[0] = m_input_vals[0];
-        for (size_t idx = 1; idx < m_input_elements_count; ++idx) {
-            m_cdf[idx] = m_input_vals[idx] + m_cdf[idx - 1];
-        }
     } else {
-        m_cdf[0] = probs[0];
-        for (size_t idx = 1; idx < m_input_elements_count; ++idx) {
-            m_cdf[idx] = probs[idx] + m_cdf[idx - 1];
-        }
+        parallel_for(m_batches_count, [&](size_t idx) {
+            auto start_idx = idx * m_probs_count;
+            m_cdf[start_idx] = probs[start_idx];
+            for (size_t i = 1; i < m_probs_count; ++i) {
+                m_cdf[start_idx + i] = probs[start_idx + i] + m_cdf[start_idx + i - 1];
+            }
+        });
     }
+    std::cout << "cdf" << "\n";
+    for(size_t q = 0; q < m_input_elements_count; q++) {
+        std::cout << m_cdf[q] << " ";
+    } std::cout << "\n";
 
     // TODO RandomUniform - should use RandomUniform kernel to match other frameworks' seed results
     std::srand(m_op_seed);
     for (size_t idx = 0lu; idx < m_input_elements_count; ++idx) {
         m_random_samples[idx] = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
     };
+    std::cout << "rand" << "\n";
+    for(size_t q = 0; q < m_input_elements_count; q++) {
+        std::cout << m_random_samples[q] << " ";
+    } std::cout << "\n";
 
     // max (slice) & divide
     if (m_probs_1d) {
@@ -223,18 +238,27 @@ void Multinomial::execute(dnnl::stream strm) {
             m_cdf[idx] /= m_max_per_batch[0];
         });
     } else {
+        const auto min_max_value = std::numeric_limits<float>::min();
         parallel_for(m_batches_count, [&](size_t idx) {
-            m_max_per_batch[idx] = m_cdf[idx * m_batches_count - 1];
+            m_max_per_batch[idx] = std::max(m_cdf[(idx + 1) * m_probs_count - 1], min_max_value);
         });
         parallel_for(m_input_elements_count, [&](size_t idx) {
             size_t idx_max_elem = idx / m_probs_count;
             m_cdf[idx] /= m_max_per_batch[idx_max_elem];
         });
     }
+    std::cout << "max" << "\n";
+    for(size_t q = 0; q < m_batches_count; q++) {
+        std::cout << m_max_per_batch[q] << " ";
+    } std::cout << "\n";
+    std::cout << "cdf_2" << "\n";
+    for(size_t q = 0; q < m_input_elements_count; q++) {
+        std::cout << m_cdf[q] << " ";
+    } std::cout << "\n";
 
     if (m_with_replacement) {
         parallel_for(m_input_elements_count, [&](size_t idx) {
-            size_t idx_output = idx / m_probs_count * num_samples;
+            size_t idx_output = idx / m_probs_count * m_samples_count;
             size_t idx_class = idx % m_probs_count;
             if (m_random_samples[idx] <= m_cdf[idx] && (!idx_class || m_random_samples[idx] > m_cdf[idx - 1])) {
                 output[idx_output] = static_cast<int>(idx_class);
@@ -244,7 +268,7 @@ void Multinomial::execute(dnnl::stream strm) {
         parallel_for(m_input_elements_count, [&](size_t idx) {
             size_t idx_batch = idx / m_probs_count;
             size_t idx_class = idx % m_probs_count;
-            size_t idx_output = idx_batch * num_samples;
+            size_t idx_output = idx_batch * m_samples_count;
 
             float class_probability = 0.0f;
             float divisor = 1.0f;
@@ -253,7 +277,7 @@ void Multinomial::execute(dnnl::stream strm) {
             if (m_random_samples[idx] <= m_cdf[idx] && (!idx_class || m_random_samples[idx] > m_cdf[idx - 1])) {
                 output[idx_output] = static_cast<int>(idx_class);
                 selected_class = idx_class;
-                class_probability = m_input_vals[idx];
+                class_probability = m_log_probs ? std::exp(probs[idx]) : probs[idx];
                 divisor = 1 - class_probability;
             }
 
