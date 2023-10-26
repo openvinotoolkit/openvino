@@ -71,7 +71,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAEnforceBF16, MHA,
                                  ::testing::Values(ov::element::bf16),
                                  ::testing::ValuesIn({false}),
                                  ::testing::Values(7),
-                                 ::testing::Values(7),
+                                 ::testing::Values(6),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
                                  ::testing::Values(CPUTestUtils::cpuBF16PluginConfig)),
                          MHA::getTestCaseName);
