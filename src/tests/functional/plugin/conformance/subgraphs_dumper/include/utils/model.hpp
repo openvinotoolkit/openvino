@@ -15,7 +15,6 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
 
 #include "cache/cache.hpp"
 #include "utils/node.hpp"
@@ -61,6 +60,8 @@ static std::map<ModelCacheStatus, std::string> model_cache_status_to_str = {
     { ModelCacheStatus::LARGE_MODELS_EXCLUDED, "large_models_excluded" },
     { ModelCacheStatus::LARGE_MODELS_INCLUDED, "large_models_included" },
 };
+
+const std::shared_ptr<ov::Core> core = std::make_shared<ov::Core>();
 
 std::pair<std::vector<std::string>, std::pair<ModelCacheStatus, std::vector<std::string>>>
 find_models(const std::vector<std::string> &dirs, const std::string& regexp = ".*");

@@ -91,4 +91,5 @@ class TestTSmall(PytorchLayerTest):
             precision,
             ir_version,
             kwargs_to_prepare_input={"num_dims": num_dims, "input_dtype": input_dtype},
+            use_convert_model=True,
         )

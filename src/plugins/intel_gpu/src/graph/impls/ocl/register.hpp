@@ -59,6 +59,7 @@
 #include "intel_gpu/primitives/resample.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/primitives/reverse_sequence.hpp"
+#include "intel_gpu/primitives/rms.hpp"
 #include "intel_gpu/primitives/roi_align.hpp"
 #include "intel_gpu/primitives/roi_pooling.hpp"
 #include "intel_gpu/primitives/roll.hpp"
@@ -146,6 +147,7 @@ REGISTER_OCL(reorg_yolo);
 REGISTER_OCL(reshape);
 REGISTER_OCL(reverse);
 REGISTER_OCL(reverse_sequence);
+REGISTER_OCL(rms);
 REGISTER_OCL(roi_align);
 REGISTER_OCL(roi_pooling);
 REGISTER_OCL(roll);

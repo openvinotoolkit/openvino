@@ -7,6 +7,44 @@ import torch.nn.functional as F
 
 from pytorch_layer_test_class import PytorchLayerTest
 
+OPS = {
+    "aten::rsqrt": torch.rsqrt,
+    "aten::sqrt": torch.sqrt,
+    "aten::exp": torch.exp,
+    "aten::exp_": torch.exp_,
+    "aten::relu": torch.relu,
+    "aten::relu_": torch.relu_,
+    "aten::ceil": torch.ceil,
+    "aten::ceil_": torch.ceil_,
+    "aten::floor": torch.floor,
+    "aten::floor_": torch.floor_,
+    "aten::sigmoid": torch.sigmoid,
+    "aten::sigmoid_": torch.sigmoid_,
+    "aten::cos": torch.cos,
+    "aten::cos_": torch.cos_,
+    "aten::sin": torch.sin,
+    "aten::sin_": torch.sin_,
+    "aten::tan": torch.tan,
+    "aten::tan_": torch.tan_,
+    "aten::cosh": torch.cosh,
+    "aten::cosh_": torch.cosh_,
+    "aten::sinh": torch.sinh,
+    "aten::sinh_": torch.sinh_,
+    "aten::tanh": torch.tanh,
+    "aten::tanh_": torch.tanh_,
+    "aten::acos": torch.acos,
+    "aten::acos_": torch.acos_,
+    "aten::asin": torch.asin,
+    "aten::asin_": torch.asin_,
+    "aten::atan": torch.atan,
+    "aten::atan_": torch.atan_,
+    "aten::acosh": torch.acosh,
+    "aten::acosh_": torch.acosh_,
+    "aten::asinh": torch.asinh,
+    "aten::asinh_": torch.asinh_,
+    "aten::atanh": torch.atanh,
+    "aten::atanh_": torch.atanh_
+}
 
 class unary_op_net(torch.nn.Module):
     def __init__(self, op, dtype):
@@ -29,60 +67,62 @@ class TestUnaryOp(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64, torch.int8, torch.uint8, torch.int32, torch.int64])
-    @pytest.mark.parametrize("op,op_type", [
-        (torch.rsqrt, "aten::rsqrt"),
-        (torch.sqrt, "aten::sqrt"),
-        (torch.exp, "aten::exp"),
-        (torch.relu, "aten::relu"),
-        (torch.relu_, "aten::relu_"),
-        (torch.ceil, "aten::ceil"),
-        (torch.ceil_, "aten::ceil_"),
-        (torch.floor, "aten::floor"),
-        (torch.floor_, "aten::floor_"),
-        (torch.sigmoid, "aten::sigmoid"),
+    @pytest.mark.parametrize("op_type",
+    [
+        "aten::rsqrt",
+        "aten::sqrt",
+        "aten::exp",
+        "aten::relu",
+        "aten::relu_",
+        "aten::ceil",
+        "aten::ceil_",
+        "aten::floor",
+        "aten::floor_",
+        "aten::sigmoid",
         # trigonometry
-        (torch.cos, "aten::cos"),
-        (torch.sin, "aten::sin"),
-        (torch.tan, "aten::tan"),
-        (torch.cosh, "aten::cosh"),
-        (torch.sinh, "aten::sinh"),
-        (torch.tanh, "aten::tanh"),
-        (torch.acos, "aten::acos"),
-        (torch.asin, "aten::asin"),
-        (torch.atan, "aten::atan"),
-        (torch.acosh, "aten::acosh"),
-        (torch.asinh, "aten::asinh"),
-        (torch.atanh, "aten::atanh"),
+        "aten::cos",
+        "aten::sin",
+        "aten::tan",
+        "aten::cosh",
+        "aten::sinh",
+        "aten::tanh",
+        "aten::acos",
+        "aten::asin",
+        "aten::atan",
+        "aten::acosh",
+        "aten::asinh",
+        "aten::atanh"
     ])
-    def test_unary_op(self, op, op_type, dtype, ie_device, precision, ir_version):
+    def test_unary_op(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
-        self._test(unary_op_net(op, dtype), None, op_type,
+        self._test(unary_op_net(OPS[op_type], dtype), None, op_type,
                    ie_device, precision, ir_version)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
-    @pytest.mark.parametrize("op,op_type", [
+    @pytest.mark.parametrize("op_type",
+    [
         # some pytorch inplace ops do not support int
-        (torch.exp_, "aten::exp_"),
-        (torch.sigmoid_, "aten::sigmoid_"),
+        "aten::exp_",
+        "aten::sigmoid_",
         # trigonometry
-        (torch.cos_, "aten::cos_"),
-        (torch.sin_, "aten::sin_"),
-        (torch.tan_, "aten::tan_"),
-        (torch.cosh_, "aten::cosh_"),
-        (torch.sinh_, "aten::sinh_"),
-        (torch.tanh_, "aten::tanh_"),
-        (torch.acos_, "aten::acos_"),
-        (torch.asin_, "aten::asin_"),
-        (torch.atan_, "aten::atan_"),
-        (torch.acosh_, "aten::acosh_"),
-        (torch.asinh_, "aten::asinh_"),
-        (torch.atanh_, "aten::atanh_"),
+        "aten::cos_",
+        "aten::sin_",
+        "aten::tan_",
+        "aten::cosh_",
+        "aten::sinh_",
+        "aten::tanh_",
+        "aten::acos_",
+        "aten::asin_",
+        "aten::atan_",
+        "aten::acosh_",
+        "aten::asinh_",
+        "aten::atanh_"
     ])
-    def test_unary_op_float(self, op, op_type, dtype, ie_device, precision, ir_version):
+    def test_unary_op_float(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
-        self._test(unary_op_net(op, dtype), None, op_type,
+        self._test(unary_op_net(OPS[op_type], dtype), None, op_type,
                    ie_device, precision, ir_version)
 
 

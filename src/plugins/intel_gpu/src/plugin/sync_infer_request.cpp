@@ -3,6 +3,8 @@
 //
 
 #include "intel_gpu/plugin/usm_host_tensor.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/memory_caps.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/core/preprocess/input_tensor_info.hpp"
 #include "openvino/core/parallel.hpp"
@@ -415,11 +417,13 @@ void SyncInferRequest::wait() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::wait");
     OPENVINO_ASSERT(!m_internal_outputs.empty(), "[GPU] Inference was not started!\n");
 
+    auto& network = *m_graph->get_network();
+
     // wait for completion & collect outputs as requested by the model
     // for in_order_queue, it is enough to call finish only once
-    bool do_sync_per_output = (m_graph->get_network()->get_stream().get_queue_type() == QueueTypes::in_order) ? false : true;
+    bool do_sync_per_output = (network.get_stream().get_queue_type() == QueueTypes::in_order) ? false : true;
     if (!do_sync_per_output)
-        m_graph->get_network()->get_stream().finish();
+        network.get_stream().finish();
 
     std::vector<cldnn::event::ptr> copy_events;
 
@@ -442,12 +446,17 @@ void SyncInferRequest::wait() {
         auto output_tensor = output_tensor_wrapper.ptr;
         auto remote_ptr = std::dynamic_pointer_cast<RemoteTensorImpl>(output_tensor);
         bool is_remote = remote_ptr != nullptr;
+        bool is_dynamic = port.get_partial_shape().is_dynamic();
 
         if (is_remote) {
             GPU_DEBUG_TRACE_DETAIL << name << " handle output tensor (remote): " << remote_ptr->get_original_memory()->buffer_ptr() << std::endl;
         } else {
             GPU_DEBUG_TRACE_DETAIL << name << " handle output tensor (host): " << output_tensor->data() << std::endl;
         }
+
+        OPENVINO_ASSERT(output_tensor_wrapper.owner == TensorOwner::PLUGIN || output_tensor_wrapper.actual_size >= output_memory->size(),
+                        "[GPU] Output tensor set by user has smaller size (", output_tensor->get_byte_size(), ") ",
+                        "than required (", output_memory->size(), ")");
 
         bool need_output_update = output_layout.bytes_count() == 0 || (output_memory && output_tensor->get_byte_size() != output_memory->size());
         if (need_output_update) {
@@ -460,7 +469,7 @@ void SyncInferRequest::wait() {
                 OPENVINO_ASSERT(ov::shape_size(port.get_shape()) == ov::shape_size(mem_shape), "[GPU] Unexpected elements count for output tensor");
                 mem_shape = port.get_shape();
             }
-            if (port.get_partial_shape().is_dynamic()) {
+            if (is_dynamic) {
                 bool need_reallocate = true;
                 auto usm_host_tensor = std::dynamic_pointer_cast<USMHostTensor>(output_tensor);
                 if (usm_host_tensor && output_memory)
@@ -488,11 +497,23 @@ void SyncInferRequest::wait() {
                     copy_events.push_back(ev);
                 }
             }
+        } else if (is_remote && is_dynamic) {
+            auto& stream = m_graph->get_network()->get_stream();
+            auto user_mem = remote_ptr->get_original_memory();
+            if (user_mem->get_allocation_type() == cldnn::allocation_type::cl_mem && output_memory->get_allocation_type() != cldnn::allocation_type::cl_mem) {
+                // WA: Copy between cl_mem and usm memory may fail for some reason (driver bug?)
+                // so this explicit memcpy is used to provide correct output for cl_mem output in dynamic cases
+                cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::write> lock_dst(user_mem, stream);
+                cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read> lock_src(output_memory, stream);
+                std::memcpy(lock_dst.data(), lock_src.data(), output_memory->size());
+            } else {
+                copy_events.push_back(output_memory->copy_to(stream, *user_mem, false));
+            }
         }
     }
 
     if (!copy_events.empty()) {
-        auto& stream = m_graph->get_network()->get_stream();
+        auto& stream = network.get_stream();
         if (stream.get_queue_type() == QueueTypes::in_order) {
             // wait only the last one
             stream.wait_for_events({copy_events.back()});
@@ -831,7 +852,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(const std::strin
     auto device_tensor_et = convert_to_supported_device_type(element_type);
     bool convert_needed = is_convert_required(device_tensor_et, element_type);
     cldnn::primitive_id internal_name = m_output_names_map.at(name);
-    if (is_remote && !convert_needed) {
+    if (is_remote && !convert_needed && !is_dynamic) {
         m_plugin_outputs[name] = user_tensor_wrapper;
     }
 
