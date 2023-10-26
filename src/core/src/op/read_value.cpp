@@ -102,8 +102,9 @@ bool op::v6::ReadValue::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("variable_id", m_variable);
 
     auto variable_info = m_variable->get_info();
-    visitor.on_attribute("variable_shape", variable_info.data_shape);
     visitor.on_attribute("variable_type", variable_info.data_type);
+    visitor.on_attribute("variable_shape", variable_info.data_shape);
+    m_variable->update(variable_info);
     return true;
 }
 

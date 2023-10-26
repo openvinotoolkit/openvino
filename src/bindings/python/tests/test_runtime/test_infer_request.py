@@ -32,7 +32,7 @@ from tests.utils.helpers import generate_image, get_relu_model
 
 def create_model_with_memory(input_shape, data_type):
     input_data = ops.parameter(input_shape, name="input_data", dtype=data_type)
-    rv = ops.read_value(input_data, "var_id_667")
+    rv = ops.read_value(input_data, "var_id_667", data_type, input_shape)
     add = ops.add(rv, input_data, name="MemoryAdd")
     node = ops.assign(add, "var_id_667")
     res = ops.result(add, "res")
