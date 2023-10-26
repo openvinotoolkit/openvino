@@ -34,5 +34,5 @@ runs:
         echo "Python version: $(python3 --version)"
         echo "gcc version: $(gcc --version)"
         echo "cmake version: $(cmake --version)"
-        echo "CPU Info: "; Get-WmiObject Win32_Processor
+        echo "CPU Info: "; Get-CimInstance –ClassName Win32_Processor | Select-Object -Property Name, NumberOfCores, NumberOfLogicalProcessors
         echo "RAM info: $(systeminfo | Select-String 'Total Physical Memory:')"
