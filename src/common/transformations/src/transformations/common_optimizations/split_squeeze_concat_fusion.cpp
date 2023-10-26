@@ -18,9 +18,9 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-static bool is_axis_squeezed_by_node(const std::shared_ptr<ov::Node>& squeeze_node, int64_t axis);
+static bool is_axis_squeezed_by_node(const std::shared_ptr<ov::Node>& squeeze_node, int64_t axis, bool use_shapes);
 
-ov::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
+ov::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion(bool use_shapes) {
     MATCHER_SCOPE(SplitSqueezeConcatFusion);
     // Detect only concat, because we don't know how many inputs will go into concat
     auto concat_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Concat>();
@@ -67,7 +67,7 @@ ov::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
                 return false;
             }
 
-            if (!is_axis_squeezed_by_node(squeeze_node, split_axis)) {
+            if (!is_axis_squeezed_by_node(squeeze_node, split_axis, use_shapes)) {
                 return false;
             }
 
@@ -108,7 +108,7 @@ ov::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
     register_matcher(m, callback);
 }
 
-bool is_axis_squeezed_by_node(const std::shared_ptr<ov::Node>& squeeze_node, int64_t axis) {
+bool is_axis_squeezed_by_node(const std::shared_ptr<ov::Node>& squeeze_node, int64_t axis, bool use_shapes) {
     const auto& input_shape = squeeze_node->get_input_partial_shape(0);
     const auto& output_shape = squeeze_node->get_output_partial_shape(0);
     if (input_shape.rank().is_dynamic() || output_shape.rank().is_dynamic())
@@ -126,6 +126,8 @@ bool is_axis_squeezed_by_node(const std::shared_ptr<ov::Node>& squeeze_node, int
         return false;
 
     if (ov::is_type<ov::op::v1::Reshape>(squeeze_node)) {
+        if (!use_shapes)
+            return false;
         // clang-format off
         // check if the dimensions surrounding squeezed axis match
         // function returns false if input_shape[:axis] != output_shape[:axis] or input_shape[(axis + 1):] != output_shape[axis:]

@@ -37,7 +37,7 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusion) {
 
         model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
 
-        manager.register_pass<ov::pass::SplitSqueezeConcatFusion>();
+        manager.register_pass<ov::pass::SplitSqueezeConcatFusion>(false);
     }
 
     {
@@ -69,7 +69,7 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionSqueezeWithoutAxesInput) {
 
         model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
 
-        manager.register_pass<ov::pass::SplitSqueezeConcatFusion>();
+        manager.register_pass<ov::pass::SplitSqueezeConcatFusion>(false);
     }
 
     {
@@ -103,7 +103,7 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeCaseNotAllSplitOutp
         model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
         model_ref = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
 
-        manager.register_pass<ov::pass::SplitSqueezeConcatFusion>();
+        manager.register_pass<ov::pass::SplitSqueezeConcatFusion>(false);
     }
 
     {
@@ -144,7 +144,7 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeCaseSplitOutputsGoI
         model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
         model_ref = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
 
-        manager.register_pass<ov::pass::SplitSqueezeConcatFusion>();
+        manager.register_pass<ov::pass::SplitSqueezeConcatFusion>(false);
     }
 
     {
@@ -185,7 +185,7 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeCaseSplitAxisDiffer
         model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
         model_ref = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
 
-        manager.register_pass<ov::pass::SplitSqueezeConcatFusion>();
+        manager.register_pass<ov::pass::SplitSqueezeConcatFusion>(false);
     }
 
     {
@@ -222,7 +222,7 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeSqueezeWithoutAxesI
 
         model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
 
-        manager.register_pass<ov::pass::SplitSqueezeConcatFusion>();
+        manager.register_pass<ov::pass::SplitSqueezeConcatFusion>(false);
     }
 }
 
@@ -256,7 +256,7 @@ TEST_P(SplitReshapeConcatFusion, SplitSqueezeConcatFusion) {
         }
         auto concat = std::make_shared<opset7::Concat>(squeeze_vec, params.concat_axis);
         model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
-        manager.register_pass<ov::pass::SplitSqueezeConcatFusion>();
+        manager.register_pass<ov::pass::SplitSqueezeConcatFusion>(true);
     }
 
     if (!params.can_fuse) {
@@ -276,6 +276,7 @@ TEST_P(SplitReshapeConcatFusion, SplitSqueezeConcatFusion) {
     }
 
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 static std::vector<SplitReshapeConcatFusionParam> split_reshape_concat_fusion_params{
