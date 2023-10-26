@@ -310,6 +310,15 @@ jobs:
       BUILD_DIR: /__w/openvino/openvino/build
 
     steps:
+
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: ${{ env.OPENVINO_REPO }}
+
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
@@ -330,9 +339,6 @@ jobs:
           pushd ${INSTALL_TEST_DIR}
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
-
-      - name: Install 'actions/setup-python@v4' dependencies
-        run: apt-get update && apt-get install -y libssl1.1
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
@@ -414,6 +420,14 @@ jobs:
       TEST_DEVICE: 'CPU'
 
     steps:
+
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
 
       - name: Create Directories
         run: |
@@ -866,6 +880,15 @@ jobs:
       LAYER_TESTS_INSTALL_DIR: /__w/openvino/openvino/install/tests/layer_tests
 
     steps:
+
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: ${{ env.OPENVINO_REPO }}
+
       #
       # Initialize OpenVINO
       #
@@ -1076,12 +1099,22 @@ jobs:
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
     env:
+      OPENVINO_REPO: /__w/openvino/openvino/openvino
       INSTALL_DIR: /__w/openvino/openvino/install
       INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
       PARALLEL_TEST_SCRIPT: /__w/openvino/openvino/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
       PARALLEL_TEST_CACHE: /__w/openvino/openvino/install/tests/test_cache.lst
 
     steps:
+
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: ${{ env.OPENVINO_REPO }}
+
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
@@ -1166,11 +1199,21 @@ jobs:
     #   volumes:
     #     - /mount/caches:/mount/caches
     env:
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
 
     steps:
+
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
       - name: Check sudo
         run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
 
@@ -1241,18 +1284,25 @@ jobs:
     #   volumes:
     #     - /mount/caches:/mount/caches
     env:
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
 
     steps:
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
       - name: Check sudo
         run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
 
       - name: Install dependencies
         run: |
-          # libssl1.1 - 'python3 -m pip' in self-hosted runner
-          sudo apt install --assume-yes --no-install-recommends libssl1.1
           # install git (required to build pip deps from the sources)
           # install 'g++' to build 'detectron2' and 'natten' wheels
           sudo apt-get install --assume-yes --no-install-recommends g++ git ca-certificates
@@ -1347,6 +1397,16 @@ jobs:
       SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
 
     steps:
+
+      - name: Fetch install_build_dependencies.sh and setup_python action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            install_build_dependencies.sh
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: ${{ env.OPENVINO_REPO }}
+
       - name: Install Prerequisites
         run: apt update && apt install -y git ca-certificates
 
@@ -1371,15 +1431,6 @@ jobs:
           pushd ${INSTALL_DIR}
             tar -xzf openvino_developer_package.tar.gz -C ${INSTALL_DIR}
           popd
-
-      - name: Fetch install_build_dependencies.sh and setup_python action
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            install_build_dependencies.sh
-            .github/actions/setup_python/action.yml
-          sparse-checkout-cone-mode: false
-          path: ${{ env.OPENVINO_REPO }}
 
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@v4
