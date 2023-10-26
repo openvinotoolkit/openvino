@@ -22,7 +22,7 @@ public:
                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
 
     port_mask_t get_port_mask() const override {
-        return EMPTY_PORT_MASK;
+        return PortMask(1);
     }
 
 private:

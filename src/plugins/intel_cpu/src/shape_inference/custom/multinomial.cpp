@@ -17,7 +17,7 @@ using namespace InferenceEngine;
 Result MultinomialShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                                     const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     const VectorDims& input_shape = input_shapes[0].get();
-    const auto& num_samples_mem = data_dependency.at(0);
+    const auto& num_samples_mem = data_dependency.at(1);
 
     size_t num_samples;
     if (num_samples_mem->getDesc().getPrecision() == Precision::I32) {
