@@ -141,9 +141,9 @@ memory::ptr engine::attach_memory(const layout& layout, void* ptr) {
     return std::make_shared<simple_attached_memory>(layout, ptr);
 }
 
-memory::ptr engine::allocate_memory(const layout& layout, bool reset, size_t bytes_count) {
+memory::ptr engine::allocate_memory(const layout& layout, bool reset) {
     allocation_type type = get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
-    return allocate_memory(layout, type, reset, bytes_count);
+    return allocate_memory(layout, type, reset);
 }
 
 memory_ptr engine::share_buffer(const layout& layout, shared_handle buf) {
