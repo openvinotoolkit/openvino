@@ -6,6 +6,7 @@
 #include "openvino/op/logical_and.hpp"
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/logical_or.hpp"
+#include "openvino/op/logical_xor.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -43,6 +44,16 @@ OutputVector translate_bitwise_or(const NodeContext& context) {
                                   "aten::bitwise_not supported only for boolean input");
     auto or_x = context.mark_node(std::make_shared<ov::op::v1::LogicalOr>(x, y));
     return {or_x};
+};
+
+OutputVector translate_bitwise_xor(const NodeContext& context) {
+    num_inputs_check(context, 2, 2);
+    auto x = context.get_input(0);
+    auto y = context.get_input(1);
+    FRONT_END_OP_CONVERSION_CHECK(x.get_element_type().compatible(element::boolean),
+                                  "aten::bitwise_xor supported only for boolean input");
+    auto xor_x = context.mark_node(std::make_shared<ov::op::v1::LogicalXor>(x, y));
+    return {xor_x};
 };
 
 }  // namespace op
