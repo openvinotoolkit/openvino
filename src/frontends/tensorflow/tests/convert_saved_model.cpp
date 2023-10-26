@@ -119,9 +119,16 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelBroadcastIssue) {
     { model = convert_model("saved_model_broadcast_issue"); }
     {
         // create a reference graph
-        auto x = make_shared<Constant>(element::i64, Shape{2, 2}, vector<int64_t>{1, 2, -1, -1});
+        auto const1 = make_shared<Constant>(element::i32, Shape{}, vector<float>{-1});
+        const1->output(0).set_names({"Cast/x"});
+        auto convert = make_shared<Convert>(const1, element::i64);
+        auto broadcast_const = make_shared<Constant>(element::i32, Shape{2}, vector<int32_t>{1, 2});
+        auto broadcast = make_shared<Broadcast>(convert, broadcast_const);
+        auto const2 = make_shared<Constant>(element::i64, Shape{1, 2}, vector<int64_t>{1, 2});
+        auto concat = make_shared<Concat>(OutputVector{const2, broadcast}, 0);
+        auto result = make_shared<Result>(concat);
 
-        model_ref = make_shared<Model>(OutputVector{x}, ParameterVector{});
+        model_ref = make_shared<Model>(OutputVector{result}, ParameterVector{});
     }
 }
 
