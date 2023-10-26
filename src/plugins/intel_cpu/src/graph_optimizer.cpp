@@ -286,7 +286,8 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
 }
 
 void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
-    std::set<InferenceEngine::Precision> supportedWeightsPrecisions{InferenceEngine::Precision::U8, InferenceEngine::Precision::NF4};
+    std::set<InferenceEngine::Precision> supportedWeightsPrecisions{InferenceEngine::Precision::U8, InferenceEngine::Precision::NF4,
+                                                                    InferenceEngine::Precision::U4, InferenceEngine::Precision::I4};
     const std::set<InferenceEngine::Precision> supportedDataPrecisions{InferenceEngine::Precision::FP32, InferenceEngine::Precision::BF16};
     auto expectedNode = [](NodePtr node, Type expectedType) {
         return node->getType() == expectedType && node->getChildEdges().size() == 1;
@@ -335,7 +336,28 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
                 continue;
         }
 
-        const auto convertNode = withSubtract ? subtractNode->getParentEdgesAtPort(0)[0]->getParent() : mulParent;
+        const bool withPowerStatic = mulParent->getAlgorithm() == Algorithm::EltwisePowerStatic;
+        NodePtr powerStaticNode;
+        if (withPowerStatic) {
+            powerStaticNode = mulParent;
+            if (auto *eltwiseNode = dynamic_cast<node::Eltwise *>(powerStaticNode.get())) {
+                if (eltwiseNode->getAlpha() != 1 || eltwiseNode->getBeta() != 1)
+                    continue;
+            } else {
+                continue;
+            }
+        }
+
+        // Both operations fallbacks on IP zero-point attribute and cannot be combined
+        if (withSubtract && withPowerStatic)
+            continue;
+
+        auto convertNode = mulParent;
+        if (withSubtract)
+            convertNode = subtractNode->getParentEdgesAtPort(0)[0]->getParent();
+        if (withPowerStatic)
+            convertNode = powerStaticNode->getParentEdgesAtPort(0)[0]->getParent();
+
         if (!expectedNode(convertNode, Type::Convert))
             continue;
         const auto weightsNode = convertNode->getParentEdgesAtPort(0)[0]->getParent();
@@ -346,6 +368,8 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         if (multiplyConstNode->getOriginalOutputPrecisionAtPort(0) != Precision::FP32)
             continue;
         if (withSubtract && subtractConstNode->getOriginalOutputPrecisionAtPort(0) != Precision::FP32)
+            continue;
+        if (withPowerStatic && powerStaticNode->getOriginalOutputPrecisionAtPort(0) != Precision::FP32)
             continue;
         if (supportedDataPrecisions.find(fcNode->getOriginalInputPrecisionAtPort(0)) == supportedDataPrecisions.end())
             continue;
@@ -361,6 +385,7 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
 
         VectorDims decompressionConstShape;
         const auto fcInputWeightsShape = fcNode->getInputShapeAtPort(1);
+        int groupNum = 1;
         // Ordinary case: one decompression group
         if (fcInputWeightsShape.getRank() == weightsShape.getRank()) {
             const auto& out_channels = fcInputWeightsShape.getDims()[0];
@@ -377,6 +402,7 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
             const auto& O = withTranspose ? *weights_dims.rbegin() : *(weights_dims.rbegin() + 2);
             // Group decompression is applied by O and N dims
             decompressionConstShape = withTranspose ? VectorDims{N, 1, O} : VectorDims{O, N, 1};
+            groupNum = N;
         }
         if (multiplyConstNode->getOutputShapeAtPort(0).getDims() != decompressionConstShape)
             continue;
@@ -384,7 +410,8 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
             continue;
 
         // HW specific shape limitations
-        if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx)) {
+        if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) &&
+            fcNode->getOriginalInputPrecisionAtPort(0) == InferenceEngine::Precision::BF16) {
             // OneDNN AMX IP implementation has limited shapes support due to performance considerations. As a current solution conditions below are copied
             // from OneDNN to make sure correct IP impl will be used since fallback one doesn't support weights decompression feature.
             size_t OC = fcInputWeightsShape.getDims()[0];
@@ -398,10 +425,38 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
                 continue;
         }
 
+        size_t IC = fcInputWeightsShape.getDims()[1];
+        // OneDNN IP primitive provides limited decompression params support
+        if (IC % groupNum != 0 || IC / groupNum < 4) {
+            continue;
+        }
+
         // Fusion processing
-        fcNode->fuseDecompressionMultiply(multiplyConstNode);
-        if (withSubtract)
-            fcNode->fuseDecompressionSubtract(subtractConstNode);
+        auto *multiplyInputNode = dynamic_cast<node::Input *>(multiplyConstNode.get());
+        if (!multiplyInputNode) {
+            IE_THROW() << "Cannot cast " << multiplyInputNode->getName() << " to Input node";
+        }
+        fcNode->fuseDecompressionMultiply(multiplyInputNode->getMemoryPtr());
+
+        if (withSubtract) {
+            auto *subtractInputNode = dynamic_cast<node::Input *>(subtractConstNode.get());
+            if (!subtractInputNode) {
+                IE_THROW() << "Cannot cast " << subtractInputNode->getName() << " to Input node";
+            }
+            fcNode->fuseDecompressionSubtract(subtractInputNode->getMemoryPtr());
+        }
+        if (withPowerStatic) {
+            auto *eltwiseNode = dynamic_cast<node::Eltwise *>(powerStaticNode.get());
+            if (!eltwiseNode) {
+                IE_THROW() << "Cannot cast " << eltwiseNode->getName() << " to Eltwise node";
+            }
+
+            VectorDims memoryDims(decompressionConstShape.size(), 1);
+            CpuBlockedMemoryDesc memoryDesc(Precision::FP32, Shape(memoryDims));
+            auto memory = std::make_shared<Memory>(graph.getEngine(), memoryDesc, nullptr, false);
+            (static_cast<float *>(memory->getData()))[0] = -1.f * eltwiseNode->getGamma();
+            fcNode->fuseDecompressionSubtract(memory);
+        }
 
         fcNode->addOriginalLayer(multiplyNode->getOriginalLayers());
         fcNode->addOriginalLayer(convertNode->getOriginalLayers());
@@ -411,12 +466,18 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
             auto subtractConstEdge = subtractConstNode->getChildEdges()[0].lock();
             graph.RemoveEdge(subtractConstEdge);
         }
+        if (withPowerStatic) {
+            fcNode->addOriginalLayer(powerStaticNode->getOriginalLayers());
+        }
+
         auto multiplyConstEdge = multiplyConstNode->getChildEdges()[0].lock();
         graph.RemoveEdge(multiplyConstEdge);
 
         graph.DropNode(convertNode);
         if (withSubtract)
             graph.DropNode(subtractNode);
+        if (withPowerStatic)
+            graph.DropNode(powerStaticNode);
         graph.DropNode(multiplyNode);
 
         const auto& weightsPrecision = weightsNode->getOriginalOutputPrecisionAtPort(0);
