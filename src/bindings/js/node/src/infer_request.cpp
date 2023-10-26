@@ -227,7 +227,7 @@ void performInferenceThread(TsfnContext* context) {
     std::map<std::string, ov::Tensor> outputs;
 
     for (auto& node : compiled_model) {
-        auto tensor = context->_ir->get_tensor(node);
+        const auto& tensor = context->_ir->get_tensor(node);
         auto new_tensor = ov::Tensor(tensor.get_element_type(), tensor.get_shape());
         tensor.copy_to(new_tensor);
         outputs.insert({node.get_any_name(), new_tensor});
@@ -237,10 +237,10 @@ void performInferenceThread(TsfnContext* context) {
     infer_mutex.unlock();
 
     auto callback = [](Napi::Env env, Napi::Function, TsfnContext* context) {
-        auto m = context->result;
+        const auto& res = context->result;
         auto outputs_obj = Napi::Object::New(env);
 
-        for (const auto& [key, tensor] : m) {
+        for (const auto& [key, tensor] : res) {
             outputs_obj.Set(key, TensorWrap::Wrap(env, tensor));
         }
         context->deferred.Resolve({outputs_obj});
