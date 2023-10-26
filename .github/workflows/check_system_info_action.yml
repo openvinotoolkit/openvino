@@ -33,4 +33,4 @@ jobs:
       #
 
       - name: System info
-        uses: ./.github/actions/system_info
+        uses: ${{ github.workspace }}/openvino/.github/actions/system_info
