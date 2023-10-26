@@ -17,6 +17,7 @@
 #include "ie_ngraph_utils.hpp"
 #include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
 #include <cpu/ref_eltwise.hpp>
+#include <openvino/core/except.hpp>
 
 #include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
@@ -36,6 +37,10 @@
 
 #include "ngraph/ngraph.hpp"
 #include <ngraph/opsets/opset1.hpp>
+#include <openvino/op/bitwise_and.hpp>
+#include <openvino/op/bitwise_not.hpp>
+#include <openvino/op/bitwise_or.hpp>
+#include <openvino/op/bitwise_xor.hpp>
 #include "transformations/cpu_opset/common/op/power_static.hpp"
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
@@ -717,7 +722,7 @@ private:
                     uni_vpmovzxbd(vmm_src, op);
                     break;
                 default:
-                    assert(!"unknown src_prc");
+                    OPENVINO_THROW("unknown src_prc");
             }
 
             switch (dst_prc) {
@@ -730,7 +735,7 @@ private:
                         uni_vcvtps2dq(vmm_src, vmm_src);
                     break;
                 default:
-                    assert(!"unknown dst_prc");
+                    OPENVINO_THROW("unknown dst_prc");
             }
         }
     }
@@ -765,7 +770,7 @@ private:
                 uni_vmovq(xmm_src, reg_tmp_64);
                 break;
             default:
-                assert(!"unknown src_prc");
+                OPENVINO_THROW("unknown src_prc");
         }
 
         switch (dst_prc) {
@@ -778,7 +783,7 @@ private:
                     uni_vcvtps2dq(xmm_src, xmm_src);
                 break;
             default:
-                assert(!"unknown dst_prc");
+                OPENVINO_THROW("unknown dst_prc");
         }
     }
 
@@ -796,7 +801,7 @@ private:
                     uni_vcvtdq2ps(vmm_dst, vmm_dst);
                 break;
             default:
-                assert(!"unknown src_prc");
+                OPENVINO_THROW("unknown src_prc");
         }
 
         switch (dst_prc) {
@@ -868,7 +873,7 @@ private:
                 }
                 break;
             default:
-                assert(!"unknown dst_prc");
+                OPENVINO_THROW("unknown dst_prc");
         }
     }
 
@@ -883,7 +888,7 @@ private:
                     uni_vcvtdq2ps(xmm_dst, xmm_dst);
                 break;
             default:
-                assert(!"unknown src_prc");
+                OPENVINO_THROW("unknown src_prc");
         }
 
         switch (dst_prc) {
@@ -923,7 +928,7 @@ private:
                 mov(op, reg_tmp_8);
                 break;
             default:
-                assert(!"unknown dst_prc");
+                OPENVINO_THROW("unknown dst_prc");
         }
     }
 };
@@ -1159,6 +1164,18 @@ const std::map<const ngraph::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::g
         }},
         {ngraph::op::v0::Log::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
             node.algorithm = Algorithm::EltwiseLog;
+        }},
+        {op::v13::BitwiseAnd::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseBitwiseAnd;
+        }},
+        {op::v13::BitwiseNot::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseBitwiseNot;
+        }},
+        {op::v13::BitwiseOr::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseBitwiseOr;
+        }},
+        {op::v13::BitwiseXor::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseBitwiseXor;
         }},
     };
     return initializers;
@@ -1544,16 +1561,12 @@ public:
 
 /* enabled only for float at float16_t at the moment
  * can be extended in the future */
-template<typename T,
-         typename std::enable_if<
-             std::is_same<T, float>::value ||
-             std::is_same<T, dnnl::impl::float16_t>::value>
-         ::type* = nullptr>
-class EltwiseRefExecutor : public Eltwise::IEltwiseExecutor {
+template<typename T>
+class EltwiseRefBaseExecutor : public Eltwise::IEltwiseExecutor {
 public:
-    EltwiseRefExecutor(Eltwise::EltwiseData opData,
-                       const VectorDims& outBlkDims,
-                       std::vector<VectorDims> inpDims)
+    EltwiseRefBaseExecutor(Eltwise::EltwiseData opData,
+                           const VectorDims& outBlkDims,
+                           std::vector<VectorDims> inpDims)
     : _opData(std::move(opData)), _inpDims(inpDims) {
         if (inpDims.empty()) {
             IE_THROW() << "Can not make Eltwise executor from empty input dims array";
@@ -1595,47 +1608,114 @@ public:
         }
     }
 
+    const VectorDims& getOutDims() const override {
+        return _dims;
+    }
+
+    size_t getBatchDimIdx() const override {
+        return _batchDimIdx;
+    }
+
+protected:
+    void init_ptr(const jit_eltwise_call_args_ptrs& args_ptrs,
+        const VectorDims& dims_out,
+        std::vector<size_t>& counters,
+        const size_t iwork,
+        std::vector<T>& src_f,
+        T*& dst_ptr_f) {
+        size_t tmp = iwork;
+        for (ptrdiff_t j = dims_out.size() - 1; j >= 0; j--) {
+            counters[j] = tmp % dims_out[j];
+            tmp /= dims_out[j];
+        }
+
+        size_t index_in[MAX_ELTWISE_INPUTS] = { 0 };
+        for (size_t i = 0; i < _inputNum; i++) {
+            index_in[i] = 0;
+            for (size_t j = 0; j < counters.size(); j++) {
+                index_in[i] += counters[j] * _src_offsets[i][j];
+            }
+            index_in[i] /= sizeof(T);
+        }
+
+        size_t index_out = 0;
+        for (size_t j = 0; j < counters.size(); j++) {
+            index_out += counters[j] * _dst_offsets[j];
+        }
+        index_out /= sizeof(T);
+
+        //std::vector<T> src_f(_inputNum);
+        for (size_t i = 0; i < _inputNum; i++) {
+            src_f[i] = (reinterpret_cast<const T*>(args_ptrs.src_ptr[i]) + index_in[i])[0];
+        }
+        dst_ptr_f = reinterpret_cast<T*>(args_ptrs.dst_ptr) + index_out;
+    }
+
+    const Eltwise::EltwiseData _opData;
+    VectorDims _dims;
+    VectorDims _src_offsets[MAX_ELTWISE_INPUTS];
+    VectorDims _dst_offsets;
+    size_t _fullWorkAmount = 0;
+    size_t _inputNum = 0;
+    size_t _batchDimIdx = 0;
+    std::vector<VectorDims> _inpDims;
+};
+
+/* enabled only for float at float16_t at the moment
+ * can be extended in the future */
+template<typename T,
+    typename std::enable_if<
+    std::is_same<T, float>::value ||
+    std::is_same<T, dnnl::impl::float16_t>::value>
+    ::type * = nullptr>
+class EltwiseRefExecutor : public EltwiseRefBaseExecutor<T> {
+public:
+    EltwiseRefExecutor(Eltwise::EltwiseData opData,
+                          const VectorDims& outBlkDims,
+                          std::vector<VectorDims> inpDims) : EltwiseRefBaseExecutor<T>(opData, outBlkDims, inpDims) {
+    }
+
     void exec(const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) override {
-        if (_opData.algo == Algorithm::EltwiseLog) {
+        if (this->_opData.algo == Algorithm::EltwiseLog) {
             const T* src_ptr_f = reinterpret_cast<const T*>(args_ptrs.src_ptr[0]);
             T* dst_ptr_f = reinterpret_cast<T*>(args_ptrs.dst_ptr);
-            parallel_for(_fullWorkAmount, [&](size_t i) {
+            parallel_for(this->_fullWorkAmount, [&](size_t i) {
                 dst_ptr_f[i] = logf(src_ptr_f[i]);
             });
             return;
         }
-        if (_opData.algo == Algorithm::EltwisePowerStatic) {
+        if (this->_opData.algo == Algorithm::EltwisePowerStatic) {
             const T* src_ptr_f = reinterpret_cast<const T*>(args_ptrs.src_ptr[0]);
             T* dst_ptr_f = reinterpret_cast<T*>(args_ptrs.dst_ptr);
-            if (_opData.alpha == 2) {
-                parallel_for(_fullWorkAmount, [&](size_t i) {
-                    dst_ptr_f[i] = (_opData.beta * src_ptr_f[i] + _opData.gamma) *
-                                   (_opData.beta * src_ptr_f[i] + _opData.gamma);
+            if (this->_opData.alpha == 2) {
+                parallel_for(this->_fullWorkAmount, [&](size_t i) {
+                    dst_ptr_f[i] = (this->_opData.beta * src_ptr_f[i] + this->_opData.gamma) *
+                                   (this->_opData.beta * src_ptr_f[i] + this->_opData.gamma);
                 });
             } else {
-                parallel_for(_fullWorkAmount, [&](size_t i) {
-                    dst_ptr_f[i] = powf(_opData.beta * src_ptr_f[i] + _opData.gamma, _opData.alpha);
+                parallel_for(this->_fullWorkAmount, [&](size_t i) {
+                    dst_ptr_f[i] = powf(this->_opData.beta * src_ptr_f[i] + this->_opData.gamma, this->_opData.alpha);
                 });
             }
             return;
         }
-        if (_opData.algo == Algorithm::EltwisePowerDynamic) {
+        if (this->_opData.algo == Algorithm::EltwisePowerDynamic) {
             const T* src_ptr_f = reinterpret_cast<const T*>(args_ptrs.src_ptr[0]);
             const T* src_ptr_f_pow = reinterpret_cast<const T*>(args_ptrs.src_ptr[1]);
             T* dst_ptr_f = reinterpret_cast<T*>(args_ptrs.dst_ptr);
 
             uint32_t count_of_power_values = 1;
-            for (unsigned long i : _inpDims[1]) {
+            for (unsigned long i : this->_inpDims[1]) {
                 count_of_power_values *= i;
             }
 
             if (count_of_power_values == 1) {
                 if (src_ptr_f_pow[0] != 2) {
-                    parallel_for(_fullWorkAmount, [&](size_t i) {
+                    parallel_for(this->_fullWorkAmount, [&](size_t i) {
                         dst_ptr_f[i] = powf(src_ptr_f[i], src_ptr_f_pow[0]);
                     });
                 } else {
-                    parallel_for(_fullWorkAmount, [&](size_t i) {
+                    parallel_for(this->_fullWorkAmount, [&](size_t i) {
                         dst_ptr_f[i] = src_ptr_f[i] * src_ptr_f[i];
                     });
                 }
@@ -1644,46 +1724,23 @@ public:
         }
 
         std::shared_ptr<ref_eltwise_scalar_fwd_t> ref_eltwise_injector = nullptr;
-        if (_opData.onednnAlgorithm != dnnl::algorithm::undef) {
+        if (this->_opData.onednnAlgorithm != dnnl::algorithm::undef) {
             ref_eltwise_injector = std::make_shared<ref_eltwise_scalar_fwd_t>(
-                    static_cast<dnnl_alg_kind_t>(_opData.onednnAlgorithm), _opData.alpha, _opData.beta, 1.f);
+                    static_cast<dnnl_alg_kind_t>(this->_opData.onednnAlgorithm), this->_opData.alpha, this->_opData.beta, 1.f);
         }
 
         parallel_nt(0, [&](const int ithr, const int nthr) {
             size_t start = 0, end = 0;
-            splitter(_fullWorkAmount, nthr, ithr, start, end);
+            splitter(this->_fullWorkAmount, nthr, ithr, start, end);
 
             std::vector<size_t> counters(dims_out.size(), 0);
 
             for (size_t iwork = start; iwork < end; ++iwork) {
-                size_t tmp = iwork;
-                for (ptrdiff_t j = dims_out.size() - 1; j >= 0; j--) {
-                    counters[j] = tmp % dims_out[j];
-                    tmp /= dims_out[j];
-                }
+                std::vector<T> src_f(this->_inputNum);
+                T* dst_ptr_f;
+                this->init_ptr(args_ptrs, dims_out, counters, iwork, src_f, dst_ptr_f);
 
-                size_t index_in[MAX_ELTWISE_INPUTS] = {0};
-                for (size_t i = 0; i < _inputNum; i++) {
-                    index_in[i] = 0;
-                    for (size_t j = 0; j < counters.size(); j++) {
-                        index_in[i] += counters[j] * _src_offsets[i][j];
-                    }
-                    index_in[i] /= sizeof(T);
-                }
-
-                size_t index_out = 0;
-                for (size_t j = 0; j < counters.size(); j++) {
-                    index_out += counters[j] * _dst_offsets[j];
-                }
-                index_out /= sizeof(T);
-
-                std::vector<T> src_f(_inputNum);
-                for (size_t i = 0; i < _inputNum; i++) {
-                    src_f[i] = (reinterpret_cast<const T*>(args_ptrs.src_ptr[i]) + index_in[i])[0];
-                }
-                T* dst_ptr_f = reinterpret_cast<T*>(args_ptrs.dst_ptr) + index_out;
-
-                switch (_opData.algo) {
+                switch (this->_opData.algo) {
                     case Algorithm::EltwiseRelu:
                     case Algorithm::EltwiseGeluErf:
                     case Algorithm::EltwiseGeluTanh:
@@ -1730,8 +1787,8 @@ public:
                     // @todo implement proper isinfinite for non-float precisions
                     case Algorithm::EltwiseIsFinite:          *dst_ptr_f = std::isfinite(static_cast<float>(src_f[0])); break;
                     case Algorithm::EltwiseIsInf:
-                        *dst_ptr_f = (_opData.alpha && (src_f[0] == -std::numeric_limits<T>::infinity())) ||
-                                     (_opData.beta  && (src_f[0] == std::numeric_limits<T>::infinity()));
+                        *dst_ptr_f = (this->_opData.alpha && (src_f[0] == -std::numeric_limits<T>::infinity())) ||
+                                     (this->_opData.beta  && (src_f[0] == std::numeric_limits<T>::infinity()));
                         break;
                     case Algorithm::EltwiseIsNaN:             *dst_ptr_f = std::isnan(src_f[0]); break;
                     case Algorithm::EltwiseSelect:            *dst_ptr_f = src_f[0] ? src_f[1] : src_f[2]; break;
@@ -1740,24 +1797,63 @@ public:
             }
         });
     }
+};
 
-    const VectorDims& getOutDims() const override {
-        return _dims;
+template<typename T,
+    typename std::enable_if<
+    std::is_same<T, int8_t>::value ||
+    std::is_same<T, uint8_t>::value ||
+    std::is_same<T, int16_t>::value ||
+    std::is_same<T, uint16_t>::value ||
+    std::is_same<T, int32_t>::value>
+    ::type * = nullptr>
+class BitwiseRefExecutor : public EltwiseRefBaseExecutor<T> {
+public:
+    BitwiseRefExecutor(Eltwise::EltwiseData opData,
+                       const VectorDims& outBlkDims,
+                       std::vector<VectorDims> inpDims) : EltwiseRefBaseExecutor<T>(opData, outBlkDims, inpDims) {
     }
 
-    size_t getBatchDimIdx() const override {
-        return _batchDimIdx;
-    }
+    void exec(const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) override {
+        std::shared_ptr<ref_eltwise_scalar_fwd_t> ref_eltwise_injector = nullptr;
+        if (this->_opData.onednnAlgorithm != dnnl::algorithm::undef) {
+            ref_eltwise_injector = std::make_shared<ref_eltwise_scalar_fwd_t>(
+                    static_cast<dnnl_alg_kind_t>(this->_opData.onednnAlgorithm), this->_opData.alpha, this->_opData.beta, 1.f);
+        }
 
-private:
-    const Eltwise::EltwiseData _opData;
-    VectorDims _dims;
-    VectorDims _src_offsets[MAX_ELTWISE_INPUTS];
-    VectorDims _dst_offsets;
-    size_t _fullWorkAmount = 0;
-    size_t _inputNum = 0;
-    size_t _batchDimIdx = 0;
-    std::vector<VectorDims> _inpDims;
+        parallel_nt(0, [&](const int ithr, const int nthr) {
+            size_t start = 0, end = 0;
+            splitter(this->_fullWorkAmount, nthr, ithr, start, end);
+
+            std::vector<size_t> counters(dims_out.size(), 0);
+
+            for (size_t iwork = start; iwork < end; ++iwork) {
+                std::vector<T> src_f(this->_inputNum);
+                T* dst_ptr_f;
+                this->init_ptr(args_ptrs, dims_out, counters, iwork, src_f, dst_ptr_f);
+
+                switch (this->_opData.algo) {
+                    case Algorithm::EltwiseBitwiseAnd: {
+                        *dst_ptr_f = src_f[0] & src_f[1];
+                        break;
+                    }
+                    case Algorithm::EltwiseBitwiseNot: {
+                        *dst_ptr_f = ~src_f[0];
+                        break;
+                    }
+                    case Algorithm::EltwiseBitwiseOr: {
+                        *dst_ptr_f = src_f[0] | src_f[1];
+                        break;
+                    }
+                    case Algorithm::EltwiseBitwiseXor: {
+                        *dst_ptr_f = src_f[0] ^ src_f[1];
+                        break;
+                    }
+                    default: IE_THROW() << "Unsupported operation type for Eltwise executor";
+                }
+            }
+        });
+    }
 };
 
 } // namespace
@@ -1771,15 +1867,47 @@ bool Eltwise::EltwiseData::operator==(const EltwiseData &rhs) const noexcept {
 }
 
 static Eltwise::executorPtr buildRefExecutor(const EltwiseKey& key) {
-    if (key.outPrc == Precision::FP16) {
-        return std::make_shared<EltwiseRefExecutor<dnnl::impl::float16_t>>(key.eltwise_data.front(),
-                                                                           key.outBlkDims,
-                                                                           key.inpDims);
+    switch (key.outPrc) {
+        case Precision::FP16:
+            return std::make_shared<EltwiseRefExecutor<dnnl::impl::float16_t>>(key.eltwise_data.front(),
+                                                                               key.outBlkDims,
+                                                                               key.inpDims);
+        case Precision::I8:
+            return std::make_shared<BitwiseRefExecutor<PrecisionTrait<Precision::I8>::value_type>>(
+                key.eltwise_data.front(),
+                key.outBlkDims,
+                key.inpDims);
+
+        case Precision::U8:
+            return std::make_shared<BitwiseRefExecutor<PrecisionTrait<Precision::U8>::value_type>>(
+                key.eltwise_data.front(),
+                key.outBlkDims,
+                key.inpDims);
+
+        case Precision::I16:
+            return std::make_shared<BitwiseRefExecutor<PrecisionTrait<Precision::I16>::value_type>>(
+                key.eltwise_data.front(),
+                key.outBlkDims,
+                key.inpDims);
+
+        case Precision::U16:
+            return std::make_shared<BitwiseRefExecutor<PrecisionTrait<Precision::U16>::value_type>>(
+                key.eltwise_data.front(),
+                key.outBlkDims,
+                key.inpDims);
+#
+        case Precision::I32:
+            return std::make_shared<BitwiseRefExecutor<PrecisionTrait<Precision::I32>::value_type>>(
+                key.eltwise_data.front(),
+                key.outBlkDims,
+                key.inpDims);
+
+        default:
+            // use float reference executor for any other precision for now
+            return std::make_shared<EltwiseRefExecutor<float>>(key.eltwise_data.front(),
+                                                               key.outBlkDims,
+                                                               key.inpDims);
     }
-    // use float reference executor for any other precision for now
-    return std::make_shared<EltwiseRefExecutor<float>>(key.eltwise_data.front(),
-                                                       key.outBlkDims,
-                                                       key.inpDims);
 }
 
 static Eltwise::executorPtr buildExecutor(const EltwiseKey& key) {
@@ -1880,6 +2008,12 @@ size_t Eltwise::getOpInputsNum() const {
         case Algorithm::EltwiseLogicalAnd:
         case Algorithm::EltwiseLogicalOr:
         case Algorithm::EltwiseLogicalXor:
+        case Algorithm::EltwiseBitwiseAnd:
+        case Algorithm::EltwiseBitwiseOr:
+        case Algorithm::EltwiseBitwiseXor:
+            return 2;
+        case Algorithm::EltwiseBitwiseNot:
+            return 1;
         case Algorithm::EltwisePrelu:
             return 2;
         case Algorithm::EltwiseMulAdd:
@@ -1909,7 +2043,23 @@ void Eltwise::getSupportedDescriptors() {
 }
 
 void Eltwise::initSupportedPrimitiveDescriptors() {
-    std::vector<Precision> supportedPrecisions = {
+    const auto isBitwise = [](const Algorithm& algorithm) {
+        return one_of(
+            algorithm,
+            Algorithm::EltwiseBitwiseAnd,
+            Algorithm::EltwiseBitwiseNot,
+            Algorithm::EltwiseBitwiseOr,
+            Algorithm::EltwiseBitwiseXor);
+    };
+
+    std::vector<Precision> supportedPrecisions = isBitwise(algorithm) ?
+        std::vector<Precision> {
+            Precision::U8,
+            Precision::I8,
+            Precision::U16,
+            Precision::I16,
+            Precision::I32
+        } : std::vector<Precision> {
             Precision::FP32,
             Precision::U8,
             Precision::I8,
@@ -1918,7 +2068,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             Precision::BF16,
             Precision::FP16,
             Precision::I32
-    };
+        };
 
     if (!supportedPrimitiveDescriptors.empty())
         return;
@@ -1926,7 +2076,8 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     // if dim rank is greater than the maximum possible, we should use the reference execution
     bool canUseOptimizedImpl = mayiuse(x64::sse41) && getInputShapeAtPort(0).getRank() <= MAX_ELTWISE_DIM_RANK;
     // TODO: Add EltwiseLog algorithm support for JIT implementation
-    canUseOptimizedImpl &= !one_of(getAlgorithm(), Algorithm::EltwiseLog);
+    canUseOptimizedImpl &= !(one_of(getAlgorithm(), Algorithm::EltwiseLog) || isBitwise(getAlgorithm()));
+
     bool canUseOptimizedShapeAgnosticImpl = isDynamicNode() && canUseOptimizedImpl;
 
     if (!canUseOptimizedImpl && !fusedWith.empty()) {
@@ -1986,6 +2137,16 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     }
 
 #if defined(OV_CPU_WITH_ACL)
+    auto filterPrecision = [&](const Precision& prc, const Precision& forcedPrec) {
+        if (isBitwise(algorithm)) {
+            if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), prc) == supportedPrecisions.end()) {
+                IE_THROW() << "Eltwise node with name `" << getName() << "` doesn't support " << prc << " precision.";
+            }
+            return prc;
+        }
+        return forcedPrec;
+    };
+
     // Use original output precision as a reference point since some eltwise algorithms have non-float inputs (i.e. EltwiseSelect)
     Precision forcedPrec = getOriginalOutputPrecisionAtPort(0) == Precision::FP16 ? Precision::FP16 : Precision::FP32;
     // ACL implementation supports only identical precisions on inputs/outputs so they are aligned it to highest one
@@ -2003,12 +2164,18 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     }
 
     for (size_t i = 0; i < inputPrecisions.size(); i++) {
-        inputPrecisions[i] = forcedPrec;
+        inputPrecisions[i] = filterPrecision(inputPrecisions[i], forcedPrec);
     }
-    outputPrecision = forcedPrec;
+    outputPrecision = filterPrecision(outputPrecision, forcedPrec);
 #else
-    auto filterPrecision = [&](Precision& prc) {
+    auto filterPrecision = [&](const Precision& prc) {
         if (implType == EltwiseImplType::reference) {
+            if (isBitwise(algorithm)) {
+                if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), prc) == supportedPrecisions.end()) {
+                    IE_THROW() << "Eltwise node with name `" << getName() << "` doesn't support " << prc << " precision.";
+                }
+                return prc;
+            }
             return Precision(Precision::FP32);
         } else if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), prc) == supportedPrecisions.end()) {
             if (prc == Precision::U32 || prc == Precision::I64 || prc == Precision::U64) {
@@ -2678,8 +2845,19 @@ bool Eltwise::canFuse(const NodePtr& node) const {
     if (!mayiuse(x64::sse41) || getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK)
         return false;
 
-    // TODO: EltwiseLog is supported only via reference executor
-    if (getAlgorithm() == Algorithm::EltwiseLog || node->getAlgorithm() == Algorithm::EltwiseLog)
+    // TODO: supported only via reference executor
+    if (one_of(getAlgorithm(),
+               Algorithm::EltwiseLog,
+               Algorithm::EltwiseBitwiseAnd,
+               Algorithm::EltwiseBitwiseNot,
+               Algorithm::EltwiseBitwiseOr,
+               Algorithm::EltwiseBitwiseXor) ||
+        one_of(node->getAlgorithm(),
+               Algorithm::EltwiseLog,
+               Algorithm::EltwiseBitwiseAnd,
+               Algorithm::EltwiseBitwiseNot,
+               Algorithm::EltwiseBitwiseOr,
+               Algorithm::EltwiseBitwiseXor))
         return false;
 
     bool isIntegerNode = isIntegerComputeSupported(this);

@@ -3,6 +3,7 @@
 //
 
 #include <memory>
+#include <openvino/opsets/opset13.hpp>
 
 #include "common_test_utils/test_enums.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
@@ -32,6 +33,14 @@ std::shared_ptr<ov::Node> makeEltwise(const ov::Output<Node>& in0,
         return std::make_shared<ov::op::v1::Mod>(in0, in1);
     case ov::test::utils::EltwiseTypes::ERF:
         return std::make_shared<ov::op::v0::Erf>(in0);
+    case ngraph::helpers::EltwiseTypes::BITWISE_AND:
+        return std::make_shared<ov::op::v13::BitwiseAnd>(in0, in1);
+    case ngraph::helpers::EltwiseTypes::BITWISE_NOT:
+        return std::make_shared<ov::op::v13::BitwiseNot>(in0);
+    case ngraph::helpers::EltwiseTypes::BITWISE_OR:
+        return std::make_shared<ov::op::v13::BitwiseOr>(in0, in1);
+    case ngraph::helpers::EltwiseTypes::BITWISE_XOR:
+        return std::make_shared<ov::op::v13::BitwiseXor>(in0, in1);
     default: {
         throw std::runtime_error("Incorrect type of Eltwise operation");
     }
