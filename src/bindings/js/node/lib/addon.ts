@@ -15,6 +15,7 @@ interface Core {
   compileModel(model: Model, device: string): CompiledModel;
   readModel(modelPath: string, binPath?: string): Promise<Model>;
   readModelSync(modelPath: string, binPath?: string): Model;
+  readModelFromBuffer(modelBuffer: Buffer, binBuffer?: Buffer): Model;
 }
 interface CoreConstructor {
   new(): Core;
@@ -54,9 +55,9 @@ interface InferRequest {
   getTensor(nameOrOutput: string | Output): Tensor;
   getInputTensor(idx?: number): Tensor;
   getOutputTensor(idx?: number): Tensor;
+  getCompiledModel(): CompiledModel;
   infer(inputData?: { [inputName: string]: Tensor | SupportedTypedArray}
     | Tensor[] | SupportedTypedArray[]): { [outputName: string] : Tensor};
-  getCompiledModel(): CompiledModel;
 }
 
 interface Output {
@@ -88,11 +89,11 @@ declare enum element {
   u32,
   u16,
   i8,
-  i64,
-  i32,
   i16,
-  f64,
+  i32,
+  i64,
   f32,
+  f64,
 }
 
 declare enum resizeAlgorithm {

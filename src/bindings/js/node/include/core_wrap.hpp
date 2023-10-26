@@ -52,6 +52,13 @@ public:
      */
     Napi::Value read_model_async(const Napi::CallbackInfo& info);
 
+    /**
+     * @brief Reads a model from JS Buffer type.
+     * @param info contains passed arguments.
+     * @param info[0] Buffer of XML model file.
+     * @param info[1] (optional) Buffer of BIN weights file.
+     * @return A Javascript Model object.
+     */
     Napi::Value read_model_from_buffer(const Napi::CallbackInfo& info);
 
     /**

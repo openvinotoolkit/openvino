@@ -82,21 +82,31 @@ Napi::Value CoreWrap::read_model_async(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value CoreWrap::read_model_from_buffer(const Napi::CallbackInfo& info) {
-    if (info.Length() == 3 && info[0].IsArrayBuffer() && info[1].IsNumber() && info[2].IsNumber()) {
-
-        void *buffer = info[0].As<Napi::ArrayBuffer>().Data();
-        int64_t bytesOffset = info[1].As<Napi::Number>().Int64Value();
-        int64_t bytesLength = info[2].As<Napi::Number>().Int64Value();
-
-        // reinterpret_cast<char *>(buffer) + bytesOffset, bytesLength
-
-    } else {
-        Napi::Error::New(info.Env(), "Expected an ArrayBuffer, int offset and int length")
-            .ThrowAsJavaScriptException();
+    if (info.Length() < 1 || info.Length() > 2 || !info[0].IsBuffer()) {
+        Napi::TypeError::New(env, "Invalid arguments").ThrowAsJavaScriptException();
         return info.Env().Undefined();
     }
 
-    return info.Env().Undefined();
+    Napi::Buffer<uint8_t> model_data = info[0].As<Napi::Buffer<uint8_t>>();
+    std::string model_str(reinterpret_cast<char*>(model_data.Data()), model_data.Length());
+
+    ov::Tensor tensor;
+
+    if (info[1].IsBuffer()) {
+        Napi::Buffer<uint8_t> weights = info[1].As<Napi::Buffer<uint8_t>>();
+        const uint8_t* bin = reinterpret_cast<const uint8_t*>(weights.Data());
+
+        size_t bin_size = weights.Length();
+        tensor = ov::Tensor(ov::element::Type_t::u8, {bin_size});
+        std::memcpy(tensor.data(), bin, bin_size);
+    }
+    else {
+        tensor = ov::Tensor(ov::element::Type_t::u8, {0});
+    }
+
+    std::shared_ptr<ov::Model> model = _core.read_model(model_str, tensor);
+
+    return ModelWrap::Wrap(info.Env(), model);
 }
 
 Napi::Value CoreWrap::compile_model(const Napi::CallbackInfo& info) {
