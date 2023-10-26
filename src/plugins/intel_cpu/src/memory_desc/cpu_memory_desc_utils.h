@@ -63,16 +63,11 @@ public:
     /**
      * @brief Create CpuBlockedMemoryDesc from ov::tensor
      * @param tensor input tensor
+     * @param canEmptyShape whether the tensor can take empty shape
      * @return converted CpuBlockedMemoryDesc
      */
-    static CpuBlockedMemoryDesc createCpuBlockedMemoryDesc(const ov::SoPtr<ITensor>& tensor);
-
-    /**
-     * @brief Create DnnlBlockedMemoryDesc from ov::tensor
-     * @param tensor input tensor
-     * @return converted CpuBlockedMemoryDesc
-     */
-    static DnnlBlockedMemoryDesc createDnnlBlockedMemoryDesc(const ov::SoPtr<ITensor>& tensor);
+    static CpuBlockedMemoryDesc createCpuBlockedMemoryDesc(const ov::SoPtr<ITensor>& tensor,
+                                                           const bool canEmptyShape = true);
 
     static constexpr Dim DEFAULT_DUMMY_VAL = 64;
 

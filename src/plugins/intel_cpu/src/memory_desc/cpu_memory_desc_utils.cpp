@@ -55,10 +55,11 @@ DnnlBlockedMemoryDesc MemoryDescUtils::createDnnlBlockedMemoryDesc(InferenceEngi
     return DnnlBlockedMemoryDesc(prc, shape, blockedDims, blockedOrder);
 }
 
-CpuBlockedMemoryDesc MemoryDescUtils::createCpuBlockedMemoryDesc(const ov::SoPtr<ITensor>& tensor) {
+CpuBlockedMemoryDesc MemoryDescUtils::createCpuBlockedMemoryDesc(const ov::SoPtr<ITensor>& tensor,
+                                                                 const bool canEmptyShape) {
     auto element_type = tensor->get_element_type();
     auto shape = tensor->get_shape();
-    if (shape.empty())
+    if (shape.empty() && !canEmptyShape)
         shape = {tensor->get_size()};
     std::vector<size_t> blk_order(shape.size());
     std::iota(blk_order.begin(), blk_order.end(), 0);
@@ -91,12 +92,6 @@ CpuBlockedMemoryDesc MemoryDescUtils::createCpuBlockedMemoryDesc(const ov::SoPtr
                                 0,
                                 dim_offset,
                                 blk_strides);
-}
-
-DnnlBlockedMemoryDesc MemoryDescUtils::createDnnlBlockedMemoryDesc(const ov::SoPtr<ITensor>& tensor) {
-    CpuBlockedMemoryDesc mem_desc = createCpuBlockedMemoryDesc(tensor);
-
-    return convertToDnnlBlockedMemoryDesc(mem_desc);
 }
 
 BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDescPtr &desc) {

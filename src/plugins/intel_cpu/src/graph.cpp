@@ -878,7 +878,8 @@ void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor>& inp
         void* inter_data_ptr = childEdge->getMemory().getData();
 
         if (ext_data_ptr != inter_data_ptr) {
-            auto ext_tensor_desc = MemoryDescUtils::createCpuBlockedMemoryDesc(input);
+            auto ext_tensor_desc = MemoryDescUtils::createCpuBlockedMemoryDesc(input, false);
+            auto shape = ext_tensor_desc.getShape();
             Memory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr, false);
             childEdge->getMemory().load(ext_mem, false);
         }
