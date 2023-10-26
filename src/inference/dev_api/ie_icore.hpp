@@ -191,7 +191,7 @@ public:
     virtual InferenceEngine::RemoteContext::Ptr CreateContext(const std::string& deviceName, const ov::AnyMap&) = 0;
 
     /**
-     * @brief Get only configs that are suppored by device
+     * @brief Get only configs that are supported by device
      * @param deviceName Name of a device
      * @param config Map of configs that can contains configs that are not supported by device
      * @return map of configs that are supported by device

@@ -4,15 +4,17 @@
 
 #include "shared_test_classes/subgraph/conv_eltwise_fusion.hpp"
 
+#include "common_test_utils/graph_comparator.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
 #include "ov_models/builders.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
 
-using namespace ov;
-
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 std::string ConvEltwiseFusion::getTestCaseName(const testing::TestParamInfo<ConvEltwiseFusionParams>& obj) {
     std::tuple<NodeTypeInfo, size_t> conv_params;
@@ -205,4 +207,5 @@ void ConvEltwiseFusion::SetUp() {
     auto res = compare_functions(cloned_function, function_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov

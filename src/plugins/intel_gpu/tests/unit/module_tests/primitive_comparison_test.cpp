@@ -89,11 +89,11 @@ TEST(primitive_comparison, fully_connected) {
 }
 
 TEST(primitive_comparison, gather) {
-    auto gather_prim = gather("gather", input_info("input0"), input_info("input1"), 2, {1, 3, 224, 224}, 1, true);
-    auto gather_prim_eq = gather("gather_eq", input_info("input0_eq"), input_info("input1_eq"), 2, {1, 3, 224, 224}, 1, true);
-    auto gather_prim_axis = gather("gather", input_info("input0"), input_info("input1"), 3, {1, 3, 224, 224}, 1, true);
-    auto gather_prim_batch_dim = gather("gather", input_info("input0"), input_info("input1"), 2, {1, 3, 224, 224}, 2, true);
-    auto gather_prim_support_neg_ind = gather("gather", input_info("input0"), input_info("input1"), 2, {1, 3, 224, 224}, 1, false);
+    auto gather_prim = gather("gather", input_info("input0"), input_info("input1"), 2, {}, {1, 3, 224, 224}, 1, true);
+    auto gather_prim_eq = gather("gather_eq", input_info("input0_eq"), input_info("input1_eq"), 2, {}, {1, 3, 224, 224}, 1, true);
+    auto gather_prim_axis = gather("gather", input_info("input0"), input_info("input1"), 3, {}, {1, 3, 224, 224}, 1, true);
+    auto gather_prim_batch_dim = gather("gather", input_info("input0"), input_info("input1"), 2, {}, {1, 3, 224, 224}, 2, true);
+    auto gather_prim_support_neg_ind = gather("gather", input_info("input0"), input_info("input1"), 2, {}, {1, 3, 224, 224}, 1, false);
 
     ASSERT_EQ(gather_prim, gather_prim_eq);
     ASSERT_NE(gather_prim, gather_prim_axis);

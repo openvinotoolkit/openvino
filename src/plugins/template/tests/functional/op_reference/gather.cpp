@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/gather.hpp"
+
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset7.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -62,11 +63,11 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const GatherParams& params) {
-        const auto P = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto I = std::make_shared<opset1::Parameter>(params.indicesTensor.type, params.indicesTensor.shape);
+        const auto P = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto I = std::make_shared<op::v0::Parameter>(params.indicesTensor.type, params.indicesTensor.shape);
         const auto A =
-            opset1::Constant::create(params.axisTensor.type, params.axisTensor.shape, params.axisTensor.data.data());
-        const auto G = std::make_shared<opset1::Gather>(P, I, A);
+            op::v0::Constant::create(params.axisTensor.type, params.axisTensor.shape, params.axisTensor.data.data());
+        const auto G = std::make_shared<op::v1::Gather>(P, I, A);
         const auto f = std::make_shared<Model>(G, ParameterVector{P, I});
         return f;
     }
@@ -129,11 +130,11 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const GatherParamsV7& params) {
-        const auto P = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto I = std::make_shared<opset1::Parameter>(params.indicesTensor.type, params.indicesTensor.shape);
+        const auto P = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto I = std::make_shared<op::v0::Parameter>(params.indicesTensor.type, params.indicesTensor.shape);
         const auto A =
-            opset1::Constant::create(params.axisTensor.type, params.axisTensor.shape, params.axisTensor.data.data());
-        const auto G = std::make_shared<opset7::Gather>(P, I, A, params.batchDims);
+            op::v0::Constant::create(params.axisTensor.type, params.axisTensor.shape, params.axisTensor.data.data());
+        const auto G = std::make_shared<op::v7::Gather>(P, I, A, params.batchDims);
         const auto f = std::make_shared<Model>(G, ParameterVector{P, I});
         return f;
     }
@@ -146,11 +147,11 @@ TEST_P(ReferenceGatherTestV7, CompareWithRefs) {
 class ReferenceGatherTestV8 : public ReferenceGatherTestV7 {
 private:
     static std::shared_ptr<Model> CreateFunction(const GatherParamsV7& params) {
-        const auto P = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto I = std::make_shared<opset1::Parameter>(params.indicesTensor.type, params.indicesTensor.shape);
+        const auto P = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto I = std::make_shared<op::v0::Parameter>(params.indicesTensor.type, params.indicesTensor.shape);
         const auto A =
-            opset1::Constant::create(params.axisTensor.type, params.axisTensor.shape, params.axisTensor.data.data());
-        const auto G = std::make_shared<opset8::Gather>(P, I, A, params.batchDims);
+            op::v0::Constant::create(params.axisTensor.type, params.axisTensor.shape, params.axisTensor.data.data());
+        const auto G = std::make_shared<op::v8::Gather>(P, I, A, params.batchDims);
         const auto f = std::make_shared<Model>(G, ParameterVector{P, I});
         return f;
     }

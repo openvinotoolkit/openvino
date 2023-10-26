@@ -17,7 +17,7 @@ set_and_check(OpenVINO_MAIN_SOURCE_DIR "@OpenVINO_SOURCE_DIR@") # NPU
 set(ov_options "@OV_OPTIONS@")
 list(APPEND ov_options CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER
                        CMAKE_CXX_LINKER_LAUNCHER CMAKE_C_LINKER_LAUNCHER
-                       CMAKE_SKIP_RPATH CMAKE_INSTALL_PREFIX CPACK_GENERATOR)
+                       CMAKE_INSTALL_PREFIX CPACK_GENERATOR)
 
 if(APPLE)
     list(APPEND ov_options CMAKE_OSX_ARCHITECTURES CMAKE_OSX_DEPLOYMENT_TARGET)
@@ -88,9 +88,7 @@ endif()
 
 _ov_find_tbb()
 
-foreach(component @openvino_export_components@)
-    include("${CMAKE_CURRENT_LIST_DIR}/${component}_dev_targets.cmake")
-endforeach()
+include("${CMAKE_CURRENT_LIST_DIR}/inference_engine_developer_package_targets.cmake")
 
 if(TARGET IE::ov_core_dev AND NOT TARGET openvino::core::dev)
     add_library(openvino::core::dev INTERFACE IMPORTED)
