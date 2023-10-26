@@ -11,6 +11,7 @@
 #include "snippets/lowered/port_connector.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op//brgemm_cpu.hpp"
+#include "snippets/op/rank_normalization.hpp"
 
 using namespace InferenceEngine;
 using namespace Xbyak;
@@ -109,6 +110,10 @@ KernelEmitter::KernelEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
         IE_THROW() << "KernelEmitter invoked with op::Kernel that contains no compile_params";
     body = kernel->region;
     jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
+    master_shape = body.get_master_shape();
+    // Note: plugin can prepend master shape with 1 to facilitate parallel execution (usually up to 6D tensor)
+    //       so we have to reproduce this behavior here
+    master_shape.insert(master_shape.begin(), jcp.parallel_executor_ndims - master_shape.size(), 1);
     const auto& io_exprs = body.get_IO_ops();
     num_inputs = 0;
     num_outputs = 0;
@@ -117,7 +122,12 @@ KernelEmitter::KernelEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
         element::Type etype;
         switch (expr->get_type()) {
             case snippets::lowered::IOExpression::io_type::INPUT: {
-                desc = expr->get_output_port_descriptor(0);
+                const auto first_consumer = expr->get_output_port_connector(0)->get_consumers().begin()->get_expr();
+                if (ov::is_type<snippets::op::RankNormalization>(first_consumer->get_node())) {
+                    desc = first_consumer->get_output_port_descriptor(0);
+                } else {
+                    desc = expr->get_output_port_descriptor(0);
+                }
                 etype = expr->get_node()->get_output_element_type(0);
                 num_inputs++;
                 break;
@@ -217,7 +227,7 @@ void KernelEmitter::init_data_pointers(const Xbyak::Reg64& reg_indexes, const Xb
                                        const std::vector<Xbyak::Reg64>& data_ptr_regs) const {
     const auto num_params = num_inputs + num_outputs;
     // Note that we don't need offset for the last dim, since it's handled directly by Tile emitter
-    const size_t offset_rank = jcp.master_shape.size() - 1;
+    const size_t offset_rank = master_shape.size() - 1;
     std::vector<std::vector<size_t>> data_offsets(num_params, std::vector<size_t>{});
     auto offset_calculation = [=](const std::vector<size_t>& shape, const std::vector<size_t>& layout, const size_t data_size) {
         // Strides represent distance between consecutive elements of corresponding dimension.
@@ -243,11 +253,8 @@ void KernelEmitter::init_data_pointers(const Xbyak::Reg64& reg_indexes, const Xb
             strides = std::move(reordered_strides);
         }
         // the last stride is ignored, since the entire last dim is processed by kernel
-        // and no parallel_for data_ptr offsets can be applied in this case (cover tile_rank == 1)
+        // and no parallel_for data_ptr offsets can be applied in this case
         strides.pop_back();
-        // if tile_rank > 1, then zero corresponding strides since no external offset can be applied
-        // for (auto j = 0; j < tile_rank - 1; j++)
-        //    strides[strides.size() - 1 - j] = 0;
         // actual offset size might be larger that the shape size due to 6D scheduling
         strides.insert(strides.begin(), offset_rank - strides.size(), 0);
 
@@ -260,7 +267,7 @@ void KernelEmitter::init_data_pointers(const Xbyak::Reg64& reg_indexes, const Xb
     std::function<void(Reg64, const std::vector<size_t>&, Reg64)> init_ptr_with_offset;
     init_ptr_with_offset = [&](Reg64 pointer, const std::vector<size_t>& offsets, Reg64 reg_tmp) {
         for (size_t j = 0; j < offset_rank; j++) {
-            if (jcp.master_shape[j] != 1 && offsets[j] != 0) {
+            if (master_shape[j] != 1 && offsets[j] != 0) {
                 h->mov(reg_tmp, offsets[j]);
                 h->imul(reg_tmp, h->ptr[reg_indexes + j * sizeof(size_t)]);
                 h->add(pointer, reg_tmp);

@@ -46,7 +46,7 @@ endif()
 
 # add sample
 
-ie_add_sample(NAME speech_sample
+ov_add_sample(NAME speech_sample
               SOURCES ${SRC}
               HEADERS ${HDR}
               DEPENDENCIES ${GFLAGS_TARGET} cnpy ie_samples_utils)

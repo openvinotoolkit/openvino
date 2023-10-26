@@ -50,8 +50,15 @@ Result StridedSliceShapeInfer::infer(
             if ((i >= shapeBegin[0]) || (shapeIn[i] == 0)) {
                 m_outputShape[new_idx] = shapeIn[i];
             } else {
-                auto begin = m_begin_mask_set.count(i) ? 0 : beginPtr[i];
-                auto end  = m_end_mask_set.count(i) ? shapeIn[i] : endPtr[i];
+                int32_t begin = 0;
+                int32_t end = 0;
+                if (stridePtr[i] < 0) {
+                    begin = m_begin_mask_set.count(i) ? shapeIn[i] : beginPtr[i];
+                    end  = m_end_mask_set.count(i) ? (-1 - shapeIn[i]) : endPtr[i];
+                } else {
+                    begin = m_begin_mask_set.count(i) ? 0 : beginPtr[i];
+                    end  = m_end_mask_set.count(i) ? shapeIn[i] : endPtr[i];
+                }
                 m_outputShape[new_idx] = ov::op::slice::get_sliced_value(shapeIn[i], begin, end, stridePtr[i]);
             }
             new_idx += 1;
