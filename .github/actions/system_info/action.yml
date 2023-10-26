@@ -1,5 +1,5 @@
 name: 'System Information'
-description: 'Information about the system and tools'
+description: 'Information about the system'
 runs:
   using: "composite"
   steps:
