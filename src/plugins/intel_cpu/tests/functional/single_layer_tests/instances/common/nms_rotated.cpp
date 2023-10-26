@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_layer_tests/classes/nms_rotated.hpp"
+#include "single_layer_tests/nms_rotated.hpp"
 
-using namespace CPUTestUtils;
+using namespace LayerTestsDefinitions;
 using namespace ov::test;
 
-namespace CPULayerTestsDefinitions {
-namespace NmsRotated {
 
 static const std::vector<std::vector<InputShape>> input_shapes = {
     {
@@ -52,7 +50,9 @@ static const std::vector<std::vector<InputShape>> input_shapes_nightly = {
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_, NmsRotatedLayerTestCPU,
+const ov::AnyMap empty_plugin_config{};
+
+INSTANTIATE_TEST_SUITE_P(smoke_, NmsRotatedLayerTest,
         ::testing::Combine(
                 ::testing::ValuesIn(input_shapes),          // Input shapes
                 ::testing::Values(ElementType::f32),        // Boxes and scores input precisions
@@ -69,11 +69,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_, NmsRotatedLayerTestCPU,
                 ::testing::Values(false),                   // Is 3rd input constant
                 ::testing::Values(false),                   // Is 4th input constant
                 ::testing::Values(false),                   // Is 5th input constant
-                ::testing::Values(emptyCPUSpec),            // CPU specific params
-                ::testing::Values(empty_plugin_config)),    // Additional plugin configuration
-        NmsRotatedLayerTestCPU::getTestCaseName);
+                ::testing::Values(empty_plugin_config),     // Additional plugin configuration
+                ::testing::Values(utils::DEVICE_CPU)),      // Device name
+        NmsRotatedLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(nightly_, NmsRotatedLayerTestCPU,
+INSTANTIATE_TEST_SUITE_P(nightly_, NmsRotatedLayerTest,
         ::testing::Combine(
                 ::testing::ValuesIn(input_shapes_nightly),
                 ::testing::Values(ElementType::f16, ElementType::bf16),
@@ -90,9 +90,6 @@ INSTANTIATE_TEST_SUITE_P(nightly_, NmsRotatedLayerTestCPU,
                 ::testing::Values(true, false),
                 ::testing::Values(true, false),
                 ::testing::Values(true, false),
-                ::testing::Values(emptyCPUSpec),
-                ::testing::Values(empty_plugin_config)),
-        NmsRotatedLayerTestCPU::getTestCaseName);
-
-} // namespace NmsRotated
-} // namespace CPULayerTestsDefinitions
+                ::testing::Values(empty_plugin_config),
+                ::testing::Values(utils::DEVICE_CPU)),
+        NmsRotatedLayerTest::getTestCaseName);

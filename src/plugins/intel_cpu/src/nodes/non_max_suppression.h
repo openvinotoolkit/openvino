@@ -18,26 +18,6 @@ enum NMSCandidateStatus {
     UPDATED = 2
 };
 
-struct Point2D {
-    float x, y;
-    Point2D(const float px = 0.f, const float py = 0.f) : x(px), y(py) {}
-    Point2D operator+(const Point2D& p) const {
-        return Point2D(x + p.x, y + p.y);
-    }
-    Point2D& operator+=(const Point2D& p) {
-        x += p.x;
-        y += p.y;
-        return *this;
-    }
-    Point2D operator-(const Point2D& p) const {
-        return Point2D(x - p.x, y - p.y);
-    }
-    Point2D operator*(const float coeff) const {
-        return Point2D(x * coeff, y * coeff);
-    }
-};
-
-
 class NonMaxSuppression : public Node {
 public:
     NonMaxSuppression(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
@@ -78,6 +58,25 @@ public:
 
     void prepareParams() override;
 
+    struct Point2D {
+        float x, y;
+        Point2D(const float px = 0.f, const float py = 0.f) : x(px), y(py) {}
+        Point2D operator+(const Point2D& p) const {
+            return Point2D(x + p.x, y + p.y);
+        }
+        Point2D& operator+=(const Point2D& p) {
+            x += p.x;
+            y += p.y;
+            return *this;
+        }
+        Point2D operator-(const Point2D& p) const {
+            return Point2D(x - p.x, y - p.y);
+        }
+        Point2D operator*(const float coeff) const {
+            return Point2D(x * coeff, y * coeff);
+        }
+    };
+
 private:
     // input
     enum {
@@ -109,18 +108,11 @@ private:
     void nmsRotated(const float *boxes, const float *scores, const InferenceEngine::SizeVector &boxesStrides,
                 const InferenceEngine::SizeVector &scoresStrides, std::vector<FilteredBox> &filtBoxes);
 
-    void checkPrecision(const InferenceEngine::Precision& prec,
-                        const std::vector<InferenceEngine::Precision>& precList,
-                        const std::string& name,
-                        const std::string& type);
-
     void check1DInput(const Shape& shape,
-                      const std::vector<InferenceEngine::Precision>& precList,
                       const std::string& name,
                       const size_t port);
 
     void checkOutput(const Shape& shape,
-                     const std::vector<InferenceEngine::Precision>& precList,
                      const std::string& name,
                      const size_t port);
 
