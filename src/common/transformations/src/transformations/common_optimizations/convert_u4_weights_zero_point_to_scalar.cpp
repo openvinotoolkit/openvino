@@ -51,21 +51,19 @@ ov::pass::ConvertU4WeightsZeroPointToScalar::ConvertU4WeightsZeroPointToScalar()
         if (ov::shape_size(weights->get_shape()) < ov::shape_size(zero_point->get_shape()))
             std::swap(zero_point, weights);
 
-        auto zero_point_shape = zero_point->get_shape();
+        const auto& zero_point_shape = zero_point->get_shape();
         if (ov::shape_size(zero_point_shape) == 1)
             return false;
 
         const auto& weights_shape = weights->get_shape();
-        const size_t weights_rank = weights_shape.size();
-        const size_t zero_point_rank = zero_point_shape.size();
         // Zero point constant can be converted into scalar only if this does not affect Subtract output shape
-        if (weights_rank < zero_point_rank)
+        if (weights_shape.size() < zero_point_shape.size())
             return false;
 
-        zero_point_shape.insert(zero_point_shape.begin(), weights_rank - zero_point_rank, 1);
-        for (size_t i = 0; i < weights_rank; ++i) {
-            if (zero_point_shape[i] > weights_shape[i])
+        for (size_t i = 0; i < zero_point_shape.size(); ++i) {
+            if (*(zero_point_shape.rbegin() + i) > *(weights_shape.rbegin() + i)) {
                 return false;
+            }
         }
 
         float zp_value;
