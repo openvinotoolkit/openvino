@@ -185,9 +185,6 @@ class TestConv2DInSubgraph(PytorchLayerTest):
         im = fe.load(decoder)
         om = fe.convert(im)
         self._resolve_input_shape_dtype(om, ov_inputs, dynamic_shapes)
-        from openvino import serialize
-        om.validate_nodes_and_infer_types()
-        serialize(om, "/tmp/convs_if.xml")
         return model, om
 
 
