@@ -453,6 +453,10 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
         impl_type = impl_desc_type::ref;
     }
 
+    if (impl_type != impl_desc_type::ref && refParams.src_prc == Precision::FP16) {
+        refParams.src_prc = Precision::FP32;
+    }
+
     addSupportedPrimDesc({{format, refParams.src_prc},
                           {LayoutType::ncsp, refParams.src_prc}},
                          {{format, refParams.src_prc}},
@@ -825,11 +829,9 @@ std::shared_ptr<ROIPooling::ROIPoolingExecutor> ROIPooling::ROIPoolingExecutor::
     ROIPoolingContext ctx = { nullptr, jpp };
 
     OV_SWITCH(intel_cpu, ROIPoolingExecutorCreation, ctx, jpp.src_prc,
-#if defined(OV_CPU_ARM_ENABLE_FP16)
-              OV_CASE(Precision::FP16, float16_t),
-#endif
               OV_CASE(Precision::FP32, float),
-              OV_CASE(Precision::BF16, bfloat16_t))
+              OV_CASE(Precision::BF16, bfloat16_t),
+              OV_CASE(Precision::FP16, float16_t))
 
     return ctx.executor;
 }
