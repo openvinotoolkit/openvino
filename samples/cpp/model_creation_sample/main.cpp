@@ -90,30 +90,31 @@ std::shared_ptr<ov::Model> create_model(const std::string& path_to_weights) {
     auto convolutionFirstConstantNode = std::make_shared<opset13::Constant>(element::Type_t::f32, convFirstShape, data);
 
     auto convolutionNodeFirst = std::make_shared<opset13::Convolution>(paramNode->output(0),
-                                                                      convolutionFirstConstantNode->output(0),
-                                                                      Strides({1, 1}),
-                                                                      CoordinateDiff(padBegin),
-                                                                      CoordinateDiff(padEnd),
-                                                                      Strides({1, 1}));
+                                                                       convolutionFirstConstantNode->output(0),
+                                                                       Strides({1, 1}),
+                                                                       CoordinateDiff(padBegin),
+                                                                       CoordinateDiff(padEnd),
+                                                                       Strides({1, 1}));
 
     // -------Add--------------
     auto addFirstShape = Shape{1, 20, 1, 1};
     auto offset = shape_size(convFirstShape) * sizeof(float);
     auto addFirstConstantNode = std::make_shared<opset13::Constant>(element::Type_t::f32, addFirstShape, data + offset);
 
-    auto addNodeFirst = std::make_shared<opset13::Add>(convolutionNodeFirst->output(0), addFirstConstantNode->output(0));
+    auto addNodeFirst =
+        std::make_shared<opset13::Add>(convolutionNodeFirst->output(0), addFirstConstantNode->output(0));
 
     // -------MAXPOOL----------
     Shape padBeginShape{0, 0};
     Shape padEndShape{0, 0};
 
     auto maxPoolingNodeFirst = std::make_shared<opset13::MaxPool>(addNodeFirst->output(0),
-                                                                 Strides{2, 2},
-                                                                 Strides{1, 1},
-                                                                 padBeginShape,
-                                                                 padEndShape,
-                                                                 Shape{2, 2},
-                                                                 op::RoundingType::CEIL);
+                                                                  Strides{2, 2},
+                                                                  Strides{1, 1},
+                                                                  padBeginShape,
+                                                                  padEndShape,
+                                                                  Shape{2, 2},
+                                                                  op::RoundingType::CEIL);
 
     // -------convolution 2----
     auto convSecondShape = Shape{50, 20, 5, 5};
@@ -122,11 +123,11 @@ std::shared_ptr<ov::Model> create_model(const std::string& path_to_weights) {
         std::make_shared<opset13::Constant>(element::Type_t::f32, convSecondShape, data + offset);
 
     auto convolutionNodeSecond = std::make_shared<opset13::Convolution>(maxPoolingNodeFirst->output(0),
-                                                                       convolutionSecondConstantNode->output(0),
-                                                                       Strides({1, 1}),
-                                                                       CoordinateDiff(padBegin),
-                                                                       CoordinateDiff(padEnd),
-                                                                       Strides({1, 1}));
+                                                                        convolutionSecondConstantNode->output(0),
+                                                                        Strides({1, 1}),
+                                                                        CoordinateDiff(padBegin),
+                                                                        CoordinateDiff(padEnd),
+                                                                        Strides({1, 1}));
 
     // -------Add 2------------
     auto addSecondShape = Shape{1, 50, 1, 1};
@@ -139,12 +140,12 @@ std::shared_ptr<ov::Model> create_model(const std::string& path_to_weights) {
 
     // -------MAXPOOL 2--------
     auto maxPoolingNodeSecond = std::make_shared<opset13::MaxPool>(addNodeSecond->output(0),
-                                                                  Strides{2, 2},
-                                                                  Strides{1, 1},
-                                                                  padBeginShape,
-                                                                  padEndShape,
-                                                                  Shape{2, 2},
-                                                                  op::RoundingType::CEIL);
+                                                                   Strides{2, 2},
+                                                                   Strides{1, 1},
+                                                                   padBeginShape,
+                                                                   padEndShape,
+                                                                   Shape{2, 2},
+                                                                   op::RoundingType::CEIL);
 
     // -------Reshape----------
     auto reshapeFirstShape = Shape{2};
@@ -189,9 +190,9 @@ std::shared_ptr<ov::Model> create_model(const std::string& path_to_weights) {
         std::make_shared<opset13::Constant>(element::Type_t::f32, matMulSecondShape, data + offset);
 
     auto matMulSecondNode = std::make_shared<opset13::MatMul>(reshapeSecondNode->output(0),
-                                                             matMulSecondConstantNode->output(0),
-                                                             false,
-                                                             true);
+                                                              matMulSecondConstantNode->output(0),
+                                                              false,
+                                                              true);
 
     // -------Add 4------------
     auto add4Shape = Shape{1, 10};
