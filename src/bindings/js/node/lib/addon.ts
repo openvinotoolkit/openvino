@@ -12,7 +12,8 @@ type SupportedTypedArray =
   | Float64Array;
 
 interface Core {
-  compileModel(model: Model, device: string): CompiledModel;
+  compileModel(model: Model, device: string, config?: {[option: string]: string}): CompiledModel;
+  compileModelSync(model: Model, device: string, config?: {[option: string]: string}): CompiledModel;
   readModel(modelPath: string, binPath?: string): Promise<Model>;
   readModelSync(modelPath: string, binPath?: string): Model;
   readModelFromBuffer(modelBuffer: Buffer, binBuffer?: Buffer): Model;
@@ -25,6 +26,7 @@ interface Model {
   outputs: Output[];
   inputs: Output[];
   output(nameOrId?: string | number): Output;
+  input(nameOrId?: string | number): Output;
   getName(): string;
 }
 
@@ -67,8 +69,6 @@ interface Output {
   getAnyName(): string;
   getShape(): number[];
   getPartialShape(): number[];
-  setNames(names: string[]): void;
-  getNames(): string[];
 }
 
 interface PrePostProcessor {

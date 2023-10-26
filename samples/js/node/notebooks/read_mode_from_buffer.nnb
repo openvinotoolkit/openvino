@@ -68,6 +68,7 @@
                             "mime": "application/vnd.code.notebook.stdout",
                             "value": [
                                 "Proxy agent configured using: 'http://proxy-mu.intel.com:911'",
+                                "File successfully stored at '/home/nvishnya/Code/wasm-openvino/samples/js/assets/images/coco.jpg'",
                                 "Proxy agent configured using: 'http://proxy-mu.intel.com:911'",
                                 "File successfully stored at '/home/nvishnya/Code/wasm-openvino/samples/js/assets/datasets/imagenet_class_index.json'",
                                 ""
@@ -87,7 +88,7 @@
         {
             "language": "javascript",
             "source": [
-                "const core = new ov.Core();\n\nconst modelXml = await fs.readFile(modelXMLPath);\nconst weight = await fs.readFile(modelBINPath);\n\nconst modelArr = new Uint8Array(modelXml.buffer);\nconst weightArr = new Uint8Array(weight.buffer);\n\nconst model = core.readModelFromBuffer(modelArr, weightArr);\n\nconst compiledModel = core.compileModel(model, 'CPU');\n\nconst outputLayer = compiledModel.outputs[0];"
+                "const core = new ov.Core();\n\nconst modelXml = await fs.readFile(modelXMLPath);\nconst weight = await fs.readFile(modelBINPath);\n\nconst modelArr = new Uint8Array(modelXml.buffer);\nconst weightArr = new Uint8Array(weight.buffer);\n\nconst model = core.readModelFromBuffer(modelArr, weightArr);\n\nconst compiledModel = await core.compileModel(model, 'CPU');\n\nconst outputLayer = compiledModel.outputs[0];"
             ],
             "outputs": []
         },

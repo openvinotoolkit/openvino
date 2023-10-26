@@ -10,11 +10,99 @@ const { getModelPath } = require('./utils.js');
 let testXml = getModelPath();
 const core = new ov.Core();
 const model = core.readModelSync(testXml);
-const compiledModel = core.compileModel(model, 'CPU');
+const compiledModel = core.compileModelSync(model, 'CPU');
+const modelLike = [[model],
+  [compiledModel]];
+
+describe('Core.compileModelSync()', () => {
+  const tput = {'PERFORMANCE_HINT': 'THROUGHPUT'};
+
+  it('compileModelSync(model:Model, deviceName: string, config: {}) ', () => {
+    const cm = core.compileModelSync(model, 'CPU', tput);
+    assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
+  });
+
+  it('compileModelSync(model:model_path, deviceName: string, config: {}) ', () => {
+    const cm = core.compileModelSync(testXml, 'CPU', tput);
+    assert.equal(cm.inputs.length, 1);
+  });
+
+  it('compileModelSync(model:model_path, deviceName: string) ', () => {
+    const cm = core.compileModelSync(testXml, 'CPU');
+    assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
+  });
+
+  it('compileModelSync(model, device, config) throws when config is a string', () => {
+    assert.throws(
+      () => core.compileModelSync(model, 'CPU', 'string'),
+      /Cannot convert Napi::Value to std::map<std::string, ov::Any>/
+    );
+  });
+
+  it('compileModelSync(model, device, config) throws when config value is not a string', () => {
+    assert.throws(
+      () => core.compileModelSync(model, 'CPU', {'PERFORMANCE_HINT': tput}),
+      /Cannot convert Napi::Value to ov::Any/
+    );
+  });
+
+  it('compileModelSync(model) throws if the number of arguments is invalid', () => {
+    assert.throws(
+      () => core.compileModelSync(model),
+      /Invalid number of arguments/
+    );
+  });
+
+} );
+
+describe('Core.compileModel()', () => {
+  const tput = {'PERFORMANCE_HINT': 'THROUGHPUT'};
+
+  it('compileModel(model:Model, deviceName: string, config: {}) ', () => {
+    core.compileModel(model, 'CPU', tput).then(cm => {
+      assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
+    });
+
+  });
+
+  it('compileModel(model:model_path, deviceName: string, config: {}) ', () => {
+    core.compileModel(testXml, 'CPU', tput).then(cm => {
+      assert.equal(cm.inputs.length, 1);
+    });
+
+  });
+
+  it('compileModel(model:model_path, deviceName: string) ', () => {
+    core.compileModel(testXml, 'CPU').then(cm => {
+      assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
+    });
+
+  });
+
+  it('compileModel(model, device, config) throws when config isn't an object', () => {
+    assert.throws(
+      () => core.compileModel(model, 'CPU', 'string').then(),
+      /Cannot convert Napi::Value to std::map<std::string, ov::Any>/
+    );
+  });
+
+  it('compileModel(model, device, config) throws when config value is not a string', () => {
+    assert.throws(
+      () => core.compileModel(model, 'CPU', {'PERFORMANCE_HINT': tput}).then(),
+      /Cannot convert Napi::Value to ov::Any/
+    );
+  });
+
+  it('compileModel(model) throws if the number of arguments is invalid', () => {
+    assert.throws(
+      () => core.compileModel(model).then(),
+      /Invalid number of arguments/
+    );
+  });
+
+} );
 
 describe('Output class', () => {
-  const modelLike = [[model],
-    [compiledModel]];
 
   modelLike.forEach( ([obj]) => {
     it('Output getters and properties', () => {
@@ -31,57 +119,39 @@ describe('Output class', () => {
     });
   });
 
-  it('Ouput<ov::Node>.setNames() method', () => {
-    model.output().setNames(['bTestName', 'cTestName']);
-    assert.strictEqual(model.output().getAnyName(), 'bTestName');
-    assert.strictEqual(model.output().anyName, 'bTestName');
-  });
-
-  it('Ouput<ov::Node>.addNames() method', () => {
-    model.output().addNames(['aTestName']);
-    assert.strictEqual(model.output().getAnyName(), 'aTestName');
-    assert.strictEqual(model.output().anyName, 'aTestName');
-  });
-
-  it('Ouput<const ov::Node>.setNames() method', () => {
-    assert.throws(
-      () => compiledModel.output().setNames(['bTestName', 'cTestName'])
-    );
-  });
-
-  it('Ouput<const ov::Node>.addNames() method', () => {
-    assert.throws(
-      () => compiledModel.output().addNames(['aTestName']),
-    );
-  });
-
 });
 
 describe('Input class for ov::Input<const ov::Node>', () => {
-  it('CompiledModel.input() method', () => {
-    // TO_DO check if object is an instance of a value/class
-    assert.strictEqual(typeof compiledModel.input(), 'object');
-  });
+  modelLike.forEach( ([obj]) => {
+    it('input() is typeof object', () => {
+      assert.strictEqual(typeof obj.input(), 'object');
+    });
 
-  it('CompiledModel.inputs property', () => {
-    assert.equal(compiledModel.inputs.length, 1);
-  });
+    it('inputs property', () => {
+      assert.strictEqual(obj.inputs.length, 1);
+    });
 
-  it('CompiledModel.input().ToString() method', () => {
-    //test for a model with one output
-    assert.strictEqual(compiledModel.input().toString(), 'data');
-  });
+    it('input().toString()', () => {
+      assert.strictEqual(obj.input().toString(), 'data');
+    });
 
-  it('CompiledModel.input(idx: number).ToString() method', () => {
-    assert.strictEqual(compiledModel.input(0).toString(), 'data');
-  });
+    it('input(idx: number).ToString() method', () => {
+      assert.strictEqual(obj.input(0).toString(), 'data');
+    });
 
-  it('CompiledModel.input(tensorName: string).ToString() method', () => {
-    assert.strictEqual(compiledModel.input('data').toString(), 'data');
-  });
+    it('input(tensorName: string).ToString() method', () => {
+      assert.strictEqual(obj.input('data').toString(), 'data');
+    });
 
-  it('Input.shape property with dimensions', () => {
-    assert.deepStrictEqual(compiledModel.input(0).shape, [1, 3, 32, 32]);
+    it('input().getAnyName() and anyName', () => {
+      assert.strictEqual(obj.input().getAnyName(), 'data');
+      assert.strictEqual(obj.input().anyName, 'data');
+    });
+
+    it('input(idx).shape property with dimensions', () => {
+      assert.deepStrictEqual(obj.input(0).shape, [1, 3, 32, 32]);
+      assert.deepStrictEqual(obj.input(0).getShape(), [1, 3, 32, 32]);
+    });
   });
 
 });
