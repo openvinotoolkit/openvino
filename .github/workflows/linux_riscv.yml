@@ -135,6 +135,13 @@ jobs:
           CONAN_LINUX_RISCV64_PROFILE: ${{ env.OPENVINO_BUILD_DIR }}/linux_riscv64
 
       #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
+      #
       # Build
       #
 

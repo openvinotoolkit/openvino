@@ -103,6 +103,13 @@ jobs:
           echo "Using pip version: ${PIP_VER}"
           echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
 
+      #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
       - name: Install python dependencies
         run: |
           # For running ONNX frontend unit tests

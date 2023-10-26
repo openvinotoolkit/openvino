@@ -114,6 +114,13 @@ jobs:
           python -m pip cache info
         continue-on-error: true
 
+      #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
       - name: Install python dependencies
         run: |
           # For Python API: build and wheel packaging

@@ -107,6 +107,13 @@ jobs:
           version: "v0.5.4"
 
       #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
+      #
       # Build
       #
 
