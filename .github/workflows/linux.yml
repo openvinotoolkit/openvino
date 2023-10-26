@@ -82,6 +82,13 @@ jobs:
           ref: 'master'
 
       #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
+      #
       # Dependencies
       #
 
@@ -113,13 +120,6 @@ jobs:
           echo "Cache info: "
           python -m pip cache info
         continue-on-error: true
-
-      #
-      # Print system info
-      #
-
-      - name: System info
-        uses: ./openvino/.github/actions/system_info
 
       - name: Install python dependencies
         run: |

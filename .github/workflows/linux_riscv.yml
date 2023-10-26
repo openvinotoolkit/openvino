@@ -61,6 +61,13 @@ jobs:
         with:
           path: 'openvino'
 
+      #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
       - name: Init submodules for non-Conan dependencies
         run: |
           pushd ${OPENVINO_REPO}
@@ -133,13 +140,6 @@ jobs:
             -b missing
         env:
           CONAN_LINUX_RISCV64_PROFILE: ${{ env.OPENVINO_BUILD_DIR }}/linux_riscv64
-
-      #
-      # Print system info
-      #
-
-      - name: System info
-        uses: ./openvino/.github/actions/system_info
 
       #
       # Build

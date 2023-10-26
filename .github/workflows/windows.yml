@@ -63,6 +63,13 @@ jobs:
           ref: 'master'
 
       #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
+      #
       # Dependencies
       #
 
@@ -110,13 +117,6 @@ jobs:
           key: ${{ github.job }}-${{ runner.os }}-common
           restore-keys: |
             ${{ github.job }}-${{ runner.os }}-common
-
-      #
-      # Print system info
-      #
-
-      - name: System info
-        uses: ./openvino/.github/actions/system_info
 
       - name: CMake configure
         run: |

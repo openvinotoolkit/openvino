@@ -8,9 +8,6 @@ runs:
       run: |
         echo "System: ${{ runner.os }}"
         echo "System Architecture: ${{ runner.arch }}"
-        echo "Python version: $(python3 --version)"
-        echo "gcc info: $(which gcc), Version: $(gcc --version)"
-        echo "cmake info: $(which cmake), Version: $(cmake --version)"
         echo "CPU Info: "; lscpu
         echo "RAM Info: "; free -h --si
         echo "MEMORY Info: "; df -h
@@ -20,9 +17,6 @@ runs:
       run: |
         echo "System: ${{ runner.os }}"
         echo "System Architecture: ${{ runner.arch }}"
-        echo "Python version: $(python3 --version)" 
-        echo "gcc info: $(which gcc), Version: $(gcc --version)"
-        echo "cmake info: $(which cmake), Version: $(cmake --version)"
         echo "CPU and RAM Info: "; system_profiler SPHardwareDataType
         echo "MEMORY Info: "; df -h
 
@@ -31,8 +25,5 @@ runs:
       run: |
         echo "System: ${{ runner.os }}"
         echo "System Architecture: ${{ runner.arch }}"
-        echo "Python version: $(python3 --version)"
-        echo "gcc version: $(gcc --version)"
-        echo "cmake version: $(cmake --version)"
         echo "CPU Info: "; Get-CimInstance –ClassName Win32_Processor | Select-Object -Property Name, NumberOfCores, NumberOfLogicalProcessors
         echo "RAM info: $(systeminfo | Select-String 'Total Physical Memory:')"
