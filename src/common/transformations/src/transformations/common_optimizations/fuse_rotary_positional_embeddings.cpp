@@ -84,9 +84,9 @@ ov::pass::RPE_Fusion::RPE_Fusion() {
             if (concat_axis != split_axis)
                 return false;
         }
-        auto rope =
+        auto rpe =
             std::make_shared<ov::op::internal::RPE>(input, value_map.at(sin), cos_output, concat_node->get_axis());
-        ov::replace_output_update_name(value_map.at(add), rope->output(0));
+        ov::replace_output_update_name(value_map.at(add), rpe->output(0));
         return true;
     };
     auto m = std::make_shared<pattern::Matcher>(add, matcher_name);

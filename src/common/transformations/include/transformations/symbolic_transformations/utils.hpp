@@ -10,19 +10,10 @@
 #include "openvino/core/type/element_type.hpp"
 #include "transformations_visibility.hpp"
 
-bool labels_eq_or_eq_static_dims(const ov::Dimension& lhs, const ov::Dimension& rhs);
-
-bool last_two_dims_are_equal(const ov::PartialShape& lhs, const ov::PartialShape& rhs);
-
-bool reshape_keeps_last_two_dims(const std::shared_ptr<ov::Node>& op);
-
-bool batches_are_equal(const ov::PartialShape& lhs, const ov::PartialShape& rhs, bool one_dim_can_differ = false);
-
-bool batches_are_equal(const std::shared_ptr<ov::Node>& op_0, const std::shared_ptr<ov::Node>& op_1);
-
 namespace ov {
 namespace symbol {
 namespace util {
+
 /// \brief Collects labels from shape. Labels of static dimensions are guaranteed to be ov::no_labels
 ///
 /// \param shape    Shape object to collect labels from
