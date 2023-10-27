@@ -6891,10 +6891,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mm_nms_rotated) {
 
     auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(Shape{1, 4, 5},
-                        std::vector<float>({23.0, 10.5, 4.0, 15.0, 2.5,  11.0, 15.0, 4.0, 2.0, 0.7854,
-                                            20.0, 4.5,  4.0, 3.0,  -5.3, 8.0,  11.5, 4.0, 3.0, -0.5236}));
-    test_case.add_input(Shape{1, 1, 4}, std::vector<float>({0.6, 0.8, 0.5, 0.7}));
-    test_case.add_expected_output<int64_t>(Shape{4, 3}, {0, 0, 1, 0, 0, 3, 0, 0, 0, 0, 0, 2});
+                        std::vector<float>({23.0f, 10.5f, 4.0f, 15.0f, 2.5f,  11.0f, 15.0f, 4.0f, 2.0f, 0.7854f,
+                                            20.0f, 4.5f,  4.0f, 3.0f,  -5.3f, 8.0f,  11.5f, 4.0f, 3.0f, -0.5236f}));
+    test_case.add_input(Shape{1, 1, 4}, std::vector<float>({0.6f, 0.8f, 0.5f, 0.7f}));
+    test_case.add_expected_output<int64_t>(Shape{4, 3}, {0, 0, f, 0, 0, 3, 0, 0, 0, 0, 0, 2});
 
     test_case.run();
 }
