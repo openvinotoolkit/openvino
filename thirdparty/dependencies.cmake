@@ -266,26 +266,7 @@ if(NOT TARGET openvino::pugixml)
     function(ov_build_pugixml)
         function(ov_build_pugixml_static)
             set(BUILD_SHARED_LIBS OFF)
-            function(install)
-                cmake_parse_arguments(_install "" "EXPORT" "" ${ARGV})
-                if(_install_EXPORT STREQUAL "pugixml-targets")
-                    # does nothing!
-                    # we need to override 'export' command to prevent cmake issue with multiple
-                    # export sets for pugixml-target. Currently, it's installed only by OpenVINO
-                else()
-                    _install(${ARGV})
-                endif()
-            endfunction()
-            function(export)
-                cmake_parse_arguments(_export "" "EXPORT" "" ${ARGV})
-                if(_export_EXPORT STREQUAL "pugixml-targets")
-                    # does nothing!
-                    # we need to override 'export' command to prevent cmake issue with multiple
-                    # export sets for pugixml-target. Currently, it's installed only by OpenVINO
-                else()
-                    _export(${ARGV})
-                endif()
-            endfunction()
+            set(PUGIXML_INSTALL OFF CACHE BOOL "" FORCE)
             add_subdirectory(thirdparty/pugixml EXCLUDE_FROM_ALL)
         endfunction()
         ov_build_pugixml_static()
@@ -433,14 +414,14 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         if(CMAKE_VERBOSE_MAKEFILE)
             set(Protobuf_DEBUG ON)
         endif()
-        if(OV_VCPKG_BUILD)
-            set(protobuf_config CONFIG)
-        endif()
         # try to find newer version first (major is changed)
         # see https://protobuf.dev/support/version-support/ and
         # https://github.com/protocolbuffers/protobuf/commit/d61f75ff6db36b4f9c0765f131f8edc2f86310fa
-        find_package(Protobuf 4.22.0 QUIET ${protobuf_config})
+        find_package(Protobuf 4.22.0 QUIET CONFIG)
         if(NOT Protobuf_FOUND)
+            if(OV_VCPKG_BUILD)
+                set(protobuf_config CONFIG)
+            endif()
             # otherwise, fallback to existing default
             find_package(Protobuf 3.20.3 REQUIRED ${protobuf_config})
         endif()

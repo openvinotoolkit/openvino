@@ -114,7 +114,7 @@ ov::element::Type Brgemm::get_output_type() const {
 
 std::vector<ov::PartialShape> Brgemm::get_planar_input_shapes(const std::vector<ov::Input<ov::Node>>& inputs) const {
     OPENVINO_ASSERT(inputs.size() == 2, "Brgemm::get_planar_input_shapes() expects 2 inputs");
-    return {utils::get_planar_pshape(inputs[0]), utils::get_planar_pshape(inputs[1]) };
+    return { utils::get_planar_pshape(inputs[0]), utils::get_planar_pshape(inputs[1]) };
 }
 
 ov::PartialShape Brgemm::get_planar_output_shape(const ov::PartialShape& output_shape) const {
@@ -127,7 +127,7 @@ ov::PartialShape Brgemm::get_planar_output_shape(const ov::PartialShape& output_
 }
 
 ov::PartialShape Brgemm::get_output_partial_shape(const std::vector<ov::PartialShape>& input_shapes) const {
-    NGRAPH_CHECK(input_shapes.size() == 2, "BRGEMM expects 2 input shapes for shape inference");
+    OPENVINO_ASSERT(input_shapes.size() == 2, "BRGEMM expects 2 input shapes for shape inference");
 
     // Note: All majors checks are missed because Brgemm is transformed from MatMul with whole shape infer support
 

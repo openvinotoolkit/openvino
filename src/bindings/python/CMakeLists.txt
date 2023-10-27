@@ -28,6 +28,8 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
     if(NOT EXISTS "${OpenVINO_BINARY_DIR}/cmake_install.cmake")
         set(OpenVINODeveloperPackage_RELOCATABLE ON)
     endif()
+
+    set(OpenVINO_SOURCE_DIR "${OpenVINOPython_SOURCE_DIR}/../../../")
 endif()
 
 if(NOT DEFINED OpenVINODeveloperPackage_RELOCATABLE)
@@ -154,8 +156,8 @@ endfunction()
 
 set(INIT_FILES_RUNTIME "${OpenVINOPython_SOURCE_DIR}/src/openvino/__init__.py"
                        "${OpenVINOPython_SOURCE_DIR}/src/compatibility/openvino/__init__.py"
-                       "${OpenVINOPython_SOURCE_DIR}/../../../tools/ovc/openvino/__init__.py"
-                       "${OpenVINOPython_SOURCE_DIR}/../../../tools/benchmark_tool/openvino/__init__.py")
+                       "${OpenVINO_SOURCE_DIR}/tools/ovc/openvino/__init__.py"
+                       "${OpenVINO_SOURCE_DIR}/tools/benchmark_tool/openvino/__init__.py")
 
 ov_check_init_files_alignment("${INIT_FILES_RUNTIME}")
 
@@ -319,15 +321,15 @@ macro(ov_define_setup_py_dependencies)
         "${CMAKE_CURRENT_SOURCE_DIR}/wheel/setup.py"
         "${OpenVINOPython_SOURCE_DIR}/requirements.txt"
         "${OpenVINOPython_SOURCE_DIR}/wheel/readme.txt"
-        "${OpenVINOPython_SOURCE_DIR}/../../../LICENSE"
-        "${OpenVINOPython_SOURCE_DIR}/../../../licensing/onednn_third-party-programs.txt"
-        "${OpenVINOPython_SOURCE_DIR}/../../../licensing/runtime-third-party-programs.txt"
-        "${OpenVINOPython_SOURCE_DIR}/../../../licensing/tbb_third-party-programs.txt"
-        "${OpenVINOPython_SOURCE_DIR}/../../../docs/install_guides/pypi-openvino-rt.md")
+        "${OpenVINO_SOURCE_DIR}/LICENSE"
+        "${OpenVINO_SOURCE_DIR}/licensing/onednn_third-party-programs.txt"
+        "${OpenVINO_SOURCE_DIR}/licensing/runtime-third-party-programs.txt"
+        "${OpenVINO_SOURCE_DIR}/licensing/tbb_third-party-programs.txt"
+        "${OpenVINO_SOURCE_DIR}/docs/install_guides/pypi-openvino-rt.md")
 
     if(wheel_pre_release)
         list(APPEND ov_setup_py_deps
-            "${OpenVINOPython_SOURCE_DIR}/../../../docs/install_guides/pre-release-note.md")
+            "${OpenVINO_SOURCE_DIR}/docs/install_guides/pre-release-note.md")
     endif()
 endmacro()
 
@@ -401,12 +403,19 @@ endif()
 if(ENABLE_TESTS)
     add_subdirectory(tests/mock/mock_py_frontend)
     add_subdirectory(tests/mock/pyngraph_fe_mock_api)
+    install(FILES constraints.txt
+            DESTINATION tests/bindings/python
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
+    install(FILES src/openvino/preprocess/torchvision/requirements.txt
+            DESTINATION tests/python/preprocess/torchvision
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
 endif()
 
 if(OpenVINODeveloperPackage_FOUND)
-    # TODO: understand whether it's required
     # provides a callback function to describe each component in repo
-    include("${OpenVINOPython_SOURCE_DIR}/../../../cmake/packaging/packaging.cmake")
+    include("${OpenVINO_SOURCE_DIR}/cmake/packaging/packaging.cmake")
 
     ov_cpack(${OV_CPACK_COMPONENTS_ALL})
 endif()
