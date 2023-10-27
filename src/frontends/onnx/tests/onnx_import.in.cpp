@@ -6972,7 +6972,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mm_nms_rotated) {
                         std::vector<float>({23.0f, 10.5f, 4.0f, 15.0f, 2.5f,  11.0f, 15.0f, 4.0f, 2.0f, 0.7854f,
                                             20.0f, 4.5f,  4.0f, 3.0f,  -5.3f, 8.0f,  11.5f, 4.0f, 3.0f, -0.5236f}));
     test_case.add_input(Shape{1, 1, 4}, std::vector<float>({0.6f, 0.8f, 0.5f, 0.7f}));
-    test_case.add_expected_output<int64_t>(Shape{4, 3}, {0, 0, f, 0, 0, 3, 0, 0, 0, 0, 0, 2});
+    test_case.add_expected_output<int64_t>(Shape{4, 3}, {0, 0, 1, 0, 0, 3, 0, 0, 0, 0, 0, 2});
 
     test_case.run();
 }
