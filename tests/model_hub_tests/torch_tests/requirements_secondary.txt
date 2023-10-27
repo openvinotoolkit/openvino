@@ -2,5 +2,4 @@
 # This file contains requirements dependednt from modules in requirements.txt
 # get immutable commit to be able to use pip cache
 git+https://github.com/facebookresearch/detectron2.git@1a4df4d954089534daebbd7a0a45f08ece87056e
-# natten depends on specific torch version and cuda, install without dependencies to be able override them
-# natten
+natten
