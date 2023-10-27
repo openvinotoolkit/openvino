@@ -23,7 +23,7 @@ ov::pass::ConvertBitwiseAndToLogicalAnd::ConvertBitwiseAndToLogicalAnd() {
 
     const matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto bitwise = std::dynamic_pointer_cast<ov::op::v13::BitwiseAnd>(m.get_match_root());
-        if (!bitwise) {
+        if (!bitwise || transformation_callback(bitwise)) {
             return false;
         }
 
