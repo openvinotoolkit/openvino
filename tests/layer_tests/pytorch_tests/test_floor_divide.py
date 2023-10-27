@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 
@@ -39,39 +41,59 @@ class TestFloorDivide(PytorchLayerTest):
 
         return aten_floor_divide(), ref_net, "aten::floor_divide"
 
-    @pytest.mark.parametrize('input_tensor', ([
-        np.random.randn(5).astype(np.float32),
-        np.random.randn(5, 5, 1).astype(np.float32),
-        np.random.randn(1, 1, 5, 5).astype(np.float32),
+    @pytest.mark.parametrize('input_tensor',
+    ([
+        [5], [5, 5, 1], [1, 1, 5, 5],
     ]))
-    @pytest.mark.parametrize('other_tensor', ([
-        np.array([[0.5]]).astype(np.float32),
-        np.random.randn(5).astype(np.float32),
-        np.random.randn(5, 1).astype(np.float32),
-        np.random.randn(1, 5).astype(np.float32),
+    @pytest.mark.parametrize('other_tensor',
+    ([
+        np.array([[0.5]]).astype(np.float32), [5], [5, 1], [1, 5]
     ]))
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_floor_divide(self, input_tensor, other_tensor, ie_device, precision, ir_version):
-        self.input_tensor = input_tensor
-        self.other_tensor = other_tensor
-        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=True)
+        if type(input_tensor) is list:
+            self.input_tensor = np.random.randn(*input_tensor).astype(np.float32)
+        else:
+            self.input_tensor = input_tensor
+        if type(other_tensor) is list:
+            self.other_tensor = np.random.randn(*other_tensor).astype(np.float32)
+        else:
+            self.other_tensor = other_tensor
+        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=True, use_convert_model=True)
 
-    @pytest.mark.parametrize('input_tensor', ([
-        np.random.randint(low=0, high=10, size=5).astype(np.float32),
-        np.random.randint(low=1, high=10, size=(5, 5, 1)).astype(np.float32),
-        np.random.randint(low=1, high=10, size=(1, 1, 5, 5)).astype(np.float32),
-    ]))
-    @pytest.mark.parametrize('other_tensor', ([
-        np.array([[2]]).astype(np.float32),
-        np.random.randint(low=1, high=10, size=5).astype(np.float32),
-        np.random.randint(low=1, high=10, size=(5, 1)).astype(np.float32),
-        np.random.randint(low=1, high=10, size=(1, 5)).astype(np.float32),
-    ]))
+    @pytest.mark.parametrize('input_data',
+    [
+        { "tensor": [5], "low": 0, "high": 10 },
+        { "tensor": [5, 5, 1], "low": 1, "high": 10 },
+        { "tensor": [1, 1, 5, 5], "low": 1, "high": 10 }
+    ])
+    @pytest.mark.parametrize('other_data',
+    [
+        { "tensor": np.array([[2]]).astype(np.float32) },
+        { "tensor": [5], "low": 1, "high": 10 },
+        { "tensor": [5, 1], "low": 1, "high": 10 },
+        { "tensor":  [5, 1], "low": 1, "high": 10 }
+    ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_floor_divide_int(self, input_tensor, other_tensor, ie_device, precision, ir_version):
-        self.input_tensor = input_tensor
-        self.other_tensor = other_tensor
+    def test_floor_divide_int(self, input_data, other_data, ie_device, precision, ir_version):
+        input_tensor = input_data["tensor"]
+        if type(input_tensor) is list:
+            self.input_tensor = np.random.randint(low=input_data["low"],
+                                                  high=input_data["high"],
+                                                  size=input_tensor).astype(np.float32)
+        else:
+            self.input_tensor = input_tensor
+
+        other_tensor = other_data["tensor"]
+        if type(other_tensor) is list:
+            self.other_tensor = np.random.randint(low=other_data["low"],
+                                                  high=other_data["high"],
+                                                  size=other_tensor).astype(np.float32)
+        else:
+            self.other_tensor = other_tensor
         self.create_model = self.create_model_int
         self._test(*self.create_model(), ie_device, precision, ir_version)

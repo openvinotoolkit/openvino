@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <iterator>
 #include <map>
 #include <mutex>
 #include <string>

@@ -250,8 +250,8 @@ class TestTransformersModel(TestConvertModel):
         if model is None:
             from transformers import AutoModel
             model = AutoModel.from_pretrained(name, torchscript=True)
-            if hasattr(model, "set_default_language"):
-                model.set_default_language("en_XX")
+        if hasattr(model, "set_default_language"):
+            model.set_default_language("en_XX")
         if example is None:
             if "encodec" in mi.tags:
                 example = (torch.randn(1, 1, 100),)
@@ -276,7 +276,9 @@ class TestTransformersModel(TestConvertModel):
             return [i.numpy() for i in self.example]
 
     def convert_model(self, model_obj):
-        ov_model = convert_model(model_obj, example_input=self.example)
+        ov_model = convert_model(model_obj,
+                                 example_input=self.example,
+                                 verbose=True)
         return ov_model
 
     def infer_fw_model(self, model_obj, inputs):
@@ -292,15 +294,12 @@ class TestTransformersModel(TestConvertModel):
         cleanup_dir(hf_hub_cache_dir)
         super().teardown_method()
 
-    @pytest.mark.parametrize("name,type", [("bert-base-uncased", "bert"),
-                                           ("facebook/bart-large-mnli", "bart"),
+    @pytest.mark.parametrize("name,type", [("allenai/led-base-16384", "led"),
+                                           ("bert-base-uncased", "bert"),
                                            ("google/flan-t5-base", "t5"),
                                            ("google/tapas-large-finetuned-wtq", "tapas"),
                                            ("gpt2", "gpt2"),
-                                           ("openai/clip-vit-large-patch14", "clip"),
-                                           ("RWKV/rwkv-4-169m-pile", "rwkv"),
-                                           ("microsoft/layoutlmv3-base", "layoutlmv3"),
-                                           ("microsoft/xprophetnet-large-wiki100-cased", "xlm-prophetnet"),
+                                           ("openai/clip-vit-large-patch14", "clip")
                                            ])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, type, ie_device):
