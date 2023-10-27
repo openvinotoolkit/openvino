@@ -1076,14 +1076,16 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
         // explicitly enabled Auto-Batching
         auto pos = deviceName.find_first_of(":");
         if (pos == std::string::npos)
-            return model;  // BATCH device is already configured via the config
-        auto parsed = ov::parseDeviceNameIntoConfig(deviceName);
-        std::vector<std::string> metrics = get_plugin(parsed._deviceName)
-                                               .get_property(METRIC_KEY(SUPPORTED_METRICS), parsed._config)
-                                               .as<std::vector<std::string>>();
-        auto it = std::find(metrics.begin(), metrics.end(), METRIC_KEY(OPTIMAL_BATCH_SIZE));
-        if (metrics.end() == it) {
-            deviceNameWithBatchSize = 1;
+            return model;
+        // BATCH device is already configured via the config
+        // handle the hw plugin doesn't support optimal_batch_size & user doesn't assign the batch size, such as
+        // "BATCH:CPU" for this situation will assign the batch size to 1. ("BATCH:CPU" -> "BATCH:CPU(1)")
+        if (deviceName.find("(") == std::string::npos) {
+            auto supported_properties =
+                ICore::get_property(deviceName.substr(pos + 1, deviceName.find("(")), ov::supported_properties, {});
+            if (std::find(supported_properties.begin(), supported_properties.end(), ov::optimal_batch_size) ==
+                supported_properties.end())
+                deviceNameWithBatchSize = deviceName.substr(pos + 1) + "(1)";
         } else {
             deviceNameWithBatchSize = deviceName.substr(pos + 1);
         }
