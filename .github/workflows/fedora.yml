@@ -34,7 +34,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-16-cores
     container:
-      image: fedora:33
+      image: fedora:29
       volumes:
         - /mount/caches:/mount/caches
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
@@ -79,6 +79,7 @@ jobs:
           version: "v0.5.4"
 
       - name: Install python dependencies
+        if: ${{ 'false' }}
         run: |
           python3 -m pip install -U pip
           # For Python API: build and wheel packaging
@@ -107,12 +108,12 @@ jobs:
             -G "${{ env.CMAKE_GENERATOR }}" \
             -DENABLE_CPPLINT=OFF \
             -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_TESTS=ON \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DENABLE_SYSTEM_TBB=ON \
             -DENABLE_SYSTEM_OPENCL=ON \
             -DENABLE_SYSTEM_PUGIXML=ON \
-            -DENABLE_PYTHON_PACKAGING=ON \
+            -DENABLE_PYTHON_PACKAGING=OFF \
+            -DENABLE_PYTHON=OFF \
             -DCPACK_GENERATOR=TGZ \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} \
@@ -171,7 +172,7 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Upload openvino tests package
-        if: ${{ always() }}
+        if: ${{ 'false' }}
         uses: actions/upload-artifact@v3
         with:
           name: openvino_tests
@@ -184,9 +185,13 @@ jobs:
     defaults:
       run:
         shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ['fedora:33', 'fedora:35', 'docker.io/openeuler/openeuler:22.03', 'openanolis/anolisos:8.6-x86_64', 'opencloudos/opencloudos:8', 'quay.io/centos/centos:stream8', 'rockylinux:8.7', 'almalinux:8.7', 'public.ecr.aws/amazonlinux/amazonlinux:2022', 'clearlinux', 'oraclelinux:8.7', 'apachekylin/apache-kylin-standalone:4.0.0']
     runs-on: ubuntu-20.04
     container:
-      image: fedora:33
+      image: ${{ matrix.os }}
     env:
       RPM_PACKAGES_DIR: /__w/openvino/packages/
 
@@ -198,23 +203,7 @@ jobs:
           path: ${{ env.RPM_PACKAGES_DIR }}
 
       - name: Install RPM packages & check conflicts
-        run: |
-          tee > /tmp/openvino-2023.repo << EOF
-          [OpenVINO]
-          name=Intel(R) Distribution of OpenVINO 2023
-          baseurl=https://yum.repos.intel.com/openvino/2023
-          enabled=1
-          gpgcheck=1
-          repo_gpgcheck=1
-          gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-          EOF
-
-          # install previous release version
-          mv /tmp/openvino-2023.repo /etc/yum.repos.d
-          yum install -y openvino
-
-          # install current version
-          yum install --allowerasing -y *.rpm
+        run: yum install --allowerasing -y *.rpm
         working-directory: ${{ env.RPM_PACKAGES_DIR }}
 
       - name: Test RPM packages

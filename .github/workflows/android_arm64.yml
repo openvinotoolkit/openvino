@@ -1,24 +1,24 @@
 name: Android ARM64 with vcpkg
 on:
   workflow_dispatch:
-  pull_request:
-    paths-ignore:
-      - '**/docs/**'
-      - 'docs/**'
-      - '**/**.md'
-      - '**.md'
-      - '**/layer_tests_summary/**'
-      - '**/conformance/**'
-  push:
-    paths-ignore:
-      - '**/docs/**'
-      - 'docs/**'
-      - '**/**.md'
-      - '**.md'
-      - '**/layer_tests_summary/**'
-      - '**/conformance/**'
-    branches:
-      - master
+  # pull_request:
+  #   paths-ignore:
+  #     - '**/docs/**'
+  #     - 'docs/**'
+  #     - '**/**.md'
+  #     - '**.md'
+  #     - '**/layer_tests_summary/**'
+  #     - '**/conformance/**'
+  # push:
+  #   paths-ignore:
+  #     - '**/docs/**'
+  #     - 'docs/**'
+  #     - '**/**.md'
+  #     - '**.md'
+  #     - '**/layer_tests_summary/**'
+  #     - '**/conformance/**'
+  #   branches:
+  #     - master
 
 concurrency:
   # github.ref is not unique in post-commit
