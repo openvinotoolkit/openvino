@@ -31,9 +31,9 @@ OutputVector group_normalization(const Node& node) {
     const auto c_g_div = std::make_shared<default_opset::Divide>(c_dim, g_dim);
 
     // Adjust scale and bias shape, [G] -> [G, C/G] -> [C]
-    const auto scale_usnsq = std::make_shared<default_opset::Unsqueeze>(scale, one);
+    const auto scale_unsq = std::make_shared<default_opset::Unsqueeze>(scale, one);
     const auto broadcast_scale =
-        std::make_shared<default_opset::Broadcast>(scale_usnsq, c_g_div, ov::op::BroadcastType::BIDIRECTIONAL);
+        std::make_shared<default_opset::Broadcast>(scale_unsq, c_g_div, ov::op::BroadcastType::BIDIRECTIONAL);
     const auto c_scale = std::make_shared<default_opset::Reshape>(broadcast_scale, c_dim, false);
 
     const auto bias_unsq = std::make_shared<default_opset::Unsqueeze>(bias, one);
