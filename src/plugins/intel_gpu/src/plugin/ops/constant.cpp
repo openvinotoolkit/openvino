@@ -92,7 +92,6 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
     auto data = op->get_data_ptr<char>();
 
     const auto cache_key = std::make_tuple(data, const_shape, op->get_output_element_type(0));
-
     auto bufIter = p.blobMemCache.find(cache_key);
 
     if (bufIter != p.blobMemCache.end()) {
