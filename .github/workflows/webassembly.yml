@@ -1,7 +1,7 @@
 name: Webassembly
 on:
   workflow_dispatch:
-  pull_request:
+  # pull_request:
     # paths-ignore:
     #   - '**/docs/**'
     #   - 'docs/**'

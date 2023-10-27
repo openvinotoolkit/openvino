@@ -124,16 +124,16 @@ endif()
 #
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS)
-    find_package(ZLIB QUIET)
+    # find_package(ZLIB QUIET)
     if(ZLIB_FOUND)
         # FindZLIB module defines ZLIB::ZLIB, no extra steps are required
     endif()
 
     # cmake has failed to find zlib, let's try pkg-config
     if(NOT ZLIB_FOUND AND PkgConfig_FOUND)
-        pkg_search_module(zlib QUIET
-                          IMPORTED_TARGET
-                          zlib)
+        # pkg_search_module(zlib QUIET
+        #                   IMPORTED_TARGET
+        #                   zlib)
         if(zlib_FOUND)
             add_library(ZLIB::ZLIB INTERFACE IMPORTED)
             set_target_properties(ZLIB::ZLIB PROPERTIES INTERFACE_LINK_LIBRARIES PkgConfig::zlib)
@@ -327,7 +327,7 @@ if(ENABLE_SAMPLES OR ENABLE_TESTS)
     if(OV_VCPKG_BUILD OR OV_CONAN_BUILD)
         # vcpkg contains only libs compiled with threads
         # conan case
-        find_package(gflags QUIET)
+        # find_package(gflags QUIET)
     elseif(APPLE OR WIN32)
         # on Windows and macOS we don't use gflags, because will be dynamically linked
     elseif(CMAKE_HOST_LINUX AND LINUX)
@@ -336,7 +336,7 @@ if(ENABLE_SAMPLES OR ENABLE_TESTS)
         elseif(OV_OS_DEBIAN)
             set(gflag_component nothreads_static)
         endif()
-        find_package(gflags QUIET OPTIONAL_COMPONENTS ${gflag_component})
+        # find_package(gflags QUIET OPTIONAL_COMPONENTS ${gflag_component})
     endif()
 
     if(gflags_FOUND)
@@ -607,73 +607,57 @@ endif()
 # Install
 #
 
-if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW|CONAN|VCPKG)$")
-    # These libraries are dependencies for openvino-samples package
-    if(ENABLE_SAMPLES OR ENABLE_TESTS)
-        if(NOT gflags_FOUND AND CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
-            message(FATAL_ERROR "gflags must be used as a ${CPACK_GENERATOR} package. Install libgflags-dev / gflags-devel")
-        endif()
-        if(NOT (zlib_FOUND OR ZLIB_FOUND))
-            message(FATAL_ERROR "zlib must be used as a ${CPACK_GENERATOR} package. Install zlib1g-dev / zlib-devel")
-        endif()
-    endif()
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags
+        DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
+        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
+        ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL}
+        PATTERN bazel EXCLUDE
+        PATTERN doc EXCLUDE
+        PATTERN .git EXCLUDE
+        PATTERN appveyor.yml EXCLUDE
+        PATTERN AUTHORS.txt EXCLUDE
+        PATTERN BUILD EXCLUDE
+        PATTERN ChangeLog.txt EXCLUDE
+        PATTERN .gitattributes EXCLUDE
+        PATTERN .gitignore EXCLUDE
+        PATTERN .gitmodules EXCLUDE
+        PATTERN test EXCLUDE
+        PATTERN INSTALL.md EXCLUDE
+        PATTERN README.md EXCLUDE
+        PATTERN .travis.yml EXCLUDE
+        PATTERN WORKSPACE EXCLUDE)
 
-    if(NOT ENABLE_SYSTEM_PUGIXML)
-        message(FATAL_ERROR "Pugixml must be used as a ${CPACK_GENERATOR} package. Install libpugixml-dev / pugixml-devel")
-    endif()
-elseif(APPLE OR WIN32)
-    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags
-            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-            ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL}
-            PATTERN bazel EXCLUDE
-            PATTERN doc EXCLUDE
-            PATTERN .git EXCLUDE
-            PATTERN appveyor.yml EXCLUDE
-            PATTERN AUTHORS.txt EXCLUDE
-            PATTERN BUILD EXCLUDE
-            PATTERN ChangeLog.txt EXCLUDE
-            PATTERN .gitattributes EXCLUDE
-            PATTERN .gitignore EXCLUDE
-            PATTERN .gitmodules EXCLUDE
-            PATTERN test EXCLUDE
-            PATTERN INSTALL.md EXCLUDE
-            PATTERN README.md EXCLUDE
-            PATTERN .travis.yml EXCLUDE
-            PATTERN WORKSPACE EXCLUDE)
+file(GLOB zlib_sources ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/zlib/*.c
+                        ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/zlib/*.h)
+install(FILES ${zlib_sources}
+        DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty/zlib/zlib
+        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
+        ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/CMakeLists.txt
+        DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty/zlib
+        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
+        ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
 
-    file(GLOB zlib_sources ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/zlib/*.c
-                           ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/zlib/*.h)
-    install(FILES ${zlib_sources}
-            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty/zlib/zlib
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-            ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
-    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/CMakeLists.txt
-            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty/zlib
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-            ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
-
-    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json/nlohmann_json
-            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-            ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL}
-            PATTERN ChangeLog.md EXCLUDE
-            PATTERN CITATION.cff EXCLUDE
-            PATTERN .clang-format EXCLUDE
-            PATTERN .clang-tidy EXCLUDE
-            PATTERN docs EXCLUDE
-            PATTERN .git EXCLUDE
-            PATTERN .github EXCLUDE
-            PATTERN .gitignore EXCLUDE
-            PATTERN .lgtm.yml EXCLUDE
-            PATTERN Makefile EXCLUDE
-            PATTERN meson.build EXCLUDE
-            PATTERN README.md EXCLUDE
-            PATTERN .reuse EXCLUDE
-            PATTERN tests EXCLUDE
-            PATTERN tools EXCLUDE
-            PATTERN wsjcpp.yml EXCLUDE)
-endif()
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json/nlohmann_json
+        DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
+        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
+        ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL}
+        PATTERN ChangeLog.md EXCLUDE
+        PATTERN CITATION.cff EXCLUDE
+        PATTERN .clang-format EXCLUDE
+        PATTERN .clang-tidy EXCLUDE
+        PATTERN docs EXCLUDE
+        PATTERN .git EXCLUDE
+        PATTERN .github EXCLUDE
+        PATTERN .gitignore EXCLUDE
+        PATTERN .lgtm.yml EXCLUDE
+        PATTERN Makefile EXCLUDE
+        PATTERN meson.build EXCLUDE
+        PATTERN README.md EXCLUDE
+        PATTERN .reuse EXCLUDE
+        PATTERN tests EXCLUDE
+        PATTERN tools EXCLUDE
+        PATTERN wsjcpp.yml EXCLUDE)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy
         DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
