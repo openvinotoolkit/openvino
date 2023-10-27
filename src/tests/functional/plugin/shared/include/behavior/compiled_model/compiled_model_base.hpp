@@ -87,7 +87,6 @@ protected:
 
 using OVAutoExecutableNetworkTest = OVCompiledModelBaseTest;
 using OVCompiledModelBaseTestOptional = OVCompiledModelBaseTest;
-using OVCompiledModelBaseTest_2_0 = OVCompiledModelBaseTest;
 
 TEST_P(OVCompiledModelBaseTest, canCompileModel) {
     EXPECT_NO_THROW(auto execNet = core->compile_model(function, target_device, configuration));
@@ -270,12 +269,12 @@ TEST_P(OVCompiledModelBaseTest, CanGetInputsInfo) {
     EXPECT_NO_THROW(auto inInfo = execNet.inputs());
 }
 
-TEST_P(OVCompiledModelBaseTest_2_0, CanGetProperty) {
+TEST_P(OVCompiledModelBaseTest, CanGetProperty) {
     auto execNet = core->compile_model(function, target_device, configuration);
     EXPECT_NO_THROW(auto inInfo = execNet.get_property(ov::supported_properties));
 }
 
-TEST_P(OVCompiledModelBaseTest_2_0, CanCreateTwoExeNetworksAndCheckFunction) {
+TEST_P(OVCompiledModelBaseTest, CanCreateTwoExeNetworksAndCheckFunction) {
     std::vector<ov::CompiledModel> vec;
     for (auto i = 0; i < 2; i++) {
         EXPECT_NO_THROW(vec.push_back(core->compile_model(function, target_device, configuration)));
@@ -284,13 +283,13 @@ TEST_P(OVCompiledModelBaseTest_2_0, CanCreateTwoExeNetworksAndCheckFunction) {
     }
 }
 
-TEST_P(OVCompiledModelBaseTest_2_0, pluginDoesNotChangeOriginalNetwork) {
+TEST_P(OVCompiledModelBaseTest, pluginDoesNotChangeOriginalNetwork) {
     // compare 2 networks
     auto referenceNetwork = ngraph::builder::subgraph::makeConvPoolRelu();
     compare_functions(function, referenceNetwork);
 }
 
-TEST_P(OVCompiledModelBaseTest_2_0, canSetInputPrecisionForNetwork) {
+TEST_P(OVCompiledModelBaseTest, canSetInputPrecisionForNetwork) {
     std::shared_ptr<ov::Model> model = ngraph::builder::subgraph::makeSingleConcatWithConstant();
     ov::Core core = createCoreWithTemplate();
     auto ppp = ov::preprocess::PrePostProcessor(model);
@@ -301,7 +300,7 @@ TEST_P(OVCompiledModelBaseTest_2_0, canSetInputPrecisionForNetwork) {
     ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
 }
 
-TEST_P(OVCompiledModelBaseTest_2_0, canSetOutputPrecisionForNetwork) {
+TEST_P(OVCompiledModelBaseTest, canSetOutputPrecisionForNetwork) {
     std::shared_ptr<ov::Model> model = ngraph::builder::subgraph::makeSingleConcatWithConstant();
     ov::Core core = createCoreWithTemplate();
     auto ppp = ov::preprocess::PrePostProcessor(model);
@@ -309,29 +308,6 @@ TEST_P(OVCompiledModelBaseTest_2_0, canSetOutputPrecisionForNetwork) {
     output.postprocess().convert_element_type(ov::element::u8);
     model = ppp.build();
     ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
-}
-
-TEST_P(OVCompiledModelBaseTest_2_0, CanCompileModelWithEmptyProperties) {
-    ov::Core ie = createCoreWithTemplate();
-    std::shared_ptr<ov::Model> model = ngraph::builder::subgraph::makeSingleConcatWithConstant();
-    OV_ASSERT_NO_THROW(auto compiled_model = ie.compile_model(model, target_device, ov::AnyMap{}));
-}
-
-TEST_P(OVCompiledModelBaseTest_2_0, LoadNetworkWithBigDeviceIDThrows) {
-    ov::Core ie = createCoreWithTemplate();
-    std::shared_ptr<ov::Model> model = ngraph::builder::subgraph::makeSingleConcatWithConstant();
-    ASSERT_THROW(ie.compile_model(model, target_device + ".10"), ov::Exception);
-}
-
-TEST_P(OVCompiledModelBaseTest_2_0, CanLoadNetworkWithCustomLocale) {
-    auto prev = std::locale().name();
-    setlocale(LC_ALL, "en_GB.UTF-8");
-
-    ov::Core ie = createCoreWithTemplate();
-    std::shared_ptr<ov::Model> model = ngraph::builder::subgraph::makeSingleConcatWithConstant();
-    ASSERT_NO_THROW(auto compiled_model = ie.compile_model(model, target_device););
-
-    setlocale(LC_ALL, prev.c_str());
 }
 
 TEST_P(OVCompiledModelBaseTest, CanGetOutputsInfo) {

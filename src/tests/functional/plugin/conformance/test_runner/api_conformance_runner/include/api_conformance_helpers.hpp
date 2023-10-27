@@ -71,16 +71,11 @@ inline const std::vector<std::map<std::string, std::string>> generate_configs(co
 }
 
 inline const std::string generate_complex_device_name(const std::string& deviceName) {
-    return deviceName + ":" + ov::test::conformance::targetDevice;
-}
-
-inline const std::string generate_complex_batch(const std::string& deviceName) {
-    std::string targetDevice = ov::test::conformance::targetDevice;
-    if (deviceName == "BATCH" && targetDevice == "CPU") {
+    if (deviceName == "BATCH" && ov::test::conformance::targetDevice == "CPU") {
         // when testing with BATCH:CPU, batch size should be given.
-        return deviceName + ":" + targetDevice + "(4)";
+        return deviceName + ":" + ov::test::conformance::targetDevice + "(4)";
     }
-    return deviceName + ":" + targetDevice;
+    return deviceName + ":" + ov::test::conformance::targetDevice;
 }
 
 inline const std::vector<std::string> return_all_possible_device_combination(bool enable_complex_name = true) {
@@ -89,16 +84,6 @@ inline const std::vector<std::string> return_all_possible_device_combination(boo
                                      ov::test::utils::DEVICE_BATCH, ov::test::utils::DEVICE_MULTI};
     for (const auto& device : devices) {
         res.emplace_back(enable_complex_name ? generate_complex_device_name(device) : device);
-    }
-    return res;
-}
-
-inline const std::vector<std::string> return_batch_combination(bool enable_complex_name = true) {
-    std::vector<std::string> res{ov::test::conformance::targetDevice};
-    std::vector<std::string> devices{ov::test::utils::DEVICE_HETERO, ov::test::utils::DEVICE_AUTO,
-                                     ov::test::utils::DEVICE_BATCH, ov::test::utils::DEVICE_MULTI};
-    for (const auto& device : devices) {
-        res.emplace_back(enable_complex_name ? generate_complex_batch(device) : device);
     }
     return res;
 }

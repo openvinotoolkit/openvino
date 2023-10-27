@@ -257,6 +257,17 @@ TEST_P(OVClassCompiledModelGetPropertyTest, GetMetricNoThrow_OPTIMAL_NUMBER_OF_I
     ASSERT_EXEC_METRIC_SUPPORTED(ov::optimal_number_of_infer_requests);
 }
 
+TEST_P(OVClassCompiledModelGetPropertyTest, CanCompileModelWithEmptyProperties) {
+    ov::Core ie = createCoreWithTemplate();
+
+    OV_ASSERT_NO_THROW(auto compiled_model = ie.compile_model(simpleNetwork, target_device, ov::AnyMap{}));
+}
+
+TEST_P(OVClassCompiledModelGetPropertyTest, LoadNetworkWithBigDeviceIDThrows) {
+    ov::Core ie = createCoreWithTemplate();
+    ASSERT_THROW(ie.compile_model(actualNetwork, target_device + ".10"), ov::Exception);
+}
+
 TEST_P(OVClassCompiledModelGetIncorrectPropertyTest, GetConfigThrows) {
     ov::Core ie = createCoreWithTemplate();
     auto compiled_model = ie.compile_model(simpleNetwork, target_device);
@@ -353,7 +364,16 @@ TEST_P(OVCompileModelGetExecutionDeviceTests, CanGetExecutionDeviceInfo) {
         ASSERT_FALSE(property.empty());
 }
 
+TEST_P(OVClassCompiledModelGetConfigTest, CanLoadNetworkWithCustomLocale) {
+    auto prev = std::locale().name();
+    setlocale(LC_ALL, "en_GB.UTF-8");
 
+    ov::Core ie = createCoreWithTemplate();
+
+    ASSERT_NO_THROW(auto compiled_model = ie.compile_model(simpleNetwork, target_device););
+
+    setlocale(LC_ALL, prev.c_str());
+}
 
 }  // namespace behavior
 }  // namespace test

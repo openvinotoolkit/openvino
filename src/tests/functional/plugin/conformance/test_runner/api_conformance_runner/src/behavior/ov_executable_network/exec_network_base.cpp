@@ -22,10 +22,4 @@ INSTANTIATE_TEST_SUITE_P(ov_compiled_model, OVCompiledModelBaseTestOptional,
                                 ::testing::ValuesIn(return_all_possible_device_combination()),
                                 ::testing::Values(pluginConfig)),
                         OVCompiledModelBaseTestOptional::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(ov_compiled_model_2_0,
-                         OVCompiledModelBaseTest_2_0,
-                         ::testing::Combine(::testing::ValuesIn(return_batch_combination()),
-                                            ::testing::Values(pluginConfig)),
-                         OVCompiledModelBaseTest_2_0::getTestCaseName);
 }  // namespace

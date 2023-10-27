@@ -27,18 +27,6 @@ namespace {
                                      ::testing::ValuesIn(heteroConfigs)),
                              OVCompiledModelBaseTest::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompiledModelBaseTest_2_0,
-                            ::testing::Combine(
-                                    ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                    ::testing::ValuesIn(configs)),
-                            OVCompiledModelBaseTest_2_0::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVCompiledModelBaseTest_2_0,
-                             ::testing::Combine(
-                                     ::testing::Values(ov::test::utils::DEVICE_HETERO),
-                                     ::testing::ValuesIn(heteroConfigs)),
-                             OVCompiledModelBaseTest_2_0::getTestCaseName);
-
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompiledModelBaseTestOptional,
                             ::testing::Combine(
                                     ::testing::Values(ov::test::utils::DEVICE_CPU),
