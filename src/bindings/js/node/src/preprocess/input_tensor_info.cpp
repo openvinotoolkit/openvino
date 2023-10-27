@@ -12,7 +12,8 @@ Napi::Function InputTensorInfo::GetClassConstructor(Napi::Env env) {
     return DefineClass(env,
                        "InputTensorInfo",
                        {InstanceMethod("setElementType", &InputTensorInfo::set_element_type),
-                        InstanceMethod("setLayout", &InputTensorInfo::set_layout)});
+                        InstanceMethod("setLayout", &InputTensorInfo::set_layout),
+                        InstanceMethod("setShape", &InputTensorInfo::set_shape)});
 }
 
 Napi::Object InputTensorInfo::Init(Napi::Env env, Napi::Object exports) {
@@ -36,6 +37,20 @@ Napi::Value InputTensorInfo::set_layout(const Napi::CallbackInfo& info) {
         }
     } else {
         reportError(info.Env(), "Error in setLayout(). Wrong number of parameters.");
+    }
+    return info.This();
+}
+
+Napi::Value InputTensorInfo::set_shape(const Napi::CallbackInfo& info) {
+    if (info.Length() == 1) {
+        try {
+            auto shape = js_to_cpp<ov::Shape>(info, 0, {napi_int32_array, js_array});
+            _tensor_info->set_shape(shape);
+        } catch (std::exception& e) {
+            reportError(info.Env(), e.what());
+        }
+    } else {
+        reportError(info.Env(), "Error in setShape(). Wrong number of parameters.");
     }
     return info.This();
 }

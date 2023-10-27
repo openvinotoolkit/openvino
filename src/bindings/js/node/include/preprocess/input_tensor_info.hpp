@@ -16,7 +16,10 @@ public:
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
 
     void set_element_type(const Napi::CallbackInfo& info);
+
     Napi::Value set_layout(const Napi::CallbackInfo& info);
+
+    Napi::Value set_shape(const Napi::CallbackInfo& info);
 
     void set_input_tensor_info(ov::preprocess::InputTensorInfo& tensor_info);
 
