@@ -1370,7 +1370,7 @@ jobs:
         run: |
           pushd ${E2E_TESTS_INSTALL_DIR}
           export PYTHONPATH=${E2E_TESTS_INSTALL_DIR}:${INSTALL_TEST_DIR}:$PYTHONPATH
-          pytest test_ovc_mo.py -v -s --test_conf=test_config_local.yml --env_conf=env_config_local.yml --base_rules_conf=base_test_rules.yml --modules=pipelines/production/tf_hub
+          pytest test_ovc_mo.py -v -s --test_conf=test_config_local.yml --env_conf=env_config_local.yml --base_rules_conf=base_test_rules.yml --modules=pipelines/production/tf_hub --html=TEST-e2e_tf_hub_tf_fe.html --self-contained-html
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
