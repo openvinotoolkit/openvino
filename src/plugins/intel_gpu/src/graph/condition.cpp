@@ -258,6 +258,14 @@ void condition_inst::postprocess_output_memory(network::ptr executed_net, cldnn:
         auto out_mem_idx = out_mem_map.first;
         auto inner_out_id = out_mem_map.second;
         auto mem_ptr = executed_net->get_output(inner_out_id).get_memory();
+        if (mem_ptr) {
+            auto layout = _impl_params->get_output_layout(out_mem_idx);
+            GPU_DEBUG_LOG << "Reshape output from " << mem_ptr->get_layout().to_short_string()
+                        << " to " << layout.to_short_string() << std::endl;
+            // Preallocation logic may allocate more memory than actually produced on current iteration, so we need to adjust output buffers layout
+            mem_ptr = get_network().get_engine().reinterpret_buffer(*mem_ptr, layout);
+        }
+
         _outputs[out_mem_idx] = mem_ptr;
         GPU_DEBUG_LOG << "Inner net - Outputs[" << out_mem_idx << "]" << mem_ptr->get_layout().to_short_string() << std::endl;
     }
