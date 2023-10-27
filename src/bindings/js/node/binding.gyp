@@ -10,6 +10,8 @@
         "src/node_output.cpp",
         "src/async_reader.cpp",
         "src/pre_post_process_wrap.cpp",
+        "src/preprocess/input_info.cpp",
+        "src/preprocess/input_tensor_info.cpp",
         "src/errors.cpp",
         "src/helper.cpp",
         "src/tensor.cpp",

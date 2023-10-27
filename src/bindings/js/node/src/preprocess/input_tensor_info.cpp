@@ -1,0 +1,58 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
+#include "preprocess/input_tensor_info.hpp"
+
+#include "errors.hpp"
+#include "helper.hpp"
+
+InputTensorInfo::InputTensorInfo(const Napi::CallbackInfo& info) : Napi::ObjectWrap<InputTensorInfo>(info){};
+
+Napi::Function InputTensorInfo::GetClassConstructor(Napi::Env env) {
+    return DefineClass(env,
+                       "InputTensorInfo",
+                       {InstanceMethod("setElementType", &InputTensorInfo::set_element_type),
+                        InstanceMethod("setLayout", &InputTensorInfo::set_layout)});
+}
+
+Napi::Object InputTensorInfo::Init(Napi::Env env, Napi::Object exports) {
+    auto func = GetClassConstructor(env);
+
+    Napi::FunctionReference* constructor = new Napi::FunctionReference();
+    *constructor = Napi::Persistent(func);
+    env.SetInstanceData(constructor);
+
+    exports.Set("InputTensorInfo", func);
+    return exports;
+}
+
+Napi::Value InputTensorInfo::set_layout(const Napi::CallbackInfo& info) {
+    if (info.Length() == 1) {
+        try {
+            auto layout = js_to_cpp<ov::Layout>(info, 0, {napi_string});
+            _tensor_info->set_layout(layout);
+        } catch (std::exception& e) {
+            reportError(info.Env(), e.what());
+        }
+    } else {
+        reportError(info.Env(), "Error in setLayout(). Wrong number of parameters.");
+    }
+    return info.This();
+}
+
+void InputTensorInfo::set_element_type(const Napi::CallbackInfo& info) {
+    if (info.Length() == 1) {
+        try {
+            auto type = js_to_cpp<ov::element::Type_t>(info, 0, {napi_string});
+            _tensor_info->set_element_type(type);
+        } catch (std::exception& e) {
+            reportError(info.Env(), e.what());
+        }
+    } else {
+        reportError(info.Env(), "Error in setElementType(). Wrong number of parameters.");
+    }
+}
+
+void InputTensorInfo::set_input_tensor_info(ov::preprocess::InputTensorInfo& info) {
+    _tensor_info = &info;
+}

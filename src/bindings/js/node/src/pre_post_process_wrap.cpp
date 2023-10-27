@@ -24,6 +24,7 @@ Napi::Function PrePostProcessorWrap::GetClassConstructor(Napi::Env env) {
                         InstanceMethod("setInputTensorLayout", &PrePostProcessorWrap::set_input_tensor_layout),
                         InstanceMethod("setInputModelLayout", &PrePostProcessorWrap::set_input_model_layout),
                         InstanceMethod("setInputElementType", &PrePostProcessorWrap::set_input_element_type),
+                        InstanceMethod("input", &PrePostProcessorWrap::input),
                         InstanceMethod("build", &PrePostProcessorWrap::build)});
 }
 
@@ -86,6 +87,14 @@ Napi::Value PrePostProcessorWrap::set_input_element_type(const Napi::CallbackInf
         reportError(info.Env(), "Invalid number of arguments or it type -> " + std::to_string(info.Length()));
         return Napi::Value();
     }
+}
+
+Napi::Value PrePostProcessorWrap::input(const Napi::CallbackInfo& info) {
+    Napi::Object obj = InputInfo::GetClassConstructor(info.Env()).New({});
+    auto input_info = Napi::ObjectWrap<InputInfo>::Unwrap(obj);
+
+    input_info->set_input_info(_ppp->input());
+    return obj;
 }
 
 void PrePostProcessorWrap::build(const Napi::CallbackInfo& info) {

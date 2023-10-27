@@ -12,6 +12,7 @@
 #include "errors.hpp"
 #include "helper.hpp"
 #include "model_wrap.hpp"
+#include "preprocess/input_info.hpp"
 
 class PrePostProcessorWrap : public Napi::ObjectWrap<PrePostProcessorWrap> {
 public:
@@ -45,6 +46,9 @@ public:
      * @param info[1] element_type
      */
     Napi::Value set_input_element_type(const Napi::CallbackInfo& info);
+
+    Napi::Value input(const Napi::CallbackInfo& info);
+
     void build(const Napi::CallbackInfo& info);
 
 private:
