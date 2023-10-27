@@ -85,7 +85,10 @@ void op::v6::ReadValue::validate_and_infer_types() {
                         "inferred from the initializing subgraph.");
         OPENVINO_ASSERT(compatible_type,
                         "The type specified in the Variable have to extend (relax) the type "
-                        "inferred from the initializing subgraph.");
+                        "inferred from the initializing subgraph. Variable type: ",
+                        variable_type,
+                        " Initialization type: ",
+                        initial_type);
     }
 
     set_output_type(0, variable_type, variable_shape);
@@ -94,7 +97,16 @@ void op::v6::ReadValue::validate_and_infer_types() {
 shared_ptr<Node> op::v6::ReadValue::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v6_ReadValue_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<ReadValue>(new_args.at(0), m_variable);
+    if (new_args.size() == 1) {
+        return make_shared<ReadValue>(new_args.at(0), m_variable);
+    } else if (new_args.empty()) {
+        return make_shared<ReadValue>(new_args.at(0), m_variable);
+    }
+    OPENVINO_ASSERT(false,
+                    "Unable to clone ReadValue ",
+                    this->get_friendly_name(),
+                    " Incorrect number of inputs. Expected: 0 or 1. Actual: ",
+                    new_args.size());
 }
 
 bool op::v6::ReadValue::visit_attributes(AttributeVisitor& visitor) {
