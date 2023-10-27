@@ -131,6 +131,7 @@ public:
             topology const& topology,
             const ExecutionConfig& config,
             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
+            std::shared_ptr<ICompilationContext> compilation_context,
             bool is_internal = false,
             bool no_optimizations = false,
             bool is_body_program = false);
@@ -252,6 +253,14 @@ public:
                              bool no_optimizations = false,
                              bool is_body_program = false);
     static ptr build_program(engine& engine,
+                             const topology& topology,
+                             const ExecutionConfig& config,
+                             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
+                             std::shared_ptr<ICompilationContext> compilation_context,
+                             bool is_internal = false,
+                             bool no_optimizations = false,
+                             bool is_body_program = false);
+    static ptr build_program(engine& engine,
                              const std::set<std::shared_ptr<program_node>>& nodes,
                              const ExecutionConfig& config,
                              std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
@@ -266,9 +275,11 @@ public:
 
     ImplementationsCache& get_implementations_cache() const { return *_impls_cache; }
     ICompilationContext& get_compilation_context() const { return *_compilation_context; }
+    std::shared_ptr<ICompilationContext> get_compilation_context_ptr() const { return _compilation_context; }
     void cancel_compilation_context();
 
     static std::shared_ptr<ov::threading::IStreamsExecutor> make_task_executor(const ExecutionConfig& config);
+    static std::shared_ptr<ICompilationContext> make_compilation_context(const ExecutionConfig& config);
 
 private:
     uint32_t prog_id = 0;
@@ -286,8 +297,7 @@ private:
     bool is_body_program;
     std::unique_ptr<ImplementationsCache> _impls_cache;
     const size_t _impls_cache_capacity = 10000;
-    const int _num_async_build_threads = 1;
-    std::unique_ptr<ICompilationContext> _compilation_context;
+    std::shared_ptr<ICompilationContext> _compilation_context;
 
     std::map<primitive_id, std::shared_ptr<program_node>> nodes_map;
     std::list<primitive_id> optimized_out;

@@ -8,6 +8,7 @@
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
+#include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/graph/program.hpp"
 
 #include "auto_tuner.h"
@@ -17,7 +18,6 @@
 #include "program_dump_graph.h"
 #include "sliding_window_utils.hpp"
 #include "program_helpers.h"
-#include "compilation_context.hpp"
 
 #include "matrix_nms_inst.h"
 #include "roi_pooling_inst.h"
@@ -145,10 +145,17 @@ std::shared_ptr<ov::threading::IStreamsExecutor> program::make_task_executor(con
     return std::make_shared<ov::threading::CPUStreamsExecutor>(task_executor_config);
 }
 
+std::shared_ptr<ICompilationContext> program::make_compilation_context(const ExecutionConfig& config) {
+    const int _num_async_build_threads = 1;
+    return ICompilationContext::create(make_task_executor_config(config,
+                                                                 "Task executor config for CompilationContext in GPU plugin", _num_async_build_threads));
+}
+
 program::program(engine& engine_ref,
                  topology const& topology,
                  const ExecutionConfig& config,
                  std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
+                 std::shared_ptr<ICompilationContext> compilation_context,
                  bool is_internal,
                  bool no_optimizations,
                  bool is_body_program)
@@ -158,7 +165,8 @@ program::program(engine& engine_ref,
       _task_executor(std::move(task_executor)),
       processing_order(),
       is_internal(is_internal),
-      is_body_program(is_body_program) {
+      is_body_program(is_body_program),
+      _compilation_context(compilation_context) {
     _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
     GPU_DEBUG_INFO << "Program config\n" << config.to_string();
@@ -214,8 +222,8 @@ void program::init_program() {
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
 
-    _compilation_context = ICompilationContext::create(make_task_executor_config(_config,
-                                                       "Task executor config for CompilationContext in GPU plugin", _num_async_build_threads));
+    if (!_compilation_context)
+        _compilation_context = program::make_compilation_context(_config);
 
     _impls_cache = cldnn::make_unique<ImplementationsCache>(_impls_cache_capacity);
     // Remove items of compilation context's internal queue when some impl is popped in kernels_cache
@@ -253,7 +261,18 @@ program::ptr program::build_program(engine& engine,
                                     bool is_internal,
                                     bool no_optimizations,
                                     bool is_body_program) {
-    return std::make_shared<program>(engine, topology, config, task_executor, is_internal, no_optimizations, is_body_program);
+    return std::make_shared<program>(engine, topology, config, task_executor, nullptr, is_internal, no_optimizations, is_body_program);
+}
+
+program::ptr program::build_program(engine& engine,
+                                    const topology& topology,
+                                    const ExecutionConfig& config,
+                                    std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
+                                    std::shared_ptr<ICompilationContext> compilation_context,
+                                    bool is_internal,
+                                    bool no_optimizations,
+                                    bool is_body_program) {
+    return std::make_shared<program>(engine, topology, config, task_executor, compilation_context, is_internal, no_optimizations, is_body_program);
 }
 
 program::ptr program::build_program(engine& engine,
@@ -262,7 +281,7 @@ program::ptr program::build_program(engine& engine,
                                     bool is_internal,
                                     bool no_optimizations,
                                     bool is_body_program) {
-    return std::make_shared<program>(engine, topology, config, nullptr, is_internal, no_optimizations, is_body_program);
+    return std::make_shared<program>(engine, topology, config, nullptr, nullptr, is_internal, no_optimizations, is_body_program);
 }
 
 program::ptr program::build_program(engine& engine,

@@ -10,6 +10,7 @@
 #include "intel_gpu/plugin/custom_layer.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
+#include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/graph/topology.hpp"
 #include "intel_gpu/graph/program.hpp"
 
@@ -75,7 +76,9 @@ class ProgramBuilder final {
 public:
     ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& engine, const ExecutionConfig& config,
             bool createTopologyOnly = false, bool partialBuild = false,
-            std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr, bool innerProgram = false);
+            std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr,
+            std::shared_ptr<cldnn::ICompilationContext> compilation_context = nullptr,
+            bool innerProgram = false);
     ProgramBuilder(cldnn::engine& engine, const ExecutionConfig& config);
 
     static const cldnn::primitive_id m_preProcessTag;
@@ -136,6 +139,7 @@ public:
     bool requires_new_shape_infer(const ov::Node& op) const;
 
     std::shared_ptr<ov::threading::IStreamsExecutor> get_task_executor() const { return m_task_executor; }
+    std::shared_ptr<cldnn::ICompilationContext> get_compilation_context() const { return m_compilation_context; }
 
 private:
     static factories_map_t factories_map;
@@ -153,6 +157,7 @@ private:
     bool queryMode;
 
     std::shared_ptr<ov::threading::IStreamsExecutor> m_task_executor;
+    std::shared_ptr<cldnn::ICompilationContext> m_compilation_context;
 
     void EnableQueryMode() { queryMode = true; }
     void DisableQueryMode() { queryMode = false; }

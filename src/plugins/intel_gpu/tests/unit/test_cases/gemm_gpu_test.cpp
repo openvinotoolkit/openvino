@@ -10,7 +10,7 @@
 #include <intel_gpu/primitives/crop.hpp>
 #include "openvino/reference/matmul.hpp"
 
-#include "compilation_context.hpp"
+#include "intel_gpu/runtime/compilation_context.hpp"
 #include "gemm_inst.h"
 
 #include <cstddef>

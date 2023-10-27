@@ -14,7 +14,7 @@
 #include <intel_gpu/primitives/quantize.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
-#include "compilation_context.hpp"
+#include "intel_gpu/runtime/compilation_context.hpp"
 #include "fully_connected_inst.h"
 
 #include <cmath>

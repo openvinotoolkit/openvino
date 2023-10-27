@@ -25,7 +25,6 @@
 #include "read_value_inst.h"
 #include "condition_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
-#include "compilation_context.hpp"
 #include "implementation_map.hpp"
 #include "graph_optimizer/prepare_buffer_fusing.h"
 
@@ -36,6 +35,7 @@
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/compilation_context.hpp"
 
 #include "json_object.h"
 #include <string>
@@ -1502,7 +1502,13 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
             ov::intel_gpu::allow_static_input_reorder(true),
             ov::intel_gpu::allow_new_shape_infer(true)
         };
-        auto prog = program::build_program(get_network().get_engine(), t, subgraph_config, get_network().get_program()->get_task_executor(), true, false);
+        auto prog = program::build_program(get_network().get_engine(),
+                                           t,
+                                           subgraph_config,
+                                           get_network().get_program()->get_task_executor(),
+                                           get_network().get_program()->get_compilation_context_ptr(),
+                                           true,
+                                           false);
 
         _unfused_subgraph = network::allocate_network(get_network().get_stream_ptr(), prog, true, get_network().is_primary_stream());
     }
