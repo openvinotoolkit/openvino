@@ -9,10 +9,11 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestBitwiseOp(PytorchLayerTest):
     def _prepare_input(self, out, unary, lhs_dtype, rhs_dtype, lhs_shape, rhs_shape):
-        x = np.random.randint(0, 25, lhs_shape).astype(lhs_dtype)
+        choices = np.array([0, 1, 255, 7])
+        x = np.random.choice(choices, lhs_shape).astype(lhs_dtype)
         if unary:
             return (x,) if not out else (x, np.zeros_like(x).astype(lhs_dtype))
-        y = np.random.randint(0, 25, rhs_shape).astype(rhs_dtype)
+        y = np.random.choice(choices, rhs_shape).astype(rhs_dtype)
         if not out:
             return x, y
         return x, y, np.zeros_like(x).astype(lhs_dtype) + np.zeros_like(y).astype(rhs_dtype)
@@ -85,10 +86,12 @@ class TestBitwiseOp(PytorchLayerTest):
             trace_model=True,
         )
 
+
 class TestBitwiseOperators(PytorchLayerTest):
     def _prepare_input(self, lhs_dtype, rhs_dtype, lhs_shape, rhs_shape):
-        x = np.random.randint(0, 25, lhs_shape).astype(lhs_dtype)
-        y = np.random.randint(0, 25, rhs_shape).astype(rhs_dtype)
+        choices = np.array([0, 1, 255, 7])
+        x = np.random.choice(choices, lhs_shape).astype(lhs_dtype)
+        y = np.random.choice(choices, rhs_shape).astype(rhs_dtype)
         return x, y
 
     def create_model(self):
@@ -123,5 +126,7 @@ class TestBitwiseOperators(PytorchLayerTest):
                 "rhs_dtype": rhs_dtype,
                 "lhs_shape": lhs_shape,
                 "rhs_shape": rhs_shape,
-            }, trace_model=True, freeze_model=False
+            },
+            trace_model=True,
+            freeze_model=False,
         )
