@@ -367,6 +367,9 @@ public:
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
     size_t aux_gprs_count() const override;
 
+    static size_t get_in_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout);
+    static size_t get_out_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout);
+
 private:
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const override;
     void emit_impl(const std::vector<size_t>& in,

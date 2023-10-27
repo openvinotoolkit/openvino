@@ -18,10 +18,11 @@ std::string MHA::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAP
     std::vector<ov::element::Type> elem_types;
     ov::element::Type prc;
     bool withMul;
+    size_t thread_count;
     std::string targetDevice;
     size_t num_nodes, num_subgraphs;
     std::map<std::string, std::string> additionalConfig;
-    std::tie(inputShapes, elem_types, prc, withMul, num_nodes, num_subgraphs, targetDevice, additionalConfig) = obj.param;
+    std::tie(inputShapes, elem_types, prc, withMul, thread_count, num_nodes, num_subgraphs, targetDevice, additionalConfig) = obj.param;
 
     std::ostringstream result;
     for (size_t i = 0; i < inputShapes.size(); ++i)
@@ -29,6 +30,7 @@ std::string MHA::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAP
     for (size_t i = 0; i < elem_types.size(); i++)
         result << "T[" << i <<"]=" << elem_types[i] << "_";
     result << "Mul=" << withMul << "_";
+    result << "ThreadNum=" << thread_count << "_";
     result << "PRC=" << prc << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
@@ -48,7 +50,8 @@ void MHA::SetUp() {
     std::vector<ov::PartialShape> inputShapes;
     ov::element::Type prc;
     std::map<std::string, std::string> additionalConfig;
-    std::tie(inputShapes, m_input_types, prc, m_with_mul, ref_num_nodes, ref_num_subgraphs, targetDevice, additionalConfig) = this->GetParam();
+    std::tie(inputShapes, m_input_types, prc, m_with_mul, m_thread_count,
+             ref_num_nodes, ref_num_subgraphs, targetDevice, additionalConfig) = this->GetParam();
     init_input_shapes(static_partial_shapes_to_test_representation(inputShapes));
 
     const auto subgraph_model = get_subgraph();
@@ -64,6 +67,12 @@ void MHA::SetUp() {
     inType = outType = prc;
     if (prc == ov::element::bf16)
         rel_threshold = 0.05f;
+}
+
+void MHA::compile_model() {
+    if (m_thread_count != default_thread_count)
+        core->set_property(targetDevice, ov::inference_num_threads(m_thread_count));
+    SubgraphBaseTest::compile_model();
 }
 
 void MHA::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {

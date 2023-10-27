@@ -3,15 +3,18 @@
 //
 
 #pragma once
+
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pass.hpp"
 #include "openvino/pass/validate.hpp"
+
 #include <typeinfo>
 
 
 namespace ov {
 namespace snippets {
 namespace pass {
+
 /**
  * @brief Manager is like ov::pass::Manager, but allows to insert new passes at arbitrary places in the pipeline
  * @ingroup snippets

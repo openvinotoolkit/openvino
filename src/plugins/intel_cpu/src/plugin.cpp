@@ -495,6 +495,8 @@ static Config::SnippetsMode getSnippetsMode(const std::map<std::string, std::str
         return Config::SnippetsMode::IgnoreCallback;
     else if (val == PluginConfigInternalParams::DISABLE)
         return Config::SnippetsMode::Disable;
+    else if (val == PluginConfigInternalParams::ENABLE)
+        return Config::SnippetsMode::Enable;
     else
         IE_THROW() << "Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
 }
@@ -537,16 +539,16 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 
     DEBUG_LOG(PrintableModel(*nGraphFunc, "org_"));
 
-    Transformations transformations(nGraphFunc, enableLPT, inferencePrecision, isLegacyAPI(), snippetsMode, engConfig);
+    // update the props after the perf mode translated to configs
+    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
+    Config conf = engConfig;
+
+    Transformations transformations(nGraphFunc, enableLPT, inferencePrecision, isLegacyAPI(), snippetsMode, conf);
     transformations.UpToLpt();
 
     if (!is_cpu_map_available()) {
         ApplyPerformanceHints(config, nGraphFunc);
     }
-
-    // update the props after the perf mode translated to configs
-    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
-    Config conf = engConfig;
 
     conf.readProperties(config, modelType);
     CalculateStreams(conf, nGraphFunc);

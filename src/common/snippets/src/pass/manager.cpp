@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/pass_manager.hpp"
+#include "snippets/pass/manager.hpp"
+
 
 namespace ov {
 namespace snippets {
@@ -77,5 +78,5 @@ std::shared_ptr<Manager::PassBase> Manager::insert_pass_instance(const PassPosit
 }
 
 } // namespace pass
-}// namespace snippets
-}// namespace ov
+} // namespace snippets
+} // namespace ov

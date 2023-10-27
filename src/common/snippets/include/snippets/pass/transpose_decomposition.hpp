@@ -20,7 +20,9 @@ class TransposeDecomposition: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("TransposeDecomposition", "0");
     TransposeDecomposition();
-    static const std::set<std::vector<int>> supported_cases;
+
+    static bool is_supported_transpose(const Output<Node>& transpose_out);
+    static bool is_supported_transpose_order(const std::vector<int32_t>& order);
 };
 
 }  // namespace pass
