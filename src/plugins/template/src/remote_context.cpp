@@ -26,7 +26,7 @@ class VectorTensorImpl : public ov::IRemoteTensor {
         m_strides.clear();
         if (!shape.empty()) {
             m_strides.resize(shape.size());
-            m_strides.back() = m_element_type.size();
+            m_strides.back() = shape.back() == 0 ? 0 : m_element_type.size();
             std::copy(shape.rbegin(), shape.rend() - 1, m_strides.rbegin() + 1);
             std::partial_sum(m_strides.rbegin(), m_strides.rend(), m_strides.rbegin(), std::multiplies<size_t>());
         }
