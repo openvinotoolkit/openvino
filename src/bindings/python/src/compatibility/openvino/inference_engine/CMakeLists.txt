@@ -64,7 +64,7 @@ endif()
 function(python_ov_disable_deprecated_warnings)
     ov_disable_deprecated_warnings()
     set(pyx_file "${CMAKE_CURRENT_BINARY_DIR}/ie_api.cxx" "${CMAKE_CURRENT_BINARY_DIR}/constants.cxx")
-    set_source_files_properties(${pyx_file} PROPERTIES COMPILE_OPTIONS ${ie_c_cxx_deprecated})
+    set_source_files_properties(${pyx_file} PROPERTIES COMPILE_OPTIONS ${ov_c_cxx_deprecated})
 endfunction()
 
 python_ov_disable_deprecated_warnings()
@@ -83,6 +83,10 @@ add_custom_command(TARGET ${TARGET_NAME}
     POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
 )
+
+foreach(target IN LISTS INSTALLED_TARGETS)
+    ov_set_apple_rpath(${target} ${OV_CPACK_PYTHONDIR}/openvino/inference_engine ${OV_CPACK_RUNTIMEDIR})
+endforeach()
 
 # install
 

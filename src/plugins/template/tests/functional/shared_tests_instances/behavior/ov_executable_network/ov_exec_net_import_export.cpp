@@ -1,9 +1,8 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <common_test_utils/test_constants.hpp>
-
 #include "behavior/compiled_model/import_export.hpp"
+#include "common_test_utils/test_constants.hpp"
 #include "ie_plugin_config.hpp"
 
 using namespace ov::test::behavior;

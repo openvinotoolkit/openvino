@@ -41,6 +41,7 @@ public:
         FP16 = 11,         /**< 16bit floating point value, 5 bit for exponent, 10 bit for mantisa */
         BF16 = 12,         /**< 16bit floating point value, 8 bit for exponent, 7 bit for mantisa*/
         FP64 = 13,         /**< 64bit floating point value */
+        NF4 = 14,          /**< 4bit normalized float value */
         Q78 = 20,          /**< 16bit specific signed fixed point precision */
         I16 = 30,          /**< 16bit signed integer value */
         U4 = 39,           /**< 4bit unsigned integer value */
@@ -131,6 +132,7 @@ public:
                 CASE(FP64, double);
                 CASE2(FP16, int16_t, uint16_t);
                 CASE2(BF16, int16_t, uint16_t);
+                CASE(NF4, int8_t);
                 CASE2(I4, int8_t, uint8_t);
                 CASE(I8, int8_t);
                 CASE(I16, int16_t);
@@ -249,24 +251,11 @@ public:
     static Precision FromStr(const std::string& str) {
         static const std::unordered_map<std::string, ePrecision> names = {
 #define PRECISION_NAME(s) {#s, s}
-            PRECISION_NAME(Q78),
-            PRECISION_NAME(BOOL),
-            PRECISION_NAME(BF16),
-            PRECISION_NAME(I4),
-            PRECISION_NAME(I8),
-            PRECISION_NAME(I16),
-            PRECISION_NAME(I32),
-            PRECISION_NAME(I64),
-            PRECISION_NAME(U4),
-            PRECISION_NAME(U8),
-            PRECISION_NAME(U16),
-            PRECISION_NAME(U32),
-            PRECISION_NAME(U64),
-            PRECISION_NAME(FP32),
-            PRECISION_NAME(FP64),
-            PRECISION_NAME(FP16),
-            PRECISION_NAME(MIXED),
-            PRECISION_NAME(BIN),
+            PRECISION_NAME(Q78),   PRECISION_NAME(BOOL), PRECISION_NAME(BF16), PRECISION_NAME(I4),
+            PRECISION_NAME(I8),    PRECISION_NAME(I16),  PRECISION_NAME(I32),  PRECISION_NAME(I64),
+            PRECISION_NAME(U4),    PRECISION_NAME(U8),   PRECISION_NAME(U16),  PRECISION_NAME(U32),
+            PRECISION_NAME(U64),   PRECISION_NAME(FP32), PRECISION_NAME(FP64), PRECISION_NAME(FP16),
+            PRECISION_NAME(MIXED), PRECISION_NAME(NF4),  PRECISION_NAME(BIN),
 #undef PRECISION_NAME
         };
         auto i = names.find(str);
@@ -311,7 +300,8 @@ public:
                (precisionInfo.value == Precision::I16) || (precisionInfo.value == Precision::I8) ||
                (precisionInfo.value == Precision::I32) || (precisionInfo.value == Precision::I64) ||
                (precisionInfo.value == Precision::BIN) || (precisionInfo.value == Precision::BF16) ||
-               (precisionInfo.value == Precision::CUSTOM) || (precisionInfo.value == Precision::I4);
+               (precisionInfo.value == Precision::CUSTOM) || (precisionInfo.value == Precision::I4) ||
+               (precisionInfo.value == Precision::NF4);
     }
 
 protected:
@@ -359,6 +349,7 @@ protected:
             CASE(FP64);
             CASE(FP16);
             CASE(BF16);
+            CASE(NF4);
             CASE(I4);
             CASE(I8);
             CASE(I16);
@@ -475,6 +466,12 @@ struct INFERENCE_ENGINE_1_0_DEPRECATED PrecisionTrait<Precision::BIN> {
     enum { is_float = false };
 };
 
+template <>
+struct INFERENCE_ENGINE_1_0_DEPRECATED PrecisionTrait<Precision::NF4> {
+    using value_type = int8_t;
+    enum { is_float = false };
+};
+
 template <class T>
 INFERENCE_ENGINE_1_0_DEPRECATED inline uint8_t type_size_or_zero() {
     return sizeof(T);
@@ -499,7 +496,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED inline Precision::PrecisionInfo Precision::makeP
     Precision::PrecisionInfo info;
     info.name = name;
 
-    size_t nBits = precision == BIN ? 1 : (precision == U4 || precision == I4) ? 4 : 8;
+    size_t nBits = precision == BIN ? 1 : (precision == U4 || precision == I4 || precision == NF4) ? 4 : 8;
     info.bitsSize = nBits * type_size_or_zero<typename PrecisionTrait<precision>::value_type>();
     info.isFloat = PrecisionTrait<precision>::is_float;
     info.value = precision;

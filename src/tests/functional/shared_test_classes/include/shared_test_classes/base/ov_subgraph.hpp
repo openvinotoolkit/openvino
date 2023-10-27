@@ -20,6 +20,12 @@ using ElementType = ov::element::Type_t;
 using Config = ov::AnyMap;
 using TargetDevice = std::string;
 
+typedef std::tuple<ov::element::Type,  // Input element type
+                   ov::Shape,          // Input Shape
+                   TargetDevice        // Target Device
+                   >
+    BasicParams;
+
 class SubgraphBaseTest : public ov::test::TestsCommon {
 public:
     virtual void run();
@@ -28,15 +34,14 @@ public:
 
 protected:
     virtual void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual);
-
-    virtual void configure_model();
     virtual void compile_model();
-    virtual void init_ref_function(std::shared_ptr<ov::Model>& funcRef,
-                                   const std::vector<ov::Shape>& targetInputStaticShapes);
-    virtual void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes);
     virtual void infer();
     virtual void validate();
+    virtual void configure_model();;
+    virtual void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes);
 
+    void update_ref_model();
+    void match_parameters();
     void init_input_shapes(const std::vector<InputShape>& shapes);
 
     void TearDown() override {
@@ -59,6 +64,10 @@ protected:
     ov::CompiledModel compiledModel;
     ov::InferRequest inferRequest;
 
+    // to provide correct inputs for reference function
+    std::map<std::shared_ptr<ov::op::v0::Parameter>, std::shared_ptr<ov::op::v0::Parameter>> matched_parameters;
+    precisions_map convert_precisions;
+
     constexpr static const double disable_threshold = std::numeric_limits<double>::max();
     double abs_threshold = disable_threshold, rel_threshold = disable_threshold;
 
@@ -69,7 +78,6 @@ protected:
 
     virtual std::vector<ov::Tensor> calculate_refs();
     virtual std::vector<ov::Tensor> get_plugin_outputs();
-    virtual precisions_map get_ref_precisions_convert_map();
 
     friend void core_configuration(SubgraphBaseTest* test);
 };
@@ -106,5 +114,16 @@ inline std::vector<InputShape> static_shapes_to_test_representation(const std::v
     }
     return result;
 }
+
+class SubgraphBaseStaticTest : public ov::test::SubgraphBaseTest {
+public:
+    void run() override {
+        std::vector<ov::Shape> input_shapes;
+        for (const auto& param : function->get_parameters())
+            input_shapes.emplace_back(param->get_shape());
+        init_input_shapes(ov::test::static_shapes_to_test_representation(input_shapes));
+        ov::test::SubgraphBaseTest::run();
+    }
+};
 }  // namespace test
 }  // namespace ov

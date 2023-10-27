@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 
@@ -135,6 +137,8 @@ class TestBinaryOps(CommonTFLayerTest):
                               'Xdivy', 'BitwiseAnd', 'BitwiseOr', 'BitwiseXor',])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122716')
     def test_binary_op(self, params, ie_device, precision, ir_version, temp_dir, op_type,
                        use_new_frontend, use_old_api):
         if precision == "FP16":

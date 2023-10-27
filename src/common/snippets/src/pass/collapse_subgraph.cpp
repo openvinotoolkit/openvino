@@ -16,7 +16,7 @@
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "transformations/utils/utils.hpp"
-#include "ngraph/op/util/attr_types.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "openvino/core/validation_util.hpp"
 
 #include <memory>
@@ -79,8 +79,8 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
             const auto& order = as_type_ptr<const opset1::Constant>(n->get_input_node_shared_ptr(1));
             if (order) {
                 const auto order_value = order->cast_vector<int>();
-                return (TransposeDecomposition::supported_cases.count(order_value) != 0) ||
-                       (is_brgemm_case && FuseTransposeBrgemm::supported_cases.count(order_value) != 0);
+                return (TransposeDecomposition::is_supported_transpose_order(order_value)) ||
+                       (is_brgemm_case && FuseTransposeBrgemm::is_supported_transpose_order(order_value));
             }
         }
         return false;
@@ -179,7 +179,10 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
 
 auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
     auto supported = [&n](descriptor::Tensor& t) -> bool {
-        // Todo: int32 isn't supported in general because i32 emitters are required for bit-exact i32 calculations in some cases
+        // TODO [122585] Need to add dynamic rank support
+        if (t.get_partial_shape().rank().is_dynamic())
+            return false;
+        // TODO [105804] int32 isn't supported in general because i32 emitters are required for bit-exact i32 calculations in some cases
         //  So i32 is supported exclusively for transposes and broadcast
         return TokenizeSnippets::get_supported_element_types().count(t.get_element_type()) != 0 ||
                 (t.get_element_type() == ov::element::i32 &&

@@ -222,6 +222,7 @@ class TestUnaryOps(CommonTFLayerTest):
                                          'BitwiseNot'
                                          ])
     @pytest.mark.nightly
+    @pytest.mark.skipif(sys.platform == 'darwin', reason="Ticket - 122182")
     def test_unary_op(self, params, ie_device, precision, ir_version, temp_dir, op_type,
                       use_new_frontend, use_old_api):
         if ie_device == 'GPU':
