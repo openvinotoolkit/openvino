@@ -1,18 +1,21 @@
+# Copyright (C) 2018-2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
 import pytest
-from pytorch_layer_test_class import PytorchLayerTest
 import torch
+from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestBitwiseOp(PytorchLayerTest):
     def _prepare_input(self, out, unary, lhs_dtype, rhs_dtype, lhs_shape, rhs_shape):
         x = np.random.randint(0, 25, lhs_shape).astype(lhs_dtype)
         if unary:
-            return (x,) if not out else (x, np.zeros_like(x, dtype=lhs_dtype))
+            return (x,) if not out else (x, np.zeros_like(x).astype(lhs_dtype))
         y = np.random.randint(0, 25, rhs_shape).astype(rhs_dtype)
         if not out:
             return x, y
-        return x, y, np.zeros_like(x, dtype=lhs_dtype)
+        return x, y, np.zeros_like(x).astype(lhs_dtype) + np.zeros_like(y).astype(rhs_dtype)
 
     def create_model(self, op_name, out):
         ops = {
@@ -61,8 +64,7 @@ class TestBitwiseOp(PytorchLayerTest):
             ([], [2, 3]),
         ],
     )
-    @pytest.mark.parametrize("out", [False])
-    # Tracing required for proper mixed type aligment fails with cases with out param (inplace) - separate it into 2 test cases
+    @pytest.mark.parametrize("out", [False, True])
     def test_bitwise_mixed_dtypes(
         self, op_type, out, lhs_dtype, rhs_dtype, lhs_shape, rhs_shape, ie_device, precision, ir_version
     ):
@@ -83,10 +85,25 @@ class TestBitwiseOp(PytorchLayerTest):
             trace_model=True,
         )
 
+class TestBitwiseOperators(PytorchLayerTest):
+    def _prepare_input(self, lhs_dtype, rhs_dtype, lhs_shape, rhs_shape):
+        x = np.random.randint(0, 25, lhs_shape).astype(lhs_dtype)
+        y = np.random.randint(0, 25, rhs_shape).astype(rhs_dtype)
+        return x, y
+
+    def create_model(self):
+        class aten_bitwise(torch.nn.Module):
+            def forward(self, lhs, rhs):
+                return lhs & rhs, ~lhs, lhs | rhs, lhs ^ rhs
+
+        ref_net = None
+
+        return aten_bitwise(), ref_net, ("aten::__and__", "aten::bitwise_not", "aten::__or__", "aten::__xor__")
+
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.parametrize("op_type", ["and", "or", "not", "xor"])
-    @pytest.mark.parametrize(("dtype"), ["bool", "int32", "uint8", "int64"])
+    @pytest.mark.parametrize("lhs_dtype", ["bool", "int32"])
+    @pytest.mark.parametrize("rhs_dtype", ["bool", "int32"])
     @pytest.mark.parametrize(
         ("lhs_shape", "rhs_shape"),
         [
@@ -95,20 +112,16 @@ class TestBitwiseOp(PytorchLayerTest):
             ([], [2, 3]),
         ],
     )
-    @pytest.mark.parametrize("out", [True])
-    # Tracing required for proper mixed type aligment fails with cases with out param (inplace) - separate it into 2 test cases
-    def test_bitwise_out(self, op_type, out, dtype, lhs_shape, rhs_shape, ie_device, precision, ir_version):
+    def test_bitwise_operators(self, lhs_dtype, rhs_dtype, lhs_shape, rhs_shape, ie_device, precision, ir_version):
         self._test(
-            *self.create_model(op_type, out),
+            *self.create_model(),
             ie_device,
             precision,
             ir_version,
             kwargs_to_prepare_input={
-                "out": out,
-                "unary": op_type == "not",
-                "lhs_dtype": dtype,
-                "rhs_dtype": dtype,
+                "lhs_dtype": lhs_dtype,
+                "rhs_dtype": rhs_dtype,
                 "lhs_shape": lhs_shape,
                 "rhs_shape": rhs_shape,
-            },
+            }, trace_model=True, freeze_model=False
         )
