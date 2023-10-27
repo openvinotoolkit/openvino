@@ -71,9 +71,6 @@ inline const std::vector<std::map<std::string, std::string>> generate_configs(co
 }
 
 inline const std::string generate_complex_device_name(const std::string& deviceName) {
-    if (deviceName == "BATCH") {
-        return deviceName + ":" + ov::test::conformance::targetDevice + "(4)";
-    }
     return deviceName + ":" + ov::test::conformance::targetDevice;
 }
 
