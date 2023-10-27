@@ -1200,8 +1200,25 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
             next_node->is_type<binary_convolution>() ||
             next_node->is_type<deformable_conv>()) {
             size_t weights_offset = next_node->get_primitive()->input_size();
-            return &next_node->get_dependency(weights_offset) == node ? next_node
-                                                                      : nullptr;
+            std::vector<size_t> valid_weights_indices = {next_node->get_primitive()->input_size()};
+            if (next_node->is_type<fully_connected>()) {
+                auto& fc = next_node->as<fully_connected>();
+                auto desc = fc.get_primitive();
+                if (desc->compressed_weights) {
+                    size_t scale_idx = weights_offset + (fc.bias_term() ? 2 : 1);
+                    valid_weights_indices.push_back(scale_idx);
+                    if (!desc->decompression_zero_point.empty()) {
+                        valid_weights_indices.push_back(scale_idx + 1);
+                    }
+                }
+            }
+
+            for (auto& widx : valid_weights_indices) {
+                if (&next_node->get_dependency(widx) == node) {
+                    return next_node;
+                }
+            }
+            return nullptr;
         }
 
         if (node->is_constant() && node->get_users().size() == 1)
@@ -1220,6 +1237,8 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
 
         return format::find_format(new_order, fmt.block_sizes());
     };
+
+    std::vector<std::pair<program_node*, program_node*>> to_replace_nodes;
 
     auto& proc_order = p.get_processing_order();
     auto itr = proc_order.begin();
@@ -1285,9 +1304,7 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
 
                 auto new_reorder = std::make_shared<reorder>(next_node->id() + "_reorder_fmt", new_const_node.id(), reorder_layout);
                 auto& new_reorder_node = p.get_or_create(new_reorder);
-                p.replace(*next_node, new_reorder_node);
-                new_reorder_node.recalc_output_layout(false);
-                itr = std::find(proc_order.begin(), proc_order.end(), &new_reorder_node);
+                to_replace_nodes.emplace_back(std::make_pair(next_node, &new_reorder_node));
             } else {
                 layout reorder_layout = new_const_node.get_output_layout();
                 reorder_layout.format = format::bfyx;
@@ -1298,6 +1315,11 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
                 new_reorder_node.recalc_output_layout(false);
             }
         }
+    }
+
+    for (auto& nodes : to_replace_nodes) {
+        p.replace(*nodes.first, *nodes.second);
+        nodes.second->recalc_output_layout(false);
     }
 }
 
