@@ -22,7 +22,13 @@ runs:
     - if: ${{ runner.os == 'Linux' && inputs.self-hosted-runner == 'true' }}
       name: Install 'actions/setup-python@v4' dependencies
       shell: bash
-      run: apt-get update && apt-get install -y libssl1.1 ca-certificates
+      run: |
+        # Fedora
+        if [[ -e /etc/fedora-release ]]; then
+          echo "Inside a Fedora container, no need to install dependencies."
+        else
+          apt-get update && apt-get install -y ca-certificates
+        fi
 
     - if: ${{ runner.os == 'Linux' && runner.arch == 'ARM64' }}
       name: Setup sudo
