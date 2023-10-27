@@ -12,6 +12,7 @@
         "src/pre_post_process_wrap.cpp",
         "src/preprocess/input_info.cpp",
         "src/preprocess/input_tensor_info.cpp",
+        "src/preprocess/input_model_info.cpp",
         "src/errors.cpp",
         "src/helper.cpp",
         "src/tensor.cpp",
