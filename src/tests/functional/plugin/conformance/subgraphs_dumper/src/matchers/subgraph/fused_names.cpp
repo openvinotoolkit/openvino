@@ -16,13 +16,12 @@ using namespace ov::tools::subgraph_dumper;
 
 void FusedNamesExtractor::set_target_device(const std::string& _device) {
     auto available_devices = core->get_available_devices();
-    if (_device.empty()) {
+    if (_device.empty() && !available_devices.empty()) {
         device = available_devices.front();
         std::cout << "[ WARNING ][ GRAPH CACHE ] " << device <<
             " will be used for `fused_names` extractor" << std::endl;
         return;
-    } else if (_device != "TEMPLATE" &&
-               std::find(available_devices.begin(),
+    } else if (std::find(available_devices.begin(),
                          available_devices.end(),
                          _device) == available_devices.end()) {
         std::string message = "Incorrect device ";
