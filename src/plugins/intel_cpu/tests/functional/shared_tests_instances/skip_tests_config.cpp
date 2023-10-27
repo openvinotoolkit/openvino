@@ -229,15 +229,9 @@ std::vector<std::string> disabledTestPatterns() {
 
 #if defined(OV_CPU_ARM_ENABLE_FP16)
     // Issue: 123019
-    retVector.emplace_back(R"(smoke_AvgPool_ExplicitPad_CeilRounding.*modelType=f16.*)");
-    retVector.emplace_back(R"(smoke_AvgPool_ExplicitPad_FloorRounding_5Dinput/PoolingLayerTest.*modelType=f16.*)");
-    retVector.emplace_back(R"(smoke_AvgPool_SameUpperPad_FloorRounding_5Dinput/PoolingLayerTest.*modelType=f16.*)");
-    retVector.emplace_back(R"(smoke_AvgPool_SameLowerPad_CeilRounding_5Dinput/PoolingLayerTest.*modelType=f16.*)");
     retVector.emplace_back(R"(smoke_CompareWithRefs_Mvn.*INFERENCE_PRECISION_HINT=f16.*)");
     retVector.emplace_back(R"(smoke_staticShapes4D.*INFERENCE_PRECISION_HINT=f16.*)");
     retVector.emplace_back(R"(smoke_dynamicShapes4D.*INFERENCE_PRECISION_HINT=f16.*)");
-    // Issue: 123064
-    retVector.emplace_back(R"(smoke_TestsROIPooling_.*/ROIPoolingLayerTest.*modelType=f16.*)");
 #endif
 
 #endif
