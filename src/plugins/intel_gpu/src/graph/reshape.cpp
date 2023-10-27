@@ -8,7 +8,7 @@
 #include "json_object.h"
 #include "primitive_type_base.h"
 #include "reshape_inst.h"
-#include "shape_nodes.hpp"
+#include "reshape_shape_inference.hpp"
 #include "squeeze_shape_inference.hpp"
 #include "unsqueeze_shape_inference.hpp"
 
@@ -94,7 +94,7 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node
                 ov::op::v1::Reshape op;
                 op.set_special_zero(prim->special_zero);
                 op.set_friendly_name(prim->id.c_str());
-                output_shapes = shape_infer(&op, input_shapes, ta);
+                output_shapes = ov::op::v1::shape_infer(&op, input_shapes, ta);
                 break;
             }
             case reshape::reshape_mode::squeeze: {

@@ -82,6 +82,7 @@
 #include "reduce_shape_inference.hpp"
 #include "region_yolo_shape_inference.hpp"
 #include "reorg_yolo_shape_inference.hpp"
+#include "reshape_shape_inference.hpp"
 #include "reverse_sequence_shape_inference.hpp"
 #include "reverse_shape_inference.hpp"
 #include "rnn_cell_shape_inference.hpp"

@@ -758,7 +758,7 @@ TEST(eval, evaluate_reshape_v1_not_backward_compatible_and_in_out_size_not_eq) {
 
     OV_EXPECT_THROW(model->evaluate(out_vector, in_vector),
                     NodeValidationFailure,
-                    HasSubstr("Requested output shape [2,1,1,1,1] is incompatible with input shape [2,2,2]"));
+                    HasSubstr("Requested output shape [2,1,1,1,1] is incompatible with input shape"));
 }
 
 TEST(eval, evaluate_convert) {
