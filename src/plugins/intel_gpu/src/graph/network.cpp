@@ -13,6 +13,7 @@
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/stream.hpp"
+#include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 
@@ -34,7 +35,6 @@
 #include "program_helpers.h"
 #include "to_string_utils.h"
 #include "kernels_cache.hpp"
-#include "compilation_context.hpp"
 
 // TODO: Remove once we have an abstraction for kernels_cache
 #include "kernel_base.h"
