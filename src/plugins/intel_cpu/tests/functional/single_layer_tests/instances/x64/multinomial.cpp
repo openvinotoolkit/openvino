@@ -10,11 +10,6 @@ using namespace ov::test;
 namespace CPULayerTestsDefinitions {
 namespace Multinomial {
 
-const std::vector<ov::test::ElementType> convert_types = {
-    ov::test::ElementType::i32,
-    // ov::test::ElementType::i64,
-};
-
 const std::vector<bool> with_replacements = {
     true,
     // false
@@ -48,7 +43,7 @@ const std::vector<InputShape> num_samples_dynamic = {
 const auto params_static = ::testing::Combine(::testing::Values("static"),
                                               ::testing::ValuesIn(probs_static),
                                               ::testing::ValuesIn(num_samples_static),
-                                              ::testing::ValuesIn(convert_types),
+                                              ::testing::Values(ov::test::ElementType::i32),
                                               ::testing::ValuesIn(with_replacements),
                                               ::testing::ValuesIn(log_probs),
                                               ::testing::Values(1),
@@ -59,7 +54,7 @@ const auto params_static = ::testing::Combine(::testing::Values("static"),
 const auto params_dynamic = ::testing::Combine(::testing::Values("dynamic"),
                                                ::testing::ValuesIn(probs_dynamic),
                                                ::testing::ValuesIn(num_samples_dynamic),
-                                               ::testing::ValuesIn(convert_types),
+                                               ::testing::Values(ov::test::ElementType::i32),
                                                ::testing::ValuesIn(with_replacements),
                                                ::testing::ValuesIn(log_probs),
                                                ::testing::Values(1),
