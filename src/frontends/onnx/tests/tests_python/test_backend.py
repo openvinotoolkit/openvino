@@ -437,9 +437,7 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_99955,
-        "OnnxBackendNodeModelTest.test_group_normalization_epsilon_cpu",
         "OnnxBackendNodeModelTest.test_group_normalization_epsilon_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_group_normalization_example_cpu",
         "OnnxBackendNodeModelTest.test_group_normalization_example_expanded_cpu",
     ),
     (
