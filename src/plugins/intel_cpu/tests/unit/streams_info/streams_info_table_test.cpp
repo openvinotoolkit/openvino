@@ -80,8 +80,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_platform_2 = {
     "LATENCY",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
     {{104, 104, 0, 0, -1, -1}, {52, 52, 0, 0, 0, 0}, {52, 52, 0, 0, 1, 1}},
-    {{1, MAIN_CORE_PROC, 52, 0, 0},
-     {-1, MAIN_CORE_PROC, 52, 1, 1}},
+    {{1, MAIN_CORE_PROC, 52, 0, 0}, {-1, MAIN_CORE_PROC, 52, 1, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_latency_platform_3 = {
     1,
@@ -712,8 +711,7 @@ StreamsCalculationTestCase _2sockets_48cores_latency_1 = {
     "LATENCY",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
-    {{1, MAIN_CORE_PROC, 24, 0, 0},
-     {-1, MAIN_CORE_PROC, 24, 1, 1}},
+    {{1, MAIN_CORE_PROC, 24, 0, 0}, {-1, MAIN_CORE_PROC, 24, 1, 1}},
 };
 
 StreamsCalculationTestCase _2sockets_48cores_tput_1 = {
