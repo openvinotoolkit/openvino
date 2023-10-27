@@ -1,4 +1,4 @@
-# Install and OpenVINO™ Runtime for macOS {#openvino_docs_install_guides_installing_openvino_macos_header}
+# Install OpenVINO™ Runtime for macOS {#openvino_docs_install_guides_installing_openvino_macos_header}
 
 @sphinxdirective
 
