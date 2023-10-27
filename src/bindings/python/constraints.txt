@@ -20,4 +20,4 @@ paddlepaddle==2.5.2
 tensorflow>=1.15.5,<2.15.0
 six~=1.16.0
 protobuf>=3.18.1,<4.0.0
-onnx==1.14.1
+onnx==1.15.0
