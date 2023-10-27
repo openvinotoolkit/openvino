@@ -357,3 +357,103 @@ class TestOps(unittest.TestCase):
         self.assertEqual(loaded_model.get_output_element_type(0), Type.i64)
         self.assertEqual(loaded_model.get_output_partial_shape(
             0), PartialShape([2, 3]))
+
+    def test_nms_rotated_13_attrs_false_i32(self):
+        boxes_shape = [1, 100, 5]
+        scores_shape = [1, 2, 100]
+        max_output_boxes_val = 5
+        iou_threshold_val = 0.5
+        score_threshold_val = 0.4
+
+        boxes_parameter = opset13.parameter(
+            boxes_shape, name="Boxes", dtype=np.float32)
+        scores_parameter = opset13.parameter(
+            scores_shape, name="Scores", dtype=np.float32)
+
+        max_output_boxes = opset13.constant([max_output_boxes_val], np.int64)
+        iou_threshold = opset13.constant([iou_threshold_val], np.float32)
+        score_threshold = opset13.constant([score_threshold_val], np.float32)
+
+        sort_result_descending = False
+        output_type = "i32"
+        clockwise = False
+
+        node = opset13.nms_rotated(boxes_parameter, scores_parameter, max_output_boxes, iou_threshold,
+                                   score_threshold, sort_result_descending, output_type, clockwise)
+
+        model = Model(node, [boxes_parameter, scores_parameter])
+        graph, loaded_model = TestOps.check_graph_can_save(
+            model, 'nms_rotated_model_1')
+        ir_node = graph.get_op_nodes(op="NMSRotated")[0]
+
+        self.assertListEqual(ir_node.out_port(
+            0).data.get_shape().tolist(), [None, 3])
+        self.assertListEqual(ir_node.out_port(
+            1).data.get_shape().tolist(), [None, 3])
+        self.assertListEqual(ir_node.out_port(
+            2).data.get_shape().tolist(), [1])
+
+        self.assertEqual(ir_node["version"], "opset13")
+        self.assertEqual(ir_node['sort_result_descending'], False)
+        self.assertEqual(ir_node['output_type'], "i32")
+        self.assertEqual(ir_node['clockwise'], False)
+        self.assertEqual(loaded_model.get_output_element_type(0), Type.i32)
+        self.assertEqual(loaded_model.get_output_element_type(1), Type.f32)
+        self.assertEqual(loaded_model.get_output_element_type(2), Type.i32)
+
+        self.assertEqual(loaded_model.get_output_partial_shape(
+            0), PartialShape([Dimension(-1, 10), 3]))
+        self.assertEqual(loaded_model.get_output_partial_shape(
+            1), PartialShape([Dimension(-1, 10), 3]))
+        self.assertEqual(loaded_model.get_output_partial_shape(
+            2), PartialShape([1]))
+
+    def test_nms_rotated_13_attrs_true_i64(self):
+        boxes_shape = [1, 100, 5]
+        scores_shape = [1, 3, 100]
+        max_output_boxes_val = 5
+        iou_threshold_val = 0.5
+        score_threshold_val = 0.4
+
+        boxes_parameter = opset13.parameter(
+            boxes_shape, name="Boxes", dtype=np.float32)
+        scores_parameter = opset13.parameter(
+            scores_shape, name="Scores", dtype=np.float32)
+
+        max_output_boxes = opset13.constant([max_output_boxes_val], np.int64)
+        iou_threshold = opset13.constant([iou_threshold_val], np.float32)
+        score_threshold = opset13.constant([score_threshold_val], np.float32)
+
+        sort_result_descending = True
+        output_type = "i64"
+        clockwise = True
+
+        node = opset13.nms_rotated(boxes_parameter, scores_parameter, max_output_boxes, iou_threshold,
+                                   score_threshold, sort_result_descending, output_type, clockwise)
+
+        model = Model(node, [boxes_parameter, scores_parameter])
+        graph, loaded_model = TestOps.check_graph_can_save(
+            model, 'nms_rotated_model_2')
+        ir_node = graph.get_op_nodes(op="NMSRotated")[0]
+
+        self.assertListEqual(ir_node.out_port(
+            0).data.get_shape().tolist(), [None, 3])
+        self.assertListEqual(ir_node.out_port(
+            1).data.get_shape().tolist(), [None, 3])
+        self.assertListEqual(ir_node.out_port(
+            2).data.get_shape().tolist(), [1])
+
+        self.assertEqual(ir_node["version"], "opset13")
+        self.assertEqual(ir_node['sort_result_descending'], True)
+        self.assertEqual(ir_node['output_type'], "i64")
+        self.assertEqual(ir_node['clockwise'], True)
+        self.assertEqual(loaded_model.get_output_element_type(0), Type.i64)
+        self.assertEqual(loaded_model.get_output_element_type(1), Type.f32)
+        self.assertEqual(loaded_model.get_output_element_type(2), Type.i64)
+
+        self.assertEqual(loaded_model.get_output_partial_shape(
+            0), PartialShape([Dimension(-1, 15), 3]))
+        self.assertEqual(loaded_model.get_output_partial_shape(
+            1), PartialShape([Dimension(-1, 15), 3]))
+        self.assertEqual(loaded_model.get_output_partial_shape(
+            2), PartialShape([1]))

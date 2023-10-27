@@ -56,8 +56,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(smoke_PrePostProcess.*resize_dynamic.*)",
             // Dynamic batch allocates output using upper bound
             R"(.*smoke_BehaviorTests.*InferUpperBoundNetworkWithGetTensor.*)",
-            // need dynamic shapes
-            R"(.*RangeLayerTest.*)",
             // need dynamic rank
             R"(.*smoke.*BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
             R"(.*smoke.*BehaviorTests.*DynamicOutputToDynamicInput.*)",
@@ -117,5 +115,9 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*MemoryDynamicBatch.*)",
             // Issue: 123493
             R"(.*GroupNormalizationTest.*CompareWithRefs.*NetType=f16.*)",
+            // Issue: 123507
+            R"(.*ReverseLayerTest.*mask.*f16.*)",
+            // Issue: 123516
+            R"(.*RandomUniformLayerTest.*f16.*)",
     };
 }
