@@ -46,11 +46,17 @@ endif()
 find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)
     pkg_search_module(libva QUIET IMPORTED_TARGET libva)
+    pkg_search_module(libva-drm QUIET IMPORTED_TARGET libva-drm)
 endif()
 
 if(libva_FOUND)
     target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_LIBVA)
     target_link_libraries(${TARGET_NAME} PRIVATE PkgConfig::libva)
+endif()
+
+if(libva-drm_FOUND)
+    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_LIBVA_DRM)
+    target_link_libraries(${TARGET_NAME} PRIVATE PkgConfig::libva-drm)
 endif()
 
 if(WIN32)
