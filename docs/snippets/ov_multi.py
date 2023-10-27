@@ -4,6 +4,7 @@
 import openvino as ov
 import openvino.properties as properties
 import openvino.properties.device as device
+import openvino.properties.streams as streams
 from utils import get_model
 
 model = get_model()
@@ -96,15 +97,17 @@ def available_devices_2():
 def MULTI_4():
     #! [MULTI_4]
     core = ov.Core()
-    cpu_config = {}
-    gpu_config = {}
+    cpu_config = {streams.num : 4}
+    gpu_config = {streams.num : 8}
 
     # When compiling the model on MULTI, configure CPU and GPU
     # (devices, priorities, and device configurations; gpu_config and cpu_config will load during compile_model() ):
     compiled_model = core.compile_model(
         model=model,
         device_name="MULTI:GPU,CPU",
-        config={"CPU": "NUM_STREAMS 4", "GPU": "NUM_STREAMS 8"},
+        config={
+            device.properties: {'CPU': cpu_config, 'GPU': gpu_config}
+        }
     )
 
     # Optionally, query the optimal number of requests:

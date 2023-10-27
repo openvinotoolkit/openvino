@@ -26,8 +26,9 @@ def init_mo_telemetry(app_name='Model Optimizer'):
                         app_name=app_name,
                         app_version=get_rt_version(),
                         backend='ga4',
-                        enable_opt_in_dialog=False)
-
+                        enable_opt_in_dialog=False,
+                        disable_in_ci=True
+                        )
 
 def send_framework_info(framework: str):
     """

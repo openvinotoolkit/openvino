@@ -37,20 +37,23 @@ class TestSub(PytorchLayerTest):
 
         return aten_sub(inplace), ref_net, op_name
 
-    @pytest.mark.parametrize('input_data', [(np.random.randn(2, 3, 4).astype(np.float32),
-                                             np.random.randn(
-                                                 2, 3, 4).astype(np.float32),
-                                             np.random.randn(1)),
-                                            (np.random.randn(4, 2, 3).astype(np.float32),
-                                             np.random.randn(
-                                                 1, 2, 3).astype(np.float32),
-                                             np.random.randn(1)), ])
+    @pytest.mark.parametrize('input_shapes',
+    [
+        [
+            [2, 3, 4], [2, 3, 4], [1]
+        ],
+        [
+            [4, 2, 3], [1, 2, 3], [1]
+        ]
+    ])
     @pytest.mark.parametrize("inplace", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_sub(self, ie_device, precision, ir_version, input_data, inplace):
-        self.input_data = input_data
-        self._test(*self.create_model(inplace), ie_device, precision, ir_version)
+    def test_sub(self, ie_device, precision, ir_version, input_shapes, inplace):
+        self.input_data = []
+        for input_shape in input_shapes:
+            self.input_data.append(np.random.randn(*input_shape).astype(np.float32))
+        self._test(*self.create_model(inplace), ie_device, precision, ir_version, use_convert_model=True)
 
 
 class TestSubTypes(PytorchLayerTest):

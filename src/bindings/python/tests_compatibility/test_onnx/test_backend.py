@@ -32,7 +32,6 @@ from tests_compatibility import (
     xfail_issue_48052,
     xfail_issue_52463,
     xfail_issue_58033,
-    xfail_issue_58676,
     xfail_issue_63033,
     xfail_issue_63036,
     xfail_issue_63043,
@@ -303,10 +302,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_triu_zero_cpu",
     ),
     (
-        xfail_issue_58676,
-        "OnnxBackendNodeModelTest.test_div_uint8_cpu"
-    ),
-    (
         skip_dynamic_model,
         "OnnxBackendNodeModelTest.test_triu_one_row_cpu",
         "OnnxBackendNodeModelTest.test_squeeze_cpu",
@@ -570,9 +565,7 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_99955,
-        "OnnxBackendNodeModelTest.test_group_normalization_epsilon_cpu",
         "OnnxBackendNodeModelTest.test_group_normalization_epsilon_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_group_normalization_example_cpu",
         "OnnxBackendNodeModelTest.test_group_normalization_example_expanded_cpu",
     ),
     (

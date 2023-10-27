@@ -19,6 +19,7 @@ from openvino.runtime.opset5.ops import batch_norm_inference
 from openvino.runtime.opset2.ops import batch_to_space
 from openvino.runtime.opset1.ops import binary_convolution
 from openvino.runtime.opset13.ops import bitwise_and
+from openvino.runtime.opset13.ops import bitwise_not
 from openvino.runtime.opset13.ops import bitwise_or
 from openvino.runtime.opset13.ops import bitwise_xor
 from openvino.runtime.opset3.ops import broadcast
@@ -105,6 +106,7 @@ from openvino.runtime.opset1.ops import minimum
 from openvino.runtime.opset4.ops import mish
 from openvino.runtime.opset1.ops import mod
 from openvino.runtime.opset9.ops import multiclass_nms
+from openvino.runtime.opset13.ops import multinomial
 from openvino.runtime.opset1.ops import multiply
 from openvino.runtime.opset6.ops import mvn
 from openvino.runtime.opset1.ops import negative

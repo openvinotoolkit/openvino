@@ -31,6 +31,35 @@ struct loop_params {
     size_t expected_not_fused_primitives;
 };
 
+
+program::ptr build_program(engine& engine,
+                            topology& body_topology,
+                            primitive_id initial_condition_id,
+                            std::vector<loop::io_primitive_map> output_primitive_maps,
+                            std::vector<loop::backedge_mapping> back_edges) {
+    std::vector<primitive_id> output_names_vec;
+    for (auto out_map : output_primitive_maps) {
+        output_names_vec.push_back(out_map.internal_id.pid);
+    }
+
+    // setup outputs for backedges
+    for (auto& back_edge : back_edges) {
+        output_names_vec.push_back(back_edge.from);
+    }
+
+    // if execution_condition_id is specified, we need to add the id in build_option::outputs
+    if (!initial_condition_id.empty()) {
+        output_names_vec.push_back(initial_condition_id);
+    }
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::custom_outputs(output_names_vec));
+    config.set_property(ov::intel_gpu::max_dynamic_batch(1));
+
+    return program::build_program(engine, body_topology, config, false, false, true);
+}
+
 class LoopFusingTest : public ::BaseFusingTest<loop_params> {
 public:
 
@@ -71,6 +100,8 @@ TEST_P(permute_eltwise_loop, basic) {
     std::vector<loop::io_primitive_map> output_primitive_maps {loop::io_primitive_map("loop", "body_eltwise", 2)};
     std::vector<loop::backedge_mapping> back_edges {loop::backedge_mapping("body_eltwise", "body_eltwise_operand")};
 
+    auto body_program = build_program(engine, body, "", output_primitive_maps, back_edges);
+
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("eltwise_data", get_mem(layout{p.data_type, p.default_format, p.loop_input_shape})),
@@ -80,7 +111,7 @@ TEST_P(permute_eltwise_loop, basic) {
         data("trip_count", trip_count_mem),
         data("initial_condition", initial_condition_mem),
         mutable_data("num_iteration", num_iteration_mem),
-        loop("loop", { input_info("eltwise"), input_info("loop_eltwise_init_values") }, body,
+        loop("loop", { input_info("num_iteration"), input_info("eltwise"), input_info("loop_eltwise_init_values") }, body_program,
              "trip_count", "initial_condition", "num_iteration",
              input_primitive_maps, output_primitive_maps, back_edges, p.loop_trip_count),
         reorder("output", input_info("loop"), format::bfyx, p.default_type)

@@ -4,25 +4,25 @@
 
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
-#include <openvino/core/dimension_tracker.hpp>
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/reshape.hpp>
-#include <openvino/op/util/symbolic_info.hpp>
-#include <openvino/pass/manager.hpp>
-#include <openvino/pass/pattern/op/pattern.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <transformations/common_optimizations/dimension_tracking.hpp>
-#include <transformations/common_optimizations/nop_elimination.hpp>
-#include <transformations/common_optimizations/shared_ops_optimization.hpp>
-#include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
-#include <transformations/symbolic_transformations/chained_maximum.hpp>
-#include <transformations/symbolic_transformations/dereshape_matmul.hpp>
-#include <transformations/symbolic_transformations/label_optimization.hpp>
-#include <transformations/symbolic_transformations/nop_broadcast.hpp>
-#include <transformations/symbolic_transformations/utils.hpp>
-
 #include "itt.hpp"
+#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/util/symbolic_info.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/visualize_tree.hpp"
+#include "transformations/common_optimizations/dimension_tracking.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
+#include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
+#include "transformations/symbolic_transformations/chained_maximum.hpp"
+#include "transformations/symbolic_transformations/dereshape_matmul.hpp"
+#include "transformations/symbolic_transformations/label_optimization.hpp"
+#include "transformations/symbolic_transformations/nop_broadcast.hpp"
+#include "transformations/symbolic_transformations/utils.hpp"
 
 using namespace ov::pass;
 using namespace ov::symbol::util;
@@ -198,10 +198,9 @@ ov::pass::SymbolicOptimizations::SymbolicOptimizations(bool full_run) {
     // transformations which use labels for optimizations
     REGISTER_SYMBOLIC(ApplyTableOfEquivalence)
     if (full_run) {
-        REGISTER_SYMBOLIC(OptimizeLabelsUsedAsValues)  // reduce shape sub-graphs
-        REGISTER_SYMBOLIC(LabelResolvingThroughSelect)  // helps to figure out that broadcasting didn't happen through Select op
+        REGISTER_SYMBOLIC(OptimizeLabelsUsedAsValues)   // reduce shape sub-graphs
+        REGISTER_SYMBOLIC(LabelResolvingThroughSelect)  // figures out that broadcasting didn't happen through Select op
         REGISTER_SYMBOLIC(DeReshapeMatMul)
-        REGISTER_SYMBOLIC(NopElimination)
         REGISTER_SYMBOLIC(SimplifyShapeOfSubGraph)
     }
 }

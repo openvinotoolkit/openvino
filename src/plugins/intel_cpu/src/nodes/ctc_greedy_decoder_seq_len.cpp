@@ -55,7 +55,7 @@ void CTCGreedyDecoderSeqLen::initSupportedPrimitiveDescriptors() {
         return;
 
     Precision inDataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
-    if (inDataPrecision != Precision::FP32 && inDataPrecision != Precision::BF16)
+    if (!one_of(inDataPrecision, Precision::FP32, Precision::BF16, Precision::FP16))
         IE_THROW() << errorPrefix << "has unsupported 'data' input precision: " << inDataPrecision;
 
     Precision seqLenPrecision = getOriginalInputPrecisionAtPort(SEQUENCE_LENGTH_INDEX);
