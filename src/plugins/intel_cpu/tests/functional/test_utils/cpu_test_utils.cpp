@@ -356,10 +356,27 @@ std::string CPUTestsBase::makeSelectedTypeStr(std::string implString, ngraph::el
 }
 
 void CPUTestsBase::updateSelectedType(const std::string& primitiveType, const ov::element::Type netType, const ov::AnyMap& config) {
+    if (selectedType.empty()) {
+        selectedType = primitiveType;
+    }
+
+    if (selectedType.find("$/") != std::string::npos) {
+        // like as regex
+        selectedType = selectedType.substr(0, selectedType.find("$/"));
+        return;
+    }
+
+    selectedType.push_back('_');
+
     auto getExecType = [&](){
         // inference_precision affects only floating point type networks
-        if (!netType.is_real())
+        if (!netType.is_real()) {
+            if (netType == ov::element::u8) {
+                // Node::getPrimitiveDescriptorType() returns i8 for u8
+                return ov::element::i8;
+            }
             return netType;
+        }
 
         const auto it = config.find(ov::hint::inference_precision.name());
         if (it == config.end())
@@ -375,9 +392,6 @@ void CPUTestsBase::updateSelectedType(const std::string& primitiveType, const ov
     };
 
     const auto execType = getExecType();
-
-    selectedType = primitiveType;
-    selectedType.push_back('_');
     selectedType += InferenceEngine::details::convertPrecision(execType).name();
 }
 

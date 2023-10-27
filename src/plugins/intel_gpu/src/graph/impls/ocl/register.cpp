@@ -40,6 +40,7 @@ void register_implementations() {
     REGISTER_OCL(gemm);
     REGISTER_OCL(generate_proposals);
     REGISTER_OCL(grid_sample);
+    REGISTER_OCL(group_normalization);
     REGISTER_OCL(lrn);
     REGISTER_OCL(lstm_gemm);
     REGISTER_OCL(lstm_elt);
@@ -64,6 +65,7 @@ void register_implementations() {
     REGISTER_OCL(reshape);
     REGISTER_OCL(reverse);
     REGISTER_OCL(reverse_sequence);
+    REGISTER_OCL(rms);
     REGISTER_OCL(roi_align);
     REGISTER_OCL(roi_pooling);
     REGISTER_OCL(roll);
