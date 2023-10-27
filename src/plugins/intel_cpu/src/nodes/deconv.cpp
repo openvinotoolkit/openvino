@@ -937,6 +937,10 @@ void Deconvolution::prepareParams() {
         } else {
             std::tie(desc, fwd_conv_pd) = createDefaultMkldnnDeconvDesc(key.inp0->getDnnlDesc(), key.inp1->getDnnlDesc(), key.out->getDnnlDesc(),
                                                                         key.stride, key.dilation, key.paddingL, key.paddingR, key.attr, engine);
+#if defined(SELECTIVE_BUILD_ANALYZER)
+            // Create dummy primitive to WA CC issue.
+            OPENVINO_ASSERT(dnnl::primitive(fwd_conv_pd));
+#endif
         }
 
         primitive_desc_iterator itpd = desc;
@@ -989,6 +993,10 @@ void Deconvolution::prepareParams() {
             } else {
                 std::tie(anyDeconvDesc, fwdConvPd) = createDefaultMkldnnDeconvDesc(inDesc, wghDesc, outDesc,
                                                               key.stride, key.dilation, key.paddingL, key.paddingR, key.attr, engine);
+#if defined(SELECTIVE_BUILD_ANALYZER)
+                // Create dummy primitive to WA CC issue.
+                OPENVINO_ASSERT(dnnl::primitive(fwd_conv_pd));
+#endif
             }
 
             if (anyDeconvDesc) {
@@ -1083,10 +1091,10 @@ void Deconvolution::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc
         std::tie(deconv_desc, fwd_conv_pd) = createDescriptorInternalDefault(in_candidate, wgh_candidate, out_candidate, dnnl::algorithm::convolution_direct,
                                                                                 deconvAttrs.stride, deconvAttrs.dilation, deconvAttrs.paddingL,
                                                                                 deconvAttrs.paddingR, *attr, getEngine());
-        IE_ASSERT(fwd_conv_pd &&  deconv_desc && deconv_desc.get(true) != nullptr)
-                << "Failed to create convolution_backward_data::primitive_desc: " << "Node: ##" << getName();
-        fwdConvPD.push_back(fwd_conv_pd); // oneDNN requires forward pd to exists until primitive is created
-        descs.push_back(deconv_desc);
+        if (fwd_conv_pd && deconv_desc && deconv_desc.get(true) != nullptr) {
+            fwdConvPD.push_back(fwd_conv_pd);  // oneDNN requires forward pd to exists until primitive is created
+            descs.push_back(deconv_desc);
+        }
     }
 }
 
