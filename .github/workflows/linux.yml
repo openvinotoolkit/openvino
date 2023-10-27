@@ -102,6 +102,7 @@ jobs:
           version: ${{ env.PYTHON_VERSION }}
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
 
       - name: Install python dependencies
         run: |
