@@ -1,7 +1,7 @@
 # GNA transformations documentation
 
 GNA Plugin provides implementation of multiple methods required by OpenVINO plugin API. Original model usually consists of variety of operations, i.e. Convolution, Add, Gather, LSTMSequence and so on. GNA Hardware is its own limitation and not all operations can be executed on GNA Hardware.
-One of the main functionalities for GNA Plugin is conversion of input network to equivalent network which could be executed on the GNA hardware. This conversion is realized by LoadNetwok method.
+One of the main functionalities for GNA Plugin is conversion of source network to equivalent network which could be executed on the GNA hardware. This conversion is done in LoadNetwok method.
 
 ## LoadNetwork
 
