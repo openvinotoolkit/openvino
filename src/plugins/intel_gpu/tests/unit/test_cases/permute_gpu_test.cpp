@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/type/element_type_traits.hpp"
 #include "test_utils.h"
 #include "random_generator.hpp"
 
@@ -1924,7 +1925,7 @@ void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& si
                                 const std::string & permute_opt, std::vector<uint16_t> permute_order, bool is_caching_test)
 {
     // convert ov::float16 to ov::float16
-    using type_ = typename data_type_to_type<Data_Type>::type;
+    using type_ = typename ov::element_type_traits<Data_Type>::value_type;
     using type = typename std::conditional<std::is_same<type_, ov::float16>::value, ov::float16, type_>::type;
 
     std::vector<cldnn::tensor::value_type> internal_sizes(sizes);
@@ -2318,7 +2319,7 @@ struct TiledPerformancePermuteTest : TiledPermuteTest
     {
         auto& engine = get_test_engine();
         // convert ov::float16 to ov::float16
-        using type_ = typename data_type_to_type<Data_Type>::type;
+        using type_ = typename ov::element_type_traits<Data_Type>::value_type;
         using type = typename std::conditional<std::is_same<type_, ov::float16>::value, ov::float16, type_>::type;
 
         std::vector<cldnn::tensor::value_type> internal_sizes(sizes);

@@ -9,7 +9,7 @@
 
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/tensorflow/decoder.hpp"
-#include "types.pb.h"
+#include "ov_tensorflow/types.pb.h"
 
 namespace tensorflow {
 class GraphDef;
