@@ -21,7 +21,13 @@
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 
 // clang-format off
+#ifdef __unix__
+#ifdef ENABLE_LIBVA
+#ifdef ENABLE_LIBVA_DRM
 #include <va/va.h>
+#endif
+#endif
+#endif
 // clang-format on
 
 namespace ov {
