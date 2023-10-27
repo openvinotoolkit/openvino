@@ -1,4 +1,4 @@
-name: Fedora (RHEL), Python 3.9
+name: Fedora (RHEL), Python 3.11
 on:
   workflow_dispatch:
   pull_request:
