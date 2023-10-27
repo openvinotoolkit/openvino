@@ -1268,7 +1268,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-20.04-16-cores
+    runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores'}}
     # TODO: Switch back to self-hosted runners
     # container:
     #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
