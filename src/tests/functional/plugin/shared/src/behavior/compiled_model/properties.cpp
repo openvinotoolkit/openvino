@@ -351,6 +351,8 @@ TEST_P(OVCompileModelGetExecutionDeviceTests, CanGetExecutionDeviceInfo) {
         ASSERT_FALSE(property.empty());
 }
 
+
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

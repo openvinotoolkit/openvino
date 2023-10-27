@@ -311,6 +311,29 @@ TEST_P(OVCompiledModelBaseTest_2_0, canSetOutputPrecisionForNetwork) {
     ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
 }
 
+TEST_P(OVCompiledModelBaseTest_2_0, CanCompileModelWithEmptyProperties) {
+    ov::Core ie = createCoreWithTemplate();
+    std::shared_ptr<ov::Model> model = ngraph::builder::subgraph::makeSingleConcatWithConstant();
+    OV_ASSERT_NO_THROW(auto compiled_model = ie.compile_model(model, target_device, ov::AnyMap{}));
+}
+
+TEST_P(OVCompiledModelBaseTest_2_0, LoadNetworkWithBigDeviceIDThrows) {
+    ov::Core ie = createCoreWithTemplate();
+    std::shared_ptr<ov::Model> model = ngraph::builder::subgraph::makeSingleConcatWithConstant();
+    ASSERT_THROW(ie.compile_model(model, target_device + ".10"), ov::Exception);
+}
+
+TEST_P(OVCompiledModelBaseTest_2_0, CanLoadNetworkWithCustomLocale) {
+    auto prev = std::locale().name();
+    setlocale(LC_ALL, "en_GB.UTF-8");
+
+    ov::Core ie = createCoreWithTemplate();
+    std::shared_ptr<ov::Model> model = ngraph::builder::subgraph::makeSingleConcatWithConstant();
+    ASSERT_NO_THROW(auto compiled_model = ie.compile_model(model, target_device););
+
+    setlocale(LC_ALL, prev.c_str());
+}
+
 TEST_P(OVCompiledModelBaseTest, CanGetOutputsInfo) {
     auto execNet = core->compile_model(function, target_device, configuration);
     EXPECT_NO_THROW(auto outInfo = execNet.outputs());
