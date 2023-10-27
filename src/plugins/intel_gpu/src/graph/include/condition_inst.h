@@ -79,6 +79,7 @@ public:
     condition::branch get_branch_false() const { return node->get_branch_false(); }
 
     void update_output_layout();
+    void postprocess_output_memory(network::ptr executed_net, cldnn::condition::branch& branch);
 
 private:
     network::ptr _net_true;
