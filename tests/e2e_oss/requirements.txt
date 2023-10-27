@@ -24,6 +24,7 @@ pytest>=5.0,<=7.0.1; python_version < '3.10'
 pytest==7.2.0; python_version >= '3.10'
 pytest-cov==2.11.1
 # pytest-html==1.19.0
+pytest-html
 pytest-json-report==1.5.0
 # pytest-metadata==1.7.0
 pytest-xdist==2.1.0
