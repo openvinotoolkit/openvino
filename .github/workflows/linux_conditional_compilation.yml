@@ -93,15 +93,12 @@ jobs:
         with:
           version: "v0.5.4"
 
-      - uses: actions/setup-python@v4
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Setup pip cache dir
-        run: |
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
-          echo "Using pip version: ${PIP_VER}"
-          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
 
       - name: Install python dependencies
         run: |
