@@ -182,7 +182,8 @@ TRANSFORMATIONS_API bool check_for_broadcast(const PartialShape& ref_shape, cons
 
 TRANSFORMATIONS_API std::shared_ptr<Node> activation(const std::string& activation_name, const Output<Node>& apply_to);
 
-TRANSFORMATIONS_API bool is_seq_len_provided(const std::shared_ptr<Node>& seq_len_input, int64_t max_seq_len);
+TRANSFORMATIONS_API bool is_seq_len_provided(const std::shared_ptr<Node>& X,
+                                             const std::shared_ptr<Node>& seq_len_input);
 
 TRANSFORMATIONS_API std::shared_ptr<Node> try_fold_unary_output(const std::shared_ptr<Node>& node);
 

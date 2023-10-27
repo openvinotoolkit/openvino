@@ -318,8 +318,9 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                 errorMessage = "Max sequence length dimension is dynamic";
                 return false;
             }
-            auto maxSeqLen = data_pshape[maxSeqLenDimIdx].get_length();
-            if (ov::op::util::is_seq_len_provided(op->get_input_node_shared_ptr(seqLenIdx), maxSeqLen)) {
+
+            if (ov::op::util::is_seq_len_provided(op->get_input_node_shared_ptr(0),
+                                                  op->get_input_node_shared_ptr(seqLenIdx))) {
                 errorMessage = "Unsupported sequence length.";
                 return false;
             }
