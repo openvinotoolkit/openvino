@@ -230,9 +230,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     // Temporary transformation to allow for PyTorch frontend to
     // partially support bitwise operators with boolean inputs for plugins
     // that didn't enabled BitwiseOps from opset13
-    auto bitwise = manager.register_pass<GraphRewrite>();
-    ADD_MATCHER(bitwise, ConvertBitwiseToLogical)
-    bitwise->set_name("ov::pass::ConvertBitwiseToLogical");
+    REGISTER_PASS(manager, ConvertBitwiseToLogical)
 
     // StridesOptimization should be at the very end
     // because we cannot insert any MaxPools since they may prevent
