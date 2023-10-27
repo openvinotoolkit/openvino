@@ -397,7 +397,7 @@ public:
     }
 
     void allocate() noexcept override {
-        if (InferenceEngine::TBlob<T>::buffer() != tensor->data()) {
+        if ((void*)InferenceEngine::TBlob<T>::buffer() != tensor->data()) {
             InferenceEngine::TBlob<T>::_allocator =
                 InferenceEngine::details::make_pre_allocator(static_cast<T*>(tensor->data()), tensor->get_byte_size());
             InferenceEngine::TBlob<T>::allocate();
