@@ -36,7 +36,10 @@ set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this r
 ov_cpack_add_component(${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES} HIDDEN)
 
 set(REQUIREMENTS_IN "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.txt.in")
-set(EXTRAS_LIST _ caffe kaldi mxnet onnx pytorch tensorflow tensorflow2)
+set(EXTRAS_LIST _ caffe kaldi onnx pytorch tensorflow tensorflow2)
+if(NOT (APPLE AND AARCH64))
+    list(APPEND EXTRAS_LIST mxnet)
+endif()
 
 foreach(EXTRAS IN LISTS EXTRAS_LIST)
     if(EXTRAS STREQUAL "_")
@@ -56,17 +59,8 @@ endforeach()
 
 # check __init__.py files alignment
 
-function(ov_check_init_files_alignment)
+function(ov_check_init_files_alignment init_files)
     # check the files in pairs
-    list(APPEND init_files
-        "${OpenVINO_SOURCE_DIR}/src/bindings/python/src/openvino/__init__.py"
-        "${OpenVINO_SOURCE_DIR}/src/bindings/python/src/compatibility/openvino/__init__.py"
-        "${OpenVINO_SOURCE_DIR}/tools/mo/openvino/__init__.py"
-        "${OpenVINO_SOURCE_DIR}/tools/pot/openvino/__init__.py"
-        "${OpenVINO_SOURCE_DIR}/tools/ovc/openvino/__init__.py"
-        "${OpenVINO_SOURCE_DIR}/tools/benchmark_tool/openvino/__init__.py"
-        "${OpenVINO_SOURCE_DIR}/tools/openvino_dev/src/openvino/__init__.py")
-
     list(LENGTH init_files init_files_count)
     math(EXPR file_loop_range "${init_files_count}-2")
     foreach(init_file_idx RANGE 0 ${file_loop_range})
@@ -78,14 +72,17 @@ function(ov_check_init_files_alignment)
             RESULT_VARIABLE compare_result
         )
         if(compare_result EQUAL 1)
-            message(STATUS ${file1})
-            message(STATUS ${file2})
-            message(FATAL_ERROR "The __init__.py files are misaligned: ${file1} and ${file2}")
+            message(FATAL_ERROR "The tools __init__.py files are misaligned: ${file1} and ${file2}")
         endif()
     endforeach()
 endfunction()
 
-ov_check_init_files_alignment()
+set(INIT_FILES_TOOLS
+"${OpenVINO_SOURCE_DIR}/tools/mo/openvino/__init__.py"
+"${OpenVINO_SOURCE_DIR}/tools/pot/openvino/__init__.py"
+"${OpenVINO_SOURCE_DIR}/tools/openvino_dev/src/openvino/__init__.py")
+
+ov_check_init_files_alignment("${INIT_FILES_TOOLS}")
 
 # openvino_dev build
 

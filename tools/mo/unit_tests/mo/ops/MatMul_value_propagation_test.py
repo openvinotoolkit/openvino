@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.ops.MatMul import MatMul, transpose
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
@@ -32,9 +31,8 @@ graph_edges=[
 ]
 
 
-@generator
-class TestMatMulValuePropagation(unittest.TestCase):
-    @generate(*[
+class TestMatMulValuePropagation():
+    @pytest.mark.parametrize("a_shape, a_value, b_shape, b_value, transpose_a, transpose_b",[
         ([16, 3], np.arange(-5, -5 + 16 * 3).reshape((16, 3)),
          [3, 5], np.arange(0, 3 * 5).reshape((3, 5)),
          False, False),
@@ -91,4 +89,4 @@ class TestMatMulValuePropagation(unittest.TestCase):
         node_data_shape = node_data.shape
         ref_data_shape = ref_data.shape
         msg = "Value propagation for 'matmul' node is not correct."
-        self.assertTrue(node_data_shape == ref_data_shape and np.all(node_data == ref_data), msg)
+        assert node_data_shape == ref_data_shape and np.all(node_data == ref_data), msg

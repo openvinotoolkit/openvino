@@ -5,11 +5,11 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
-#include <ie_core.hpp>
 #include <limits>
-#include <shared_test_classes/base/layer_test_utils.hpp>
 
 #include "base_reference_test.hpp"
+#include "ie_core.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace reference_tests;
 using namespace ov;
