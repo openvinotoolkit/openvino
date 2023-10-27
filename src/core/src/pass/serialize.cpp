@@ -1209,9 +1209,9 @@ namespace ov {
 bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(Serialize);
 
-    // TODO xxx-105807: if rt_info is set in python api as a string ['disable_fp16_compression_0'] = '',
+    // TODO xxx-105807: if rt_info is set in python api as a string ['precise_0'] = '',
     //  we need to convert value to a class in order to have rt_info in the IR. The code below will convert
-    // ['disable_fp16_compression_0'] = '' into => rt_info['disable_fp16_compression_0'] = DisableFP16Compression{}
+    // ['precise_0'] = '' into => rt_info['precise_0'] = DisableFP16Compression{}
     for (auto& node : model->get_ops())
         if (fp16_compression_is_disabled(node))
             disable_fp16_compression(node);
