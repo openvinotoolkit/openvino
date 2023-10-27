@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
+
 #include <gtest/gtest.h>
 
-#include <openvino/op/parameter.hpp>
-#include <openvino/op/variadic_split.hpp>
-#include <ov_ops/rotary_positional_embeddings.hpp>
-#include <transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp>
-#include <transformations/utils/utils.hpp>
-
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/variadic_split.hpp"
+#include "ov_ops/rotary_positional_embeddings.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace std;
 using namespace ov;

@@ -4,17 +4,15 @@
 
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/add.hpp>
-#include <openvino/op/concat.hpp>
-#include <openvino/op/multiply.hpp>
-#include <openvino/op/op.hpp>
-#include <openvino/op/variadic_split.hpp>
-#include <openvino/pass/pattern/op/pattern.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <ov_ops/rotary_positional_embeddings.hpp>
-
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/op.hpp"
+#include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::RPE_Fusion::RPE_Fusion() {

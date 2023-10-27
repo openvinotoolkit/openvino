@@ -4,10 +4,6 @@
 
 #pragma once
 
-#include <memory>
-#include <string>
-#include <vector>
-
 #include "openvino/op/op.hpp"
 #include "transformations_visibility.hpp"
 
