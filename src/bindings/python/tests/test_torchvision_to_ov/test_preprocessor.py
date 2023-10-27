@@ -12,8 +12,10 @@ import torch
 import torch.nn.functional as f
 import torchvision.transforms as transforms
 
+from openvino import Type
 from openvino.runtime import Core, Tensor
 from openvino.tools.mo import convert_model
+from openvino.properties.hint import inference_precision
 
 from openvino.preprocess.torchvision import PreprocessConverter
 
@@ -38,7 +40,7 @@ def _infer_pipelines(test_input, preprocess_pipeline, input_channels=3):
     ov_model = PreprocessConverter.from_torchvision(
         model=ov_model, transform=preprocess_pipeline, input_example=Image.fromarray(test_input.astype("uint8"), "RGB"),
     )
-    infer_config = {"INFERENCE_PRECISION_HINT": "f32"}
+    infer_config = {inference_precision: Type.f32}
     ov_model = core.compile_model(ov_model, "CPU", infer_config)
 
     # Torch results
