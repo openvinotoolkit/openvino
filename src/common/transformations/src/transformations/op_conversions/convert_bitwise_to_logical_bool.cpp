@@ -71,7 +71,7 @@ ov::pass::ConvertBitwiseOrToLogicalOr::ConvertBitwiseOrToLogicalOr() {
 
     const matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto bitwise = std::dynamic_pointer_cast<ov::op::v13::BitwiseOr>(m.get_match_root());
-        if (!bitwise) {
+        if (!bitwise || transformation_callback(bitwise)) {
             return false;
         }
 
