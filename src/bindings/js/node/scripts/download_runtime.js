@@ -172,9 +172,16 @@ async function getOsInfo() {
       break;
 
     case 'darwin':
-      const [major, minor] = os.release().split('.');
+      const [major] = os.release().split('.');
 
-      detectedOs = major === 10 && minor >= 15 ? 'macos_10_15' : major === 11 ? 'macos_11_0' : null;
+      // os.release() returns not the macOS release but the Darwin release:
+      // https://en.wikipedia.org/wiki/Darwin_(operating_system)#Release_history - mapping could be found here
+      // in the form of MAJOR.MINOR.PATCH
+      detectedOs = major === '19'
+        ? 'macos_10_15'
+        : major === '20'
+        ? 'macos_11_0'
+        : null;
 
       break;
 

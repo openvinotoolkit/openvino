@@ -38,6 +38,10 @@ Napi::Object CompiledModelWrap::Wrap(Napi::Env env, ov::CompiledModel compiled_m
     return obj;
 }
 
+void CompiledModelWrap::set_compiled_model(const ov::CompiledModel& compiled_model) {
+    _compiled_model = compiled_model;
+}
+
 Napi::Value CompiledModelWrap::create_infer_request(const Napi::CallbackInfo& info) {
     ov::InferRequest infer_request = _compiled_model.create_infer_request();
     return InferRequestWrap::Wrap(info.Env(), infer_request);

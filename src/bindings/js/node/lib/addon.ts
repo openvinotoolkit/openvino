@@ -12,7 +12,8 @@ type SupportedTypedArray =
   | Float64Array;
 
 interface Core {
-  compileModel(model: Model, device: string): CompiledModel;
+  compileModel(model: Model, device: string, config?: {[option: string]: string}): CompiledModel;
+  compileModelSync(model: Model, device: string, config?: {[option: string]: string}): CompiledModel;
   readModel(modelPath: string, binPath?: string): Promise<Model>;
   readModelSync(modelPath: string, binPath?: string): Model;
 }
