@@ -25,11 +25,11 @@ TRANSFORMATIONS_API void do_not_postpone_fp16_compression(RTMap& rt_info);
 /**
  * @ingroup ie_runtime_attr_api
  * @brief DisableFP16Compression class represents runtime info attribute that marks operation
- * as prohibitted to convert to FP16 as part of Compressed Only format.
+ * as prohibited to convert to FP16 precision and they should be inferred in the precisely original precision.
  */
 class TRANSFORMATIONS_API DisableFP16Compression : public RuntimeAttribute {
 public:
-    OPENVINO_RTTI("disable_fp16_compression", "0");
+    OPENVINO_RTTI("precise", "0");
 
     DisableFP16Compression() = default;
 
