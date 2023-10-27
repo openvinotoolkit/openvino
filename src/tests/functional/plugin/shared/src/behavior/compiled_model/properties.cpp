@@ -8,6 +8,8 @@
 
 #include "openvino/runtime/properties.hpp"
 
+#include <locale.h>
+
 namespace ov {
 namespace test {
 namespace behavior {
