@@ -42,17 +42,10 @@ void VariableState::SetState(const Blob::Ptr& newState) {
     auto&& tensor_desc = state->getTensorDesc();
     if (InternalMem()->getStaticDims() != tensor_desc.getDims()) {
         auto new_desc = m_desc->cloneWithNewDims(tensor_desc.getDims());
-        InternalMem()->redefineDesc(new_desc); //todo move to the end
+        InternalMem()->redefineDesc(new_desc);
     }
     auto blob_desc = MemoryDescUtils::convertToCpuBlockedMemoryDesc(tensor_desc);
     auto src = state->buffer().as<void*>();
-
-    if (InternalMem()->getDesc().isCompatible(blob_desc)) {
-        // simply replace memory ptr
-        auto mem_mgr = InternalMem()->getMemoryMngr();
-        mem_mgr->setExtBuff(src, state->byteSize());
-        return;
-    }
 
     static const dnnl::engine eng(dnnl::engine::kind::cpu, 0);
     Memory mem(eng, blob_desc, src);
