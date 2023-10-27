@@ -67,6 +67,7 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
 
