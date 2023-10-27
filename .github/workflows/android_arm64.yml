@@ -78,6 +78,13 @@ jobs:
           fetch-depth: '0'
 
       #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
+      #
       # Dependencies
       #
 

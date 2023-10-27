@@ -63,6 +63,13 @@ jobs:
           ref: 'master'
 
       #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
+      #
       # Dependencies
       #
 

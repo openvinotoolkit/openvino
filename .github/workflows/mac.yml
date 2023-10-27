@@ -75,6 +75,13 @@ jobs:
           path: 'openvino_contrib'
 
       #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
+      #
       # Dependencies
       #
 
