@@ -1,4 +1,4 @@
-name: Fedora (RHEL), Python 3.11
+name: Fedora (RHEL), Python 3.9
 on:
   workflow_dispatch:
   pull_request:
@@ -28,7 +28,7 @@ concurrency:
 
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
-  PYTHON_VERSION: '3.11'
+  PYTHON_VERSION: '3.9'
 
 jobs:
   Build:
