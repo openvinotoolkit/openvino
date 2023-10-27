@@ -33,7 +33,7 @@ public:
         ov_capi_test_base::TearDown();
     }
 };
-INSTANTIATE_TEST_SUITE_P(device_name, ov_core_test, ::testing::Values("CPU"));
+INSTANTIATE_TEST_SUITE_P(ov_core, ov_core_test, ::testing::Values("CPU"));
 
 TEST_P(ov_core_test, ov_core_create_with_config) {
     std::string plugins_xml = TestDataHelpers::generate_test_xml_file();
