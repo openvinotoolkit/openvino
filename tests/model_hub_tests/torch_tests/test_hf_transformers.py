@@ -276,7 +276,9 @@ class TestTransformersModel(TestConvertModel):
             return [i.numpy() for i in self.example]
 
     def convert_model(self, model_obj):
-        ov_model = convert_model(model_obj, example_input=self.example)
+        ov_model = convert_model(model_obj,
+                                 example_input=self.example,
+                                 verbose=True)
         return ov_model
 
     def infer_fw_model(self, model_obj, inputs):
