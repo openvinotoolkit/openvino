@@ -17,7 +17,18 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateNonMaxSuppressionIEInternalOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::NonMaxSuppressionIEInternal>& op) {
-    validate_inputs_count(op, {2, 3, 4, 5, 6});
+    cldnn::non_max_suppression::Rotation rotation = cldnn::non_max_suppression::Rotation::NONE;
+    const bool is_nms_rotated = op->m_rotation != ov::op::internal::NonMaxSuppressionIEInternal::Rotation_None;
+    if (is_nms_rotated) {
+        // For NMSRotated threshold inputs are mandatory, and soft_nms_sigma input is absent
+        validate_inputs_count(op, {5});
+
+        rotation = op->m_rotation == ov::op::internal::NonMaxSuppressionIEInternal::Rotation_Clockwise ?
+                    cldnn::non_max_suppression::Rotation::CLOCKWISE
+                    : cldnn::non_max_suppression::Rotation::COUNTERCLOCKWISE;
+    } else {
+        validate_inputs_count(op, {2, 3, 4, 5, 6});
+    }
     auto inputs = p.GetInputInfo(op);
     std::vector<cldnn::input_info> reordered_inputs;
     reordered_inputs.resize(inputs.size());
@@ -75,6 +86,7 @@ static void CreateNonMaxSuppressionIEInternalOp(ProgramBuilder& p, const std::sh
 
         prim.output_paddings = get_output_paddings();
         prim.output_data_types = get_output_data_types();
+        prim.rotation = rotation;
 
         switch (reordered_inputs.size()) {
             case 6: prim.soft_nms_sigma = reordered_inputs[5].pid;
@@ -142,6 +154,7 @@ static void CreateNonMaxSuppressionIEInternalOp(ProgramBuilder& p, const std::sh
                 "", "", "", "", "", "");
 
         prim.output_data_types = get_output_data_types();
+        prim.rotation = rotation;
 
         switch (reordered_inputs.size()) {
             case 6: prim.soft_nms_sigma = reordered_inputs[5].pid;
