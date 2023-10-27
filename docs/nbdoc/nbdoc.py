@@ -166,7 +166,7 @@ def main():
     sourcedir = args.sourcedir
     outdir = args.outdir
 
-    main_tutorials_file = Path('../../docs/tutorials.md').resolve(strict=True)
+    main_tutorials_file = Path('../../docs/articles_en/learn_openvino/tutorials.md').resolve(strict=True)
     add_glob_directive(main_tutorials_file)
 
     if args.download:

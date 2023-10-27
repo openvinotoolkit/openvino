@@ -215,7 +215,7 @@ std::string condition_inst::to_string(condition_node const& node) {
 }
 
 /*
-Condition primitive is resuing memory with the input.
+Condition primitive is reusing memory with the input.
 */
 condition_inst::typed_primitive_inst(network& network, condition_node const& node)
     : parent(network, node),
@@ -240,14 +240,26 @@ void condition_inst::update_output_layout() {
     auto new_layouts = _node->type()->calc_output_layouts(*_node, *_impl_params);
     if (new_layouts.empty()) {
         auto new_layout = _node->type()->calc_output_layout(*_node, *_impl_params);
-        new_layout.data_padding = padding::max(_node->get_primitive()->output_paddings[0], new_layout.data_padding);
+        new_layout.data_padding = padding::max(_node->get_primitive()->get_output_padding(0), new_layout.data_padding);
         _impl_params->output_layouts[0] = new_layout;
     } else {
         for (size_t i = 0; i != new_layouts.size(); ++i) {
             auto new_layout = new_layouts[i];
-            new_layout.data_padding = padding::max(_node->get_primitive()->output_paddings[i], new_layout.data_padding);
+            new_layout.data_padding = padding::max(_node->get_primitive()->get_output_padding(i), new_layout.data_padding);
             _impl_params->output_layouts[i] = new_layout;
         }
+    }
+}
+
+void condition_inst::postprocess_output_memory(network::ptr executed_net, cldnn::condition::branch& branch) {
+    _outputs.clear();
+    _outputs.resize(outputs_memory_count());
+    for (auto out_mem_map : branch.output_map) {
+        auto out_mem_idx = out_mem_map.first;
+        auto inner_out_id = out_mem_map.second;
+        auto mem_ptr = executed_net->get_output(inner_out_id).get_memory();
+        _outputs[out_mem_idx] = mem_ptr;
+        GPU_DEBUG_LOG << "Inner net - Outputs[" << out_mem_idx << "]" << mem_ptr->get_layout().to_short_string() << std::endl;
     }
 }
 }  // namespace cldnn

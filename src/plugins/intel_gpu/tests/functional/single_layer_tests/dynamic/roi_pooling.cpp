@@ -148,12 +148,9 @@ protected:
                     }
                 } else {
                     switch (funcInput.get_element_type()) {
-                    case ngraph::element::f32: {
-                        ov::test::utils::fill_data_roi<InferenceEngine::Precision::FP32>(tensor, feat_map_shape[0] - 1, height, width, 1.f, is_roi_max_mode);
-                        break;
-                    }
-                    case ngraph::element::bf16: {
-                        ov::test::utils::fill_data_roi<InferenceEngine::Precision::BF16>(tensor, feat_map_shape[0] - 1, height, width, 1.f, is_roi_max_mode);
+                    case ov::element::f32:
+                    case ov::element::bf16: {
+                        ov::test::utils::fill_data_roi(tensor, feat_map_shape[0] - 1, height, width, 1.f, is_roi_max_mode);
                         break;
                     }
                     default:

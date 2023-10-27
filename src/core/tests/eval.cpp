@@ -178,6 +178,27 @@ TEST(eval, evaluate_dynamic_range_sum) {
     ASSERT_EQ(cval, seq);
 }
 
+TEST(eval, evaluate_dynamic_range_fp16_out) {
+    auto p_start = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{});
+    auto p_stop = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{});
+    auto p_step = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{});
+    auto range = make_shared<op::v4::Range>(p_start, p_stop, p_step, ov::element::f16);
+    auto model = make_shared<Model>(OutputVector{range}, ParameterVector{p_start, p_stop, p_step});
+    auto result_tensor = ov::Tensor();
+    auto out_vector = ov::TensorVector{result_tensor};
+    auto in_vector = ov::TensorVector{make_tensor<element::Type_t::i32>({}, {0}),
+                                      make_tensor<element::Type_t::i32>({}, {3087}),
+                                      make_tensor<element::Type_t::i32>({}, {1})};
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
+    EXPECT_EQ(result_tensor.get_element_type(), element::f16);
+    EXPECT_EQ(result_tensor.get_shape(), (Shape{3087}));
+    auto cval = read_vector<ov::float16>(result_tensor);
+    for (size_t i = 0; i < 3087; i++) {
+        ASSERT_EQ(cval[i], ov::float16(i));
+    }
+}
+
 TEST(eval, evaluate_broadcast_v3_bidirectional) {
     Shape shape_a{4, 1};
     auto A = make_shared<ov::op::v0::Parameter>(element::f32, shape_a);

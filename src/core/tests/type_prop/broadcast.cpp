@@ -9,7 +9,6 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/core/dimension_tracker.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/equal.hpp"
@@ -18,6 +17,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "validation_util.hpp"
 
 using namespace std;
 using namespace testing;
@@ -1303,24 +1303,22 @@ TEST(type_prop, broadcast_v3_bidirectional_tricky_partial_value_case_and_equal_p
     auto broadcast_a = make_shared<ov::op::v3::Broadcast>(a, select, "BIDIRECTIONAL");
     const auto out_shape = broadcast_a->get_output_partial_shape(0);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
     EXPECT_EQ(out_shape, expected_shape);
     {
-        auto constant = ov::get_constant_from_source(equal->output(0));
-        EXPECT_TRUE(constant != nullptr);
+        auto constant = ov::util::get_constant_from_source(equal->output(0));
+        ASSERT_TRUE(constant != nullptr);
         std::vector<bool> expected{false, false, false}, calculated = constant->get_vector<bool>();
         EXPECT_EQ(calculated, expected);
     }
     {
         equal = make_shared<ov::op::v1::Equal>(concat, ov::op::v0::Constant::create(ov::element::i64, {3}, {5, 1, 4}));
-        EXPECT_TRUE(ov::get_constant_from_source(equal->output(0)) == nullptr);
+        EXPECT_TRUE(ov::util::get_constant_from_source(equal->output(0)) == nullptr);
     }
     {
         equal = make_shared<ov::op::v1::Equal>(concat, ov::op::v0::Constant::create(ov::element::i64, {3}, {11, 1, 4}));
-        auto constant = ov::get_constant_from_source(equal->output(0));
-        EXPECT_TRUE(constant != nullptr);
+        auto constant = ov::util::get_constant_from_source(equal->output(0));
+        ASSERT_TRUE(constant != nullptr);
         std::vector<bool> expected{false, true, true}, calculated = constant->get_vector<bool>();
         EXPECT_EQ(calculated, expected);
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }

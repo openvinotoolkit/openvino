@@ -8,6 +8,7 @@
 
 #include "matchers/subgraph/fused_names.hpp"
 #include "utils/model.hpp"
+#include "utils/model_comparator.hpp"
 
 #include "test_models/model_0.hpp"
 #include "test_models/model_1.hpp"
@@ -32,7 +33,7 @@ protected:
         auto it_model_2 = models_2.begin();
         while (it_model_1 != models_1.end() || it_model_2 != models_2.end()) {
             SubgraphExtractor extractor;
-            ASSERT_TRUE(extractor.match(std::get<0>(*it_model_1), std::get<0>(*it_model_2)));
+            ASSERT_TRUE(ModelComparator::get()->match(std::get<0>(*it_model_1), std::get<0>(*it_model_2)));
             auto in_info_1 = std::get<1>(*it_model_1);
             auto in_info_2 = std::get<1>(*it_model_2);
             for (const auto& in_info : in_info_1) {

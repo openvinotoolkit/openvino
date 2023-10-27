@@ -20,9 +20,10 @@ std::shared_ptr<ov::Node> makeInputLayer(const element::Type& type,
         input = ngraph::builder::makeConstant<float>(type, shape, {}, true);
         break;
     }
-    case ov::test::utils::InputLayerType::PARAMETER:
+    case ov::test::utils::InputLayerType::PARAMETER: {
         input = std::make_shared<ov::op::v0::Parameter>(type, ov::Shape(shape));
         break;
+    }
     default:
         throw std::runtime_error("Unsupported inputType");
     }

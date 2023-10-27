@@ -20,6 +20,7 @@
 #include "ie_icnn_network.hpp"
 #include "ie_input_info.hpp"
 #include "openvino/frontend/manager.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #ifdef ENABLE_IR_V7_READER
 #    include "legacy/ie_ir_version.hpp"
 #endif
@@ -388,8 +389,8 @@ CNNNetwork details::ReadNetwork(const std::string& model,
     ov::AnyVector params{&modelStream};
     if (weights) {
         char* data = weights->cbuffer().as<char*>();
-        std::shared_ptr<ngraph::runtime::AlignedBuffer> weights_buffer =
-            std::make_shared<ngraph::runtime::SharedBuffer<Blob::CPtr>>(data, weights->byteSize(), weights);
+        std::shared_ptr<ov::AlignedBuffer> weights_buffer =
+            std::make_shared<ov::SharedBuffer<Blob::CPtr>>(data, weights->byteSize(), weights);
         params.emplace_back(weights_buffer);
     }
 

@@ -1,19 +1,17 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
+import pytest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.front.onnx.AttributedSliceToSlice import AttributedSliceToSliceReplacer
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, regular_op_with_empty_data, result, const, connect_front
 
 
-@generator
-class SliceReplacerTest(unittest.TestCase):
-    @generate(*[
+class TestSliceReplacerTest():
+    @pytest.mark.parametrize("attributed_slice_attrs",[
        {'op': 'AttributedSlice', 'type': None, 'starts': np.array([0, 0]), 'ends': np.array([1, -1]), 'axes': np.array([0, 1])}
     ])
     def test_attributed_slice_replacer(self, attributed_slice_attrs):
@@ -46,4 +44,4 @@ class SliceReplacerTest(unittest.TestCase):
         ], nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp

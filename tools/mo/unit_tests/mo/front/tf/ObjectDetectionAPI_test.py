@@ -6,7 +6,7 @@ from argparse import Namespace
 from unittest.mock import patch
 import os
 
-from generator import generator, generate
+import pytest
 
 from openvino.tools.mo.front.tf.ObjectDetectionAPI import calculate_shape_keeping_aspect_ratio, \
     calculate_placeholder_spatial_shape, ObjectDetectionAPIPreprocessor2Replacement
@@ -31,12 +31,11 @@ class FakePipelineConfig:
         return self._model_params[param]
 
 
-@generator
-class TestCalculateShape(unittest.TestCase):
+class TestCalculateShape():
     min_size = 600
     max_size = 1024
 
-    @generate(*[(100, 300, 341, 1024),
+    @pytest.mark.parametrize("h, w, th, tw",[(100, 300, 341, 1024),
                 (100, 600, 171, 1024),
                 (100, 3000, 34, 1024),
                 (300, 300, 600, 600),
@@ -53,7 +52,7 @@ class TestCalculateShape(unittest.TestCase):
                 (2000, 1800, 667, 600),
                 ])
     def test_calculate_shape(self, h, w, th, tw):
-        self.assertTupleEqual(calculate_shape_keeping_aspect_ratio(h, w, self.min_size, self.max_size), (th, tw))
+        assert calculate_shape_keeping_aspect_ratio(h, w, self.min_size, self.max_size) == (th, tw)
 
 
 class TestCalculatePlaceholderSpatialShape(unittest.TestCase):
