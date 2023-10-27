@@ -10,13 +10,13 @@
 #include <transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp>
 #include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 
 using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-void name_node_and_output(const shared_ptr<Node>& op, std::string name) {
+void name_node_and_output(const shared_ptr<Node>& op, const std::string& name) {
     op->set_friendly_name(name);
     op->output(0).set_names({name});
 }
