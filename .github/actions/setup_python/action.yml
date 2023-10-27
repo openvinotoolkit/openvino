@@ -22,13 +22,7 @@ runs:
     - if: ${{ runner.os == 'Linux' && inputs.self-hosted-runner == 'true' }}
       name: Install 'actions/setup-python@v4' dependencies
       shell: bash
-      run: |
-        # Fedora
-        if [[ -e /etc/fedora-release ]]; then
-          echo "Inside a Fedora container, no need to install dependencies."
-        else
-          apt-get update && apt-get install -y ca-certificates
-        fi
+      run: apt-get update && apt-get install -y ca-certificates
 
     - if: ${{ runner.os == 'Linux' && runner.arch == 'ARM64' }}
       name: Setup sudo
@@ -46,6 +40,8 @@ runs:
       uses: actions/setup-python@v4
       with:
         python-version: ${{ inputs.version }}
+      env:
+        PIP_CACHE_DIR: ${{ inputs.self-hosted-runner == 'true' && inputs.pip-cache-path || '' }}
 
     - if: ${{ inputs.should-setup-pip-paths == 'true' }}
       name: Setup pip variables (cache and install path)

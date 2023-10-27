@@ -311,15 +311,6 @@ jobs:
       BUILD_DIR: /__w/openvino/openvino/build
 
     steps:
-
-      - name: Fetch setup_python action
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            .github/actions/setup_python/action.yml
-          sparse-checkout-cone-mode: false
-          path: 'openvino'
-
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
@@ -341,15 +332,23 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
+      - name: Install OpenVINO dependencies
+        run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
+
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
-
-      - name: Install OpenVINO dependencies
-        run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
 
       - name: Build cpp samples - GCC
         run: ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples
@@ -421,15 +420,6 @@ jobs:
       TEST_DEVICE: 'CPU'
 
     steps:
-
-      - name: Fetch setup_python action
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            .github/actions/setup_python/action.yml
-          sparse-checkout-cone-mode: false
-          path: 'openvino'
-
       - name: Create Directories
         run: |
           mkdir -p ${CONFORMANCE_ARTIFACTS_DIR}
@@ -459,18 +449,26 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
+      - name: Install Dependencies
+        run: |
+          sudo -E ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
+
+          python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
+
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
-
-      - name: Install Dependencies
-        run: |
-          sudo -E ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
-
-          python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
 
       #
       # Tests
@@ -881,15 +879,6 @@ jobs:
       LAYER_TESTS_INSTALL_DIR: /__w/openvino/openvino/install/tests/layer_tests
 
     steps:
-
-      - name: Fetch setup_python action
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            .github/actions/setup_python/action.yml
-          sparse-checkout-cone-mode: false
-          path: ${{ env.OPENVINO_REPO }}
-
       #
       # Initialize OpenVINO
       #
@@ -914,6 +903,14 @@ jobs:
           pushd ${INSTALL_TEST_DIR}
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
+
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: ${{ env.OPENVINO_REPO }}
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
@@ -1107,15 +1104,6 @@ jobs:
       PARALLEL_TEST_CACHE: /__w/openvino/openvino/install/tests/test_cache.lst
 
     steps:
-
-      - name: Fetch setup_python action
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            .github/actions/setup_python/action.yml
-          sparse-checkout-cone-mode: false
-          path: ${{ env.OPENVINO_REPO }}
-
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
@@ -1139,6 +1127,14 @@ jobs:
 
       - name: Install OpenVINO dependencies
         run: bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
+
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: ${{ env.OPENVINO_REPO }}
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
@@ -1206,24 +1202,8 @@ jobs:
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
 
     steps:
-
-      - name: Fetch setup_python action
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            .github/actions/setup_python/action.yml
-          sparse-checkout-cone-mode: false
-          path: 'openvino'
-
       - name: Check sudo
         run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
-
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: ./openvino/.github/actions/setup_python
-        with:
-          version: ${{ env.PYTHON_VERSION }}
-          should-setup-pip-paths: 'false'
-          self-hosted-runner: 'false'
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
@@ -1246,6 +1226,21 @@ jobs:
           pushd ${INSTALL_TEST_DIR}
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
+
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
 
       - name: Install OpenVINO Python wheels
         run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
@@ -1291,14 +1286,6 @@ jobs:
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
 
     steps:
-      - name: Fetch setup_python action
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            .github/actions/setup_python/action.yml
-          sparse-checkout-cone-mode: false
-          path: 'openvino'
-
       - name: Check sudo
         run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
 
@@ -1328,6 +1315,14 @@ jobs:
           pushd ${INSTALL_TEST_DIR}
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
+
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
@@ -1399,12 +1394,11 @@ jobs:
 
     steps:
 
-      - name: Fetch install_build_dependencies.sh and setup_python action
+      - name: Fetch install_build_dependencies.sh
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
             install_build_dependencies.sh
-            .github/actions/setup_python/action.yml
           sparse-checkout-cone-mode: false
           path: ${{ env.OPENVINO_REPO }}
 
