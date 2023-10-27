@@ -12,8 +12,7 @@
 
 // clang-format off
 #include "openvino/openvino.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset13.hpp"
 
 #include "samples/args_helper.hpp"
 #include "samples/common.hpp"
@@ -84,127 +83,130 @@ std::shared_ptr<ov::Model> create_model(const std::string& path_to_weights) {
     std::vector<ptrdiff_t> padBegin{0, 0};
     std::vector<ptrdiff_t> padEnd{0, 0};
 
-    auto paramNode = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ov::Shape({64, 1, 28, 28}));
+    auto paramNode = std::make_shared<ov::opset13::Parameter>(ov::element::Type_t::f32, ov::Shape({64, 1, 28, 28}));
 
     // -------convolution 1----
     auto convFirstShape = Shape{20, 1, 5, 5};
-    auto convolutionFirstConstantNode = std::make_shared<opset8::Constant>(element::Type_t::f32, convFirstShape, data);
+    auto convolutionFirstConstantNode = std::make_shared<opset13::Constant>(element::Type_t::f32, convFirstShape, data);
 
-    auto convolutionNodeFirst = std::make_shared<opset8::Convolution>(paramNode->output(0),
-                                                                      convolutionFirstConstantNode->output(0),
-                                                                      Strides({1, 1}),
-                                                                      CoordinateDiff(padBegin),
-                                                                      CoordinateDiff(padEnd),
-                                                                      Strides({1, 1}));
-
-    // -------Add--------------
-    auto addFirstShape = Shape{1, 20, 1, 1};
-    auto offset = shape_size(convFirstShape) * sizeof(float);
-    auto addFirstConstantNode = std::make_shared<opset8::Constant>(element::Type_t::f32, addFirstShape, data + offset);
-
-    auto addNodeFirst = std::make_shared<opset8::Add>(convolutionNodeFirst->output(0), addFirstConstantNode->output(0));
-
-    // -------MAXPOOL----------
-    Shape padBeginShape{0, 0};
-    Shape padEndShape{0, 0};
-
-    auto maxPoolingNodeFirst = std::make_shared<opset1::MaxPool>(addNodeFirst->output(0),
-                                                                 Strides{2, 2},
-                                                                 padBeginShape,
-                                                                 padEndShape,
-                                                                 Shape{2, 2},
-                                                                 op::RoundingType::CEIL);
-
-    // -------convolution 2----
-    auto convSecondShape = Shape{50, 20, 5, 5};
-    offset += shape_size(addFirstShape) * sizeof(float);
-    auto convolutionSecondConstantNode =
-        std::make_shared<opset8::Constant>(element::Type_t::f32, convSecondShape, data + offset);
-
-    auto convolutionNodeSecond = std::make_shared<opset8::Convolution>(maxPoolingNodeFirst->output(0),
-                                                                       convolutionSecondConstantNode->output(0),
+    auto convolutionNodeFirst = std::make_shared<opset13::Convolution>(paramNode->output(0),
+                                                                       convolutionFirstConstantNode->output(0),
                                                                        Strides({1, 1}),
                                                                        CoordinateDiff(padBegin),
                                                                        CoordinateDiff(padEnd),
                                                                        Strides({1, 1}));
 
-    // -------Add 2------------
-    auto addSecondShape = Shape{1, 50, 1, 1};
-    offset += shape_size(convSecondShape) * sizeof(float);
-    auto addSecondConstantNode =
-        std::make_shared<opset8::Constant>(element::Type_t::f32, addSecondShape, data + offset);
+    // -------Add--------------
+    auto addFirstShape = Shape{1, 20, 1, 1};
+    auto offset = shape_size(convFirstShape) * sizeof(float);
+    auto addFirstConstantNode = std::make_shared<opset13::Constant>(element::Type_t::f32, addFirstShape, data + offset);
 
-    auto addNodeSecond =
-        std::make_shared<opset8::Add>(convolutionNodeSecond->output(0), addSecondConstantNode->output(0));
+    auto addNodeFirst =
+        std::make_shared<opset13::Add>(convolutionNodeFirst->output(0), addFirstConstantNode->output(0));
 
-    // -------MAXPOOL 2--------
-    auto maxPoolingNodeSecond = std::make_shared<opset1::MaxPool>(addNodeSecond->output(0),
+    // -------MAXPOOL----------
+    Shape padBeginShape{0, 0};
+    Shape padEndShape{0, 0};
+
+    auto maxPoolingNodeFirst = std::make_shared<opset13::MaxPool>(addNodeFirst->output(0),
                                                                   Strides{2, 2},
+                                                                  Strides{1, 1},
                                                                   padBeginShape,
                                                                   padEndShape,
                                                                   Shape{2, 2},
                                                                   op::RoundingType::CEIL);
 
+    // -------convolution 2----
+    auto convSecondShape = Shape{50, 20, 5, 5};
+    offset += shape_size(addFirstShape) * sizeof(float);
+    auto convolutionSecondConstantNode =
+        std::make_shared<opset13::Constant>(element::Type_t::f32, convSecondShape, data + offset);
+
+    auto convolutionNodeSecond = std::make_shared<opset13::Convolution>(maxPoolingNodeFirst->output(0),
+                                                                        convolutionSecondConstantNode->output(0),
+                                                                        Strides({1, 1}),
+                                                                        CoordinateDiff(padBegin),
+                                                                        CoordinateDiff(padEnd),
+                                                                        Strides({1, 1}));
+
+    // -------Add 2------------
+    auto addSecondShape = Shape{1, 50, 1, 1};
+    offset += shape_size(convSecondShape) * sizeof(float);
+    auto addSecondConstantNode =
+        std::make_shared<opset13::Constant>(element::Type_t::f32, addSecondShape, data + offset);
+
+    auto addNodeSecond =
+        std::make_shared<opset13::Add>(convolutionNodeSecond->output(0), addSecondConstantNode->output(0));
+
+    // -------MAXPOOL 2--------
+    auto maxPoolingNodeSecond = std::make_shared<opset13::MaxPool>(addNodeSecond->output(0),
+                                                                   Strides{2, 2},
+                                                                   Strides{1, 1},
+                                                                   padBeginShape,
+                                                                   padEndShape,
+                                                                   Shape{2, 2},
+                                                                   op::RoundingType::CEIL);
+
     // -------Reshape----------
     auto reshapeFirstShape = Shape{2};
     auto reshapeOffset = shape_size(addSecondShape) * sizeof(float) + offset;
     auto reshapeFirstConstantNode =
-        std::make_shared<opset8::Constant>(element::Type_t::i64, reshapeFirstShape, data + reshapeOffset);
+        std::make_shared<opset13::Constant>(element::Type_t::i64, reshapeFirstShape, data + reshapeOffset);
 
     auto reshapeFirstNode =
-        std::make_shared<opset8::Reshape>(maxPoolingNodeSecond->output(0), reshapeFirstConstantNode->output(0), true);
+        std::make_shared<opset13::Reshape>(maxPoolingNodeSecond->output(0), reshapeFirstConstantNode->output(0), true);
 
     // -------MatMul 1---------
     auto matMulFirstShape = Shape{500, 800};
     offset = shape_size(reshapeFirstShape) * sizeof(int64_t) + reshapeOffset;
     auto matMulFirstConstantNode =
-        std::make_shared<opset8::Constant>(element::Type_t::f32, matMulFirstShape, data + offset);
+        std::make_shared<opset13::Constant>(element::Type_t::f32, matMulFirstShape, data + offset);
 
     auto matMulFirstNode =
-        std::make_shared<opset8::MatMul>(reshapeFirstNode->output(0), matMulFirstConstantNode->output(0), false, true);
+        std::make_shared<opset13::MatMul>(reshapeFirstNode->output(0), matMulFirstConstantNode->output(0), false, true);
 
     // -------Add 3------------
     auto addThirdShape = Shape{1, 500};
     offset += shape_size(matMulFirstShape) * sizeof(float);
-    auto addThirdConstantNode = std::make_shared<opset8::Constant>(element::Type_t::f32, addThirdShape, data + offset);
+    auto addThirdConstantNode = std::make_shared<opset13::Constant>(element::Type_t::f32, addThirdShape, data + offset);
 
-    auto addThirdNode = std::make_shared<opset8::Add>(matMulFirstNode->output(0), addThirdConstantNode->output(0));
+    auto addThirdNode = std::make_shared<opset13::Add>(matMulFirstNode->output(0), addThirdConstantNode->output(0));
 
     // -------Relu-------------
-    auto reluNode = std::make_shared<opset8::Relu>(addThirdNode->output(0));
+    auto reluNode = std::make_shared<opset13::Relu>(addThirdNode->output(0));
 
     // -------Reshape 2--------
     auto reshapeSecondShape = Shape{2};
     auto reshapeSecondConstantNode =
-        std::make_shared<opset8::Constant>(element::Type_t::i64, reshapeSecondShape, data + reshapeOffset);
+        std::make_shared<opset13::Constant>(element::Type_t::i64, reshapeSecondShape, data + reshapeOffset);
 
     auto reshapeSecondNode =
-        std::make_shared<opset8::Reshape>(reluNode->output(0), reshapeSecondConstantNode->output(0), true);
+        std::make_shared<opset13::Reshape>(reluNode->output(0), reshapeSecondConstantNode->output(0), true);
 
     // -------MatMul 2---------
     auto matMulSecondShape = Shape{10, 500};
     offset += shape_size(addThirdShape) * sizeof(float);
     auto matMulSecondConstantNode =
-        std::make_shared<opset8::Constant>(element::Type_t::f32, matMulSecondShape, data + offset);
+        std::make_shared<opset13::Constant>(element::Type_t::f32, matMulSecondShape, data + offset);
 
-    auto matMulSecondNode = std::make_shared<opset8::MatMul>(reshapeSecondNode->output(0),
-                                                             matMulSecondConstantNode->output(0),
-                                                             false,
-                                                             true);
+    auto matMulSecondNode = std::make_shared<opset13::MatMul>(reshapeSecondNode->output(0),
+                                                              matMulSecondConstantNode->output(0),
+                                                              false,
+                                                              true);
 
     // -------Add 4------------
     auto add4Shape = Shape{1, 10};
     offset += shape_size(matMulSecondShape) * sizeof(float);
-    auto add4ConstantNode = std::make_shared<opset8::Constant>(element::Type_t::f32, add4Shape, data + offset);
+    auto add4ConstantNode = std::make_shared<opset13::Constant>(element::Type_t::f32, add4Shape, data + offset);
 
-    auto add4Node = std::make_shared<opset8::Add>(matMulSecondNode->output(0), add4ConstantNode->output(0));
+    auto add4Node = std::make_shared<opset13::Add>(matMulSecondNode->output(0), add4ConstantNode->output(0));
 
     // -------softMax----------
-    auto softMaxNode = std::make_shared<opset8::Softmax>(add4Node->output(0), 1);
+    auto softMaxNode = std::make_shared<opset13::Softmax>(add4Node->output(0), 1);
     softMaxNode->get_output_tensor(0).set_names({"output_tensor"});
 
     // ------- OpenVINO function--
-    auto result_full = std::make_shared<opset8::Result>(softMaxNode->output(0));
+    auto result_full = std::make_shared<opset13::Result>(softMaxNode->output(0));
 
     std::shared_ptr<ov::Model> fnPtr =
         std::make_shared<ov::Model>(result_full, ov::ParameterVector{paramNode}, "lenet");
