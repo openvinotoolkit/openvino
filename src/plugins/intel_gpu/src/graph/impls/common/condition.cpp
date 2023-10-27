@@ -59,13 +59,7 @@ struct condition_impl : typed_primitive_impl<condition> {
         instance.update_output_layout();
 
         // Set output memory of condition_inst to inner network output memory after inner network execution
-        for (auto out_mem_map : branch.output_map) {
-            auto out_mem_idx = out_mem_map.first;
-            auto inner_out_id = out_mem_map.second;
-            auto mem_ptr = executed_net->get_output(inner_out_id).get_memory();
-            instance.set_output_memory(mem_ptr, false, out_mem_idx);
-            GPU_DEBUG_LOG << "Inner net - Outputs[" << out_mem_idx << "]" << mem_ptr->get_layout().to_short_string() << std::endl;
-        }
+        instance.postprocess_output_memory(executed_net, branch);
 
         ev->set();
         return ev;

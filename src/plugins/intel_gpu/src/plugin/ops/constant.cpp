@@ -100,12 +100,17 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         p.primitive_ids[initialconstPrimID] = constPrimID;
         p.profiling_ids.push_back(initialconstPrimID);
     } else {
-        if (constLayout.count() == 0) {
-            // Convert zero dimension constant layout to 1 dimension to fix the issue
-            // that memory allocation is failed on windows when constant layout is zero dimension.
-            constLayout = cldnn::layout(ov::PartialShape({1}), constLayout.data_type, constLayout.format);
+        cldnn::memory::ptr mem = nullptr;
+        if (constLayout.bytes_count() > 0) {
+            mem = p.get_engine().allocate_memory(constLayout, false);
+        } else {
+            // In the case of empty const data with {0} shape, it has zero byte.
+            // To avoid zero byte memory allocation issue, reinterpret one dimension memory to zero dimension memory.
+            auto one_dim_layout = cldnn::layout(ov::PartialShape({1}), constLayout.data_type, constLayout.format);
+            auto one_dim_mem = p.get_engine().allocate_memory(one_dim_layout, false);
+            mem = p.get_engine().reinterpret_buffer(*one_dim_mem, constLayout);
         }
-        cldnn::memory::ptr mem = p.get_engine().allocate_memory(constLayout, false);
+
         GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] layout: "
                         << constLayout.to_short_string() << ", mem_ptr(" << mem << ", " << mem->size() << " bytes)"<< std::endl;
         auto& stream = p.get_engine().get_service_stream();
