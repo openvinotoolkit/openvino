@@ -14,6 +14,8 @@ from filelock import FileLock
 
 from contextlib import contextmanager
 from datetime import datetime
+from openvino.runtime import Dimension, PartialShape
+
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.DEBUG, stream=sys.stdout)
 
@@ -547,3 +549,24 @@ def get_inputs_info(model_obj):
         inputs_info.append((input_shape, type_map[input_info.dtype]))
 
     return inputs_info
+
+
+def get_shapes_from_data(input_data, api_version='1') -> dict:
+    shapes = {}
+    for input_layer in input_data:
+        if api_version == '2':
+            shapes[input_layer] = PartialShape(input_data[input_layer].shape)
+        else:
+            shapes[input_layer] = input_data[input_layer].shape
+    return shapes
+
+
+def convert_shapes_to_partial_shape(shapes: dict) -> dict:
+    partial_shape = {}
+    for layer, shape in shapes.items():
+        dimension_tmp = []
+        for item in shape:
+            dimension_tmp.append(Dimension(item[0], item[1])) if type(item) == list else dimension_tmp.append(
+                Dimension(item))
+        partial_shape[layer] = PartialShape(dimension_tmp)
+    return partial_shape
