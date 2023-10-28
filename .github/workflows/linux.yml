@@ -1425,7 +1425,7 @@ jobs:
         with:
           name: test-results-tensorflow-hub-models
           path: |
-            ${{ ${E2E_TESTS_INSTALL_DIR} }}/TEST*.html
+            ${{ env.E2E_TESTS_INSTALL_DIR }}/TEST*.html
           if-no-files-found: 'error'
 
   NVIDIA_Plugin:
