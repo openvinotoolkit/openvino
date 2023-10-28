@@ -18,7 +18,7 @@ OutputVector translate_inv_op(const NodeContext& node) {
     auto x = node.get_input(0);
 
     // prepare auxiliary one constants of the same type as the inputs
-    auto one = make_shared<v0::Constant>(element::i32, Shape{}, 1);
+    auto one = create_same_type_const_scalar<int32_t>(x, 1);
 
     auto inv = make_shared<v1::Divide>(one, x);
     set_node_name(node.get_name(), inv);

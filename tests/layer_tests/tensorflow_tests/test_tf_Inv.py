@@ -29,8 +29,9 @@ class TestInv(CommonTFLayerTest):
         return tf_net, None
 
     test_data_basic = [
+        dict(input_shape=[], input_type=np.float32),
         dict(input_shape=[10, 20], input_type=np.float32),
-        dict(input_shape=[2, 3, 4], input_type=np.float32),
+        dict(input_shape=[2, 3, 4], input_type=np.float32),   
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
