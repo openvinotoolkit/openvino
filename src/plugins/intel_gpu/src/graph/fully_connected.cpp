@@ -222,6 +222,9 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
     if (desc->compressed_weights) {
         fc_info.add("decompression scale id", desc->decompression_scale);
         fc_info.add("decompression zp id", desc->decompression_zero_point);
+        if (desc->decompression_zero_point_scalar.has_value()) {
+            fc_info.add("decompression zp value", desc->decompression_zero_point_scalar.value());
+        }
     }
 
     node_info->add("fully connected info", fc_info);
