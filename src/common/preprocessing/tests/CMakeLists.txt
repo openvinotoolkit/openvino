@@ -4,7 +4,7 @@
 
 set(TARGET fluid_preproc_tests)
 
-ov_deprecated_no_errors()
+ov_disable_deprecated_warnings()
 
 find_package(OpenCV QUIET COMPONENTS gapi core imgproc)
 if(NOT OpenCV_FOUND OR NOT OpenCV_VERSION VERSION_GREATER_EQUAL 4)

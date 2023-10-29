@@ -240,14 +240,34 @@ void condition_inst::update_output_layout() {
     auto new_layouts = _node->type()->calc_output_layouts(*_node, *_impl_params);
     if (new_layouts.empty()) {
         auto new_layout = _node->type()->calc_output_layout(*_node, *_impl_params);
-        new_layout.data_padding = padding::max(_node->get_primitive()->output_paddings[0], new_layout.data_padding);
+        new_layout.data_padding = padding::max(_node->get_primitive()->get_output_padding(0), new_layout.data_padding);
         _impl_params->output_layouts[0] = new_layout;
     } else {
         for (size_t i = 0; i != new_layouts.size(); ++i) {
             auto new_layout = new_layouts[i];
-            new_layout.data_padding = padding::max(_node->get_primitive()->output_paddings[i], new_layout.data_padding);
+            new_layout.data_padding = padding::max(_node->get_primitive()->get_output_padding(i), new_layout.data_padding);
             _impl_params->output_layouts[i] = new_layout;
         }
+    }
+}
+
+void condition_inst::postprocess_output_memory(network::ptr executed_net, cldnn::condition::branch& branch) {
+    _outputs.clear();
+    _outputs.resize(outputs_memory_count());
+    for (auto out_mem_map : branch.output_map) {
+        auto out_mem_idx = out_mem_map.first;
+        auto inner_out_id = out_mem_map.second;
+        auto mem_ptr = executed_net->get_output(inner_out_id).get_memory();
+        if (mem_ptr) {
+            auto layout = _impl_params->get_output_layout(out_mem_idx);
+            GPU_DEBUG_LOG << "Reshape output from " << mem_ptr->get_layout().to_short_string()
+                        << " to " << layout.to_short_string() << std::endl;
+            // Preallocation logic may allocate more memory than actually produced on current iteration, so we need to adjust output buffers layout
+            mem_ptr = get_network().get_engine().reinterpret_buffer(*mem_ptr, layout);
+        }
+
+        _outputs[out_mem_idx] = mem_ptr;
+        GPU_DEBUG_LOG << "Inner net - Outputs[" << out_mem_idx << "]" << mem_ptr->get_layout().to_short_string() << std::endl;
     }
 }
 }  // namespace cldnn
