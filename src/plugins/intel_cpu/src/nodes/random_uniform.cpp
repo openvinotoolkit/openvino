@@ -6,9 +6,8 @@
 
 #include "ie_parallel.hpp"
 #include "ie_ngraph_utils.hpp"
-#include <openvino/op/constant.hpp>
-#include <openvino/op/random_uniform.hpp>
-#include "shape_inference/custom/random_uniform.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/random_uniform.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -27,7 +26,7 @@ bool RandomUniform::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
 }
 
 RandomUniform::RandomUniform(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-        : Node(op, context, RandomUniformShapeInferFactory(op)) {
+        : Node(op, context, NgraphShapeInferFactory(op, PortMask(0, 1, 2))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         THROW_CPU_NODE_ERR(errorMessage);

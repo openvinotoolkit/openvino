@@ -10,7 +10,7 @@
 #include "snippets/op/scalar.hpp"
 #include "lowering_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include "snippets/pass_manager.hpp"
+#include "snippets/pass/manager.hpp"
 
 namespace ov {
 namespace test {

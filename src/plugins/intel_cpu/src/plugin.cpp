@@ -497,6 +497,8 @@ static Config::SnippetsMode getSnippetsMode(const ov::AnyMap& modelConfig, const
         return Config::SnippetsMode::IgnoreCallback;
     else if (val == InferenceEngine::PluginConfigInternalParams::DISABLE)
         return Config::SnippetsMode::Disable;
+    else if (val == InferenceEngine::PluginConfigInternalParams::ENABLE)
+        return Config::SnippetsMode::Enable;
     else
         OPENVINO_THROW("Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK");
 }
@@ -537,16 +539,17 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, engConfig);
     DEBUG_LOG(PrintableModel(*cloned_model, "org_"));
 
-    Transformations transformations(cloned_model, enableLPT, inferencePrecision, is_legacy_api(), snippetsMode, engConfig);
+    // update the props after the perf mode translated to configs
+    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
+    Config conf = engConfig;
+
+    Transformations transformations(cloned_model, enableLPT, inferencePrecision, is_legacy_api(), snippetsMode, conf);
     transformations.UpToLpt();
 
     if (!is_cpu_map_available()) {
         apply_performance_hints(config, cloned_model);
     }
 
-    // update the props after the perf mode translated to configs
-    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
-    Config conf = engConfig;
     conf.readProperties(config, modelType);
     calculate_streams(conf, cloned_model);
 
