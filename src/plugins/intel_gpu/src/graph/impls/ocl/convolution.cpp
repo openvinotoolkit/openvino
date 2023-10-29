@@ -42,7 +42,7 @@ public:
         const auto& primitive = impl_param.typed_desc<convolution>();
 
         auto stride = primitive->stride;
-        const auto& dilation = primitive->dilation;
+        auto dilation = primitive->dilation;
         const auto& groups = primitive->groups;
         const auto& deformable_groups = primitive->deformable_groups;
         const auto transposed = primitive->transposed;
@@ -112,6 +112,11 @@ public:
         uint32_t ky = weights_layout.spatial(1);
         uint32_t kz = weights_layout.spatial(2);
         conv_params.filterSize = { kx, ky, kz };
+
+        if (pads_begin.size() == 1) pads_begin.push_back(0);
+        if (pads_end.size() == 1) pads_end.push_back(0);
+        if (stride.size() == 1) stride.push_back(1);
+        if (dilation.size() == 1) dilation.push_back(1);
 
         uint32_t pad_begin_z = std::max<std::ptrdiff_t>(pads_begin.size() >= 3 ? pads_begin[pads_begin.size() - 3] : 0, 0);
         uint32_t pad_begin_y = std::max<std::ptrdiff_t>(pads_begin.size() >= 2 ? pads_begin[pads_begin.size() - 2] : 0, 0);
