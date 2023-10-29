@@ -6716,3 +6716,249 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_unique_3d_with_duplicates_and_axis_2) 
 
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_blackmanwindow_periodic) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/blackmanwindow_periodic.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+
+    test_case.add_input<int64_t>({10});
+    test_case.add_expected_output<float>(Shape{10},
+                                         {-0.000000014901161f,
+                                          0.040212844f,
+                                          0.20077012f,
+                                          0.50978714f,
+                                          0.8492299f,
+                                          0.99999994f,
+                                          0.84922975f,
+                                          0.5097869f,
+                                          0.20077008f,
+                                          0.040212862f});
+
+    // GPU has an accuracy drop, need to use different tolerance
+    if (std::string("${BACKEND_NAME}") != std::string("IE_GPU")) {
+        test_case.run_with_tolerance_as_fp();
+    } else {
+        test_case.run_with_tolerance_as_fp(0.01f);
+    }
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_blackmanwindow_symmetric) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/blackmanwindow_symmetric.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+
+    test_case.add_input<int64_t>({10});
+    test_case.add_expected_output<float>(Shape{10},
+                                         {-0.00000001f,
+                                          0.05086961f,
+                                          0.25800052f,
+                                          0.63000000f,
+                                          0.95112991f,
+                                          0.95112979f,
+                                          0.62999994f,
+                                          0.25800028f,
+                                          0.05086958f,
+                                          -0.00000001f});
+
+    // GPU has an accuracy drop, need to use different tolerance
+    if (std::string("${BACKEND_NAME}") != std::string("IE_GPU")) {
+        test_case.run_with_tolerance_as_fp();
+    } else {
+        test_case.run_with_tolerance_as_fp(0.01f);
+    }
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_hammingwindow_periodic) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/hammingwindow_periodic.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+
+    test_case.add_input<int64_t>({10});
+    test_case.add_expected_output<float>(Shape{10},
+                                         {0.08695650f,
+                                          0.17414439f,
+                                          0.40240526f,
+                                          0.68455124f,
+                                          0.91281211f,
+                                          1.00000000f,
+                                          0.91281211f,
+                                          0.68455112f,
+                                          0.40240520f,
+                                          0.17414442f});
+
+    // GPU has an accuracy drop, need to use different tolerance
+    if (std::string("${BACKEND_NAME}") != std::string("IE_GPU")) {
+        test_case.run_with_tolerance_as_fp();
+    } else {
+        test_case.run_with_tolerance_as_fp(0.01f);
+    }
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_hammingwindow_symmetric) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/hammingwindow_symmetric.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+
+    test_case.add_input<int64_t>({10});
+    test_case.add_expected_output<float>(Shape{10},
+                                         {0.08695650f,
+                                          0.19376230f,
+                                          0.46420413f,
+                                          0.77173913f,
+                                          0.97246838f,
+                                          0.97246838f,
+                                          0.77173907f,
+                                          0.46420389f,
+                                          0.19376221f,
+                                          0.08695650f});
+
+    // GPU has an accuracy drop, need to use different tolerance
+    if (std::string("${BACKEND_NAME}") != std::string("IE_GPU")) {
+        test_case.run_with_tolerance_as_fp();
+    } else {
+        test_case.run_with_tolerance_as_fp(0.01f);
+    }
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_hannwindow_periodic) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/hannwindow_periodic.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+
+    test_case.add_input<int64_t>({10});
+    test_case.add_expected_output<float>(Shape{10},
+                                         {0.00000000f,
+                                          0.09549150f,
+                                          0.34549153f,
+                                          0.65450853f,
+                                          0.90450847f,
+                                          1.00000000f,
+                                          0.90450847f,
+                                          0.65450835f,
+                                          0.34549144f,
+                                          0.09549153f});
+
+    // GPU has an accuracy drop, need to use different tolerance
+    if (std::string("${BACKEND_NAME}") != std::string("IE_GPU")) {
+        test_case.run_with_tolerance_as_fp();
+    } else {
+        test_case.run_with_tolerance_as_fp(0.01f);
+    }
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_hannwindow_symmetric) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/hannwindow_symmetric.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+
+    test_case.add_input<int64_t>({10});
+    test_case.add_expected_output<float>(Shape{10},
+                                         {0.00000000f,
+                                          0.11697778f,
+                                          0.41317594f,
+                                          0.75000000f,
+                                          0.96984637f,
+                                          0.96984625f,
+                                          0.74999994f,
+                                          0.41317570f,
+                                          0.11697769f,
+                                          0.00000000f});
+
+    // GPU has an accuracy drop, need to use different tolerance
+    if (std::string("${BACKEND_NAME}") != std::string("IE_GPU")) {
+        test_case.run_with_tolerance_as_fp();
+    } else {
+        test_case.run_with_tolerance_as_fp(0.01f);
+    }
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_group_normalization_3grp_default_eps) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/group_normalization_3grp.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+    test_case.add_input<float>(
+        {-0.2261407f, -1.8793484f,  -0.37692875f, 0.8860143f,   0.05993791f,  -0.7634332f,  0.61080337f,  0.09776749f,
+         0.5835062f,  -0.32338685f, -0.23485906f, -0.04752525f, 2.4905143f,   -0.11199934f, -0.20539412f, -2.4455426f,
+         -0.5437323f, 0.51794696f,  -0.44127423f, 0.09666952f,  -0.09539367f, -1.962784f,   0.25065672f,  1.5909688f,
+         0.927671f,   -0.46812922f, 0.2925484f,   -1.1766007f,  0.7675745f,   -0.94145614f, 1.1552521f,   1.6375796f,
+         0.0198675f,  -0.45938072f, 0.43037328f,  0.37999842f,  -0.45021877f, -0.84925014f, 1.6790043f,   -1.0172538f,
+         0.0493111f,  -0.53391f,    -0.08101435f, 0.14738432f,  -0.58910686f, 0.51673824f,  -1.7001126f,  -1.888597f});
+    test_case.add_input<float>({2.4556813f, 0.12371606f, 1.5681714f});
+    test_case.add_input<float>({0.79260737f, -0.74518913f, 1.370796f});
+
+    test_case.add_expected_output<float>(
+        Shape{2, 6, 2, 2},
+        {0.70938545f,  -4.3442307f,  0.24844825f,  4.109082f,   1.5838864f,   -0.93303996f, 3.267802f,    1.6995258f,
+         -0.6843487f,  -0.7732928f,  -0.76461035f, -0.7462375f, -0.49731785f, -0.75256085f, -0.7617206f,  -0.9814244f,
+         0.5922366f,   2.3495553f,   0.76182777f,  1.652246f,   1.3343381f,   -1.7566144f,  1.9071295f,   4.1256485f,
+         2.4563973f,   -1.0979934f,  0.8390641f,   -2.9021082f, 2.0487132f,   -2.3033152f,  3.03593f,     4.2641716f,
+         -0.73710674f, -0.80988204f, -0.6747702f,  -0.6824198f, -0.8084908f,  -0.86908495f, -0.48516175f, -0.8945968f,
+         2.4475086f,   1.3245938f,   2.1965842f,   2.6363354f,  1.2183195f,   3.3474774f,   -0.92077446f, -1.2836761f});
+
+    test_case.run_with_tolerance_as_fp(0.000001f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_group_normalization_3grp_custom_eps) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/group_normalization_custom_eps.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+    test_case.add_input<float>(
+        {1.8079232f,  -0.2892469f,  2.0915377f,   -1.8837914f, 0.25869793f,  0.80542284f,  2.9528935f,  0.16081251f,
+         0.10507602f, -1.7271832f,  -1.0217364f,  -1.1528395f, -0.69146425f, -2.4292548f,  -0.4232518f, 0.33357796f,
+         -1.4946569f, -0.08947915f, -0.7962127f,  1.3765403f,  -0.1947846f,  0.30173305f,  0.08576944f, 0.8134404f,
+         0.62960416f, -1.0745901f,  -0.27037576f, -0.3607608f, 0.14347585f,  1.4590056f,   -1.1309915f, 0.88850766f,
+         0.5367185f,  -0.7771955f,  0.81048864f,  0.45839247f, 1.0398412f,   -0.21019235f, -1.037122f,  -0.36852306f,
+         2.7608335f,  0.3126114f,   0.336343f,    0.76919895f, 0.58595645f,  0.71894723f,  -1.2922621f, -0.542859f});
+    test_case.add_input<float>({-0.05215209f, -0.5643389f, -0.6959881f});
+    test_case.add_input<float>({1.4327786f, 0.01641126f, -1.471873f});
+
+    test_case.add_expected_output<float>(
+        Shape{2, 6, 2, 2},
+        {1.3937842f,   1.4702199f,  1.3834473f,   1.5283363f,   1.4502488f,   1.4303224f,  1.3520534f,   1.4538165f,
+         -0.628196f,   0.5758153f,  0.11225323f,  0.19840352f,  -0.10477467f, 1.0371594f,  -0.281022f,   -0.77834874f,
+         -0.22489226f, -1.3969909f, -0.8074844f,  -2.6198394f,  -1.3091526f,  -1.7233121f, -1.5431708f,  -2.1501417f,
+         1.3968898f,   1.4998344f,  1.4512546f,   1.4567144f,   1.4262552f,   1.3467885f,  1.5032414f,   1.3812504f,
+         -0.36344206f, 0.6759755f,  -0.58001745f, -0.30147952f, -0.7614548f,  0.22742787f, 0.8815994f,   0.35268092f,
+         -2.9372354f,  -1.3806448f, -1.3957335f,  -1.6709452f,  -1.5544388f,  -1.6389949f, -0.36025894f, -0.83673286f});
+
+    test_case.run_with_tolerance_as_fp(0.000001f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_group_normalization_2grp_custom_eps) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/group_normalization_2grp.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+    test_case.add_input<float>({-0.424049f, 1.7215315f,  1.429421f,   0.52730036f,  2.0628972f,  -0.15856522f,
+                                2.274094f,  -1.9989003f, -1.7827071f, -0.87104136f, -1.2995626f, 0.16800839f,
+                                0.5934625f, 1.553442f,   -0.5482905f, 0.6079124f,   0.3598974f,  -0.15221423f,
+                                1.1135519f, -1.2533926f, -1.019778f,  -1.9142767f,  -1.2984604f, 0.5587884f});
+    test_case.add_input<float>({-1.4678609f, -1.8223071f});
+    test_case.add_input<float>({1.1155374f, -0.6101201f});
+
+    test_case.add_expected_output<float>(
+        Shape{1, 4, 2, 3},
+        {1.694167f,   -0.51719165f, -0.21612573f, 0.71365166f, -0.86902285f, 1.4205441f, -1.0866947f, 3.3172996f,
+         3.0944781f,  2.154863f,    2.5965219f,   1.0839586f,  -1.8562672f,  -3.540983f, 0.14745194f, -1.8816261f,
+         -1.4463723f, -0.547642f,   -2.768998f,   1.3848708f,  0.97488886f,  2.5446892f, 1.4639623f,  -1.7954159f});
+
+    test_case.run_with_tolerance_as_fp(0.000001f);
+}

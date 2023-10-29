@@ -20,7 +20,6 @@
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
-#include "openvino/core/type/nf4.hpp"
 
 /**
  * @defgroup ov_element_cpp_api Element types

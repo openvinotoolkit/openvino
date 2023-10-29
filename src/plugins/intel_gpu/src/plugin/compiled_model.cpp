@@ -169,7 +169,7 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer ib,
     auto pos = ib.tellg();
     for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
         ib.seekg(pos);
-        auto graph = std::make_shared<Graph>(ib, context, m_config, 0);
+        auto graph = std::make_shared<Graph>(ib, context, m_config, n);
         m_graphs.push_back(graph);
     }
 }
