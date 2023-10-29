@@ -25,7 +25,6 @@
 #include "read_value_inst.h"
 #include "condition_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
-#include "compilation_context.hpp"
 #include "implementation_map.hpp"
 #include "graph_optimizer/prepare_buffer_fusing.h"
 
@@ -36,6 +35,7 @@
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/compilation_context.hpp"
 
 #include "json_object.h"
 #include <string>
@@ -354,7 +354,7 @@ void primitive_inst::update_shape() {
 
     auto update_output_layout = [&](layout& layout, size_t idx) {
         auto data_padding = padding::max(_impl_params->get_output_layout(idx).data_padding, layout.data_padding);
-        layout.data_padding = padding::max(_node->get_primitive()->output_paddings[idx], data_padding);
+        layout.data_padding = padding::max(_node->get_primitive()->get_output_padding(idx), data_padding);
         if (_impl_params->get_output_layout(idx) != layout) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": update shape: was: " << _impl_params->get_output_layout(idx).to_short_string()
                                    << " now: " << layout.to_short_string() << std::endl;
@@ -991,7 +991,6 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     , _outputs({memory::ptr()})
     , _reordered_weights_cache(network.get_weights_cache_capacity())
     , _output_changed(false)
-    , _mem_allocated(allocate_memory)
     , _is_dynamic(node.is_dynamic() || node.generates_dynamic_output())
     , _type(node.type())
     , _id(node.id())
@@ -1006,9 +1005,15 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     , _can_share_buffer(node.can_share_buffer())
     , _is_constant(node.is_constant())
     , _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output()) {
+    // When dynamic shape node has huge upper boundary which causes bigger mem size than system max allocable mem size, do not allocate in build time.
+    auto output_layout = node.get_output_layout();
+    if (allocate_memory && node.is_dynamic() && (!network.get_engine().check_allocatable(output_layout, allocation_type::usm_host))) {
+        allocate_memory = false;
+    }
+    _mem_allocated = allocate_memory;
     if (allocate_memory) {
         // In case when output is mutable_data primitive, and other users dependencies are only used for
-        // suychronization, The output memory of such primitive will be fused with mutable_data
+        // synchronization, The output memory of such primitive will be fused with mutable_data
         auto users = node.get_users();
         auto user_count = users.size();
         uint32_t mutable_data_count = 0;
@@ -1497,7 +1502,13 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
             ov::intel_gpu::allow_static_input_reorder(true),
             ov::intel_gpu::allow_new_shape_infer(true)
         };
-        auto prog = program::build_program(get_network().get_engine(), t, subgraph_config, get_network().get_program()->get_task_executor(), true, false);
+        auto prog = program::build_program(get_network().get_engine(),
+                                           t,
+                                           subgraph_config,
+                                           get_network().get_program()->get_task_executor(),
+                                           get_network().get_program()->get_compilation_context_ptr(),
+                                           true,
+                                           false);
 
         _unfused_subgraph = network::allocate_network(get_network().get_stream_ptr(), prog, true, get_network().is_primary_stream());
     }

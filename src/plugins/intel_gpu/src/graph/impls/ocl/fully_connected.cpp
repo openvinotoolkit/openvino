@@ -161,6 +161,10 @@ public:
             if (with_zp) {
                 params.has_decompression_zp = true;
                 params.decompression_zero_point = convert_data_tensor(input_layouts[3]);
+            } else if (primitive->decompression_zero_point_scalar.has_value()) {
+                params.has_decompression_zp = true;
+                params.scalar_zp = true;
+                params.zp_value = primitive->decompression_zero_point_scalar.value();
             }
         }
 
