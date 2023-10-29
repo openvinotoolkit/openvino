@@ -19,6 +19,15 @@ namespace ov {
 namespace intel_cpu {
 
 /**
+ * @enum       SubStreamsMode
+ * @brief      This enum contains definition of each sub streams mode, indicating the main stream situation.
+ */
+enum class SubStreamsMode {
+    SUB_STREAMS_NULL,        //!< Do not create sub streams
+    SUB_STREAMS_FOR_SOCKET,  //!< Create sub streams for multiple sockets in main stream
+};
+
+/**
  * @brief      Limit available CPU resource in processors type table according to scheduling core type property
  * @param[in]  input_type input value of core type property.
  * @param[in]  proc_type_table candidate processors available at this time
