@@ -28,6 +28,7 @@ concurrency:
 
 jobs:
   Build:
+    timeout-minutes: 150
     defaults:
       run:
         shell: bash
@@ -57,6 +58,13 @@ jobs:
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
+
+      #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
 
       #
       # Dependencies
@@ -172,6 +180,7 @@ jobs:
 
   RPM_Packages:
     needs: Build
+    timeout-minutes: 5
     defaults:
       run:
         shell: bash
