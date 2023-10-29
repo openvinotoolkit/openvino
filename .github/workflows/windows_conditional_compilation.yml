@@ -33,6 +33,7 @@ env:
 
 jobs:
   Build:
+    timeout-minutes: 180
     defaults:
       run:
         shell: pwsh
@@ -62,6 +63,13 @@ jobs:
           path: 'testdata'
           lfs: 'true'
           ref: 'master'
+
+      #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
 
       #
       # Dependencies
