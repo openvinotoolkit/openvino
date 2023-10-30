@@ -14,8 +14,109 @@ const compiledModel = core.compileModelSync(model, 'CPU');
 const modelLike = [[model],
   [compiledModel]];
 
+describe('PrePostProcess', () => {
+
+  it('input() ', () => {
+    assert.doesNotThrow(() => new ov.PrePostProcessor(model).input());
+  });
+
+  it('input(size_t input_index)', () => {
+    assert.doesNotThrow(() => new ov.PrePostProcessor(model).input(0));
+  });
+
+  it('input(const std::string& tensor_name)', () => {
+    assert.doesNotThrow(() => new ov.PrePostProcessor(model).input('data'));
+  });
+
+});
+
+describe('InputInfo', () => {
+  it('tensor()', () => {
+    assert.doesNotThrow(() => new ov.PrePostProcessor(model).input(0).tensor());
+  });
+
+  it('preprocess()', () => {
+    assert.doesNotThrow(() => new ov.PrePostProcessor(model).input(0).preprocess());
+  });
+
+  it('model()', () => {
+    assert.doesNotThrow(() => new ov.PrePostProcessor(model).input(0).model());
+  });
+
+  it('tensor(param) throws', () => {
+    assert.throws(() => new ov.PrePostProcessor(model).input(0).tensor(0),
+      /Function does not take any parameters./);
+  });
+
+  it('preprocess(param) throws', () => {
+    assert.throws(() => new ov.PrePostProcessor(model).input(0).preprocess(0),
+      /Function does not take any parameters./);
+  });
+
+  it('model(param) throws', () => {
+    assert.throws(() => new ov.PrePostProcessor(model).input(0).model(0),
+      /Function does not take any parameters./);
+  });
+
+  it('tensor().setElementType()', () => {
+    assert.doesNotThrow(() => new ov.PrePostProcessor(model).input(0).tensor().setElementType(ov.element.u8));
+  });
+
+  it('tensor().setElementType() throws', () => {
+    assert.throws(() => new ov.PrePostProcessor(model).input(0).tensor().setElementType(),
+      /Wrong number of parameters./);
+  });
+
+  it('tensor().setElementType() throws', () => {
+    assert.throws(() => new ov.PrePostProcessor(model).input(0).tensor().setElementType('invalidType'),
+      /Cannot create ov::element::Type/);
+  });
+
+  it('tensor().SetShape()', () => {
+    assert.doesNotThrow(() => new ov.PrePostProcessor(model).input(0).tensor().setShape([1, 10]));
+  });
+
+  it('tensor().SetShape() throws', () => {
+    assert.throws(() => new ov.PrePostProcessor(model).input(0).tensor().setShape(),
+      /Wrong number of parameters./);
+  });
+
+  it('tensor().setLayout()', () => {
+    assert.doesNotThrow(() => new ov.PrePostProcessor(model).input(0).tensor().setLayout('NHWC'));
+  });
+
+  it('tensor().setLayout() throws', () => {
+    assert.throws(() => new ov.PrePostProcessor(model).input(0).tensor().setLayout(),
+      /Wrong number of parameters./);
+  });
+
+  it('preprocess().resize()', () => {
+    assert.doesNotThrow(() => new ov.PrePostProcessor(model).input(0).preprocess().resize(ov.resizeAlgorithm.RESIZE_LINEAR));
+  });
+
+  it('preprocess().resize() throws', () => {
+    assert.throws(() => new ov.PrePostProcessor(model).input(0).preprocess().resize(ov.resizeAlgorithm.RESIZE_LINEAR, 'extraArg'),
+      /Wrong number of parameters./);
+  });
+
+  it('model().setLayout()', () => {
+    assert.doesNotThrow(() => new ov.PrePostProcessor(model).input(0).model().setLayout('NCHW'));
+  });
+
+  it('model().setLayout() throws', () => {
+    assert.throws(() => new ov.PrePostProcessor(model).input(0).model().setLayout('NCHW', 'extraArg'),
+      /Wrong number of parameters./);
+  });
+
+  it('model().setLayout() throws', () => {
+    assert.throws(() => new ov.PrePostProcessor(model).input(0).model().setLayout('invalidLayout')
+    );
+  });
+
+});
+
 describe('Core.compileModelSync()', () => {
-  const tput = {'PERFORMANCE_HINT': 'THROUGHPUT'};
+  const tput = { 'PERFORMANCE_HINT': 'THROUGHPUT' };
 
   it('compileModelSync(model:Model, deviceName: string, config: {}) ', () => {
     const cm = core.compileModelSync(model, 'CPU', tput);
@@ -41,7 +142,7 @@ describe('Core.compileModelSync()', () => {
 
   it('compileModelSync(model, device, config) throws when config value is not a string', () => {
     assert.throws(
-      () => core.compileModelSync(model, 'CPU', {'PERFORMANCE_HINT': tput}),
+      () => core.compileModelSync(model, 'CPU', { 'PERFORMANCE_HINT': tput }),
       /Cannot convert Napi::Value to ov::Any/
     );
   });
@@ -53,10 +154,10 @@ describe('Core.compileModelSync()', () => {
     );
   });
 
-} );
+});
 
 describe('Core.compileModel()', () => {
-  const tput = {'PERFORMANCE_HINT': 'THROUGHPUT'};
+  const tput = { 'PERFORMANCE_HINT': 'THROUGHPUT' };
 
   it('compileModel(model:Model, deviceName: string, config: {}) ', () => {
     core.compileModel(model, 'CPU', tput).then(cm => {
@@ -79,7 +180,7 @@ describe('Core.compileModel()', () => {
 
   });
 
-  it('compileModel(model, device, config) throws when config isn't an object', () => {
+  it('compileModel(model, device, config) throws when config isn\'t an object', () => {
     assert.throws(
       () => core.compileModel(model, 'CPU', 'string').then(),
       /Cannot convert Napi::Value to std::map<std::string, ov::Any>/
@@ -88,7 +189,7 @@ describe('Core.compileModel()', () => {
 
   it('compileModel(model, device, config) throws when config value is not a string', () => {
     assert.throws(
-      () => core.compileModel(model, 'CPU', {'PERFORMANCE_HINT': tput}).then(),
+      () => core.compileModel(model, 'CPU', { 'PERFORMANCE_HINT': tput }).then(),
       /Cannot convert Napi::Value to ov::Any/
     );
   });
@@ -100,11 +201,11 @@ describe('Core.compileModel()', () => {
     );
   });
 
-} );
+});
 
 describe('Output class', () => {
 
-  modelLike.forEach( ([obj]) => {
+  modelLike.forEach(([obj]) => {
     it('Output getters and properties', () => {
       assert.strictEqual(typeof obj.output(), 'object');
       assert.strictEqual(obj.outputs.length, 1);
@@ -122,7 +223,7 @@ describe('Output class', () => {
 });
 
 describe('Input class for ov::Input<const ov::Node>', () => {
-  modelLike.forEach( ([obj]) => {
+  modelLike.forEach(([obj]) => {
     it('input() is typeof object', () => {
       assert.strictEqual(typeof obj.input(), 'object');
     });
