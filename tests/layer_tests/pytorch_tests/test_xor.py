@@ -72,8 +72,8 @@ class TestXor(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_xor_int(self, ie_device, precision, ir_version):
-        self.input_data = (np.array(3, dtype=np.int),
-                           np.array(4, dtype=np.int))
+        self.input_data = (np.array(3, dtype=np.int64),
+                           np.array(4, dtype=np.int64))
         self._test(*self.create_model_int_input(),
                    ie_device, precision, ir_version)
 
@@ -81,7 +81,7 @@ class TestXor(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_xor_tensor(self, ie_device, precision, ir_version):
-        self.input_data = (np.array([3, 5, 8], dtype=np.int), np.array(
-            [7, 11, 2], dtype=np.int))
+        self.input_data = (np.array([3, 5, 8], dtype=np.int64), np.array(
+            [7, 11, 2], dtype=np.int64))
         self._test(*self.create_model_tensor_input(),
                    ie_device, precision, ir_version)
