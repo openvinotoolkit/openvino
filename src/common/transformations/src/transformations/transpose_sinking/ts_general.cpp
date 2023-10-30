@@ -85,7 +85,7 @@ bool TSGeneral::run_on_model(const std::shared_ptr<ov::Model>& f) {
         manager.register_pass<TSGeneralBackward>();
         manager.register_pass<ConstantFolding>();
         manager.register_pass<TSResetNoSinkingAttribute>();
-        manager.register_pass<EnableShapeOfConstantFolding>();
+        manager.register_pass<EnableShapeOfConstantFolding>(/* check_shape */ false);
         manager.run_passes(f);
     }
 
