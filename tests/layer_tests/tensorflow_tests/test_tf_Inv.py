@@ -22,7 +22,7 @@ class TestInv(CommonTFLayerTest):
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
             x = tf.compat.v1.placeholder(input_type, input_shape, 'x')
-            tf.raw_ops.Inv(input=x)
+            tf.raw_ops.Inv(x=x)
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
