@@ -1187,7 +1187,7 @@ jobs:
       run:
         shell: bash
     runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores'}}
-    timeout-minutes: ${{ github.event_name == 'schedule' && 300 || 5 }}
+    timeout-minutes: ${{ github.event_name == 'schedule' && 400 || 5 }}
     # TODO: Switch back to self-hosted runners
     # container:
     #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
@@ -1264,7 +1264,7 @@ jobs:
   PyTorch_Models_Tests:
     name: PyTorch Models tests
     needs: Build
-    timeout-minutes: ${{ github.event_name == 'schedule' && 300 || 30 }}
+    timeout-minutes: ${{ github.event_name == 'schedule' && 400 || 30 }}
     defaults:
       run:
         shell: bash
