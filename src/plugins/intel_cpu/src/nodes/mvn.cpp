@@ -1777,7 +1777,7 @@ MVN::MVN(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr conte
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     mvnAttrs.epsMode_ = INSIDE_SQRT;
@@ -1797,7 +1797,7 @@ MVN::MVN(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr conte
         mvnAttrs.epsValue_ = mvnOp->get_eps();
         mvnAttrs.initAcrossChannels_ = mvnOp->get_across_channels();
     } else {
-        IE_THROW(NotImplemented) << "Node is not an instance of MVN from the operation set v0 or v6";
+        OPENVINO_THROW_NOT_IMPLEMENTED("Node is not an instance of MVN from the operation set v0 or v6");
     }
     mvnAttrs.execAcrossChannels_ = mvnAttrs.initAcrossChannels_;
 }
@@ -1986,7 +1986,7 @@ MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
             mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::sse41>(jcp));
         }
     } else {
-        IE_THROW() << "Can't create jit MVN kernel";
+        OPENVINO_THROW("Can't create jit MVN kernel");
     }
 #endif // OPENVINO_ARCH_X86_64
     if (mvn_kernel)
@@ -1999,7 +1999,7 @@ MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
 
 void MVN::MVNJitExecutor::exec(const uint8_t *src_data, uint8_t *dst_data, const void *post_ops_data_, const VectorDims& shape5d) {
     if (!mvn_mean_kernel || (mvnAttrs.normalizeVariance_ && !mvn_variance_kernel) || !mvn_kernel) {
-        IE_THROW() << "MVN layer doesn't create kernel to execute on sse41 above platform.";
+        OPENVINO_THROW("MVN layer doesn't create kernel to execute on sse41 above platform.");
     }
     if (mvnAttrs.layout == MVNLayoutType::mvn_planar) {
         mvn_pln(src_data, dst_data, post_ops_data_, shape5d);
@@ -2020,11 +2020,11 @@ void MVN::prepareParams() {
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << "Destination memory didn't allocate.";
+        OPENVINO_THROW("Destination memory didn't allocate.");
     if (!srcMemPtr || !srcMemPtr->isAllocated())
-        IE_THROW() << "Input memory didn't allocate.";
+        OPENVINO_THROW("Input memory didn't allocate.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
+        OPENVINO_THROW("Preferable primitive descriptor is not set.");
 
     const VectorDims in_dims = srcMemPtr->getStaticDims();
     transformTo5DCase(in_dims);
@@ -2110,7 +2110,12 @@ void MVN::transformTo5DCase(const VectorDims& shape) {
         case 3 : { shape5D = {shape[0], shape[1], 1, shape[2], 1}; break; }
         case 4 : { shape5D = {shape[0], shape[1], 1, shape[2], shape[3]}; break; }
         case 5 : { shape5D = {shape[0], shape[1], shape[2], shape[3], shape[4]}; break; }
-        default : { IE_THROW() << "MVN layer with name '" << getName() << "' doesn't support planar layout with rank: " << shape.size(); }
+        default: {
+            OPENVINO_THROW("MVN layer with name '",
+                           getName(),
+                           "' doesn't support planar layout with rank: ",
+                           shape.size());
+        }
     }
 }
 
@@ -2129,7 +2134,11 @@ void MVN::setPostOps(dnnl::primitive_attr &attr, bool initWeights) {
             eltwiseNode->appendPostOps(ops, shape5D, postOpsDataPtrs);
             continue;
         }
-        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
+        OPENVINO_THROW("Fusing of ",
+                       NameFromType(node->getType()),
+                       " operation to ",
+                       NameFromType(this->getType()),
+                       " node is not implemented");
     }
     attr.set_post_ops(ops);
 }
@@ -2149,7 +2158,7 @@ void MVN::execute(dnnl::stream strm) {
     } else if (aclExecPtr) {
         aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, postOpsDataPtrs.data());
     } else {
-        IE_THROW() << "Can't execute Interpolate node. Primitive didn't created";
+        OPENVINO_THROW("Can't execute Interpolate node. Primitive didn't created");
     }
 }
 

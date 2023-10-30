@@ -32,17 +32,17 @@ ShapeOf::ShapeOf(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CP
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "ShapeOf layer with name '" + getName() + "' ";
         if (op->get_input_partial_shape(0).size() == 0)
-            IE_THROW() << errorPrefix << "gets unsupported input 0D tensor (scalar)";
+            OPENVINO_THROW(errorPrefix, "gets unsupported input 0D tensor (scalar)");
     } else {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 }
 
 void ShapeOf::getSupportedDescriptors() {
     if (getParentEdges().size() != 1)
-        IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
+        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges: ", getParentEdges().size());
     if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
+        OPENVINO_THROW(errorPrefix, "has incorrect number of output edges: ", getChildEdges().size());
 }
 
 void ShapeOf::initSupportedPrimitiveDescriptors() {
@@ -69,7 +69,7 @@ void ShapeOf::execute(dnnl::stream strm) {
     auto inDims = inPtr->getStaticDims();
     size_t dimsCount = inDims.size();
     if (outPtr->getStaticDims().size() != 1 || dimsCount != outPtr->getStaticDims()[0])
-        IE_THROW() << errorPrefix << "has inconsistent input shape and output size";
+        OPENVINO_THROW(errorPrefix, "has inconsistent input shape and output size");
 
     auto *dst = reinterpret_cast<int *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 

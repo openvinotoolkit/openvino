@@ -148,7 +148,7 @@ inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine:
 */
 inline std::vector<float> makeAlignedBuffer(size_t targetSize, const std::vector<float> &buffer, int align = -1) {
     if (buffer.empty()) {
-        IE_THROW() << "Can't align buffer, becuase buffer is empty";
+        OPENVINO_THROW("Can't align buffer, becuase buffer is empty");
     }
 
     auto alignedBuffer = buffer;

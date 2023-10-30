@@ -36,24 +36,23 @@ bool CumSum::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
 CumSum::CumSum(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = "CumSum layer with name '" + op->get_friendly_name() + "' ";
 
     if ((getOriginalInputsNumber() != numOfInputs && getOriginalInputsNumber() != (numOfInputs - 1)) || getOriginalOutputsNumber() != 1)
-        IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
 
     const auto &dataShape = getInputShapeAtPort(CUM_SUM_DATA);
     numOfDims = dataShape.getRank();
     if (numOfDims < 1) {
-        IE_THROW() << errorPrefix << " doesn't support 'data' input tensor with rank: " << numOfDims;
+        OPENVINO_THROW(errorPrefix, " doesn't support 'data' input tensor with rank: ", numOfDims);
     }
 
     const auto cumsum = std::dynamic_pointer_cast<const ngraph::opset3::CumSum>(op);
     if (cumsum == nullptr)
-        IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
-            "' is not an instance of CumSum from opset3.";
+        OPENVINO_THROW("Operation with name '", op->get_friendly_name(), "' is not an instance of CumSum from opset3.");
 
     exclusive = cumsum->is_exclusive();
     reverse = cumsum->is_reverse();
@@ -61,11 +60,11 @@ CumSum::CumSum(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
     if (getOriginalInputsNumber() == numOfInputs) {
         const auto axis_shape = cumsum->get_input_partial_shape(AXIS);
         if (axis_shape.is_dynamic() || !ngraph::is_scalar(axis_shape.to_shape()))
-            IE_THROW() << errorPrefix << " doesn't support 'axis' input tensor with non scalar rank";
+            OPENVINO_THROW(errorPrefix, " doesn't support 'axis' input tensor with non scalar rank");
     }
 
     if (dataShape != getOutputShapeAtPort(0))
-        IE_THROW() << errorPrefix << " has different 'data' input and output dimensions";
+        OPENVINO_THROW(errorPrefix, " has different 'data' input and output dimensions");
 }
 
 void CumSum::initSupportedPrimitiveDescriptors() {
@@ -77,12 +76,12 @@ void CumSum::initSupportedPrimitiveDescriptors() {
                 Precision::I8, Precision::U8,
                 Precision::I16, Precision::I32, Precision::I64, Precision::U64,
                 Precision::BF16, Precision::FP16, Precision::FP32))
-        IE_THROW() << errorPrefix << " has unsupported 'data' input precision: " << dataPrecision.name();
+        OPENVINO_THROW(errorPrefix, " has unsupported 'data' input precision: ", dataPrecision.name());
 
     if (inputShapes.size() == numOfInputs) {
         const auto &axisTensorPrec = getOriginalInputPrecisionAtPort(AXIS);
         if (axisTensorPrec != Precision::I32 && axisTensorPrec != Precision::I64)
-            IE_THROW() << errorPrefix << " has unsupported 'axis' input precision: " << axisTensorPrec.name();
+            OPENVINO_THROW(errorPrefix, " has unsupported 'axis' input precision: ", axisTensorPrec.name());
     }
 
     std::vector<PortConfigurator> inDataConf;
@@ -246,12 +245,12 @@ size_t CumSum::getAxis(const IMemory& _axis, const IMemory& _data) const {
             axisValueFromBlob = axisPtr[0];
             break;
         }
-        default : {
-            IE_THROW() << errorPrefix << "  doesn't support 'axis' input with precision: " << axisPrecision.name();
+        default: {
+            OPENVINO_THROW(errorPrefix, "  doesn't support 'axis' input with precision: ", axisPrecision.name());
         }
     }
     if (axisValueFromBlob < -dataShapeSize || axisValueFromBlob > dataShapeSize - 1)
-        IE_THROW() << errorPrefix << "  has axis with a value out of range: " << axisValueFromBlob;
+        OPENVINO_THROW(errorPrefix, "  has axis with a value out of range: ", axisValueFromBlob);
     return axisValueFromBlob >= 0 ? axisValueFromBlob : (axisValueFromBlob + dataShapeSize);
 }
 

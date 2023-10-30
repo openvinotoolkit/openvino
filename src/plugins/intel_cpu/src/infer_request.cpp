@@ -220,7 +220,7 @@ static inline void change_edge_ptr(const EdgePtr& edge, ov::SoPtr<ov::ITensor>& 
     auto size = tensor->get_byte_size();
     auto& mem = edge->getMemory();
     auto memMngr = mem.getMemoryMngr();
-    IE_ASSERT(memMngr);
+    OPENVINO_ASSERT(memMngr);
     memMngr->setExtBuff(tensor->data(), size);
 }
 
@@ -447,8 +447,10 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
     if (is_input) {
         const auto netInPrc = port.get_element_type();
         if (netInPrc != tensor->get_element_type()) {
-            IE_THROW(ParameterMismatch) << "Failed to set input tensor with precision: " << tensor->get_element_type()
-                                        << ", since the model input tensor precision is: " << netInPrc;
+            OPENVINO_THROW("ParameterMismatch: Failed to set tensor for input with precision: ",
+                           tensor->get_element_type(),
+                           ", since the model input tensor precision is: ",
+                           netInPrc);
         }
 
         const auto& shape = port.get_partial_shape();
@@ -493,8 +495,10 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
     } else {
         const auto netOutPrc = port.get_element_type();
         if (netOutPrc != tensor->get_element_type()) {
-            IE_THROW(ParameterMismatch) << "Failed to set output tensor with precision: " << tensor->get_element_type()
-                                        << ", if model output tensor precision is: " << netOutPrc;
+            OPENVINO_THROW("ParameterMismatch: Failed to set tensor for output with precision: ",
+                           tensor->get_element_type(),
+                           ", if model output tensor precision is: ",
+                           netOutPrc);
         }
 
         const auto& shape = port.get_partial_shape();
@@ -644,18 +648,23 @@ void SyncInferRequest::init_tensor(const std::string& name) {
                      std::any_of(blobDims.begin(), blobDims.end(), [](const size_t& dims) {
                          return dims != 0;
                      }))) {
-                    IE_THROW(ParameterMismatch)
-                        << "Network input and output use the same name: " << name
-                        << ", but expect tensors with different shapes. Input shape: " << ov::PartialShape(blobDims)
-                        << ", output shape: " << port_shape;
+                    OPENVINO_THROW("ParameterMismatch: Network input and output use the same name: ",
+                                   name,
+                                   ", but expect tensors with different shapes. Input shape: ",
+                                   ov::PartialShape(blobDims),
+                                   ", output shape: ",
+                                   port_shape);
                 }
 
                 const auto netOutPrc = port.get_element_type();
                 if (netOutPrc != tensor->get_element_type()) {
-                    IE_THROW(ParameterMismatch)
-                        << "Network input and output use the same name: " << name
-                        << " but expect tensor with different precision: " << tensor->get_element_type()
-                        << " for input and " << netOutPrc << " for output.";
+                    OPENVINO_THROW("ParameterMismatch: Network input and output use the same name: ",
+                                   name,
+                                   " but expect tensor with different precision: ",
+                                   tensor->get_element_type(),
+                                   " for input and ",
+                                   netOutPrc,
+                                   " for output.");
                 }
             }
             m_outputs[name] = tensor;

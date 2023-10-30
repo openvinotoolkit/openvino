@@ -34,13 +34,13 @@ ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = "ExperimentalDetectronPriorGridGenerator layer with name '" + op->get_friendly_name() + "'";
     const auto priorGridGen = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronPriorGridGenerator>(op);
     if (getOriginalInputsNumber() != 3 || getOriginalOutputsNumber() != 1)
-        IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
 
     const auto &attr = priorGridGen->get_attrs();
     grid_w_ = attr.w;

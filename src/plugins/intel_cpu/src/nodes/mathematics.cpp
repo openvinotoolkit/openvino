@@ -46,7 +46,7 @@ Math::Math(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr con
       gamma(0.f) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     getInitializers()[op->get_type_info()](op, *this);
@@ -193,7 +193,7 @@ void Math::execute(dnnl::stream strm) {
             });
             break;
         default:
-            IE_THROW() << "Incorrect Reduce layer type";
+            OPENVINO_THROW("Incorrect Reduce layer type");
     }
 }
 

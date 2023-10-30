@@ -36,24 +36,24 @@ GatherElements::GatherElements(const std::shared_ptr<ngraph::Node>& op, const Gr
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     errorPrefix_ = std::string("Layer GatherElements with name '") + op->get_friendly_name() + "'";
 
     if (inputShapes.size() != 2 || outputShapes.size() != 1)
-        IE_THROW() << errorPrefix_ << " has invalid number of input/output edges.";
+        OPENVINO_THROW(errorPrefix_, " has invalid number of input/output edges.");
 
     const auto dataRank = getInputShapeAtPort(dataIndex_).getRank();
     const auto indicesRank = getInputShapeAtPort(indicesIndex_).getRank();
     if (dataRank != indicesRank)
-        IE_THROW() << errorPrefix_ << " has invalid input shapes. Inputs 'Data' and 'Indices' must have equal ranks.";
+        OPENVINO_THROW(errorPrefix_, " has invalid input shapes. Inputs 'Data' and 'Indices' must have equal ranks.");
 
     auto gatherElementsOp = ov::as_type_ptr<ov::op::v6::GatherElements>(op);
     auto axis = gatherElementsOp->get_axis();
     if (axis < 0)
         axis += dataRank;
     if (axis < 0 || axis >= static_cast<int>(dataRank))
-        IE_THROW() << errorPrefix_ << " has invalid axis attribute: " << axis;
+        OPENVINO_THROW(errorPrefix_, " has invalid axis attribute: ", axis);
     axis_ = axis;
 }
 
@@ -81,12 +81,12 @@ void GatherElements::initSupportedPrimitiveDescriptors() {
                 sizeof(PrecisionTrait<Precision::I32>::value_type),
                 sizeof(PrecisionTrait<Precision::I16>::value_type),
                 sizeof(PrecisionTrait<Precision::I8>::value_type))) {
-        IE_THROW() << errorPrefix_ << " has unsupported 'inputData' input precision: " << inDataPrecision;
+        OPENVINO_THROW(errorPrefix_, " has unsupported 'inputData' input precision: ", inDataPrecision);
     }
 
     Precision indicesPrecision = getOriginalInputPrecisionAtPort(indicesIndex_);
     if (!one_of(indicesPrecision, Precision::I32, Precision::I64)) {
-        IE_THROW() << errorPrefix_ << " has unsupported 'indices' input precision: " << indicesPrecision;
+        OPENVINO_THROW(errorPrefix_, " has unsupported 'indices' input precision: ", indicesPrecision);
     }
 
     dataTypeSize_ = inDataPrecision.size();
@@ -143,7 +143,7 @@ void GatherElements::execute(dnnl::stream strm) {
         case sizeof(PrecisionTrait<Precision::I8>::value_type):
             return directExecution<PrecisionTrait<Precision::I8>::value_type>();
         default:
-            return IE_THROW() << "Unsupported data type size";
+            OPENVINO_THROW("Unsupported data type size");
     }
 }
 

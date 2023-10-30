@@ -194,7 +194,7 @@ InferenceEngine::Precision eltwise_precision_helper::get_precision(const size_t 
     }
 
     if (exec_prc == Precision::UNSPECIFIED) {
-        IE_THROW() << "Eltwise jitter failed to specify execution precision for Eltwise node";
+        OPENVINO_THROW("Eltwise jitter failed to specify execution precision for Eltwise node");
     }
 
     return exec_prc;
@@ -252,7 +252,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
         OV_CASE(Algorithm::EltwiseSelect, jit_select_emitter));
 
     if (precisions.empty())
-        IE_THROW() << "Unsupported operation type for Eltwise emitter";
+        OPENVINO_THROW("Unsupported operation type for Eltwise emitter");
 
     return precisions;
 }
@@ -283,7 +283,7 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
         const auto& p = post_ops_.get();
         for (int i = 0; i < post_ops_.len(); ++i) {
             if (!p->entry_[i].is_quantization()) {
-                IE_THROW() << "Eltwise jitter error. Unsupported post op detected";
+                OPENVINO_THROW("Eltwise jitter error. Unsupported post op detected");
             }
             quantization_injectors.push_back(std::make_shared<jit_uni_quantization_injector_f32<isa>>(
                     this, p->entry_[i], vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
@@ -385,7 +385,7 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
                 is_valid_configuration = false;
 
             if (!is_valid_configuration)
-                IE_THROW() << "Eltwise jitter has invalid configuration for Eltwise node";
+                OPENVINO_THROW("Eltwise jitter has invalid configuration for Eltwise node");
 
             L(unroll_loop_label);
             {
@@ -626,7 +626,7 @@ private:
         OV_CASE(Algorithm::EltwiseSelect, jit_select_emitter));
 
         if (!ctx.emitter)
-            IE_THROW() << "Unsupported operation type for Eltwise emitter";
+            OPENVINO_THROW("Unsupported operation type for Eltwise emitter");
 
         return ctx.emitter;
     }
@@ -685,7 +685,7 @@ private:
 
                 quantization_post_op_idx++;
             } else {
-                IE_THROW(Unexpected) << "Eltwise jit kernel: unexpected operation type";
+                OPENVINO_THROW("Unexpected: Eltwise jit kernel: unexpected operation type");
             }
         }
     }
@@ -1065,7 +1065,9 @@ const std::map<const ngraph::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::g
                 node.algorithm = Algorithm::EltwiseGeluTanh;
                 node.onednnAlgorithm = dnnl::algorithm::eltwise_gelu_tanh;
             } else {
-                IE_THROW(NotImplemented) << "CPU Eltwise node doesn't support ngraph operation Gelu with approximation mode: " << approximationMode;
+                OPENVINO_THROW_NOT_IMPLEMENTED(
+                    "CPU Eltwise node doesn't support ngraph operation Gelu with approximation mode: ",
+                    approximationMode);
             }
         }},
         {ngraph::op::v0::Elu::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
@@ -1330,9 +1332,9 @@ public:
         };
 
         if (inpDims.empty()) {
-            IE_THROW() << "Can not make Eltwise executor from empty input dims array";
+            OPENVINO_THROW("Can not make Eltwise executor from empty input dims array");
         } else if (inpDims.front().empty()) {
-            IE_THROW() << "Can not make Eltwise executor from empty input dims members";
+            OPENVINO_THROW("Can not make Eltwise executor from empty input dims members");
         }
 
         jit_eltwise_params jep = {};
@@ -1345,7 +1347,7 @@ public:
         jep.dims.resize(jep.input_size, 1);
 
         if (outBlkDims.empty()) {
-            IE_THROW() << "Can not make Eltwise executor from empty block dims vector";
+            OPENVINO_THROW("Can not make Eltwise executor from empty block dims vector");
         }
 
         size_t outRank = outBlkDims.size();
@@ -1356,12 +1358,13 @@ public:
         for (size_t i = 0; i < inpDims.size(); i++) {
             for (size_t j = 0; j < inpDims[i].size(); j++) {
                 if (inpDims[i][j] != jep.dims[j] && inpDims[i][j] != 1)
-                    IE_THROW() << "Eltwise executor got invalid input/output dims configuration.";
+                    OPENVINO_THROW("Eltwise executor got invalid input/output dims configuration.");
             }
         }
 
         if (outBlkDims.size() != outOrder.size()) {
-            IE_THROW() << "Can not make Eltwise executor due to out blocked dims and out order vectors size mismatch.";
+            OPENVINO_THROW(
+                "Can not make Eltwise executor due to out blocked dims and out order vectors size mismatch.");
         }
 
         int lastUnchangedAxis = 0;
@@ -1443,7 +1446,7 @@ public:
         }
 
         if (inpPrc.size() != inputsNumber) {
-            IE_THROW() << "Can not make Eltwise executor. Wrong input precisions vector size.";
+            OPENVINO_THROW("Can not make Eltwise executor. Wrong input precisions vector size.");
         }
 
         if (!useRuntimePtrs) {
@@ -1487,7 +1490,7 @@ public:
         } else if (mayiuse(x64::sse41)) {
             _pKernel.reset(new jit_uni_eltwise_generic<x64::sse41>(jep, eltwise_data, ops_list, post_ops));
         } else {
-            IE_THROW() << "Can't create jit eltwise kernel";
+            OPENVINO_THROW("Can't create jit eltwise kernel");
         }
 #endif // OPENVINO_ARCH_X86_64
         if (_pKernel)
@@ -1496,7 +1499,7 @@ public:
 
     void exec(const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) override {
         if (!_pKernel)
-            IE_THROW() << "Can't execute, kernel for eltwise node is not compiled";
+            OPENVINO_THROW("Can't execute, kernel for eltwise node is not compiled");
 
         if (_pKernel->jep_.input_size == optimalTensorRank) {
             // execute Optimized 6D
@@ -1543,7 +1546,7 @@ public:
     }
     const VectorDims& getOutDims() const override {
         if (!_pKernel)
-            IE_THROW() << "Can't get jit eltwise params, kernel for Eltwise executor is not compiled";
+            OPENVINO_THROW("Can't get jit eltwise params, kernel for Eltwise executor is not compiled");
         return _pKernel->jep_.dims;
     }
     size_t getBatchDimIdx() const override {
@@ -1569,13 +1572,13 @@ public:
                            std::vector<VectorDims> inpDims)
     : _opData(std::move(opData)), _inpDims(inpDims) {
         if (inpDims.empty()) {
-            IE_THROW() << "Can not make Eltwise executor from empty input dims array";
+            OPENVINO_THROW("Can not make Eltwise executor from empty input dims array");
         } else if (inpDims.front().empty()) {
-            IE_THROW() << "Can not make Eltwise executor from empty input dims array members";
+            OPENVINO_THROW("Can not make Eltwise executor from empty input dims array members");
         }
 
         if (outBlkDims.empty()) {
-            IE_THROW() << "Can not make Eltwise executor from empty output blocked dims vector";
+            OPENVINO_THROW("Can not make Eltwise executor from empty output blocked dims vector");
         }
 
         _inputNum = inpDims.size();
@@ -1792,7 +1795,7 @@ public:
                         break;
                     case Algorithm::EltwiseIsNaN:             *dst_ptr_f = std::isnan(src_f[0]); break;
                     case Algorithm::EltwiseSelect:            *dst_ptr_f = src_f[0] ? src_f[1] : src_f[2]; break;
-                    default: IE_THROW() << "Unsupported operation type for Eltwise executor";
+                    default: OPENVINO_THROW("Unsupported operation type for Eltwise executor");
                 }
             }
         });
@@ -1956,7 +1959,7 @@ Eltwise::Eltwise(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CP
     Node(op, context, EltwiseShapeInferFactory()), broadcastingPolicy(Undefined) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     getInitializers().at(op->get_type_info())(op, *this);
 }
@@ -2019,7 +2022,7 @@ size_t Eltwise::getOpInputsNum() const {
         case Algorithm::EltwiseMulAdd:
         case Algorithm::EltwiseSelect:
             return 3;
-        default: IE_THROW() << "Unsupported operation for Eltwise node with name `" << getName() << "`.";
+        default: OPENVINO_THROW("Unsupported operation for Eltwise node with name `", getName(), "`.");
     }
 }
 
@@ -2037,9 +2040,9 @@ bool Eltwise::isWithBroadcast() {
 
 void Eltwise::getSupportedDescriptors() {
     if (getParentEdges().size() < 1)
-        IE_THROW() << "Incorrect number of input edges for layer " << getName();
+        OPENVINO_THROW("Incorrect number of input edges for layer ", getName());
     if (getChildEdges().empty())
-        IE_THROW() << "Incorrect number of output edges for layer " << getName();
+        OPENVINO_THROW("Incorrect number of output edges for layer ", getName());
 }
 
 void Eltwise::initSupportedPrimitiveDescriptors() {
@@ -2081,7 +2084,9 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     bool canUseOptimizedShapeAgnosticImpl = isDynamicNode() && canUseOptimizedImpl;
 
     if (!canUseOptimizedImpl && !fusedWith.empty()) {
-        IE_THROW(Unexpected) << "Eltwise node with name '" << getName() << "' uses reference impl, but unexpectedly fused with other ops";
+        OPENVINO_THROW("Unexpected: Eltwise node with name '",
+                       getName(),
+                       "' uses reference impl, but unexpectedly fused with other ops");
     }
 
     size_t expectedInputsNum = getOpInputsNum();
@@ -2092,12 +2097,22 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         }
     }
     if (getParentEdges().size() > MAX_ELTWISE_INPUTS)
-        IE_THROW() << "Eltwise node with name `" << getName() << "` doesn't support more than " << MAX_ELTWISE_INPUTS
-                           << " inputs (actual = " << getParentEdges().size() << ")";
+        OPENVINO_THROW("Eltwise node with name `",
+                       getName(),
+                       "` doesn't support more than ",
+                       MAX_ELTWISE_INPUTS,
+                       " inputs (actual = ",
+                       getParentEdges().size(),
+                       ")");
 
     if (expectedInputsNum != getParentEdges().size())
-        IE_THROW() << "Eltwise node with name `" << getName() << "` has invalid input number of inputs: expected = " << expectedInputsNum
-                           << " (actual = " << getParentEdges().size() << ")";
+        OPENVINO_THROW("Eltwise node with name `",
+                       getName(),
+                       "` has invalid input number of inputs: expected = ",
+                       expectedInputsNum,
+                       " (actual = ",
+                       getParentEdges().size(),
+                       ")");
 
     std::vector<InferenceEngine::Precision> inputPrecisions;
     for (const auto &prec : getOriginalInputPrecisions()) {
@@ -2119,7 +2134,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             canUseOptimizedImpl ? EltwiseImplType::optimized : EltwiseImplType::reference;
 
     if (inputPrecisions.size() != getParentEdges().size())
-        IE_THROW() << "Eltwise node with name `" << getName() << "` has invalid input precisions configuration.";
+        OPENVINO_THROW("Eltwise node with name `", getName(), "` has invalid input precisions configuration.");
 
     InferenceEngine::Precision outputPrecision = getOriginalOutputPrecisionAtPort(0);
     if (!fusedWith.empty()) {
@@ -2133,7 +2148,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                 hasBF16 = true;
 
         if (outputPrecision == Precision::BF16 || hasBF16)
-            IE_THROW() << "Eltwise node with name `" << getName() << "` doesn't support BF16 precision on this target.";
+            OPENVINO_THROW("Eltwise node with name `", getName(), "` doesn't support BF16 precision on this target.");
     }
 
 #if defined(OV_CPU_WITH_ACL)
@@ -2183,7 +2198,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             } else if (prc == Precision::FP64) {
                 return Precision(Precision::FP32);
             } else {
-                IE_THROW() << "Eltwise node with name `" << getName() << "` doesn't support " << prc << " precision.";
+                OPENVINO_THROW("Eltwise node with name `", getName(), "` doesn't support ", prc, " precision.");
             }
         } else {
             return prc;
@@ -2485,7 +2500,11 @@ void Eltwise::prepareParams() {
             } else if (node->getType() == Type::FakeQuantize) {
                 node->appendPostOps(key.postOps, {}, fqDataPtrs);
             } else {
-                IE_THROW(Unexpected) << "Eltwise node with name '" << getName() << "' has unexpected fused op of type '" << node->getTypeStr() << "'";
+                OPENVINO_THROW("Unexpected: Eltwise node with name '",
+                               getName(),
+                               "' has unexpected fused op of type '",
+                               node->getTypeStr(),
+                               "'");
             }
         }
 
@@ -2583,7 +2602,7 @@ void Eltwise::execute(dnnl::stream strm) {
 
         aclExecPtr->exec(srcMemory, dstMemory, fqDataPtrs.data());
     } else {
-        IE_THROW() << "Can't execute eltwise node with name: " << getName() << ". Primitive isn't created";
+        OPENVINO_THROW("Can't execute eltwise node with name: ", getName(), ". Primitive isn't created");
     }
 }
 
@@ -2672,7 +2691,7 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
         case dnnl::algorithm::eltwise_round_half_away_from_zero:
             ops.append_eltwise(getOneDnnAlgorithm(), getAlpha(), getBeta());
             break;
-        default: IE_THROW() << errorPrefix << "as post operation is not supported";
+        default: OPENVINO_THROW(errorPrefix, "as post operation is not supported");
         }
     } else {
         // per-tensor EltwisePowerStatic can be implemented with more well-supported eltwise postOps
@@ -2699,7 +2718,7 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
             if (scales.size() == 1) {
                 depthwiseData.resize(channelSize, depthwiseData.back());
             } else if (scales.size() != channelSize) {
-                IE_THROW() << errorPrefix << "failed due to scales data size inconsistency";
+                OPENVINO_THROW(errorPrefix, "failed due to scales data size inconsistency");
             }
             depthwiseData.insert(depthwiseData.end(), shifts.begin(), shifts.end());
             if (shifts.empty()) {
@@ -2708,7 +2727,7 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
             } else if (shifts.size() == 1) {
                 depthwiseData.resize(2 * channelSize, depthwiseData.back());
             } else if (shifts.size() != channelSize) {
-                IE_THROW() << errorPrefix << "failed due to shifts data size inconsistency";
+                OPENVINO_THROW(errorPrefix, "failed due to shifts data size inconsistency");
             }
             depthwiseDataSize = 2 * channelSize;
 
@@ -2719,7 +2738,7 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
         }
 
         if (depthwiseData.empty())
-            IE_THROW() << errorPrefix << "cannot be performed since buffers are not allocated";
+            OPENVINO_THROW(errorPrefix, "cannot be performed since buffers are not allocated");
 
         std::array<size_t, 2> offsets = {0};
         offsets[1] = offsets[0] + channelSize;
@@ -2740,7 +2759,7 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
             ops.append_depthwise(dnnl::algorithm::depthwise_prelu, offsets);
             break;
         default:
-            IE_THROW() << errorPrefix << "as post operation is not supported";
+            OPENVINO_THROW(errorPrefix, "as post operation is not supported");
         }
 
         appendMemory(depthwiseData, depthwiseMemory, postOpsMem);
@@ -2751,7 +2770,7 @@ void Eltwise::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, s
     std::vector<MemoryPtr> postOpsMemPtrs;
     appendPostOpsImpl(ops, postOpDims, postOpsMemPtrs, channelAxis);
 
-    IE_ASSERT(postOpsMemPtrs.size() <= 1) << "at most 1 post ops memory args can be appended.";
+    OPENVINO_ASSERT(postOpsMemPtrs.size() <= 1, "at most 1 post ops memory args can be appended.");
 
     if (!postOpsMemPtrs.empty()) {
         postOpsMem[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = postOpsMemPtrs[0];
@@ -2791,7 +2810,7 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp,
             // call dnnlpoc's specialized API to generate optimized postOps sequence
             dnnlpoc.appendLinear({getAlpha()}, {getBeta()}, isLastPostOp);
             break;
-        default: IE_THROW() << errorPrefix << "as post operation is not supported";
+        default: OPENVINO_THROW(errorPrefix, "as post operation is not supported");
         }
     } else {
         switch (getAlgorithm()) {
@@ -2818,7 +2837,7 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp,
             dnnlpoc.appendBinary(dnnl::algorithm::binary_prelu, scales);
             break;
         default:
-            IE_THROW() << errorPrefix << "as post operation is not supported";
+            OPENVINO_THROW(errorPrefix, "as post operation is not supported");
         }
     }
     return true;

@@ -1773,13 +1773,16 @@ public:
             } else if (attr.shape_calculation_mode == ngInterpShapeCalcMode::SIZES) {
                 port_mask = PortMask(Interpolate::TARGET_SHAPE_ID, Interpolate::AXES_ID);
             } else {
-                IE_ASSERT(false) << "Unsupported interpolate shape calculation mode";
+                OPENVINO_ASSERT(false, "Unsupported interpolate shape calculation mode");
             }
         } else if (auto interp11 = ov::as_type_ptr<ngraph::opset11::Interpolate>(m_op)) {
             port_mask = PortMask(Interpolate::SIZE_OR_SCALE_ID_V11, Interpolate::AXES_ID_V11);
         } else {
-            IE_THROW() << "Shape infer factory cannot be created for " << m_op->get_type_name() << " node with name: " << m_op->get_friendly_name()
-                <<", only versions 4 and 11 are supported.";
+            OPENVINO_THROW("Shape infer factory cannot be created for ",
+                           m_op->get_type_name(),
+                           " node with name: ",
+                           m_op->get_friendly_name(),
+                           ", only versions 4 and 11 are supported.");
         }
         return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), port_mask);
     }
@@ -1799,9 +1802,9 @@ Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const GraphCon
             is_version11 = false;
             const auto numInputs = inputShapes.size();
             if (numInputs != 3 && numInputs != 4)
-                IE_THROW() << errorPrefix << " has incorrect number of input edges";
+                OPENVINO_THROW(errorPrefix, " has incorrect number of input edges");
             if (outputShapes.size() != 1)
-                IE_THROW() << errorPrefix << " has incorrect number of output edges";
+                OPENVINO_THROW(errorPrefix, " has incorrect number of output edges");
             isAxesSpecified = numInputs != 3;
 
             const auto &interpAttr = interp->get_attrs();
@@ -1821,7 +1824,7 @@ Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const GraphCon
             } else if (interpMode == ngInterpMode::CUBIC) {
                 interpAttrs.mode = InterpolateMode::cubic;
             } else {
-                IE_THROW() << errorPrefix << " has unsupported interpolate mode";
+                OPENVINO_THROW(errorPrefix, " has unsupported interpolate mode");
             }
 
             const auto &interpCoordTransMode = interpAttr.coordinate_transformation_mode;
@@ -1836,7 +1839,7 @@ Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const GraphCon
             } else if (interpCoordTransMode == ngInterpCoordTransf::ALIGN_CORNERS) {
                 interpAttrs.coordTransMode = InterpolateCoordTransMode::align_corners;
             } else {
-                IE_THROW() << errorPrefix << " has unsupported coordination transformation mode";
+                OPENVINO_THROW(errorPrefix, " has unsupported coordination transformation mode");
             }
 
             if (interpAttrs.mode == InterpolateMode::nearest) {
@@ -1852,7 +1855,7 @@ Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const GraphCon
                 } else if (interpNearestMode == ngInterpNearMode::SIMPLE) {
                     interpAttrs.nearestMode = InterpolateNearestMode::simple;
                 } else {
-                    IE_THROW() << errorPrefix << " has unsupported nearest mode";
+                    OPENVINO_THROW(errorPrefix, " has unsupported nearest mode");
                 }
             } else if (interpAttrs.mode == InterpolateMode::cubic) {
                 interpAttrs.cubeCoeff = static_cast<float>(interpAttr.cube_coeff);
@@ -1865,7 +1868,7 @@ Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const GraphCon
             } else if (interpShapeCalcMode == ngInterpShapeCalcMode::SIZES) {
                 shapeCalcMode = InterpolateShapeCalcMode::sizes;
             } else {
-                IE_THROW() << errorPrefix << " has unsupported shape calculation mode";
+                OPENVINO_THROW(errorPrefix, " has unsupported shape calculation mode");
             }
 
             if (interpAttr.pads_begin.empty()) {
@@ -1902,9 +1905,9 @@ Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const GraphCon
             is_version11 = true;
             const auto numInputs = inputShapes.size();
             if (numInputs != 2 && numInputs != 3)
-                IE_THROW() << errorPrefix << " has incorrect number of input edges";
+                OPENVINO_THROW(errorPrefix, " has incorrect number of input edges");
             if (outputShapes.size() != 1)
-                IE_THROW() << errorPrefix << " has incorrect number of output edges";
+                OPENVINO_THROW(errorPrefix, " has incorrect number of output edges");
             isAxesSpecified = numInputs != 2;
 
             const auto &interpAttr = interp->get_attrs();
@@ -1917,7 +1920,7 @@ Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const GraphCon
                 interpAttrs.mode = InterpolateMode::bicubic_pillow;
                 interpAttrs.cubeCoeff = static_cast<float>(interpAttr.cube_coeff); // fixed to be -0.5
             } else {
-                IE_THROW() << errorPrefix << " has unsupported interpolate mode";
+                OPENVINO_THROW(errorPrefix, " has unsupported interpolate mode");
             }
 
             // pillow use fixed tf_half_pixel_for_nn style mode for coodinate transformation
@@ -1935,7 +1938,7 @@ Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const GraphCon
             } else if (interpShapeCalcMode == ngInterpShapeCalcMode::SIZES) {
                 shapeCalcMode = InterpolateShapeCalcMode::sizes;
             } else {
-                IE_THROW() << errorPrefix << " has unsupported shape calculation mode";
+                OPENVINO_THROW(errorPrefix, " has unsupported shape calculation mode");
             }
 
             if (interpAttr.pads_begin.empty()) {
@@ -1969,7 +1972,7 @@ Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const GraphCon
             }
         }
     } else {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 }
 
@@ -1977,9 +1980,9 @@ void Interpolate::getSupportedDescriptors() {
     if (getParentEdges().size() != 2 && getParentEdges().size() != 3 && getParentEdges().size() != 4)
         // v4: data, target_shape, scale, axis(optional).
         // v11: data, size_or_scale, axis(optional)
-        IE_THROW() << errorPrefix << " has incorrect number of input edges";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input edges");
     if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << " has incorrect number of output edges";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of output edges");
 
     int dataRank = getInputShapeAtPort(DATA_ID).getRank();
 
@@ -2235,36 +2238,38 @@ inline int Interpolate::get_axis_id() const {
 
 void Interpolate::prepareParams() {
     if (!shapesDefined()) {
-        IE_THROW() << "Can't prepare params for Interpolate node with name: " << getName() << ", because input/output dims aren't defined";
+        OPENVINO_THROW("Can't prepare params for Interpolate node with name: ",
+                       getName(),
+                       ", because input/output dims aren't defined");
     }
 
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << " did not allocate destination memory";
+        OPENVINO_THROW(errorPrefix, " did not allocate destination memory");
 
     auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
     if (!srcMemPtr || !srcMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << " did not allocate input memory";
+        OPENVINO_THROW(errorPrefix, " did not allocate input memory");
 
     if (shapeCalcMode == InterpolateShapeCalcMode::sizes) {
         auto tsMemPtr = getParentEdgeAt(TARGET_SHAPE_ID)->getMemoryPtr();
         if (!tsMemPtr || !tsMemPtr->isAllocated())
-            IE_THROW() << errorPrefix << " did not allocate target shape memory";
+            OPENVINO_THROW(errorPrefix, " did not allocate target shape memory");
     } else {
         auto scaleMemPtr = getParentEdgeAt(get_scale_id())->getMemoryPtr();
         if (!scaleMemPtr || !scaleMemPtr->isAllocated())
-            IE_THROW() << errorPrefix << " did not allocate scales memory";
+            OPENVINO_THROW(errorPrefix, " did not allocate scales memory");
     }
 
     if (isAxesSpecified) {
         auto axesMemPtr = getParentEdgeAt(get_axis_id())->getMemoryPtr();
         if (!axesMemPtr || !axesMemPtr->isAllocated())
-            IE_THROW() << errorPrefix << " did not allocate axes memory";
+            OPENVINO_THROW(errorPrefix, " did not allocate axes memory");
     }
 
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        IE_THROW() << errorPrefix << " did not set preferable primitive descriptor";
+        OPENVINO_THROW(errorPrefix, " did not set preferable primitive descriptor");
 
     const auto &srcDimsOrign = srcMemPtr->getStaticDims();
     const auto &dstDimsOrign = dstMemPtr->getStaticDims();
@@ -2295,7 +2300,7 @@ void Interpolate::prepareParams() {
 
     std::vector<float> dataScales = getScales(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd), dstDims);
     if (!NCHWAsNHWC && (getOutputShapeAtPort(0).getRank() > 2 && (dataScales[0] != 1.f || dataScales[1] != 1.f))) {
-        IE_THROW() << "Interpolate layer only supports resize on spatial dimensions(depth, height and width)";
+        OPENVINO_THROW("Interpolate layer only supports resize on spatial dimensions(depth, height and width)");
     }
 
     if (canUseAclExecutor) {
@@ -2356,9 +2361,9 @@ void Interpolate::createPrimitive() {
     auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
     auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
     if (!srcMemPtr || !srcMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << " did not allocate input memory";
+        OPENVINO_THROW(errorPrefix, " did not allocate input memory");
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << " did not allocate destination memory";
+        OPENVINO_THROW(errorPrefix, " did not allocate destination memory");
 
     if (dstMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
         interpAttrs.layout = InterpolateLayoutType::planar;
@@ -2404,7 +2409,11 @@ void Interpolate::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims)
             continue;
         }
 
-        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
+        OPENVINO_THROW("Fusing of ",
+                       NameFromType(node->getType()),
+                       " operation to ",
+                       NameFromType(this->getType()),
+                       " node is not implemented");
     }
 
     attr.set_post_ops(ops);
@@ -2498,8 +2507,9 @@ void Interpolate::execute(dnnl::stream strm) {
                 srcPadded.resize(eltsTotal * srcDataSize, 0x0);
                 uint8_t *src_data_pad = static_cast<uint8_t *>(&srcPadded[0]);
                 if ((srcDim5d[0] != srcDimPad5d[0]) || (srcDim5d[1] != srcDimPad5d[1])) {
-                    IE_THROW() << "Interpolate layer with name '" << getName() <<
-                    "' does not support padding on batch and channel dimensions";
+                    OPENVINO_THROW("Interpolate layer with name '",
+                                   getName(),
+                                   "' does not support padding on batch and channel dimensions");
                 }
                 parallel_for5d(srcDim5d[0], CB, srcDim5d[2], srcDim5d[3], srcDim5d[4], [&](int n, int cb, int d, int h, int w) {
                     const uint8_t *src = src_data_origin + (n * CB * srcDim5d[2] * srcDim5d[3] * srcDim5d[4] * blkSize) * srcDataSize
@@ -2524,7 +2534,7 @@ void Interpolate::execute(dnnl::stream strm) {
     } else if (aclExecPtr) {
         aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, postOpsDataPtrs.data());
     } else {
-        IE_THROW() << "Can't execute Interpolate node. Primitive didn't created";
+        OPENVINO_THROW("Can't execute Interpolate node. Primitive didn't created");
     }
 }
 
@@ -2890,7 +2900,7 @@ float Interpolate::InterpolateExecutorBase::coordTransToInput(int outCoord, floa
             break;
         }
         default: {
-            IE_THROW() << "errorPrefix" << " does not support specified coordinate transformation mode";
+            OPENVINO_THROW("errorPrefix", " does not support specified coordinate transformation mode");
             break;
         }
     }
@@ -2924,7 +2934,7 @@ int Interpolate::InterpolateExecutorBase::nearestRound(float originCoord, bool i
                 return static_cast<int>(originCoord);
         }
         default: {
-            IE_THROW() << "errorPrefix" << " does not support specified nearest round mode";
+            OPENVINO_THROW("errorPrefix", " does not support specified nearest round mode");
             break;
         }
     }
@@ -3499,7 +3509,7 @@ float Interpolate::InterpolateRefExecutor::getValue(const uint8_t *base, size_t 
             break;
         }
         default: {
-            IE_THROW() << "Interpolate layer does not support precision: " << prec;
+            OPENVINO_THROW("Interpolate layer does not support precision: ", prec);
             break;
         }
     }
@@ -3528,7 +3538,7 @@ void Interpolate::InterpolateRefExecutor::setValue(uint8_t *base, size_t offset,
             break;
         }
         default: {
-            IE_THROW() << "Interpolate layer does not support precision: " << prec;
+            OPENVINO_THROW("Interpolate layer does not support precision: ", prec);
             break;
         }
     }
@@ -3803,7 +3813,7 @@ Interpolate::InterpolateExecutorBase::InterpolateExecutorBase(const InterpolateA
             break;
         }
         default: {
-            IE_THROW() << "Interpolate executor does not support interpolate mode: " << mode;
+            OPENVINO_THROW("Interpolate executor does not support interpolate mode: ", mode);
             break;
         }
     }
@@ -3849,13 +3859,13 @@ Interpolate::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAtt
         // gather ISA(for planar JIT kernel) for avx2 and fp32
         interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
     } else {
-        IE_THROW() << "Can't create InterpolateJitExecutor";
+        OPENVINO_THROW("Can't create InterpolateJitExecutor");
     }
 #endif // OPENVINO_ARCH_X86_64
     if (interpolateKernel) {
         interpolateKernel->create_ker();
     } else {
-        IE_THROW() << "Can't compile InterpolateJitExecutor";
+        OPENVINO_THROW("Can't compile InterpolateJitExecutor");
     }
 }
 
@@ -3864,7 +3874,7 @@ void Interpolate::InterpolateJitExecutor::exec(const uint8_t *in_ptr_, uint8_t *
     size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 
     if (!interpolateKernel) {
-        IE_THROW() << "Can't execute, kernel for Interpolate node is not compiled";
+        OPENVINO_THROW("Can't execute, kernel for Interpolate node is not compiled");
     }
     switch (mode) {
         case InterpolateMode::nearest: {
@@ -3896,12 +3906,12 @@ void Interpolate::InterpolateJitExecutor::exec(const uint8_t *in_ptr_, uint8_t *
             if (configured_for_layout == InterpolateLayoutType::by_channel) {
                 pillowCGathered(in_ptr_, out_ptr_, post_ops_data_, N, C, IH, IW, OH, OW);
             } else {
-                IE_THROW() << "Only channel_first jit kernel is supported for pillow mode" << mode;
+                OPENVINO_THROW("Only channel_first jit kernel is supported for pillow mode", mode);
             }
             break;
         }
         default: {
-            IE_THROW() << "InterpolateJitExecutor has unsupported interpolate mode: " << mode;
+            OPENVINO_THROW("InterpolateJitExecutor has unsupported interpolate mode: ", mode);
         }
     }
 }
@@ -3939,7 +3949,7 @@ void Interpolate::InterpolateRefExecutor::exec(const uint8_t *in_ptr_, uint8_t *
             break;
         }
         default: {
-            IE_THROW() << "Interpolate layer has unsupported interpolate mode: " << mode;
+            OPENVINO_THROW("Interpolate layer has unsupported interpolate mode: ", mode);
         }
     }
 }
@@ -3955,7 +3965,7 @@ size_t Interpolate::getSpatialDimsNum(const Dim rank) {
         case 5:
             return 3;
         default:
-            IE_THROW() << "Can't define number spatial";
+            OPENVINO_THROW("Can't define number spatial");
     }
 }
 

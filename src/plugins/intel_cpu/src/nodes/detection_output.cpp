@@ -55,16 +55,16 @@ DetectionOutput::DetectionOutput(const std::shared_ptr<ngraph::Node>& op, const 
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = "DetectionOutput node with name '" + getName() + "' ";
 
     if (getOriginalInputsNumber() != 3 && getOriginalInputsNumber() != 5)
-        IE_THROW() << errorPrefix <<  "has incorrect number of input edges.";
+        OPENVINO_THROW(errorPrefix,  "has incorrect number of input edges.");
 
     if (getOriginalOutputsNumber() != 1)
-        IE_THROW() << errorPrefix << "has incorrect number of output edges.";
+        OPENVINO_THROW(errorPrefix, "has incorrect number of output edges.");
 
     auto doOp = ov::as_type_ptr<const ov::op::v8::DetectionOutput>(op);
     auto attributes = doOp->get_attrs();
@@ -103,15 +103,19 @@ void DetectionOutput::prepareParams() {
 
     const auto& idLocDims = getParentEdgeAt(ID_LOC)->getMemory().getShape().getStaticDims();
     if (priorsNum * locNumForClasses * 4 != static_cast<int>(idLocDims[1]))
-        IE_THROW() << errorPrefix << "has incorrect number of priors, which must match number of location predictions ("
-        << priorsNum * locNumForClasses * 4 << " vs "
-        << idLocDims[1] << ")";
+        OPENVINO_THROW(errorPrefix,
+                       "has incorrect number of priors, which must match number of location predictions (",
+                       priorsNum * locNumForClasses * 4,
+                       " vs ",
+                       idLocDims[1],
+                       ")");
 
     if (priorsNum * classesNum != static_cast<int>(idConfDims.back()))
-        IE_THROW() << errorPrefix << "has incorrect number of priors, which must match number of confidence predictions.";
+        OPENVINO_THROW(errorPrefix,
+                       "has incorrect number of priors, which must match number of confidence predictions.");
 
     if (decreaseClassId && backgroundClassId != 0)
-        IE_THROW() << errorPrefix << "cannot use decrease_label_id and background_label_id parameter simultaneously.";
+        OPENVINO_THROW(errorPrefix, "cannot use decrease_label_id and background_label_id parameter simultaneously.");
 
     imgNum = static_cast<int>(idConfDims[0]);
 
@@ -829,7 +833,7 @@ inline void DetectionOutput::generateOutput(float* reorderedConfData, int* indic
     const int numResults = outDims[2];
     const int DETECTION_SIZE = outDims[3];
     if (DETECTION_SIZE != 7) {
-        IE_THROW() << errorPrefix << NOT_IMPLEMENTED;
+        OPENVINO_THROW(errorPrefix, NOT_IMPLEMENTED);
     }
 
     int dstDataSize = 0;
@@ -841,7 +845,7 @@ inline void DetectionOutput::generateOutput(float* reorderedConfData, int* indic
         dstDataSize = imgNum * classesNum * priorsNum * DETECTION_SIZE * sizeof(float);
 
     if (static_cast<size_t>(dstDataSize) > getChildEdgesAtPort(0)[0]->getMemory().getSize()) {
-        IE_THROW() << errorPrefix << OUT_OF_BOUNDS;
+        OPENVINO_THROW(errorPrefix, OUT_OF_BOUNDS);
     }
     memset(dstData, 0, dstDataSize);
 

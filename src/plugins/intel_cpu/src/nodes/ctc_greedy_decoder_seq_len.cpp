@@ -32,19 +32,19 @@ CTCGreedyDecoderSeqLen::CTCGreedyDecoderSeqLen(const std::shared_ptr<ngraph::Nod
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = "CTCGreedyDecoderSeqLen layer with name '" + op->get_friendly_name() + "' ";
     if (getOriginalInputsNumber() < 2 || getOriginalInputsNumber() > 3)
-        IE_THROW() << errorPrefix << "has invalid number of input edges: " << getOriginalInputsNumber();
+        OPENVINO_THROW(errorPrefix, "has invalid number of input edges: ", getOriginalInputsNumber());
     if (getOriginalOutputsNumber() != 2)
-        IE_THROW() << errorPrefix << "has invalid number of outputs edges: " << getOriginalOutputsNumber();
+        OPENVINO_THROW(errorPrefix, "has invalid number of outputs edges: ", getOriginalOutputsNumber());
 
     const auto& dataDims = getInputShapeAtPort(DATA_INDEX).getDims();
     const auto& seqDims = getInputShapeAtPort(SEQUENCE_LENGTH_INDEX).getDims();
     if (!dimsEqualWeak(dataDims[0], seqDims[0]))
-        IE_THROW() << errorPrefix << "has invalid input shapes.";
+        OPENVINO_THROW(errorPrefix, "has invalid input shapes.");
 
     auto greedyDecOp = ngraph::as_type_ptr<const ngraph::op::v6::CTCGreedyDecoderSeqLen>(op);
     mergeRepeated = greedyDecOp->get_merge_repeated();
@@ -56,11 +56,11 @@ void CTCGreedyDecoderSeqLen::initSupportedPrimitiveDescriptors() {
 
     Precision inDataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
     if (!one_of(inDataPrecision, Precision::FP32, Precision::BF16, Precision::FP16))
-        IE_THROW() << errorPrefix << "has unsupported 'data' input precision: " << inDataPrecision;
+        OPENVINO_THROW(errorPrefix, "has unsupported 'data' input precision: ", inDataPrecision);
 
     Precision seqLenPrecision = getOriginalInputPrecisionAtPort(SEQUENCE_LENGTH_INDEX);
     if (seqLenPrecision != Precision::I32 && seqLenPrecision != Precision::I64)
-        IE_THROW() << errorPrefix << "has unsupported 'sequence_length' input precision: " << seqLenPrecision;
+        OPENVINO_THROW(errorPrefix, "has unsupported 'sequence_length' input precision: ", seqLenPrecision);
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
@@ -96,7 +96,7 @@ void CTCGreedyDecoderSeqLen::execute(dnnl::stream strm) {
                                    + ". Sequence length " + std::to_string(sequenceLengths[b])
                                    + " cannot be greater than according decoded classes dimension size "
                                    + std::to_string(getChildEdgesAtPort(DECODED_CLASSES_INDEX)[0]->getMemory().getStaticDims()[1]);
-            IE_THROW() << errorMsg;
+            OPENVINO_THROW(errorMsg);
         }
         workAmount += sequenceLengths[b];
     }

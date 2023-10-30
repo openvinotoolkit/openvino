@@ -125,7 +125,7 @@ jit_uni_converter::jit_uni_converter()
 
 void jit_uni_converter::init() {
     if (create_kernel() != status::success)
-        IE_THROW() << "Can't generate jit color converter kernel";
+        OPENVINO_THROW("Can't generate jit color converter kernel");
     _fn = (function_t)jit_ker();
 }
 
@@ -312,10 +312,10 @@ protected:
 
 RefConverter::RefConverter(Node *node)
     : Converter(node) {
-    if (node->getOriginalInputsNumber() != (singlePlane() ? 1: 2))
-        IE_THROW() <<"NV12Converter node has incorrect number of inputs";
+    if (node->getOriginalInputsNumber() != (singlePlane() ? 1 : 2))
+        OPENVINO_THROW("NV12Converter node has incorrect number of inputs");
     if (!node->getOriginalOutputsNumber())
-        IE_THROW() <<"NV12Converter node has incorrect number of outputs";
+        OPENVINO_THROW("NV12Converter node has incorrect number of outputs");
 }
 
 template<typename T>
@@ -530,7 +530,7 @@ const jit_uni_converter & jit_converter_create() {
             kernel.reset(converter);
             converter->init();
         } else {
-            IE_THROW() << "Can't create jit color converter kernel";
+            OPENVINO_THROW("Can't create jit color converter kernel");
         }
 
         return kernel;
@@ -664,9 +664,9 @@ protected:
 RefConverter::RefConverter(Node *node)
     : Converter(node) {
     if (node->getOriginalInputsNumber() != (singlePlane() ? 1: 3))
-        IE_THROW() <<"I420Converter node has incorrect number of inputs";
+        OPENVINO_THROW("I420Converter node has incorrect number of inputs");
     if (!node->getOriginalOutputsNumber())
-        IE_THROW() <<"I420Converter node has incorrect number of outputs";
+        OPENVINO_THROW("I420Converter node has incorrect number of outputs");
 }
 
 template<typename T>
@@ -880,7 +880,7 @@ const jit_uni_converter & jit_converter_create() {
             kernel.reset(converter);
             converter->init();
         } else {
-            IE_THROW() << "Can't create jit color converter kernel";
+            OPENVINO_THROW("Can't create jit color converter kernel");
         }
 
         return kernel;
@@ -1010,7 +1010,7 @@ ColorConvert::ColorConvert(const std::shared_ptr<ngraph::Node>& op, const GraphC
     std::string errorMessage;
     std::tie(algorithm, errorMessage) = getAlgorithmFor(op);
     if (algorithm == Algorithm::Default)
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
 }
 
 void ColorConvert::getSupportedDescriptors() {}
@@ -1106,8 +1106,8 @@ void ColorConvert::initSupportedI420Impls() {
 void ColorConvert::createPrimitive() {
     const NodeDesc *desc = getSelectedPrimitiveDescriptor();
     if (!desc)
-        IE_THROW() << getTypeStr() + " node with name '" + getName() + "' "
-                   << "no optimal primitive descriptor selected";
+        OPENVINO_THROW(getTypeStr() + " node with name '" + getName() + "' ",
+                       "no optimal primitive descriptor selected");
 
     if (!_impl) {
         const auto & cfg = desc->getConfig();
@@ -1124,8 +1124,7 @@ void ColorConvert::createPrimitive() {
 
 void ColorConvert::execute(dnnl::stream strm) {
     if (!_impl)
-        IE_THROW() << getTypeStr() + " node with name '" + getName() + "' "
-                   << "has no any implemented converter";
+        OPENVINO_THROW(getTypeStr() + " node with name '" + getName() + "' ", "has no any implemented converter");
     _impl->execute(strm);
 }
 

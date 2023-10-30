@@ -9,10 +9,12 @@
 using namespace InferenceEngine;
 using namespace ov::intel_cpu;
 using namespace ov::intel_cpu::node;
+
 #if defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu;
 #endif // OPENVINO_ARCH_X86_64
 
+#define THROW_ERROR(...) OPENVINO_THROW(getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
 
 bool GridSample::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {

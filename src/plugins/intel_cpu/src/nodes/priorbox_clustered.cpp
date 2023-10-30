@@ -37,7 +37,7 @@ PriorBoxClustered::PriorBoxClustered(const std::shared_ptr<ngraph::Node>& op, co
     : Node(op, context, PriorBoxClusteredShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     const auto priorBox = std::dynamic_pointer_cast<const ngraph::opset1::PriorBoxClustered>(op);

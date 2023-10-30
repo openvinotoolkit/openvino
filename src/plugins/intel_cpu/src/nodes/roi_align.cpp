@@ -587,7 +587,7 @@ private:
     // bf16 is needed from avx512_core
     inline void gather_bf16_to_f32_zmm(Vmm vmm_src, const reg64_t reg_src, const Vmm vmm_idx) {
         if (!std::is_same<Vmm, Xbyak::Zmm>::value)
-            IE_THROW() << "bf16 is only supported from avx512_core platform for ROIAlign node.";
+            OPENVINO_THROW("bf16 is only supported from avx512_core platform for ROIAlign node.");
         sub(rsp, v_len);
         uni_vmovdqu(ptr[rsp], vmm_idx);
         for (int i = 0; i < v_step; i++) {
@@ -700,41 +700,45 @@ ROIAlign::ROIAlign(const std::shared_ptr<ngraph::Node>& op, const GraphContext::
             alignedMode = ROIAlignedMode::ra_half_pixel;
         }
     } else {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 }
 
 void ROIAlign::getSupportedDescriptors() {
     if (getParentEdges().size() != 3)
-        IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
+        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges: ", getParentEdges().size());
     if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
+        OPENVINO_THROW(errorPrefix, "has incorrect number of output edges: ", getChildEdges().size());
 
     if (getInputShapeAtPort(0).getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getInputShapeAtPort(0).getRank();
+        OPENVINO_THROW(errorPrefix, "doesn't support 0th input with rank: ", getInputShapeAtPort(0).getRank());
     }
 
     if (getInputShapeAtPort(1).getRank() != 2) {
-        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getInputShapeAtPort(1).getRank();
+        OPENVINO_THROW(errorPrefix, "doesn't support 1st input with rank: ", getInputShapeAtPort(1).getRank());
     }
 
     if (getInputShapeAtPort(2).getRank() != 1) {
-        IE_THROW() << errorPrefix << "doesn't support 2nd input with rank: " << getInputShapeAtPort(2).getRank();
+        OPENVINO_THROW(errorPrefix, "doesn't support 2nd input with rank: ", getInputShapeAtPort(2).getRank());
     }
 
     if (getOutputShapeAtPort(0).getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getOutputShapeAtPort(0).getRank();
+        OPENVINO_THROW(errorPrefix, "doesn't support output with rank: ", getOutputShapeAtPort(0).getRank());
     }
 
     const auto& proposalsDims = getInputShapeAtPort(1).getDims();
     if (proposalsDims[1] != 4) {
-        IE_THROW() << errorPrefix << "has invalid shape on 1st input: [" << proposalsDims[0] << "," << proposalsDims[1] << "]";
+        OPENVINO_THROW(errorPrefix, "has invalid shape on 1st input: [", proposalsDims[0], ",", proposalsDims[1], "]");
     }
 
     const auto& indexesDims = getInputShapeAtPort(2).getDims();
     if (!dimsEqualWeak(proposalsDims[0], indexesDims[0])) {
-        IE_THROW() << errorPrefix << "has different sizes of inputs for proposals ("
-                   << proposalsDims[0] << ") and indexes (" << indexesDims[0] << ")";
+        OPENVINO_THROW(errorPrefix,
+                       "has different sizes of inputs for proposals (",
+                       proposalsDims[0],
+                       ") and indexes (",
+                       indexesDims[0],
+                       ")");
     }
 }
 
@@ -814,9 +818,9 @@ void ROIAlign::createPrimitive() {
     auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!srcMemPtr || !srcMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << " did not allocate input memory";
+        OPENVINO_THROW(errorPrefix, " did not allocate input memory");
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << " did not allocate destination memory";
+        OPENVINO_THROW(errorPrefix, " did not allocate destination memory");
 
     if (!roi_align_kernel) {
         ROIAlignLayoutType selectedLayout = ROIAlignLayoutType::nspc;
@@ -851,7 +855,7 @@ void ROIAlign::execute(dnnl::stream strm) {
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDataType();
     if (!((inputPrec == dnnl_bf16 && outputPrec == dnnl_bf16) ||
           (inputPrec == dnnl_f32 && outputPrec == dnnl_f32)))
-        IE_THROW() <<"ROIAlign doesn't support demanded precisions";
+        OPENVINO_THROW("ROIAlign doesn't support demanded precisions");
 
     ROIAlignContext ctx = {
             *this
@@ -939,9 +943,9 @@ void ROIAlign::executeSpecified() {
         const float* srcRoiPtr = &srcRoi[roiOff];
         int roiBatchInd = srcRoiIdx[n];
         if (roiBatchInd < -1) {  // -1 means switched off region
-            IE_THROW() << "Batch index cannot be less, than -1";
+            OPENVINO_THROW("Batch index cannot be less, than -1");
         } else if (static_cast<size_t>(roiBatchInd) >= inputDimVector[0]) {
-            IE_THROW() << "Demanded batch (id = " << roiBatchInd << ") doesn't exist";
+            OPENVINO_THROW("Demanded batch (id = ", roiBatchInd, ") doesn't exist");
         }
 
         float x1 = (srcRoiPtr[0] + offset_src) * spatialScale + offset_dst;
@@ -1064,7 +1068,7 @@ void ROIAlign::executeSpecified() {
     });
 
     if (realRois == 0) {
-        IE_THROW() << "realRois must be greater than 0";
+        OPENVINO_THROW("realRois must be greater than 0");
     }
 
     if (roi_align_kernel) {

@@ -37,7 +37,7 @@ template <typename T>
 inline const std::shared_ptr<T> getNgraphOpAs(const std::shared_ptr<ngraph::Node>& op) {
     auto typedOp = ngraph::as_type_ptr<T>(op);
     if (!typedOp)
-        IE_THROW() << "Can't get ngraph node " << op->get_type_name() << " with name " << op->get_friendly_name();
+        OPENVINO_THROW("Can't get ngraph node ", op->get_type_name(), " with name ", op->get_friendly_name());
     return typedOp;
 }
 

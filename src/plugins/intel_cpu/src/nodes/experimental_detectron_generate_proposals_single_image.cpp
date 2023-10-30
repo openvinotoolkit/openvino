@@ -291,7 +291,7 @@ ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerate
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     auto proposalOp = ngraph::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(op);
@@ -323,7 +323,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::initSupportedPrimitiveDe
 void ExperimentalDetectronGenerateProposalsSingleImage::execute(dnnl::stream strm) {
     try {
         if (inputShapes.size() != 4 || outputShapes.size() != 2) {
-            IE_THROW() << "Incorrect number of input or output edges!";
+            OPENVINO_THROW("Incorrect number of input or output edges!");
         }
 
         size_t anchor_dims_size = 1;
@@ -338,7 +338,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(dnnl::stream str
             deltas_dims_size *= deltaDims[i];
         }
         if (anchor_dims_size != deltas_dims_size)
-            IE_THROW() << "'Anchors' blob size for ONNXProposal is incompatible with 'deltas' blob size!";
+            OPENVINO_THROW("'Anchors' blob size for ONNXProposal is incompatible with 'deltas' blob size!");
 
         size_t score_dims_size = 1;
         const auto &scoreDims = getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims();
@@ -346,7 +346,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(dnnl::stream str
             score_dims_size *= scoreDims[i];
         }
         if (deltas_dims_size != (4 * score_dims_size))
-            IE_THROW() << "'Deltas' blob size for ONNXProposal is incompatible with 'scores' blob size!";
+            OPENVINO_THROW("'Deltas' blob size for ONNXProposal is incompatible with 'scores' blob size!");
 
         // Prepare memory
         const float *p_deltas_item  = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_DELTAS)->getMemoryPtr()->getData());
@@ -419,7 +419,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(dnnl::stream str
         }
     } catch (const std::exception &e) {
         std::string errorMsg = e.what();
-        IE_THROW() << errorMsg;
+        OPENVINO_THROW(errorMsg);
     }
 }
 
