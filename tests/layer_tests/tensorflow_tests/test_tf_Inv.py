@@ -12,7 +12,7 @@ class TestInv(CommonTFLayerTest):
         assert 'x' in inputs_info
         x_shape = inputs_info['x']
         inputs_data = {}
-        inputs_data['x'] = np.random.randint(-10, 10, x_shape).astype(np.float32)
+        inputs_data['x'] = np.random.choice([-5, -4, -3, -2, -1, 1, 2, 3, 4, 5], x_shape).astype(np.float32)
 
         return inputs_data
 
