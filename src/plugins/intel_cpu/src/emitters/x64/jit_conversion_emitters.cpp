@@ -193,7 +193,7 @@ void jit_convert_truncation_emitter::dword2int8(const std::vector<size_t> &in_ve
 }
 
 void jit_convert_truncation_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_convert_truncation_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     std::cerr << "input_type:" << input_type << " output_type" << output_type << "\n";
 }
 
@@ -337,7 +337,7 @@ size_t jit_convert_saturation_emitter::aux_vecs_count() const {
 }
 
 void jit_convert_saturation_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_convert_saturation_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     std::cerr << "input_type:" << input_type << " output_type" << output_type << "\n";
 }
 
