@@ -137,12 +137,10 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelStreamsHasHigherPrior
     ASSERT_EQ(streams, value);
 }
 
-#if !(defined(OPENVINO_ARCH_ARM) || \
-      defined(OPENVINO_ARCH_ARM64))  // Will be removed after multiple streams is supported on ARM
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelZeroStreams) {
     ov::Core ie;
     int32_t streams = 0;
-    int32_t value = 100;
+    int32_t value = -1;
 
     ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
 
@@ -151,9 +149,14 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelZeroStreams) {
     ov::CompiledModel compiledModel = ie.compile_model(model, deviceName, config);
 
     ASSERT_NO_THROW(value = compiledModel.get_property(ov::num_streams));
+
+#if defined(OPENVINO_ARCH_ARM) || \
+    defined(OPENVINO_ARCH_ARM64)  // Will be removed after multiple streams is supported on ARM
+    streams = 1;
+#endif
+
     ASSERT_EQ(streams, value);
 }
-#endif
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckSparseWeigthsDecompressionRate) {
     ov::Core core;
