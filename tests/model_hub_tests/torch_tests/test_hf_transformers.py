@@ -105,11 +105,12 @@ class TestTransformersModel(TestConvertModel):
             model = VIT_GPT2_Model(model)
             example = (encoded_input.pixel_values,)
         elif "mms-lid" in name:
+            # mms-lid model config does not have auto_model attribute, only direct loading aviable 
             from transformers import Wav2Vec2ForSequenceClassification, AutoFeatureExtractor
             model = Wav2Vec2ForSequenceClassification.from_pretrained(name, torchscript=True)
             processor = AutoFeatureExtractor.from_pretrained(name)
-            input_values = processor(torch.randn(1000).numpy(), return_tensors="pt")
-            example = dict(input_values)
+            input_values = processor(torch.randn(16000).numpy(), sampling_rate=16_000, return_tensors="pt")
+            example =  {"input_values": input_values.input_values}
         elif "retribert" in mi.tags:
             from transformers import RetriBertTokenizer
             text = "How many cats are there?"
@@ -305,8 +306,7 @@ class TestTransformersModel(TestConvertModel):
                                            ("google/flan-t5-base", "t5"),
                                            ("google/tapas-large-finetuned-wtq", "tapas"),
                                            ("gpt2", "gpt2"),
-                                           ("openai/clip-vit-large-patch14", "clip"),
-                                           ("facebook/mms-lid-126", "wav2vec2")
+                                           ("openai/clip-vit-large-patch14", "clip")
                                            ])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, type, ie_device):
