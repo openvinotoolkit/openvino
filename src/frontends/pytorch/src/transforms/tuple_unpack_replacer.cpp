@@ -47,7 +47,7 @@ PrimTupleUnpackReplacer::PrimTupleUnpackReplacer() {
 
 bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model) {
     bool result = false;
-    for (auto op : model->get_ordered_ops()) {
+    for (auto& op : model->get_ordered_ops()) {
         const auto if_op = as_type_ptr<v8::If>(op);
         if (if_op) {
             for (size_t i = 1; i < if_op->get_input_size(); i++) {
@@ -61,7 +61,7 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
                 int else_body_idx = -1;
                 auto then_descs = if_op->get_input_descriptions(v8::If::THEN_BODY_INDEX);
                 auto else_descs = if_op->get_input_descriptions(v8::If::ELSE_BODY_INDEX);
-                for (auto inp_desc : then_descs) {
+                for (auto& inp_desc : then_descs) {
                     if (inp_desc->m_input_index == i) {
                         if (then_body_idx != -1) {
                             add_exception_to_fw_node(
@@ -72,7 +72,7 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
                         }
                     }
                 }
-                for (auto inp_desc : else_descs) {
+                for (auto& inp_desc : else_descs) {
                     if (inp_desc->m_input_index == i) {
                         if (else_body_idx != -1) {
                             add_exception_to_fw_node(
@@ -130,10 +130,10 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
 
                 // create new If inputs
                 std::vector<std::pair<int, int>> inputs_mapping(if_op->get_input_size(), {-1, -1});
-                for (auto inp_desc : then_descs) {
+                for (auto& inp_desc : then_descs) {
                     inputs_mapping[inp_desc->m_input_index].first = static_cast<int>(inp_desc->m_body_parameter_index);
                 }
-                for (auto inp_desc : else_descs) {
+                for (auto& inp_desc : else_descs) {
                     inputs_mapping[inp_desc->m_input_index].second = static_cast<int>(inp_desc->m_body_parameter_index);
                 }
                 for (size_t j = 0; j < inputs_mapping.size(); j++) {
