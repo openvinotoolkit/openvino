@@ -21,12 +21,10 @@
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 
 // clang-format off
-#ifdef __unix__
-#ifdef ENABLE_LIBVA
-#ifdef ENABLE_LIBVA_DRM
+#if defined(__unix__) && defined(ENABLE_LIBVA)
 #include <va/va.h>
-#endif
-#endif
+#else
+#include <intel_gpu/va/va_header.h>
 #endif
 // clang-format on
 

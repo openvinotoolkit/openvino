@@ -25,9 +25,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
-#ifdef __unix__
-#ifdef ENABLE_LIBVA
-#ifdef ENABLE_LIBVA_DRM
+#if defined(__unix__) && defined(ENABLE_LIBVA) && defined(ENABLE_LIBVA_DRM)
 
 #include <openvino/runtime/intel_gpu/ocl/va.hpp>
 #include <va/va_drm.h>
@@ -120,6 +118,5 @@ TEST_F(VASurfaceSharing_Test, NV12toBGR_image_two_planes_surface_sharing) {
     auto output_tensor_shared = inf_req_remote.get_tensor(function->get_results().at(0));
     ASSERT_NO_THROW(output_tensor_shared.data());
 }
-#endif
-#endif
+
 #endif
