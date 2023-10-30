@@ -20,6 +20,21 @@ OpenVINO™ is an open-source toolkit for simple and efficient deployment of var
 
 OpenVINO includes several components: [OpenVINO Model Converter (OVC)], [OpenVINO™ Runtime], as well as CPU, GPU, NPU, auto batch and heterogeneous plugins to accelerate deep learning inference on Intel® CPUs and Intel® Processor Graphics.
 
+
+### Components
+* [OpenVINO™ Runtime] - is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice.
+    * [core](./src/core) - provides the base API for model representation and modification.
+    * [inference](./src/inference) - provides an API to infer models on the device.
+    * [transformations](./src/common/transformations) - contains the set of common transformations which are used in OpenVINO plugins.
+    * [low precision transformations](./src/common/low_precision_transformations) - contains the set of transformations that are used in low precision models
+    * [bindings](./src/bindings) - contains all available OpenVINO bindings which are maintained by the OpenVINO team.
+        * [c](./src/bindings/c) - C API for OpenVINO™ Runtime
+        * [python](./src/bindings/python) - Python API for OpenVINO™ Runtime
+* [Plugins](./src/plugins) - contains OpenVINO plugins which are maintained in open-source by the OpenVINO team. For more information, take a look at the [list of supported devices](#supported-hardware-matrix).
+* [Frontends](./src/frontends) - contains available OpenVINO frontends that allow reading models from the native framework format.
+* [OpenVINO Model Converter (OVC)] - is a cross-platform command-line tool that facilitates the transition between training and deployment environments, and adjusts deep learning models for optimal execution on end-point target devices.
+* [Samples] - applications in C, C++ and Python languages that show basic OpenVINO use cases.
+
 ### How to Use  
 
 **Documentation**: Detailed information on OpenVINO's features, components, and usage can be found in the [OpenVINO Documentation](https://docs.openvino.ai).
@@ -42,6 +57,8 @@ To quickly install and start using OpenVINO, follow these steps:
  
 ### Products which use OpenVINO
 
+**OpenVINO Ecosystem**
+
 **продукты из эко-системы (всякие биндинги, контриб) и в будущем экстеншны аля токенайзеры**
 
 -	[Optimum Intel](https://github.com/huggingface/optimum-intel) - 🤗 Optimum Intel: Accelerate inference with Intel optimization tools.
@@ -58,7 +75,7 @@ To quickly install and start using OpenVINO, follow these steps:
 -	[OpenVINO.NET](https://github.com/sdcb/OpenVINO.NET)
 -   [openvino_contrib](https://github.com/openvinotoolkit/openvino_contrib) - Additional OpenVINO™ toolkit modules
 
-**хайповые репо, куда опенвино проинтегрирован**
+**OpenVINO integrated**
 
 -	[GIMP AI plugins](https://github.com/intel/openvino-ai-plugins-gimp) - GIMP AI plugins with OpenVINO Backend
 -	[Frigate](https://github.com/blakeblackshear/frigate) – NVR with realtime local object detection for IP cameras
@@ -81,22 +98,6 @@ The latest documentation for OpenVINO™ Toolkit is available [here](https://doc
 #### Developer documentation
 
 [Developer documentation](./docs/dev/index.md) contains information about architectural decisions which are applied inside the OpenVINO components. This documentation has all necessary information which could be needed in order to contribute to OpenVINO.
-
-
-
-
-Комментарии: 
-
-Дальше уже можно добавить (или вынести отдельно) - где используется, как контрибутить, саппорт и т.д.
-
-В целом коммент: 
-Мб вставить в начало какое-то мини-видео, где демонстрируются хайповые юзкейсы, поддерживаемые в опенвино?
-Лично я замечал, где больше «интерактива», там больше звездочек и люди больше понимают крутость продукта и его возможности.
- 
-Возможно надо определиться что мы хотим тут рассказывать. Если давать всю вводную про OV то тогда да, надо вставлять какие-то дифференциаторы, к примеру Run LLMs on iGPU или типа того.
-Я вот подумал может быть можно было дать 2 предложения и сослаться куда-то, беда в том что такой страницы похоже нет.
-
-
 
 
 ## Supported Hardware 
@@ -158,17 +159,6 @@ The OpenVINO™ Runtime can infer models on different hardware devices. This sec
 </table>
 
 
-More Information is available at https://docs.openvino.ai/nightly/openvino_docs_telemetry_information.html.
-
-
-### Tutorials
-
-The list of OpenVINO tutorials:
-
-- [Jupyter notebooks](https://github.com/openvinotoolkit/openvino_notebooks)
-
-
-
 ## System requirements
 
 The system requirements vary depending on platform and are available on dedicated pages:
@@ -189,16 +179,11 @@ See [CONTRIBUTING](./CONTRIBUTING.md) for contribution details. Thank you!
 [Good First Issues](https://github.com/openvinotoolkit/openvino/issues/17502)
 [Good First Issues Board](https://github.com/orgs/openvinotoolkit/projects/3)
 
-Комментарии: 
-•	Сюда следует добавить информацию про нашу активность с  Good First Issues. https://github.com/openvinotoolkit/openvino/issues/17502
- 
-Ilya: поддерживаю 
 
-
-## Take the issue
+### Take the issue
 If you wish to be assigned to an issue please add a comment with `.take` command.  
 
-## Get a support
+### Get a support
 
 Report questions, issues and suggestions, using:
 
@@ -219,7 +204,7 @@ You can opt-out at any time by running the command:
 ``` bash
 opt_in_out --opt_out
 ```
-
+More Information is available at https://docs.openvino.ai/nightly/openvino_docs_telemetry_information.html.
 
 ---
 \* Other names and brands may be claimed as the property of others.
