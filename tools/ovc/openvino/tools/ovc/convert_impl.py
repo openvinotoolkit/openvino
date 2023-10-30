@@ -500,15 +500,9 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
             elapsed_time = datetime.datetime.now() - start_time
             print('[ SUCCESS ] Total execution time: {:.2f} seconds. '.format(elapsed_time.total_seconds()))
 
-            # Statistics on allocated memory blocks per filename and per line number
-            snapshot = tracemalloc.take_snapshot()
-            stats = snapshot.statistics('lineno')
-
-            # Sum of allocated memory in bytes
-            total = sum(stat.size for stat in stats)
-
-            print("[ SUCCESS ] Memory consumed: {:.2f} MB. ".format(total / (1024 * 1024)))
-
+            _, peak_size = tracemalloc.get_traced_memory()
+            print("[ SUCCESS ] Peak memory consumption (includes only memory allocated in Python): {:.2f} MB. ".format(peak_size / (1024 * 1024)))
+            tracemalloc.stop()
 
         return ov_model, argv
 
