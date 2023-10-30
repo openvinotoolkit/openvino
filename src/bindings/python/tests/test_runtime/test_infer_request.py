@@ -687,7 +687,7 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
     mem_state = mem_states[0]
 
     assert mem_state.name == "var_id_667"
-    assert mem_state.state.tensor_desc.precision == data_type
+    assert mem_state.state.element_type == data_type
 
     for i in range(1, 10):
         if mode == "set_init_memory_state":

@@ -72,19 +72,19 @@ void Assign::validate_and_infer_types() {
 
     auto input_type = get_input_element_type(0);
     auto input_shape = get_input_partial_shape(0);
-    bool compatible_type = variable_type.is_dynamic() || input_type == variable_type;
-    bool compatible_shape = input_shape.rank().compatible(variable_shape.rank());
 
-    if (compatible_shape && input_shape.rank().is_static() && variable_shape.rank().is_static()) {
-        OPENVINO_ASSERT(input_shape.rank().get_length() == variable_shape.rank().get_length(),
-                        "Ranks of initial_shape and variable_shape do not match.");
-        for (int64_t i = 0; i < variable_shape.rank().get_length(); ++i) {
-            compatible_shape = compatible_shape && variable_shape[i].compatible(input_shape[i]);
-        }
-    }
-
-    OPENVINO_ASSERT(compatible_shape, "The shape specified in the Variable is not compatible with the input shape.");
-    OPENVINO_ASSERT(compatible_type, "The type specified in the Variable doesn't match the type of the input.");
+    OPENVINO_ASSERT(input_type.compatible(variable_type),
+                    "The type specified in the Variable is not compatible with the input type.",
+                    " Input type: ",
+                    input_type,
+                    " Variable type: ",
+                    variable_type);
+    OPENVINO_ASSERT(input_shape.compatible(variable_shape),
+                    "The shape specified in the Variable is not compatible with the shape of the input.",
+                    " Input shape: ",
+                    input_shape,
+                    " Variable shape: ",
+                    variable_shape);
     set_output_type(0, input_type, input_shape);
 }
 
