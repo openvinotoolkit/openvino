@@ -8,9 +8,48 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/layout.hpp"
+#include "openvino/core/preprocess/input_tensor_info.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "transformations/common_optimizations/remove_concat_zero_dim_input.hpp"
+#include "transformations/rt_info/decompression.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
+#include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
+#include "transformations/rt_info/old_api_map_order_attribute.hpp"
+#include "transformations/rt_info/preprocessing_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
+#include "transformations/rt_info/transpose_sinking_attr.hpp"
+
+namespace {
+#undef TYPE_INFO
+#define TYPE_INFO(name) ov::name::get_type_info_static()
+const std::unordered_set<std::string> RtKeys = {
+    TYPE_INFO(FusedNames),
+    TYPE_INFO(PreprocessingAttribute),
+    TYPE_INFO(DisableFP16Compression),
+    TYPE_INFO(pass::DisableRemoveConcatZeroDimInput),
+    TYPE_INFO(NoTransposeSinkingAttr),
+    TYPE_INFO(Decompression),
+    TYPE_INFO(pass::DisableConstantFolding),
+    TYPE_INFO(preprocess::TensorInfoMemoryType),
+    TYPE_INFO(LayoutAttribute),
+    TYPE_INFO(OldApiMapElementType),
+    TYPE_INFO(OldApiMapOrder),
+};
+#undef TYPE_INFO
+
+void ClearRtInfo(ov::RTMap& rtInfo) {
+    for (auto it = rtInfo.cbegin(); it != rtInfo.cend();) {
+        if (RtKeys.find(it->first) == RtKeys.end()) {
+            it = rtInfo.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+}  // namespace
 
 bool ov::pass::InitNodeInfo::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(InitNodeInfo);
@@ -23,7 +62,7 @@ bool ov::pass::InitNodeInfo::run_on_model(const std::shared_ptr<ov::Model>& f) {
             }
         }
         auto& rtInfo = node->get_rt_info();
-        rtInfo.clear();
+        ClearRtInfo(rtInfo);
         rtInfo.emplace(FusedNames::get_type_info_static(), FusedNames{node->get_friendly_name()});
     }
     return false;
