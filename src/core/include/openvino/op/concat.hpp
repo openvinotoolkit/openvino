@@ -50,9 +50,6 @@ public:
     void set_axis(int64_t axis) {
         m_axis = axis;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool evaluate_lower(TensorVector& output_values) const override;
