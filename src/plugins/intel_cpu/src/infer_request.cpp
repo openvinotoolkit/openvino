@@ -79,7 +79,7 @@ void SyncInferRequest::create_infer_request() {
             }
 
             m_memory_states.emplace_back(
-                std::make_shared<VariableState>(state_name, memoryNode->memoryBuilder(), memoryNode->getMemoryPtr()));
+                std::make_shared<VariableStateDoubleBuffer>(state_name, memoryNode->memoryBuilder(), memoryNode->getMemoryPtr()));
         }
     }
 }
@@ -97,13 +97,17 @@ void SyncInferRequest::AssignStates() {
                 OPENVINO_THROW("Cannot cast ", node->getName(), " to MemoryInput");
             }
             auto cur_id = cur_node->getId();
-            for (const auto& state : memoryStates) {
+            for (const auto& state : m_memory_states) {
                 if (state->GetName() == cur_id) {
                     cur_node->assignState(state);
                 }
             }
         }
     }
+}
+
+void SyncInferRequest::CommitStates() {
+    std::for_each(m_memory_states.begin(), m_memory_states.end(), [](const MemStatePtr& state) { state->Commit(); });
 }
 
 void SyncInferRequest::redefine_memory_for_input_nodes() {
@@ -182,8 +186,8 @@ void SyncInferRequest::infer() {
 
     push_input_data();
 
-    // state -> storage
-    if (m_memory_states.size() != 0) {
+    // state -> node
+    if (!m_memory_states.empty()) {
         AssignStates();
     }
 
@@ -196,6 +200,10 @@ void SyncInferRequest::infer() {
         for (auto&& item : outputControlBlocks) {
             item.second.update();
         }
+    }
+
+    if (!m_memory_states.empty()) {
+        CommitStates();
     }
 
     graph->PullOutputData(m_outputs);

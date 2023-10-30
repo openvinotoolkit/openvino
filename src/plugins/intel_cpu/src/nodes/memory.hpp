@@ -89,7 +89,7 @@ public:
     bool needShapeInfer() const override { return false; }
     bool needPrepareParams() const override { return false; }
 
-    void assignMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc);
+    void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc);
 
 private:
     MemoryInput& getInputNode();

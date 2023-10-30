@@ -17,40 +17,64 @@
 namespace ov {
 namespace intel_cpu {
 
-class VariableState : public ov::IVariableState {
+class IVariableState : public ov::IVariableState {
 public:
-    VariableState(std::string name,
-                  std::function<MemoryPtr(void)> mem_build,
-                  MemoryCPtr init_val);
+    using ov::IVariableState::IVariableState;
 
-    void reset() override;
+    virtual void Commit() = 0;
+
+    virtual MemoryPtr InputMem() = 0;
+    virtual MemoryPtr OutputMem() = 0;
+    virtual MemoryDescPtr OriginalDesc() const = 0;
+};
+
+class VariableStateDoubleBuffer : public IVariableState {
+public:
+    using MemBuilder = std::function<MemoryPtr(void)>;
+
+public:
+    VariableStateDoubleBuffer(std::string name,
+                              const MemBuilder& mem_build,
+                              MemoryCPtr init_val);
+    //InferenceEngine::IVariableStateInternal
+    void Reset() override;
     void SetState(const InferenceEngine::Blob::Ptr& newState) override;
     InferenceEngine::Blob::CPtr GetState() const override;
 
-    void SwapBuffer(); //controversial thing, increase probability of error
-    MemoryPtr InternalMem() const {
-        return m_internal_mem[buffer_num];
-    }
+    //ov::intel_cpu::IVariableState
+    void Commit() override;
 
-    MemoryDescPtr OriginalDesc() const {
-        return m_desc;
-    }
+    MemoryPtr InputMem() override;
+    MemoryPtr OutputMem() override;
+    MemoryDescPtr OriginalDesc() const override;
 
 private:
     static MemoryDescPtr ToStatic(const MemoryDescPtr& desc);
-    void ResetMem(const MemoryPtr& mem) {
+
+    void ResetPrimeMem(const MemoryPtr& mem) {
         m_internal_mem[buffer_num] = mem;
+    }
+
+    void ResetSecondMem(const MemoryPtr& mem) {
+        m_internal_mem[buffer_num ^ 0x1] = mem;
+    }
+
+    const MemoryPtr& PrimeMem() const {
+        return m_internal_mem[buffer_num];
+    }
+
+    const MemoryPtr& SecondMem() const {
+        return m_internal_mem[buffer_num ^ 0x1];
     }
 
 private:
     MemoryDescPtr m_desc; //mem desc required by the graph internal tensor
-    std::function<MemoryPtr(void)> m_mem_build;
     std::array<MemoryPtr, 2> m_internal_mem{};
     size_t buffer_num = 0;
 };
 
-using MemStatePtr = std::shared_ptr<VariableState>;
-using MemStateCPtr = std::shared_ptr<const VariableState>;
+using MemStatePtr = std::shared_ptr<IVariableState>;
+using MemStateCPtr = std::shared_ptr<const IVariableState>;
 
 }   // namespace intel_cpu
 }   // namespace ov

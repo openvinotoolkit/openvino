@@ -14,50 +14,50 @@ using namespace InferenceEngine;
 namespace ov {
 namespace intel_cpu {
 
-VariableState::VariableState(std::string name,
-                             std::function<MemoryPtr(void)> mem_build,
-                             MemoryCPtr init_val) :
-    InferenceEngine::IVariableStateInternal{name}, m_mem_build(std::move(mem_build)) {
-    ResetMem(m_mem_build());
-    m_desc = InternalMem()->getDescPtr();
+VariableStateDoubleBuffer::VariableStateDoubleBuffer(std::string name,
+                                                     const MemBuilder& mem_build,
+                                                     MemoryCPtr init_val) :
+    IVariableState{name} {
+    ResetPrimeMem(mem_build());
+    ResetSecondMem(mem_build());
+    m_desc = PrimeMem()->getDescPtr();
     auto&& shape = m_desc->getShape();
-
     //TODO what if by some reason we already have internal static state while the node is dynamic, is it even possible?
 
     if (shape.isStatic()) {
         if (init_val) {
-            InternalMem()->load(*init_val);
+            PrimeMem()->load(*init_val);
         } else {
-            InternalMem()->nullify();
+            PrimeMem()->nullify();
         }
     } else {
         //in the case of the original desc has dynamic shape we create an empty tensor
         auto new_desc = ToStatic(m_desc);
-        InternalMem()->redefineDesc(new_desc);
+        PrimeMem()->redefineDesc(new_desc);
     }
 }
 
-void VariableState::SetState(const Blob::Ptr& newState) {
+void VariableStateDoubleBuffer::SetState(const Blob::Ptr& newState) {
     state = newState; // simply to extend the lifetime
     auto&& tensor_desc = state->getTensorDesc();
-    if (InternalMem()->getStaticDims() != tensor_desc.getDims()) {
+    if (PrimeMem()->getStaticDims() != tensor_desc.getDims()) {
         auto new_desc = m_desc->cloneWithNewDims(tensor_desc.getDims());
-        InternalMem()->redefineDesc(new_desc);
+        PrimeMem()->redefineDesc(new_desc);
     }
     auto blob_desc = MemoryDescUtils::convertToCpuBlockedMemoryDesc(tensor_desc);
     auto src = state->buffer().as<void*>();
 
     static const dnnl::engine eng(dnnl::engine::kind::cpu, 0);
     Memory mem(eng, blob_desc, src);
-    InternalMem()->load(mem);
+    PrimeMem()->load(mem);
 }
 
-Blob::CPtr VariableState::GetState() const {
-    auto tensor = std::make_shared<Tensor>(InternalMem());
+Blob::CPtr VariableStateDoubleBuffer::GetState() const {
+    auto tensor = std::make_shared<Tensor>(PrimeMem());
     return tensor_to_blob({tensor, nullptr}); // TODO: shouldn't we provide the so ptr?
 }
 
-void VariableState::Reset() {
+void VariableStateDoubleBuffer::Reset() {
     auto new_desc = ToStatic(m_desc);
     for (auto&& mem : m_internal_mem) {
         if (mem) {
@@ -67,7 +67,7 @@ void VariableState::Reset() {
     }
 }
 
-MemoryDescPtr VariableState::ToStatic(const MemoryDescPtr& desc) {
+MemoryDescPtr VariableStateDoubleBuffer::ToStatic(const MemoryDescPtr& desc) {
     if (!desc->isDefined()) {
         auto&& current_dims = desc->getShape().getDims();
         VectorDims new_dims(current_dims.size());
@@ -79,11 +79,20 @@ MemoryDescPtr VariableState::ToStatic(const MemoryDescPtr& desc) {
     return desc;
 }
 
-void VariableState::SwapBuffer() {
-    buffer_num ^= 0x1;
-    if (!InternalMem()) {
-        ResetMem(m_mem_build());
-    }
+void VariableStateDoubleBuffer::Commit() {
+    buffer_num ^= 0x01;
+}
+
+MemoryPtr VariableStateDoubleBuffer::InputMem() {
+    return PrimeMem();
+}
+
+MemoryPtr VariableStateDoubleBuffer::OutputMem() {
+    return SecondMem();
+}
+
+MemoryDescPtr VariableStateDoubleBuffer::OriginalDesc() const {
+    return m_desc;
 }
 
 }  // namespace intel_cpu

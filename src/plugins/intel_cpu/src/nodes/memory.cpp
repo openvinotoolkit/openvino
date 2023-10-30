@@ -138,7 +138,7 @@ void MemoryOutput::resolveInPlaceEdges(Edge::LOOK look) {
     parentEdge->reuse(edgeMem);
 }
 
-void MemoryOutput::assignMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) {
+void MemoryOutput::assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) {
     assignedMem = mem;
     OPENVINO_ASSERT(assignedMem,
         "MemoryOutput ",
@@ -152,7 +152,6 @@ void MemoryOutput::assignMemory(const MemoryPtr& mem, const MemoryDescPtr& memDe
         " assigned state has null base mem desc ptr");
 
     if (!memMngr) { return; } //nothing to do, edge memory isn't under control
-    //use the current shape to check compatibility (Not a super good approach though)
     auto inpDesc = getBaseMemDescAtInputPort(0);
 
     if (inpDesc->isCompatible(*extMemDesc)) {
@@ -330,7 +329,7 @@ MemoryOutput& MemoryInput::getOutputNode() {
 }
 
 void MemoryInput::assignState(MemStatePtr newState) {
-    assignedMem = newState->InternalMem();
+    assignedMem = newState->InputMem();
     OPENVINO_ASSERT(assignedMem,
         "MemoryInput ",
         getName(),
@@ -371,10 +370,7 @@ void MemoryInput::assignState(MemStatePtr newState) {
         }
     }
 
-    //Establish some check for double buffer
-
-    newState->SwapBuffer();
-    getOutputNode().assignMemory(newState->InternalMem(), newState->OriginalDesc());
+    getOutputNode().assignExtMemory(newState->OutputMem(), newState->OriginalDesc());
 }
 
 void MemoryInput::execute(dnnl::stream strm) {
