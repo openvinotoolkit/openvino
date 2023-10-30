@@ -10,7 +10,7 @@
 #include "model_wrap.hpp"
 #include "node_output.hpp"
 #include "openvino/openvino.hpp"
-#include "pre_post_process_wrap.hpp"
+#include "preprocess/pre_post_process_wrap.hpp"
 #include "preprocess/input_info.hpp"
 #include "preprocess/input_tensor_info.hpp"
 #include "preprocess/input_model_info.hpp"
