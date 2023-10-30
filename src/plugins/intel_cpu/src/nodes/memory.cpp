@@ -94,8 +94,17 @@ void MemoryOutput::initSupportedPrimitiveDescriptors() {
 }
 
 void MemoryOutput::initOptimalPrimitiveDescriptor() {
-    //sync descriptor from the sibling input node
-    auto mem_desc = getInputNode().getBaseMemDescAtOutputPort(0);
+    // Mimic the parent node memory desc to avoid extra reorder
+    auto parentEdge = getParentEdgeAt(0);
+    auto parent = parentEdge->getParent();
+    auto parentPd = parent->getSelectedPrimitiveDescriptor();
+    OPENVINO_ASSERT(parentPd,
+        parent->getTypeStr(), " ",
+        parent->getName(),
+        "failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
+
+    const auto& parentConfig = parentPd->getConfig();
+    auto mem_desc = parentConfig.outConfs[parentEdge->getInputNum()].getMemDesc();
 
     auto selected_pd = getSelectedPrimitiveDescriptor();
     OPENVINO_ASSERT(selected_pd,
@@ -105,9 +114,7 @@ void MemoryOutput::initOptimalPrimitiveDescriptor() {
 
     auto config = selected_pd->getConfig();
 
-    auto parentEdge = getParentEdgeAt(0);
-    auto parentNode = parentEdge->getParent();
-    const bool parentInplaceConflict = parentNode->inPlaceOutPort(parentEdge->getInputNum()) >= 0;
+    const bool parentInplaceConflict = parent->inPlaceOutPort(parentEdge->getInputNum()) >= 0;
 
     //disable inPlace to avoid inPlace conflict and handle memory copy internally (to get room for optimizations)
     if (parentInplaceConflict) { config.inConfs.front().inPlace(-1); }
