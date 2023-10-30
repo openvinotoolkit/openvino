@@ -17,6 +17,8 @@ public:
 
     Napi::Value tensor(const Napi::CallbackInfo& info);
 
+    Napi::Value preprocess(const Napi::CallbackInfo& info);
+
     Napi::Value model(const Napi::CallbackInfo& info);
 
     void set_input_info(ov::preprocess::InputInfo& tensor_name);

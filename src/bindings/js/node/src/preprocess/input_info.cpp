@@ -6,13 +6,14 @@
 #include "errors.hpp"
 #include "preprocess/input_model_info.hpp"
 #include "preprocess/input_tensor_info.hpp"
+#include "preprocess/preprocess_steps.hpp"
 
 InputInfo::InputInfo(const Napi::CallbackInfo& info) : Napi::ObjectWrap<InputInfo>(info){};
 
 Napi::Function InputInfo::GetClassConstructor(Napi::Env env) {
     return DefineClass(env,
                        "InputInfo",
-                       {InstanceMethod("tensor", &InputInfo::tensor), InstanceMethod("model", &InputInfo::model)});
+                       {InstanceMethod("tensor", &InputInfo::tensor), InstanceMethod("preprocess", &InputInfo::preprocess), InstanceMethod("model", &InputInfo::model)});
 }
 
 Napi::Object InputInfo::Init(Napi::Env env, Napi::Object exports) {
@@ -34,6 +35,17 @@ Napi::Value InputInfo::tensor(const Napi::CallbackInfo& info) {
     Napi::Object obj = InputTensorInfo::GetClassConstructor(info.Env()).New({});
     auto tensor_info = Napi::ObjectWrap<InputTensorInfo>::Unwrap(obj);
     tensor_info->set_input_tensor_info(_input_info->tensor());
+    return obj;
+}
+
+Napi::Value InputInfo::preprocess(const Napi::CallbackInfo& info) {
+    if (info.Length() != 0) {
+        reportError(info.Env(), "Error in preprocess(). Function does not take any parameters.");
+        return info.Env().Undefined();
+    }
+    Napi::Object obj = PreProcessSteps::GetClassConstructor(info.Env()).New({});
+    auto preprocess_info = Napi::ObjectWrap<PreProcessSteps>::Unwrap(obj);
+    preprocess_info->set_preprocess_info(_input_info->preprocess());
     return obj;
 }
 
