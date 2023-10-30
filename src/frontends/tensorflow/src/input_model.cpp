@@ -255,12 +255,6 @@ void InputModel::InputModelTFImpl::load_places() {
                                                               type,
                                                               std::vector<std::string>{op_name});
             m_inputs.push_back(tensor_place);
-        } else if (std::find(m_input_names.begin(), m_input_names.end(), op_name) != m_input_names.end()) {
-            auto tensor_place = std::make_shared<TensorPlace>(m_input_model,
-                                                              ov::PartialShape::dynamic(),
-                                                              ov::element::dynamic,
-                                                              std::vector<std::string>{op_name});
-            m_inputs.push_back(tensor_place);
         }
     }
 
