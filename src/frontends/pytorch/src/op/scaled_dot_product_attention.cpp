@@ -15,6 +15,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/softmax.hpp"
@@ -22,6 +23,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/framework_node.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -31,10 +33,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_scaled_dot_product_attention(const NodeContext& context) {
-    // aten::scaled_dot_product_attention(Tensor query, Tensor key, Tensor value, Tensor? attn_mask=None, float
-    // dropout_p=0., bool is_causal=False)
-    num_inputs_check(context, 6, 6);
+std::shared_ptr<ov::Node> translate_scaled_dot_product_attention_common(const NodeContext& context) {
     auto query = context.get_input(0);
     auto key = context.get_input(1);
     auto value = context.get_input(2);
@@ -68,7 +67,10 @@ OutputVector translate_scaled_dot_product_attention(const NodeContext& context) 
     minus_inf = context.mark_node(std::make_shared<v1::ConvertLike>(minus_inf, scaled_atten));
     // two types of masks are supported. A boolean mask where a value of True indicates that the element should take
     // part in attention. A float mask of the same type as query, key, value that is added to the attention score.
-    auto is_causal = context.const_input<bool>(5);
+    auto is_causal = false;
+    if (!context.input_is_none(5)) {
+        is_causal = context.const_input<bool>(5);
+    }
     if (is_causal || !context.input_is_none(3)) {
         Output<Node> mask;
         Output<Node> atten_mask;
@@ -100,7 +102,27 @@ OutputVector translate_scaled_dot_product_attention(const NodeContext& context) 
         scaled_atten = context.mark_node(std::make_shared<v1::Add>(scaled_atten, atten_mask));
     }
     scaled_atten = context.mark_node(std::make_shared<v8::Softmax>(scaled_atten, -1));
-    return {context.mark_node(std::make_shared<v0::MatMul>(scaled_atten, value))};
+    return context.mark_node(std::make_shared<v0::MatMul>(scaled_atten, value));
+};
+
+OutputVector translate_scaled_dot_product_attention(const NodeContext& context) {
+    // aten::scaled_dot_product_attention(Tensor query, Tensor key, Tensor value, Tensor? attn_mask=None, float
+    // dropout_p=0., bool is_causal=False)
+    num_inputs_check(context, 6, 6);
+    return {translate_scaled_dot_product_attention_common(context)};
+};
+
+OutputVector translate_scaled_dot_product_attention_fx(const NodeContext& context) {
+    // aten::scaled_dot_product_attention(Tensor query, Tensor key, Tensor value, Tensor? attn_mask=None, float
+    // dropout_p=0., bool is_causal=False)
+    num_inputs_check(context, 3, 6);
+    auto output = translate_scaled_dot_product_attention_common(context);
+    // TODO: scaled_dot_product_flash_attention has 9 outputs but for most cases only
+    // the first input is used. Rest of the outputs should be returned properly as
+    // needed.
+    ov::OutputVector out_vec;
+    out_vec.push_back(output);
+    return {context.mark_node(make_list_construct(out_vec))};
 };
 
 }  // namespace op

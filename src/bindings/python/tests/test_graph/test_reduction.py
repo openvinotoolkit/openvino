@@ -154,3 +154,9 @@ def test_normalize_l2():
     assert node.get_output_size() == 1
     assert node.get_type_name() == "NormalizeL2"
     assert list(node.get_output_shape(0)) == input_shape
+
+
+def test_reduce_with_keywork():
+    const = ov.constant([-1], np.int64)
+    min_op = ov.reduce_min(node=const, reduction_axes=0)
+    assert min_op.get_output_size() == 1

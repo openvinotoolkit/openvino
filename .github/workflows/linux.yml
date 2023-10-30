@@ -35,6 +35,7 @@ env:
 
 jobs:
   Build:
+    timeout-minutes: 150
     defaults:
       run:
         shell: bash
@@ -43,12 +44,13 @@ jobs:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
         - /mount/caches:/mount/caches
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
-      CMAKE_CXX_COMPILER_LAUNCHER: ccache
-      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_C_COMPILER_LAUNCHER: sccache
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
@@ -56,9 +58,7 @@ jobs:
       INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       DEVELOPER_PACKAGE_DIR: /__w/openvino/openvino/developer_package_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
-      CCACHE_DIR: /mount/caches/ccache/ubuntu20_x86_64_Release
-      CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
-      CCACHE_MAXSIZE: 50G
+      SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/.ci/azure/ci_utils/onnxruntime
 
     steps:
@@ -82,6 +82,13 @@ jobs:
           ref: 'master'
 
       #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
+      #
       # Dependencies
       #
 
@@ -92,6 +99,11 @@ jobs:
           # libssl1.1 - 'python3 -m pip' in self-hosted runner
           apt install --assume-yes --no-install-recommends default-jdk libssl1.1
 
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@v0.0.3
+        with:
+          version: "v0.5.4"
+
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -101,6 +113,13 @@ jobs:
           PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
           echo "Using pip version: ${PIP_VER}"
           echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
+      - name: Get pip cache info
+        run: |
+          echo "Cache size: "
+          du -h -d2 ${PIP_CACHE_DIR}
+          echo "Cache info: "
+          python -m pip cache info
+        continue-on-error: true
 
       - name: Install python dependencies
         run: |
@@ -143,14 +162,14 @@ jobs:
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
-      - name: Clean ccache stats
-        run: ccache --zero-stats --show-config
+      - name: Clean sccache stats
+        run: sccache --zero-stats
 
       - name: Cmake build - OpenVINO
         run: cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
 
-      - name: Show ccache stats
-        run: ccache --show-stats
+      - name: Show sccache stats
+        run: ${SCCACHE_PATH} --show-stats
 
       - name: Cmake install - OpenVINO
         run: |
@@ -241,6 +260,7 @@ jobs:
   Debian_Packages:
     name: Debian Packages
     needs: Build
+    timeout-minutes: 5
     defaults:
       run:
         shell: bash
@@ -294,6 +314,7 @@ jobs:
 
   Samples:
     needs: Build
+    timeout-minutes: 10
     defaults:
       run:
         shell: bash
@@ -393,6 +414,7 @@ jobs:
 
   Conformance:
     needs: Build
+    timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 5 || 15 }}
     defaults:
       run:
         shell: bash
@@ -489,6 +511,7 @@ jobs:
   ONNX_Runtime:
     name: ONNX Runtime Integration
     needs: Build
+    timeout-minutes: 10
     defaults:
       run:
         shell: bash
@@ -497,16 +520,15 @@ jobs:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
         - /mount/caches:/mount/caches
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_GENERATOR: 'Ninja Multi-Config'
-      CMAKE_CXX_COMPILER_LAUNCHER: ccache
-      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_C_COMPILER_LAUNCHER: sccache
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       INSTALL_DIR: /__w/openvino/openvino/install
-      CCACHE_DIR: /mount/caches/ccache/ubuntu20_x86_64_onnxruntime
-      CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
-      CCACHE_MAXSIZE: 50G
+      SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_onnxruntime
       ONNX_RUNTIME_REPO: /__w/openvino/openvino/onnxruntime
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/install/onnxruntime
       ONNX_RUNTIME_BUILD_DIR: /__w/openvino/openvino/onnxruntime/build
@@ -561,6 +583,11 @@ jobs:
       - name: Install Build Dependencies
         run: bash ${OPENVINO_REPO}/install_build_dependencies.sh
 
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@v0.0.3
+        with:
+          version: "v0.5.4"
+
       - name: Build Lin ONNX Runtime
         run: |
           source ${INSTALL_DIR}/setupvars.sh
@@ -575,6 +602,9 @@ jobs:
             --build_dir ${ONNX_RUNTIME_BUILD_DIR}
         env:
           CXXFLAGS: "-Wno-error=deprecated-declarations"
+
+      - name: Show sccache stats
+        run: ${SCCACHE_PATH} --show-stats
 
       - name: Run onnxruntime_test_all
         run: |
@@ -617,6 +647,7 @@ jobs:
   CXX_Unit_Tests:
     name: C++ unit tests
     needs: Build
+    timeout-minutes: 15
     defaults:
       run:
         shell: bash
@@ -760,6 +791,18 @@ jobs:
           ${INSTALL_TEST_DIR}/ov_cpu_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUUnitTests.xml
 
+      - name: SubgraphsDumper tests
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/subgraphsDumperTests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-SubgraphsDumperTests.xml
+
+      - name: Template OpImpl tests
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/conformanceTests --gtest_print_time=1 --device=TEMPLATE --gtest_filter=*OpImpl*\
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OpImplTests.xml
+
       - name: AUTO unit tests
         run: |
           source ${INSTALL_DIR}/setupvars.sh
@@ -827,6 +870,7 @@ jobs:
   Python_Unit_Tests:
     name: Python unit tests
     needs: Build
+    timeout-minutes: 40
     defaults:
       run:
         shell: bash
@@ -842,38 +886,9 @@ jobs:
       LAYER_TESTS_INSTALL_DIR: /__w/openvino/openvino/install/tests/layer_tests
 
     steps:
-      - name: Install git
-        run: |
-          apt update
-          apt install --assume-yes --no-install-recommends git ca-certificates
-
-      - name: Clone OpenVINO
-        uses: actions/checkout@v4
-        with:
-          path: 'openvino'
-
       #
       # Initialize OpenVINO
       #
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Setup pip cache dir
-        run: |
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
-          echo "Using pip version: ${PIP_VER}"
-          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
-
-      - name: Install Python API tests dependencies
-        run: |
-          # For torchvision to OpenVINO preprocessing converter
-          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/openvino/preprocess/torchvision/requirements.txt
-
-          # TODO: replace with Python API tests requirements
-          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_dev.txt
-
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
@@ -896,6 +911,20 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
+      - name: Install 'actions/setup-python@v4' dependencies
+        run: apt-get update && apt-get install -y libssl1.1 ca-certificates
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+        env:
+          PIP_CACHE_DIR: ${{ env.PIP_CACHE_PATH }}
+      - name: Setup pip cache dir
+        run: |
+          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
+          echo "Using pip version: ${PIP_VER}"
+          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
+          echo "PIP_INSTALL_PATH=${Python_ROOT_DIR}/lib/python${PYTHON_VERSION}/site-packages" >> $GITHUB_ENV
+
       - name: Install OpenVINO Python wheels
         run: |
           # Install the core OV wheel
@@ -906,6 +935,16 @@ jobs:
             ov_dev_wheel_name=$(find . -name 'openvino_dev*.whl')
             python3 -m pip install $ov_dev_wheel_name[mxnet,caffe,kaldi,onnx,tensorflow2,pytorch]
           popd
+
+      - name: Install Python API tests dependencies
+        run: |
+          # To enable pytest parallel features
+          python3 -m pip install pytest-xdist[psutil]
+          # For torchvision to OpenVINO preprocessing converter
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/python/preprocess/torchvision/requirements.txt
+
+          # TODO: replace with Python API tests requirements
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/mo/requirements_dev.txt
 
       #
       # Tests
@@ -922,18 +961,9 @@ jobs:
         run: |
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
-
           python3 -m pytest -sv ${INSTALL_TEST_DIR}/pyopenvino \
             --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
             --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
-
-      - name: Docs Python snippets
-        run: |
-          # to find 'snippets' module in docs
-          export PYTHONPATH=${OPENVINO_REPO}/docs/:$PYTHONPATH
-          # for 'template' extension
-          export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
-          python3 ${OPENVINO_REPO}/docs/snippets/main.py
 
       - name: Model Optimizer unit tests
         run: |
@@ -943,87 +973,26 @@ jobs:
           python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
               --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml
 
-      - name: PyTorch Layer Tests
-        run: |
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
-
-      - name: ONNX Layer Tests
-        run: |
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          # requires 'unit_tests' from 'tools/mo'
-          export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:$PYTHONPATH
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/onnx_tests -m "not launch_only_if_manually_specified and precommit" --junitxml=${INSTALL_TEST_DIR}/TEST-onnx.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
-
-      - name: TensorFlow 1 Layer Tests - TF FE
-        run: |
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          # requires 'unit_tests' from 'tools/mo'
-          export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:$PYTHONPATH
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf_fe.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
-
-      - name: TensorFlow 2 Layer Tests - TF FE
-        run: |
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          # requires 'unit_tests' from 'tools/mo'
-          export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:$PYTHONPATH
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_fe.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
-
-      - name: JAX Layer Tests - TF FE
-        run: |
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
-        env:
-          TEST_DEVICE: CPU
-
-      - name: TensorFlow 1 Layer Tests - Legacy FE
-        run: |
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${INSTALL_TEST_DIR}/TEST-tf_Roll.xml
-
-      - name: TensorFlow 2 Layer Tests - Legacy FE
-        run: |
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/test_tf2_keras_activation.py \
-              --ir_version=11 --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_Activation.xml -k "sigmoid"
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
-
-      - name: TensorFlow Lite Layer Tests - TFL FE
-        run: |
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
-
       - name: Python ONNX operators tests
         run: |
           # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
-          python3 -m pytest -sv ${OPENVINO_REPO}/src/frontends/onnx/tests -k 'not cuda' \
+          python3 -m pytest -sv ${INSTALL_TEST_DIR}/onnx -k 'not cuda' \
             --junitxml=${INSTALL_TEST_DIR}/TEST-onnx_frontend.xml \
-            --ignore=${OPENVINO_REPO}/src/frontends/onnx/tests/test_python/test_zoo_models.py
+            --ignore=${INSTALL_TEST_DIR}/onnx/test_python/test_zoo_models.py \
+
+      - name: OVC unit tests
+        run: python3 -m pytest -s ${INSTALL_TEST_DIR}/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
+
+      - name: Install Python Layer tests dependencies
+        run: |
+          # layer test requirements
+          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
 
       - name: MO Python API Tests
         run: |
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
-          source ${INSTALL_DIR}/setupvars.sh
-          bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
-
+          # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
+          export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
+          export PYTHONPATH=${INSTALL_TEST_DIR}/python
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/mo_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_mo_convert.xml
         env:
           TEST_DEVICE: CPU
@@ -1031,11 +1000,9 @@ jobs:
 
       - name: OVC Python API Tests
         run: |
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-          # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
-          source ${INSTALL_DIR}/setupvars.sh
-          bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
-
+          # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
+          export PYTHONPATH=${INSTALL_TEST_DIR}/python
+          export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/ovc_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
         env:
           TEST_DEVICE: CPU
@@ -1043,15 +1010,93 @@ jobs:
 
       - name: Python Frontend tests
         run: |
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           # to allow 'libtest_builtin_extensions.so' to find 'libopenvino_onnx_frontend.so'
-          source ${INSTALL_DIR}/setupvars.sh
-
+          export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/py_frontend_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
 
-      # TODO: install to 'tests' component via cpack
-      - name: OVC unit tests
-        run: python3 -m pytest -s ${OPENVINO_REPO}/tools/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
+      - name: PyTorch Layer Tests
+        run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -n logical -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP32
+
+      - name: PyTorch torch.compile TORCHFX Layer Tests
+        run: |
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_fx_backend --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP32
+          PYTORCH_TRACING_MODE: TORCHFX
+
+      - name: PyTorch torch.compile TORCHSCRIPT Layer Tests
+        run: |
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_ts_backend --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP32
+          PYTORCH_TRACING_MODE: TORCHSCRIPT
+
+      - name: ONNX Layer Tests
+        run: |
+          # requires 'unit_tests' from 'tools/mo'
+          export PYTHONPATH=${INSTALL_TEST_DIR}/mo:$PYTHONPATH
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/onnx_tests -m "not launch_only_if_manually_specified and precommit" --junitxml=${INSTALL_TEST_DIR}/TEST-onnx.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+      - name: TensorFlow 1 Layer Tests - TF FE
+        run: |
+          # requires 'unit_tests' from 'mo'
+          export PYTHONPATH=${INSTALL_TEST_DIR}/mo
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf_fe.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+      - name: TensorFlow 2 Layer Tests - TF FE
+        run: |
+          # requires 'unit_tests' from 'mo'
+          export PYTHONPATH=${INSTALL_TEST_DIR}/mo
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_fe.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+      - name: JAX Layer Tests - TF FE
+        run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
+        env:
+          TEST_DEVICE: CPU
+
+      - name: TensorFlow 1 Layer Tests - Legacy FE
+        run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${INSTALL_TEST_DIR}/TEST-tf_Roll.xml
+
+      - name: TensorFlow 2 Layer Tests - Legacy FE
+        run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/test_tf2_keras_activation.py --ir_version=11 -k "sigmoid" --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_Activation.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+      - name: TensorFlow Lite Layer Tests - TFL FE
+        run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+      - name: Clone API snippets
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: openvino/docs/snippets
+          path: ${{ env.OPENVINO_REPO }}
+          submodules: 'false'
+
+      - name: Docs Python snippets
+        run: |
+          # to find 'snippets' module in docs
+          export PYTHONPATH=${OPENVINO_REPO}/docs
+          # for 'template' extension
+          export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
+          python3 ${OPENVINO_REPO}/docs/snippets/main.py
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
@@ -1066,6 +1111,7 @@ jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
     needs: Build
+    timeout-minutes: 25
     defaults:
       run:
         shell: bash
@@ -1125,7 +1171,7 @@ jobs:
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
-        timeout-minutes: 40
+        timeout-minutes: 20
 
       - name: Save tests execution time
         uses: actions/cache/save@v3
@@ -1157,6 +1203,7 @@ jobs:
       run:
         shell: bash
     runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores'}}
+    timeout-minutes: ${{ github.event_name == 'schedule' && 400 || 5 }}
     # TODO: Switch back to self-hosted runners
     # container:
     #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
@@ -1233,6 +1280,7 @@ jobs:
   PyTorch_Models_Tests:
     name: PyTorch Models tests
     needs: Build
+    timeout-minutes: ${{ github.event_name == 'schedule' && 400 || 30 }}
     defaults:
       run:
         shell: bash
@@ -1304,7 +1352,7 @@ jobs:
       - name: PyTorch Models Tests
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v
         env:
           TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
@@ -1326,6 +1374,7 @@ jobs:
   NVIDIA_Plugin:
     name: NVIDIA plugin
     needs: Build
+    timeout-minutes: 15
     defaults:
       run:
         shell: bash
@@ -1334,21 +1383,20 @@ jobs:
       image: openvinogithubactions.azurecr.io/dockerhub/nvidia/cuda:11.8.0-runtime-ubuntu20.04
       volumes:
         - /mount/caches:/mount/caches
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
-      CMAKE_CUDA_COMPILER_LAUNCHER: ccache
-      CMAKE_CXX_COMPILER_LAUNCHER: ccache
-      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CUDA_COMPILER_LAUNCHER: sccache
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_C_COMPILER_LAUNCHER: sccache
       INSTALL_DIR: /__w/openvino/openvino/install
       OPENVINO_DEVELOPER_PACKAGE: /__w/openvino/openvino/install/developer_package
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
       NVIDIA_BUILD_DIR: /__w/openvino/openvino/nvidia_plugin_build
       DEBIAN_FRONTEND: 'noninteractive'
-      CCACHE_DIR: /mount/caches/ccache/ubuntu20_x86_64_Release
-      CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
-      CCACHE_MAXSIZE: 50G
+      SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
 
     steps:
       - name: Install Prerequisites
@@ -1405,7 +1453,12 @@ jobs:
       - name: Install build dependencies
         run: |
           ${OPENVINO_REPO}/install_build_dependencies.sh
-          apt -y --no-install-recommends install software-properties-common
+          apt -y --no-install-recommends install software-properties-common curl
+
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@v0.0.3
+        with:
+          version: "v0.5.4"
 
       - name: Install CUDA
         run: |
@@ -1440,4 +1493,4 @@ jobs:
           cmake --build ${NVIDIA_BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose -- ov_nvidia_func_tests ov_nvidia_unit_tests
 
       - name: Show ccache stats
-        run: ccache --show-stats
+        run: ${SCCACHE_PATH} --show-stats
