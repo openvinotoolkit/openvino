@@ -849,7 +849,7 @@ private:
 
     static uint8_t quantize_nf4(float x);
 
-    friend class ValueToString;
+    friend struct ValueToString;
 
     element::Type m_element_type;
     Shape m_shape{};

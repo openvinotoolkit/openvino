@@ -180,16 +180,24 @@ struct ValuesToString : ov::element::NotSupported<void> {
 
     template <ov::element::Type_t ET,
               class T = fundamental_type_for<ET>,
-              typename std::enable_if<!(ov::is_signed_binary<ET>() || ov::is_unsigned_binary<ET>() ||
-                                        ET == element::boolean)>::type* = nullptr>
+              typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
     static result_type visit(const Constant* const c, std::vector<std::string>& strs) {
         for (auto&& v : c->get_vector<T>()) {
-            ov::is_floating_point<T>() ? strs.push_back(to_cpp_string<double>(v)) : strs.push_back(std::to_string(v));
+            strs.push_back(to_cpp_string<double>(v));
         }
     }
 
     template <ov::element::Type_t ET,
-              typename std::enable_if<ov::is_unsigned_binary<ET>() || ET == element::boolean>::type* = nullptr>
+              class T = fundamental_type_for<ET>,
+              typename std::enable_if<std::is_integral<T>::value &&
+                                      !(ov::is_signed_binary<ET>() || ov::is_unsigned_binary<ET>())>::type* = nullptr>
+    static result_type visit(const Constant* const c, std::vector<std::string>& strs) {
+        for (auto&& v : c->get_vector<T>()) {
+            strs.push_back(std::to_string(v));
+        }
+    }
+
+    template <ov::element::Type_t ET, typename std::enable_if<ov::is_unsigned_binary<ET>()>::type* = nullptr>
     static result_type visit(const Constant* const c, std::vector<std::string>& strs) {
         for (auto&& v : c->cast_vector<uint8_t>()) {
             strs.push_back(std::to_string(v));
