@@ -20,9 +20,10 @@ OpenVINO™ is an open-source toolkit for simple and efficient deployment of var
 
 OpenVINO includes several components: [OpenVINO Model Converter (OVC)], [OpenVINO™ Runtime], as well as CPU, GPU, NPU, auto batch and heterogeneous plugins to accelerate deep learning inference on Intel® CPUs and Intel® Processor Graphics.
 
+<details>
+  <summary>Components</summary>
 
-### Components
-* [OpenVINO™ Runtime] - is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice.
+  * [OpenVINO™ Runtime] - is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice.
     * [core](./src/core) - provides the base API for model representation and modification.
     * [inference](./src/inference) - provides an API to infer models on the device.
     * [transformations](./src/common/transformations) - contains the set of common transformations which are used in OpenVINO plugins.
@@ -34,6 +35,9 @@ OpenVINO includes several components: [OpenVINO Model Converter (OVC)], [OpenVIN
 * [Frontends](./src/frontends) - contains available OpenVINO frontends that allow reading models from the native framework format.
 * [OpenVINO Model Converter (OVC)] - is a cross-platform command-line tool that facilitates the transition between training and deployment environments, and adjusts deep learning models for optimal execution on end-point target devices.
 * [Samples] - applications in C, C++ and Python languages that show basic OpenVINO use cases.
+
+</details>
+
 
 ### How to Use  
 
