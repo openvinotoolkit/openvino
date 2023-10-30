@@ -3,10 +3,10 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset13.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::opset13;
 
 namespace ov {
 namespace frontend {
@@ -37,6 +37,9 @@ OutputVector translate_binary_op(const NodeContext& node) {
 }
 
 template OutputVector translate_binary_op<Add>(const NodeContext& node);
+template OutputVector translate_binary_op<BitwiseAnd>(const NodeContext& node);
+template OutputVector translate_binary_op<BitwiseOr>(const NodeContext& node);
+template OutputVector translate_binary_op<BitwiseXor>(const NodeContext& node);
 template OutputVector translate_binary_op<Equal>(const NodeContext& node);
 template OutputVector translate_binary_op<FloorMod>(const NodeContext& node);
 template OutputVector translate_binary_op<Greater>(const NodeContext& node);
