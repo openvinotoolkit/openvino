@@ -179,7 +179,6 @@ jobs:
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
 
-
   RPM_Packages:
     needs: Build
     timeout-minutes: 5
@@ -196,7 +195,6 @@ jobs:
               'rockylinux:8.7', 'rockylinux:8.8', 'rockylinux:9.0',
               'almalinux:8.7', 'almalinux:8.8', 'almalinux:9.0',
               'amazonlinux:2022', 'amazonlinux:2023',
-              'opensuse-leap15.3',
               'oraclelinux:8.7', 'oraclelinux:8.8', 'oraclelinux:9']
     runs-on: ubuntu-20.04
     container:
@@ -255,7 +253,6 @@ jobs:
              'rockylinux:8.7', 'rockylinux:8.8', 'rockylinux:9.0',
              'almalinux:8.7', 'almalinux:8.8', 'almalinux:9.0',
              'amazonlinux:2022', 'amazonlinux:2023',
-             'opensuse-leap15.3',
              'oraclelinux:8.7', 'oraclelinux:8.8', 'oraclelinux:9']
     runs-on: ubuntu-20.04
     container:
@@ -272,6 +269,7 @@ jobs:
 
       - name: Extract OpenVINO packages
         run: |
+          dnf update -y && dnf install -y tar gzip
           pushd ${INSTALL_DIR}
             tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
           popd

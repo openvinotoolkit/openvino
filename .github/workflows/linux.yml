@@ -12,17 +12,17 @@ on:
       - 'docs/snippets/**'
       - '!**/**.md'
       - '!**.md'
-  # push:
-  #   paths:
-  #     - '**'
-  #     - '!docs/**'
-  #     - '!**/docs/**'
-  #     - 'docs/snippets/**'
-  #     - '!**/**.md'
-  #     - '!**.md'
-  #   branches:
-  #     - master
-  #     - 'releases/**'
+  push:
+    paths:
+      - '**'
+      - '!docs/**'
+      - '!**/docs/**'
+      - 'docs/snippets/**'
+      - '!**/**.md'
+      - '!**.md'
+    branches:
+      - master
+      - 'releases/**'
 
 concurrency:
   # github.ref is not unique in post-commit
