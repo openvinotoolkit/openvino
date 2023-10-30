@@ -16,7 +16,7 @@ class TestInv(CommonTFLayerTest):
 
         return inputs_data
 
-    def create_Inv_net(self, input_shape, input_type):
+    def create_inv_net(self, input_shape, input_type):
         self.input_type = input_type
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
