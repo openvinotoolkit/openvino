@@ -124,26 +124,7 @@ endif()
 #
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS)
-    # find_package(ZLIB QUIET)
-    if(ZLIB_FOUND)
-        # FindZLIB module defines ZLIB::ZLIB, no extra steps are required
-    endif()
-
-    # cmake has failed to find zlib, let's try pkg-config
-    if(NOT ZLIB_FOUND AND PkgConfig_FOUND)
-        # pkg_search_module(zlib QUIET
-        #                   IMPORTED_TARGET
-        #                   zlib)
-        if(zlib_FOUND)
-            add_library(ZLIB::ZLIB INTERFACE IMPORTED)
-            set_target_properties(ZLIB::ZLIB PROPERTIES INTERFACE_LINK_LIBRARIES PkgConfig::zlib)
-            message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
-        endif()
-    endif()
-
-    if(NOT (zlib_FOUND OR ZLIB_FOUND))
-        add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
-    endif()
+    add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
 endif()
 
 #
@@ -324,51 +305,8 @@ endif()
 #
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS)
-    if(OV_VCPKG_BUILD OR OV_CONAN_BUILD)
-        # vcpkg contains only libs compiled with threads
-        # conan case
-        # find_package(gflags QUIET)
-    elseif(APPLE OR WIN32)
-        # on Windows and macOS we don't use gflags, because will be dynamically linked
-    elseif(CMAKE_HOST_LINUX AND LINUX)
-        if(OV_OS_RHEL)
-            set(gflag_component nothreads_shared)
-        elseif(OV_OS_DEBIAN)
-            set(gflag_component nothreads_static)
-        endif()
-        # find_package(gflags QUIET OPTIONAL_COMPONENTS ${gflag_component})
-    endif()
-
-    if(gflags_FOUND)
-        if(TARGET gflags)
-            # no extra steps
-        elseif(TARGET gflags_nothreads-static)
-            # Debian 9: gflag_component is ignored
-            set(gflags_target gflags_nothreads-static)
-        elseif(TARGET gflags_nothreads-shared)
-            # CentOS / RHEL / Fedora case
-            set(gflags_target gflags_nothreads-shared)
-        elseif(TARGET ${GFLAGS_TARGET})
-            set(gflags_target ${GFLAGS_TARGET})
-        else()
-            message(FATAL_ERROR "Internal error: failed to find imported target 'gflags' using '${gflag_component}' component")
-        endif()
-
-        if(gflags_target)
-            if(OV_PkgConfig_VISILITY)
-                # need to set GLOBAL visibility in order to create ALIAS for this target
-                set_target_properties(${gflags_target} PROPERTIES IMPORTED_GLOBAL ON)
-            endif()
-            add_library(gflags ALIAS ${gflags_target})
-        endif()
-
-        message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR} using '${gflag_component}' component")
-    endif()
-
-    if(NOT TARGET gflags)
-        add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
-        ov_developer_package_export_targets(TARGET gflags)
-    endif()
+    add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
+    ov_developer_package_export_targets(TARGET gflags)
 endif()
 
 #

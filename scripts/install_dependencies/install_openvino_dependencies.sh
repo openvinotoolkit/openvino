@@ -118,26 +118,26 @@ if [ "$os" == "raspbian9" ] || [ "$os" == "debian9" ] ; then
     # - cmake version is 3.7.2
     # which are not supported by OpenVINO
 
-    pkgs_core=(libpugixml1v5)
+    pkgs_core=()
     pkgs_gpu=(ocl-icd-libopencl1)
     pkgs_python=()
-    pkgs_dev=(pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json-dev make curl sudo)
+    pkgs_dev=(pkg-config g++ gcc libc6-dev make curl sudo)
 
 elif [ "$os" == "ubuntu18.04" ] ; then
 
-    pkgs_core=(libtbb2 libpugixml1v5)
+    pkgs_core=(libtbb2)
     pkgs_gpu=(ocl-icd-libopencl1)
     pkgs_python=(python3.8 libpython3.8 python3.8-venv python3-pip)
-    pkgs_dev=(cmake pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json-dev make curl sudo)
+    pkgs_dev=(cmake pkg-config g++ gcc libc6-dev make curl sudo)
 
 elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] ||
      [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubuntu22.04" ] || [ "$os" == "debian11" ] || [ "$os" == "raspbian11" ] ||
      [ "$os" == "ubuntu22.10" ] || [ "$os" == "ubuntu23.04" ] || [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ]; then
 
-    pkgs_core=(libpugixml1v5)
+    pkgs_core=()
     pkgs_gpu=(ocl-icd-libopencl1)
     pkgs_python=(python3 python3-venv python3-pip)
-    pkgs_dev=(cmake pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json3-dev make curl sudo)
+    pkgs_dev=(cmake pkg-config g++ gcc libc6-dev make curl sudo)
 
     if [ "$os" == "ubuntu22.04" ] || [ "$os" == "ubuntu22.10" ] || [ "$os" == "ubuntu23.04" ] ||
        [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ] ; then
@@ -172,8 +172,10 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
         amazon-linux-extras install epel python3.8
     fi
 
-    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake3 "json-devel.$arch" "zlib-devel.$arch" sudo)
+    pkgs_core=()
     pkgs_gpu=()
+    pkgs_python=()
+    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake3 sudo)
 
     if [ "$os" == "centos7" ] || [ "$os" == "amzn2" ] ; then
         pkgs_dev+=(pkgconfig)
@@ -189,45 +191,29 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
 
     if [ "$os" == "fedora35" ] || [ "$os" == "fedora35" ] || [ "$os" == "fedora36" ] ||
        [ "$os" == "fedora36" ] || [ "$os" == "fedora38" ] ; then
-        pkgs_core=("tbb.$arch" "pugixml.$arch" "gflags.$arch")
-        pkgs_python=(python3 python3-pip)
-        pkgs_dev+=("gflags-devel.$arch")
+        pkgs_core+=("tbb.$arch")
+        pkgs_python+=(python3 python3-pip)
     fi
 
     if [ "$os" == "centos7" ] || [ "$os" == "amzn2" ] ; then
-        pkgs_core=("tbb.$arch" "pugixml.$arch" "gflags.$arch")
         pkgs_gpu+=("ocl-icd.$arch")
-        pkgs_dev+=("gflags-devel.$arch")
         extra_repos+=("https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm")
     elif [ "$os" == "centos8" ] || [ "$os" == "rhel8" ] || [ "$os" == "almalinux8.7" ] ; then
-        pkgs_core+=(
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/tbb-2018.2-9.el8.$arch.rpm"
-            "https://dl.fedoraproject.org/pub/epel/8/Everything/$arch/Packages/p/pugixml-1.13-1.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/PowerTools/$arch/os/Packages/gflags-2.1.2-6.el8.$arch.rpm"
-        )
+        pkgs_core+=("https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/tbb-2018.2-9.el8.$arch.rpm")
         pkgs_gpu+=("http://mirror.centos.org/centos/8-stream/AppStream/$arch/os/Packages/ocl-icd-2.2.12-1.el8.$arch.rpm")
         pkgs_python+=(python38 python38-pip)
-        pkgs_dev+=(
-            "https://vault.centos.org/centos/8/PowerTools/$arch/os/Packages/gflags-devel-2.1.2-6.el8.$arch.rpm"
-            "https://dl.fedoraproject.org/pub/epel/8/Everything/$arch/Packages/j/json-devel-3.6.1-2.el8.$arch.rpm"
-        )
         extra_repos+=("https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm")
     elif [ "$os" == "rhel9.1" ] ; then
-        pkgs_core=(
-            "http://mirror.stream.centos.org/9-stream/AppStream/$arch/os/Packages/tbb-2020.3-8.el9.$arch.rpm"
-            "https://dl.fedoraproject.org/pub/epel/9/Everything/$arch/Packages/p/pugixml-1.13-1.el9.$arch.rpm"
-            "https://dl.fedoraproject.org/pub/epel/9/Everything/$arch/Packages/g/gflags-2.2.2-9.el9.$arch.rpm"
-        )
+        pkgs_core+=("http://mirror.stream.centos.org/9-stream/AppStream/$arch/os/Packages/tbb-2020.3-8.el9.$arch.rpm")
         pkgs_gpu+=("https://mirror.stream.centos.org/9-stream/AppStream/$arch/os/Packages/ocl-icd-2.2.13-4.el9.$arch.rpm")
-        pkgs_python=(python3 python3-pip)
-        pkgs_dev+=("https://dl.fedoraproject.org/pub/epel/9/Everything/$arch/Packages/g/gflags-devel-2.2.2-9.el9.$arch.rpm")
+        pkgs_python+=(python3 python3-pip)
         extra_repos+=("https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm")
     fi
 elif [ "$os" == "opensuse-leap15.3" ] ; then
-    pkgs_core=(libtbb2 libtbbmalloc2 libpugixml1)
+    pkgs_core=(libtbb2 libtbbmalloc2)
     pkgs_gpu=(libOpenCL1)
     pkgs_python=(python39-base python39 python39-venv python39-pip)
-    pkgs_dev=(cmake pkg-config gcc-c++ gcc gflags-devel-static zlib-devel nlohmann_json-devel make curl sudo)
+    pkgs_dev=(cmake pkg-config gcc-c++ gcc make curl sudo)
 else
     echo "Internal script error: invalid OS (${os}) after check (package selection)" >&2
     exit 3
