@@ -10,7 +10,7 @@ albert-base-v2,albert
 AlekseyKorshuk/test_reward_model,reward_model,skip,Load problem
 alibaba-damo/mgp-str-base,mgp-str,xfail,Compile error: unsupported Einsum
 allenai/hvila-block-layoutlm-finetuned-docbank,hierarchical_model,skip,Load problem
-allenai/longformer-base-4096,longformer,xfail,Unsupported op aten::as_strided
+allenai/longformer-base-4096,longformer
 ameya772/sentence-t5-base-atis-fine-tuned,T5,skip,Load problem
 andreasmadsen/efficient_mlm_m0.40,roberta-prelayernorm
 anton-l/emformer-base-librispeech,emformer,skip,Load problem
@@ -68,11 +68,11 @@ facebook/detr-resnet-50,detr
 facebook/dinov2-base,dinov2,skip,Load problem
 facebook/dpr-question_encoder-single-nq-base,dpr
 facebook/encodec_24khz,encodec,xfail,Unsupported op aten::lstm
-facebook/esm2_t6_8M_UR50D,esm,xfail,Tracing error: The values for attribute 'shape' do not match
+facebook/esm2_t6_8M_UR50D,esm
 facebook/flava-full,flava,xfail,Tracing problem
 facebook/flava-image-codebook,flava_image_codebook,skip,Load problem
 facebook/m2m100_418M,m2m_100
-facebook/mask2former-swin-base-coco-panoptic,mask2former,xfail,Accuracy validation failed
+facebook/mask2former-swin-base-coco-panoptic,mask2former
 facebook/maskformer-swin-base-coco,maskformer
 facebook/mms-tts-eng,vits,skip,Load problem
 facebook/musicgen-small,musicgen,skip,Load problem
@@ -93,6 +93,7 @@ Geor111y/flair-ner-addresses-extractor,flair,skip,Load problem
 gia-project/gia,gia,skip,Load problem
 gokuls/bert_12_layer_model_v1,hybridbert,skip,Load problem
 google/bigbird-roberta-base,big_bird
+google/bigbird-pegasus-large-arxiv,bigbird-pegasus
 google/bit-50,bit
 google/canine-s,canine,xfail,aten::slice: Parameter axis 3 out of the tensor rank range
 google/efficientnet-b2,efficientnet,xfail,Compile error: AvgPool: Kernel after dilation has size (dim: 1408) larger than the data shape after padding (dim: 9) at axis 0.
@@ -106,7 +107,7 @@ google/owlvit-base-patch32,owlvit
 google/pix2struct-docvqa-base,pix2struct,skip,Load problem
 google/realm-orqa-nq-openqa,realm,skip,Load problem
 google/reformer-crime-and-punishment,reformer,xfail,Tracing problem
-google/tapas-large-finetuned-wtq,tapas,skip,Load problem
+google/tapas-large-finetuned-wtq,tapas
 google/vit-hybrid-base-bit-384,vit-hybrid,skip,Load problem
 google/vivit-b-16x2-kinetics400,vivit
 Goutham-Vignesh/ContributionSentClassification-scibert,scibert,skip,Load problem
@@ -123,10 +124,10 @@ hf-internal-testing/tiny-random-Data2VecAudioModel,data2vec-audio,skip,Load prob
 hf-internal-testing/tiny-random-Data2VecTextModel,data2vec-text
 hf-internal-testing/tiny-random-Data2VecVisionModel,data2vec-vision
 hf-internal-testing/tiny-random-DeiTModel,deit
-hf-internal-testing/tiny-random-DonutSwinModel,donut-swin,xfail,Unsupported op aten::adaptive_avg_pool1d
+hf-internal-testing/tiny-random-DonutSwinModel,donut-swin
 hf-internal-testing/tiny-random-EfficientFormerForImageClassification,efficientformer
 hf-internal-testing/tiny-random-flaubert,flaubert
-hf-internal-testing/tiny-random-FocalNetModel,focalnet,xfail,Unsupported op aten::adaptive_avg_pool1d
+hf-internal-testing/tiny-random-FocalNetModel,focalnet
 hf-internal-testing/tiny-random-GPTBigCodeForCausalLM,gpt_bigcode,xfail,Conversion is failed for: aten::mul
 hf-internal-testing/tiny-random-GPTJModel,gptj
 hf-internal-testing/tiny-random-groupvit,groupvit
@@ -155,7 +156,7 @@ hf-internal-testing/tiny-random-Speech2TextModel,speech_to_text,skip,Load proble
 hf-internal-testing/tiny-random-speech-encoder-decoder,speech-encoder-decoder,skip,Load problem
 hf-internal-testing/tiny-random-SplinterModel,splinter
 hf-internal-testing/tiny-random-SqueezeBertModel,squeezebert
-hf-internal-testing/tiny-random-SwinModel,swin,xfail,Unsupported op aten::adaptive_avg_pool1d
+hf-internal-testing/tiny-random-SwinModel,swin
 hf-internal-testing/tiny-random-unispeech,unispeech,skip,Load problem
 hf-internal-testing/tiny-random-UniSpeechSatModel,unispeech-sat,skip,Load problem
 hf-internal-testing/tiny-random-vision_perceiver_conv,perceiver
@@ -242,16 +243,16 @@ microsoft/deberta-base,deberta
 microsoft/git-large-coco,git,skip,Load problem
 microsoft/layoutlm-base-uncased,layoutlm
 microsoft/layoutlmv2-base-uncased,layoutlmv2,skip,Load problem
-microsoft/layoutlmv3-base,layoutlmv3,xfail,Unsupported op aten::amax aten::clip
+microsoft/layoutlmv3-base,layoutlmv3
 microsoft/markuplm-base,markuplm
 microsoft/resnet-50,resnet
 microsoft/speecht5_hifigan,hifigan,skip,Load problem
 microsoft/speecht5_tts,speecht5,skip,Load problem
-microsoft/swinv2-tiny-patch4-window8-256,swinv2,xfail,Unsupported op aten::adaptive_avg_pool1d
+microsoft/swinv2-tiny-patch4-window8-256,swinv2
 microsoft/table-transformer-detection,table-transformer
 microsoft/wavlm-large,wavlm,skip,Load problem
 microsoft/xclip-base-patch32,xclip,skip,Load problem
-microsoft/xprophetnet-large-wiki100-cased,xlm-prophetnet,xfail,Unsupported op aten::fill_diagonal_
+microsoft/xprophetnet-large-wiki100-cased,xlm-prophetnet
 miguelvictor/python-fromzero-lstmlm,lstmlm,skip,Load problem
 mingzi151/test-hf-wav2vec2bert,wav2vec2bert,skip,Load problem
 MIT/ast-finetuned-audioset-10-10-0.4593,audio-spectrogram-transformer,skip,Load problem
@@ -301,7 +302,7 @@ pie/example-re-textclf-tacred,TransformerTextClassificationModel,skip,Load probl
 pleisto/yuren-baichuan-7b,multimodal_llama,skip,Load problem
 predictia/europe_reanalysis_downscaler_convbaseline,convbilinear,skip,Load problem
 predictia/europe_reanalysis_downscaler_convswin2sr,conv_swin2sr,skip,Load problem
-pszemraj/led-large-book-summary,led,xfail,Unsupported op aten::as_strided
+pszemraj/led-large-book-summary,led
 qmeeus/whisper-small-ner-combined,whisper_for_slu,skip,Load problem
 raman-ai/pcqv2-tokengt-lap16,tokengt,skip,Load problem
 range3/pegasus-gpt2-medium,pegasusgpt2,skip,Load problem
@@ -330,8 +331,8 @@ sheonhan/ict-imagenet-256,ict,skip,Load problem
 shibing624/text2vec-base-chinese-paraphrase,ernie
 shikhartuli/flexibert-mini,flexibert,skip,Load problem
 shikras/shikra-7b-delta-v1-0708,shikra,skip,Load problem
-shi-labs/dinat-mini-in1k-224,dinat,xfail,Unsupported op aten::adaptive_avg_pool1d
-shi-labs/nat-mini-in1k-224,nat,xfail,Unsupported op aten::adaptive_avg_pool1d
+shi-labs/dinat-mini-in1k-224,dinat,xfail,Accuracy validation failed
+shi-labs/nat-mini-in1k-224,nat,xfail,Accuracy validation failed
 shi-labs/oneformer_ade20k_swin_large,oneformer,skip,Load problem
 shuqi/seed-encoder,seed_encoder,skip,Load problem
 sijunhe/nezha-cn-base,nezha
@@ -348,7 +349,7 @@ SteveZhan/my-resnet50d,resnet_steve,skip,Load problem
 suno/bark,bark,skip,Load problem
 surajnair/r3m-50,r3m,skip,Load problem
 susnato/clvp_dev,clvp,skip,Load problem
-Tanrei/GPTSAN-japanese,gptsan-japanese,xfail,Unsupported op aten::clip aten::index_put_ prim::TupleConstruct
+Tanrei/GPTSAN-japanese,gptsan-japanese,xfail,Unsupported op aten::index_put_ prim::TupleConstruct
 tau/bart-large-sled-govreport,tau/sled,skip,Load problem
 taufeeque/best-cb-model,codebook,skip,Load problem
 Team-PIXEL/pixel-base,pixel,skip,Load problem
@@ -357,7 +358,7 @@ thomwolf/vqgan_imagenet_f16_1024,vqgan_model,skip,Load problem
 thu-ml/zh-clip-vit-roberta-large-patch14,zhclip,skip,Load problem
 tifa-benchmark/promptcap-coco-vqa,ofa,skip,Load problem
 tli8hf/robertabase_snli,transformerfornli,skip,Load problem
-transfo-xl-wt103,transfo-xl,xfail,Unsupported op aten::clamp_ aten::index_copy_
+transfo-xl-wt103,transfo-xl,xfail,Unsupported op aten::index_copy_
 transZ/BART_shared_clean,shared_bart,skip,Load problem
 transZ/BART_shared_v2,shared_bart_v2,skip,Load problem
 transZ/misecom,misecom,skip,Load problem

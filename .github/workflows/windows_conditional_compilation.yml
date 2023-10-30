@@ -1,4 +1,4 @@
-name: Tests on Windows Conditional Compilation (VS 2022, Python 3.11)
+name: Windows Conditional Compilation (VS 2022, Python 3.11)
 on:
   workflow_dispatch:
   schedule:
@@ -24,36 +24,31 @@ on:
 #      - master
 
 concurrency:
-  group: ${{ github.head_ref || github.run_id }}-windows-cc
+  # github.ref is not unique in post-commit
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-windows-cc
   cancel-in-progress: true
 
 env:
-  CMAKE_BUILD_TYPE: 'Release'
-  CMAKE_GENERATOR: 'Ninja'
-  CMAKE_CXX_COMPILER_LAUNCHER: sccache
-  CMAKE_C_COMPILER_LAUNCHER: sccache
-  OPENVINO_REPO: "${{ github.workspace }}\\openvino"
-  OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
-  INSTALL_DIR: "${{ github.workspace }}\\install_pkg"
-  INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
-  SAMPLES_INSTALL_DIR: "${{ github.workspace }}\\install\\samples"
-  LAYER_TESTS_INSTALL_DIR: "${{ github.workspace }}\\install\\tests\\layer_tests"
-  BUILD_DIR: "${{ github.workspace }}\\build"
-  BUILD_DIR_2: "${{ github.workspace }}\\build_s"
-  MODELS_PATH: "${{ github.workspace }}\\testdata"
-  OV_TEMP: "${{ github.workspace }}\\openvino_temp"
-  BUILD_TYPE: "Release"
-  PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
-  VCVARSPATH: "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Auxiliary\\Build\\vcvarsall.bat"
+  PYTHON_VERSION: '3.11'
 
 jobs:
   Build:
-    # TODO: remove. Temporary measure to prevent the workflow from scheduling on forks.
-    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    timeout-minutes: 180
     defaults:
       run:
         shell: pwsh
     runs-on: windows-latest-8-cores
+    env:
+      CMAKE_BUILD_TYPE: 'Release'
+      CMAKE_GENERATOR: 'Ninja Multi-Config'
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_C_COMPILER_LAUNCHER: sccache
+      OPENVINO_REPO: "${{ github.workspace }}\\openvino"
+      INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
+      INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
+      BUILD_DIR: "${{ github.workspace }}\\openvino_build"
+      MODELS_PATH: "${{ github.workspace }}\\testdata"
+      SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@v4
@@ -70,26 +65,29 @@ jobs:
           ref: 'master'
 
       #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
+      #
       # Dependencies
       #
 
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install build dependencies
-        run: |
-          choco install --no-progress ninja
+        run: choco install --no-progress ninja
 
       #
       # Build
       #
 
-      - name: Get number of CPU cores
-        uses: SimenB/github-actions-cpu-cores@v2
-        id: cpu-cores
-
-      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Configure Developer Command Prompt for Microsoft Visual C++
+        uses: ilammy/msvc-dev-cmd@v1
 
       - name: Setup sccache
         uses: hendrikmuhs/ccache-action@v1.2
@@ -99,71 +97,227 @@ jobs:
           # Should save cache only if run in the master branch of the base repo
           # github.ref_name is 'ref/PR_#' in case of the PR, and 'branch_name' when executed on push
           save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
-          key: ${{ github.job }}-windows-cc
+          key: ${{ github.job }}-${{ runner.os }}-itt
           restore-keys: |
-            ${{ github.job }}-windows-cc
+            ${{ github.job }}-${{ runner.os }}-itt
 
-      - name: CMake CC COLLECT
+      - name: CMake configure - CC COLLECT
         run: |
-          & "${{ env.VCVARSPATH }}" x64 && cmake -G Ninja `
+          cmake -G "${{ env.CMAKE_GENERATOR }}" `
+            -DBUILD_SHARED_LIBS=OFF `
+            -DENABLE_TESTS=ON `
             -DENABLE_CPPLINT=OFF `
-            -DENABLE_GAPI_PREPROCESSING=OFF `
-            -DENABLE_PLUGINS_XML=ON `
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF `
-            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+            -DENABLE_NCC_STYLE=OFF `
+            -DENABLE_INTEL_GNA=OFF `
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
             -DENABLE_PROFILING_ITT=ON `
             -DSELECTIVE_BUILD=COLLECT `
+            -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
-      - name: Build CC COLLECT
+      - name: Cmake build - CC COLLECT
         run: |
-          & "${{ env.VCVARSPATH }}" x64 && cmake --build ${{ env.BUILD_DIR }} --parallel ${{ steps.cpu-cores.outputs.count }} --config ${{ env.BUILD_TYPE }} `
-            --target openvino_intel_cpu_plugin openvino_ir_frontend benchmark_app sea_itt_lib
+          cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
+          cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
+
+      - name: Cmake install - OpenVINO
+        run: cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+
+      - name: Build C++ samples - OpenVINO build tree
+        run: |
+          cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples
+          cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
+
+      - name: Build C samples - OpenVINO install tree
+        run: |
+          & ${{ env.INSTALL_DIR }}/samples/c/build_samples_msvc.bat -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
+
+      - name: Ctest - OpenVINO unit tests
+        shell: cmd
+        run: |
+          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin
+          ctest -C ${{ env.CMAKE_BUILD_TYPE }} --test-dir ${{ env.BUILD_DIR }} -V -L UNIT
+
+      - name: Perform code tracing via ITT collector
+        shell: cmd
+        run: |
+          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin
+          
+          python3 ${{ env.OPENVINO_REPO }}\thirdparty\itt_collector\runtool\sea_runtool.py ^
+          --bindir ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }} ^
+          -o ${{ env.SELECTIVE_BUILD_STAT_DIR }}\itt_stat ! ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }}\benchmark_app.exe ^
+          -niter 1 ^
+          -nireq 1 ^
+          -m ${{ env.MODELS_PATH }}\models\test_model\test_model_fp32.xml ^
+          -d CPU
 
       - name: List bin files
         shell: cmd
         run: dir ${{ env.OPENVINO_REPO }}\bin\ /s
 
-      - name: Code usage analysis
+      - name: List install files
         shell: cmd
-        working-directory: ${{ env.OPENVINO_REPO }}
-        run: |
-          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin
-          call "${{ env.VCVARSPATH }}" && python thirdparty\itt_collector\runtool\sea_runtool.py --bindir ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.BUILD_TYPE }} -o ${{ env.BUILD_DIR }}\itt_stat ! ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.BUILD_TYPE }}\benchmark_app.exe -niter 1 -nireq 1 -m ${{ env.MODELS_PATH }}\models\test_model\test_model_fp32.xml -d CPU
+        run: dir ${{ env.INSTALL_DIR }} /s
 
-      - name: List csv files
-        shell: cmd
-        run: dir ${{ env.BUILD_DIR }}\*.csv /s /p
-
-      - name: CMake CC ON
+      - name: Pack Artifacts
         run: |
-          & "${{ env.VCVARSPATH }}" x64 && cmake -G "Visual Studio 17 2022" `
-            -DCMAKE_VERBOSE_MAKEFILE=ON `
+          $file=Get-ChildItem -Path "${{ env.SELECTIVE_BUILD_STAT_DIR }}"
+          $compress = @{
+            Path = $file
+            CompressionLevel = "Optimal"
+            DestinationPath = "${{ env.BUILD_DIR }}/openvino_selective_build_stat.zip"
+          }
+          Compress-Archive @compress
+
+          $compress = @{
+            Path = "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_cpu_func_tests.exe", "${{ env.OPENVINO_REPO }}/src/tests/test_utils/functional_test_utils/layer_tests_summary", "${{ env.INSTALL_DIR }}/runtime/3rdparty/tbb"
+            CompressionLevel = "Optimal"
+            DestinationPath = "${{ env.BUILD_DIR }}/openvino_tests.zip"
+          }
+          Compress-Archive @compress
+
+      - name: Upload selective build statistics package
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: openvino_selective_build_stat
+          path: ${{ env.BUILD_DIR }}/openvino_selective_build_stat.zip
+          if-no-files-found: 'error'
+
+      - name: Upload OpenVINO tests package
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: openvino_tests
+          path: ${{ env.BUILD_DIR }}/openvino_tests.zip
+          if-no-files-found: 'error'
+
+  CC_Build:
+    name: Conditional Compilation
+    needs: Build
+    defaults:
+      run:
+        shell: pwsh
+    runs-on: windows-latest-8-cores
+    env:
+      CMAKE_BUILD_TYPE: 'Release'
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_C_COMPILER_LAUNCHER: sccache
+      OPENVINO_REPO: "${{ github.workspace }}\\openvino"
+      BUILD_DIR: "${{ github.workspace }}\\openvino_build"
+      MODELS_PATH: "${{ github.workspace }}\\testdata"
+      SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
+    steps:
+      - name: Clone OpenVINO
+        uses: actions/checkout@v4
+        with:
+          path: 'openvino'
+          submodules: 'true'
+
+      - name: Clone test models
+        uses: actions/checkout@v4
+        with:
+          repository: 'openvinotoolkit/testdata'
+          path: 'testdata'
+          lfs: 'true'
+          ref: 'master'
+
+      - name: Download selective build statistics package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_selective_build_stat
+          path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}
+
+      - name: Extract selective build statistics package
+        run: Expand-Archive ${{ env.SELECTIVE_BUILD_STAT_DIR }}/openvino_selective_build_stat.zip -DestinationPath "${{ env.SELECTIVE_BUILD_STAT_DIR }}"
+
+      - name: CMake configure - CC ON
+        run: |
+          cmake `
+            -DBUILD_SHARED_LIBS=OFF `
             -DENABLE_CPPLINT=OFF `
-            -DENABLE_GAPI_PREPROCESSING=OFF `
-            -DENABLE_PROFILING_ITT=OFF `
             -DSELECTIVE_BUILD=ON `
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF `
-            -DSELECTIVE_BUILD_STAT=${{ env.BUILD_DIR }}\*.csv `
+            -DENABLE_TEMPLATE=OFF `
+            -DENABLE_INTEL_GPU=OFF `
+            -DENABLE_INTEL_GNA=OFF `
+            -DENABLE_OV_TF_FRONTEND=OFF `
+            -DENABLE_OV_TF_LITE_FRONTEND=OFF `
+            -DENABLE_OV_PADDLE_FRONTEND=OFF `
+            -DENABLE_OV_PYTORCH_FRONTEND=OFF `
+            -DENABLE_OV_ONNX_FRONTEND=OFF `
+            -DSELECTIVE_BUILD_STAT=${{ env.SELECTIVE_BUILD_STAT_DIR }}\*.csv `
             -S ${{ env.OPENVINO_REPO }} `
-            -B ${{ env.BUILD_DIR_2 }}
+            -B ${{ env.BUILD_DIR }}
 
-      - name: Build CC ON
-        run: |
-          & "${{ env.VCVARSPATH }}" x64 && cmake --build ${{ env.BUILD_DIR_2 }} --parallel ${{ steps.cpu-cores.outputs.count }} --config ${{ env.BUILD_TYPE }} `
-            --target openvino_intel_cpu_plugin openvino_ir_frontend benchmark_app
+      - name: Cmake build - CC ON
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app
 
-      - name: List bin files ON
+      - name: List bin files
         shell: cmd
         run: dir ${{ env.OPENVINO_REPO }}\bin\ /s
 
-      - name: Check conditional_compilation_gen.h header
-        shell: cmd
-        run: type ${{ env.BUILD_DIR_2 }}\src\common\conditional_compilation\conditional_compilation_gen.h
-
-      - name: Use OpenVINO after CC
+      - name: Run with CC-ed runtime
         shell: cmd
         run: |
           set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin
-          ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.BUILD_TYPE }}\benchmark_app.exe -niter 1 -nireq 1 -m ${{ env.MODELS_PATH }}\models\test_model\test_model_fp32.xml -d CPU
+          ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }}\benchmark_app.exe -niter 1 -nireq 1 -m ${{ env.MODELS_PATH }}\models\test_model\test_model_fp32.xml -d CPU
+
+  CPU_Functional_Tests:
+    name: CPU functional tests
+    needs: Build
+    defaults:
+      run:
+        shell: pwsh
+    runs-on: windows-latest-8-cores
+    env:
+      INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
+      PARALLEL_TEST_SCRIPT: "${{ github.workspace }}\\tests_install\\layer_tests_summary\\run_parallel.py"
+      PARALLEL_TEST_CACHE: "${{ github.workspace }}\\tests_install\\test_cache.lst"
+
+    steps:
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO tests package
+        run: Expand-Archive ${{ env.INSTALL_TEST_DIR }}/openvino_tests.zip -DestinationPath "${{ env.INSTALL_TEST_DIR }}"
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install python dependencies for run_parallel.py
+        run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/layer_tests_summary/requirements.txt
+
+      # Windows pipeline is in nightly mode, uncomment once there is a consistent cache creation
+      # - name: Restore tests execution time
+      #   uses: actions/cache/restore@v3
+      #   with:
+      #     path: ${{ env.PARALLEL_TEST_CACHE }}
+      #     key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
+      #     restore-keys: |
+      #      ${{ runner.os }}-tests-functional-cpu-stamp
+
+      - name: Intel CPU plugin func tests (parallel)
+        shell: cmd
+        run: |
+          set path=%path%;${{ env.INSTALL_TEST_DIR }}\tbb\bin;${{ env.INSTALL_TEST_DIR }}\tbb
+          python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}\ov_cpu_func_tests.exe -w ${{ env.INSTALL_TEST_DIR }} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
+        timeout-minutes: 45
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results-functional-cpu
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+            ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/disabled_tests.log
+          if-no-files-found: 'error'

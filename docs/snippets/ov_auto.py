@@ -8,7 +8,6 @@ import openvino.properties as properties
 import openvino.properties.device as device
 import openvino.properties.hint as hints
 import openvino.properties.streams as streams
-import properties.enable_profiling as enable_profiling
 #! [py_ov_property_import_header]
 import openvino.properties.log as log
 
@@ -167,7 +166,7 @@ def part5():
     cpu_config = {
         hints.performance_mode: hints.PerformanceMode.LATENCY,
         streams.num: 8,
-        enable_profiling: True
+        properties.enable_profiling: True
     }
     compiled_model = core.compile_model(
         model=model,
