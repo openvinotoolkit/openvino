@@ -23,6 +23,7 @@ class TestCumsum(CommonTFLayerTest):
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
             tf_input = tf.compat.v1.placeholder(tf.float32, input_shape, 'Input')
+
             tf_axis = tf.constant(axis, dtype=tf.int32)
             tf.raw_ops.Cumsum(x=tf_input, axis=tf_axis, exclusive=exclusive, reverse=reverse)
 
@@ -35,11 +36,10 @@ class TestCumsum(CommonTFLayerTest):
 
     test_data = [
         dict(input_shape=[2], axis=-1),
+        dict(input_shape=[2, 3], axis=0),
         dict(input_shape=[2, 3], axis=1),
-        dict(input_shape=[2, 3], axis=None),
         dict(input_shape=[2, 3], axis=-2),
         dict(input_shape=[2, 3, 3, 4], axis=2),
-        dict(input_shape=[2, 3, 3, 4], axis=None),
         dict(input_shape=[2, 3, 3, 4], axis=-3),
     ]
 
