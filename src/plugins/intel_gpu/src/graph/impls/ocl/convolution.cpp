@@ -113,6 +113,7 @@ public:
         uint32_t kz = weights_layout.spatial(2);
         conv_params.filterSize = { kx, ky, kz };
 
+        // WA: If 1d conv and dynamic shape, 1d pad should be applied to y axis.
         if (pads_begin.size() == 1) pads_begin.push_back(0);
         if (pads_end.size() == 1) pads_end.push_back(0);
         if (stride.size() == 1) stride.push_back(1);
