@@ -21,7 +21,7 @@ OpenVINO™ is an open-source toolkit for simple and efficient deployment of var
 OpenVINO includes several components: [OpenVINO Model Converter (OVC)], [OpenVINO™ Runtime], as well as CPU, GPU, NPU, auto batch and heterogeneous plugins to accelerate deep learning inference on Intel® CPUs and Intel® Processor Graphics.
 
 <details>
-  <summary>Components</summary>
+  <summary>List of Components</summary>
 
   * [OpenVINO™ Runtime] - is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice.
     * [core](./src/core) - provides the base API for model representation and modification.
@@ -39,7 +39,7 @@ OpenVINO includes several components: [OpenVINO Model Converter (OVC)], [OpenVIN
 </details>
 
 
-### How to Use  
+### Getting Started  
 
 **Documentation**: Detailed information on OpenVINO's features, components, and usage can be found in the [OpenVINO Documentation](https://docs.openvino.ai).
 
@@ -50,15 +50,12 @@ Check out these notebooks that show how to optimize and deploy popular models:
 - [YOLOv8 Optimization](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/230-yolov8-optimization)
 - [A Text-to-Image Generation with ControlNet Conditioning and OpenVINO™](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/235-controlnet-stable-diffusion)
 
-### Quick Start
-
-To quickly install and start using OpenVINO, follow these steps:
-
-**Installation**: [Configure your OpenVINO installation command](https://docs.openvino.ai/2023.1/openvino_docs_install_guides_overview.html) in a couple of clicks.
-
 **Quick Start Example**: Try out a simple [inference example with OpenVINO](https://docs.openvino.ai/2023.1/get_started.html#quick-start-example-no-installation-required) by following the steps from a Jupyter Notebook (no installation required).
 
- 
+#### Installation
+
+[Configure your OpenVINO installation command](https://docs.openvino.ai/2023.1/openvino_docs_install_guides_overview.html) in a couple of clicks.
+
 ### Products which use OpenVINO
 
 **OpenVINO Ecosystem**
