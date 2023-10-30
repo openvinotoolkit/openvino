@@ -337,6 +337,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     const auto& model_frozen_inputs = model_tf->get_tensor_values();
     const auto& saved_model_inputs = model_tf->get_saved_model_input_names();
     const auto& saved_model_outputs = model_tf->get_saved_model_output_names();
+    bool is_body_graph = (model_tf->get_input_names().size() > 0);
 
     // fill ng_op_map with Constant outputs for frozen inputs
     for (const auto& frozen_input : model_frozen_inputs) {
@@ -532,7 +533,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             } else {
                 auto param = as_type_ptr<ov::opset8::Parameter>(output.port.get_node_shared_ptr());
                 // avoid duplicating Parameter nodes if they are already in the Parameters vector
-                if (param && std::find(params.begin(), params.end(), param) == params.end()) {
+                if (param && std::find(params.begin(), params.end(), param) == params.end() && !is_body_graph) {
                     params.push_back(param);
                 }
                 ng_op_map[operation_name].push_back(output);
