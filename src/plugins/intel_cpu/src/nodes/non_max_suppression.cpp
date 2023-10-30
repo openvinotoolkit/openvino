@@ -1,6 +1,10 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+// Copyright (c) Facebook, Inc. and its affiliates.
+// The implementation for rotated boxes intersection is based on the code from:
+// https://github.com/facebookresearch/detectron2/blob/v0.6/detectron2/layers/csrc/box_iou_rotated/box_iou_rotated_utils.h
+//
 
 
 #include "non_max_suppression.h"
