@@ -4,14 +4,11 @@ onetbb/[>=2021.2.1]
 pugixml/[>=1.10]
 protobuf/3.21.12
 ittapi/[>=3.23.0]
-zlib/[>=1.2.8]
 opencl-icd-loader/[>=2023.04.17]
 rapidjson/[>=1.1.0]
 xbyak/[>=6.62]
 snappy/[>=1.1.7]
-gflags/2.2.2
 onnx/1.14.1
-nlohmann_json/[>=3.1.1]
 pybind11/[>=2.10.1]
 flatbuffers/[>=22.9.24]
 

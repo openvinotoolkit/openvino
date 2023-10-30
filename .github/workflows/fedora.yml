@@ -179,7 +179,7 @@ jobs:
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
 
-  RPM_Packages:
+  Archive_Packages:
     needs: Build
     timeout-minutes: 5
     defaults:
@@ -201,39 +201,26 @@ jobs:
     container:
       image: ${{ matrix.os }}
     env:
-      RPM_PACKAGES_DIR: /__w/openvino/packages/
+      INSTALL_DIR: /__w/openvino/openvino/install
 
     steps:
-      - name: Download OpenVINO RPM packages
+      - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_rpm_packages
-          path: ${{ env.RPM_PACKAGES_DIR }}
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
 
-      - name: Install RPM packages & check conflicts
+      - name: Extract OpenVINO packages
         run: |
-          if command -v dnf &> /dev/null; then
-            installer=dnf
-          elif command -v zypper &> /dev/null; then
-            installer=zypper
-          else
-            installer=yum
-          fi
-          $installer install -y *.rpm
-        working-directory: ${{ env.RPM_PACKAGES_DIR }}
+          pushd ${INSTALL_DIR}
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
+          popd
 
-      - name: Test RPM packages
+      - name: Install OpenVINO dependencies
+        run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -y
+
+      - name: Test Archive packages
         run: |
-          /usr/share/openvino/samples/cpp/build_samples.sh
-          /usr/share/openvino/samples/c/build_samples.sh
-          ~/openvino_cpp_samples_build/intel64/Release/hello_query_device
-          # python3 /usr/share/openvino/samples/python/hello_query_device/hello_query_device.py
-          # python3 -c 'from openvino import Core; Core().get_property("CPU", "AVAILABLE_DEVICES")'
-          # python3 -c 'from openvino import Core; Core().get_property("GPU", "AVAILABLE_DEVICES")'
-          # python3 -c 'from openvino import Core; Core().get_property("AUTO", "SUPPORTED_METRICS")'
-          # python3 -c 'from openvino import Core; Core().get_property("MULTI", "SUPPORTED_METRICS")'
-          # python3 -c 'from openvino import Core; Core().get_property("HETERO", "SUPPORTED_METRICS")'
-          # python3 -c 'from openvino import Core; Core().get_property("BATCH", "SUPPORTED_METRICS")'
-          # python3 -c 'from openvino.frontend import FrontEndManager; assert len(FrontEndManager().get_available_front_ends()) == 6'
-          # benchmark_app --help
-          # ovc --help
+          ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples
+          ${INSTALL_DIR}/samples/c/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/c_samples
+          ${INSTALL_DIR}/samples_bin/hello_query_device
