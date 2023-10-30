@@ -33,23 +33,54 @@ Napi::Object CoreWrap::Init(Napi::Env env, Napi::Object exports) {
     return exports;
 }
 
+bool is_valid_read_model_input(const Napi::CallbackInfo& info) {
+    const size_t argsLength = info.Length();
+    const size_t is_buffers_input = info[0].IsBuffer()
+        && (argsLength == 1 || info[1].IsBuffer());
+
+    if (is_buffers_input) return true;
+
+    return info[0].IsString() && (argsLength == 1 || info[1].IsString());
+}
+
 Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
-    if (info.Length() == 1 && info[0].IsString()) {
-        std::string model_path = info[0].ToString();
-        std::shared_ptr<ov::Model> model = _core.read_model(model_path);
-        return ModelWrap::Wrap(info.Env(), model);
-    } else if (info.Length() != 2) {
-        reportError(info.Env(), "Invalid number of arguments -> " + std::to_string(info.Length()));
-        return Napi::Value();
-    } else if (info[0].IsString() && info[1].IsString()) {
-        std::string model_path = info[0].ToString();
-        std::string bin_path = info[1].ToString();
-        std::shared_ptr<ov::Model> model = _core.read_model(model_path, bin_path);
-        return ModelWrap::Wrap(info.Env(), model);
-    } else {
-        reportError(info.Env(), "Error while reading model.");
-        return Napi::Value();
+    if (!is_valid_read_model_input(info)) {
+        Napi::TypeError::New(env, "Invalid arguments").ThrowAsJavaScriptException();
+        return info.Env().Undefined();
     }
+
+    const size_t argsLength = info.Length();
+    std::shared_ptr<ov::Model> model;
+
+    if (info[0].IsBuffer()) {
+        Napi::Buffer<uint8_t> model_data = info[0].As<Napi::Buffer<uint8_t>>();
+        std::string model_str(reinterpret_cast<char*>(model_data.Data()), model_data.Length());
+
+        ov::Tensor tensor;
+
+        if (argsLength == 2) {
+            Napi::Buffer<uint8_t> weights = info[1].As<Napi::Buffer<uint8_t>>();
+            const uint8_t* bin = reinterpret_cast<const uint8_t*>(weights.Data());
+
+            size_t bin_size = weights.Length();
+            tensor = ov::Tensor(ov::element::Type_t::u8, {bin_size});
+            std::memcpy(tensor.data(), bin, bin_size);
+        }
+        else {
+            tensor = ov::Tensor(ov::element::Type_t::u8, {0});
+        }
+
+        model = _core.read_model(model_str, tensor);
+    } else {
+        std::string model_path(info[0].ToString());
+        std::string bin_path;
+
+        if (argsLength == 2) bin_path = info[1].ToString();
+
+        model = _core.read_model(model_path, bin_path);
+    }
+
+    return ModelWrap::Wrap(info.Env(), model);
 }
 
 Napi::Value CoreWrap::read_model_async(const Napi::CallbackInfo& info) {
@@ -84,34 +115,6 @@ Napi::Value CoreWrap::read_model_async(const Napi::CallbackInfo& info) {
 
         return Napi::Value();
     }
-}
-
-Napi::Value CoreWrap::read_model_from_buffer(const Napi::CallbackInfo& info) {
-    if (info.Length() < 1 || info.Length() > 2 || !info[0].IsBuffer()) {
-        Napi::TypeError::New(env, "Invalid arguments").ThrowAsJavaScriptException();
-        return info.Env().Undefined();
-    }
-
-    Napi::Buffer<uint8_t> model_data = info[0].As<Napi::Buffer<uint8_t>>();
-    std::string model_str(reinterpret_cast<char*>(model_data.Data()), model_data.Length());
-
-    ov::Tensor tensor;
-
-    if (info[1].IsBuffer()) {
-        Napi::Buffer<uint8_t> weights = info[1].As<Napi::Buffer<uint8_t>>();
-        const uint8_t* bin = reinterpret_cast<const uint8_t*>(weights.Data());
-
-        size_t bin_size = weights.Length();
-        tensor = ov::Tensor(ov::element::Type_t::u8, {bin_size});
-        std::memcpy(tensor.data(), bin, bin_size);
-    }
-    else {
-        tensor = ov::Tensor(ov::element::Type_t::u8, {0});
-    }
-
-    std::shared_ptr<ov::Model> model = _core.read_model(model_str, tensor);
-
-    return ModelWrap::Wrap(info.Env(), model);
 }
 
 Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
