@@ -134,7 +134,6 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_PASS(manager, WeightsDequantizeToFakeQuantize)
 
     auto common_fusions = manager.register_pass<GraphRewrite>();
-    ADD_MATCHER(common_fusions, ScaledDotProductAttentionDecomposition)
     ADD_MATCHER(common_fusions, SpaceToBatchFusion)
     ADD_MATCHER(common_fusions, BatchToSpaceFusion)
     ADD_MATCHER(common_fusions, InterpolateSequenceFusion)

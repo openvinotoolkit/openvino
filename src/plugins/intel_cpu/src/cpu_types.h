@@ -113,7 +113,6 @@ enum class Type {
     RandomUniform,
     Unique,
     Ngram,
-    RoPE,
     ScaledDotProductAttention,
 };
 

@@ -93,7 +93,6 @@
 #include "nodes/mha.h"
 #include "nodes/unique.hpp"
 #include "nodes/ngram.h"
-#include "nodes/rope.h"
 #include "nodes/scaled_attn.h"
 
 namespace ov {
@@ -200,7 +199,6 @@ Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(GridSample, Type::GridSample);
     INTEL_CPU_NODE(Interaction, Type::Interaction);
     INTEL_CPU_NODE(MHA, Type::MHA);
-    INTEL_CPU_NODE(RoPE, Type::RoPE);
     INTEL_CPU_NODE(ScaledDotProductAttention, Type::ScaledDotProductAttention);
     INTEL_CPU_NODE(Snippet, Type::Subgraph);
 #endif

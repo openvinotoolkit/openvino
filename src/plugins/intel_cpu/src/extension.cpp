@@ -10,8 +10,6 @@
 #include "transformations/cpu_opset/common/op/ngram.hpp"
 #include "transformations/cpu_opset/x64/op/mha.hpp"
 #include "transformations/cpu_opset/x64/op/interaction.hpp"
-#include "transformations/cpu_opset/x64/op/rope.hpp"
-#include "transformations/cpu_opset/x64/op/sdp.hpp"
 #include "transformations/snippets/x64/op/load_convert.hpp"
 #include "transformations/snippets/x64/op/store_convert.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
@@ -62,8 +60,6 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         NGRAPH_OP(NgramNode, ov::intel_cpu)
         NGRAPH_OP_X64(MHANode, ov::intel_cpu)
         NGRAPH_OP_X64(InteractionNode, ov::intel_cpu)
-        NGRAPH_OP_X64(RoPENode, ov::intel_cpu)
-        NGRAPH_OP_X64(ScaledDotProductAttentionNode, ov::intel_cpu)
 #undef NGRAPH_OP
 
         return opset;

@@ -162,7 +162,11 @@ struct PlainTensor : public PlainTensorBase {
 
     ~PlainTensor() {
         if (with_storage && m_capacity > 0) {
+#ifdef _WIN32
+            _aligned_free(m_ptr);
+#else
             ::free(m_ptr);
+#endif
         }
     }
 

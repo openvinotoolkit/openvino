@@ -26,7 +26,6 @@
 #endif
 
 #include "utils/plain_tensor.hpp"
-#include "utils/profiler.hpp"
 #include "scaled_attn_softmax.hpp"
 #include "scaled_attn_dot_product.hpp"
 #include "scaled_attn_acc_value.hpp"
@@ -741,8 +740,7 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ngrap
     if (node) {
         m_config.is_causal = node->get_causal();
     } else {
-        const auto node = std::dynamic_pointer_cast<const ScaledDotProductAttentionNode>(op);
-        m_config = node->get_config();
+        IE_THROW(NotImplemented) << errorMessage;
     }
 }
 
@@ -793,10 +791,8 @@ void ScaledDotProductAttention::execute(dnnl::stream strm) {
 
 bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto node = std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op);
-        if (!std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op) &&
-            !std::dynamic_pointer_cast<const ScaledDotProductAttentionNode>(op)) {
-            errorMessage = "Only ScaledDotProductAttention or ScaledDotProductAttentionNode operation are supported";
+        if (!std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op)) {
+            errorMessage = "Only ScaledDotProductAttention operation are supported";
             return false;
         }
     } catch (...) {

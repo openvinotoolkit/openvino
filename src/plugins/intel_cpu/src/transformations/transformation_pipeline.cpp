@@ -77,15 +77,11 @@
 #include "transformations/op_conversions/unique_decomposition.hpp"
 #include "transformations/op_conversions/convert_topk3.hpp"
 #include "transformations/op_conversions/convert_topk11_downgrade.hpp"
-#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
 #include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/init_node_info.hpp"
 #include "utils/ngraph_transformation.hpp"
-
-#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
-#include "transformations/op_conversions/convert_convertlike.hpp"
 
 // LPT transformations
 #include "low_precision/add.hpp"
@@ -101,9 +97,6 @@
 // CPU specific transformations
 #include "transformations/cpu_opset/convert_to_cpu_specific_opset.hpp"
 #include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
-#include "transformations/cpu_opset/x64/pass/rope_fusion.hpp"
-#include "transformations/cpu_opset/x64/pass/causal_mask_fusion.hpp"
-#include "transformations/cpu_opset/x64/pass/stateful_sdp_fusion.hpp"
 #include "transformations/cpu_opset/x64/pass/convert_to_interaction.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
@@ -320,7 +313,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         ov::pass::KeepConstAndDecompression);
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
-    CPU_REGISTER_PASS_X64(manager, CausalMaskFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::WrapInterpolateIntoTransposes);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeSinking);
@@ -463,7 +455,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertTopK11ToTopK3);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::HSwishDecomposition);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::MatMulConstTransposesExtraction);
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ScaledDotProductAttentionDecomposition);
     CPU_DISABLE_PASS_X64(manager, ov::pass::HSigmoidDecomposition);
 
     CPU_DISABLE_PASS_X64(manager, ov::pass::ReduceL1Decomposition);
@@ -633,14 +624,6 @@ void Transformations::PostLpt() {
 
     // Execute before snippets. Otherwise FQ will be converted to Subgraph
     CPU_REGISTER_PASS_X64(postLPTPassManager, ConvertFqRnnToQuantizedRnn);
-
-    CPU_REGISTER_PASS_X64(postLPTPassManager, EliminateStridedSlice);
-    //DEBUG_DUMP_MODEL_REGISTER_PASS(postLPTPassManager, "before.cpp");
-    CPU_REGISTER_PASS_X64(postLPTPassManager, RoPEFusion);
-    //CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPFusion);
-    //CPU_REGISTER_PASS_X64(postLPTPassManager, RemoveFusedAssign);
-    //DEBUG_DUMP_MODEL_REGISTER_PASS(postLPTPassManager, "after.cpp");
-
     postLPTPassManager.run_passes(model);
 }
 
