@@ -17,21 +17,19 @@ char* str_to_char_array(const std::string& str) {
     return char_array;
 }
 
-static char* last_err_msg = nullptr;
+static std::string last_err_msg;
 static std::mutex last_msg_mutex;
-void dup_last_err_msg(const std::string msg) {
+void dup_last_err_msg(const char* msg) {
     std::lock_guard<std::mutex> lock(last_msg_mutex);
-    ov_free(last_err_msg);
-    last_err_msg = str_to_char_array(msg);
+    last_err_msg = std::string(msg);
 }
 
 const char* ov_get_last_err_msg() {
     std::lock_guard<std::mutex> lock(last_msg_mutex);
     char* res = nullptr;
-    if (last_err_msg)
-        res = str_to_char_array(std::string(last_err_msg));
-    ov_free(last_err_msg);
-    last_err_msg = nullptr;
+    if (!last_err_msg.empty()) {
+        res = str_to_char_array(last_err_msg);
+    }
     return res;
 }
 
@@ -87,8 +85,7 @@ void ov_core_free(ov_core_t* core) {
 
     // release err msg buffer, there will be no err msg after core is freed.
     std::lock_guard<std::mutex> lock(last_msg_mutex);
-    ov_free(last_err_msg);
-    last_err_msg = nullptr;
+    last_err_msg.clear();
 }
 
 ov_status_e ov_core_read_model(const ov_core_t* core,

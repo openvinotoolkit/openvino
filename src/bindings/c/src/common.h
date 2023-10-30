@@ -227,4 +227,4 @@ struct mem_istream : virtual mem_stringbuf, std::istream {
 
 char* str_to_char_array(const std::string& str);
 ov::element::Type get_element_type(ov_element_type_e type);
-void dup_last_err_msg(const std::string msg);
+void dup_last_err_msg(const char* msg);
