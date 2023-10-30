@@ -625,6 +625,7 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags
         PATTERN INSTALL.md EXCLUDE
         PATTERN README.md EXCLUDE
         PATTERN .travis.yml EXCLUDE
+        PATTERN src/gflags_completions.sh EXCLUDE
         PATTERN WORKSPACE EXCLUDE)
 
 file(GLOB zlib_sources ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/zlib/*.c

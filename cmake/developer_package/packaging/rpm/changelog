@@ -1,10 +1,10 @@
-* Sun Jul  4 12:00:00 2010 OpenVINO Developers <openvino@intel.com> - 2022.3.0-1
+* Sun Jul  4 2010 OpenVINO Developers <openvino@intel.com> - 2022.3.0-1
 - Implemented Debian, RPM packages support
 - Support of Ubuntu 22.04
 - Support of python 3.10
 - Introduced OpenVINO Runtime 2.0 C API
 
-* Thu Jul 28 12:00:00 2022 OpenVINO Developers <openvino@intel.com> - 2022.2.0-1
+* Thu Jul 28 2022 OpenVINO Developers <openvino@intel.com> - 2022.2.0-1
 - Broader model and hardware support - Optimize & deploy with ease across an expanded range of deep learning models including NLP, and access AI acceleration across an expanded range of hardware.
     - NEW: Support for Intel 13th Gen Core Processor for desktop (code named Raptor Lake).
     - NEW: Preview support for Intel’s discrete graphics cards, Intel® Data Center GPU Flex Series and Intel® Arc™ GPU for DL inferencing workloads in intelligent cloud, edge and media analytics workloads. Hundreds of models enabled.
@@ -18,6 +18,6 @@
     - NEW: Introducing new performance hint (”Cumulative throughput”) in AUTO device, enabling multiple accelerators (e.g. multiple GPUs) to be used at once to maximize inferencing performance.
     - NEW: Introducing Intel® FPGA AI Suite support which enables real-time, low-latency, and low-power deep learning inference in this easy-to-use package  
 
-* Thu Mar 22 12:00:00 2022 OpenVINO Developers <openvino@intel.com> - 2022.1.0-1
+* Thu Mar 22 2022 OpenVINO Developers <openvino@intel.com> - 2022.1.0-1
 - Implemented OpenVINO 2.0 Runtime API for both C++ and Python
 - Introduced IR v11 which is aligned with frameworks model format
