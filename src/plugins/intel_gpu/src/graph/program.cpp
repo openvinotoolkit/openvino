@@ -3,6 +3,7 @@
 //
 
 #include "openvino/runtime/system_conf.hpp"
+#include "openvino/runtime/threading/cpu_streams_info.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -104,26 +105,6 @@
 using namespace cldnn;
 using namespace ov::intel_gpu;
 
-static void adjust_num_cores(ov::threading::IStreamsExecutor::Config& config) {
-    if (ov::get_available_cores_types().size() == 1) {
-        return;
-    }
-
-    const auto total_num_cores = ov::get_number_of_logical_cpu_cores();
-    const auto total_num_big_cores = ov::get_number_of_logical_cpu_cores(true);
-    const auto total_num_little_cores = total_num_cores - total_num_big_cores;
-    auto core_type = config._threadPreferredCoreType;
-
-    int num_cores = total_num_cores;
-    if (core_type == ov::threading::IStreamsExecutor::Config::BIG) {
-        num_cores = total_num_big_cores;
-    } else if (core_type == ov::threading::IStreamsExecutor::Config::LITTLE) {
-        num_cores = total_num_little_cores;
-    }
-
-    config._streams = std::min(config._streams, num_cores);
-}
-
 static ov::threading::IStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags, int num_streams = 0) {
     ov::threading::IStreamsExecutor::Config task_executor_config(tags, 1);
     task_executor_config._streams = (num_streams > 0) ? num_streams : config.get_property(ov::compilation_num_threads);
@@ -135,7 +116,10 @@ static ov::threading::IStreamsExecutor::Config make_task_executor_config(const E
         default: OPENVINO_ASSERT(false, "[GPU] Can't create task executor: invalid host task priority value: ", priority);
     }
 
-    adjust_num_cores(task_executor_config);
+    task_executor_config.update_executor_config(task_executor_config._streams,
+                                                1,
+                                                task_executor_config._threadPreferredCoreType,
+                                                false);
 
     return task_executor_config;
 }
