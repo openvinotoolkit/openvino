@@ -141,7 +141,8 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
         manager.register_pass<ov::intel_gna::pass::ReplaceGnaNHWCLayers>();
         manager.register_pass<ov::intel_gna::pass::InsertConvolutionTransposeHW>();
         manager.register_pass<ov::intel_gna::pass::GatherSinkingTranspose>();
-        manager.register_pass<ov::pass::TransposeSinkingGeneral>();
+        manager.register_pass<ov::pass::transpose_sinking::TSGeneral>();
+        manager.register_pass<ov::pass::ConstantFolding>();
         manager.register_pass<ov::intel_gna::pass::TransposeCompress>();
         manager.register_pass<ov::intel_gna::pass::TSConcatForward>();
         manager.register_pass<ov::intel_gna::pass::TSSplitBackward>();
