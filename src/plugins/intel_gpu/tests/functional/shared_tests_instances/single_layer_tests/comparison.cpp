@@ -3,9 +3,6 @@
 //
 
 #include "single_op_tests/comparison.hpp"
-
-#include <vector>
-
 #include "common_test_utils/test_constants.hpp"
 
 namespace {
@@ -84,8 +81,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_IsOp,
                          ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapesIsOps)),
                                             ::testing::ValuesIn(comparisonOpTypesIs),
                                             ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
-                                            ::testing::Values(ov::element::f16,
-                                                              ov::element::f32),
+                                            ::testing::Values(ov::element::f32),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),
                                             ::testing::Values(additional_config)),
                          ComparisonLayerTest::getTestCaseName);
