@@ -7,10 +7,12 @@
 #include <cpu/x64/jit_generator.hpp>
 
 #include "snippets/snippets_isa.hpp"
+#include "snippets/utils.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/port_connector.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op//brgemm_cpu.hpp"
+#include "snippets/op/rank_normalization.hpp"
 
 using namespace InferenceEngine;
 using namespace Xbyak;
@@ -121,7 +123,12 @@ KernelEmitter::KernelEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
         element::Type etype;
         switch (expr->get_type()) {
             case snippets::lowered::IOExpression::io_type::INPUT: {
-                desc = expr->get_output_port_descriptor(0);
+                const auto first_consumer = expr->get_output_port_connector(0)->get_consumers().begin()->get_expr();
+                if (ov::is_type<snippets::op::RankNormalization>(first_consumer->get_node())) {
+                    desc = first_consumer->get_output_port_descriptor(0);
+                } else {
+                    desc = expr->get_output_port_descriptor(0);
+                }
                 etype = expr->get_node()->get_output_element_type(0);
                 num_inputs++;
                 break;
@@ -223,7 +230,7 @@ void KernelEmitter::init_data_pointers(const Xbyak::Reg64& reg_indexes, const Xb
     // Note that we don't need offset for the last dim, since it's handled directly by Tile emitter
     const size_t offset_rank = master_shape.size() - 1;
     std::vector<std::vector<size_t>> data_offsets(num_params, std::vector<size_t>{});
-    auto offset_calculation = [=](const std::vector<size_t>& shape, const std::vector<size_t>& layout, const size_t data_size) {
+    auto offset_calculation = [=](const std::vector<size_t>& shape, const std::vector<size_t>& layout, const size_t data_size, bool is_input) {
         // Strides represent distance between consecutive elements of corresponding dimension.
         // If a dim size == 1, then the next dim starts immediately and the stride is 0
         // case 1:
@@ -242,8 +249,11 @@ void KernelEmitter::init_data_pointers(const Xbyak::Reg64& reg_indexes, const Xb
         // Note: this is an extra copy, but let's keep it for clarity
         if (!layout.empty()) {
             std::vector<size_t> reordered_strides(strides.size());
-            for (size_t i = 0; i < layout.size(); i++)
-                reordered_strides[i] = strides[layout[i]];
+            for (size_t i = 0; i < layout.size(); i++) {
+                const auto& src_idx = is_input ? layout[i] : i;
+                const auto& dst_idx = is_input ? i : layout[i];
+                reordered_strides[dst_idx] = strides[src_idx];
+            }
             strides = std::move(reordered_strides);
         }
         // the last stride is ignored, since the entire last dim is processed by kernel
@@ -255,7 +265,7 @@ void KernelEmitter::init_data_pointers(const Xbyak::Reg64& reg_indexes, const Xb
         return strides;
     };
     for (size_t i = 0; i < num_params; i++) {
-        data_offsets[i] = offset_calculation(io_shapes[i],  io_data_layouts[i], io_data_sizes[i]);
+        data_offsets[i] = offset_calculation(io_shapes[i],  io_data_layouts[i], io_data_sizes[i], i < num_inputs);
     }
     // master_shape size must be valid in both static and dynamic cases
     std::function<void(Reg64, const std::vector<size_t>&, Reg64)> init_ptr_with_offset;
@@ -712,6 +722,33 @@ size_t BrgemmEmitter::getBrgIdx(size_t kIdx, size_t nIdx) {
     return kIdx * BRGEMM_N_KERNEL_NUM + nIdx;
 }
 
+size_t BrgemmEmitter::get_in_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout) {
+    // Input shape is original, so we need to correctly read this data by order
+    // Example:
+    //      Original shape (shape) = [1, 49, 2, 23]
+    //      Layout (transpose order) = [2, 0, 1, 3]
+    //      Transposed shape = [2, 1, 49, 23]
+    //      The leading dimension is equal to stride of shape[layout[3]] = 2 x 23
+    OPENVINO_ASSERT(layout.back() == layout.size() - 1 && layout.size() == shape.size(),
+                    "BrgemmEmitter detected invalid layout values: check that this shape + layout combination is schedulable");
+    const auto idx = layout[layout.size() - 2];  // `1` in example
+    return std::accumulate(shape.cbegin() + idx + 1, shape.end(), 1, std::multiplies<size_t>());
+}
+size_t BrgemmEmitter::get_out_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout) {
+    // Output shape is already transposed, we need to correctly write the data with original shape by the order
+    // Example:
+    //      Original transposed shape (shape) = [49, 2, 7, 39]
+    //      Layout (transpose order) = [2, 0, 1, 3]
+    //      Before leading dimension with index 3 there is dimension with index 2 in planar layout.
+    //      Since we have non-planar layout, we have to find this before LD dim in transposed order.
+    //      In layout 2nd idx is first element, it means, that the leading dimension is equal to stride of shape[0]
+    OPENVINO_ASSERT(layout.back() == layout.size() - 1 && layout.size() == shape.size(),
+                    "BrgemmEmitter detected invalid layout values: check that this shape + layout combination is schedulable");
+    const auto idx = layout.size() - 2; // 2 in the example
+    const auto dim = std::distance(layout.cbegin(), std::find(layout.cbegin(), layout.cend(), idx)); // 0 in the example: shape[0] = 49
+    return std::accumulate(shape.cbegin() + dim + 1, shape.cend(), 1, std::multiplies<size_t>()); // shape[1] x shape[2] x shape[3] = 2 x 7 x 39
+}
+
 BrgemmEmitter::BrgemmEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
     m_brgCtxs.fill(brgemmCtx());
     std::generate(m_brgKernels.begin(), m_brgKernels.end(), [](){ return nullptr; });
@@ -724,38 +761,33 @@ BrgemmEmitter::BrgemmEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
     std::vector<size_t> leading_dimensions;
     std::vector<std::vector<size_t>> io_layouts;
 
-    auto init_scheduling_params = [&](const std::vector<size_t>& layout, const ov::Shape& io_shape) {
-        if (layout.empty()) {
-            // empty value indicates a planar layout
-            leading_dimensions.push_back(io_shape.back());
-            std::vector<size_t> default_layout(io_shape.size());
-            std::iota(default_layout.begin(), default_layout.end(), 0);
-            io_layouts.push_back(default_layout);
-        } else {
-            // The idea here is to find "2" (for 4D shapes) in the layout and multiply dimensions that are to the right
-            // This implies that "3" is the last layout value, otherwise this layout is not supported.
-            // counting from the end since shape could be prepended with ones
-            const int64_t num_last_dims = layout.end() - std::find(layout.begin(), layout.end(), layout.size() - 2) - 1;
-            if (layout.back() != layout.size() - 1 || num_last_dims < 1)
-                IE_THROW() << "BrgemmEmitter detected invalid layout values: check that this shape + layout combination is schedulable";
-            leading_dimensions.emplace_back(
-                    std::accumulate(io_shape.end() - num_last_dims, io_shape.end(), 1, std::multiplies<size_t>()));
-            io_layouts.push_back(layout);
-        }
+     auto get_layout = [](const std::vector<size_t>& layout, const snippets::VectorDims& io_shape) {
+        if (!layout.empty()) return layout;
+        std::vector<size_t> default_layout(io_shape.size());
+        std::iota(default_layout.begin(), default_layout.end(), 0);
+        return default_layout;
     };
 
-    std::vector<ov::Input<ov::Node>> brgemm_inputs = {brgemm_node->input(0),
-                                                      brgemm_copy ? brgemm_copy->input(0) : brgemm_node->input(1)};
-    for (const auto& input : brgemm_inputs) {
-        init_scheduling_params(snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input)->get_layout(),
-                               input.get_shape());
+    auto init_in_scheduling_params = [&](const snippets::lowered::PortDescriptorPtr& input) {
+        io_layouts.push_back(get_layout(input->get_layout(), input->get_shape()));
+        leading_dimensions.push_back(get_in_leading_dim(input->get_shape(), io_layouts.back()));
+    };
+    auto init_out_scheduling_params = [&](const snippets::lowered::PortDescriptorPtr& output) {
+        io_layouts.push_back(get_layout(output->get_layout(), output->get_shape()));
+        leading_dimensions.push_back(get_out_leading_dim(output->get_shape(), io_layouts.back()));
+    };
+    init_in_scheduling_params(expr->get_input_port_descriptor(0));
+    if (brgemm_node->is_with_data_repacking()) {
+        io_layouts.push_back(std::vector<size_t>{});
+        leading_dimensions.push_back(0);
+    } else {
+        init_in_scheduling_params(expr->get_input_port_descriptor(1));
     }
-    init_scheduling_params(snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(brgemm_node->output(0))->get_layout(),
-                           brgemm_node->output(0).get_shape());
+    init_out_scheduling_params(expr->get_output_port_descriptor(0));
 
-    const auto& A_shape = brgemm_node->get_input_shape(0);
+    const auto& A_shape = expr->get_input_port_descriptor(0)->get_shape();
     const auto& A_layout = io_layouts[0];
-    const auto& C_shape = brgemm_node->get_output_shape(0);
+    const auto& C_shape = expr->get_output_port_descriptor(0)->get_shape();
     const auto& C_layout = io_layouts[2];
 
     // We need find original M,N,K having layouts and ordered shapes
@@ -770,6 +802,9 @@ BrgemmEmitter::BrgemmEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
     m_K = A_shape[get_ordered_idx(A_layout, A_layout.size() - 1)];
     m_M = brgemm_node->get_input_count(0);
     m_N = C_shape[get_ordered_idx(C_layout, C_layout.size() - 1)];
+
+    if (brgemm_node->is_with_data_repacking())
+        leading_dimensions[1] = rnd_up(m_N, brgemm_copy->get_n_block_size());
 
     auto brg0Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(0));
     auto brg1Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(1));
@@ -821,7 +856,7 @@ BrgemmEmitter::BrgemmEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
             brgemmCtx.N = N(n);
             brgemmCtx.K = K(k);
             brgemmCtx.LDA = leading_dimensions[0];
-            brgemmCtx.LDB = brgemm_node->is_with_data_repacking() ? rnd_up(m_N, brgemm_copy->get_n_block_size()) : leading_dimensions[1];
+            brgemmCtx.LDB = leading_dimensions[1];
             brgemmCtx.LDC = leading_dimensions[2];
             brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg0Prc));
             brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1Prc));
@@ -1213,23 +1248,14 @@ BrgemmCopyBEmitter::BrgemmCopyBEmitter(jit_generator* h, cpu_isa_t isa, const Ex
     if (m_with_comp)
         m_comp_offset = brgemm_repack->get_offset_compensations();
 
-    const auto& layout = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(brgemm_repack->input(0))->get_layout();
-    const auto& original_shape = brgemm_repack->get_input_shape(0);
+    const auto& in_desc = expr->get_input_port_descriptor(0);
+    const auto& layout = in_desc->get_layout();
+    const auto& original_shape = in_desc->get_shape();
     auto transposed_shape = original_shape;
     size_t leading_dimension = *(original_shape.rbegin());
     if (!layout.empty()) {
-        transposed_shape.resize(layout.size(), 1);
-        for (size_t i = 0; i < layout.size(); ++i) {
-            transposed_shape[i] = original_shape[layout[i]];
-        }
-        // The idea here is to find "2" (for 4D shapes) in the layout and multiply dimensions that are to the right
-        // This implies that "3" is the last layout value, otherwise this layout is not supported.
-        // counting from the end since shape could be prepended with ones
-        const int64_t num_last_dims = layout.end() - std::find(layout.begin(), layout.end(), layout.size() - 2) - 1;
-        if (layout.back() != layout.size() - 1 || num_last_dims < 1)
-            IE_THROW() << "BrgemmRepackEmitter detected invalid layout values: " <<
-                       "check that this shape + layout combination is schedulable";
-        leading_dimension = std::accumulate(original_shape.end() - num_last_dims, original_shape.end(), 1, std::multiplies<size_t>());
+        transposed_shape = snippets::utils::get_planar_vdims(original_shape, layout);
+        leading_dimension = BrgemmEmitter::get_in_leading_dim(original_shape, layout);
     }
 
     m_N = *(transposed_shape.rbegin());

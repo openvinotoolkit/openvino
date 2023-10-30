@@ -148,6 +148,15 @@ ov::pass::GRUCellFusion::GRUCellFusion() {
             Bh = rg.make<ov::op::v0::Constant>(WRh.get_element_type(), Shape{1, static_cast<size_t>(hidden_size)}, 0);
         }
 
+        // perform additional check for applicability of the transformation
+        // without this check, process_weights can fail
+        if (WR.get_partial_shape()[1] != (hidden_size + input_size)) {
+            return false;
+        }
+        if (WRh.get_partial_shape()[1] != (hidden_size + input_size)) {
+            return false;
+        }
+
         Output<Node> Wzrh, Rzrh, Bzrh;
         if (cnt_of_consumers_of_zero_out == 1 && cnt_of_consumers_of_first_out == 2) {
             tie(Wzrh, Rzrh) = process_weights(rg, false, WR, WRh, input_size, hidden_size, axis_0, axis_1);

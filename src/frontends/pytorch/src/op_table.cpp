@@ -23,6 +23,7 @@ OP_CONVERTER(translate_adaptive_max_pool3d);
 OP_CONVERTER(translate_adaptive_max_pool2d);
 OP_CONVERTER(translate_adaptive_max_pool1d);
 OP_CONVERTER(translate_add);
+OP_CONVERTER(translate_add_);
 OP_CONVERTER(translate_addcmul);
 OP_CONVERTER(translate_addmm);
 OP_CONVERTER(translate_all);
@@ -57,6 +58,7 @@ OP_CONVERTER(translate_deform_conv);
 OP_CONVERTER(translate_derive_index);
 OP_CONVERTER(translate_dim);
 OP_CONVERTER(translate_div);
+OP_CONVERTER(translate_div_);
 OP_CONVERTER(translate_elu);
 OP_CONVERTER(translate_embedding);
 OP_CONVERTER(translate_embedding_bag);
@@ -89,6 +91,7 @@ OP_CONVERTER(translate_index_put_);
 OP_CONVERTER(translate_index_select);
 OP_CONVERTER(translate_instance_norm);
 OP_CONVERTER(translate_int);
+OP_CONVERTER(translate_is_nonzero);
 OP_CONVERTER(translate_layer_norm);
 OP_CONVERTER(translate_len);
 OP_CONVERTER(translate_linalg_norm);
@@ -102,6 +105,7 @@ OP_CONVERTER(translate_log);
 OP_CONVERTER(translate_log1p);
 OP_CONVERTER(translate_log_softmax);
 OP_CONVERTER(translate_log2);
+OP_CONVERTER(translate_log10);
 OP_CONVERTER(translate_logsumexp);
 OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_masked_fill);
@@ -128,6 +132,7 @@ OP_CONVERTER(translate_one_hot);
 OP_CONVERTER(translate_ones);
 OP_CONVERTER(translate_ones_like);
 OP_CONVERTER(translate_or);
+OP_CONVERTER(translate_bitwise_xor);
 OP_CONVERTER(translate_outer);
 OP_CONVERTER(translate_pad);
 OP_CONVERTER(translate_pairwise_distance);
@@ -175,6 +180,7 @@ OP_CONVERTER(translate_squeeze);
 OP_CONVERTER(translate_std);
 OP_CONVERTER(translate_std_mean);
 OP_CONVERTER(translate_sub);
+OP_CONVERTER(translate_sub_);
 OP_CONVERTER(translate_sum);
 OP_CONVERTER(translate_t);
 OP_CONVERTER(translate_to);
@@ -229,6 +235,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::__getitem__", op::translate_getitem},
         {"aten::__not__", op::translate_1to1_match_1_inputs<opset10::LogicalNot>},
         {"aten::__or__", op::translate_or},
+        {"aten::__xor__", op::translate_bitwise_xor},
         {"aten::__range_length", op::translate_range_length},
         {"aten::_convolution", op::translate_convolution},
         {"aten::_convolution_mode", op::translate_convolution_mode},
@@ -247,7 +254,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::adaptive_max_pool2d", op::quantizable_op<op::translate_adaptive_max_pool2d>},
         {"aten::adaptive_max_pool3d", op::quantizable_op<op::translate_adaptive_max_pool3d>},
         {"aten::add", op::translate_add},
-        {"aten::add_", op::inplace_op<op::translate_add>},
+        {"aten::add_", op::translate_add_},
         {"aten::addcmul", op::translate_addcmul},
         {"aten::addmm", op::translate_addmm},
         {"aten::all", op::translate_all},
@@ -309,7 +316,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::dequantize", op::skip_node},  // we convert model to fp32 using FQ, so dequantization is not needed
         {"aten::dim", op::translate_dim},
         {"aten::div", op::translate_div},
-        {"aten::div_", op::inplace_op<op::translate_div>},
+        {"aten::div_", op::translate_div_},
         {"aten::dropout", op::skip_node},
         {"aten::dropout_", op::skip_node},
         {"aten::elu", op::translate_elu},
@@ -358,6 +365,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::Int", op::translate_int},
         {"aten::IntImplicit", op::translate_int},
         {"aten::is_grad_enabled", op::return_false_scalar},
+        {"aten::is_nonzero", op::translate_is_nonzero},
         {"aten::item", op::translate_1to1_match_1_inputs<opset10::Squeeze>},
         {"aten::layer_norm", op::translate_layer_norm},
         {"aten::le", op::translate_1to1_match_2_inputs_align_types<opset10::LessEqual>},
@@ -384,6 +392,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::log1p_", op::inplace_op<op::translate_log1p>},
         {"aten::log2", op::translate_log2},
         {"aten::log2_", op::inplace_op<op::translate_log2>},
+        {"aten::log10", op::translate_log10},
+        {"aten::log10_", op::inplace_op<op::translate_log10>},
         {"aten::lt", op::translate_1to1_match_2_inputs_align_types<opset10::Less>},
         {"aten::masked_fill", op::translate_masked_fill},
         {"aten::masked_fill_", op::inplace_op<op::translate_masked_fill>},
@@ -404,9 +414,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::minimum", op::translate_minimum},
         {"aten::mm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::mul", op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
-        {"aten::mul_", op::inplace_op<op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>>},
+        {"aten::mul_", op::inplace_translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
         {"aten::multiply", op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
-        {"aten::multiply_", op::inplace_op<op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>>},
+        {"aten::multiply_", op::inplace_translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
         {"aten::narrow", op::translate_narrow},
         {"aten::ne", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
         {"aten::neg", op::translate_neg},
@@ -477,7 +487,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::std", op::translate_std},
         {"aten::std_mean", op::translate_std_mean},
         {"aten::sub", op::translate_sub},
-        {"aten::sub_", op::inplace_op<op::translate_sub>},
+        {"aten::sub_", op::translate_sub_},
         {"aten::sum", op::translate_sum},
         {"aten::swapaxes", op::quantizable_op<op::translate_transpose>},
         {"aten::t", op::translate_t},
