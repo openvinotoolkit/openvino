@@ -84,7 +84,7 @@ void jit_dnnl_emitter::emit_data() const {
 }
 
 void jit_dnnl_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_dnnl_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
 }
 
@@ -95,7 +95,7 @@ jit_dnnl_aux_emitter::jit_dnnl_aux_emitter(jit_generator *host, cpu_isa_t host_i
 }
 
 void jit_dnnl_aux_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_dnnl_aux_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
 }
 

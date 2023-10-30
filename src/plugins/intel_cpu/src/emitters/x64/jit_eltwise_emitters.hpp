@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cxxabi.h>
 #include "jit_emitter.hpp"
 
 namespace ov {

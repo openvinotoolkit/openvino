@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include <cxxabi.h>
 #include <ie_common.h>
 #include <cpu/x64/jit_generator.hpp>
 
@@ -58,7 +59,8 @@ public:
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
 
     virtual void print_debug_info() const {
-        std::cerr << "Debug info was not set. This is default info from base jit_emitter." << std::endl;
+        std::cerr << "Emitter type name:" << get_type_name(this)
+            << " This is default info from base jit_emitter. Exact emitter type name is not set." << std::endl;
     }
 
 protected:
@@ -144,6 +146,18 @@ protected:
 
     void build_debug_info() const;
     static void set_local_handler(jit_emitter* emitter_address);
+
+    std::string get_type_name(const jit_emitter* emitter) const {
+        std::string name = typeid(*emitter).name();
+#ifndef _WIN32
+        int status;
+        std::unique_ptr<char, void (*)(void*)> demangled_name(
+                abi::__cxa_demangle(name.c_str(), nullptr, nullptr, &status),
+                std::free);
+        name = demangled_name.get();
+#endif
+        return name;
+    }
 
     // todo: remove when perf count PR merged
     // below 4 functions must be inline funtions to avoid corrupted rsp by function call, so defined inside class declaration.

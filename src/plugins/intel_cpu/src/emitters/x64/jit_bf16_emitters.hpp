@@ -20,7 +20,7 @@ public:
     size_t get_inputs_num() const override { return 1; }
 
     void print_debug_info() const override {
-        std::cerr << "ERROR is from jit_uni_vcvtneps2bf16." << "\n";
+        std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     }
 
 private:

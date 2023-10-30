@@ -82,7 +82,7 @@ std::set<std::vector<element::Type>> jit_add_emitter::get_supported_precisions(c
 }
 
 void jit_add_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_add_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// MUL_ADD ///
@@ -177,7 +177,7 @@ std::set<std::vector<element::Type>> jit_mul_add_emitter::get_supported_precisio
 }
 
 void jit_mul_add_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_mul_add_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// SUB ///
@@ -228,7 +228,7 @@ std::set<std::vector<element::Type>> jit_subtract_emitter::get_supported_precisi
 }
 
 void jit_subtract_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_subtract_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// MULTIPLY ///
@@ -279,7 +279,7 @@ std::set<std::vector<element::Type>> jit_multiply_emitter::get_supported_precisi
 }
 
 void jit_multiply_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_multiply_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// DIVIDE ///
@@ -348,7 +348,7 @@ size_t jit_divide_emitter::aux_vecs_count() const {
 }
 
 void jit_divide_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_divide_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// FLOOR ///
@@ -384,7 +384,7 @@ void jit_floor_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const s
 }
 
 void jit_floor_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_floor_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// CEILING ///
@@ -421,7 +421,7 @@ void jit_ceiling_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const
 }
 
 void jit_ceiling_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_ceiling_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// FLOOR_MOD ///
@@ -479,7 +479,7 @@ size_t jit_floor_mod_emitter::aux_vecs_count() const {
 }
 
 void jit_floor_mod_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_floor_mod_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// MOD ///
@@ -537,7 +537,7 @@ size_t jit_mod_emitter::aux_vecs_count() const {
 }
 
 void jit_mod_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_mod_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// MAXIMUM ///
@@ -589,7 +589,7 @@ std::set<std::vector<element::Type>> jit_maximum_emitter::get_supported_precisio
 }
 
 void jit_maximum_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_maximum_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// MINIMUM ///
@@ -641,7 +641,7 @@ std::set<std::vector<element::Type>> jit_minimum_emitter::get_supported_precisio
 }
 
 void jit_minimum_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_minimum_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// SQUARED_DIFFERENCE ///
@@ -700,7 +700,7 @@ std::set<std::vector<element::Type>> jit_squared_difference_emitter::get_support
 }
 
 void jit_squared_difference_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_squared_difference_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// POWER_DYNAMIC ///
@@ -815,7 +815,7 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs,
 }
 
 void jit_power_dynamic_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_power_dynamic_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 
@@ -883,7 +883,7 @@ size_t jit_equal_emitter::aux_vecs_count() const {
 }
 
 void jit_equal_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_equal_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// NOT_EQUAL ///
@@ -950,7 +950,7 @@ size_t jit_not_equal_emitter::aux_vecs_count() const {
 }
 
 void jit_not_equal_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_not_equal_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// GREATER ///
@@ -1017,7 +1017,7 @@ size_t jit_greater_emitter::aux_vecs_count() const {
 }
 
 void jit_greater_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_greater_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// GREATER_EQUAL ///
@@ -1085,7 +1085,7 @@ size_t jit_greater_equal_emitter::aux_vecs_count() const {
 }
 
 void jit_greater_equal_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_greater_equal_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// LESS ///
@@ -1152,7 +1152,7 @@ size_t jit_less_emitter::aux_vecs_count() const {
 }
 
 void jit_less_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_less_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// LESS_EQUAL ///
@@ -1220,7 +1220,7 @@ size_t jit_less_equal_emitter::aux_vecs_count() const {
 }
 
 void jit_less_equal_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_less_equal_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// LOGICAL_AND ///
@@ -1307,7 +1307,7 @@ size_t jit_logical_and_emitter::aux_vecs_count() const {
 }
 
 void jit_logical_and_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_logical_and_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// LOGICAL_OR ///
@@ -1394,7 +1394,7 @@ size_t jit_logical_or_emitter::aux_vecs_count() const {
 }
 
 void jit_logical_or_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_logical_or_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// LOGICAL_XOR ///
@@ -1481,7 +1481,7 @@ size_t jit_logical_xor_emitter::aux_vecs_count() const {
 }
 
 void jit_logical_xor_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_logical_xor_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// LOGICAL_NOT ///
@@ -1547,7 +1547,7 @@ size_t jit_logical_not_emitter::aux_vecs_count() const {
 }
 
 void jit_logical_not_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_logical_not_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// POWER_STATIC ///
@@ -1742,7 +1742,7 @@ size_t jit_power_static_emitter::aux_vecs_count() const {
 }
 
 void jit_power_static_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_power_static_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     std::cerr << "power:" << power << " scale:" << scale << " shift:" << shift << "\n";
 }
 
@@ -1809,7 +1809,7 @@ size_t jit_prelu_emitter::aux_vecs_count() const {
 }
 
 void jit_prelu_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_prelu_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// SQRT ///
@@ -1846,7 +1846,7 @@ void jit_sqrt_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const st
 }
 
 void jit_sqrt_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_sqrt_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// Negate ///
@@ -1881,7 +1881,7 @@ void jit_negative_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, cons
 }
 
 void jit_negative_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_negative_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// ERF ///
@@ -2070,7 +2070,7 @@ size_t jit_erf_emitter::aux_vecs_count() const {
 }
 
 void jit_erf_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_erf_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// SOFT SIGN ///
@@ -2119,7 +2119,7 @@ void jit_soft_sign_emitter::register_table_entries() {
 }
 
 void jit_soft_sign_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_soft_sign_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// IS_FINITE ///
@@ -2175,7 +2175,7 @@ void jit_is_finite_emitter::register_table_entries() {
 }
 
 void jit_is_finite_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_is_finite_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// IS_INF ///
@@ -2253,7 +2253,7 @@ void jit_is_inf_emitter::register_table_entries() {
 }
 
 void jit_is_inf_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_is_inf_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     std::cerr << "detect_negative:" << detect_negative << " detect_positive" << detect_positive << "\n";
 }
 
@@ -2306,7 +2306,7 @@ void jit_is_nan_emitter::register_table_entries() {
 }
 
 void jit_is_nan_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_is_nan_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 /// SELECT ///
@@ -2374,7 +2374,7 @@ void jit_select_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const 
 }
 
 void jit_select_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_select_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 }   // namespace intel_cpu

@@ -230,7 +230,7 @@ void KernelEmitter::emit_code(const std::vector<size_t> &in,
 }
 
 void KernelEmitter::print_debug_info() const {
-    std::cerr << "ERROR is from KernelEmitter, " << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     std::cerr << "where num_inputs:" << num_inputs << " num_outputs:" << num_outputs << " num_unique_buffers:" << num_unique_buffers
         << " reg_indexes_idx:" << reg_indexes_idx << " reg_const_params_idx:" << reg_const_params_idx << "\n";
 }
@@ -372,7 +372,7 @@ LoopBeginEmitter::LoopBeginEmitter(jit_generator* h, cpu_isa_t isa, const Expres
 }
 
 void LoopBeginEmitter::print_debug_info() const {
-    std::cerr << "ERROR is from LoopBeginEmitter, " << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     std::cerr << "where evaluate_once:" << evaluate_once << " work_amount:" << work_amount << "\n";
 }
 
@@ -426,7 +426,7 @@ LoopEndEmitter::LoopEndEmitter(jit_generator* h, cpu_isa_t isa, const Expression
 }
 
 void LoopEndEmitter::print_debug_info() const {
-    std::cerr << "ERROR is from LoopEndEmitter, " << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     std::cerr << "where num_inputs:" << num_inputs << " num_outputs:" << num_outputs
         << " wa_increment:" << wa_increment << " work_amount:" << work_amount << " evaluate_once:" << evaluate_once << "\n";
 }
@@ -527,7 +527,7 @@ void BroadcastMoveEmitter::emit_isa(const std::vector<size_t> &in, const std::ve
 }
 
 void BroadcastMoveEmitter::print_debug_info() const {
-    std::cerr << "ERROR is from BroadcastMoveEmitter, " << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     std::cerr << "where byte_size:" << byte_size << "\n";
 }
 
@@ -573,7 +573,7 @@ void ScalarEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<si
 }
 
 void ScalarEmitter::print_debug_info() const {
-    std::cerr << "ERROR is from ScalarEmitter, " << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     std::cerr << "where value:" << value << "\n";
 }
 
@@ -619,7 +619,7 @@ void StoreEmitter::emit_data() const {
 }
 
 void StoreEmitter::print_debug_info() const {
-    std::cerr << "ERROR is from StoreEmitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 LoadEmitter::LoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : MemoryEmitter(h, isa, expr) {
@@ -658,7 +658,7 @@ void LoadEmitter::emit_data() const {
 }
 
 void LoadEmitter::print_debug_info() const {
-    std::cerr << "ERROR is from LoadEmitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 BroadcastLoadEmitter::BroadcastLoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
@@ -702,7 +702,7 @@ void BroadcastLoadEmitter::emit_isa(const std::vector<size_t> &in, const std::ve
 }
 
 void BroadcastLoadEmitter::print_debug_info() const {
-    std::cerr << "ERROR is from BroadcastLoadEmitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 LoadConvertEmitter::LoadConvertEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
@@ -739,7 +739,7 @@ void LoadConvertEmitter::emit_data() const {
 }
 
 void LoadConvertEmitter::print_debug_info() const {
-    std::cerr << "ERROR is from LoadConvertEmitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 StoreConvertEmitter::StoreConvertEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
@@ -781,7 +781,7 @@ void StoreConvertEmitter::emit_data() const {
 }
 
 void StoreConvertEmitter::print_debug_info() const {
-    std::cerr << "ERROR is from StoreConvertEmitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 size_t BrgemmEmitter::getBrgIdx(size_t kIdx, size_t nIdx) {
@@ -1299,7 +1299,7 @@ void BrgemmEmitter::kernel_execute(const brgemm_kernel_t *brg_kernel,
 }
 
 void BrgemmEmitter::print_debug_info() const {
-    std::cerr << "ERROR is from BrgemmEmitter, " << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     std::cerr << "where m_M:" << m_M << " m_K:" << m_K << " m_K_blk:" << m_K_blk << " m_K_tail:" << m_K_tail
         << " m_N:" << m_N << " m_N_blk:" << m_N_blk << " m_N_tail:" << m_N_tail
         << " m_brg0VnniFactor:" << m_brg0VnniFactor << " m_N_blk_loop:" << m_N_blk_loop << " m_K_blk_loop:" << m_K_blk_loop
@@ -1552,7 +1552,7 @@ void BrgemmCopyBEmitter::execute(matmul::jit_brgemm_matmul_copy_b_t *kernel, con
 }
 
 void BrgemmCopyBEmitter::print_debug_info() const {
-    std::cerr << "ERROR is from BrgemmCopyBEmitter, " << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     std::cerr << "where m_LDB:" << m_LDB << " m_K:" << m_K << " m_K_blk:" << m_K_blk << " m_K_tail:" << m_K_tail
         << " m_N:" << m_N << " m_N_blk:" << m_N_blk << " m_N_tail:" << m_N_tail
         << " m_brgemm_prc_in0:" << m_brgemm_prc_in0 << " m_brgemm_prc_in1:" << m_brgemm_prc_in1
@@ -1629,7 +1629,7 @@ void HorizonEmitter::perform_op(const Vmm &vmm1, const Vmm &vmm2, const Vmm &vmm
 }
 
 void HorizonEmitter::print_debug_info() const {
-    std::cerr << "ERROR is from HorizonEmitter" << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 FillEmitter::FillEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
@@ -1716,7 +1716,7 @@ void FillEmitter::fill_tail(const Vmm& src_vmm, const Vmm& dst_vmm) const {
 }
 
 void FillEmitter::print_debug_info() const {
-    std::cerr << "ERROR is from FillEmitter" << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 }  // namespace intel_cpu

@@ -618,7 +618,7 @@ void jit_load_emitter::register_table_entries() {
 }
 
 void jit_load_emitter::print_debug_info() const {
-    std::cerr << "ERROR is from jit_load_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     std::cerr << "where start_address:" << start_address << " current_address:" << current_address << " iteration:" << iteration << "\n";
     std::cerr << "Emitter name:" << name_ << "\n";
     std::cerr << "load_num_:" << load_num_ << "\n";
@@ -1309,7 +1309,7 @@ void jit_store_emitter::register_table_entries() {
 }
 
 void jit_store_emitter::print_debug_info() const {
-    std::cerr << "Segfault happens in jit_store_emitter." << "\n";
+    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     std::cerr << "where start_address:" << start_address << " current_address:" << current_address << " iteration:" << iteration << "\n";
     std::cerr << "Emitter name:" << name_ << "\n";
     std::cerr << "store_num_:" << store_num_ << "\n";

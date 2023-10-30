@@ -23,7 +23,7 @@ public:
             set_injector();
         }
     void print_debug_info() const override {
-        std::cerr << "ERROR is from jit_relu_emitter." << "\n";
+        std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
         std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
     }
 };
@@ -40,7 +40,7 @@ public:
             set_injector();
         }
     void print_debug_info() const override {
-        std::cerr << "ERROR is from jit_sigmoid_emitter." << "\n";
+        std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
         std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
     }
 };
@@ -57,7 +57,7 @@ public:
             set_injector();
         }
     void print_debug_info() const override {
-        std::cerr << "ERROR is from jit_tanh_emitter." << "\n";
+        std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
         std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
     }
 };
@@ -74,7 +74,7 @@ public:
             set_injector();
         }
     void print_debug_info() const override {
-        std::cerr << "ERROR is from jit_elu_emitter." << "\n";
+        std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
         std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
     }
 };
@@ -91,7 +91,7 @@ public:
             set_injector();
         }
     void print_debug_info() const override {
-        std::cerr << "ERROR is from jit_exp_emitter." << "\n";
+        std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
         std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
     }
 };
@@ -108,7 +108,7 @@ public:
             set_injector();
         }
     void print_debug_info() const override {
-        std::cerr << "ERROR is from jit_abs_emitter." << "\n";
+        std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
         std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
     }
 };
@@ -126,7 +126,7 @@ public:
             set_injector();
         }
     void print_debug_info() const override {
-        std::cerr << "ERROR is from jit_clamp_emitter." << "\n";
+        std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
         std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
     }
 };
@@ -144,7 +144,7 @@ public:
         set_injector();
     }
     void print_debug_info() const override {
-        std::cerr << "ERROR is from jit_swish_emitter." << "\n";
+        std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
         std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
     }
 };
@@ -162,7 +162,7 @@ public:
         set_injector();
     }
     void print_debug_info() const override {
-        std::cerr << "ERROR is from jit_hswish_emitter." << "\n";
+        std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
         std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
     }
 };
@@ -177,7 +177,7 @@ public:
         set_injector();
     }
     void print_debug_info() const override {
-        std::cerr << "ERROR is from jit_gelu_v0_emitter." << "\n";
+        std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
         std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
     }
 };
@@ -199,7 +199,7 @@ public:
         set_injector();
     }
     void print_debug_info() const override {
-        std::cerr << "ERROR is from jit_gelu_v7_emitter." << "\n";
+        std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
         std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
     }
 };
@@ -224,7 +224,7 @@ public:
         set_injector();
     }
     void print_debug_info() const override {
-        std::cerr << "ERROR is from jit_round_emitter." << "\n";
+        std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
         std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
     }
 };
