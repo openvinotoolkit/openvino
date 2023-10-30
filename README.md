@@ -42,21 +42,16 @@ OpenVINO includes several components: [OpenVINO Model Converter (OVC)], [OpenVIN
 ### Getting Started  
 
 #### Documentation
-
  Detailed information on OpenVINO's features, components, and usage can be found in the [OpenVINO Documentation](https://docs.openvino.ai).
 
 #### Tutorials
+ Explore a variety of tutorials in the [OpenVINO Notebooks Repository](https://github.com/openvinotoolkit/openvino_notebooks)📚.
 
- Explore a variety of tutorials in the [OpenVINO Notebooks Repository](https://github.com/openvinotoolkit/openvino_notebooks).
-
-Check out these notebooks that show how to optimize and deploy popular models:
-- [Create an LLM-powered Chatbot using OpenVINO](https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/254-llm-chatbot/254-llm-chatbot.ipynb)
-- [YOLOv8 Optimization](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/230-yolov8-optimization)
-- [A Text-to-Image Generation with ControlNet Conditioning and OpenVINO™](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/235-controlnet-stable-diffusion)
-
-#### Quick Start Example
-
- Try out a simple [inference example with OpenVINO](https://docs.openvino.ai/2023.1/get_started.html#quick-start-example-no-installation-required) by following the steps from a Jupyter Notebook (no installation required).
+Check out these notebooks that show how to optimize and deploy popular models (no installation required):
+- [Create an LLM-powered Chatbot using OpenVINO](https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/254-llm-chatbot/254-llm-chatbot.ipynb)📱
+- [YOLOv8 Optimization](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/230-yolov8-optimization)🚀
+- [A Text-to-Image Generation with ControlNet Conditioning and OpenVINO™](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/235-controlnet-stable-diffusion)🏞️
+- [Quick Start Inference Example](https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/201-vision-monodepth)💻
 
 #### Installation
 
