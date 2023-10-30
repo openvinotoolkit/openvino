@@ -4,23 +4,23 @@
 
 #include <vector>
 
-#include "single_layer_tests/psroi_pooling.hpp"
+#include "single_op_tests/psroi_pooling.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using ov::test::PSROIPoolingLayerTest;
 
-std::vector<float> spatialScales = {1, 0.625};
+std::vector<float> spatial_scales = {1, 0.625};
 
 const auto PSROICases_average = ::testing::Combine(
     ::testing::Values(std::vector<size_t>{3, 8, 16, 16}),
     ::testing::Values(std::vector<size_t>{10, 5}),
     ::testing::Values(2),
     ::testing::Values(2),
-    ::testing::ValuesIn(spatialScales),
+    ::testing::ValuesIn(spatial_scales),
     ::testing::Values(1),
     ::testing::Values(1),
     ::testing::Values("average"),
-    ::testing::Values(InferenceEngine::Precision::FP32),
+    ::testing::Values(ov::element::f32),
     ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
@@ -32,11 +32,11 @@ const auto PSROICases_bilinear = ::testing::Combine(
     ::testing::Values(std::vector<size_t>{10, 5}),
     ::testing::Values(4),
     ::testing::Values(3),
-    ::testing::ValuesIn(spatialScales),
+    ::testing::ValuesIn(spatial_scales),
     ::testing::Values(4),
     ::testing::Values(2),
     ::testing::Values("bilinear"),
-    ::testing::Values(InferenceEngine::Precision::FP32),
+    ::testing::Values(ov::element::f32),
     ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
