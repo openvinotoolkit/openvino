@@ -225,6 +225,8 @@ class TestUnaryOps(CommonTFLayerTest):
     @pytest.mark.skipif(sys.platform == 'darwin', reason="Ticket - 122182")
     def test_unary_op(self, params, ie_device, precision, ir_version, temp_dir, op_type,
                       use_new_frontend, use_old_api):
+        if not use_new_frontend and op_type in ['BitwiseNot']:
+            pytest.skip("Bitwise ops are supported only by new TF FE.")
         if ie_device == 'GPU':
             pytest.skip("5D tensors is not supported on GPU")
         self._test(*self.create_net_with_unary_op(**params, ir_version=ir_version, op_type=op_type,
@@ -241,8 +243,6 @@ class TestUnaryOps(CommonTFLayerTest):
         """
         TODO: Move to `test_unary_op()` once tensorflow_addons package is available for Python 3.11
         """
-        if not use_new_frontend and op_type in ['BitwiseNot']:
-            pytest.skip("Bitwise ops are supported only by new TF FE.")
         if ie_device == 'GPU':
             pytest.skip("5D tensors is not supported on GPU")
         self._test(*self.create_net_with_mish(**params, ir_version=ir_version,
