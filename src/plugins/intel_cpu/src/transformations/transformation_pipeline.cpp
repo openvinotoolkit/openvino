@@ -407,8 +407,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // List of enabled/disabled transformations
 
     // Allow FP16 Converts to be folded and FP16 constants to be upgraded to FP32 data type
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::DisableDecompressionConvertConstantFolding);
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertCompressedOnlyToLegacy);
+    CPU_DISABLE_PASS_X64(manager, ov::pass::DisableDecompressionConvertConstantFolding);
+    CPU_DISABLE_PASS_X64(manager, ov::pass::ConvertCompressedOnlyToLegacy);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::EyeDecomposition);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertGELU);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertShuffleChannels3);
@@ -471,9 +471,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     /* In some cases, during the transformation pipeline, some MatMul nodes can be transformed into other nodes. For example, they can become part of
        AUGRUCell node (see AUGRUCellFusion pass). In such cases, some constant paths will be unfolded, which can lead to crashes in the plugin. To avoid this,
        we re-mark decompression converts again and finally do CF for those constant paths that are not inputs to MatMul node */
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::EnableDecompressionConvertConstantFolding);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
+    CPU_DISABLE_PASS_X64(manager, ov::pass::EnableDecompressionConvertConstantFolding);
+    CPU_DISABLE_PASS_X64(manager, ov::pass::KeepConstAndDecompression);
+    CPU_DISABLE_PASS_X64(manager, ov::pass::ConstantFolding);
 
     manager.run_passes(model);
 }
