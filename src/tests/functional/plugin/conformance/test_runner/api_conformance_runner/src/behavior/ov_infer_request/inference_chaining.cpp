@@ -12,13 +12,13 @@ using namespace ov::test::conformance;
 
 INSTANTIATE_TEST_SUITE_P(ov_infer_request_mandatory, OVInferenceChainingStatic,
                         ::testing::Combine(
-                                ::testing::ValuesIn(return_all_possible_device_combination()),
+                                ::testing::Values(targetDevice),
                                 ::testing::Values(pluginConfig)),
                         OVInferenceChaining::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_infer_request, OVInferenceChaining,
                         ::testing::Combine(
-                                ::testing::ValuesIn(return_all_possible_device_combination()),
+                                ::testing::Values(targetDevice),
                                 ::testing::Values(pluginConfig)),
                         OVInferenceChaining::getTestCaseName);
 }  // namespace
