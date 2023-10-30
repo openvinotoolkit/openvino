@@ -90,10 +90,22 @@ Napi::Value PrePostProcessorWrap::set_input_element_type(const Napi::CallbackInf
 }
 
 Napi::Value PrePostProcessorWrap::input(const Napi::CallbackInfo& info) {
+    if (info.Length() != 0 && info.Length() != 1) {
+        reportError(info.Env(), "Wrong number of parameters.");
+        return info.Env().Undefined();
+    }
     Napi::Object obj = InputInfo::GetClassConstructor(info.Env()).New({});
     auto input_info = Napi::ObjectWrap<InputInfo>::Unwrap(obj);
-
-    input_info->set_input_info(_ppp->input());
+    if (info.Length() == 0) {
+        input_info->set_input_info(_ppp->input());
+    } else if (info[0].IsNumber()) {
+        input_info->set_input_info(_ppp->input(info[0].ToNumber().Int32Value()));
+    } else if (info[0].IsString()) {
+        input_info->set_input_info(_ppp->input(info[0].ToString().Utf8Value()));
+    } else {
+        reportError(info.Env(), "Invalid parameter.");
+        return info.Env().Undefined();
+    }
     return obj;
 }
 
