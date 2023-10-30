@@ -141,6 +141,8 @@ class TestBinaryOps(CommonTFLayerTest):
                        reason='Ticket - 122716')
     def test_binary_op(self, params, ie_device, precision, ir_version, temp_dir, op_type,
                        use_new_frontend, use_old_api):
+        if not use_new_frontend and op_type in ['BitwiseAnd', 'BitwiseOr', 'BitwiseXor']:
+            pytest.skip("Bitwise ops are supported only by new TF FE.")
         if precision == "FP16":
             pytest.skip("BinaryOps tests are skipped with FP16 precision."
                         "They don't pass accuracy checks because chaotic output.")
