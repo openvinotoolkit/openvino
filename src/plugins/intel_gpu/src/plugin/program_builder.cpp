@@ -55,14 +55,20 @@ std::string layer_type_name_ID(const std::shared_ptr<ov::Node>& op) {
 
 ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& engine, const ExecutionConfig& config,
                                bool create_topology_only, bool partial_build,
-                               std::shared_ptr<ov::threading::IStreamsExecutor> task_executor, bool is_inner_program)
+                               std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
+                               std::shared_ptr<cldnn::ICompilationContext> compilation_context,
+                               bool is_inner_program)
     : m_config(config)
     , m_engine(engine)
     , queryMode(false)
-    , m_task_executor(task_executor) {
+    , m_task_executor(task_executor)
+    , m_compilation_context(compilation_context) {
     if (m_task_executor == nullptr)
         m_task_executor = cldnn::program::make_task_executor(m_config);
 
+    if (m_compilation_context == nullptr) {
+        m_compilation_context = cldnn::program::make_compilation_context(m_config);
+    }
     // locate global custom kernel config
     // and auto-load kernels from it
 #ifdef _WIN32
@@ -158,7 +164,14 @@ std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::sha
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "ProgramBuilder::CreateProgram");
         cldnn::program::ptr program;
         try {
-            program = cldnn::program::build_program(m_engine, *m_topology, m_config, get_task_executor(), false, false, is_inner_program);
+            program = cldnn::program::build_program(m_engine,
+                                                    *m_topology,
+                                                    m_config,
+                                                    get_task_executor(),
+                                                    get_compilation_context(),
+                                                    false,
+                                                    false,
+                                                    is_inner_program);
         } catch (std::exception& e) {
             OPENVINO_ASSERT(false, "[GPU] ProgramBuilder build failed!\n", e.what());
         }
