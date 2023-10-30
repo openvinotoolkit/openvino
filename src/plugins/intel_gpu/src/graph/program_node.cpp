@@ -38,7 +38,7 @@ program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
         num_outputs = prim->num_outputs;
         for (size_t i = 0 ; i < num_outputs; ++i) {
             layout output_layout = layout{ov::PartialShape{}, data_types::f32, format::bfyx};
-            output_layout.data_padding = prim->output_paddings[i];
+            output_layout.data_padding = prim->get_output_padding(i);
             output_layouts.push_back(output_layout);
             valid_output_layouts.push_back(false);
         }
