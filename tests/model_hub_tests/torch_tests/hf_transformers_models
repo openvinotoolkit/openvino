@@ -186,6 +186,7 @@ jambran/depression-classification,DepressionDetection,skip,Load problem
 Jellywibble/dalio-reward-charlie-v1,reward-model,skip,Load problem
 JonasGeiping/crammed-bert-legacy,crammedBERT,skip,Load problem
 jonatasgrosman/wav2vec2-large-xlsr-53-english,wav2vec2,xfail,Unsupported op aten::index_put_ prim::TupleConstruct
+facebook/mms-lid-126,wav2vec2
 Joqsan/test-my-fnet,my_fnet,skip,Load problem
 jozhang97/deta-swin-large,deta,skip,Load problem
 jploski/retnet-mini-shakespeare,retnet,skip,Load problem

@@ -67,7 +67,7 @@ class TorchScriptPythonDecoder (Decoder):
         preserved_attributes = []
         for name, module in model.named_modules():
             if hasattr(module, "weight"):
-                if module.weight is not None and module.weight.dtype in [torch.int8, torch.uint8]:
+                if module.weight is not None and getattr(module.weight, "dtype", None) in [torch.int8, torch.uint8]:
                     preserved_attributes.append(name)
         return preserved_attributes
 

@@ -104,6 +104,13 @@ class TestTransformersModel(TestConvertModel):
 
             model = VIT_GPT2_Model(model)
             example = (encoded_input.pixel_values,)
+        elif "mms-lid" in name:
+            # mms-lid model config does not have auto_model attribute, only direct loading aviable 
+            from transformers import Wav2Vec2ForSequenceClassification, AutoFeatureExtractor
+            model = Wav2Vec2ForSequenceClassification.from_pretrained(name, torchscript=True)
+            processor = AutoFeatureExtractor.from_pretrained(name)
+            input_values = processor(torch.randn(16000).numpy(), sampling_rate=16_000, return_tensors="pt")
+            example =  {"input_values": input_values.input_values}
         elif "retribert" in mi.tags:
             from transformers import RetriBertTokenizer
             text = "How many cats are there?"
