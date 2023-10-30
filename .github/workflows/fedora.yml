@@ -195,6 +195,7 @@ jobs:
              'rockylinux:8.7', 'rockylinux:8.8', 'rockylinux:9.0',
              'almalinux:8.7', 'almalinux:8.8', 'almalinux:9.0',
              'amazonlinux:2022', 'amazonlinux:2023',
+             'opensuse-leap15.3',
              'oraclelinux:8.7', 'oraclelinux:8.8', 'oraclelinux:9']
     runs-on: ubuntu-20.04
     container:
@@ -213,6 +214,8 @@ jobs:
         run: |
           if command -v dnf &> /dev/null; then
             installer=dnf
+          elif command -v zypper &> /dev/null; then
+            installer=zypper
           else
             installer=yum
           fi
