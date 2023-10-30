@@ -450,7 +450,9 @@ void Edge::init() {
         DEBUG_LOG(*this, " getBaseEdge() return itself");
         changeStatus(Status::NeedAllocation);
     } else {
-        if (edgePtr->getParent()->isConstant() && !edgePtr->getChild()->isConstant()) {
+        if (Type::Input == edgePtr->getParent()->getType() &&
+            edgePtr->getParent()->isConstant() &&
+            !edgePtr->getChild()->isConstant()) {
             changeStatus(Status::NeedAllocation);
             DEBUG_LOG(*this, " edge inplace from ", *edgePtr, " is broken!");
             return;

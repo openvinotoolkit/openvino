@@ -46,7 +46,7 @@
 
 #include "transformations/utils/utils.hpp"
 
-#include "snippets/pass_manager.hpp"
+#include "snippets/pass/manager.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include <openvino/pass/serialize.hpp>
@@ -329,7 +329,7 @@ VectorDims Subgraph::infer_master_shape() {
             const auto& res_input = res->input(0);
             OPENVINO_ASSERT(res_input.get_partial_shape().is_static(), "Result have dynamic shape in static pipeline");
             // We need to account to the shape's layout stored in Output<Node> rt_info
-            const auto& planar_shape = utils::get_planar_pshape(res_input.get_source_output());
+            const auto& planar_shape = utils::get_preordered_pshape(res_input.get_source_output());
             output_dims.emplace_back(planar_shape.get_shape());
         }
     }

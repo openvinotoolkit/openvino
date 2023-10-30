@@ -88,6 +88,7 @@
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_previous_nms_to_nms_9.hpp"
 #include "transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp"
+#include "transformations/op_conversions/convert_nms_rotated_to_nms_ie_internal.hpp"
 #include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
@@ -232,7 +233,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return !is_type<ov::op::v0::MatMul>(next_node);
             });
 
-        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8}, true);
+        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8, ov::element::u4, ov::element::i4}, true);
 
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
@@ -272,6 +273,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::ConvertNMS4ToNMS9>();
         manager.register_pass<ov::pass::ConvertNMS5ToNMS9>();
         manager.register_pass<ov::pass::ConvertNMS9ToNMSIEInternal>();
+        manager.register_pass<ov::pass::ConvertNMSRotatedToNMSIEInternal>();
         manager.register_pass<ov::pass::ConvertGP9ToGPIEInternal>();
         manager.register_pass<ov::pass::ConvertMatrixNmsToMatrixNmsIE>();
         manager.register_pass<ov::pass::ConvertGather0D>();
@@ -377,8 +379,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return lstm_seq->get_clip() == 0.0f &&
                        lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
                        max_seq_len < 16 &&
-                       !ov::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(3),
-                                                              max_seq_len);
+                       !ov::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(0),
+                                                          lstm_seq->get_input_node_shared_ptr(3));
             }
             return false;
         };
@@ -633,7 +635,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     return num_iter != 1;
                 return num_iter >= 16;
             });
-        manager.register_pass<ov::pass::ResolveNameCollisions>(true);
 
         manager.run_passes(func);
     }
@@ -644,6 +645,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
         manager.register_pass<ov::intel_gpu::RMSFusion>();
+
+        // This is supposed to be the last pass to ensure that we don't have name collisions until
+        // GPU plugin stops using friendly names for program creation
+        manager.register_pass<ov::pass::ResolveNameCollisions>(true);
 
         manager.run_passes(func);
     }
