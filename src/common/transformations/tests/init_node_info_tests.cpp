@@ -13,7 +13,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/remove_rt_info.hpp"
+#include "transformations/init_node_info.hpp.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -48,7 +48,7 @@ TEST(TransformationTests, RemoveRtInfo) {
         model_ref = model->clone();
 
         pass::Manager manager;
-        manager.register_pass<ov::pass::RemoveRtInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.run_passes(model);
         ASSERT_THROW(check_rt_info(model), ov::Exception);
     }
