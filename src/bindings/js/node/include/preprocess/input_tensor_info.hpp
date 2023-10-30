@@ -14,8 +14,8 @@ public:
     static Napi::Function GetClassConstructor(Napi::Env env);
 
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
-
-    void set_element_type(const Napi::CallbackInfo& info);
+     
+    Napi::Value set_element_type(const Napi::CallbackInfo& info);
 
     Napi::Value set_layout(const Napi::CallbackInfo& info);
 

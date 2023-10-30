@@ -55,7 +55,7 @@ Napi::Value InputTensorInfo::set_shape(const Napi::CallbackInfo& info) {
     return info.This();
 }
 
-void InputTensorInfo::set_element_type(const Napi::CallbackInfo& info) {
+Napi::Value InputTensorInfo::set_element_type(const Napi::CallbackInfo& info) {
     if (info.Length() == 1) {
         try {
             auto type = js_to_cpp<ov::element::Type_t>(info, 0, {napi_string});
@@ -66,6 +66,7 @@ void InputTensorInfo::set_element_type(const Napi::CallbackInfo& info) {
     } else {
         reportError(info.Env(), "Error in setElementType(). Wrong number of parameters.");
     }
+    return info.This();
 }
 
 void InputTensorInfo::set_input_tensor_info(ov::preprocess::InputTensorInfo& info) {
