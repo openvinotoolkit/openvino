@@ -100,10 +100,6 @@ NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ov::Node>& op, const 
         THROW_CPU_NODE_ERR("has unsupported 'valid_outputs' output 1st dimension size: ", valid_outputs_shape.getDims()[1]);
     }
 
-    const auto op_inputs_num = op->get_input_size();
-    for (size_t i = 0lu; i < op_inputs_num; i++) {
-        m_const_inputs[i] = is_type<op::v0::Constant>(op->get_input_node_ptr(i));
-    }
     for (size_t i = 0lu; i < op->get_output_size(); i++) {
         m_defined_outputs[i] = !op->get_output_target_inputs(i).empty();
     }
@@ -167,30 +163,6 @@ void NonMaxSuppression::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inDataConf, outDataConf, impl_type);
 }
 
-void NonMaxSuppression::createPrimitive() {
-    const auto inputs_num = inputShapes.size();
-
-    if (inputs_num > NMS_MAX_OUTPUT_BOXES_PER_CLASS && m_const_inputs[NMS_MAX_OUTPUT_BOXES_PER_CLASS]) {
-        auto val = getScalar<int64_t>(NMS_MAX_OUTPUT_BOXES_PER_CLASS);
-        m_max_output_boxes_per_class = val <= 0l ? 0lu : static_cast<size_t>(val);
-    }
-
-    if (inputs_num > NMS_IOU_THRESHOLD && m_const_inputs[NMS_IOU_THRESHOLD]) {
-        m_iou_threshold = getScalar<float>(NMS_IOU_THRESHOLD);
-    }
-
-    if (inputs_num > NMS_SCORE_THRESHOLD && m_const_inputs[NMS_SCORE_THRESHOLD]) {
-        m_score_threshold = getScalar<float>(NMS_SCORE_THRESHOLD);
-    }
-
-    if (inputs_num > NMS_SOFT_NMS_SIGMA && m_const_inputs[NMS_SOFT_NMS_SIGMA]) {
-        m_soft_nms_sigma = getScalar<float>(NMS_SOFT_NMS_SIGMA);
-        m_scale = m_soft_nms_sigma > 0.f ? -0.5f / m_soft_nms_sigma : 0.f;
-    }
-
-    Node::createPrimitive();
-}
-
 void NonMaxSuppression::prepareParams() {
     const auto& boxesDims = isDynamicNode() ? getParentEdgesAtPort(NMS_BOXES)[0]->getMemory().getStaticDims() :
                                                getInputShapeAtPort(NMS_BOXES).getStaticDims();
@@ -207,11 +179,9 @@ void NonMaxSuppression::prepareParams() {
         THROW_CPU_NODE_ERR("Boxes number is different in 'boxes' and 'scores' inputs");
     }
 
-    if (m_const_inputs[NMS_MAX_OUTPUT_BOXES_PER_CLASS]) {
-        m_output_boxes_per_class = std::min(m_max_output_boxes_per_class, m_boxes_num);
-        const auto max_number_of_boxes = m_output_boxes_per_class * m_batches_num * m_classes_num;
-        m_filtered_boxes.resize(max_number_of_boxes);
-    }
+    m_output_boxes_per_class = std::min(m_max_output_boxes_per_class, m_boxes_num);
+    const auto max_number_of_boxes = m_output_boxes_per_class * m_batches_num * m_classes_num;
+    m_filtered_boxes.resize(max_number_of_boxes);
 
     m_num_filtered_boxes.resize(m_batches_num);
     for (auto & i : m_num_filtered_boxes) {
@@ -245,8 +215,8 @@ void NonMaxSuppression::execute(dnnl::stream strm) {
     const auto inputs_num = inputShapes.size();
 
     size_t max_number_of_boxes = m_output_boxes_per_class * m_batches_num * m_classes_num;
-    if (!m_const_inputs[NMS_MAX_OUTPUT_BOXES_PER_CLASS] && inputs_num > NMS_MAX_OUTPUT_BOXES_PER_CLASS) {
-        auto val = getScalar<int64_t>(NMS_MAX_OUTPUT_BOXES_PER_CLASS);
+    if (inputs_num > NMS_MAX_OUTPUT_BOXES_PER_CLASS) {
+        auto val = reinterpret_cast<int32_t *>(getParentEdgeAt(NMS_MAX_OUTPUT_BOXES_PER_CLASS)->getMemoryPtr()->getData())[0];
         m_max_output_boxes_per_class = val <= 0l ? 0lu : static_cast<size_t>(val);
         m_output_boxes_per_class = std::min(m_max_output_boxes_per_class, m_boxes_num);
         max_number_of_boxes = m_output_boxes_per_class * m_batches_num * m_classes_num;
@@ -256,14 +226,14 @@ void NonMaxSuppression::execute(dnnl::stream strm) {
         return;
     }
 
-    if (!m_const_inputs[NMS_IOU_THRESHOLD] && inputs_num > NMS_IOU_THRESHOLD) {
-        m_iou_threshold = getScalar<float>(NMS_IOU_THRESHOLD);
+    if (inputs_num > NMS_IOU_THRESHOLD) {
+        m_iou_threshold = reinterpret_cast<float *>(getParentEdgeAt(NMS_IOU_THRESHOLD)->getMemoryPtr()->getData())[0];
     }
-    if (!m_const_inputs[NMS_SCORE_THRESHOLD] && inputs_num > NMS_SCORE_THRESHOLD) {
-        m_score_threshold = getScalar<float>(NMS_SCORE_THRESHOLD);
+    if (inputs_num > NMS_SCORE_THRESHOLD) {
+        m_score_threshold = reinterpret_cast<float *>(getParentEdgeAt(NMS_SCORE_THRESHOLD)->getMemoryPtr()->getData())[0];
     }
-    if (!m_const_inputs[NMS_SOFT_NMS_SIGMA] && inputs_num > NMS_SOFT_NMS_SIGMA) {
-        m_soft_nms_sigma = getScalar<float>(NMS_SOFT_NMS_SIGMA);
+    if (inputs_num > NMS_SOFT_NMS_SIGMA) {
+        m_soft_nms_sigma = reinterpret_cast<float *>(getParentEdgeAt(NMS_SOFT_NMS_SIGMA)->getMemoryPtr()->getData())[0];
         m_scale = (m_soft_nms_sigma > 0.f) ? (-0.5f / m_soft_nms_sigma) : 0.f;
     }
 
@@ -931,26 +901,6 @@ void NonMaxSuppression::checkOutput(const Shape& shape, const std::string& name,
         THROW_CPU_NODE_ERR("has unsupported '", name, "' output rank: ", shape.getRank());
     if (shape.getDims()[1] != 3)
         THROW_CPU_NODE_ERR("has unsupported '", name, "' output 2nd dimension size: ", MemoryDescUtils::dim2str(shape.getDims()[1]));
-}
-
-template<typename T>
-T NonMaxSuppression::getScalar(size_t port) {
-    auto memory = getParentEdgeAt(port)->getMemoryPtr();
-    T res;
-#define PRC_CASE(P) \
-    case P: res = static_cast<T>(reinterpret_cast<PrecisionTrait<P>::value_type *>(memory->getData())[0]); break;
-
-    switch (memory->getDesc().getPrecision()) {
-        PRC_CASE(Precision::FP32)
-        PRC_CASE(Precision::FP16)
-        PRC_CASE(Precision::BF16)
-        PRC_CASE(Precision::I32)
-        PRC_CASE(Precision::I64)
-        default: THROW_CPU_NODE_ERR("has input at port ", port, " with unsupported precision ", memory->getDesc().getPrecision());
-    }
-#undef PRC_CASE
-
-    return res;
 }
 
 bool NonMaxSuppression::isExecutable() const {

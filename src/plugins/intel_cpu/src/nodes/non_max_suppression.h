@@ -26,8 +26,6 @@ public:
 
     void initSupportedPrimitiveDescriptors() override;
 
-    void createPrimitive() override;
-
     void execute(dnnl::stream strm) override;
 
     void executeDynamicImpl(dnnl::stream strm) override;
@@ -118,9 +116,6 @@ private:
 
     void createJitKernel();
 
-    template<typename T>
-    T getScalar(size_t port);
-
 
     NMSBoxEncodeType boxEncodingType = NMSBoxEncodeType::CORNER;
     bool m_sort_result_descending = true;
@@ -146,7 +141,6 @@ private:
     std::vector<std::vector<size_t>> m_num_filtered_boxes;
     const std::string inType = "input";
     const std::string outType = "output";
-    bool m_const_inputs[NMS_SOFT_NMS_SIGMA + 1] = { false, false, false, false, false, false };
     bool m_defined_outputs[NMS_VALID_OUTPUTS + 1] = { false, false, false };
     std::vector<FilteredBox> m_filtered_boxes;
 
