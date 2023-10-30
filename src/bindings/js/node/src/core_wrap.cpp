@@ -16,7 +16,6 @@ Napi::Function CoreWrap::GetClassConstructor(Napi::Env env) {
                        {
                            InstanceMethod("readModelSync", &CoreWrap::read_model_sync),
                            InstanceMethod("readModel", &CoreWrap::read_model_async),
-                           InstanceMethod("readModelFromBuffer", &CoreWrap::read_model_from_buffer),
                            InstanceMethod("compileModelSync", &CoreWrap::compile_model_sync_dispatch),
                            InstanceMethod("compileModel", &CoreWrap::compile_model_async),
                        });

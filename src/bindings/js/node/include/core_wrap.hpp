@@ -32,10 +32,10 @@ public:
      * @brief Reads a model synchronously.
      * @param info contains passed arguments.
      * One argument is passed:
-     * @param info[0] path to a model. (model_path)
+     * @param info[0] path to a model. (model_path string or Buffer<UInt8Array>)
      * Two arguments are passed:
-     * @param info[0] path to a model. (model_path)
-     * @param info[1] path to a data file. (e.g. bin_path)
+     * @param info[0] path to a model. (model_path string or Buffer<UInt8Array>)
+     * @param info[1] path to a data file. (e.g. bin_path string or Buffer<UInt8Array>)
      * @return A Javascript Model object.
      */
     Napi::Value read_model_sync(const Napi::CallbackInfo& info);
@@ -51,15 +51,6 @@ public:
      * @return A Javascript Promise.
      */
     Napi::Value read_model_async(const Napi::CallbackInfo& info);
-
-    /**
-     * @brief Reads a model from JS Buffer type.
-     * @param info contains passed arguments.
-     * @param info[0] Buffer of XML model file.
-     * @param info[1] (optional) Buffer of BIN weights file.
-     * @return A Javascript Model object.
-     */
-    Napi::Value read_model_from_buffer(const Napi::CallbackInfo& info);
 
     /**
      * @brief Creates and loads a compiled model from a source model.
