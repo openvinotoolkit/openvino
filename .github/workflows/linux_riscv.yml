@@ -31,7 +31,7 @@ concurrency:
 
 jobs:
   Build:
-    timeout-minutes: 15
+    timeout-minutes: 30
     defaults:
       run:
         shell: bash
@@ -60,6 +60,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: 'openvino'
+
+      #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
 
       - name: Init submodules for non-Conan dependencies
         run: |

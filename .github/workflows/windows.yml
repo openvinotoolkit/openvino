@@ -63,6 +63,13 @@ jobs:
           ref: 'master'
 
       #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
+      #
       # Dependencies
       #
 
@@ -645,7 +652,7 @@ jobs:
 
   CPU_Functional_Tests:
     name: CPU functional tests
-    needs: Buildy
+    needs: Build
     timeout-minutes: 30
     defaults:
       run:
