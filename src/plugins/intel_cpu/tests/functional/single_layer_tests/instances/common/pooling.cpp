@@ -36,7 +36,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_3D, PoolingLayerCPUTest,
                                  ::testing::ValuesIn((inpOutPrecision())),
                                  ::testing::Values(false),
                                  ::testing::ValuesIn(vecCpuConfigs),
-                                 ::testing::Values(emptyFusingSpec)),
+                                 ::testing::Values(emptyFusingSpec),
+                                 ::testing::Values(cpuEmptyPluginConfig)),
                          PoolingLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_3D, PoolingLayerCPUTest,
@@ -46,7 +47,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_3D, PoolingLayerCPUTest,
                                  ::testing::ValuesIn((inpOutPrecision())),
                                  ::testing::Values(false),
                                  ::testing::ValuesIn(vecCpuConfigs),
-                                 ::testing::Values(emptyFusingSpec)),
+                                 ::testing::Values(emptyFusingSpec),
+                                 ::testing::Values(cpuEmptyPluginConfig)),
                          PoolingLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_3D_NotOptimized, PoolingLayerCPUTest,
@@ -56,7 +58,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_3D_NotOptimized, PoolingLayerCPUTest,
                                  ::testing::ValuesIn((inpOutPrecision())),
                                  ::testing::Values(false),
                                  ::testing::Values(expectedCpuConfig()),
-                                 ::testing::Values(emptyFusingSpec)),
+                                 ::testing::Values(emptyFusingSpec),
+                                 ::testing::Values(cpuEmptyPluginConfig)),
                          PoolingLayerCPUTest::getTestCaseName);
 
 const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsAvg4D_RefOnly = {
@@ -71,7 +74,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_4D, PoolingLayerCPUTest,
                             ::testing::ValuesIn((inpOutPrecision())),
                             ::testing::Values(false),
                             ::testing::ValuesIn(vecCpuConfigs),
-                            ::testing::Values(emptyFusingSpec)),
+                            ::testing::Values(emptyFusingSpec),
+                            ::testing::Values(cpuEmptyPluginConfig)),
                         PoolingLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV8_CPU_4D, MaxPoolingV8LayerCPUTest,
@@ -79,7 +83,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV8_CPU_4D, MaxPoolingV8LayerCPUTest,
                                  ::testing::ValuesIn(paramsMaxV84D()),
                                  ::testing::ValuesIn(inputShapes4D()),
                                  ::testing::ValuesIn((inpOutPrecision())),
-                                 ::testing::ValuesIn(vecCpuConfigs)),
+                                 ::testing::ValuesIn(vecCpuConfigs),
+                                 ::testing::Values(cpuEmptyPluginConfig)),
                          MaxPoolingV8LayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D, PoolingLayerCPUTest,
@@ -89,7 +94,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D, PoolingLayerCPUTest,
                             ::testing::ValuesIn((inpOutPrecision())),
                             ::testing::Values(false),
                             ::testing::ValuesIn(vecCpuConfigs),
-                            ::testing::Values(emptyFusingSpec)),
+                            ::testing::Values(emptyFusingSpec),
+                            ::testing::Values(cpuEmptyPluginConfig)),
                         PoolingLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_NotOptimized, PoolingLayerCPUTest,
@@ -99,7 +105,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_NotOptimized, PoolingLayerCPUTest,
                             ::testing::ValuesIn((inpOutPrecision())),
                             ::testing::Values(false),
                             ::testing::Values(expectedCpuConfig()),
-                            ::testing::Values(emptyFusingSpec)),
+                            ::testing::Values(emptyFusingSpec),
+                            ::testing::Values(cpuEmptyPluginConfig)),
                         PoolingLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_Large, PoolingLayerCPUTest,
@@ -109,7 +116,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_Large, PoolingLayerCPUTest,
                             ::testing::ValuesIn((inpOutPrecision())),
                             ::testing::Values(false),
                             ::testing::ValuesIn(vecCpuConfigs),
-                            ::testing::Values(emptyFusingSpec)),
+                            ::testing::Values(emptyFusingSpec),
+                            ::testing::Values(cpuEmptyPluginConfig)),
                         PoolingLayerCPUTest::getTestCaseName);
 
 const std::vector<LayerTestsDefinitions::maxPoolV8SpecificParams> paramsMaxV85D_ref = {
@@ -138,7 +146,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_5D, PoolingLayerCPUTest,
                              ::testing::ValuesIn((inpOutPrecision())),
                              ::testing::Values(false),
                              ::testing::ValuesIn(vecCpuConfigs),
-                             ::testing::Values(emptyFusingSpec)),
+                             ::testing::Values(emptyFusingSpec),
+                             ::testing::Values(cpuEmptyPluginConfig)),
                          PoolingLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV8_CPU_5D, MaxPoolingV8LayerCPUTest,
@@ -146,7 +155,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV8_CPU_5D, MaxPoolingV8LayerCPUTest,
                                  ::testing::ValuesIn(paramsMaxV85D()),
                                  ::testing::ValuesIn(inputShapes5D()),
                                  ::testing::ValuesIn((inpOutPrecision())),
-                                 ::testing::ValuesIn(vecCpuConfigs)),
+                                 ::testing::ValuesIn(vecCpuConfigs),
+                                 ::testing::Values(cpuEmptyPluginConfig)),
                          MaxPoolingV8LayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV8_CPU_5D_ref, MaxPoolingV8LayerCPUTest,
@@ -154,7 +164,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV8_CPU_5D_ref, MaxPoolingV8LayerCPUTest,
                                  ::testing::ValuesIn(paramsMaxV85D_ref),
                                  ::testing::ValuesIn(inputShapes5D()),
                                  ::testing::ValuesIn((inpOutPrecision())),
-                                 ::testing::Values(expectedCpuConfig())),
+                                 ::testing::Values(expectedCpuConfig()),
+                                 ::testing::Values(cpuEmptyPluginConfig)),
                          MaxPoolingV8LayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D, PoolingLayerCPUTest,
@@ -164,7 +175,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D, PoolingLayerCPUTest,
                               ::testing::ValuesIn((inpOutPrecision())),
                               ::testing::Values(false),
                               ::testing::ValuesIn(vecCpuConfigs),
-                              ::testing::Values(emptyFusingSpec)),
+                              ::testing::Values(emptyFusingSpec),
+                              ::testing::Values(cpuEmptyPluginConfig)),
                           PoolingLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D_NotOptimized, PoolingLayerCPUTest,
@@ -174,7 +186,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D_NotOptimized, PoolingLayerCPUTest,
                               ::testing::ValuesIn((inpOutPrecision())),
                               ::testing::Values(false),
                               ::testing::Values(expectedCpuConfig()),
-                              ::testing::Values(emptyFusingSpec)),
+                              ::testing::Values(emptyFusingSpec),
+                              ::testing::Values(cpuEmptyPluginConfig)),
                           PoolingLayerCPUTest::getTestCaseName);
 #endif
 } // namespace Pooling
