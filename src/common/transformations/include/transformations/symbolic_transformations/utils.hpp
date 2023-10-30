@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
-
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace symbol {
@@ -38,6 +37,16 @@ TRANSFORMATIONS_API bool get_labels(const ov::Output<ov::Node>& output, ov::Tens
 ///
 /// \return true if labels are unique and equal between lhs and rhs else false
 TRANSFORMATIONS_API bool are_unique_and_equal_labels(const ov::TensorLabel& lhs, const ov::TensorLabel& rhs);
+
+/// \brief Compares dimensions: if dimensions are static compares values of dimensions, if dimensions are dynamic
+/// compares their respective labels using TableOfEquivalence
+///
+/// \param lhs   Dimension object to compare
+/// \param rhs   Dimension object to compare
+///
+/// \return true if static dimensions are equal and dynamic dimensions have equal labels else false
+TRANSFORMATIONS_API bool dims_are_equal(const ov::Dimension& lhs, const ov::Dimension& rhs);
+
 }  // namespace util
 }  // namespace symbol
 }  // namespace ov

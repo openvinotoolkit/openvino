@@ -27,6 +27,7 @@ concurrency:
 
 jobs:
   Build:
+    timeout-minutes: 15
     defaults:
       run:
         shell: bash
@@ -75,6 +76,13 @@ jobs:
           repository: 'microsoft/vcpkg'
           path: 'vcpkg'
           fetch-depth: '0'
+
+      #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
 
       #
       # Dependencies
