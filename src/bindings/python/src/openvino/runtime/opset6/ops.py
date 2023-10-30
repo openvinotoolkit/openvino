@@ -169,7 +169,6 @@ def _(variable_id: str,
     :param name:         Optional name for output node.
     :return: ReadValue node
     """
-
     attr_map: Dict[str, Any] = {"variable_id": variable_id}
 
     if variable_type is not None:
