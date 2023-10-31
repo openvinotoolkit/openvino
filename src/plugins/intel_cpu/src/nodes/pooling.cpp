@@ -322,7 +322,7 @@ void Pooling::getSupportedDescriptors() {
 
     // WA: LPT transformation has WA which allows average pooling has I8/U8 output precision instead of FP32,
     // so we explicitly set output precision as FP32
-    if (outputPrecision != Precision::I8 && inputPrecision != Precision::BF16 && inputPrecision != Precision::FP16) {
+    if (!one_of(outputPrecision, Precision::I8, Precision::BF16, Precision::FP16)) {
         if (getAlgorithm() == Algorithm::PoolingMax) {
             // oneDNN supports only equal precisions for input and output
             outputPrecision = inputPrecision;
@@ -330,7 +330,7 @@ void Pooling::getSupportedDescriptors() {
             outputPrecision = Precision::FP32;
         }
     }
-    if (inputPrecision == Precision::BF16 || inputPrecision == Precision::FP16) {
+    if (one_of(inputPrecision, Precision::BF16, Precision::FP16)) {
         outputPrecision = inputPrecision;
     }
 
@@ -351,7 +351,7 @@ void Pooling::getSupportedDescriptors() {
 
     if (inputPrecision == Precision::I8 || inputPrecision == Precision::U8) {
         //  We have to extend i8i8_pooling_fwd_t from oneDNN to support BF16 output data type
-        if (outputDataType == memory::data_type::bf16)
+        if (one_of(outputDataType, memory::data_type::bf16, memory::data_type::f16))
             outputDataType = memory::data_type::f32;
         // i8 layers supports only ndhwc and nhwc layouts
         const auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, inputRank == 3 ?

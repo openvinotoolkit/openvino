@@ -65,6 +65,8 @@ jobs:
         run: |
           pushd ${OPENVINO_REPO}
             git submodule update --init -- ${OPENVINO_REPO}/src/plugins
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/zlib
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/json
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gtest
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gflags
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/open_model_zoo
@@ -76,6 +78,13 @@ jobs:
           repository: 'microsoft/vcpkg'
           path: 'vcpkg'
           fetch-depth: '0'
+
+      #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
 
       #
       # Dependencies
