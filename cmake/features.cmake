@@ -152,15 +152,6 @@ else()
     set(ENABLE_SYSTEM_LIBS_DEFAULT OFF)
 endif()
 
-if(BUILD_SHARED_LIBS)
-    set(ENABLE_SYSTEM_PUGIXML_DEFAULT ${ENABLE_SYSTEM_LIBS_DEFAULT})
-else()
-    # for static libraries case libpugixml.a must be compiled with -fPIC
-    # but we still need an ability to compile with system PugiXML and BUILD_SHARED_LIBS
-    # for Conan case where everything is compiled statically
-    set(ENABLE_SYSTEM_PUGIXML_DEFAULT OFF)
-endif()
-
 if(ANDROID)
     # when protobuf from /usr/include is used, then Android toolchain ignores include paths
     # but if we build for Android using vcpkg / conan / etc where flatbuffers is not located in
@@ -179,9 +170,7 @@ endif()
 
 ov_dependent_option (ENABLE_SYSTEM_TBB  "Enables use of system TBB" ${ENABLE_SYSTEM_TBB_DEFAULT}
     "THREADING MATCHES TBB" OFF)
-# TODO: turn it off by default during the work on cross-os distribution, because pugixml is not
-# available out of box on all systems (like RHEL, UBI)
-ov_option (ENABLE_SYSTEM_PUGIXML "Enables use of system PugiXML" ${ENABLE_SYSTEM_PUGIXML_DEFAULT})
+ov_option (ENABLE_SYSTEM_PUGIXML "Enables use of system PugiXML" OFF)
 # the option is on by default, because we use only flatc compiler and don't use any libraries
 ov_dependent_option(ENABLE_SYSTEM_FLATBUFFERS "Enables use of system flatbuffers" ${ENABLE_SYSTEM_FLATBUFFERS_DEFAULT}
     "ENABLE_OV_TF_LITE_FRONTEND" OFF)

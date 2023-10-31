@@ -108,42 +108,15 @@ endif()
 if(TARGET gflags)
     set(GFLAGS_TARGET gflags)
 elseif(gflags_required)
-    if(EXISTS /etc/debian_version)
-        set(gflags_component nothreads_static)
+    set(GFLAGS_TARGET gflags_nothreads_static)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
+        add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
+    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/gflags")
+        # Allow running samples CMakeLists.txt as stand alone from openvino sources
+        add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/gflags"
+                            "${CMAKE_CURRENT_BINARY_DIR}/thirdparty/gflags" EXCLUDE_FROM_ALL)
     else()
-        set(gflags_component shared)
-    endif()
-    find_package(gflags QUIET OPTIONAL_COMPONENTS ${gflags_component})
-    if(gflags_FOUND)
-        if(TARGET ${GFLAGS_TARGET})
-            # nothing
-        elseif(TARGET gflags_nothreads-static)
-            # Debian 9: gflag_component is ignored
-            set(GFLAGS_TARGET gflags_nothreads-static)
-        elseif(TARGET gflags-shared)
-            # gflags shared case for CentOS / RHEL / Fedora
-            set(GFLAGS_TARGET gflags-shared)
-        elseif(TARGET gflags::gflags)
-            # gflags case for Conan
-            set(GFLAGS_TARGET gflags::gflags)
-        else()
-            message(FATAL_ERROR "Internal error: failed to find imported target 'gflags' using '${gflags_component}' component")
-        endif()
-
-        message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR} using '${gflags_component}' component")
-    endif()
-
-    if(NOT gflags_FOUND)
-        set(GFLAGS_TARGET gflags_nothreads_static)
-        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
-            add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
-        elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/gflags")
-            # Allow running samples CMakeLists.txt as stand alone from openvino sources
-            add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/gflags"
-                             "${CMAKE_CURRENT_BINARY_DIR}/thirdparty/gflags" EXCLUDE_FROM_ALL)
-        else()
-            message(FATAL_ERROR "Failed to find 'gflags' library using '${gflags_component}' component")
-        endif()
+        message(FATAL_ERROR "Failed to find 'gflags' library using '${gflags_component}' component")
     endif()
 endif()
 
