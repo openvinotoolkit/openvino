@@ -284,7 +284,7 @@ pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
         new_concat->set_friendly_name(concat->get_friendly_name());
         copy_runtime_info(concat, new_concat);
 
-        const auto new_reshape = std::make_shared<v1::Reshape>(reshape->get_input_node_shared_ptr(0), new_concat, true);
+        const auto new_reshape = std::make_shared<v1::Reshape>(reshape->input_value(0), new_concat, true);
         new_reshape->set_friendly_name(reshape->get_friendly_name());
 
         copy_runtime_info(reshape, new_reshape);
