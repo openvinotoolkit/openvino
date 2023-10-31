@@ -24,10 +24,10 @@
 
 namespace {
 
-bool CanEraseKey(const std::string& key) {
+bool can_erase_key(const std::string& key) {
 #undef TYPE_INFO
 #define TYPE_INFO(name) ov::name::get_type_info_static()
-    static const std::unordered_set<std::string> RtKeys = {
+    static const std::unordered_set<std::string> rt_keys = {
             TYPE_INFO(Decompression),
             TYPE_INFO(DisableFP16Compression),
             TYPE_INFO(FusedNames),
@@ -41,12 +41,12 @@ bool CanEraseKey(const std::string& key) {
             TYPE_INFO(preprocess::TensorInfoMemoryType),
     };
 #undef TYPE_INFO
-    return RtKeys.find(key) == RtKeys.end();
+    return rt_keys.find(key) == rt_keys.end();
 }
 
-void ClearRtInfo(ov::RTMap& rtInfo) {
+void clear_rt_info(ov::RTMap& rtInfo) {
     for (auto it = rtInfo.cbegin(); it != rtInfo.cend();) {
-        if (CanEraseKey(it->first)) {
+        if (can_erase_key(it->first)) {
             it = rtInfo.erase(it);
         } else {
             ++it;
@@ -66,7 +66,7 @@ bool ov::pass::InitNodeInfo::run_on_model(const std::shared_ptr<ov::Model>& f) {
             }
         }
         auto& rtInfo = node->get_rt_info();
-        ClearRtInfo(rtInfo);
+        clear_rt_info(rtInfo);
         rtInfo.emplace(FusedNames::get_type_info_static(), FusedNames{node->get_friendly_name()});
     }
     return false;
