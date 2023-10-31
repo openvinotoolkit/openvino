@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include "shared_test_classes/single_layer/nms_rotated.hpp"
+#include "shared_test_classes/single_op/nms_rotated.hpp"
 
 namespace LayerTestsDefinitions {
 
-TEST_P(NmsRotatedLayerTest, CompareWithRefs) {
-    Run();
+TEST_P(NmsRotatedOpTest, CompareWithRefs) {
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

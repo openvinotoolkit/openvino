@@ -1,207 +1,230 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/single_layer/nms_rotated.hpp"
-#include "ov_models/builders.hpp"
-#include "common_test_utils/data_utils.hpp"
 #include "openvino/op/nms_rotated.hpp"
 
-using namespace ov::test;
+#include <vector>
 
 namespace LayerTestsDefinitions {
 
+using namespace InferenceEngine;
+using namespace FuncTestUtils::PrecisionUtils;
+
 std::string NmsRotatedLayerTest::getTestCaseName(const testing::TestParamInfo<NmsRotatedParams>& obj) {
-    const auto& in_shapes = std::get<0>(obj.param);
+    InputShapeParams inShapeParams;
+    InputPrecisions inPrecisions;
+    int32_t maxOutBoxesPerClass;
+    float iouThr, scoreThr;
+    bool sortResDescend, clockwise;
+    ov::element::Type outType;
+    std::string targetDevice;
+    std::tie(inShapeParams,
+             inPrecisions,
+             maxOutBoxesPerClass,
+             iouThr,
+             scoreThr,
+             sortResDescend,
+             outType,
+             clockwise,
+             targetDevice) = obj.param;
+
+    size_t numBatches, numBoxes, numClasses;
+    std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
+
+    Precision inputPrec, maxBoxPrec, thrPrec;
+    std::tie(inputPrec, maxBoxPrec, thrPrec) = inPrecisions;
 
     std::ostringstream result;
-
-    result << "IS=(";
-    for (size_t i = 0lu; i < in_shapes.size(); i++) {
-        result << utils::partialShape2str({in_shapes[i].first}) << (i < in_shapes.size() - 1lu ? "_" : "");
-    }
-    result << ")_TS=";
-    for (size_t i = 0lu; i < in_shapes.front().second.size(); i++) {
-        result << "{";
-        for (size_t j = 0lu; j < in_shapes.size(); j++) {
-            result << utils::vec2str(in_shapes[j].second[i]) << (j < in_shapes.size() - 1lu ? "_" : "");
-        }
-        result << "}_";
-    }
-    result << "_BoxPrc="    << std::get<1>(obj.param);
-    result << "_MaxPrc="    << std::get<2>(obj.param);
-    result << "_ThrPrc="    << std::get<3>(obj.param);
-    result << "_OutPrc="    << std::get<4>(obj.param);
-    result << "_MaxBox="    << std::get<5>(obj.param);
-    result << "_IouThr="    << std::get<6>(obj.param);
-    result << "_ScoreThr="  << std::get<7>(obj.param);
-    result << "_SortDesc="  << utils::bool2str(std::get<8>(obj.param));
-    result << "_Clockwise=" << utils::bool2str(std::get<9>(obj.param));
-    result << "_ConstIn={"  << utils::bool2str(std::get<10>(obj.param)) << ","
-                            << utils::bool2str(std::get<11>(obj.param)) << ","
-                            << utils::bool2str(std::get<12>(obj.param)) << ","
-                            << utils::bool2str(std::get<13>(obj.param)) << ","
-                            << utils::bool2str(std::get<14>(obj.param)) << "}";
-
-    const auto& config = std::get<15>(obj.param);
-    if (!config.empty()) {
-        result << "_Config={";
-        for (const auto& conf_item : config) {
-            result << "_" << conf_item.first << "=";
-            conf_item.second.print(result);
-        }
-        result << "}";
-    }
-
-    result << "_Device=" << std::get<16>(obj.param);
-
+    result << "numBatches=" << numBatches << "_numBoxes=" << numBoxes << "_numClasses=" << numClasses << "_";
+    result << "inputPrec=" << inputPrec << "_maxBoxPrec=" << maxBoxPrec << "_thrPrec=" << thrPrec << "_";
+    result << "maxOutBoxesPerClass=" << maxOutBoxesPerClass << "_";
+    result << "iouThr=" << iouThr << "_scoreThr=" << scoreThr << "_";
+    result << "sortResDescend=" << sortResDescend << "_outType=" << outType << "_";
+    result << "clockwise=" << clockwise << "_";
+    result << "TargetDevice=" << targetDevice;
     return result.str();
 }
 
-void NmsRotatedLayerTest::SetUp() {
-    const auto& params          = this->GetParam();
-    const auto& in_shapes       = std::get<0>(params);
-    const auto& boxes_prc       = std::get<1>(params);
-    const auto& max_boxes_prc   = std::get<2>(params);
-    const auto& thresholds_prc  = std::get<3>(params);
-    const auto& out_prc         = std::get<4>(params);
-    m_max_out_boxes_per_class   = std::get<5>(params);
-    m_iou_threshold             = std::get<6>(params);
-    m_score_threshold           = std::get<7>(params);
-    const auto& sort_descending = std::get<8>(params);
-    const auto& clockwise       = std::get<9>(params);
-    const auto& is_0_in_const   = std::get<10>(params);
-    const auto& is_1_in_const   = std::get<11>(params);
-    const auto& is_2_in_const   = std::get<12>(params);
-    const auto& is_3_in_const   = std::get<13>(params);
-    const auto& is_4_in_const   = std::get<14>(params);
-    configuration               = std::get<15>(params);
-    targetDevice                = std::get<16>(params);
+void NmsRotatedLayerTest::GenerateInputs() {
+    size_t it = 0;
+    for (const auto& input : cnnNetwork.getInputsInfo()) {
+        const auto& info = input.second;
+        Blob::Ptr blob;
 
-    std::vector<InputShape> actual_shapes;
-    ov::ParameterVector in_params;
-    std::vector<std::shared_ptr<ov::Node>> inputs;
-    const auto in_shape_1d = InputShape{{1}, {{1}}};
-
-#define CONST_CASE(P, S, H, L)                                                                                             \
-    case P:                                                                                                                \
-        inputs.push_back(ngraph::builder::makeConstant(P, S, std::vector<ov::element_type_traits<P>::value_type>{}, true,  \
-                            ov::element_type_traits<P>::value_type(H), ov::element_type_traits<P>::value_type(L)));        \
-        break;
-
-#define CREATE_INPUT(C, P, S, N, H, L)                                                                                     \
-    if (C) {                                                                                                               \
-        switch (P) {                                                                                                       \
-            CONST_CASE(ElementType::f32,  S.second[0], H, L)                                                               \
-            CONST_CASE(ElementType::f16,  S.second[0], H, L)                                                               \
-            CONST_CASE(ElementType::bf16, S.second[0], H, L)                                                               \
-            CONST_CASE(ElementType::i32,  S.second[0], H, L)                                                               \
-            CONST_CASE(ElementType::i64,  S.second[0], H, L)                                                               \
-            default: OPENVINO_THROW("NmsRotated does not support precision ", P, " for the ", N, " input.");               \
-        }                                                                                                                  \
-    } else {                                                                                                               \
-        actual_shapes.push_back(S);                                                                                        \
-        if (S.first.rank() == 0) {                                                                                         \
-            in_params.push_back(std::make_shared<ov::op::v0::Parameter>(P, S.second.front()));                             \
-        } else {                                                                                                           \
-            in_params.push_back(std::make_shared<ov::op::v0::Parameter>(P, S.first));                                      \
-        }                                                                                                                  \
-        in_params.back()->set_friendly_name(N);                                                                            \
-        inputs.push_back(in_params.back());                                                                                \
-    }
-
-    CREATE_INPUT(is_0_in_const, boxes_prc,      in_shapes[0], "Boxes", 30, 10)
-    CREATE_INPUT(is_1_in_const, boxes_prc,      in_shapes[1], "Scores", 1, 0)
-    CREATE_INPUT(is_2_in_const, max_boxes_prc,  in_shape_1d, "MaxOutputBoxesPerClass", m_max_out_boxes_per_class, m_max_out_boxes_per_class)
-    CREATE_INPUT(is_3_in_const, thresholds_prc, in_shape_1d, "IouThreshold", m_iou_threshold, m_iou_threshold)
-    CREATE_INPUT(is_4_in_const, thresholds_prc, in_shape_1d, "ScoreThreshold", m_score_threshold, m_score_threshold)
-
-#undef CONST_CASE
-#undef CREATE_INPUT
-
-    init_input_shapes(actual_shapes);
-
-    const auto nms_op = std::make_shared<ov::op::v13::NMSRotated>(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4],
-                                                                    sort_descending, out_prc, clockwise);
-    ov::ResultVector results;
-    for (size_t i = 0lu; i < nms_op->get_output_size(); i++) {
-        results.push_back(std::make_shared<ov::op::v0::Result>(nms_op->output(i)));
-    }
-
-    function = std::make_shared<ov::Model>(results, in_params, "NMSRotated");
-}
-
-template<typename TD, typename TS>
-void fill_data(TD* dst, const TS* src, size_t len) {
-    for (size_t i = 0llu; i < len; i++) {
-        dst[i] = static_cast<TD>(src[i]);
+        if (it == 1) {
+            blob = make_blob_with_precision(info->getTensorDesc());
+            blob->allocate();
+            if (info->getTensorDesc().getPrecision() == Precision::FP32) {
+                ov::test::utils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, 1, 0, 1000);
+            } else {
+                ov::test::utils::fill_data_random_float<InferenceEngine::Precision::FP16>(blob, 1, 0, 1000);
+            }
+        } else {
+            blob = GenerateInput(*info);
+        }
+        inputs.push_back(blob);
+        it++;
     }
 }
 
-void NmsRotatedLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
-    inputs.clear();
-    const auto& func_inputs = function->inputs();
+void NmsRotatedLayerTest::Compare(
+    const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
+    const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
+    size_t num_batches, num_boxes, num_classes;
+    std::tie(num_batches, num_boxes, num_classes) = inShapeParams;
 
-    for (size_t i = 0llu; i < func_inputs.size(); ++i) {
-        const auto& func_input = func_inputs[i];
-        const auto& name = func_input.get_node()->get_friendly_name();
-        const auto& in_prc = func_input.get_element_type();
-        auto tensor = ov::Tensor(in_prc, targetInputStaticShapes[i]);
+    struct OutBox {
+        OutBox() = default;
 
-#define FILL_DATA(P, S, L)                                                          \
-case P :                                                                            \
-fill_data(tensor.data<ov::element_type_traits<P>::value_type>(), S, L); break;
+        OutBox(int32_t batchId, int32_t classId, int32_t boxId, float score) {
+            this->batchId = batchId;
+            this->classId = classId;
+            this->boxId = boxId;
+            this->score = score;
+        }
 
-#define GEN_DATA(P, R, S, K)                                                                                                               \
-case P :                                                                                                                                   \
-utils::fill_data_random(tensor.data<ov::element_type_traits<P>::value_type>(), shape_size(targetInputStaticShapes[i]), R, S, K); break;
+        bool operator==(const OutBox& rhs) const {
+            return batchId == rhs.batchId && classId == rhs.classId && boxId == rhs.boxId;
+        }
 
-        if (name == "Boxes") {
-            switch (in_prc) {
-                GEN_DATA(ElementType::f32, 30, 20, 1)
-                GEN_DATA(ElementType::f16, 30, 20, 1)
-                GEN_DATA(ElementType::bf16, 30, 20, 1)
-                default:
-                    OPENVINO_THROW("NmsRotated does not support precision ", in_prc, " for the Scores input.");
+        int32_t batchId;
+        int32_t classId;
+        int32_t boxId;
+        float score;
+    };
+
+    std::vector<OutBox> expected;
+    {
+        const auto selected_indices_size = expectedOutputs[0].second.size() / expectedOutputs[0].first.size();
+        const auto selected_scores_size = expectedOutputs[1].second.size() / expectedOutputs[1].first.size();
+
+        ASSERT_EQ(selected_indices_size, selected_scores_size);
+
+        const auto boxes_count = selected_indices_size / 3;
+        expected.resize(boxes_count);
+
+        if (expectedOutputs[0].first.size() == 4) {
+            auto selected_indices_data = reinterpret_cast<const int32_t*>(expectedOutputs[0].second.data());
+
+            for (size_t i = 0; i < selected_indices_size; i += 3) {
+                expected[i / 3].batchId = selected_indices_data[i + 0];
+                expected[i / 3].classId = selected_indices_data[i + 1];
+                expected[i / 3].boxId = selected_indices_data[i + 2];
             }
-        } else if (name == "Scores") {
-            switch (in_prc) {
-                GEN_DATA(ElementType::f32, 1, 0, 100)
-                GEN_DATA(ElementType::f16, 1, 0, 100)
-                GEN_DATA(ElementType::bf16, 1, 0, 100)
-                default:
-                    OPENVINO_THROW("NmsRotated does not support precision ", in_prc, " for the Scores input.");
-            }
-        } else if (name == "MaxOutputBoxesPerClass") {
-            switch (in_prc) {
-                FILL_DATA(ElementType::i64, &m_max_out_boxes_per_class, 1)
-                FILL_DATA(ElementType::i32, &m_max_out_boxes_per_class, 1)
-                default:
-                    OPENVINO_THROW("NmsRotated does not support precision ", in_prc, " for the MaxOutputBoxesPerClass input.");
-            }
-        } else if (name == "IouThreshold") {
-            switch (in_prc) {
-                FILL_DATA(ElementType::f32,  &m_iou_threshold, 1)
-                FILL_DATA(ElementType::f16,  &m_iou_threshold, 1)
-                FILL_DATA(ElementType::bf16, &m_iou_threshold, 1)
-                default:
-                    OPENVINO_THROW("NmsRotated does not support precision ", in_prc, " for the IouThreshold input.");
-            }
-        } else if (name == "ScoreThreshold") {
-            switch (in_prc) {
-                FILL_DATA(ElementType::f32,  &m_score_threshold, 1)
-                FILL_DATA(ElementType::f16,  &m_score_threshold, 1)
-                FILL_DATA(ElementType::bf16, &m_score_threshold, 1)
-                default:
-                    OPENVINO_THROW("NmsRotated does not support precision ", in_prc, " for the ScoreThreshold input.");
+        } else {
+            auto selected_indices_data = reinterpret_cast<const int64_t*>(expectedOutputs[0].second.data());
+
+            for (size_t i = 0; i < selected_indices_size; i += 3) {
+                expected[i / 3].batchId = static_cast<int32_t>(selected_indices_data[i + 0]);
+                expected[i / 3].classId = static_cast<int32_t>(selected_indices_data[i + 1]);
+                expected[i / 3].boxId = static_cast<int32_t>(selected_indices_data[i + 2]);
             }
         }
 
-#undef GEN_DATA
-#undef FILL_DATA
+         if (expectedOutputs[1].first.size() == 4) {
+            auto selected_scores_data = reinterpret_cast<const float*>(expectedOutputs[1].second.data());
+            for (size_t i = 0; i < selected_scores_size; i += 3) {
+                expected[i / 3].score = selected_scores_data[i + 2];
+            }
+        } else {
+            auto selected_scores_data = reinterpret_cast<const double*>(expectedOutputs[1].second.data());
+            for (size_t i = 0; i < selected_scores_size; i += 3) {
+                expected[i / 3].score = static_cast<float>(selected_scores_data[i + 2]);
+            }
+        }
+    }
 
-        inputs.insert({func_input.get_node_shared_ptr(), tensor});
+    std::vector<OutBox> actual;
+    {
+        const auto selected_indices_size = actualOutputs[0]->byteSize() / sizeof(float);
+        const auto selected_indices_memory = as<MemoryBlob>(actualOutputs[0]);
+        IE_ASSERT(selected_indices_memory);
+        const auto selected_indices_lockedMemory = selected_indices_memory->rmap();
+        const auto selected_indices_data = selected_indices_lockedMemory.as<const int32_t*>();
+
+        const auto selected_scores_memory = as<MemoryBlob>(actualOutputs[1]);
+        IE_ASSERT(selected_scores_memory);
+        const auto selected_scores_lockedMemory = selected_scores_memory->rmap();
+        const auto selected_scores_data = selected_scores_lockedMemory.as<const float*>();
+
+        for (size_t i = 0; i < selected_indices_size; i += 3) {
+            const int32_t batchId = selected_indices_data[i + 0];
+            const int32_t classId = selected_indices_data[i + 1];
+            const int32_t boxId = selected_indices_data[i + 2];
+            const float score = selected_scores_data[i + 2];
+            if (batchId == -1 || classId == -1 || boxId == -1)
+                break;
+
+            actual.emplace_back(batchId, classId, boxId, score);
+        }
+    }
+
+    ASSERT_EQ(expected.size(), actual.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(expected[i], actual[i]) << ", i=" << i;
+        ASSERT_NEAR(expected[i].score, actual[i].score, abs_threshold) << ", i=" << i;
     }
 }
 
-} // namespace LayerTestsDefinitions
+void NmsRotatedLayerTest::SetUp() {
+    InputPrecisions inPrecisions;
+    size_t maxOutBoxesPerClass;
+    float iouThr, scoreThr;
+    bool sortResDescend, clockwise;
+    ov::element::Type outType;
+    std::tie(inShapeParams,
+             inPrecisions,
+             maxOutBoxesPerClass,
+             iouThr,
+             scoreThr,
+             sortResDescend,
+             outType,
+             clockwise,
+             targetDevice) = this->GetParam();
+
+    size_t numBatches, numBoxes, numClasses;
+    std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
+
+    Precision inputPrec, maxBoxPrec, thrPrec;
+    std::tie(inputPrec, maxBoxPrec, thrPrec) = inPrecisions;
+
+    if (inputPrec == Precision::FP16) {
+        abs_threshold = 0.1;
+    } else {
+        abs_threshold = std::numeric_limits<float>::epsilon();
+    }
+
+    ov::ParameterVector params;
+
+    const std::vector<size_t> boxesShape{numBatches, numBoxes, 5}, scoresShape{numBatches, numClasses, numBoxes};
+    const auto ngPrc = convertIE2nGraphPrc(inputPrec);
+
+    const auto boxesNode = std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(boxesShape));
+    params.push_back(boxesNode);
+    const auto scoresNode = std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(scoresShape));
+    params.push_back(scoresNode);
+
+    const auto maxOutputBoxesPerClassNode = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::u32,
+                                                                                   ov::Shape{},
+                                                                                   std::vector<size_t>{maxOutBoxesPerClass});
+    const auto iouThresholdNode = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::f32,
+                                                                                   ov::Shape{},
+                                                                                   std::vector<float>{iouThr});
+    const auto scoreTresholdNode = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::f32,
+                                                                                   ov::Shape{},
+                                                                                   std::vector<float>{scoreThr});
+
+    const auto nmsNode = std::make_shared<ov::op::v13::NMSRotated>(params[0],
+                                                               params[1],
+                                                               maxOutputBoxesPerClassNode,
+                                                               iouThresholdNode,
+                                                               scoreTresholdNode,
+                                                               sortResDescend,
+                                                               outType,
+                                                               clockwise);
+
+    function = std::make_shared<ov::Model>(nmsNode, params, "NMS");
+}
+}  // namespace LayerTestsDefinitions

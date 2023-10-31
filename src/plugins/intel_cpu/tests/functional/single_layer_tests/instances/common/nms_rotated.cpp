@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_layer_tests/nms_rotated.hpp"
+#include "single_op_tests/nms_rotated.hpp"
 
 using namespace LayerTestsDefinitions;
 using namespace ov::test;
@@ -52,7 +52,7 @@ static const std::vector<std::vector<InputShape>> input_shapes_nightly = {
 
 const ov::AnyMap empty_plugin_config{};
 
-INSTANTIATE_TEST_SUITE_P(smoke_, NmsRotatedLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_, NmsRotatedOpTest,
         ::testing::Combine(
                 ::testing::ValuesIn(input_shapes),          // Input shapes
                 ::testing::Values(ElementType::f32),        // Boxes and scores input precisions
@@ -71,9 +71,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_, NmsRotatedLayerTest,
                 ::testing::Values(false),                   // Is 5th input constant
                 ::testing::Values(empty_plugin_config),     // Additional plugin configuration
                 ::testing::Values(utils::DEVICE_CPU)),      // Device name
-        NmsRotatedLayerTest::getTestCaseName);
+        NmsRotatedOpTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(nightly_, NmsRotatedLayerTest,
+INSTANTIATE_TEST_SUITE_P(nightly_, NmsRotatedOpTest,
         ::testing::Combine(
                 ::testing::ValuesIn(input_shapes_nightly),
                 ::testing::Values(ElementType::f16, ElementType::bf16),
@@ -92,4 +92,4 @@ INSTANTIATE_TEST_SUITE_P(nightly_, NmsRotatedLayerTest,
                 ::testing::Values(true, false),
                 ::testing::Values(empty_plugin_config),
                 ::testing::Values(utils::DEVICE_CPU)),
-        NmsRotatedLayerTest::getTestCaseName);
+        NmsRotatedOpTest::getTestCaseName);
