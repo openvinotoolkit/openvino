@@ -12,46 +12,6 @@ const size_t feat_stride = 1;
 const float box_size_scale = 2.0f;
 const float box_coordinate_scale = 2.0f;
 
-// std::string ProposalLayerTest::SerializeProposalSpecificParams(proposalSpecificParams& params) {
-//     size_t base_size;
-//     size_t pre_nms_topn;
-//     size_t post_nms_topn;
-//     float nms_thresh;
-//     size_t min_size;
-//     std::vector<float> ratio;
-//     std::vector<float> scale;
-//     bool clip_before_nms;
-//     bool clip_after_nms;
-//     std::string framework;
-//     std::tie(base_size, pre_nms_topn,
-//              post_nms_topn,
-//              nms_thresh,
-//              min_size,
-//              ratio,
-//              scale,
-//              clip_before_nms,
-//              clip_after_nms,
-//              framework) = params;
-
-//     std::ostringstream result;
-//     result << "base_size=" << base_size << "_";
-//     result << "pre_nms_topn=" << pre_nms_topn << "_";
-//     result << "post_nms_topn=" << post_nms_topn << "_";
-//     result << "nms_thresh=" << nms_thresh << "_";
-//     result << "feat_stride=" << feat_stride << "_";
-//     result << "min_size=" << min_size << "_";
-//     result << "ratio = " << ov::test::utils::vec2str(ratio) << "_";
-//     result << "scale = " << ov::test::utils::vec2str(scale) << "_";
-//     result << "clip_before_nms=" << clip_before_nms << "_";
-//     result << "clip_after_nms=" << clip_after_nms << "_";
-//     result << "normalize=" << normalize << "_";
-//     result << "box_size_scale=" << box_size_scale << "_";
-//     result << "box_coordinate_scale=" << box_coordinate_scale << "_";
-//     result << "framework=" << framework << "_";
-
-//     return result.str();
-// }
-
 std::string ProposalLayerTest::getTestCaseName(const testing::TestParamInfo<proposalLayerTestParamsSet>& obj) {
     proposalSpecificParams proposal_params;
     ov::element::Type model_type;
