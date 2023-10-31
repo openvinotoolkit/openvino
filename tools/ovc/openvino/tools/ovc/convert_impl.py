@@ -7,6 +7,7 @@ import logging as log
 import os
 import sys
 import traceback
+import tracemalloc
 from collections import OrderedDict
 from pathlib import Path
 from typing import Iterable, Callable
@@ -39,7 +40,7 @@ from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_fronten
 from openvino.frontend import FrontEndManager, OpConversionFailure, TelemetryExtension
 from openvino.runtime import get_version as get_rt_version
 from openvino.runtime import Type, PartialShape
-import re
+
 
 try:
     from openvino.frontend.tensorflow.utils import create_tf_graph_iterator, type_supported_by_tf_fe, \
@@ -221,28 +222,12 @@ def check_model_object(argv):
 
 
 def driver(argv: argparse.Namespace, non_default_params: dict):
-    if not hasattr(argv, 'log_level'):
-        argv.log_level = 'ERROR'
-    init_logger(argv.log_level.upper(), argv.verbose)
+    init_logger('ERROR', argv.verbose)
 
     # Log dictionary with non-default cli parameters where complex classes are excluded.
     log.debug(str(non_default_params))
 
-    start_time = datetime.datetime.now()
-
     ov_model = moc_emit_ir(prepare_ir(argv), argv)
-
-    if argv.verbose:
-        elapsed_time = datetime.datetime.now() - start_time
-        print('[ SUCCESS ] Total execution time: {:.2f} seconds. '.format(elapsed_time.total_seconds()))
-        try:
-            import resource
-            mem_usage = round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024)
-            if sys.platform == 'darwin':
-                mem_usage = round(mem_usage / 1024)
-            print('[ SUCCESS ] Memory consumed: {} MB. '.format(mem_usage))
-        except ImportError:
-            pass
 
     return ov_model
 
@@ -416,11 +401,21 @@ def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParse
     return argv
 
 
-def is_verbose(argv: argparse.Namespace):
-    return argv is not None and hasattr(argv, 'verbose') and argv.verbose
+def is_verbose(argv, args=None):
+    if argv is not None and hasattr(argv, 'verbose') and argv.verbose:
+        return True
+    if args is not None and 'verbose' in args and args['verbose']:
+        return True
+    if '--verbose' in sys.argv:
+        return True
+    return False
 
 
 def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
+    start_time = datetime.datetime.now()
+    if is_verbose(None, args):
+        tracemalloc.start()
+
     simplified_ie_version = VersionChecker().get_ie_simplified_version()
     telemetry = init_mo_telemetry()
     telemetry.start_session('ovc')
@@ -500,6 +495,15 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
                 print(ov_update_message)
 
         send_conversion_result('success')
+
+        if is_verbose(argv):
+            elapsed_time = datetime.datetime.now() - start_time
+            print('[ SUCCESS ] Total execution time: {:.2f} seconds. '.format(elapsed_time.total_seconds()))
+
+            _, peak_size = tracemalloc.get_traced_memory()
+            print("[ SUCCESS ] Peak memory consumption (includes only memory allocated in Python): {:.2f} MB. ".format(peak_size / (1024 * 1024)))
+            tracemalloc.stop()
+
         return ov_model, argv
 
     except Exception as e:
