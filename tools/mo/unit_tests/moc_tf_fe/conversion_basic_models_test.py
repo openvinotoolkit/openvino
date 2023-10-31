@@ -239,6 +239,7 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
         self.basic("ctc_model_based.pbtxt", None, None, None, None,
                    None, None, True, True, False, False)
 
+    @unittest.skip("123651: enable when GPU fixes dynamism in Loop operation")
     def test_conversion_tf1_while_use_new_frontend(self):
         self.basic("ctc_model_based.pbtxt", None, None, None, None,
                    None, None, True, True, True, False)
