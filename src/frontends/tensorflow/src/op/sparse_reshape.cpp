@@ -70,20 +70,29 @@ OutputVector translate_sparse_reshape_op(const ov::frontend::tensorflow::NodeCon
     return {input_indices, input_shape};
 }
 
-OutputVector translate_sparse_fill_empty_rows_op(const ov::frontend::tensorflow::NodeContext& node) {
+NamedOutputVector translate_sparse_fill_empty_rows_op(const ov::frontend::tensorflow::NodeContext& node) {
     default_op_checks(node, 3, {"SparseFillEmptyRows"});
     auto input_indices = node.get_input(0);
     auto input_values = node.get_input(1);
     auto dense_shape = node.get_input(2);
     auto default_value = node.get_input(3);
+    auto node_name = node.get_name();
 
     auto sparse_fill_empty_rows = make_shared<ov::frontend::tensorflow::SparseFillEmptyRows>(input_indices,
                                                                                              input_values,
                                                                                              dense_shape,
                                                                                              default_value,
                                                                                              node.get_decoder());
-    set_node_name(node.get_name(), sparse_fill_empty_rows);
-    return sparse_fill_empty_rows->outputs();
+    sparse_fill_empty_rows->set_friendly_name(node_name);
+    set_out_name(node_name + ":0", sparse_fill_empty_rows->output(0));
+    set_out_name(node_name + ":1", sparse_fill_empty_rows->output(1));
+    set_out_name(node_name + ":2", sparse_fill_empty_rows->output(2));
+    set_out_name(node_name + ":3", sparse_fill_empty_rows->output(3));
+
+    return {{"output_indices", sparse_fill_empty_rows->output(0)},
+            {"output_values", sparse_fill_empty_rows->output(1)},
+            {"empty_row_indicator", sparse_fill_empty_rows->output(2)},
+            {"reverse_index_map", sparse_fill_empty_rows->output(3)}};
 }
 
 OutputVector translate_sparse_segment_sum_op(const ov::frontend::tensorflow::NodeContext& node) {

@@ -109,6 +109,10 @@ void RemoteTensorImpl::allocate() {
     auto context = std::dynamic_pointer_cast<RemoteContextImpl>(m_context);
     auto enable_caching = supports_caching();
 
+    if (is_surface()) {
+        m_layout.format = cldnn::format::nv12;  // Other formats are not supported
+    }
+
     if (enable_caching) {
         m_memory_object = context->try_get_cached_memory(m_hash);
         if (m_memory_object) {
@@ -156,7 +160,6 @@ void RemoteTensorImpl::allocate() {
     }
 #ifdef _WIN32
     case TensorType::BT_SURF_SHARED: {
-        m_layout.format = cldnn::format::nv12; // Other formats are not supported
         m_memory_object = engine.share_surface(m_layout, m_mem, m_plane);
         break;
     }
@@ -166,13 +169,11 @@ void RemoteTensorImpl::allocate() {
     }
 #else
     case TensorType::BT_SURF_SHARED: {
-        m_layout.format = cldnn::format::nv12; // Other formats are not supported
         m_memory_object = engine.share_surface(m_layout, m_surf, m_plane);
         break;
     }
 #endif
     case TensorType::BT_IMG_SHARED: {
-        m_layout.format = cldnn::format::nv12; // Other formats are not supported
         m_memory_object = engine.share_image(m_layout, m_mem);
         break;
     }
@@ -218,8 +219,7 @@ void RemoteTensorImpl::update_hash() {
 
 bool RemoteTensorImpl::is_surface() const noexcept {
     return m_mem_type == TensorType::BT_SURF_SHARED ||
-           m_mem_type == TensorType::BT_IMG_SHARED ||
-           m_mem_type == TensorType::BT_DX_BUF_SHARED;
+           m_mem_type == TensorType::BT_IMG_SHARED;
 }
 
 cldnn::memory::ptr RemoteTensorImpl::get_memory() const {
