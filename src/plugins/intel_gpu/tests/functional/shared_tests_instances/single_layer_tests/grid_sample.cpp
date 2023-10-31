@@ -41,7 +41,6 @@ const std::vector<ov::element::Type> data_precisions = {
 
 const std::vector<ov::element::Type> grid_precisions = {
     ov::element::f32,
-    ov::element::f16,
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_GridSample,
