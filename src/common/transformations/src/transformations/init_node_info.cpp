@@ -40,7 +40,9 @@ bool can_erase_key(const std::string& key) {
                                                             TYPE_INFO(preprocess::TensorInfoMemoryType),
                                                             "can_be_folded"};
 #undef TYPE_INFO
-    return rt_keys.find(key) == rt_keys.end();
+    if (rt_keys.find(key) != rt_keys.end())
+        return false;
+    return key.find("LowPrecision::", 0) == std::string::npos;
 }
 
 void clear_rt_info(ov::RTMap& rtInfo) {
