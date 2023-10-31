@@ -417,13 +417,12 @@ jobs:
           --ignore=${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/test_python/test_zoo_models.py
 
       - name: MO Python API Tests
-        shell: pwsh
+        shell: cmd
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
 
-          # Used for 'test_utils' installed in '<test_package>\python\openvino\test_utils'
-          $env:PY_PACKAGES_PATH=$(python3 -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
-          $env:PYTHONPATH="$env:PY_PACKAGES_PATH/openvino;$env:PY_PACKAGES_PATH/openvino/libs;${{ env.INSTALL_TEST_DIR }}/python;$env:PYTHONPATH"
+          :: Used for 'test_utils' installed in '<test_package>\python\openvino\test_utils'
+          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\python\openvino\test_utils;${{ env.INSTALL_TEST_DIR }}\python;%PYTHONPATH%
           
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/mo_python_api_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_mo_convert.xml
         env:
@@ -431,13 +430,12 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: OVC Python API Tests
-        shell: pwsh
+        shell: cmd
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
 
-          # Used for 'test_utils' installed in '<test_package>\python\openvino\test_utils'
-          $env:PY_PACKAGES_PATH=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
-          $env:PYTHONPATH="$env:PY_PACKAGES_PATH/openvino;$env:PY_PACKAGES_PATH/openvino/libs;${{ env.INSTALL_TEST_DIR }}/python;$env:PYTHONPATH"
+          :: Used for 'test_utils' installed in '<test_package>\python\openvino\test_utils'
+          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\python\openvino\test_utils;${{ env.INSTALL_TEST_DIR }}\python;%PYTHONPATH%
           
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/ovc_python_api_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_ovc_convert.xml
         env:
