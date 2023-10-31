@@ -119,5 +119,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*ReverseLayerTest.*mask.*f16.*)",
             // Issue: 123516
             R"(.*RandomUniformLayerTest.*f16.*)",
+            // Issue: 122356
+            R"(.*NmsRotatedLayerTest.*(SortDesc=True|Clockwise=False).*)",
     };
 }
