@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+#include "transformations/cpu_opset/x64/op/sdp.hpp"
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -39,13 +41,7 @@ private:
         virtual void execute(dnnl::stream strm, const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr>& outputs) = 0;
     };
 
-    struct Config {
-        bool output_BLHxS = false;
-        bool fuse_causal_attn = false;
-        bool is_causal = false;
-    };
-
-    Config m_config;
+    ScaledDotProductAttentionNode::Config m_config;
     std::shared_ptr<Executor> m_executor;
     template <KernelTypes KType, typename T> struct AttentionExecutor;
 };
