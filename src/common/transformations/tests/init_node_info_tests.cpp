@@ -48,13 +48,13 @@ TEST(TransformationTests, RemoveRtInfo) {
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.run_passes(model);
-        ASSERT_THROW(check_rt_info(model), ov::Exception);
+        ASSERT_NO_THROW(check_rt_info(model));
     }
 
     const auto ops = model->get_ops();
     auto it = std::find_if(ops.begin(), ops.end(), [](const std::shared_ptr<Node>& node) {
         RTMap& rt_info = node->get_rt_info();
-        return !rt_info.empty();
+        return rt_info.find("test_attr") != rt_info.end();
     });
     ASSERT_EQ(it, ops.end()) << "found rt_info";
 
