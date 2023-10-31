@@ -6,6 +6,7 @@
 
 #include "common_op_table.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset13.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/opsets/opset9.hpp"
 
@@ -18,7 +19,8 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 
-#define TF_OP_CONVERTER(op) OutputVector op(const ov::frontend::tensorflow::NodeContext& node)
+#define TF_OP_CONVERTER(op)       OutputVector op(const ov::frontend::tensorflow::NodeContext& node)
+#define TF_OP_CONVERTER_NAMED(op) NamedOutputVector op(const ov::frontend::tensorflow::NodeContext& node)
 
 TF_OP_CONVERTER(translate_assignvariable_op);
 TF_OP_CONVERTER(translate_block_lstm_op);
@@ -40,7 +42,7 @@ TF_OP_CONVERTER(translate_queue_dequeue_op);
 TF_OP_CONVERTER(translate_queue_dequeue_many_op);
 TF_OP_CONVERTER(translate_readvariable_op);
 TF_OP_CONVERTER(translate_restorev2_op);
-TF_OP_CONVERTER(translate_sparse_fill_empty_rows_op);
+TF_OP_CONVERTER_NAMED(translate_sparse_fill_empty_rows_op);
 TF_OP_CONVERTER(translate_sparse_reshape_op);
 TF_OP_CONVERTER(translate_sparse_segment_sum_op);
 TF_OP_CONVERTER(translate_staticregexfullmatch_op);
@@ -77,6 +79,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Erf", CreatorFunction(translate_unary_op<opset8::Erf>)},
         {"Exp", CreatorFunction(translate_unary_op<opset8::Exp>)},
         {"Floor", CreatorFunction(translate_unary_op<opset8::Floor>)},
+        {"Invert", CreatorFunction(translate_unary_op<opset13::BitwiseNot>)},
         {"IsFinite", CreatorFunction(translate_unary_op<opset10::IsFinite>)},
         {"IsInf", CreatorFunction(translate_unary_op<opset10::IsInf>)},
         {"IsNan", CreatorFunction(translate_unary_op<opset10::IsNaN>)},
@@ -99,6 +102,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         // note: BinaryOp translator declaration for each op must to be added in binary_op.cpp file
         {"Add", CreatorFunction(translate_binary_op<opset8::Add>)},
         {"AddV2", CreatorFunction(translate_binary_op<opset8::Add>)},
+        {"BitwiseAnd", CreatorFunction(translate_binary_op<opset13::BitwiseAnd>)},
+        {"BitwiseOr", CreatorFunction(translate_binary_op<opset13::BitwiseOr>)},
+        {"BitwiseXor", CreatorFunction(translate_binary_op<opset13::BitwiseXor>)},
         {"Equal", CreatorFunction(translate_binary_op<opset8::Equal>)},
         {"FloorMod", CreatorFunction(translate_binary_op<opset8::FloorMod>)},
         {"Greater", CreatorFunction(translate_binary_op<opset8::Greater>)},
