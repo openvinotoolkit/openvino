@@ -42,44 +42,39 @@ OpenVINO includes several components: [OpenVINO Model Converter (OVC)], [OpenVIN
 ### Getting Started  
 
 #### Documentation
-Detailed information on OpenVINO's features, components, and usage can be found in the [OpenVINO Documentation](https://docs.openvino.ai).
+Read detailed information on OpenVINO's features, components, and usage in the [OpenVINO Documentation](https://docs.openvino.ai).
 
 #### Tutorials
 Explore a variety of tutorials in the [OpenVINO Notebooks Repository](https://github.com/openvinotoolkit/openvino_notebooks)📚.
 
 Check out these notebooks that show how to optimize and deploy popular models (no installation required):
-- [Create an LLM-powered Chatbot using OpenVINO](https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/254-llm-chatbot/254-llm-chatbot.ipynb)📱
+- [Create a LLM-powered Chatbot using OpenVINO](https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/254-llm-chatbot/254-llm-chatbot.ipynb)📱
 - [YOLOv8 Optimization](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/230-yolov8-optimization)🚀
 - [Text-to-Image Generation](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/235-controlnet-stable-diffusion)🏞️
 - [Quick Start Inference Example](https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/201-vision-monodepth)💻
 
 #### Installation
 
-[Get your OpenVINO installation command](https://docs.openvino.ai/2023.1/openvino_docs_install_guides_overview.html) in a couple of clicks.
+Get your OpenVINO installation command with just a few clicks. [Go to the installation page](https://docs.openvino.ai/2023.1/openvino_docs_install_guides_overview.html).
 
 ### Products Powered by OpenVINO
 
 #### OpenVINO Ecosystem
 
-**продукты из эко-системы (всякие биндинги, контриб) и в будущем экстеншны аля токенайзеры**
-
--	[Optimum Intel](https://github.com/huggingface/optimum-intel) - 🤗 Optimum Intel: Accelerate inference with Intel optimization tools.
--   [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf) - a suite of advanced algorithms for model inference optimization including quantization, filter pruning, binarization and sparsity
--   [OpenVINO™ Model Server (OVMS)](https://github.com/openvinotoolkit/model_server) - a scalable, high-performance solution for serving deep learning models optimized for Intel architectures
--   [Software Development Kit (SDK) for the Intel® Geti™ platform for Computer Vision AI model training](https://github.com/openvinotoolkit/geti-sdk) - an online, interactive video and image annotation tool for computer vision purposes
+-	[🤗Optimum Intel](https://github.com/huggingface/optimum-intel) -  a simple interface to optimize your Transformers and Diffusers models.
+-   [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf) - a suite of advanced algorithms for model inference optimization including quantization, filter pruning, binarization and sparsity.
+-   [OpenVINO™ Model Server (OVMS)](https://github.com/openvinotoolkit/model_server) - a scalable, high-performance solution for serving models optimized for Intel architectures.
+-   [Software Development Kit (SDK) for the Intel® Geti™ platform for Computer Vision AI model training](https://github.com/openvinotoolkit/geti-sdk) - an online, interactive video and image annotation tool for computer vision use cases.
 -	[RapidOCR](https://github.com/RapidAI/RapidOCR) - A cross platform OCR Library based on PaddleOCR & OnnxRuntime & OpenVINO.
 
 <details>
   <summary>More Ecosystem components</summary>
 
-  -   [ONNX Runtime](https://onnxruntime.ai/)
-  -   [TNN](https://github.com/Tencent/TNN/tree/master)
-  -   [OpenCV](https://opencv.org/)
-  -   [OpenVINO™ Training Extensions (OTE)](https://github.com/openvinotoolkit/training_extensions) - convenient environment to train Deep Learning models and convert them using OpenVINO for optimized inference.
+  -   [OpenVINO™ Training Extensions (OTE)](https://github.com/openvinotoolkit/training_extensions) - an environment to train models and convert them using OpenVINO for optimized inference.
   -   [Dataset Management Framework (Datumaro)](https://github.com/openvinotoolkit/datumaro) - a framework and CLI tool to build, transform, and analyze datasets.
-  -	[openvino-rs](https://github.com/intel/openvino-rs) New OpenVINO APIs
-  -	[OpenVINO.NET](https://github.com/sdcb/OpenVINO.NET)
-  -   [openvino_contrib](https://github.com/openvinotoolkit/openvino_contrib) - Additional OpenVINO™ toolkit modules 
+  -	  [openvino-rs](https://github.com/intel/openvino-rs) - bindings for accessing OpenVINO functionality in Rust.
+  -	  [OpenVINO.NET](https://github.com/sdcb/OpenVINO.NET) - a high-quality .NET wrapper for OpenVINO™ toolkit.
+  -   [openvino_contrib](https://github.com/openvinotoolkit/openvino_contrib) - a repository for the development of additional OpenVINO modules 
 
 </details>
 
@@ -87,9 +82,12 @@ Check out these notebooks that show how to optimize and deploy popular models (n
 
 -	[GIMP AI plugins](https://github.com/intel/openvino-ai-plugins-gimp) - GIMP AI plugins with OpenVINO Backend
 -	[Frigate](https://github.com/blakeblackshear/frigate) – NVR with realtime local object detection for IP cameras
+-   [ONNX Runtime](https://onnxruntime.ai/) - a cross-platform inference and training machine-learning accelerator. 
+-   [TNN](https://github.com/Tencent/TNN/tree/master) - a high-performance, lightweight neural network inference framework.
 -	[whisper.cpp](https://github.com/ggerganov/whisper.cpp)
 -	[langchain](https://github.com/langchain-ai/langchain)
 -	[stable-diffusion-webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui)
+-   [OpenCV](https://opencv.org/) - a library of programming functions mainly for real-time computer vision. 
 
 ### Documentation
 
