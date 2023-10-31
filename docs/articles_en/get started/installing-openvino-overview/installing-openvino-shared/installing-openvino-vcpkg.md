@@ -65,37 +65,6 @@ Installing OpenVINO Runtime
 Note that the vcpkg installation means building all packages and dependencies from source, 
 which means the compiler stage will require additional time to complete the process. 
 
-.. important::
-
-   If you are building OpenVINO as dynamic libraries and you want to use either Paddle, TensorFlow or ONNX frontends, you need to create `custom vcpkg <https://learn.microsoft.com/en-us/vcpkg/users/triplets#per-port-customization>`__ triplet file, like ``<VCPKG_ROOT>/triplets/community/x64-linux-release-dynamic.cmake``, which builds ``protobuf`` dependency statically:
-
-   .. code-block:: sh
-
-      # typical values of vcpkg toolchain
-      set(VCPKG_TARGET_ARCHITECTURE x64)
-      set(VCPKG_CRT_LINKAGE dynamic)
-      # by default, all libraries are built dynamically
-      set(VCPKG_LIBRARY_LINKAGE dynamic)
-
-      set(VCPKG_CMAKE_SYSTEM_NAME Linux)
-      set(VCPKG_BUILD_TYPE release)
-
-      set(VCPKG_FIXUP_ELF_RPATH ON)
-
-      # OpenVINO specific additions: build statically the following internal dependencies
-      # IMPORTANT: you need to build at least protobuf statically, others can be dynamic
-      if(PORT MATCHES "^(ade|hwloc|onnx|protobuf|pugixml|snappy)$")
-          set(VCPKG_LIBRARY_LINKAGE static)
-      endif()
-
-
-   Then, you can use such a triplet file with the following command:
-
-   .. code-block:: sh
-
-      vcpkg install 'openvino:x64-linux-release-dynamic'
-
-
 After installation, you can use OpenVINO in your product's cmake scripts:
 
 .. code-block:: sh
