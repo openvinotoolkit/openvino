@@ -643,8 +643,9 @@ jobs:
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
           
-          # Used for 'test_utils' installed in '<test_package>/python/openvino/test_utils'
-          export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}/python/openvino/test_utils:${{ env.INSTALL_TEST_DIR }}/python:$PYTHONPATH
+          # Used for 'test_utils' installed in '<test_package>\python\openvino\test_utils'
+          PY_PACKAGES_PATH=$(python3 -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
+          export PYTHONPATH=$PY_PACKAGES_PATH/openvino:$PY_PACKAGES_PATH/openvino/libs:${{ env.INSTALL_TEST_DIR }}/python:$PYTHONPATH
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/mo_python_api_tests/ --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_mo_convert.xml
         env:
@@ -655,8 +656,9 @@ jobs:
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
           
-          # Used for 'test_utils' installed in '<test_package>/python/openvino/test_utils'
-          export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}/python/openvino/test_utils:${{ env.INSTALL_TEST_DIR }}/python:$PYTHONPATH
+          # Used for 'test_utils' installed in '<test_package>\python\openvino\test_utils'
+          PY_PACKAGES_PATH=$(python3 -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
+          export PYTHONPATH=$PY_PACKAGES_PATH/openvino:$PY_PACKAGES_PATH/openvino/libs:${{ env.INSTALL_TEST_DIR }}/python:$PYTHONPATH
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/ovc_python_api_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_ovc_convert.xml
         env:
