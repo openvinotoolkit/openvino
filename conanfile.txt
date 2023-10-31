@@ -16,11 +16,12 @@ flatbuffers/[>=22.9.24]
 cmake/[>=3.20]
 pkgconf/1.9.5
 patchelf/[>=0.12]
-protobuf/3.21.9
+protobuf/3.21.12
 flatbuffers/[>=22.9.24]
 
 [options]
 protobuf/*:lite=True
+protobuf/*:with_zlib=False
 protobuf/*:shared=False
 flatbuffers/*:header_only=True
 

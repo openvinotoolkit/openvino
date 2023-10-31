@@ -36,16 +36,16 @@ Although in most cases it can be done automatically, under the hood, explicit
 conversion may enable more optimization options and better performance. 
 It is done in one of two ways:
 
-   * the Python API functions (``openvino.convert_model`` and ``openvino.save_model``) 
-   * the ``ovc`` command line tool. 
+* the Python API functions (``openvino.convert_model`` and ``openvino.save_model``) 
+* the ``ovc`` command line tool. 
 
-   .. note::
-      
-      Model conversion API prior to OpenVINO 2023.1 is considered deprecated. 
-      Existing and new projects are recommended to transition to the new
-      solutions, keeping in mind that they are not fully backwards compatible 
-      with ``openvino.tools.mo.convert_model`` or the ``mo`` CLI tool.
-      For more details, see the :doc:`Model Conversion API Transition Guide <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`.
+.. note::
+
+   Model conversion API prior to OpenVINO 2023.1 is considered deprecated. 
+   Existing and new projects are recommended to transition to the new
+   solutions, keeping in mind that they are not fully backwards compatible 
+   with ``openvino.tools.mo.convert_model`` or the ``mo`` CLI tool.
+   For more details, see the :doc:`Model Conversion API Transition Guide <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`.
 
 
 Convert a Model in Python: ``convert_model``

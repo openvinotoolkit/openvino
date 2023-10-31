@@ -1,4 +1,4 @@
-* Sun Jul  4 2010 OpenVINO Developers <openvino@intel.com> - 2022.3.0-1
+* Sun Dec 25 2022 OpenVINO Developers <openvino@intel.com> - 2022.3.0-1
 - Implemented Debian, RPM packages support
 - Support of Ubuntu 22.04
 - Support of python 3.10

@@ -101,7 +101,7 @@ if(SAMPLES_ENABLE_OPENCL)
 
         target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::OpenCL)
     else()
-        message(WARNING "OpenCL CPP header is not found, ${TARGET_NAME} will be built without OpenCL support. Download it from: https://github.com/KhronosGroup/OpenCL-CLHPP and set -Dopencl_root_hints=[PATH]/OpenCL-CLHPP/include to cmake.")
+        message(WARNING "OpenCL CPP header is not found, ${TARGET_NAME} will be built without OpenCL support and you will not be able to use the '-use_device_mem' option. Please, install '<apt | yum> install opencl-headers' to enable the option")
     endif()
 endif()
 
