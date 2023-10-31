@@ -4,14 +4,14 @@ on:
   schedule:
     # at 00:00 on workdays
     - cron: '0 0 * * 1,2,3,4,5'
-#  pull_request:
-#    paths-ignore:
-#      - '**/docs/**'
-#      - 'docs/**'
-#      - '**/**.md'
-#      - '**.md'
-#      - '**/layer_tests_summary/**'
-#      - '**/conformance/**'
+  pull_request:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
 # push:
 #   paths-ignore:
 #     - '**/docs/**'
@@ -421,8 +421,10 @@ jobs:
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
 
-          :: TODO: remove setupvars.bat from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
-          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/mo_python_api_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_mo_convert.xml
+          :: Used for 'test_utils' installed in '<test_package>\tests\python\openvino\test_utils'
+          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\tests\python\openvino\test_utils;%PYTHONPATH%
+          
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/mo_python_api_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_mo_convert.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -432,8 +434,10 @@ jobs:
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
 
-          :: TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
-          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/ovc_python_api_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_ovc_convert.xml
+          :: Used for 'test_utils' installed in '<test_package>\tests\python\openvino\test_utils'
+          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\tests\python\openvino\test_utils;%PYTHONPATH%
+          
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/ovc_python_api_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_ovc_convert.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
