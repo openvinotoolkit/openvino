@@ -201,6 +201,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
             { "ExtractImagePatches", Type::ExtractImagePatches},
             { "NonMaxSuppression", Type::NonMaxSuppression},
             { "NonMaxSuppressionIEInternal", Type::NonMaxSuppression},
+            { "NMSRotated", Type::NonMaxSuppression},
             { "MatrixNms", Type::MatrixNms},
             { "MulticlassNms", Type::MulticlassNms},
             { "MulticlassNmsIEInternal", Type::MulticlassNms},

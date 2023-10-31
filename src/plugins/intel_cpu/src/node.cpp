@@ -615,26 +615,31 @@ bool Node::outputShapeDataDependency() const {
 
 void Node::redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) {
     if (newOutputShapes.size() != outputShapes.size()) {
-        IE_THROW() << "Number shapes mismatch with real outputs number for node with name: " << getName();
+        THROW_CPU_NODE_ERR("has shapes number mismatch with real outputs number.");
     }
-    for (size_t i = 0; i < outputShapes.size(); i++) {
-        const auto edges = getChildEdgesAtPort(i);
+    for (size_t i = 0lu; i < outputShapes.size(); i++) {
+        redefineOutputMemory(i, newOutputShapes[i]);
+    }
+}
 
-        // avoid 0D shape incompatible
-        auto newOutputShape = newOutputShapes[i];
-        if (newOutputShape.empty()) {
-            newOutputShape.push_back(1);
-        }
+void Node::redefineOutputMemory(const size_t port, const VectorDims& new_output_shape) {
+    const auto edges = getChildEdgesAtPort(port);
 
-        const auto &currDesc = edges[0]->getMemory().getDesc();
-        if (currDesc.getShape().isStatic() && currDesc.getShape().getStaticDims() == newOutputShape)
-            continue;
+    // avoid 0D shape incompatible
+    auto new_shape = new_output_shape;
+    if (new_shape.empty()) {
+        new_shape.push_back(1);
+    }
 
-        const bool hasZeroDims = std::count(std::begin(newOutputShape), std::end(newOutputShape), 0) > 0;
-        const auto memDesc = getBaseMemDescAtOutputPort(i)->cloneWithNewDims(newOutputShape, hasZeroDims);
-        for (size_t j = 0; j < edges.size(); j++) {
-            edges[j]->getMemoryPtr()->redefineDesc(memDesc);
-        }
+    const auto& curr_desc = edges[0]->getMemory().getDesc();
+    if (curr_desc.getShape().isStatic() && curr_desc.getShape().getStaticDims() == new_shape) {
+        return;
+    }
+
+    const bool has_zero_dims = std::count(std::begin(new_shape), std::end(new_shape), 0lu) > 0;
+    const auto mem_desc = getBaseMemDescAtOutputPort(port)->cloneWithNewDims(new_shape, has_zero_dims);
+    for (size_t j = 0lu; j < edges.size(); j++) {
+        edges[j]->getMemoryPtr()->redefineDesc(mem_desc);
     }
 }
 
