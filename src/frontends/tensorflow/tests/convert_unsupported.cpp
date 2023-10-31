@@ -154,7 +154,7 @@ TEST(FrontEndConvertModelTest, test_unsupported_tf1_while_and_incorrect_less_tra
     }
 }
 
-TEST(FrontEndConvertModelTest, DISABLED_conversion_with_unknown_exception) {
+TEST(FrontEndConvertModelTest, conversion_with_unknown_exception) {
     shared_ptr<Model> model = nullptr;
     try {
         auto conv_ext =
