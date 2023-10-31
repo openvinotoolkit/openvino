@@ -48,14 +48,12 @@ struct Evaluate : element::NoAction<bool> {
     }
 };
 
-Tensor equality_mask(const Tensor& tensor, const std::shared_ptr<Constant>& constant) {
-    auto mask_out = TensorVector{{element::boolean, tensor.get_shape()}};
+Tensor equality_mask(const Tensor& lhs, const Tensor& rhs) {
+    auto mask_out = TensorVector{{element::boolean, lhs.get_shape()}};
 
-    auto c_tensor = Tensor(constant->get_element_type(), constant->get_shape());
-    memcpy(c_tensor.data(), constant->get_data_ptr(), c_tensor.get_byte_size());
-
-    const auto& param = std::make_shared<Parameter>(tensor.get_element_type(), tensor.get_shape());
-    Equal(param, constant).evaluate(mask_out, TensorVector{tensor, c_tensor});
+    const auto lhs_node = std::make_shared<Parameter>(lhs.get_element_type(), lhs.get_shape());
+    const auto rhs_node = std::make_shared<Parameter>(rhs.get_element_type(), rhs.get_shape());
+    Equal(lhs_node, rhs_node).evaluate(mask_out, TensorVector{lhs, rhs});
     return mask_out.front();
 }
 
@@ -99,10 +97,8 @@ bool evaluate_bound(const Node* node, TensorVector& output_values, bool is_upper
     const auto zero_t = Tensor(input2.get_element_type(), Shape{});
     memcpy(zero_t.data(), zeros_const->get_data_ptr(), zero_t.get_byte_size());
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto max_constant = ngraph::get_constant_max_of_type(input2.get_element_type());
-    const auto dynamic_mask = or_tensor(equality_mask(input1_up, max_constant), equality_mask(input2_up, max_constant));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto max_value = ov::util::make_tensor_of_max_value(input2.get_element_type());
+    const auto dynamic_mask = or_tensor(equality_mask(input1_up, max_value), equality_mask(input2_up, max_value));
 
     // mask to find out positive values for arg2
     auto less_up_outputs = TensorVector{{element::boolean, input2.get_shape()}};
@@ -192,26 +188,22 @@ bool evaluate_bound(const Node* node, TensorVector& output_values, bool is_upper
             return status;
 
         // replace values where zeros were found in the second argument to maximum values
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto output_maximum_value = ngraph::get_constant_max_of_type(output_values[0].get_element_type());
-        OPENVINO_SUPPRESS_DEPRECATED_END
-        if (!output_maximum_value)
+        const auto out_max_value = ov::util::make_tensor_of_max_value(output_values[0].get_element_type());
+        if (!out_max_value)
             return false;
 
-        const auto out_max_v = Tensor(output_maximum_value->get_element_type(), output_maximum_value->get_shape());
-        memcpy(out_max_v.data(), output_maximum_value->get_data_ptr(), out_max_v.get_byte_size());
-
-        status = Select().evaluate(output_values, {input2_zeros_mask, out_max_v, output_values[0]});
+        status = Select().evaluate(output_values, {input2_zeros_mask, out_max_value, output_values[0]});
         if (!status)
             return status;
 
         // replace values where zeros inside [low, ip] values range of second arg to maximum values
-        status = Select().evaluate(output_values, {input2_low_negative_up_positive_mask, out_max_v, output_values[0]});
+        status =
+            Select().evaluate(output_values, {input2_low_negative_up_positive_mask, out_max_value, output_values[0]});
         if (!status)
             return status;
 
         // in case input elements were dynamic we replace them with zero
-        status = Select().evaluate(output_values, {dynamic_mask, out_max_v, output_values[0]});
+        status = Select().evaluate(output_values, {dynamic_mask, out_max_value, output_values[0]});
         if (!status)
             return status;
     }
