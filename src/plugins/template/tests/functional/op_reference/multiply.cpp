@@ -117,6 +117,7 @@ std::vector<MultiplyParams> generateParamsForMultiplyFloat() {
 
 std::vector<MultiplyParams> generateCombinedParamsForMultiply() {
     const std::vector<std::vector<MultiplyParams>> allTypeParams{generateParamsForMultiply<element::Type_t::f32>(),
+                                                                 generateParamsForMultiply<element::Type_t::f64>(),
                                                                  generateParamsForMultiply<element::Type_t::f16>(),
                                                                  generateParamsForMultiply<element::Type_t::bf16>(),
                                                                  generateParamsForMultiply<element::Type_t::i64>(),
