@@ -326,7 +326,9 @@ void Engine::get_performance_streams(Config& config, const std::shared_ptr<ov::M
         streams = config.streamExecutorConfig._streams == 1 ? 0 : config.streamExecutorConfig._streams;
     }
 
-    get_num_streams(streams, model, config);
+    if (!((0 == config.streamExecutorConfig._streams) && config.streamExecutorConfig._streams_changed)) {
+        get_num_streams(streams, model, config);
+    }
 
     config._config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(config.streamExecutorConfig._streams);
     OPENVINO_SUPPRESS_DEPRECATED_END
