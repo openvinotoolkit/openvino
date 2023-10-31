@@ -87,8 +87,8 @@ async function main(modelPath, images, deviceName) {
   // Create infer request
   const inferRequest = compiledModel.createInferRequest();
 
-  const promises = preprocessedImages.map((t, i) => {
-    const inferPromise = inferRequest.inferAsync([new ov.Tensor(ov.element.u8, tensorShape, t)]);
+  const promises = preprocessedImages.map((tensorData, i) => {
+    const inferPromise = inferRequest.inferAsync([new ov.Tensor(ov.element.u8, tensorShape, tensorData)]);
 
     inferPromise.then(result =>
       completionCallback(result[outputName], images[i]));
