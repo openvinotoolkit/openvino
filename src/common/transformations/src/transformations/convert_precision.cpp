@@ -652,6 +652,19 @@ bool fuse_type_to_nms9(const std::shared_ptr<ov::Node>& node, const precisions_m
     }
 
     bool res = false;
+    auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node);
+    if (type_relaxed) {
+        for (size_t i = 0; i < node->get_output_size(); i++) {
+            auto it = precisions.find(node->get_output_element_type(i));
+            if (it == precisions.end()) {
+                continue;
+            }
+            const auto& to = it->second;
+            type_relaxed->set_overridden_output_type(to, i);
+            res = true;
+        }
+        return res;
+    }
     auto it = precisions.find(node->get_output_element_type(0));
     if (it != precisions.end()) {
         const auto& to = it->second;
@@ -664,7 +677,6 @@ bool fuse_type_to_nms9(const std::shared_ptr<ov::Node>& node, const precisions_m
         }
     }
 
-    auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node);
     ov::element::TypeVector output_types;
     for (size_t i = 0; i < node->get_output_size(); i++) {
         it = precisions.find(node->get_output_element_type(i));
@@ -673,22 +685,14 @@ bool fuse_type_to_nms9(const std::shared_ptr<ov::Node>& node, const precisions_m
             continue;
         }
         const auto& to = it->second;
-        if (type_relaxed) {
-            type_relaxed->set_overridden_output_type(to, i);
-            res = true;
-        }
         output_types.push_back(to);
     }
 
-    if (!type_relaxed) {
-        auto relaxed_op = std::make_shared<ov::op::TypeRelaxed<opset9::NonMaxSuppression>>(*nms,
-                                                                                           ov::element::TypeVector{},
-                                                                                           output_types);
-        replace_node(node, relaxed_op);
-        res = true;
-    }
-
-    return res;
+    auto relaxed_op = std::make_shared<ov::op::TypeRelaxed<opset9::NonMaxSuppression>>(*nms,
+                                                                                       ov::element::TypeVector{},
+                                                                                       output_types);
+    replace_node(node, relaxed_op);
+    return true;
 }
 
 namespace {
