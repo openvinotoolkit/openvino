@@ -98,7 +98,8 @@ void handle_reshape::run(program& p) {
             // find the users of reshape that are reorder type, if none present then skip the current node
             // find users who are onednn impl
             for (const auto& user : node->get_users()) {
-                if (user->is_type<reorder>())
+                if (user->is_type<reorder>() &&
+                    (*user).as<reorder>().get_primitive()->truncate == false)   // not to split conversion only reorder
                     reorder_node_to_split.push_back(user);
                 if (user->get_preferred_impl_type() == cldnn::impl_types::onednn)
                     onednn_users.push_back(user);
