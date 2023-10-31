@@ -53,7 +53,8 @@ private:
     using executorPtr = std::shared_ptr<DnnlExecutor>;
     executorPtr execPtr = nullptr;
     dnnl::memory::desc getBiasDescFrom(const DnnlMemoryDescCPtr outMemDesc);
-    std::pair<Shape, Shape> makeDummyInputShapes(const Shape& in0, const Shape& in1) const;
+    std::pair<Shape, Shape> makeDummyInputShapes(const Shape& in0, const Shape& in1, const Shape& out) const;
+    Shape makeDummyOutputShape(const Shape& out) const;
 
     bool withBiases;
 

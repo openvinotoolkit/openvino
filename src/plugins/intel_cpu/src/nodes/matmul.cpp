@@ -322,10 +322,26 @@ void MatMul::getSupportedDescriptors() {
 
     std::vector<Shape> staticInputShapes{inputShape0, inputShape1};
     if (inputShape0.isDynamic() || inputShape1.isDynamic()) {
-        std::tie(staticInputShapes[0], staticInputShapes[1]) = makeDummyInputShapes(inputShape0, inputShape1);
+        std::tie(staticInputShapes[0], staticInputShapes[1]) = makeDummyInputShapes(inputShape0, inputShape1, outputShape);
     }
 
     auto staticOutputShape = outputShape.isStatic() ? outputShape : Shape(shapeInferGeneric(staticInputShapes).front());
+    // b-dim
+    auto oDims = staticOutputShape.getDims();
+    if (inDims0.size() > 2 && inDims0[0] != Shape::UNDEFINED_DIM) {
+        oDims[0] = inDims0[0];
+    }
+    // m, n - dims
+    auto mDim = inDims0[inDims0.size() - 2];
+    auto nDim = inDims1[inDims1.size() - 1];
+    if (mDim != Shape::UNDEFINED_DIM) {
+        oDims[oDims.size() - 2] = mDim;
+    }
+    if (nDim != Shape::UNDEFINED_DIM) {
+        oDims[oDims.size() - 1] = nDim;
+    }
+    staticOutputShape = Shape(oDims);
+    staticOutputShape = makeDummyOutputShape(staticOutputShape);
 
     const VectorDims inStrides0 = getStridesAndModifyShape(staticInputShapes[0], transposeIn[0]);
     const VectorDims inStrides1 = getStridesAndModifyShape(staticInputShapes[1], transposeIn[1]);
@@ -337,7 +353,7 @@ void MatMul::getSupportedDescriptors() {
     createDescriptor({inDataDesc[0], inDataDesc[1]}, {outDataDesc});
 }
 
-std::pair<Shape, Shape> MatMul::makeDummyInputShapes(const Shape& in0, const Shape& in1) const {
+std::pair<Shape, Shape> MatMul::makeDummyInputShapes(const Shape& in0, const Shape& in1, const Shape& out) const {
     if (in0.getRank() < 2 || in1.getRank() < 2) {
         IE_THROW() << "Can't create dummy inputs with rank less 2";
     }
@@ -357,6 +373,7 @@ std::pair<Shape, Shape> MatMul::makeDummyInputShapes(const Shape& in0, const Sha
 
     auto inDims0 = in0.getDims();
     auto inDims1 = in1.getDims();
+    auto outDims = out.getDims();
 
     auto minDims0 = in0.getMinDims();
     auto maxDims0 = in0.getMaxDims();
@@ -392,13 +409,19 @@ std::pair<Shape, Shape> MatMul::makeDummyInputShapes(const Shape& in0, const Sha
     fillDummy(inDims0.size() - 1, inDims1.size() - 2);
 
     // fill m, n
+    auto mOut = outDims[outDims.size() - 2];
     if (inDims0[inDims0.size() - 2] == Shape::UNDEFINED_DIM) {
-        inDims0[inDims0.size() - 2] = std::min(maxDims0[inDims0.size() - 2],
-                                               std::max(minDims0[inDims0.size() - 2], static_cast<Dim>(MemoryDescUtils::DEFAULT_DUMMY_VAL)));
+        inDims0[inDims0.size() - 2] =
+         mOut != Shape::UNDEFINED_DIM ? mOut :
+            std::min(maxDims0[inDims0.size() - 2], std::max(minDims0[inDims0.size() - 2],
+                static_cast<Dim>(MemoryDescUtils::DEFAULT_DUMMY_VAL)));
     }
+    auto nOut = outDims[outDims.size() - 1];
     if (inDims1[inDims1.size() - 1] == Shape::UNDEFINED_DIM) {
-        inDims1[inDims1.size() - 1] = std::min(maxDims1[inDims1.size() - 1],
-                                               std::max(minDims1[inDims1.size() - 1], static_cast<Dim>(MemoryDescUtils::DEFAULT_DUMMY_VAL)));
+        inDims1[inDims1.size() - 1] =
+         nOut != Shape::UNDEFINED_DIM ? nOut :
+            std::min(maxDims1[inDims1.size() - 1], std::max(minDims1[inDims1.size() - 1],
+                static_cast<Dim>(MemoryDescUtils::DEFAULT_DUMMY_VAL)));
     }
 
     // fill batches
@@ -409,6 +432,18 @@ std::pair<Shape, Shape> MatMul::makeDummyInputShapes(const Shape& in0, const Sha
     swapTranspDims(inDims0, inDims1);
 
     return {Shape(inDims0), Shape(inDims1)};
+}
+
+Shape MatMul::makeDummyOutputShape(const Shape& out) const {
+    auto outDims = out.getDims();
+    auto minDims = out.getMinDims();
+    auto maxDims = out.getMaxDims();
+    for (size_t i = 0; i < outDims.size(); i++) {
+        if (outDims[i] == Shape::UNDEFINED_DIM)
+            outDims[i] = std::min(outDims[i], static_cast<Dim>(
+                MemoryDescUtils::DEFAULT_DUMMY_VAL));
+    }
+    return Shape(outDims);
 }
 
 void MatMul::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,

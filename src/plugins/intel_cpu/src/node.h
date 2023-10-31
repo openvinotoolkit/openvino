@@ -247,6 +247,26 @@ public:
             IE_THROW() << "Cannot determine fusing port between nodes: " << parentNode->getName() << " and " << getName();
         }
 
+        // we need to be sure, that during fusing we keep dimension conformance
+        // between parent and child in dynamic case when dimensions
+        // are defined in backward direction
+        const int childInPort = getFusingPort();
+        const int childOutPort = 0; // outPorts have equal dims
+        const int parentPort = 0; // single parent fuse port
+        auto &parOutDims = parentNode->getOutputShapeAtPort(parentPort).getDims();
+        auto childOutDims = this->getOutputShapeAtPort(childOutPort).getDims();
+        VectorDims newDims(parOutDims.size());
+        for (size_t i = 0; i < parOutDims.size(); i++) {
+            if (parOutDims[i] == Shape::UNDEFINED_DIM) {
+                newDims[i] = childOutDims[i];
+            } else {
+                newDims[i] = parOutDims[i];
+            }
+        }
+        Shape newShape = Shape(newDims);
+        this->setInputShapeAtPort(childInPort, newShape);
+        parentNode->setOutputShapeAtPort(parentPort, newShape);
+
         parentNode->addFusedNode(getParentEdgesAtPort(getFusingPort())[0]->getChild());
         parentNode->addOriginalLayer(getOriginalLayers());
     }
@@ -521,11 +541,25 @@ public:
         return inputShapes[port];
     }
 
+    void setInputShapeAtPort(size_t port, const Shape &shape) {
+        if (inputShapes.size() <= port) {
+            IE_THROW() << "Incorrect input port number for node " << getName();
+        }
+        inputShapes[port] = shape;
+    }
+
     const Shape& getOutputShapeAtPort(size_t port) const {
         if (outputShapes.size() <= port) {
             IE_THROW() << "Incorrect output port number for node " << getName();
         }
         return outputShapes[port];
+    }
+
+    void setOutputShapeAtPort(size_t port, const Shape &shape) {
+        if (outputShapes.size() <= port) {
+            IE_THROW() << "Incorrect output port number for node " << getName();
+        }
+        outputShapes[port] = shape;
     }
 
     const std::vector<InferenceEngine::Blob::Ptr>& getInternalBlobs() const {
