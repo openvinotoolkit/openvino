@@ -37,8 +37,13 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& model,
         auto model_bytesize = model->get_graph_size();
         // check that Free RAM memory is enough. Serialize in other case
         // serialize graph cache in case graph cache bytesize > 4GB to avoid long search the same graphs
-        if (m_graph_cache_bytesize + 2 * model_bytesize > mem_size || m_graph_cache_bytesize >> 20 != 0) {
+        if (m_graph_cache_bytesize + 2 * model_bytesize >= mem_size) {
             std::cout << "[ GRAPH CACHE ][ WARNING ] There are not enought RAM memory! Serialize graph cache" << std::endl;
+            serialize_cache();
+            m_graph_cache_bytesize = 0;
+        }
+        if (m_graph_cache_bytesize * 4 >= mem_size) {
+            std::cout << "[ GRAPH CACHE ][ WARNING ] 25% of RAM is used by cache! Serialize graph cache" << std::endl;
             serialize_cache();
             m_graph_cache_bytesize = 0;
         }
@@ -49,7 +54,7 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& model,
             auto mem_size_gb = mem_size;
             mem_size_gb >>= 30;
             std::cout << "[ GRAPH CACHE ][ WARNING ] Model  bytesize is " << model_bytesize_gb <<
-            "GB. It is larger than 25% RAM size: " << mem_size_gb << ". Constants won't be copied!" << std::endl;
+            "GB. It is larger than 25% RAM size or >= 8GB: " << mem_size_gb << ". Constants won't be copied!" << std::endl;
         }
         auto extracted_patterns = m_manager.extract(model, extract_body, !is_large_model);
         if (extracted_patterns.empty()) {
@@ -169,11 +174,12 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
 }
 
 void GraphCache::serialize_cache() {
-    for (const auto& cache_item : m_graph_cache) {
-        auto rel_dir = ov::util::path_join({ m_cache_subdir, get_model_type(cache_item.first), cache_item.second.get_any_extractor() });
-        serialize_model(cache_item, rel_dir);
+    while (!m_graph_cache.empty()) {
+        auto cache_item = m_graph_cache.begin();
+        auto rel_dir = ov::util::path_join({ m_cache_subdir, get_model_type(cache_item->first), cache_item->second.get_any_extractor() });
+        serialize_model(*cache_item, rel_dir);
+        m_graph_cache.erase(cache_item);
     }
-    m_graph_cache.clear();
 }
 
 }  // namespace subgraph_dumper

@@ -183,6 +183,10 @@ enum class Algorithm {
     EltwiseErf,
     EltwiseSoftSign,
     EltwiseLog,
+    EltwiseBitwiseAnd,
+    EltwiseBitwiseNot,
+    EltwiseBitwiseOr,
+    EltwiseBitwiseXor,
 
     // FakeQuantize algorithms
     FQCommon,
