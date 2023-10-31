@@ -63,7 +63,7 @@ public:
     }
 
     void adjust_output_padding() {
-        if (!is_in_place() || !has_padding())
+        if (!has_padding())
             return;
 
         auto input_layout = input().get_output_layout(false);
