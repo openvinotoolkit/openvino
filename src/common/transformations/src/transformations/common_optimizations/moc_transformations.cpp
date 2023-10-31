@@ -170,7 +170,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     // SplitSqueezeConcatFusion should work in same GraphRewrite as TransposesSinking,
     // because it replaces pattern that may contain Transposes which must be optimized before
     // the transformation and it also inserts Transpose that can be optimized by TransposeSinking
-    ADD_MATCHER(transpose_sinking, SplitSqueezeConcatFusion)
+    ADD_MATCHER(transpose_sinking, SplitSqueezeConcatFusion, m_use_shapes)
 
     REGISTER_PASS(manager, TransposeMatMul)
 
