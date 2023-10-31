@@ -27,6 +27,7 @@ class ExecutorManagerImpl : public ExecutorManager {
 public:
     ~ExecutorManagerImpl();
     std::shared_ptr<ov::threading::ITaskExecutor> get_executor(const std::string& id) override;
+    std::shared_ptr<ov::threading::IStreamsExecutor> get_stream_executor(const std::string& id) override;
     std::shared_ptr<ov::threading::IStreamsExecutor> get_idle_cpu_streams_executor(
         const ov::threading::IStreamsExecutor::Config& config) override;
     size_t get_executors_number() const override;
@@ -123,6 +124,21 @@ std::shared_ptr<ov::threading::ITaskExecutor> ExecutorManagerImpl::get_executor(
     return foundEntry->second;
 }
 
+std::shared_ptr<ov::threading::IStreamsExecutor> ExecutorManagerImpl::get_stream_executor(const std::string& id) {
+    std::lock_guard<std::mutex> guard(taskExecutorMutex);
+    for (const auto& it : cpuStreamsExecutors) {
+        const auto& executor = it.second;
+        const auto& executorConfig = it.first;
+        if (executorConfig._name == id)
+            return executor;
+    }
+    ov::threading::IStreamsExecutor::Config config{id};
+    auto newExec = std::make_shared<ov::threading::CPUStreamsExecutor>(config);
+    tbbThreadsCreated = true;
+    cpuStreamsExecutors.emplace_back(std::make_pair(config, newExec));
+    return newExec;
+}
+
 std::shared_ptr<ov::threading::IStreamsExecutor> ExecutorManagerImpl::get_idle_cpu_streams_executor(
     const ov::threading::IStreamsExecutor::Config& config) {
     std::lock_guard<std::mutex> guard(streamExecutorMutex);
@@ -203,6 +219,41 @@ public:
 std::shared_ptr<ExecutorManager> executor_manager() {
     static ExecutorManagerHolder executorManagerHolder;
     return executorManagerHolder.get();
+}
+
+void parallel_mt_sockets(int nthr, const std::function<void(size_t)>& func) {
+    auto executor = ov::threading::executor_manager()->get_stream_executor("CPUStreamsExecutor");
+    std::vector<int> threads_per_socket = executor->get_cores_mt_sockets();
+    int nsockets = static_cast<int>(threads_per_socket.size());
+    if (nthr == 0)
+        nthr = parallel_get_max_threads();
+    if (nsockets <= 1) {
+        ov::parallel_for(nthr, [&](int ithr) {
+            func(ithr);
+        });
+    } else if (nsockets > 1) {
+        ov::parallel_for(nsockets, [&](int ithr) {
+            int ntasks = threads_per_socket[ithr];
+            int tasks_base = ithr == 0 ? 0 : threads_per_socket[ithr - 1];
+            if (ithr == 0) {
+                ov::parallel_for(ntasks, [&](int ithr) {
+                    func(ithr);
+                });
+            } else {
+                std::vector<ov::threading::Task> tasks;
+                tasks.resize(1);
+                for (auto&& task : tasks) {
+                    task = [&] {
+                        ov::parallel_for(ntasks, [&](int taskid) {
+                            int thread_id = tasks_base + taskid;
+                            func(thread_id);
+                        });
+                    };
+                }
+                executor->run_and_wait_id(tasks, ithr - 1);
+            }
+        });
+    }
 }
 
 }  // namespace threading
