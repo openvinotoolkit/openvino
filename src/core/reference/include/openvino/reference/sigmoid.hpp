@@ -4,9 +4,9 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
-#include <type_traits>
 
 #include "openvino/reference/utils/type_util.hpp"
 
