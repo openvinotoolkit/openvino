@@ -18,6 +18,7 @@
 #include "openvino/itt.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor_internal.hpp"
+#include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/threading/thread_local.hpp"
 
@@ -71,6 +72,11 @@ struct CPUStreamsExecutor::Impl {
                 } else {
                     _streamId = _impl->_streamIdQueue.front();
                     _impl->_streamIdQueue.pop();
+                }
+                if (!_impl->_subStreamIdQueue.empty() && _impl->_subStreamsNum < _impl->_config._sub_streams) {
+                    _sub_stream_id = _impl->_subStreamIdQueue.front();
+                    _impl->_subStreamIdQueue.pop();
+                    _impl->_subStreamsNum++;
                 }
             }
             _numaNodeId = _impl->_config._streams
@@ -157,9 +163,7 @@ struct CPUStreamsExecutor::Impl {
                                                             .set_max_threads_per_core(max_threads_per_core)});
             } else {
                 _taskArena.reset(new custom::task_arena{concurrency});
-                _cpu_ids = static_cast<int>(_impl->_config._stream_processor_ids.size()) == _impl->_config._streams
-                               ? _impl->_config._stream_processor_ids[stream_id]
-                               : _cpu_ids;
+                _cpu_ids = _impl->_config._stream_processor_ids[stream_id];
                 if (_cpu_ids.size() > 0) {
                     CpuSet processMask;
                     int ncpus = 0;
@@ -186,7 +190,9 @@ struct CPUStreamsExecutor::Impl {
             int max_threads_per_core;
             StreamCreateType stream_type;
             const auto org_proc_type_table = get_org_proc_type_table();
-            const auto stream_id = _streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId;
+            const auto stream_id =
+                _sub_stream_id >= 0 ? _impl->_config._streams + _sub_stream_id
+                                    : (_streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId);
 
             get_cur_stream_info(stream_id,
                                 _impl->_config._cpu_reservation,
@@ -320,6 +326,7 @@ struct CPUStreamsExecutor::Impl {
         int _numaNodeId = 0;
         int _socketId = 0;
         bool _execute = false;
+        int _sub_stream_id = -1;
         std::queue<Task> _taskQueue;
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
         std::unique_ptr<custom::task_arena> _taskArena;
@@ -477,6 +484,7 @@ struct CPUStreamsExecutor::Impl {
             }
         }
 #endif
+        _subTaskThread.assign(_config._sub_streams, std::make_shared<SubQueue>());
         for (auto streamId = 0; streamId < _config._streams; ++streamId) {
             _threads.emplace_back([this, streamId] {
                 openvino::itt::threadName(_config._name + "_" + std::to_string(streamId));
@@ -499,6 +507,31 @@ struct CPUStreamsExecutor::Impl {
             });
         }
         _streams.set_thread_ids_map(_threads);
+
+        for (auto subId = 0; subId < _config._sub_streams; ++subId) {
+            _subThreads.emplace_back([this, subId] {
+                openvino::itt::threadName(_config._name + "_subthreads" + "_" + std::to_string(subId));
+                for (bool stopped = false; !stopped;) {
+                    Task task;
+                    { _subTaskThread[subId]->que_pop(task, stopped); }
+                    if (task) {
+                        {
+                            std::lock_guard<std::mutex> lock{_streamIdMutex};
+                            if (_subStreamsNum < _config._sub_streams) {
+                                _subStreamIdQueue.push(subId);
+                            } else {
+                                std::queue<int> empty;
+                                std::swap(_subStreamIdQueue, empty);
+                            }
+                        }
+                        Execute(task, *(_streams.local()));
+                    }
+                }
+            });
+        }
+        if (_subThreads.size() > 0) {
+            _streams.set_thread_ids_map(_subThreads);
+        }
     }
 
     void Enqueue(Task task) {
@@ -507,6 +540,10 @@ struct CPUStreamsExecutor::Impl {
             _taskQueue.emplace(std::move(task));
         }
         _queueCondVar.notify_one();
+    }
+
+    void Enqueue_sub(Task task, int id) {
+        _subTaskThread[id]->que_push(std::move(task));
     }
 
     void Execute(const Task& task, Stream& stream) {
@@ -538,15 +575,49 @@ struct CPUStreamsExecutor::Impl {
         }
     }
 
+    struct SubQueue {
+        std::mutex _subMutex;
+        std::condition_variable _subQueueCondVar;
+        bool _isSubStopped = false;
+        std::queue<Task> _subTaskQueue;
+
+        SubQueue() {}
+
+        void que_push(Task task) {
+            {
+                std::lock_guard<std::mutex> lock(_subMutex);
+                _subTaskQueue.emplace(std::move(task));
+            }
+            _subQueueCondVar.notify_one();
+        }
+
+        void que_pop(Task& task, bool& stopped) {
+            std::unique_lock<std::mutex> lock(_subMutex);
+            _subQueueCondVar.wait(lock, [&] {
+                return !_subTaskQueue.empty() || (stopped = _isSubStopped);
+            });
+            if (!_subTaskQueue.empty()) {
+                task = std::move(_subTaskQueue.front());
+                _subTaskQueue.pop();
+            }
+        }
+
+        ~SubQueue() {}
+    };
+
     Config _config;
     std::mutex _streamIdMutex;
     int _streamId = 0;
     std::queue<int> _streamIdQueue;
+    std::queue<int> _subStreamIdQueue;
+    int _subStreamsNum = 0;
     std::vector<std::thread> _threads;
+    std::vector<std::thread> _subThreads;
     std::mutex _mutex;
     std::condition_variable _queueCondVar;
     std::queue<Task> _taskQueue;
     bool _isStopped = false;
+    std::vector<std::shared_ptr<SubQueue>> _subTaskThread;
     std::vector<int> _usedNumaNodes;
     CustomThreadLocal _streams;
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
@@ -576,6 +647,24 @@ int CPUStreamsExecutor::get_socket_id() {
     return stream->_socketId;
 }
 
+std::vector<int> CPUStreamsExecutor::get_cores_mt_sockets() {
+    std::vector<int> cores;
+    std::vector<std::vector<int>> stream_table = _impl->_config._streams_info_table;
+    if (stream_table.size() > 0) {
+        if (stream_table[0][NUMBER_OF_STREAMS] == 1) {  // cores in main stream
+            cores.push_back(stream_table[0][THREADS_PER_STREAM]);
+        } else {
+            return cores;
+        }
+        for (size_t i = 1; i < stream_table.size(); i++) {
+            if (stream_table[i][NUMBER_OF_STREAMS] < 0) {  // cores in sub stream
+                cores.push_back(stream_table[i][THREADS_PER_STREAM]);
+            }
+        }
+    }
+    return cores;
+}
+
 CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) : _impl{new Impl{config}} {}
 
 CPUStreamsExecutor::~CPUStreamsExecutor() {
@@ -585,6 +674,18 @@ CPUStreamsExecutor::~CPUStreamsExecutor() {
     }
     _impl->_queueCondVar.notify_all();
     for (auto& thread : _impl->_threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+    for (size_t i = 0; i < _impl->_subTaskThread.size(); i++) {
+        {
+            std::lock_guard<std::mutex> lock(_impl->_subTaskThread[i]->_subMutex);
+            _impl->_subTaskThread[i]->_isSubStopped = true;
+        }
+        _impl->_subTaskThread[i]->_subQueueCondVar.notify_all();
+    }
+    for (auto& thread : _impl->_subThreads) {
         if (thread.joinable()) {
             thread.join();
         }
@@ -601,6 +702,11 @@ void CPUStreamsExecutor::run(Task task) {
     } else {
         _impl->Enqueue(std::move(task));
     }
+}
+
+void CPUStreamsExecutor::run_id(Task task, int id) {
+    // std::cout << "[CPUStreamsExecutor::run_id] " << _impl->_config._name << " "<< _impl->_config._streams << " id: " << id << "\n";
+    _impl->Enqueue_sub(std::move(task), id);
 }
 
 }  // namespace threading

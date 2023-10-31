@@ -35,6 +35,8 @@ public:
      */
     virtual std::shared_ptr<ov::threading::ITaskExecutor> get_executor(const std::string& id) = 0;
 
+    virtual std::shared_ptr<ov::threading::IStreamsExecutor> get_stream_executor(const std::string& id) = 0;
+
     /**
      * @brief Returns idle cpu streams executor
      *
@@ -75,5 +77,8 @@ public:
 };
 
 OPENVINO_API std::shared_ptr<ExecutorManager> executor_manager();
+
+OPENVINO_API void parallel_mt_sockets(int nthr, const std::function<void(size_t)>& func);
+
 }  // namespace threading
 }  // namespace ov

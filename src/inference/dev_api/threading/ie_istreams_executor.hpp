@@ -136,6 +136,8 @@ public:
      */
     virtual int GetSocketId() = 0;
 
+    virtual std::vector<int> GetCoresMtSockets() = 0;
+
     /**
      * @brief Execute the task in the current thread using streams executor configuration and constraints
      * @param task A task to start
@@ -152,6 +154,10 @@ public:
 
     int get_socket_id() override {
         return GetSocketId();
+    }
+
+    std::vector<int> get_cores_mt_sockets() override {
+        return GetCoresMtSockets();
     }
 
     void execute(Task task) override {

@@ -8,6 +8,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <future>
 
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "ie_plugin_config.hpp"
@@ -540,11 +541,14 @@ IStreamsExecutor::Config IStreamsExecutor::Config::reserve_cpu_threads(const ISt
 
     config._streams = 0;
     config._threads = 0;
+    config._sub_streams = 0;
     for (size_t i = 0; i < config._streams_info_table.size(); i++) {
         if (config._streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
             config._streams += config._streams_info_table[i][NUMBER_OF_STREAMS];
             config._threads +=
                 config._streams_info_table[i][NUMBER_OF_STREAMS] * config._streams_info_table[i][THREADS_PER_STREAM];
+        } else if (config._streams_info_table[i][NUMBER_OF_STREAMS] == -1) {
+            config._sub_streams += 1;
         }
     }
     OPENVINO_DEBUG << "[ threading ] " << config._name << " reserve_cpu_threads " << config._streams << "("
@@ -652,6 +656,33 @@ void IStreamsExecutor::Config::update_executor_config(int stream_nums,
         _stream_processor_ids = new_config._stream_processor_ids;
         _streams = new_config._streams;
         _threads = new_config._threads;
+    }
+}
+
+void IStreamsExecutor::run_and_wait_id(const std::vector<Task>& tasks, int id) {
+    std::vector<std::packaged_task<void()>> packagedTasks;
+    std::vector<std::future<void>> futures;
+    for (std::size_t i = 0; i < tasks.size(); ++i) {
+        packagedTasks.emplace_back([&tasks, i] {
+            tasks[i]();
+        });
+        futures.emplace_back(packagedTasks.back().get_future());
+    }
+    for (std::size_t i = 0; i < tasks.size(); ++i) {
+        run_id(
+            [&packagedTasks, i] {
+                packagedTasks[i]();
+            },
+            id);
+    }
+    // std::future::get will rethrow exception from task.
+    // We should wait all tasks before any exception is thrown.
+    // So wait() and get() for each future moved to separate loops
+    for (auto&& future : futures) {
+        future.wait();
+    }
+    for (auto&& future : futures) {
+        future.get();
     }
 }
 

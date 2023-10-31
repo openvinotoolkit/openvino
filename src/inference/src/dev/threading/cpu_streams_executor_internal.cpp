@@ -26,7 +26,7 @@ void get_cur_stream_info(const int stream_id,
     size_t stream_info_id = 0;
     bool cpu_reserve = cpu_reservation;
     for (size_t i = 0; i < streams_info_table.size(); i++) {
-        stream_total += streams_info_table[i][NUMBER_OF_STREAMS];
+        stream_total += std::abs(streams_info_table[i][NUMBER_OF_STREAMS]);
         if (stream_id < stream_total) {
             stream_info_id = i;
             break;
@@ -86,10 +86,10 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
     bool last_all_proc = false;
 
     for (size_t i = 0; i < _streams_info_table.size(); i++) {
-        if (_streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
+        if (_streams_info_table[i][NUMBER_OF_STREAMS] != 0) {
             stream_pos.push_back(num_streams);
         }
-        num_streams += _streams_info_table[i][NUMBER_OF_STREAMS];
+        num_streams += std::abs(_streams_info_table[i][NUMBER_OF_STREAMS]);
     }
     num_conditions = static_cast<int>(stream_pos.size());
     _stream_processors.assign(num_streams, std::vector<int>());
@@ -100,10 +100,13 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
         std::vector<std::string> proc_types;
         std::vector<std::string> numa_nodes;
         std::vector<std::string> sockets;
-        if (_streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
+        if (_streams_info_table[i][NUMBER_OF_STREAMS] != 0) {
             streams_table.push_back(_streams_info_table[i]);
+            if (_streams_info_table[i][NUMBER_OF_STREAMS] < 0) {
+                streams_table[streams_table.size() - 1][NUMBER_OF_STREAMS] = 1;
+            }
         }
-        if (last_all_proc && _streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
+        if (last_all_proc && _streams_info_table[i][NUMBER_OF_STREAMS] != 0) {
             last_all_proc = false;
             condition_idx++;
         }

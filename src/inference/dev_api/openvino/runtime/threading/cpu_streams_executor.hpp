@@ -48,6 +48,10 @@ public:
 
     int get_socket_id() override;
 
+    std::vector<int> get_cores_mt_sockets() override;
+
+    void run_id(Task task, int id = -1) override;
+
 private:
     struct Impl;
     std::unique_ptr<Impl> _impl;

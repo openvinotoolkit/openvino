@@ -82,8 +82,16 @@ public:
         return m_executor->get_socket_id();
     }
 
+    std::vector<int> GetCoresMtSockets() override {
+        return m_executor->get_cores_mt_sockets();
+    }
+
     void Execute(Task task) override {
         m_executor->execute(task);
+    }
+
+    void run_id(Task task, int id = -1) override {
+        m_executor->run_id(task, id);
     }
 };
 

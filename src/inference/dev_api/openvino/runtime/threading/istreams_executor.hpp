@@ -117,6 +117,7 @@ public:
         std::vector<std::vector<int>> _stream_processor_ids;
         bool _cpu_reservation = false;
         bool _streams_changed = false;
+        int _sub_streams = 0;
 
         /**
          * @brief      A constructor with arguments
@@ -190,11 +191,16 @@ public:
      */
     virtual int get_socket_id() = 0;
 
+    virtual std::vector<int> get_cores_mt_sockets() = 0;
+
     /**
      * @brief Execute the task in the current thread using streams executor configuration and constraints
      * @param task A task to start
      */
     virtual void execute(Task task) = 0;
+
+    virtual void run_id(Task task, int id = -1) = 0;
+    void run_and_wait_id(const std::vector<Task>& tasks, int id);
 };
 
 }  // namespace threading

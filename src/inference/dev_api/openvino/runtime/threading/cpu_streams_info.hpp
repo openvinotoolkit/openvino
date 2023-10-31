@@ -45,4 +45,13 @@ enum ColumnOfCpuStreamsInfoTable {
     CPU_STREAMS_TABLE_SIZE = 5  //!< Size of streams info table
 };
 
+/**
+ * @enum       SubStreamsMode
+ * @brief      This enum contains definition of each sub streams mode, indicating the main stream situation.
+ */
+enum class SubStreamsMode {
+    SUB_STREAMS_NULL,        //!< Do not create sub streams
+    SUB_STREAMS_FOR_SOCKET,  //!< Create sub streams for multiple sockets in main stream
+};
+
 }  // namespace ov

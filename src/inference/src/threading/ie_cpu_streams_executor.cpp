@@ -43,6 +43,10 @@ int CPUStreamsExecutor::GetSocketId() {
     return _impl->get_socket_id();
 }
 
+std::vector<int> CPUStreamsExecutor::GetCoresMtSockets() {
+    return _impl->get_cores_mt_sockets();
+}
+
 CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) : _impl{new Impl(config)} {}
 
 CPUStreamsExecutor::~CPUStreamsExecutor() {}
@@ -53,6 +57,10 @@ void CPUStreamsExecutor::Execute(Task task) {
 
 void CPUStreamsExecutor::run(Task task) {
     _impl->run(std::move(task));
+}
+
+void CPUStreamsExecutor::run_id(Task task, int id) {
+    _impl->run_id(std::move(task), id);
 }
 
 }  // namespace InferenceEngine
