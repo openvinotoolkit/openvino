@@ -23,26 +23,30 @@
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 
 namespace {
+
+bool CanEraseKey(const std::string& key) {
 #undef TYPE_INFO
 #define TYPE_INFO(name) ov::name::get_type_info_static()
-const std::unordered_set<std::string> RtKeys = {
-    TYPE_INFO(FusedNames),
-    TYPE_INFO(PreprocessingAttribute),
-    TYPE_INFO(DisableFP16Compression),
-    TYPE_INFO(pass::DisableRemoveConcatZeroDimInput),
-    TYPE_INFO(NoTransposeSinkingAttr),
-    TYPE_INFO(Decompression),
-    TYPE_INFO(pass::DisableConstantFolding),
-    TYPE_INFO(preprocess::TensorInfoMemoryType),
-    TYPE_INFO(LayoutAttribute),
-    TYPE_INFO(OldApiMapElementType),
-    TYPE_INFO(OldApiMapOrder),
-};
+    static const std::unordered_set<std::string> RtKeys = {
+            TYPE_INFO(Decompression),
+            TYPE_INFO(DisableFP16Compression),
+            TYPE_INFO(FusedNames),
+            TYPE_INFO(LayoutAttribute),
+            TYPE_INFO(NoTransposeSinkingAttr),
+            TYPE_INFO(OldApiMapElementType),
+            TYPE_INFO(OldApiMapOrder),
+            TYPE_INFO(PreprocessingAttribute),
+            TYPE_INFO(pass::DisableConstantFolding),
+            TYPE_INFO(pass::DisableRemoveConcatZeroDimInput),
+            TYPE_INFO(preprocess::TensorInfoMemoryType),
+    };
 #undef TYPE_INFO
+    return RtKeys.find(key) == RtKeys.end();
+}
 
 void ClearRtInfo(ov::RTMap& rtInfo) {
     for (auto it = rtInfo.cbegin(); it != rtInfo.cend();) {
-        if (RtKeys.find(it->first) == RtKeys.end()) {
+        if (CanEraseKey(it->first)) {
             it = rtInfo.erase(it);
         } else {
             ++it;
