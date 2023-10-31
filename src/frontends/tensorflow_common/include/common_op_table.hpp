@@ -76,6 +76,7 @@ OP_CONVERTER(translate_gather_tree_op);
 OP_CONVERTER(translate_identity_op);
 OP_CONVERTER(translate_identity_n_op);
 OP_CONVERTER(translate_input_arg_op);
+OP_CONVERTER(translate_inv_op);
 OP_CONVERTER(translate_invert_permutation_op);
 OP_CONVERTER(translate_output_arg_op);
 OP_CONVERTER(translate_interpolate_op);
