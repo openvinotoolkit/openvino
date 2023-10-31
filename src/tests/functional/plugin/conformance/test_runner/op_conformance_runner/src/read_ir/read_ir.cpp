@@ -21,6 +21,7 @@
 #include "functional_test_utils/summary/op_info.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
+#include "dynamism.hpp"
 #include "input_info.hpp"
 #include "conformance.hpp"
 #include "read_ir_test/read_ir.hpp"
@@ -174,21 +175,7 @@ void ReadIRTest::SetUp() {
         }
     }
 
-    bool hasDynamic = false;
-    for (const auto& param : function->get_parameters()) {
-        if (param->get_partial_shape().is_dynamic()) {
-            hasDynamic = true;
-            break;
-        }
-    }
-    if (!hasDynamic) {
-        for (const auto& result : function->get_results()) {
-            if (result->get_output_partial_shape(0).is_dynamic()) {
-                hasDynamic = true;
-                break;
-            }
-        }
-    }
+    bool hasDynamic = tools::subgraph_dumper::is_dynamic_model(function);
 
 #ifdef ENABLE_CONFORMANCE_PGQL
     // Updating data in runtime. Should be set before possible call of a first GTEST status
