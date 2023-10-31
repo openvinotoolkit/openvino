@@ -6,7 +6,10 @@
 void ReaderWorker::Execute() {
     ov::Core core;
 
-    _model = core.read_model(_model_path, _bin_path);
+    if (_args->model_str.empty())
+        _model = core.read_model(_args->model_path, _args->bin_path);
+    else
+        _model = core.read_model(_args->model_str, _args->weight_tensor);
 }
 
 void ReaderWorker::OnOK() {

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "core_wrap.hpp"
+#include "read_model_args.hpp"
 
 #include <thread>
 
@@ -32,21 +33,11 @@ Napi::Object CoreWrap::Init(Napi::Env env, Napi::Object exports) {
     return exports;
 }
 
-bool is_valid_read_model_input(const Napi::CallbackInfo& info) {
-    const size_t argsLength = info.Length();
-    const size_t is_buffers_input = info[0].IsBuffer()
-        && (argsLength == 1 || info[1].IsBuffer());
-
-    if (is_buffers_input) return true;
-
-    return info[0].IsString() && (argsLength == 1 || info[1].IsString());
-}
-
 Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
-    ReadModelArgs args;
+    ReadModelArgs* args;
 
     try {
-        args = ReadModelArgs(info);
+        args = new ReadModelArgs(info);
     } catch(std::runtime_error& err) {
         reportError(info.Env(), err.what());
 
@@ -55,45 +46,25 @@ Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
 
     std::shared_ptr<ov::Model> model;
 
-    if (args.model_str.empty())
-        model = _core.read_model(args.model_path, args.bin_path);
+    if (args->model_str.empty())
+        model = _core.read_model(args->model_path, args->bin_path);
     else
-        model = _core.read_model(args.model_str, args.weight_tensor);
+        model = _core.read_model(args->model_str, args->weight_tensor);
 
     return ModelWrap::Wrap(info.Env(), model);
 }
 
 Napi::Value CoreWrap::read_model_async(const Napi::CallbackInfo& info) {
-    std::string model_path;
-    std::string bin_path;
-
     try {
-        switch (info.Length()) {
-        case 2:
-            if (!info[1].IsString())
-                throw std::runtime_error("Second argument should be string");
-
-            bin_path = info[1].ToString();
-            [[fallthrough]];
-        case 1:
-            if (!info[0].IsString())
-                throw std::runtime_error("First argument should be string");
-
-            model_path = info[0].ToString();
-            break;
-
-        default:
-            throw std::runtime_error("Invalid number of arguments -> " + std::to_string(info.Length()));
-        }
-
-        ReaderWorker* _readerWorker = new ReaderWorker(info.Env(), model_path, bin_path);
+        ReadModelArgs* args = new ReadModelArgs(info);
+        ReaderWorker* _readerWorker = new ReaderWorker(info.Env(), args);
         _readerWorker->Queue();
 
         return _readerWorker->GetPromise();
     } catch (std::runtime_error& err) {
         reportError(info.Env(), err.what());
 
-        return Napi::Value();
+        return info.Env().Undefined();
     }
 }
 
