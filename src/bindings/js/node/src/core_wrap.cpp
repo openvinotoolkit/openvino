@@ -43,41 +43,22 @@ bool is_valid_read_model_input(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
-    if (!is_valid_read_model_input(info)) {
-        Napi::TypeError::New(env, "Invalid arguments").ThrowAsJavaScriptException();
+    ReadModelArgs args;
+
+    try {
+        args = ReadModelArgs(info);
+    } catch(std::runtime_error& err) {
+        reportError(info.Env(), err.what());
+
         return info.Env().Undefined();
     }
 
-    const size_t argsLength = info.Length();
     std::shared_ptr<ov::Model> model;
 
-    if (info[0].IsBuffer()) {
-        Napi::Buffer<uint8_t> model_data = info[0].As<Napi::Buffer<uint8_t>>();
-        std::string model_str(reinterpret_cast<char*>(model_data.Data()), model_data.Length());
-
-        ov::Tensor tensor;
-
-        if (argsLength == 2) {
-            Napi::Buffer<uint8_t> weights = info[1].As<Napi::Buffer<uint8_t>>();
-            const uint8_t* bin = reinterpret_cast<const uint8_t*>(weights.Data());
-
-            size_t bin_size = weights.Length();
-            tensor = ov::Tensor(ov::element::Type_t::u8, {bin_size});
-            std::memcpy(tensor.data(), bin, bin_size);
-        }
-        else {
-            tensor = ov::Tensor(ov::element::Type_t::u8, {0});
-        }
-
-        model = _core.read_model(model_str, tensor);
-    } else {
-        std::string model_path(info[0].ToString());
-        std::string bin_path;
-
-        if (argsLength == 2) bin_path = info[1].ToString();
-
-        model = _core.read_model(model_path, bin_path);
-    }
+    if (args.model_str.empty())
+        model = _core.read_model(args.model_path, args.bin_path);
+    else
+        model = _core.read_model(args.model_str, args.weight_tensor);
 
     return ModelWrap::Wrap(info.Env(), model);
 }
