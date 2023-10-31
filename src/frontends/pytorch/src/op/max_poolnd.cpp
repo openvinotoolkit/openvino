@@ -113,7 +113,7 @@ OutputVector translate_max_poolnd(const NodeContext& context) {
     if (context.get_output_size() == 2) {
         auto out1 = res->output(0);
         auto out2 = res->output(1);
-        return {out1, out2};
+        return {std::move(out1), std::move(out2)};
     } else {
         return {res};
     }
