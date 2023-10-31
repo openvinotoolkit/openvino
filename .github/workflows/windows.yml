@@ -191,7 +191,7 @@ jobs:
 
   Samples:
     needs: Build
-    timeout-minutes: 10
+    timeout-minutes: 15
     defaults:
       run:
         shell: pwsh
@@ -421,8 +421,8 @@ jobs:
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
 
-          :: Used for 'test_utils' installed in '<test_package>\tests\python\openvino\test_utils'
-          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\tests\python\openvino\test_utils;%PYTHONPATH%
+          :: Used for 'test_utils' installed in '<test_package>\python\openvino\test_utils'
+          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\python\openvino\test_utils;%PYTHONPATH%
           
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/mo_python_api_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_mo_convert.xml
         env:
@@ -434,8 +434,8 @@ jobs:
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
 
-          :: Used for 'test_utils' installed in '<test_package>\tests\python\openvino\test_utils'
-          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\tests\python\openvino\test_utils;%PYTHONPATH%
+          :: Used for 'test_utils' installed in '<test_package>\python\openvino\test_utils'
+          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\python\openvino\test_utils;%PYTHONPATH%
           
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/ovc_python_api_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_ovc_convert.xml
         env:
