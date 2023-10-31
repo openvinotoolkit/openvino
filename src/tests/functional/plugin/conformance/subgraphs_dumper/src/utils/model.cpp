@@ -68,20 +68,6 @@ find_models(const std::vector<std::string> &dirs, const std::string& regexp) {
     return { models, { ModelCacheStatus::NOT_READ, not_read_model } };
 }
 
-bool is_dynamic_model(const std::shared_ptr<ov::Model>& model) {
-    for (const auto& parameter : model->get_parameters()) {
-        if (is_dynamic_node(parameter)) {
-            return true;
-        }
-    }
-    for (const auto& result : model->get_results()) {
-        if (is_dynamic_node(result)) {
-            return true;
-        }
-    }
-    return false;
-}
-
 std::string get_model_type(const std::shared_ptr<ov::Model>& model) {
     if (is_dynamic_model(model)) {
         return "dynamic";
