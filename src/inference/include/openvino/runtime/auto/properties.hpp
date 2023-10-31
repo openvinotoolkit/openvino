@@ -35,9 +35,9 @@ static constexpr Property<bool> enable_runtime_fallback{"ENABLE_RUNTIME_FALLBACK
  * @ingroup ov_runtime_cpp_prop_api
  */
 enum class SchedulePolicy {
-    ROUND_ROBIN = 0,        // will schedule the infer reqeust using round robin policy
-    DEVICE_PRIORITY = 1,    // will shcedule the infer request based on the device priority
-    DEFAULT = ROUND_ROBIN,  //!<  Default schedule policy is ROUND_ROBIN
+    ROUND_ROBIN = 0,            // will schedule the infer request using round robin policy
+    DEVICE_PRIORITY = 1,        // will schedule the infer request based on the device priority
+    DEFAULT = DEVICE_PRIORITY,  //!<  Default schedule policy is ROUND_ROBIN
 };
 
 /** @cond INTERNAL */
