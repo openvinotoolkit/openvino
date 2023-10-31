@@ -296,7 +296,7 @@ void test_loop_gpu_basic_concat_nested(bool is_caching_test)
     // set inner loop body
     /////////////////////////////////
     topology inner_loop_body(
-        input_layout("inner_input", input_mem->get_layout()),
+        input_layout("inner_input", { { 1, 1, 1, 4 }, data_types::f32, format::bfyx }),
         data("inner_eltwise_operand", inner_operand_mem),
         eltwise("inner_eltwise", input_info("inner_input"), input_info("inner_eltwise_operand"), eltwise_mode::sum)
     );
