@@ -4,44 +4,44 @@
 
 #include <vector>
 
-#include "single_layer_tests/proposal.hpp"
+#include "single_op_tests/proposal.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace ngraph::helpers;
-using namespace LayerTestsDefinitions;
+using ov::test::ProposalLayerTest;
 
 namespace {
 
 /* ============= Proposal ============= */
-const std::vector<base_size_type> base_size_ = {16};
-const std::vector<pre_nms_topn_type> pre_nms_topn_ = {100};
-const std::vector<post_nms_topn_type> post_nms_topn_ = {100};
-const std::vector<nms_thresh_type> nms_thresh_ = {0.7f};
-const std::vector<min_size_type> min_size_ = {1};
-const std::vector<ratio_type> ratio_ = {{1.0f, 2.0f}};
-const std::vector<scale_type> scale_ = {{1.2f, 1.5f}};
-const std::vector<clip_before_nms_type> clip_before_nms_ = {false};
-const std::vector<clip_after_nms_type> clip_after_nms_ = {false};
+const std::vector<size_t> base_size = {16};
+const std::vector<size_t> pre_nms_topn = {100};
+const std::vector<size_t> post_nms_topn = {100};
+const std::vector<float> nms_thresh = {0.7f};
+const std::vector<size_t> min_size = {1};
+const std::vector<std::vector<float>> ratio = {{1.0f, 2.0f}};
+const std::vector<std::vector<float>> scale = {{1.2f, 1.5f}};
+const std::vector<bool> clip_before_nms = {false};
+const std::vector<bool> clip_after_nms = {false};
 
 // empty string corresponds to Caffe framework
-const std::vector<framework_type> framework_ = {""};
+const std::vector<std::string> framework = {""};
 
-const auto proposalParams = ::testing::Combine(
-        ::testing::ValuesIn(base_size_),
-        ::testing::ValuesIn(pre_nms_topn_),
-        ::testing::ValuesIn(post_nms_topn_),
-        ::testing::ValuesIn(nms_thresh_),
-        ::testing::ValuesIn(min_size_),
-        ::testing::ValuesIn(ratio_),
-        ::testing::ValuesIn(scale_),
-        ::testing::ValuesIn(clip_before_nms_),
-        ::testing::ValuesIn(clip_after_nms_),
-        ::testing::ValuesIn(framework_)
+const auto proposal_params = ::testing::Combine(
+        ::testing::ValuesIn(base_size),
+        ::testing::ValuesIn(pre_nms_topn),
+        ::testing::ValuesIn(post_nms_topn),
+        ::testing::ValuesIn(nms_thresh),
+        ::testing::ValuesIn(min_size),
+        ::testing::ValuesIn(ratio),
+        ::testing::ValuesIn(scale),
+        ::testing::ValuesIn(clip_before_nms),
+        ::testing::ValuesIn(clip_after_nms),
+        ::testing::ValuesIn(framework)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_Proposal_tests, ProposalLayerTest,
+INSTANTIATE_TEST_SUITE_P(proposal_params, ProposalLayerTest,
                         ::testing::Combine(
-                                proposalParams,
+                                proposal_params,
+                                ::testing::Values(ov::element::f16),
                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ProposalLayerTest::getTestCaseName
 );
