@@ -18,11 +18,6 @@ using namespace ov;
 using namespace ov::op;
 
 namespace {
-class TRANSFORMATIONS_API TestRtAttr : public ov::RuntimeAttribute {
-public:
-    OPENVINO_RTTI("TestRtAttr", "0");
-};
-
 void set_rt_info(const std::shared_ptr<Node>& node) {
     RTMap& rt_info = node->get_rt_info();
     rt_info["test_attr"] = "test_attr_value";
