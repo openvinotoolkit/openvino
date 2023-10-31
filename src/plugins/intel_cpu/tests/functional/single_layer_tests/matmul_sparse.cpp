@@ -104,7 +104,7 @@ protected:
         std::mt19937 gen_f(123);
         std::uniform_real_distribution<float> dist_f(0.f, 1.f);
 
-        int countZero = 0;
+        size_t countZero = 0;
 
         res[0] = startFrom;
         res[vec_len - 1] = upTo;
@@ -259,6 +259,7 @@ const std::vector<ShapeRelatedParams> IS2D_sparse_smoke = {
         },
         {false, true}
     },
+    {static_shapes_to_test_representation({{1, 4096}, {4096, 16384}}), {false, true}},
 };
 
 const auto testParams2D_i8_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_sparse_smoke),
