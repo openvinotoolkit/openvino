@@ -39,13 +39,13 @@ Output<Node> broadcast_const_to_channel_dim(const NodeContext& context,
 }
 }  // namespace
 
-OutputVector translate_batch_norm_common(const NodeContext& context, bool is_bn_no_training) {
+OutputVector translate_batch_norm_common(const NodeContext& context, bool training) {
     // Schema: aten::batch_norm(Tensor input, Tensor? weight, Tensor? bias, Tensor? running_mean, Tensor? running_var,
     // bool training, float momentum, float eps, bool cudnn_enabled) -> Tensor
 
-    //If the op is batch_norm_legit_no_training, is_bn_no_traning should be true as the schema doesn't have training argument
-    // batch_norm_legit_no_training Schema: aten::batch_norm(Tensor input, Tensor? weight, Tensor? bias, Tensor? running_mean, Tensor? running_var,
-    // float momentum, float eps) -> Tensor
+    //  batch_norm_legit_no_training Schema: aten::batch_norm(Tensor input, Tensor? weight, Tensor? bias, Tensor?
+    //  running_mean, Tensor? running_var, float momentum, float eps) -> Tensor
+
     num_inputs_check(context, 7, 9);
     auto input = context.get_input(0);
     Output<Node> weight;
@@ -67,13 +67,6 @@ OutputVector translate_batch_norm_common(const NodeContext& context, bool is_bn_
         bias = broadcast_const_to_channel_dim(context, input, zero_f);
     }
     // index 3 running_mean and index 4 running_var can be none for training case only, check that not training before
-    bool training;
-    if(is_bn_no_training){
-        training = false;
-    }
-    else{
-        training = context.const_input<bool>(5);
-    }
     // if training for batch norm activated, but model in eval mode, it uses current statistics instead of running
     if (training) {
         auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
@@ -104,10 +97,9 @@ OutputVector translate_batch_norm_common(const NodeContext& context, bool is_bn_
     // Input with index 6 is momentum, it is used only for updating running_mean accumulation during training
     // In batch_norm_legit_no_training, momentum is index 5 and epsilon is 6
     float epsilon;
-    if(is_bn_no_training){
+    if (context.get_input_size() == 7) {
         epsilon = context.const_input<float>(6);
-    }
-    else{
+    } else {
         epsilon = context.const_input<float>(7);
     }
     // Input with index 8 is flag "cudnn_enabled" we can ignore it
@@ -116,16 +108,18 @@ OutputVector translate_batch_norm_common(const NodeContext& context, bool is_bn_
 };
 
 OutputVector translate_batch_norm(const NodeContext& context) {
-    return translate_batch_norm_common(context, false);
+    auto training = context.const_input<bool>(5);
+    return translate_batch_norm_common(context, training);
 }
 
 OutputVector translate_batch_norm_legit_fx(const NodeContext& context) {
-    auto output = translate_batch_norm_common(context, false);
+    auto training = context.const_input<bool>(5);
+    auto output = translate_batch_norm_common(context, training);
     return {context.mark_node(make_list_construct(output))};
 }
 
 OutputVector translate_batch_norm_legit_no_training_fx(const NodeContext& context) {
-    auto output = translate_batch_norm_common(context, true);
+    auto output = translate_batch_norm_common(context, false);
     return {context.mark_node(make_list_construct(output))};
 }
 
