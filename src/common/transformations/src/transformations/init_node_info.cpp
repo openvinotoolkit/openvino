@@ -27,20 +27,18 @@ namespace {
 bool can_erase_key(const std::string& key) {
 #undef TYPE_INFO
 #define TYPE_INFO(name) ov::name::get_type_info_static()
-    static const std::unordered_set<std::string> rt_keys = {
-            TYPE_INFO(Decompression),
-            TYPE_INFO(DisableFP16Compression),
-            TYPE_INFO(FusedNames),
-            TYPE_INFO(LayoutAttribute),
-            TYPE_INFO(NoTransposeSinkingAttr),
-            TYPE_INFO(OldApiMapElementType),
-            TYPE_INFO(OldApiMapOrder),
-            TYPE_INFO(PreprocessingAttribute),
-            TYPE_INFO(pass::DisableConstantFolding),
-            TYPE_INFO(pass::DisableRemoveConcatZeroDimInput),
-            TYPE_INFO(preprocess::TensorInfoMemoryType),
-            "can_be_folded"
-    };
+    static const std::unordered_set<std::string> rt_keys = {TYPE_INFO(Decompression),
+                                                            TYPE_INFO(DisableFP16Compression),
+                                                            TYPE_INFO(FusedNames),
+                                                            TYPE_INFO(LayoutAttribute),
+                                                            TYPE_INFO(NoTransposeSinkingAttr),
+                                                            TYPE_INFO(OldApiMapElementType),
+                                                            TYPE_INFO(OldApiMapOrder),
+                                                            TYPE_INFO(PreprocessingAttribute),
+                                                            TYPE_INFO(pass::DisableConstantFolding),
+                                                            TYPE_INFO(pass::DisableRemoveConcatZeroDimInput),
+                                                            TYPE_INFO(preprocess::TensorInfoMemoryType),
+                                                            "can_be_folded"};
 #undef TYPE_INFO
     return rt_keys.find(key) == rt_keys.end();
 }
