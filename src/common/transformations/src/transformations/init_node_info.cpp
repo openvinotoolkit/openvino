@@ -39,6 +39,7 @@ bool can_erase_key(const std::string& key) {
             TYPE_INFO(pass::DisableConstantFolding),
             TYPE_INFO(pass::DisableRemoveConcatZeroDimInput),
             TYPE_INFO(preprocess::TensorInfoMemoryType),
+            "can_be_folded"
     };
 #undef TYPE_INFO
     return rt_keys.find(key) == rt_keys.end();
