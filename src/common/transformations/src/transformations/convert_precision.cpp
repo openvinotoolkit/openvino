@@ -688,9 +688,8 @@ bool fuse_type_to_nms9(const std::shared_ptr<ov::Node>& node, const precisions_m
         output_types.push_back(to);
     }
 
-    auto relaxed_op = std::make_shared<ov::op::TypeRelaxed<opset9::NonMaxSuppression>>(*nms,
-                                                                                       ov::element::TypeVector{},
-                                                                                       output_types);
+    auto relaxed_op =
+        std::make_shared<ov::op::TypeRelaxed<opset9::NonMaxSuppression>>(*nms, ov::element::TypeVector{}, output_types);
     replace_node(node, relaxed_op);
     return true;
 }
