@@ -589,9 +589,10 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
     MHASingleToken<T> kernel_single_token;
 
     PlainTensor<T> m_query_emb;  // query with RoPE position embedding
+    size_t B, H, L1, L0, S;
 
-    ScaledDotProductAttention::Config config;
-    AttentionExecutor(const ScaledDotProductAttention::Config& _config) : config(_config) {}
+    ScaledDotProductAttentionNode::Config config;
+    AttentionExecutor(const ScaledDotProductAttentionNode::Config& _config) : config(_config) {}
 
     void prepare_attn_mask(MemoryPtr attn_input) {
         attn_mask.resize(attn_input->getStaticDims());
@@ -600,11 +601,47 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             attn_mask.data()[i] = p[i] ? 0.0f : -FLT_MAX;
     }
 
+    void prepare_output(const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr>& outputs, PlainTensor<T>& k_input, PlainTensor<T>& v_input) {
+        const bool has_out_transpose = config.output_BLHxS;
+        const bool fuse_concat = config.fuse_concat;
+        auto input_num = inputs.size() - (fuse_concat ? 2 : 0);
+        if (fuse_concat) {
+            PlainTensor<T> past_k_input, past_v_input, past_k_output, past_v_output;
+            past_k_input.reset(inputs[input_num + 0]);
+            past_v_input.reset(inputs[input_num + 1]);
+            L0 = past_k_input.size(2);
+            past_k_output.reset(outputs[1]);
+            past_v_output.reset(outputs[2]);
+            //past_k_output.permute({1, 2, 0, 3});
+            //past_v_output.permute({1, 2, 0, 3});
+            // TODO: remove after redefineOutputMemory can grow memory while keeping original content
+            parallel_for3d(B, H, L0, [&](size_t b, size_t h, size_t m) {
+                memcpy(&past_k_output.at({b, h, m, 0}),
+                       &past_k_input.at({b, h, m, 0}),
+                       S * sizeof(T));
+                memcpy(&past_v_output.at({b, h, m, 0}),
+                       &past_v_input.at({b, h, m, 0}),
+                       S * sizeof(T));
+            });
+            parallel_for3d(B, H, L1, [&](size_t b, size_t h, size_t m) {
+                memcpy(&past_k_output.at({b, h, m + L0, 0}),
+                       &k_input.at({b, h, m, 0}),
+                       S * sizeof(T));
+                memcpy(&past_v_output.at({b, h, m + L0, 0}),
+                       &v_input.at({b, h, m, 0}),
+                       S * sizeof(T));
+            });
+            k_input = past_k_output;
+            v_input = past_v_output;
+        }
+    }
+
     void execute(dnnl::stream strm, const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr>& outputs) override {
         bool has_out_transpose = config.output_BLHxS;
         bool fuse_causal_attn = config.fuse_causal_attn;
         bool is_causal = config.is_causal;
-        auto input_num = inputs.size();
+        const bool fuse_concat = config.fuse_concat;
+        auto input_num = inputs.size() - (fuse_concat ? 2 : 0);
 
         q_input.reset(inputs[0]);
         k_input.reset(inputs[1]);
@@ -623,14 +660,15 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             }
         }
 
-        size_t B, H, L1, L0, S;
-
         // q, k, v: [B, H, L1, S]
         B = q_input.size(0);
         H = q_input.size(1);
         L1 = q_input.size(2);
-        L0 = k_input.size(2) - L1;
         S = q_input.size(-1);
+
+        prepare_output(inputs, outputs, k_input, v_input);
+
+        L0 = k_input.size(2) - L1;
 
         ov::intel_cpu::PlainTensor<T> output_emb(outputs[0]);
         PlainTensor<T> present_key, present_value;
@@ -696,7 +734,8 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ngrap
     if (node) {
         m_config.is_causal = node->get_causal();
     } else {
-        OPENVINO_THROW("CPU: cast to v13::ScaledDotProductAttention failed.");
+        const auto node = std::dynamic_pointer_cast<const ScaledDotProductAttentionNode>(op);
+        m_config = node->get_config();
     }
 }
 
@@ -716,29 +755,50 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
         m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float>>(m_config);
 #endif
     }
-
-    // initialize input ports
-    std::vector<PortConfigurator> inPortConfigs;
-    inPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getInputShapeAtPort(0), false, -1);
-    inPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getInputShapeAtPort(1), false, -1);
-    inPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getInputShapeAtPort(2), false, -1);
-    if (getOriginalInputsNumber() > 3) {
+    NodeConfig config;
+    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    auto orginSDPInputNumber = getOriginalInputsNumber() - (m_config.fuse_concat ? 2 : 0);
+    config.inConfs.resize(getOriginalInputsNumber());
+    config.outConfs.resize(getOriginalOutputsNumber());
+    config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+        rtPrecision, getInputShapeAtPort(0)));
+    config.inConfs[1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+        rtPrecision, getInputShapeAtPort(1)));
+    config.inConfs[2].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+        rtPrecision, getInputShapeAtPort(2)));
+    auto nextPortIdx = 3;
+    if (orginSDPInputNumber > 3) {
         // attn_mask
-        if (getOriginalInputPrecisionAtPort(3) == ov::element::u8) {
-            inPortConfigs.emplace_back(LayoutType::ncsp, ov::element::u8, getInputShapeAtPort(3), false, -1);
+        if (getOriginalInputPrecisionAtPort(nextPortIdx) == ov::element::u8) {
+            config.inConfs[nextPortIdx].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+                ov::element::u8, getInputShapeAtPort(nextPortIdx)));
         } else {
-            inPortConfigs.emplace_back(LayoutType::ncsp, ov::element::f32, getInputShapeAtPort(3), false, -1);
+            config.inConfs[nextPortIdx].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+                ov::element::f32, getInputShapeAtPort(nextPortIdx)));
         }
+        nextPortIdx++;
     }
-    if (getOriginalInputsNumber() > 4) {
-        inPortConfigs.emplace_back(LayoutType::ncsp, ov::element::f32, getInputShapeAtPort(4), false, -1);
+    if (orginSDPInputNumber > 4) {
+        config.inConfs[nextPortIdx].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+            ov::element::f32, getInputShapeAtPort(nextPortIdx)));
+    }
+    if (m_config.fuse_concat) {
+        config.inConfs[orginSDPInputNumber + 0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+            rtPrecision, getInputShapeAtPort(orginSDPInputNumber + 0)));
+        config.inConfs[orginSDPInputNumber + 1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+            rtPrecision, getInputShapeAtPort(orginSDPInputNumber + 1)));
     }
 
-    // initialize output port
-    std::vector<PortConfigurator> outPortConfigs;
-    outPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getOutputShapeAtPort(0), false, -1);
+    config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+        rtPrecision, getOutputShapeAtPort(0)));
 
-    addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
+    if (m_config.fuse_concat) {
+        config.outConfs[1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+            rtPrecision, getOutputShapeAtPort(1)));
+        config.outConfs[2].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+            rtPrecision, getOutputShapeAtPort(2)));
+    }
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
 
 void ScaledDotProductAttention::execute(dnnl::stream strm) {
@@ -755,8 +815,10 @@ void ScaledDotProductAttention::execute(dnnl::stream strm) {
 bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
 #if defined(OPENVINO_ARCH_X86_64)
     try {
-        if (!std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op)) {
-            errorMessage = "Only ScaledDotProductAttention operation are supported";
+        const auto node = std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op);
+        if (!std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op) &&
+            !std::dynamic_pointer_cast<const ScaledDotProductAttentionNode>(op)) {
+            errorMessage = "Only ScaledDotProductAttention or ScaledDotProductAttentionNode operation are supported";
             return false;
         }
         // expect shape: [B, H, L, S]
