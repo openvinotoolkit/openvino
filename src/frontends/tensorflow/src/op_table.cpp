@@ -43,7 +43,7 @@ TF_OP_CONVERTER(translate_queue_dequeue_many_op);
 TF_OP_CONVERTER(translate_readvariable_op);
 TF_OP_CONVERTER(translate_restorev2_op);
 TF_OP_CONVERTER_NAMED(translate_sparse_fill_empty_rows_op);
-TF_OP_CONVERTER(translate_sparse_reshape_op);
+TF_OP_CONVERTER_NAMED(translate_sparse_reshape_op);
 TF_OP_CONVERTER(translate_sparse_segment_sum_op);
 TF_OP_CONVERTER(translate_staticregexfullmatch_op);
 TF_OP_CONVERTER(translate_stringjoin_op);
@@ -216,7 +216,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"MaxPool", CreatorFunction(translate_max_pool_op)},
         {"MaxPoolV2", CreatorFunction(translate_max_pool_op)},
         {"MaxPool3D", CreatorFunction(translate_max_pool_op)},
-        {"MaxPoolWithArgmax", CreatorFunction(translate_max_pool_op)},
+        {"MaxPoolWithArgmax", CreatorFunction(translate_max_pool_with_argmax)},
         {"Merge", CreatorFunction(translate_merge_op)},
         {"MirrorPad", CreatorFunction(translate_mirror_pad_op)},
         {"MutableHashTable", CreatorFunction(translate_hash_table_op)},
