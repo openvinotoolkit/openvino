@@ -46,7 +46,6 @@ OutputVector translate_batch_norm_common(const NodeContext& context, bool traini
     //  batch_norm_legit_no_training Schema: aten::batch_norm(Tensor input, Tensor? weight, Tensor? bias, Tensor?
     //  running_mean, Tensor? running_var, float momentum, float eps) -> Tensor
 
-    num_inputs_check(context, 7, 9);
     auto input = context.get_input(0);
     Output<Node> weight;
     Output<Node> bias;
@@ -108,17 +107,20 @@ OutputVector translate_batch_norm_common(const NodeContext& context, bool traini
 };
 
 OutputVector translate_batch_norm(const NodeContext& context) {
+    num_inputs_check(context, 7, 9);
     auto training = context.const_input<bool>(5);
     return translate_batch_norm_common(context, training);
 }
 
 OutputVector translate_batch_norm_legit_fx(const NodeContext& context) {
+    num_inputs_check(context, 7, 9);
     auto training = context.const_input<bool>(5);
     auto output = translate_batch_norm_common(context, training);
     return {context.mark_node(make_list_construct(output))};
 }
 
 OutputVector translate_batch_norm_legit_no_training_fx(const NodeContext& context) {
+    num_inputs_check(context, 7, 9);
     auto output = translate_batch_norm_common(context, false);
     return {context.mark_node(make_list_construct(output))};
 }
