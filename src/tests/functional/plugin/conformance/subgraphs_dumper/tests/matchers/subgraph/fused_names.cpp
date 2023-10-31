@@ -22,7 +22,7 @@ using namespace ov::tools::subgraph_dumper;
 
 // ======================= ExtractorsManagerTest Unit tests =======================
 class FusedNamesExtractorTest : public SubgraphsDumperBaseTest {
-    FusedNamesExtractor extractor;
+    FusedNamesExtractor extractor = FusedNamesExtractor("TEMPLATE");
 
 protected:
     void is_match(const std::shared_ptr<ov::Model>& model) {
