@@ -529,7 +529,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | InplaceSub                                              | NO                            |                               |
 | InplaceUpdate                                           | NO                            |                               |
 | InterleaveDataset                                       | NO                            |                               |
-| Inv                                                     | NO                            |                               |
+| Inv                                                     | YES                           |                               |
 | InvGrad                                                 | NO                            |                               |
 | Invert                                                  | NO                            |                               |
 | InvertPermutation                                       | YES                           |                               |
