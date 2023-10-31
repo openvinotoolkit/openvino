@@ -194,6 +194,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"HashTableV2", CreatorFunction(translate_hash_table_op)},
         {"Identity", CreatorFunction(translate_identity_op)},
         {"IdentityN", CreatorFunction(translate_identity_n_op)},
+        {"Inv", CreatorFunction(translate_inv_op)},
         {"If", CreatorFunction(translate_if_op)},
         {"input_arg", CreatorFunction(translate_input_arg_op)},
         {"Iterator", CreatorFunction(translate_iterator_op)},
