@@ -37,7 +37,7 @@ static constexpr Property<bool> enable_runtime_fallback{"ENABLE_RUNTIME_FALLBACK
 enum class SchedulePolicy {
     ROUND_ROBIN = 0,            // will schedule the infer request using round robin policy
     DEVICE_PRIORITY = 1,        // will schedule the infer request based on the device priority
-    DEFAULT = DEVICE_PRIORITY,  //!<  Default schedule policy is ROUND_ROBIN
+    DEFAULT = DEVICE_PRIORITY,  //!<  Default schedule policy is DEVICE_PRIORITY
 };
 
 /** @cond INTERNAL */
