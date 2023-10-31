@@ -22,7 +22,8 @@ using namespace ov::op;
 
 OutputVector translate_cat_common(const NodeContext& context,
                                   const std::deque<ov::Output<ov::Node>>& list_elems,
-                                  int64_t axis, bool is_fx) {
+                                  int64_t axis,
+                                  bool is_fx) {
     if (list_elems.empty()) {
         // couldn't get list elements
         auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(), OutputVector{context.get_input(0)}, 1);
