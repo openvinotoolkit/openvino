@@ -90,7 +90,7 @@ public:
         m_executor->execute(task);
     }
 
-    void run_id(Task task, int id = -1) override {
+    void run_id(Task task, int id) override {
         m_executor->run_id(task, id);
     }
 };

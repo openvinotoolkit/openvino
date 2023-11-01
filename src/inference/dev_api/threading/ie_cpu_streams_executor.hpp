@@ -52,7 +52,7 @@ public:
 
     std::vector<int> GetCoresMtSockets() override;
 
-    void run_id(Task task, int id = -1) override;
+    void run_id(Task task, int id) override;
 
 private:
     struct Impl;
