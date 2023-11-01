@@ -22,8 +22,12 @@ int main(int argc, char* argv[]) {
     try {
         slog::info << "OpenVINO:" << slog::endl;
         slog::info << ov::get_openvino_version();
-        if (argc != 2) {
-            slog::info << "Usage : " << argv[0] << " <path_to_model>" << slog::endl;
+
+        std::string device_name = "CPU";
+        if (argc == 3) {
+            device_name = TSTRING2STRING(argv[2]);
+        } else if (argc != 2) {
+            slog::info << "Usage : " << argv[0] << " <path_to_model> <device_name>(default: CPU)" << slog::endl;
             return EXIT_FAILURE;
         }
         // Optimize for throughput. Best throughput can be reached by
@@ -34,7 +38,7 @@ int main(int argc, char* argv[]) {
         // Pick a device by replacing CPU, for example MULTI:CPU(4),GPU(8).
         // It is possible to set CUMULATIVE_THROUGHPUT as ov::hint::PerformanceMode for AUTO device
         ov::Core core;
-        ov::CompiledModel compiled_model = core.compile_model(argv[1], "CPU", tput);
+        ov::CompiledModel compiled_model = core.compile_model(argv[1], device_name, tput);
         // Create optimal number of ov::InferRequest instances
         uint32_t nireq = compiled_model.get_property(ov::optimal_number_of_infer_requests);
         std::vector<ov::InferRequest> ireqs(nireq);
