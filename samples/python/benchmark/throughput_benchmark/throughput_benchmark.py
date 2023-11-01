@@ -38,10 +38,10 @@ def main():
     tput = {'PERFORMANCE_HINT': 'THROUGHPUT'}
 
     # Create Core and use it to compile a model.
-    # Pick a device by replacing CPU, for example MULTI:CPU(4),GPU(8).
     # It is possible to set CUMULATIVE_THROUGHPUT as PERFORMANCE_HINT for AUTO device
     core = ov.Core()
-    compiled_model = core.compile_model(sys.argv[1], 'CPU', tput)
+    device_name = 'CPU' if len(sys.argv) == 2 else sys.argv[2]
+    compiled_model = core.compile_model(sys.argv[1], device_name, tput)
     # AsyncInferQueue creates optimal number of InferRequest instances
     ireqs = ov.AsyncInferQueue(compiled_model)
     # Fill input data for ireqs
