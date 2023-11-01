@@ -10,12 +10,26 @@
 [![brew Downloads](https://img.shields.io/homebrew/installs/dy/openvino)](https://formulae.brew.sh/formula/openvino)
  </div>
 
+## Contents:
+ - [What is OpenVINO?](#what-is-openvino-toolkit)
+ - [Getting Started](#getting-started)
+    - [Tutorials](#tutorials)
+ - [Installation](#installation)
+ - [Products Powered by OpenVINO](#products-povered-by-openvino)
+ - [Documentation](#documentation)
+ - [Supported Hardware](#system-requirements)
+ - [Building OpenVINO](#building-openvino)
+ - [Contributing](#contributing)
+ - [Getting Support](#getting-support)
+ - [License](#license)
+ - [Telemetry](#telemetry)
+
 ## What is OpenVINO toolkit?
 
-OpenVINO™ is an open-source toolkit for simple and efficient deployment of various deep learning models.
+OpenVINO™ is an open-source toolkit for simple and efficient deployment of various deep-learning models.
 
-- Boost deep learning performance in computer vision, automatic speech recognition, natural language processing and other common tasks.
-- Use models trained with popular frameworks lsuch as TensorFlow, Pytorch, ONNX, Keras, and PaddlePaddle.
+- Boost deep learning performance in computer vision, automatic speech recognition, natural language processing, and other common tasks.
+- Use models trained with popular frameworks such as TensorFlow, Pytorch, ONNX, Keras, and PaddlePaddle.
 - Reduce resource demands and efficiently deploy on a range of Intel® platforms from edge to cloud.
 
 OpenVINO includes several components: [OpenVINO Model Converter (OVC)], [OpenVINO™ Runtime], as well as CPU, GPU, NPU, auto batch and heterogeneous plugins to accelerate deep learning inference on Intel® CPUs and Intel® Processor Graphics.
@@ -48,12 +62,12 @@ Read detailed information on OpenVINO's features, components, and usage in the [
 Explore a variety of tutorials in the [OpenVINO Notebooks Repository](https://github.com/openvinotoolkit/openvino_notebooks)📚.
 
 Check out these notebooks that show how to optimize and deploy popular models (no installation required):
-- [Create a LLM-powered Chatbot using OpenVINO](https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/254-llm-chatbot/254-llm-chatbot.ipynb)📱
-- [YOLOv8 Optimization](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/230-yolov8-optimization)🚀
-- [Text-to-Image Generation](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/235-controlnet-stable-diffusion)🏞️
-- [Quick Start Inference Example](https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/201-vision-monodepth)💻
+- [Create an LLM-powered Chatbot using OpenVINO](https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/254-llm-chatbot/254-llm-chatbot.ipynb)
+- [YOLOv8 Optimization](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/230-yolov8-optimization)
+- [Text-to-Image Generation](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/235-controlnet-stable-diffusion)
+- [Quick Start Inference Example](https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/201-vision-monodepth)
 
-#### Installation
+### Installation
 
 Get your OpenVINO installation command with just a few clicks. [Go to the installation page](https://docs.openvino.ai/2023.1/openvino_docs_install_guides_overview.html).
 
@@ -65,10 +79,20 @@ Get your OpenVINO installation command with just a few clicks. [Go to the instal
 -   [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf) - a suite of advanced algorithms for model inference optimization including quantization, filter pruning, binarization and sparsity.
 -   [OpenVINO™ Model Server (OVMS)](https://github.com/openvinotoolkit/model_server) - a scalable, high-performance solution for serving models optimized for Intel architectures.
 -   [Software Development Kit (SDK) for the Intel® Geti™ platform for Computer Vision AI model training](https://github.com/openvinotoolkit/geti-sdk) - an online, interactive video and image annotation tool for computer vision use cases.
--	[RapidOCR](https://github.com/RapidAI/RapidOCR) - A cross platform OCR Library based on PaddleOCR & OnnxRuntime & OpenVINO.
+-	[RapidOCR](https://github.com/RapidAI/RapidOCR) - a cross platform OCR Library based on PaddleOCR & OnnxRuntime & OpenVINO.
+
+#### External OpenVINO-Powered Products
+
+-	[GIMP AI plugins](https://github.com/intel/openvino-ai-plugins-gimp) - GIMP AI plugins with OpenVINO Backend.
+-	[Frigate](https://github.com/blakeblackshear/frigate) – NVR with real-time local object detection for IP cameras.
+-	[whisper.cpp](https://github.com/ggerganov/whisper.cpp) - high-performance inference of OpenAI's Whisper automatic speech recognition (ASR) model.
+-	[langchain](https://github.com/langchain-ai/langchain) -  a framework designed to simplify the creation of applications using large language models.
+-	[stable-diffusion-webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui) - a browser interface based on Gradio library for Stable Diffusion.
 
 <details>
-  <summary>More Ecosystem components</summary>
+  <summary>More products</summary>
+
+   **Ecosystem** 
 
   -   [OpenVINO™ Training Extensions (OTE)](https://github.com/openvinotoolkit/training_extensions) - an environment to train models and convert them using OpenVINO for optimized inference.
   -   [Dataset Management Framework (Datumaro)](https://github.com/openvinotoolkit/datumaro) - a framework and CLI tool to build, transform, and analyze datasets.
@@ -76,39 +100,32 @@ Get your OpenVINO installation command with just a few clicks. [Go to the instal
   -	  [OpenVINO.NET](https://github.com/sdcb/OpenVINO.NET) - a high-quality .NET wrapper for OpenVINO™ toolkit.
   -   [openvino_contrib](https://github.com/openvinotoolkit/openvino_contrib) - a repository for the development of additional OpenVINO modules 
 
+   **External** 
+   -   [OpenCV](https://opencv.org/) - a library of programming functions mainly for real-time computer vision. 
+   -   [ONNX Runtime](https://onnxruntime.ai/) - a cross-platform inference and training machine-learning accelerator. 
+   -   [TNN](https://github.com/Tencent/TNN/tree/master) - a high-performance, lightweight neural network inference framework.
+
 </details>
-
-#### External OpenVINO-Powered Products
-
--	[GIMP AI plugins](https://github.com/intel/openvino-ai-plugins-gimp) - GIMP AI plugins with OpenVINO Backend
--	[Frigate](https://github.com/blakeblackshear/frigate) – NVR with realtime local object detection for IP cameras
--   [ONNX Runtime](https://onnxruntime.ai/) - a cross-platform inference and training machine-learning accelerator. 
--   [TNN](https://github.com/Tencent/TNN/tree/master) - a high-performance, lightweight neural network inference framework.
--	[whisper.cpp](https://github.com/ggerganov/whisper.cpp)
--	[langchain](https://github.com/langchain-ai/langchain)
--	[stable-diffusion-webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui)
--   [OpenCV](https://opencv.org/) - a library of programming functions mainly for real-time computer vision. 
 
 ### Documentation
 
 #### User documentation
 
-The latest documentation for OpenVINO™ Toolkit is available [here](https://docs.openvino.ai/). This documentation contains detailed information about all OpenVINO components and provides all the important information you may need to create an application based on binary OpenVINO distribution or own OpenVINO version without source code modification.
+The latest documentation for OpenVINO™ Toolkit is available [here](https://docs.openvino.ai/). This documentation contains detailed information about all OpenVINO components, providing you with essential details to create applications using binary OpenVINO distribution or your own  OpenVINO version without requiring source code modifications.
 
-* [Intel® Distribution of OpenVINO™ toolkit Product Page](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html)
-* [Intel® Distribution of OpenVINO™ toolkit Release Notes](https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino/2023-1.html)
-* [OpenVINO Success Stories](https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/success-stories.html)
+For additional resources and information, you can explore:
+
+* [Product Page](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html)
+* [Release Notes](https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino/2023-1.html)
+* [Success Stories](https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/success-stories.html)
 * [OpenVINO Blog](https://blog.openvino.ai/)
 * [OpenVINO™ toolkit on Medium](https://medium.com/@openvino)
 
 #### Developer documentation
 
-[Developer documentation](./docs/dev/index.md) contains information about architectural decisions which are applied inside the OpenVINO components. This documentation has all necessary information which could be needed in order to contribute to OpenVINO.
+[Developer documentation](./docs/dev/index.md) contains information about architectural decisions implemented within OpenVINO components. It offers all the essential information required for contributing to OpenVINO.
 
-
-## Supported Hardware
-
-- [System Requirements](https://docs.openvino.ai/2023.1/system_requirements.html)
+### Supported Hardware
 
 The OpenVINO™ Runtime can infer models on different hardware devices. This section provides the list of supported devices.
 
@@ -166,26 +183,25 @@ The OpenVINO™ Runtime can infer models on different hardware devices. This sec
     </tbody>
 </table>
 
-## How to build
+Check [System Requirements](https://docs.openvino.ai/2023.1/system_requirements.html) and [compatibility details](https://docs.openvino.ai/2023.1/compatibility_and_support.html) for more information.
+
+
+### Building OpenVINO
 
 See [How to build OpenVINO](./docs/dev/build.md) to get more information about the OpenVINO build process.
 
-## How to contribute
+### Contributing
 
-See [Contributions Welcome](https://github.com/openvinotoolkit/openvino/issues/17502) for good first issues.
+Explore the list of [Good First Issues](https://github.com/openvinotoolkit/openvino/issues/17502), if you're looking for a place to start contributing.
 
-See [CONTRIBUTING](./CONTRIBUTING.md) for contribution details. Thank you!
+For detailed guidelines, see [CONTRIBUTING](./CONTRIBUTING.md). Your contributions are greatly appreciated!
 
-[Good First Issues](https://github.com/openvinotoolkit/openvino/issues/17502)
-[Good First Issues Board](https://github.com/orgs/openvinotoolkit/projects/3)
+If you'd like to be assigned to an issue, simply leave a comment with the `.take` command in the selected issue.
 
 
-### Take the issue
-If you wish to be assigned to an issue please add a comment with `.take` command.  
+### Getting Support
 
-### Get a support
-
-Report questions, issues and suggestions, using:
+To report questions, issues, and suggestions, use:
 
 * [GitHub* Issues](https://github.com/openvinotoolkit/openvino/issues)
 * The [`openvino`](https://stackoverflow.com/questions/tagged/openvino) tag on StackOverflow\*
@@ -196,7 +212,7 @@ OpenVINO™ Toolkit is licensed under [Apache License Version 2.0](LICENSE).
 By contributing to the project, you agree to the license and copyright terms therein and release your contribution under these terms.
 
 ### Telemetry
-OpenVINO™ collects software performance and usage data for the purpose of improving OpenVINO™ tools. This data is collected directly by OpenVINO™ or through the use of Google Analytics 4.
+OpenVINO™ collects software performance and usage data to improve OpenVINO™ tools. This data is collected directly by OpenVINO™ or through the use of Google Analytics 4.
 You can opt-out at any time by running the command:
 
 ``` bash
