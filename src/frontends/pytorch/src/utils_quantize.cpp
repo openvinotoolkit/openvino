@@ -5,6 +5,7 @@
 #include "utils_quantize.hpp"
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -14,7 +15,6 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/op/bitwise_and.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
@@ -181,7 +181,7 @@ std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64
     std::shared_ptr<Node> bitwise_and = cast_fw_node(bitwise_and_candidate, "aten::bitwise_and");
     if (!bitwise_and) {
         bitwise_and = std::dynamic_pointer_cast<v13::BitwiseAnd>(bitwise_and_candidate);
-        if(!bitwise_and)
+        if (!bitwise_and)
             return nullptr;
     }
 
