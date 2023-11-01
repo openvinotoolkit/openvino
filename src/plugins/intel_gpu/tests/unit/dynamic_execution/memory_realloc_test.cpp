@@ -151,6 +151,8 @@ TEST(softmax_gpu_dynamic_f32_test_upper_bound, input_same_values) {
                format::bfyx);
     auto config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplementationDesc softmax_impl = { format::bfyx, "softmax_gpu_ref" };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "softmax", softmax_impl } }));
     network network(engine, topology(input_layout("input", in_layout),
                                      reorder("reorder", input_info("input"), format::bfyx, data_types::f16),
                                      softmax("softmax", input_info("reorder"), 3),

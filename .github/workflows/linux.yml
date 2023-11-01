@@ -82,6 +82,13 @@ jobs:
           ref: 'master'
 
       #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
+      #
       # Dependencies
       #
 
@@ -89,30 +96,20 @@ jobs:
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
           # default-jdk - Java API
-          # libssl1.1 - 'python3 -m pip' in self-hosted runner
-          apt install --assume-yes --no-install-recommends default-jdk libssl1.1
+          apt install --assume-yes --no-install-recommends default-jdk
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.3
         with:
           version: "v0.5.4"
 
-      - uses: actions/setup-python@v4
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Setup pip cache dir
-        run: |
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
-          echo "Using pip version: ${PIP_VER}"
-          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
-      - name: Get pip cache info
-        run: |
-          echo "Cache size: "
-          du -h -d2 ${PIP_CACHE_DIR}
-          echo "Cache info: "
-          python -m pip cache info
-        continue-on-error: true
+          version: ${{ env.PYTHON_VERSION }}
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
 
       - name: Install python dependencies
         run: |
@@ -146,7 +143,6 @@ jobs:
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DENABLE_SYSTEM_TBB=ON \
             -DENABLE_SYSTEM_OPENCL=ON \
-            -DENABLE_SYSTEM_PUGIXML=ON \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCPACK_GENERATOR=TGZ \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
@@ -307,7 +303,7 @@ jobs:
 
   Samples:
     needs: Build
-    timeout-minutes: 10
+    timeout-minutes: 20
     defaults:
       run:
         shell: bash
@@ -342,21 +338,23 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
-      - name: Install 'actions/setup-python@v4' dependencies
-        run: apt-get update && apt-get install -y libssl1.1
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Setup pip cache dir
-        run: |
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
-          echo "Using pip version: ${PIP_VER}"
-          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
-
       - name: Install OpenVINO dependencies
         run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
+
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
 
       - name: Build cpp samples - GCC
         run: ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples
@@ -421,7 +419,6 @@ jobs:
           - TEST_TYPE: 'OP'
           - TEST_TYPE: 'API'
     env:
-      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       CONFORMANCE_TOOLS_DIR: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary
@@ -429,7 +426,6 @@ jobs:
       TEST_DEVICE: 'CPU'
 
     steps:
-
       - name: Create Directories
         run: |
           mkdir -p ${CONFORMANCE_ARTIFACTS_DIR}
@@ -459,16 +455,24 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
-      - uses: actions/setup-python@v4
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
 
       - name: Install Dependencies
         run: |
           sudo -E ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
-
-          # Needed for downloading IRs from storage.openvinotoolkit with Python urllib
-          sudo apt-get update && sudo apt-get install --assume-yes --no-install-recommends ca-certificates
 
           python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
 
@@ -527,23 +531,25 @@ jobs:
       ONNX_RUNTIME_BUILD_DIR: /__w/openvino/openvino/onnxruntime/build
 
     steps:
-      - name: Fetch install_build_dependencies.sh
+      - name: Fetch install_build_dependencies.sh and setup_python action
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
             install_build_dependencies.sh
+            .github/actions/setup_python/action.yml
           sparse-checkout-cone-mode: false
           path: ${{ env.OPENVINO_REPO }}
-          ref: 'master'
 
       - name: Install git
         run: |
           apt-get update
           apt-get install --assume-yes --no-install-recommends git ca-certificates
 
-      - uses: actions/setup-python@v4
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
 
       #
       # Initialize OpenVINO
@@ -903,19 +909,20 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
-      - name: Install 'actions/setup-python@v4' dependencies
-        run: apt-get update && apt-get install -y libssl1.1 ca-certificates
-      - uses: actions/setup-python@v4
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-        env:
-          PIP_CACHE_DIR: ${{ env.PIP_CACHE_PATH }}
-      - name: Setup pip cache dir
-        run: |
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
-          echo "Using pip version: ${PIP_VER}"
-          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
-          echo "PIP_INSTALL_PATH=${Python_ROOT_DIR}/lib/python${PYTHON_VERSION}/site-packages" >> $GITHUB_ENV
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: ${{ env.OPENVINO_REPO }}
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
 
       - name: Install OpenVINO Python wheels
         run: |
@@ -1010,7 +1017,23 @@ jobs:
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -n logical -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
+          TEST_PRECISION: FP32
+
+      - name: PyTorch torch.compile TORCHFX Layer Tests
+        run: |
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_fx_backend --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP32
+          PYTORCH_TRACING_MODE: TORCHFX
+
+      - name: PyTorch torch.compile TORCHSCRIPT Layer Tests
+        run: |
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_ts_backend --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP32
+          PYTORCH_TRACING_MODE: TORCHSCRIPT
 
       - name: ONNX Layer Tests
         run: |
@@ -1095,6 +1118,7 @@ jobs:
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
     env:
+      OPENVINO_REPO: /__w/openvino/openvino/openvino
       INSTALL_DIR: /__w/openvino/openvino/install
       INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
       PARALLEL_TEST_SCRIPT: /__w/openvino/openvino/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
@@ -1125,12 +1149,19 @@ jobs:
       - name: Install OpenVINO dependencies
         run: bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
 
-      - name: Install 'actions/setup-python@v4' dependencies
-        run: apt-get update && apt-get install -y libssl1.1
-
-      - uses: actions/setup-python@v4
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: ${{ env.OPENVINO_REPO }}
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
 
       - name: Install python dependencies for run_parallel.py
         run: python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
@@ -1179,13 +1210,14 @@ jobs:
       run:
         shell: bash
     runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores'}}
-    timeout-minutes: ${{ github.event_name == 'schedule' && 300 || 5 }}
+    timeout-minutes: ${{ github.event_name == 'schedule' && 400 || 5 }}
     # TODO: Switch back to self-hosted runners
     # container:
     #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
     #   volumes:
     #     - /mount/caches:/mount/caches
     env:
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
@@ -1193,19 +1225,6 @@ jobs:
     steps:
       - name: Check sudo
         run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
-
-      - name: Install 'actions/setup-python@v4' dependencies
-        run: sudo apt-get update && sudo apt-get install -y libssl1.1 ca-certificates
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Setup pip cache dir
-        run: |
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
-          echo "Using pip version: ${PIP_VER}"
-          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
@@ -1228,6 +1247,21 @@ jobs:
           pushd ${INSTALL_TEST_DIR}
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
+
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
 
       - name: Install OpenVINO Python wheels
         run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
@@ -1256,7 +1290,7 @@ jobs:
   PyTorch_Models_Tests:
     name: PyTorch Models tests
     needs: Build
-    timeout-minutes: ${{ github.event_name == 'schedule' && 300 || 30 }}
+    timeout-minutes: ${{ github.event_name == 'schedule' && 400 || 30 }}
     defaults:
       run:
         shell: bash
@@ -1267,6 +1301,7 @@ jobs:
     #   volumes:
     #     - /mount/caches:/mount/caches
     env:
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
@@ -1277,8 +1312,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          # libssl1.1 - 'python3 -m pip' in self-hosted runner
-          sudo apt install --assume-yes --no-install-recommends libssl1.1
           # install git (required to build pip deps from the sources)
           # install 'g++' to build 'detectron2' and 'natten' wheels
           sudo apt-get install --assume-yes --no-install-recommends g++ git ca-certificates
@@ -1304,14 +1337,20 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
-      - uses: actions/setup-python@v4
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: Setup pip cache dir
-        run: |
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
-          echo "Using pip version: ${PIP_VER}"
-          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
 
       - name: Install OpenVINO Python wheels
         run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
@@ -1375,6 +1414,15 @@ jobs:
       SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
 
     steps:
+
+      - name: Fetch install_build_dependencies.sh
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            install_build_dependencies.sh
+          sparse-checkout-cone-mode: false
+          path: ${{ env.OPENVINO_REPO }}
+
       - name: Install Prerequisites
         run: apt update && apt install -y git ca-certificates
 
@@ -1399,21 +1447,6 @@ jobs:
           pushd ${INSTALL_DIR}
             tar -xzf openvino_developer_package.tar.gz -C ${INSTALL_DIR}
           popd
-
-      # TODO: replace with sparse checkout below
-      - name: Clone OpenVINO
-        uses: actions/checkout@v4
-        with:
-          path: ${{ env.OPENVINO_REPO }}
-
-      - name: Fetch install_build_dependencies.sh
-        if: ${{ 'false' }}
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            install_build_dependencies.sh
-          sparse-checkout-cone-mode: false
-          path: ${{ env.OPENVINO_REPO }}
 
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@v4

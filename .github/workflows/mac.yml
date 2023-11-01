@@ -75,15 +75,25 @@ jobs:
           path: 'openvino_contrib'
 
       #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
+      #
       # Dependencies
       #
 
       - name: Install build dependencies
         run: brew install coreutils ninja scons
 
-      - uses: actions/setup-python@v4
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
 
       - name: Install python dependencies
         run: |
@@ -203,11 +213,13 @@ jobs:
             machine: 'macos-13-xlarge'
     runs-on: ${{ matrix.machine }}
     env:
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       BUILD_DIR: ${{ github.workspace }}/build
 
     steps:
+
       #
       # Initialize OpenVINO
       #
@@ -237,9 +249,20 @@ jobs:
       - name: Install dependencies
         run: brew install coreutils
 
-      - uses: actions/setup-python@v4
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
 
       - name: Build cpp samples
         run: ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples
@@ -544,9 +567,12 @@ jobs:
       # Dependencies
       #
 
-      - uses: actions/setup-python@v4
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
@@ -616,9 +642,9 @@ jobs:
       - name: MO Python API Tests
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          export PYTHONPATH=${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
-          # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
-          source ${INSTALL_DIR}/setupvars.sh
+          
+          # Used for 'test_utils' installed in '<test_package>/python/openvino/test_utils'
+          export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}/python/openvino/test_utils:${{ env.INSTALL_TEST_DIR }}/python:$PYTHONPATH
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/mo_python_api_tests/ --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_mo_convert.xml
         env:
@@ -628,8 +654,9 @@ jobs:
       - name: OVC Python API Tests
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
-          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          
+          # Used for 'test_utils' installed in '<test_package>/python/openvino/test_utils'
+          export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}/python/openvino/test_utils:${{ env.INSTALL_TEST_DIR }}/python:$PYTHONPATH
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/ovc_python_api_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_ovc_convert.xml
         env:
