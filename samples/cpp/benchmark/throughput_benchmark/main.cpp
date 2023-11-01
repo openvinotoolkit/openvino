@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
 
         std::string device_name = "CPU";
         if (argc == 3) {
-            device_name = TSTRING2STRING(argv[2]);
+            device_name = argv[2];
         } else if (argc != 2) {
             slog::info << "Usage : " << argv[0] << " <path_to_model> <device_name>(default: CPU)" << slog::endl;
             return EXIT_FAILURE;
