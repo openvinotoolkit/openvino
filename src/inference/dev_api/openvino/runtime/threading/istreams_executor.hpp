@@ -191,6 +191,10 @@ public:
      */
     virtual int get_socket_id() = 0;
 
+    /**
+     * @brief Return numbers of cores in different sockets
+     * @return Numbers of cores per socket, or return empty vector
+     */
     virtual std::vector<int> get_cores_mt_sockets() = 0;
 
     /**
@@ -199,7 +203,26 @@ public:
      */
     virtual void execute(Task task) = 0;
 
-    virtual void run_id(Task task, int id = -1) = 0;
+    /**
+     * @brief Execute ov::Task inside sub stream of task executor context
+     * @param task A task to start
+     * @param id Sub stream id
+     */
+    virtual void run_id(Task task, int id) = 0;
+
+    /**
+     * @brief Execute all of the tasks and waits for its completion.
+     *        Default run_and_wait_id() method implementation uses run_id() pure virtual method
+     *        and higher level synchronization primitives from STL.
+     *        The task is wrapped into std::packaged_task which returns std::future.
+     *        std::packaged_task will call the task and signal to std::future that the task is finished
+     *        or the exception is thrown from task
+     *        Than std::future is used to wait for task execution completion and
+     *        task exception extraction
+     * @note run_and_wait_id() does not copy or capture tasks!
+     * @param tasks A vector of tasks to execute
+     * @param id Sub stream id
+     */
     void run_and_wait_id(const std::vector<Task>& tasks, int id);
 };
 

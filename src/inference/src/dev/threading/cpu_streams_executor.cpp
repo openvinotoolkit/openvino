@@ -705,7 +705,6 @@ void CPUStreamsExecutor::run(Task task) {
 }
 
 void CPUStreamsExecutor::run_id(Task task, int id) {
-    // std::cout << "[CPUStreamsExecutor::run_id] " << _impl->_config._name << " "<< _impl->_config._streams << " id: " << id << "\n";
     _impl->Enqueue_sub(std::move(task), id);
 }
 
