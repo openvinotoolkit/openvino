@@ -111,7 +111,6 @@ private:
 
     const size_t reg_indexes_idx;
     const size_t reg_const_params_idx;
-    std::shared_ptr<snippets::op::Kernel> m_kernel_node;
 };
 
 class LoopBeginEmitter : public jit_emitter {

@@ -14,6 +14,8 @@
 
 #include "snippets/itt.hpp"
 
+bool g_enable_snippets_err_detector = false;
+
 namespace ov {
 namespace snippets {
 
