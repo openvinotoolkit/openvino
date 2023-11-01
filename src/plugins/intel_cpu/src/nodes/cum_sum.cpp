@@ -20,7 +20,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool CumSum::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool CumSum::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto cumsum = std::dynamic_pointer_cast<const ngraph::opset3::CumSum>(op);
         if (!cumsum) {
@@ -33,7 +33,7 @@ bool CumSum::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-CumSum::CumSum(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+CumSum::CumSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -60,8 +60,8 @@ CumSum::CumSum(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
 
     if (getOriginalInputsNumber() == numOfInputs) {
         const auto axis_shape = cumsum->get_input_partial_shape(AXIS);
-        if (axis_shape.is_dynamic() || !ngraph::is_scalar(axis_shape.to_shape()))
-            IE_THROW() << errorPrefix << " doesn't support 'axis' input tensor with non scalar rank";
+        if (axis_shape.is_dynamic() || !ov::is_scalar(axis_shape.to_shape()))
+            OPENVINO_THROW(errorPrefix, " doesn't support 'axis' input tensor with non scalar rank");
     }
 
     if (dataShape != getOutputShapeAtPort(0))

@@ -31,7 +31,7 @@ namespace ov {
     [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
         return std::make_shared<e_type>(h.get(), isa, expr); \
     }, \
-    [](const std::shared_ptr<ngraph::Node>& n) -> std::set<std::vector<element::Type>> { \
+    [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> { \
         return e_type::get_supported_precisions(n); \
     } \
 }

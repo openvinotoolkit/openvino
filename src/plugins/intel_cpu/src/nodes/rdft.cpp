@@ -36,7 +36,7 @@ static constexpr size_t SIGNAL_SIZE_INDEX = 2;
 static constexpr double PI = 3.14159265358979323846;
 
 
-bool RDFT::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool RDFT::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         const bool isRDFT = is_type<const ov::op::v9::RDFT>(op);
         const bool isIRDFT = is_type<const ov::op::v9::IRDFT>(op);
@@ -76,7 +76,7 @@ static std::vector<int> getDefaultSignalSizes(const VectorDims& inputShape, cons
     return signalSizes;
 }
 
-RDFT::RDFT(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+RDFT::RDFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
                Node(op, context, NgraphShapeInferFactory(op, PortMask(1, 2))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
