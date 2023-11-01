@@ -43,7 +43,6 @@ OP_CONVERTER(translate_batch_norm);
 OP_CONVERTER(translate_bitwise_and);
 OP_CONVERTER(translate_bitwise_not);
 OP_CONVERTER(translate_bitwise_or);
-OP_CONVERTER(translate_bitwise_xor);
 OP_CONVERTER(translate_cat);
 OP_CONVERTER(translate_cdist);
 OP_CONVERTER(translate_channel_shuffle);
@@ -231,11 +230,11 @@ OP_CONVERTER(translate_transpose_fx);
 // Supported ops for TorchScript
 const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
     return {
-        {"aten::__and__", op::translate_bitwise_and},
+        {"aten::__and__", op::translate_and},
         {"aten::__derive_index", op::translate_derive_index},
         {"aten::__getitem__", op::translate_getitem},
         {"aten::__not__", op::translate_1to1_match_1_inputs<opset10::LogicalNot>},
-        {"aten::__or__", op::translate_bitwise_or},
+        {"aten::__or__", op::translate_or},
         {"aten::__xor__", op::translate_bitwise_xor},
         {"aten::__range_length", op::translate_range_length},
         {"aten::_convolution", op::translate_convolution},
@@ -281,10 +280,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::broadcast_to", op::translate_expand},
         {"aten::baddbmm", op::translate_addmm},
         {"aten::batch_norm", op::translate_batch_norm},
-        {"aten::bitwise_and", op::translate_bitwise_and},
         {"aten::bitwise_not", op::translate_bitwise_not},
-        {"aten::bitwise_or", op::translate_bitwise_or},
-        {"aten::bitwise_xor", op::translate_bitwise_xor},
         {"aten::bmm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::Bool", op::translate_bool},
         {"aten::cat", op::translate_cat},

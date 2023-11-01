@@ -9,11 +9,13 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestXor(PytorchLayerTest):
+
     def _prepare_input(self):
         return self.input_data
 
     def create_model_tensor_input(self):
         class aten_xor_tensor(torch.nn.Module):
+
             def __init__(self) -> None:
                 super().__init__()
 
@@ -26,6 +28,7 @@ class TestXor(PytorchLayerTest):
 
     def create_model_bool_input(self):
         class aten_xor_bool(torch.nn.Module):
+
             def __init__(self) -> None:
                 super().__init__()
 
@@ -38,6 +41,7 @@ class TestXor(PytorchLayerTest):
 
     def create_model_int_input(self):
         class aten_xor_int(torch.nn.Module):
+
             def __init__(self) -> None:
                 super().__init__()
 
@@ -51,28 +55,33 @@ class TestXor(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_xor_tensor(self, ie_device, precision, ir_version):
-        self.input_data = (
-            np.array([True, False, False], dtype=np.bool_),
-            np.array([True, True, False], dtype=np.bool_),
-        )
-        self._test(*self.create_model_tensor_input(), ie_device, precision, ir_version)
+        self.input_data = (np.array([True, False, False], dtype=np.bool_), np.array(
+            [True, True, False], dtype=np.bool_))
+        self._test(*self.create_model_tensor_input(),
+                   ie_device, precision, ir_version)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_xor_bool(self, ie_device, precision, ir_version):
-        self.input_data = (np.array(True, dtype=np.bool_), np.array(True, dtype=np.bool_))
-        self._test(*self.create_model_bool_input(), ie_device, precision, ir_version)
+        self.input_data = (np.array(True, dtype=np.bool_),
+                           np.array(True, dtype=np.bool_))
+        self._test(*self.create_model_bool_input(),
+                   ie_device, precision, ir_version)
 
+    @pytest.mark.xfail(reason="bitwise_xor is not implemented")
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_xor_int(self, ie_device, precision, ir_version):
-        self.input_data = (np.array(3, dtype=np.int32), np.array(4, dtype=np.int32))
-        self._test(*self.create_model_int_input(), ie_device, precision, ir_version)
+        self.input_data = (np.array(3, dtype=np.int),
+                           np.array(4, dtype=np.int))
+        self._test(*self.create_model_int_input(),
+                   ie_device, precision, ir_version)
 
+    @pytest.mark.xfail(reason="bitwise_xor is not implemented")
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_xor_tensor(self, ie_device, precision, ir_version):
-        self.input_data = (np.array([3, 5, 8], dtype=np.int32), np.array([7, 11, 2], dtype=np.int32))
-        self._test(
-            *self.create_model_tensor_input(), ie_device, precision, ir_version, freeze_model=False, trace_model=True
-        )
+        self.input_data = (np.array([3, 5, 8], dtype=np.int), np.array(
+            [7, 11, 2], dtype=np.int))
+        self._test(*self.create_model_tensor_input(),
+                   ie_device, precision, ir_version)
