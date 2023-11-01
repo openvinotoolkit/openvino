@@ -5,10 +5,10 @@
 #include "openvino/runtime/threading/istreams_executor.hpp"
 
 #include <algorithm>
+#include <future>
 #include <string>
 #include <thread>
 #include <vector>
-#include <future>
 
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "ie_plugin_config.hpp"
