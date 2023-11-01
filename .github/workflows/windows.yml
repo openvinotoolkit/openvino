@@ -4,14 +4,14 @@ on:
   schedule:
     # at 00:00 on workdays
     - cron: '0 0 * * 1,2,3,4,5'
-#  pull_request:
-#    paths-ignore:
-#      - '**/docs/**'
-#      - 'docs/**'
-#      - '**/**.md'
-#      - '**.md'
-#      - '**/layer_tests_summary/**'
-#      - '**/conformance/**'
+  pull_request:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
 # push:
 #   paths-ignore:
 #     - '**/docs/**'
@@ -295,22 +295,9 @@ jobs:
             Expand-Archive openvino_tests.zip -DestinationPath "${{ env.INSTALL_DIR }}"
           popd
 
-      - name: Clone OpenVINO
-        uses: actions/checkout@v4
-        with:
-          path: 'openvino'
-
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install Python API tests dependencies
-        run: |
-          # For torchvision to OpenVINO preprocessing converter
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/src/openvino/preprocess/torchvision/requirements.txt
-
-          # TODO: replace with Python API tests requirements
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_dev.txt
 
       - name: Install OpenVINO Python wheels
         run: |
@@ -321,6 +308,14 @@ jobs:
           # Find and install the dev OV wheel
           $ovDevWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}\tools" -Filter openvino_dev*.whl | % { $_.FullName }
           python3 -m pip install "$ovDevWheelPath[mxnet,caffe,kaldi,onnx,tensorflow2,pytorch]"
+
+      - name: Install Python API tests dependencies
+        run: |
+          # For torchvision to OpenVINO preprocessing converter
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/python/preprocess/torchvision/requirements.txt
+
+          # TODO: replace with Python API tests requirements
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/mo/requirements_dev.txt
 
       - name: Python API 1.0 Tests
         shell: cmd
@@ -354,7 +349,7 @@ jobs:
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
 
           :: requires 'unit_tests' from 'tools/mo'
-          set PYTHONPATH=${{ env.OPENVINO_REPO }}\tools\mo;${{ env.LAYER_TESTS_INSTALL_DIR }};%PYTHONPATH%
+          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\mo;%PYTHONPATH%
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/onnx_tests -m "not launch_only_if_manually_specified and precommit" --junitxml=${INSTALL_TEST_DIR}/TEST-onnx.xml
         env:
           TEST_DEVICE: CPU
@@ -366,7 +361,7 @@ jobs:
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
 
           :: requires 'unit_tests' from 'tools/mo'
-          set PYTHONPATH=${{ env.OPENVINO_REPO }}\tools\mo;${{ env.LAYER_TESTS_INSTALL_DIR }};%PYTHONPATH%
+          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\mo;%PYTHONPATH%
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
         env:
           TEST_DEVICE: CPU
@@ -378,7 +373,7 @@ jobs:
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
 
           :: requires 'unit_tests' from 'tools/mo'
-          set PYTHONPATH=${{ env.OPENVINO_REPO }}\tools\mo;${{ env.LAYER_TESTS_INSTALL_DIR }};%PYTHONPATH%
+          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\mo;%PYTHONPATH%
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_fe.xml
         env:
@@ -412,9 +407,9 @@ jobs:
         shell: cmd
         run: |
           :: Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
-          python3 -m pytest ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests -k "not cuda" ^
+          python3 -m pytest ${{ env.INSTALL_TEST_DIR }}/onnx -k "not cuda" ^
           --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-onnx_frontend.xml ^
-          --ignore=${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/test_python/test_zoo_models.py
+          --ignore=${{ env.INSTALL_TEST_DIR }}/onnx/test_python/test_zoo_models.py
 
       - name: MO Python API Tests
         shell: cmd
@@ -449,10 +444,9 @@ jobs:
 
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/py_frontend_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_py_fontend.xml
 
-      # TODO: install to 'tests' component via cpack
       - name: OVC unit tests
         shell: cmd
-        run: python3 -m pytest -s ${{ env.OPENVINO_REPO }}/tools/ovc/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
+        run: python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/ovc/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
