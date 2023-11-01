@@ -176,6 +176,25 @@ Engine::Engine() :
     deviceFullName(getDeviceFullName()),
     specialSetup(new CPUSpecialSetup) {
     _pluginName = "CPU";
+    std::vector<std::vector<int>> proc_type_table = get_proc_type_table();
+    ov::threading::IStreamsExecutor::Config streamsConfig;
+    streamsConfig._name = "CPUStreamsExecutor2";
+    streamsConfig._streams = 1;
+    streamsConfig._threads = 1;
+    if (proc_type_table[0][MAIN_CORE_PROC] > 0 && proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
+        streamsConfig._streams_info_table.push_back({1, MAIN_CORE_PROC, 1, 0, 0});
+    }
+    if (!streamsConfig._streams_info_table.empty()) {
+        InferenceEngine::ITaskExecutor::Ptr taskExecutor =
+            executorManager()->getIdleCPUStreamsExecutor(streamsConfig);
+        std::vector<Task> tasks;
+        tasks.emplace_back([&] {
+            dnnl::impl::cpu::x64::cpu();
+            // generate_stream_info(streams, ngraphFunc, config, proc_type_table);
+        });
+        taskExecutor->runAndWait(tasks);
+        executorManager()->clear("CPUStreamsExecutor2");
+    }
     extensionManager->AddExtension(std::make_shared<Extension>());
 #if defined(OV_CPU_WITH_ACL)
     scheduler_guard = SchedulerGuard::instance();
