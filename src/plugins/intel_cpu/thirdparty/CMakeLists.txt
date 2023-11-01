@@ -32,7 +32,7 @@ function(ov_add_onednn)
     set(DNNL_CPU_RUNTIME "${THREADING}" CACHE STRING "" FORCE)
     set(DNNL_GPU_RUNTIME "NONE" CACHE STRING "" FORCE)
     set(DNNL_BLAS_VENDOR "NONE" CACHE STRING "" FORCE)
-    set(ONEDNN_ENABLE_GEMM_KERNELS_ISA "SSE41" CACHE STRING "" FORCE) #Only build gemm driver for SSE41 ISA.
+    set(ONEDNN_ENABLE_GEMM_KERNELS_ISA "AVX2" CACHE STRING "" FORCE) #Only build gemm driver for AVX2 and below ISAs
 
     # plugin does not use onednn graph
     set(ONEDNN_BUILD_GRAPH OFF CACHE BOOL "" FORCE)
