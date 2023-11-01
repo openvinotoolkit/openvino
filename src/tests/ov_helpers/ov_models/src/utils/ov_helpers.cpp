@@ -336,22 +336,6 @@ void CompareFunctions(const Function& actual, const Function& expected) {
     }
 }
 
-std::shared_ptr<ov::Node> getNodeSharedPtr(const ov::NodeTypeInfo& type_info, const ov::OutputVector& outputVector) {
-    for (const auto& it : get_available_opsets()) {
-        const auto& opset = it.second();
-        if (opset.contains_type(type_info)) {
-            const auto node = std::shared_ptr<ov::Node>(opset.create(type_info.name));
-            node->set_arguments(outputVector);
-            node->validate_and_infer_types();
-            return node;
-        }
-    }
-    OPENVINO_THROW("supported opsets does not contain op with name: ",
-                   type_info.name,
-                   " version: ",
-                   type_info.version_id);
-}
-
 bool is_tensor_iterator_exist(const std::shared_ptr<ov::Model>& func) {
     const auto& ops = func->get_ops();
     for (const auto& node : ops) {

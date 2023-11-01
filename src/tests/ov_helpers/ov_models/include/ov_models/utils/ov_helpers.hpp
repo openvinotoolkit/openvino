@@ -153,9 +153,6 @@ std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function>& function
 std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> getConstData(
     const std::shared_ptr<Function>& function);
 
-std::shared_ptr<ngraph::Node> getNodeSharedPtr(const ngraph::NodeTypeInfo& type_info,
-                                               const ngraph::OutputVector& outputVector);
-
 std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>& output,
                                                  const element::Type_t& fromPrecision,
                                                  const element::Type_t& toPrecision,
