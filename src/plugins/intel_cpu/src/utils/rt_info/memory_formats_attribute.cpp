@@ -5,7 +5,7 @@
 #include "memory_formats_attribute.hpp"
 
 #include <ngraph/node.hpp>
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 
 using namespace ngraph;
 

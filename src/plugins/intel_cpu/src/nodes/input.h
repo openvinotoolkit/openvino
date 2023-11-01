@@ -6,7 +6,7 @@
 
 #include <ie_common.h>
 #include <node.h>
-#include <ngraph/op/constant.hpp>
+#include <openvino/op/constant.hpp>
 #include <string>
 
 namespace ov {
@@ -46,7 +46,7 @@ private:
     void initSupportedPdFromMemDesc();
 
 private:
-    std::shared_ptr<ngraph::op::Constant> constOp;
+    std::shared_ptr<ov::op::v0::Constant> constOp;
     MemoryCPtr memoryPtr;
     MemoryDescPtr extMemDesc = nullptr;
     bool isMeanImage = false;

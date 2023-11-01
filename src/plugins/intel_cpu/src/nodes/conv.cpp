@@ -213,7 +213,7 @@ private:
 
 bool Convolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ov::is_type<ngraph::op::v1::Convolution>(op) && !ov::is_type<ngraph::op::v1::GroupConvolution>(op)) {
+        if (!ov::is_type<ov::op::v1::Convolution>(op) && !ov::is_type<ov::op::v1::GroupConvolution>(op)) {
             errorMessage = "Only opset1 Convolution and GroupConvolution operations are supported";
             return false;
         }
@@ -242,8 +242,8 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    auto convolutionOp = ov::as_type_ptr<ngraph::op::v1::Convolution>(op);
-    auto groupConvolutionOp = ov::as_type_ptr<ngraph::op::v1::GroupConvolution>(op);
+    auto convolutionOp = ov::as_type_ptr<ov::op::v1::Convolution>(op);
+    auto groupConvolutionOp = ov::as_type_ptr<ov::op::v1::GroupConvolution>(op);
 
     if (convolutionOp) {
         algorithm = Algorithm::ConvolutionCommon;

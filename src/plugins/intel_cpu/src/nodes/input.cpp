@@ -26,7 +26,7 @@
 using namespace dnnl;
 using namespace InferenceEngine;
 using namespace details;
-using namespace ngraph::op;
+using namespace ov::op;
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
@@ -245,7 +245,7 @@ Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr conte
 
     constant = ConstantType::NoConst;
 
-    constOp = ov::as_type_ptr<ngraph::op::Constant>(op);
+    constOp = ov::as_type_ptr<ov::op::v0::Constant>(op);
     if (constOp) {
         constant = ConstantType::Const;
         cloneBlobIfRequired();

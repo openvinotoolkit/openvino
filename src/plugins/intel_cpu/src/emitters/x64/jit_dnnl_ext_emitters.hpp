@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ngraph/opsets/opset5.hpp"
+#include "openvino/opsets/opset5.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "jit_dnnl_emitters.hpp"
 
@@ -147,11 +147,11 @@ public:
     jit_gelu_v7_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& n,
                         InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32)
             : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
-        auto gelu = getNgraphOpAs<ngraph::op::v7::Gelu>(n);
-        ngraph::op::GeluApproximationMode approximationMode = gelu->get_approximation_mode();
-        if (approximationMode == ngraph::op::GeluApproximationMode::ERF)
+        auto gelu = getNgraphOpAs<ov::op::v7::Gelu>(n);
+        ov::op::GeluApproximationMode approximationMode = gelu->get_approximation_mode();
+        if (approximationMode == ov::op::GeluApproximationMode::ERF)
             kind = dnnl_eltwise_gelu_erf;
-        else if (approximationMode == ngraph::op::GeluApproximationMode::TANH)
+        else if (approximationMode == ov::op::GeluApproximationMode::TANH)
             kind = dnnl_eltwise_gelu_tanh;
         else
             IE_THROW(NotImplemented) << "Subgraph node doesn't support ngraph operation Gelu with approximation mode: " << approximationMode;
@@ -167,14 +167,14 @@ public:
         dnnl::impl::cpu::x64::cpu_isa_t host_isa,
         const std::shared_ptr<ov::Node>& n,
         InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32) : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
-        const auto round = getNgraphOpAs<ngraph::op::v5::Round>(n);
+        const auto round = getNgraphOpAs<ov::op::v5::Round>(n);
         const auto mode = round->get_mode();
-        if ((mode != ngraph::opset5::Round::RoundMode::HALF_AWAY_FROM_ZERO) &&
-            (mode != ngraph::opset5::Round::RoundMode::HALF_TO_EVEN)) {
+        if ((mode != ov::opset5::Round::RoundMode::HALF_AWAY_FROM_ZERO) &&
+            (mode != ov::opset5::Round::RoundMode::HALF_TO_EVEN)) {
             IE_THROW(NotImplemented) << "Round emitter doesn't support ngraph operation Round with mode: " << static_cast<int>(mode);
         }
 
-        kind = mode == ngraph::opset5::Round::RoundMode::HALF_AWAY_FROM_ZERO ?
+        kind = mode == ov::opset5::Round::RoundMode::HALF_AWAY_FROM_ZERO ?
             dnnl_eltwise_round_half_away_from_zero :
             dnnl_eltwise_round_half_to_even;
         set_injector();

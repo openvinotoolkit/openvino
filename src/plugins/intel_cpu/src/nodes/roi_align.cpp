@@ -10,9 +10,9 @@
 #include <dnnl_extension_utils.h>
 #include <utils/bfloat16.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include <selective_build.h>
-#include <ngraph/opsets/opset9.hpp>
+#include <openvino/opsets/opset9.hpp>
 
 #include <cpu/x64/jit_generator.hpp>
 #include "emitters/x64/jit_load_store_emitters.hpp"
@@ -29,8 +29,8 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-using ngPoolingMode = ngraph::opset9::ROIAlign::PoolingMode;
-using ngAlignedMode = ngraph::opset9::ROIAlign::AlignedMode;
+using ngPoolingMode = ov::opset9::ROIAlign::PoolingMode;
+using ngAlignedMode = ov::opset9::ROIAlign::AlignedMode;
 #if defined(OPENVINO_ARCH_X86_64)
 #define GET_OFF(field) offsetof(jit_roi_align_call_args, field)
 
@@ -651,7 +651,7 @@ private:
 #endif
 bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto roiAlign = ov::as_type_ptr<const ngraph::opset9::ROIAlign>(op);
+        auto roiAlign = ov::as_type_ptr<const ov::opset9::ROIAlign>(op);
         if (!roiAlign) {
             errorMessage = "Only opset9 ROIAlign operation is supported";
             return false;
@@ -680,7 +680,7 @@ ROIAlign::ROIAlign(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
 
-        auto roiAlign = ov::as_type_ptr<const ngraph::opset9::ROIAlign>(op);
+        auto roiAlign = ov::as_type_ptr<const ov::opset9::ROIAlign>(op);
         pooledH = roiAlign->get_pooled_h();
         pooledW = roiAlign->get_pooled_w();
         spatialScale = roiAlign->get_spatial_scale();

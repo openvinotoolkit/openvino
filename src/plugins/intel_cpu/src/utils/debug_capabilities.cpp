@@ -302,7 +302,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
             if (shape_size(shape) <= 8) {
                 auto type = InferenceEngine::details::convertPrecision(pmem->getDesc().getPrecision());
                 auto tensor = std::make_shared<ngraph::runtime::HostTensor>(type, shape, data);
-                auto constop = std::make_shared<ngraph::op::Constant>(tensor);
+                auto constop = std::make_shared<ov::op::v0::Constant>(tensor);
                 comma = "";
                 for (auto & v : constop->get_value_strings()) {
                     os << comma << v;

@@ -20,7 +20,7 @@ using namespace InferenceEngine::details;
 
 bool Eye::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (op->get_type_info() != ngraph::op::v9::Eye::get_type_info_static()) {
+        if (op->get_type_info() != ov::op::v9::Eye::get_type_info_static()) {
             errorMessage = "Node is not an instance of Eye form the operation set v9.";
             return false;
         }
