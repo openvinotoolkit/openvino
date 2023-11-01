@@ -127,8 +127,7 @@ OutputVector translate_channel_shuffle(const NodeContext& context) {
     auto k = context.mark_node(std::make_shared<v1::Divide>(c, groups, true));
     auto g = context.mark_node(std::make_shared<v0::Unsqueeze>(groups, zero));
     // 1. Reshape input [N, G, K=C/G, -1]
-    auto reshape_indices = context.mark_node(
-        std::make_shared<v0::Concat>(OutputVector{std::move(n), std::move(g), std::move(k), std::move(neg_1)}, 0));
+    auto reshape_indices = context.mark_node(std::make_shared<v0::Concat>(OutputVector{n, g, k, neg_1}, 0));
     x = context.mark_node(std::make_shared<v1::Reshape>(x, reshape_indices, false));
     // 2. Transpose to [N, K, G, -1]
     auto permute_indices = context.mark_node(v0::Constant::create(element::i32, Shape{4}, {0, 2, 1, 3}));

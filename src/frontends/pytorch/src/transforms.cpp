@@ -346,7 +346,7 @@ public:
                 // Replace a single result with 6 results, per each input of parent list_pack
 
                 auto inputs = list_pack->inputs();
-                for (auto& input : inputs) {
+                for (auto input : inputs) {
                     model->add_results({make_shared<opset10::Result>(input.get_source_output())});
                     // TODO: Keep tracking between original and new Results
                 }

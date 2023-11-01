@@ -94,7 +94,7 @@ bool DecomposeTupleParameters::run_on_model(const std::shared_ptr<Model>& model)
 
             auto new_parameter = std::make_shared<ov::op::v0::Parameter>(et, ps);
 
-            for (auto& input : inputs) {
+            for (auto input : inputs) {
                 auto names = input.get_tensor().get_names();
                 input.replace_source_output(new_parameter->output(0));
                 new_parameter->output(0).add_names(names);
