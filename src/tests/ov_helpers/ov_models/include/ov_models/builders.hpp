@@ -628,10 +628,6 @@ std::shared_ptr<ov::Node> makeOneHot(const ov::Output<Node>& indices,
                                      const float& off_val,
                                      const int64_t& axis);
 
-std::shared_ptr<ov::Node> makeRoll(const ov::Output<Node>& dataNode,
-                                   const ov::Output<Node>& shiftNode,
-                                   const ov::Output<Node>& axesNode);
-
 std::shared_ptr<ov::Node> makeDFT(const ov::Output<Node>& dataNode,
                                   const std::vector<int64_t>& axes,
                                   const std::vector<int64_t>& signalSize,
