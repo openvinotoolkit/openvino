@@ -15,7 +15,7 @@ Currently, `Neural Network Compression Framework (NNCF) <https://github.com/open
 Compress Model Weights
 ######################
 
-- **INT8 weight quantization** - this method is aimed at accurate optimization of the model which usually leads to the significant performance improvements of the Transformer-based models. Models with 8-bit compressed weights are performant on the vast majority of the supported CPU and GPU platforms.
+- **INT8 weight quantization** - this method is aimed at accurate optimization of the model which usually leads to significant performance improvements of the Transformer-based models. Models with 8-bit compressed weights are performant on the vast majority of the supported CPU and GPU platforms.
 
 The code snippet below shows how to do 8-bit quantization of the model weights represented in OpenVINO IR using NNCF:
 
@@ -30,8 +30,8 @@ The code snippet below shows how to do 8-bit quantization of the model weights r
 
 Now, the model is ready for compilation and inference. It can be also saved into a compressed format, resulting in a smaller binary file.
 
-- **INT4 weight quantization** - this method stands for a INT4-INT8 mixed-precision weight quantization where INT4 considered as a primary precision and INT8 is a backup one. It usually results in a smaller model size and a lower inference latency but accuracy degradation is also higher. The method has several parameters that can provide different performance-accuracy trade-offs after optimization:
-  - `mode` - there are two modes to chose from: `INT4_SYM` - stands for INT4 symmetric weight quantization and results in faster inference and smaller model size, and `INT4_ASYM` - INT4 asymmetric weight quantization with variable zero-point for more accurate results.
+- **INT4 weight quantization** - this method stands for an INT4-INT8 mixed-precision weight quantization where INT4 is considered as a primary precision and INT8 is a backup one. It usually results in a smaller model size and a lower inference latency but accuracy degradation is also higher. The method has several parameters that can provide different performance-accuracy trade-offs after optimization:
+  - `mode` - there are two modes to choose from: `INT4_SYM` - stands for INT4 symmetric weight quantization and results in faster inference and smaller model size, and `INT4_ASYM` - INT4 asymmetric weight quantization with variable zero-point for more accurate results.
   - `group_size` - controls the size of the group of weights that share the same quantization parameters. The smaller the model size the more accurate the optimized model. We recommend using the following group sizes: `128`, `64`, `32` (`128` is default value).
   - `ratio` - controls the ratio between INT4 and INT8 compressed layers in the model. For example, 0.8 means that 80% of layers will be compressed to INT4 while the rest to INT8 precision.
 
@@ -45,6 +45,13 @@ The example below shows 4-bit weight quantization applied on top of OpenVINO IR:
       .. doxygensnippet:: docs/optimization_guide/nncf/code/weight_compression_openvino.py
          :language: python
          :fragment: [compression_4bit]
+
+.. note::
+
+   OpenVINO also supports models from Hugging Face `Transformers <https://github.com/huggingface/transformers>`__ library optimized 
+   with `GPTQ <https://github.com/PanQiWei/AutoGPTQ>`__. There is no need to do an extra step of model optimization in this case.
+   The model should be converted to an OpenVINO IR as usual.
+   
 
 Additional Resources
 ####################
