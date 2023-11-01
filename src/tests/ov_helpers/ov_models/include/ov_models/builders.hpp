@@ -379,9 +379,6 @@ std::shared_ptr<ov::Node> makeProposal(const ov::Output<Node>& class_probs,
                                        float box_coordinate_scale,
                                        std::string framework);
 
-std::shared_ptr<ov::Node> makeSelect(std::vector<ov::Output<Node>>& in,
-                                     const ov::op::AutoBroadcastSpec& auto_broadcast);
-
 std::shared_ptr<Node> makeFakeQuantize(const ov::Output<Node>& in,
                                        const element::Type& type,
                                        std::size_t levels,
@@ -426,10 +423,6 @@ std::shared_ptr<ov::Node> makeEmbeddingSegmentsSum(const element::Type& dataType
                                                    size_t default_index,
                                                    bool with_weights,
                                                    bool with_default_index);
-
-std::shared_ptr<ov::Node> makeDepthToSpace(const ov::Output<Node>& in,
-                                           ov::op::v0::DepthToSpace::DepthToSpaceMode mode,
-                                           size_t blockSize);
 
 std::shared_ptr<ov::Node> makeSpaceToDepth(const ov::Output<Node>& in,
                                            ov::op::v0::SpaceToDepth::SpaceToDepthMode mode,
