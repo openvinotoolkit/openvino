@@ -771,11 +771,19 @@ private:
                 uni_vmovss(xmm_src, op);
                 break;
             case ov::element::bf16:
-                uni_vpinsrw(xmm_src, xmm_src, op, 0);
-                uni_vpslld(xmm_src, xmm_src, 16);
+                if (isa == x64::avx2_vnni_2) {
+                    vbcstnebf162ps(xmm_src, op);
+                } else {
+                    uni_vpinsrw(xmm_src, xmm_src, op, 0);
+                    uni_vpslld(xmm_src, xmm_src, 16);
+                }
                 break;
             case ov::element::f16:
-                vcvtph2ps(xmm_src, op);
+                if (isa == x64::avx2_vnni_2) {
+                    vbcstnesh2ps(xmm_src, op);
+                } else {
+                    vcvtph2ps(xmm_src, op);
+                }
                 break;
             case ov::element::i16:
                 uni_vpinsrw(xmm_src, xmm_src, op, 0);

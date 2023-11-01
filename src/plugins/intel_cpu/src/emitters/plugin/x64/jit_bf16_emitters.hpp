@@ -55,6 +55,9 @@ private:
             h->vfixupimmps(aux, in, table_val("selector"), 0);
             h->vpsrad(aux, aux, 16);
             h->vpmovdw(out, aux);
+        } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::cpu_isa_t::avx2_vnni_2)) {
+            Xmm out = Xmm(out_vec_idxs[0]);
+            h->vcvtneps2bf16(out, in, PreferredEncoding::VexEncoding);
         } else {  // round_to_nearest_even emulation
             Vmm aux = Vmm(aux_vec_idxs[0]);
             Xmm out = Xmm(out_vec_idxs[0]);

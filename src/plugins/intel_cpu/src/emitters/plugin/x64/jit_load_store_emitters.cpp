@@ -499,90 +499,87 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm &vmm, const Xbyak
     auto ymm = Xbyak::Ymm(vmm.getIdx());
     auto zmm = Xbyak::Zmm(vmm.getIdx());
 
-    auto load_words_to_dword_base = [&]() {
-        load_bytes(xmm, reg, offset, load_size);
-        if (is_bf16) {
-            h->uni_vpmovzxwd(vmm, xmm);
-            h->uni_vpslld(vmm, vmm, 16);
-        } else if (is_f16) {
-            h->vcvtph2ps(ymm, xmm);
-        } else {
-            if (is_signed)
-                h->uni_vpmovsxwd(vmm, xmm);
-            else
-                h->uni_vpmovzxwd(vmm, xmm);
-        }
-    };
-
     // For load_size == 32/16/8, do load/extension in one go
     // including xmm/ymm tail block for ymm/zmm, so explicite xmm/ymm/zmm
     switch (load_size) {
     case 32: {
-        if (mayiuse(cpu::x64::avx512_core)) {
-                if (is_bf16) {
-                    h->uni_vpmovzxwd(zmm, ptr[reg + offset]);
-                    h->uni_vpslld(zmm, zmm, 16);
-                } else if (is_f16) {
-                    h->vcvtph2ps(zmm, ptr[reg + offset]);
-                } else {
-                    if (is_signed)
-                        h->uni_vpmovsxwd(zmm, ptr[reg + offset]);
-                    else
-                        h->uni_vpmovzxwd(zmm, ptr[reg + offset]);
-                }
-                break;
+        // needed here?
+        if (!is_zmm)
+            IE_THROW() << "Load emitter in " << name_
+                       << " has unexpected number of values(32) to load to non-zmm in load_words_to_dword_extension.";
+        if (is_bf16) {
+            h->uni_vpmovzxwd(zmm, ptr[reg + offset]);
+            h->uni_vpslld(zmm, zmm, 16);
+        } else if (is_f16) {
+            h->vcvtph2ps(zmm, ptr[reg + offset]);
         } else {
-                load_words_to_dword_base();
+            if (is_signed)
+                h->uni_vpmovsxwd(zmm, ptr[reg + offset]);
+            else
+                h->uni_vpmovzxwd(zmm, ptr[reg + offset]);
         }
+        break;
     }
     case 16: {
         if (is_bf16) {
-                h->uni_vpmovzxwd(ymm, ptr[reg + offset]);
-                h->uni_vpslld(ymm, ymm, 16);
+            h->uni_vpmovzxwd(ymm, ptr[reg + offset]);
+            h->uni_vpslld(ymm, ymm, 16);
+
         } else if (is_f16) {
-                h->vcvtph2ps(ymm, ptr[reg + offset]);
+            h->vcvtph2ps(ymm, ptr[reg + offset]);
         } else {
-                if (is_signed)
-                    h->uni_vpmovsxwd(ymm, ptr[reg + offset]);
-                else
-                    h->uni_vpmovzxwd(ymm, ptr[reg + offset]);
+            if (is_signed)
+                h->uni_vpmovsxwd(ymm, ptr[reg + offset]);
+            else
+                h->uni_vpmovzxwd(ymm, ptr[reg + offset]);
         }
         break;
     }
     case 8: {
         if (is_bf16) {
-                h->uni_vpmovzxwd(xmm, ptr[reg + offset]);
-                h->uni_vpslld(xmm, xmm, 16);
+            h->uni_vpmovzxwd(xmm, ptr[reg + offset]);
+            h->uni_vpslld(xmm, xmm, 16);
         } else if (is_f16) {
-                h->vcvtph2ps(xmm, ptr[reg + offset]);
+            h->vcvtph2ps(xmm, ptr[reg + offset]);
         } else {
-                if (is_signed)
-                    h->uni_vpmovsxwd(xmm, ptr[reg + offset]);
-                else
-                    h->uni_vpmovzxwd(xmm, ptr[reg + offset]);
+            if (is_signed)
+                h->uni_vpmovsxwd(xmm, ptr[reg + offset]);
+            else
+                h->uni_vpmovzxwd(xmm, ptr[reg + offset]);
         }
         break;
     }
     default: {
         if (is_zmm && load_size > threshold_for_mask_emu_load) {
-                unsigned int mask = 1;
-                mask = (mask << (load_size / 2)) - mask;
-                h->mov(Reg32(aux_gpr_idxs[0]), mask);
-                h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
-                if (is_bf16) {
+            unsigned int mask = 1;
+            mask = (mask << (load_size / 2)) - mask;
+            h->mov(Reg32(aux_gpr_idxs[0]), mask);
+            h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
+            if (is_bf16) {
+                h->uni_vpmovzxwd(vmm | k_mask | T_z, ptr[reg + offset]);
+                h->uni_vpslld(vmm, vmm, 16);
+            } else if (is_f16) {
+                h->vcvtph2ps(vmm | k_mask | T_z, ptr[reg + offset]);
+            } else {
+                if (is_signed)
+                    h->uni_vpmovsxwd(vmm | k_mask | T_z, ptr[reg + offset]);
+                else
                     h->uni_vpmovzxwd(vmm | k_mask | T_z, ptr[reg + offset]);
-                    h->uni_vpslld(vmm, vmm, 16);
-                } else if (is_f16) {
-                    h->vcvtph2ps(vmm | k_mask | T_z, ptr[reg + offset]);
-                } else {
-                    if (is_signed)
-                        h->uni_vpmovsxwd(vmm | k_mask | T_z, ptr[reg + offset]);
-                    else
-                        h->uni_vpmovzxwd(vmm | k_mask | T_z, ptr[reg + offset]);
-                }
+            }
         } else {
-                // xmm or ymm version
-                load_words_to_dword_base();
+            // xmm or ymm version
+            load_bytes(xmm, reg, offset, load_size);
+            if (is_bf16) {
+                h->uni_vpmovzxwd(vmm, xmm);
+                h->uni_vpslld(vmm, vmm, 16);
+            } else if (is_f16) {
+                h->vcvtph2ps(ymm, xmm);
+            } else {
+                if (is_signed)
+                    h->uni_vpmovsxwd(vmm, xmm);
+                else
+                    h->uni_vpmovzxwd(vmm, xmm);
+            }
         }
         break;
     }
