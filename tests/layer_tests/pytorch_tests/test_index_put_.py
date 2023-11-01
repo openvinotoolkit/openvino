@@ -32,10 +32,10 @@ class TestIndexPut_SingleIndices(PytorchLayerTest):
         "input_data",
         (
             {
-                "input_tensor": np.random.randn(5).astype(np.float32),
+                "input_shape": [5],
                 "values": np.array(11).astype(np.float32)},
             {
-                "input_tensor": np.random.randn(3, 3).astype(np.float32),
+                "input_shape": [3, 3],
                 "values": np.array([10, 11, 12]).astype(np.float32),
             },
         ),
@@ -54,7 +54,7 @@ class TestIndexPut_SingleIndices(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_index_put_single_indices(self, ie_device, precision, ir_version, input_data, indices, accumulate):
-        self.input_tensor = input_data["input_tensor"]
+        self.input_tensor = np.random.randn(*input_data["input_shape"]).astype(np.float32)
         self.values = input_data["values"]
         self._test(*self.create_model(indices, accumulate), ie_device, precision, ir_version)
 
@@ -83,11 +83,11 @@ class TestIndexPut_ManyIndices(PytorchLayerTest):
         "input_data",
         (
             {
-                "input_tensor": np.random.randn(3, 3).astype(np.float32),
+                "input_shape": [3, 3],
                 "values": np.array(12).astype(np.float32)
             },
             {
-                "input_tensor": np.random.randn(3, 3, 3).astype(np.float32),
+                "input_shape": [3, 3, 3],
                 "values": np.array([10, 11, 12]).astype(np.float32),
             },
         ),
@@ -107,7 +107,7 @@ class TestIndexPut_ManyIndices(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_index_put_many_indices(self, ie_device, precision, ir_version, input_data, indices, accumulate):
-        self.input_tensor = input_data["input_tensor"]
+        self.input_tensor = np.random.randn(*input_data["input_shape"]).astype(np.float32)
         self.values = input_data["values"]
         self._test(*self.create_model(indices, accumulate), ie_device, precision, ir_version)
 
@@ -135,11 +135,11 @@ class TestNonZero_IndexPut(PytorchLayerTest):
         "input_data",
         (
             {
-                "input_tensor": np.random.randn(3).astype(np.float32),
+                "input_shape": [3],
                 "values": np.array(11).astype(np.float32),
             },
             {
-                "input_tensor": np.random.randn(3, 3).astype(np.float32),
+                "input_shape": [3, 3],
                 "values": np.array([10, 11, 12]).astype(np.float32),
             },
         ),
@@ -147,19 +147,22 @@ class TestNonZero_IndexPut(PytorchLayerTest):
     @pytest.mark.parametrize(
         "indices",
         (
-            (np.random.randint(low=0, high=2, size=(1,)), np.random.randint(low=0, high=2, size=(1,))),
-            (np.random.randint(low=0, high=2, size=(2,)), np.random.randint(low=0, high=2, size=(2,))),
-            (np.array([0, 1, 0]), np.array([1, 1, 0])),
-            (np.ones(shape=(3,)), np.ones(shape=(3,))),
-            (np.ones(shape=(3,)), np.zeros(shape=(3,))),
+            [[1, ], [1, ]],
+            [[2, ], [2, ]],
+            [np.array([0, 1, 0]), np.array([1, 1, 0])],
+            [np.ones(shape=(3,)), np.ones(shape=(3,))],
+            [np.ones(shape=(3,)), np.zeros(shape=(3,))],
         ),
     )
     @pytest.mark.parametrize("accumulate", (False, True))
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_nonzero_index_put_(self, ie_device, precision, ir_version, input_data, indices, accumulate):
-        self.input_tensor = input_data["input_tensor"]
+        self.input_tensor = np.random.randn(*input_data["input_shape"]).astype(np.float32)
         self.values = input_data["values"]
+        for i in range(len(indices)):
+            if type(indices[i]) is list:
+                indices[i] = np.random.randint(0, 2, indices[i])
         self.indices_0 = indices[0]
         self.indices_1 = indices[1]
         self._test(*self.create_model(accumulate), ie_device, precision, ir_version, trace_model=True, use_convert_model=True)
@@ -167,7 +170,7 @@ class TestNonZero_IndexPut(PytorchLayerTest):
 class TestMask_IndexPut(PytorchLayerTest):
     def _prepare_input(self):
         return (np.random.randn(100, 5).astype(np.float32),np.random.randn(100, 5).astype(np.float32))
-    
+
     def create_model(self):
         class aten_index_put_mask(torch.nn.Module):
             def forward(self, x, y):
