@@ -85,7 +85,7 @@ U4BlockRepack::U4BlockRepack() {
                 }
             }
 
-            copy_runtime_info({std::move(constant), std::move(reshape1), std::move(transpose), std::move(reshape2)},
+            copy_runtime_info({std::move(constant), std::move(reshape1), std::move(transpose), reshape2},
                               new_const);
             replace_node(reshape2, new_const);
 
