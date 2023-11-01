@@ -20,7 +20,7 @@ ov_add_test_target(
             openvino::runtime::dev
             gtest
             gtest_main
-            openvino::funcSharedTests
+            funcSharedTests
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
             ${TEST_COMMON_INCLUDE_DIR}
@@ -31,4 +31,4 @@ ov_add_test_target(
 )
 
 target_compile_definitions(${TARGET_NAME} PRIVATE ${COMPILE_DEFINITIONS})
-set_ie_threading_interface_for(${TARGET_NAME})
+ov_set_threading_interface_for(${TARGET_NAME})

@@ -114,21 +114,9 @@ void BrgemmCPU::validate_with_scratchpad(const ov::Shape& shape_b) const {
     // Additional check for 3rd input
     if (one_of(m_type, Type::WithCompensations, Type::AMX)) {
         const auto& pshape = get_input_partial_shape(2);
-        NGRAPH_CHECK(pshape.is_static(), "BRGEMM Scratch must have static shape");
-        const auto shape = pshape.to_shape();
-        const auto type = get_input_element_type(2);
+        OPENVINO_ASSERT(pshape.is_static(), "BRGEMM Scratch must have static shape");
         if (is_with_compensations()) {
-            const auto expected_type = ov::element::f32;
-            NGRAPH_CHECK(expected_type == type, "BRGEMM Scratch with compensations must have FP32 element type");
-            const auto N = *shape_b.rbegin();
-            // If N block size is not set, there is no meaning in validating the scratchpad shape
-            if (m_N_blk != N) {
-                const auto expected_shape = ov::Shape{rnd_up(N, m_N_blk)};
-                NGRAPH_CHECK(expected_shape == shape, "BRGEMM Scratch with compensations must have shape {rnd_up(N, m_N_blk)}");
-            }
-        } else {
-            NGRAPH_CHECK(ov::shape_size(shape) == SCRATCH_BYTE_SIZE && type == ov::element::u8,
-                         "BRGEMM Scratch for space workplace must be static, have U8 element type and size equal to " + std::to_string(SCRATCH_BYTE_SIZE));
+            OPENVINO_ASSERT(get_input_element_type(2) == ov::element::f32, "BRGEMM Scratch with compensations must have FP32 element type");
         }
     }
 }
@@ -179,14 +167,6 @@ std::shared_ptr<BrgemmCopyB> BrgemmCPU::get_brgemm_copy() const {
 size_t BrgemmCPU::get_offset_scratch() const {
     OPENVINO_ASSERT(is_with_scratchpad() && get_input_size() == 3, "Offset of scratchpad must be only in Brgemm with scratchpad on 3rd input");
     return get_input_offset(2);
-}
-
-BrgemmCPU::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) : Brgemm::ShapeInfer(n) {
-    const auto& brg = ov::as_type_ptr<BrgemmCPU>(n);
-    OPENVINO_ASSERT(brg, "Got invalid node in BrgemmCPU::ShapeInfer");
-    const auto brgemm_copy = brg->is_with_data_repacking() ? brg->get_brgemm_copy() : nullptr;
-    if (brgemm_copy)
-        m_io_layouts[1] = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(brgemm_copy->input(0))->get_layout();
 }
 
 } // namespace intel_cpu

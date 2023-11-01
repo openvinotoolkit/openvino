@@ -3,7 +3,6 @@
 //
 
 #include "openvino/util/file_util.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
 #include "utils/model.hpp"
 
 namespace ov {
@@ -46,7 +45,6 @@ find_models(const std::vector<std::string> &dirs, const std::string& regexp) {
             try {
                 // models.emplace_back(file);
                 if (ov::util::file_exists(model_file)) {
-                    auto core = ov::test::utils::PluginCache::get().core();
                     auto model_size = core->read_model(model_file)->get_graph_size();
                     models_sorted_by_size.insert({ model_size, model_file});
                 } else {
@@ -70,6 +68,13 @@ find_models(const std::vector<std::string> &dirs, const std::string& regexp) {
     return { models, { ModelCacheStatus::NOT_READ, not_read_model } };
 }
 
+std::string get_model_type(const std::shared_ptr<ov::Model>& model) {
+    if (is_dynamic_model(model)) {
+        return "dynamic";
+    }
+    return "static";
+}
+
 std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
     std::shared_ptr<ICache>& cache,
     const std::vector<std::string>& models,
@@ -81,7 +86,6 @@ std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
         { ModelCacheStatus::LARGE_MODELS_EXCLUDED, {} },
         { ModelCacheStatus::LARGE_MODELS_INCLUDED, {} },
     };
-    auto core = ov::test::utils::PluginCache::get().core();
     auto models_size = models.size();
 
     for (size_t i = 0; i < models_size; ++i) {
@@ -100,8 +104,8 @@ std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
                         cache_status[ModelCacheStatus::LARGE_MODELS_INCLUDED].push_back(model);
                     }
                     cache->update_cache(function, model, extract_body, from_cache);
-                } catch (std::exception) {
-                    // std::cout << "[ ERROR ] Model processing failed with exception:" << std::endl << e.what() << std::endl;
+                } catch (std::exception& e) {
+                    std::cout << "[ ERROR ] Model processing failed with exception:" << std::endl << e.what() << std::endl;
                     model_status = ModelCacheStatus::NOT_FULLY_CACHED;
                 }
             } catch (std::exception) {
@@ -113,6 +117,78 @@ std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
     }
 
     return cache_status;
+}
+
+std::map<std::string, InputInfo>
+get_input_info_by_model(const std::shared_ptr<ov::Model>& model) {
+    std::map<std::string, InputInfo> in_info;
+    for (const auto& node : model->get_ordered_ops()) {
+        InputInfo::Range ranges(DEFAULT_MIN_VALUE, DEFAULT_MAX_VALUE);
+        bool is_const = false;
+        if (ov::op::util::is_constant(node)) {
+            std::shared_ptr<ov::op::v0::Constant> constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+            auto const_ranges = get_const_ranges(constant,
+                                                 constant->get_default_output().get_element_type());
+            ranges = const_ranges;
+        } else if (!ov::op::util::is_parameter(node)) {
+            continue;
+        }
+        auto partial_shape = node->get_default_output().get_partial_shape();
+        in_info.insert({node->get_friendly_name(),
+                        InputInfo(partial_shape, ranges.min, ranges.max, is_const)});
+    }
+    return in_info;
+}
+
+std::map<std::string, InputInfo>
+align_input_info(const std::shared_ptr<ov::Model>& model,
+                 const std::shared_ptr<ov::Model>& model_ref,
+                 const std::map<std::string, InputInfo>& in_info,
+                 const std::map<std::string, InputInfo>& in_info_ref,
+                 const std::map<std::string, std::string> &matched_op) {
+    bool is_update_required = !matched_op.empty();
+    if (!is_update_required) {
+        for (const auto& ref_item : in_info_ref) {
+            if (!in_info.count(ref_item.first)) {
+                is_update_required = true;
+                break;
+            } else if (in_info.at(ref_item.first).is_const != ref_item.second.is_const) {
+                throw std::runtime_error("Impossible to update input info!!!");
+            }
+        }
+    }
+
+    std::map<std::string, InputInfo> updated_input_info = in_info_ref;
+    if (is_update_required) {
+        // align matched model names
+        const auto& ref_model_ops = model_ref->get_ordered_ops();
+        const auto& model_ops = model->get_ordered_ops();
+        size_t ref_ordered_ops_size = ref_model_ops.size();
+        size_t ordered_ops_size = model_ops.size();
+        if (ref_ordered_ops_size != ordered_ops_size && matched_op.empty()) {
+            throw std::runtime_error("Matched models can not be compared according different op numbers!");
+        }
+        for (size_t i = 0; i < ordered_ops_size; ++i) {
+            auto model_op_name = model_ops[i]->get_friendly_name();
+            if (!in_info.count(model_op_name)) {
+                continue;
+            }
+            if (!matched_op.empty()) {
+                if (!matched_op.count(model_op_name)) {
+                    continue;
+                }
+            }
+            auto model_ref_op_name = matched_op.empty() ? ref_model_ops[i]->get_friendly_name() : matched_op.at(model_op_name);
+
+            const auto& in_info_item = in_info.at(model_op_name);
+            const auto& ref_in_info_item = in_info_ref.at(model_ref_op_name);
+            if (in_info_item.is_const != ref_in_info_item.is_const) {
+                throw std::runtime_error("Impossible to update input info!!!");
+            }
+            updated_input_info[model_ref_op_name] = in_info_item;
+        }
+    }
+    return updated_input_info;
 }
 
 }  // namespace subgraph_dumper

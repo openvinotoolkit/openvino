@@ -49,6 +49,7 @@ bool fuse_type_to_nms3(const std::shared_ptr<ov::Node>& node, const precisions_m
 bool fuse_type_to_nms4(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_nms5(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_nms9(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
+bool fuse_type_to_nms_rotated(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_matrix_nms(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_multiclass_nms(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_generate_proposals(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
@@ -383,6 +384,7 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
         {opset4::NonMaxSuppression::get_type_info_static(), fuse_type_to_nms4},
         {opset5::NonMaxSuppression::get_type_info_static(), fuse_type_to_nms5},
         {opset9::NonMaxSuppression::get_type_info_static(), fuse_type_to_nms9},
+        {op::v13::NMSRotated::get_type_info_static(), fuse_type_to_nms_rotated},
         {opset8::MatrixNms::get_type_info_static(), fuse_type_to_matrix_nms},
         {opset8::MulticlassNms::get_type_info_static(), fuse_type_to_multiclass_nms},
         {opset9::MulticlassNms::get_type_info_static(), fuse_type_to_multiclass_nms},
@@ -684,6 +686,51 @@ bool fuse_type_to_nms9(const std::shared_ptr<ov::Node>& node, const precisions_m
         auto relaxed_op = std::make_shared<ov::op::TypeRelaxed<opset9::NonMaxSuppression>>(*nms,
                                                                                            ov::element::TypeVector{},
                                                                                            output_types);
+        replace_node(node, relaxed_op);
+        res = true;
+    }
+
+    return res;
+}
+
+bool fuse_type_to_nms_rotated(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
+    auto nms = ov::as_type_ptr<op::v13::NMSRotated>(node);
+    if (!nms) {
+        return false;
+    }
+
+    bool res = false;
+    auto it = precisions.find(node->get_output_element_type(0));
+    if (it != precisions.end()) {
+        const auto& to = it->second;
+        if (to == ov::element::i32 || to == ov::element::i64) {
+            nms->set_output_type_attr(to);
+            res = true;
+            if (precisions.count(node->get_output_element_type(1)) == 0) {
+                return res;
+            }
+        }
+    }
+
+    auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node);
+    ov::element::TypeVector output_types;
+    for (size_t i = 0; i < node->get_output_size(); i++) {
+        it = precisions.find(node->get_output_element_type(i));
+        if (it == precisions.end()) {
+            output_types.push_back(node->get_output_element_type(i));
+            continue;
+        }
+        const auto& to = it->second;
+        if (type_relaxed) {
+            type_relaxed->set_overridden_output_type(to, i);
+            res = true;
+        }
+        output_types.push_back(to);
+    }
+
+    if (!type_relaxed) {
+        auto relaxed_op =
+            std::make_shared<ov::op::TypeRelaxed<op::v13::NMSRotated>>(*nms, ov::element::TypeVector{}, output_types);
         replace_node(node, relaxed_op);
         res = true;
     }
@@ -1172,6 +1219,7 @@ bool fuse_type_to_constant(const std::shared_ptr<ov::Node>& node,
 
         new_const->validate_and_infer_types();
         new_const->set_friendly_name(constant->get_friendly_name());
+        ov::copy_runtime_info(constant, new_const);
         return true;
     }
     return false;

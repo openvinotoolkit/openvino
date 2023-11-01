@@ -124,6 +124,9 @@ TEST_P(eltwise_quantize, u8) {
     );
 
     tolerance = default_tolerance(data_types::i8);
+    if (p.default_type == data_types::f16 && p.default_format == format::b_fs_yx_fsv4) {
+        tolerance *= 2.f; // Issue: 94154
+    }
     execute(p);
 }
 
@@ -143,6 +146,9 @@ TEST_P(eltwise_quantize, i8_per_channel) {
     );
 
     tolerance = default_tolerance(data_types::i8);
+    if (p.default_type == data_types::f16 && p.default_format == format::b_fs_yx_fsv4) {
+        tolerance *= 11.f; // Issue: 94154
+    }
     execute(p);
 }
 

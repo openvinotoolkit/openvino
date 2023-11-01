@@ -4,24 +4,13 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <string>
-#include <memory>
-#include <vector>
+#include "node.h"
+#include "kernels/x64/non_max_suppression.hpp"
 
-#define BOX_COORD_NUM 4
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
-enum class NMSBoxEncodeType {
-    CORNER,
-    CENTER
-};
 
 enum NMSCandidateStatus {
     SUPPRESSED = 0,
@@ -29,57 +18,29 @@ enum NMSCandidateStatus {
     UPDATED = 2
 };
 
-struct jit_nms_config_params {
-    NMSBoxEncodeType box_encode_type;
-    bool is_soft_suppressed_by_iou;
-};
-
-struct jit_nms_args {
-    const void* selected_boxes_coord[BOX_COORD_NUM];
-    size_t selected_boxes_num;
-    const void* candidate_box;
-    const void* iou_threshold;
-    void* candidate_status;
-    // for soft suppression, score *= scale * iou * iou;
-    const void* score_threshold;
-    const void* scale;
-    void* score;
-};
-
-struct jit_uni_nms_kernel {
-    void (*ker_)(const jit_nms_args *);
-
-    void operator()(const jit_nms_args *args) {
-        assert(ker_);
-        ker_(args);
-    }
-
-    explicit jit_uni_nms_kernel(jit_nms_config_params jcp_) : ker_(nullptr), jcp(jcp_) {}
-    virtual ~jit_uni_nms_kernel() {}
-
-    virtual void create_ker() = 0;
-
-    jit_nms_config_params jcp;
-};
-
 class NonMaxSuppression : public Node {
 public:
-    NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    NonMaxSuppression(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override {};
+
     void initSupportedPrimitiveDescriptors() override;
+
     void execute(dnnl::stream strm) override;
+
+    void executeDynamicImpl(dnnl::stream strm) override;
+
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    struct filteredBoxes {
+    struct FilteredBox {
         float score;
         int batch_index;
         int class_index;
         int box_index;
-        filteredBoxes() = default;
-        filteredBoxes(float _score, int _batch_index, int _class_index, int _box_index) :
+        FilteredBox() = default;
+        FilteredBox(float _score, int _batch_index, int _class_index, int _box_index) :
                 score(_score), batch_index(_batch_index), class_index(_class_index), box_index(_box_index) {}
     };
 
@@ -89,66 +50,101 @@ public:
         int suppress_begin_index;
     };
 
-    float intersectionOverUnion(const float *boxesI, const float *boxesJ);
-
-    void nmsWithSoftSigma(const float *boxes, const float *scores, const SizeVector &boxesStrides,
-                          const SizeVector &scoresStrides, std::vector<filteredBoxes> &filtBoxes);
-
-    void nmsWithoutSoftSigma(const float *boxes, const float *scores, const SizeVector &boxesStrides,
-                             const SizeVector &scoresStrides, std::vector<filteredBoxes> &filtBoxes);
-
-    void executeDynamicImpl(dnnl::stream strm) override;
-
     bool isExecutable() const override;
+
     bool needShapeInfer() const override { return false; }
+
     void prepareParams() override;
+
+    struct Point2D {
+        float x, y;
+        Point2D(const float px = 0.f, const float py = 0.f) : x(px), y(py) {}
+        Point2D operator+(const Point2D& p) const {
+            return Point2D(x + p.x, y + p.y);
+        }
+        Point2D& operator+=(const Point2D& p) {
+            x += p.x;
+            y += p.y;
+            return *this;
+        }
+        Point2D operator-(const Point2D& p) const {
+            return Point2D(x - p.x, y - p.y);
+        }
+        Point2D operator*(const float coeff) const {
+            return Point2D(x * coeff, y * coeff);
+        }
+    };
 
 private:
     // input
     enum {
         NMS_BOXES,
         NMS_SCORES,
-        NMS_MAXOUTPUTBOXESPERCLASS,
-        NMS_IOUTHRESHOLD,
-        NMS_SCORETHRESHOLD,
-        NMS_SOFTNMSSIGMA,
+        NMS_MAX_OUTPUT_BOXES_PER_CLASS,
+        NMS_IOU_THRESHOLD,
+        NMS_SCORE_THRESHOLD,
+        NMS_SOFT_NMS_SIGMA,
     };
 
     // output
     enum {
-        NMS_SELECTEDINDICES,
-        NMS_SELECTEDSCORES,
-        NMS_VALIDOUTPUTS
+        NMS_SELECTED_INDICES,
+        NMS_SELECTED_SCORES,
+        NMS_VALID_OUTPUTS
     };
 
-    NMSBoxEncodeType boxEncodingType = NMSBoxEncodeType::CORNER;
-    bool sortResultDescending = true;
+    float intersectionOverUnion(const float *boxesI, const float *boxesJ);
 
-    size_t numBatches = 0;
-    size_t numBoxes = 0;
-    size_t numClasses = 0;
+    float rotatedIntersectionOverUnion(const Point2D (&vertices_0)[4], const float area_0, const float* box_1);
 
-    size_t maxOutputBoxesPerClass = 0lu;
-    float iouThreshold = 0.0f;
-    float scoreThreshold = 0.0f;
-    float softNMSSigma = 0.0f;
-    float scale = 1.f;
-    // control placeholder for NMS in new opset.
-    bool isSoftSuppressedByIOU = false;
+    void nmsWithSoftSigma(const float *boxes, const float *scores, const InferenceEngine::SizeVector &boxesStrides,
+                const InferenceEngine::SizeVector &scoresStrides, std::vector<FilteredBox> &filtBoxes);
 
-    bool m_outStaticShape = false;
+    void nmsWithoutSoftSigma(const float *boxes, const float *scores, const InferenceEngine::SizeVector &boxesStrides,
+                const InferenceEngine::SizeVector &scoresStrides, std::vector<FilteredBox> &filtBoxes);
 
-    std::string errorPrefix;
+    void nmsRotated(const float *boxes, const float *scores, const InferenceEngine::SizeVector &boxesStrides,
+                const InferenceEngine::SizeVector &scoresStrides, std::vector<FilteredBox> &filtBoxes);
 
-    std::vector<std::vector<size_t>> numFiltBox;
-    const std::string inType = "input", outType = "output";
+    void check1DInput(const Shape& shape,
+                      const std::string& name,
+                      const size_t port);
 
-    void checkPrecision(const Precision& prec, const std::vector<Precision>& precList, const std::string& name, const std::string& type);
-    void check1DInput(const Shape& shape, const std::vector<Precision>& precList, const std::string& name, const size_t port);
-    void checkOutput(const Shape& shape, const std::vector<Precision>& precList, const std::string& name, const size_t port);
+    void checkOutput(const Shape& shape,
+                     const std::string& name,
+                     const size_t port);
 
     void createJitKernel();
-    std::shared_ptr<jit_uni_nms_kernel> nms_kernel = nullptr;
+
+
+    NMSBoxEncodeType boxEncodingType = NMSBoxEncodeType::CORNER;
+    bool m_sort_result_descending = true;
+    bool m_clockwise = false;
+    bool m_rotated_boxes = false;
+    size_t m_coord_num = 1lu;
+
+    size_t m_batches_num = 0lu;
+    size_t m_boxes_num   = 0lu;
+    size_t m_classes_num = 0lu;
+
+    size_t m_max_output_boxes_per_class = 0lu; // Original value of input NMS_MAX_OUTPUT_BOXES_PER_CLASS
+    size_t m_output_boxes_per_class     = 0lu; // Actual number of output boxes
+    float m_iou_threshold   = 0.f;
+    float m_score_threshold = 0.f;
+    float m_soft_nms_sigma  = 0.f;
+    float m_scale = 0.f;
+    // control placeholder for NMS in new opset.
+    bool m_is_soft_suppressed_by_iou = false;
+
+    bool m_out_static_shape = false;
+
+    std::vector<std::vector<size_t>> m_num_filtered_boxes;
+    const std::string inType = "input";
+    const std::string outType = "output";
+    bool m_defined_outputs[NMS_VALID_OUTPUTS + 1] = { false, false, false };
+    std::vector<FilteredBox> m_filtered_boxes;
+
+    std::shared_ptr<kernel::JitKernelBase> m_jit_kernel;
 };
 
 }   // namespace node

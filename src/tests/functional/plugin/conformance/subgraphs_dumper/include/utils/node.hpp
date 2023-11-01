@@ -6,8 +6,11 @@
 #include <memory>
 
 #include "cache/meta/input_info.hpp"
+#include "utils/dynamism.hpp"
+
 #include "functional_test_utils/node_utils.hpp"
 #include "functional_test_utils/summary/op_info.hpp"
+
 #include "openvino/openvino.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/constant_folding.hpp"
@@ -26,6 +29,9 @@ inline InputInfo::Range get_const_ranges(const std::shared_ptr<ov::op::v0::Const
     return InputInfo::Range(static_cast<double>(min), static_cast<double>(max));
 }
 
+InputInfo::Range get_const_ranges(const std::shared_ptr<ov::op::v0::Constant>& const_node,
+                                  ov::element::Type elem_type);
+
 std::map<std::string, InputInfo> get_input_info_by_node(const std::shared_ptr<ov::Node>& node);
 
 // replace all input node by parameters and constants instead of non input mode types
@@ -41,20 +47,6 @@ std::shared_ptr<ov::op::v0::Parameter> convert_const_to_param(const std::shared_
 
 // all inputs are defined as parameters and contains detailed info in meta
 std::shared_ptr<ov::Model> generate_model_by_node(const std::shared_ptr<ov::Node>& node);
-
-inline bool is_dynamic_node(const std::shared_ptr<ov::Node>& node) {
-    for (size_t i = 0; i < node->get_input_size(); ++i) {
-        if (node->get_input_partial_shape(i).is_dynamic()) {
-            return true;
-        }
-    }
-    for (size_t i = 0; i < node->get_output_size(); ++i) {
-        if (node->get_output_partial_shape(i).is_dynamic()) {
-            return true;
-        }
-    }
-    return false;
-}
 
 inline std::string get_node_type(const std::shared_ptr<ov::Node>& node) {
     if (is_dynamic_node(node)) {
@@ -110,6 +102,12 @@ inline size_t get_node_priority_by_version(const std::shared_ptr<ov::Node>& node
     }
 
     return priority;
+}
+                                
+inline bool is_node_to_skip(const std::shared_ptr<ov::Node>& node) {
+    return ov::op::util::is_parameter(node) ||
+           ov::op::util::is_constant(node) ||
+           ov::op::util::is_output(node);
 }
 
 }  // namespace subgraph_dumper

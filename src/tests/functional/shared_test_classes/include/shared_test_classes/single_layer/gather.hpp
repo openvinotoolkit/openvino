@@ -83,4 +83,18 @@ protected:
     void SetUp() override;
 };
 
+typedef std::tuple<
+    gather7ParamsTuple,
+    std::vector<int>                   // indices data
+> gather8withIndicesDataParamsTuple;
+
+class Gather8withIndicesDataLayerTest : public testing::WithParamInterface<gather8withIndicesDataParamsTuple>,
+                         virtual public LayerTestsUtils::LayerTestsCommon {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<gather8withIndicesDataParamsTuple>& obj);
+
+protected:
+    void SetUp() override;
+};
+
 }  // namespace LayerTestsDefinitions

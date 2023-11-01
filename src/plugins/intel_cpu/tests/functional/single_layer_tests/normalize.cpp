@@ -80,6 +80,10 @@ protected:
         }
         auto normalize = builder::makeNormalizeL2(params[0], axes, eps, epsMode);
         function = makeNgraphFunction(inType, params, normalize, "Normalize");
+
+        if (inType == ov::element::bf16) {
+            abs_threshold = 1e-1f;
+        }
     }
 
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {

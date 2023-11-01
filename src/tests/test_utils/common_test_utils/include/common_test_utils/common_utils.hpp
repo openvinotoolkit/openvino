@@ -115,6 +115,10 @@ inline std::string set2str(const std::set<vecElementType>& set) {
     return std::string("()");
 }
 
+inline std::string bool2str(const bool val) {
+    return val ? "True" : "False";
+}
+
 template <typename master, typename slave>
 std::vector<std::pair<master, slave>> combineParams(const std::map<master, std::vector<slave>>& keyValueSets) {
     std::vector<std::pair<master, slave>> resVec;

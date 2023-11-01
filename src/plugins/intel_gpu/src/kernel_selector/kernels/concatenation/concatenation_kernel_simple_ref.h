@@ -15,6 +15,7 @@ public:
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    JitConstants GetJitConstants(const concatenation_params& params) const override;
     DispatchData SetDefault(const concatenation_params& params) const override;
     bool Validate(const Params& p, const optional_params& o) const override;
 
@@ -22,7 +23,10 @@ protected:
     ParamsKey GetSupportedKey() const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return {
-            FusedOpType::REORDER
+            FusedOpType::REORDER,
+            FusedOpType::ACTIVATION,
+            FusedOpType::ELTWISE,
+            FusedOpType::QUANTIZE
         };
     }
 };
