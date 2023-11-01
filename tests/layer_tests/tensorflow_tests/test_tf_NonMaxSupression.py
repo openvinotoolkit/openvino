@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -83,6 +85,8 @@ class TestNonMaxSuppression(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_tf_fe
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122716')
     def test_NonMaxSuppression(self, test_params, ie_device, precision, ir_version, temp_dir,
                               use_new_frontend, use_old_api):
         if ie_device == 'GPU':
