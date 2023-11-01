@@ -30,6 +30,8 @@ OPENVINO_SUPPRESS_DEPRECATED_START
         __VA_ARGS__;                                                        \
     } catch (const ::InferenceEngine::RequestBusy& ex) {                    \
         ov::Busy::create(ex.what());                                        \
+    } catch (const ov::Busy&) {                                             \
+        throw;                                                              \
     } catch (const std::exception& ex) {                                    \
         OPENVINO_THROW(ex.what());                                          \
     } catch (...) {                                                         \

@@ -16,15 +16,13 @@ function(add_common_utils ADD_TARGET_NAME)
     endif()
 
     # create target
-    addIeTarget(
+    ov_add_target(
             NAME ${ADD_TARGET_NAME}
             TYPE STATIC
             ROOT ${CMAKE_CURRENT_SOURCE_DIR}
             EXCLUDED_SOURCE_PATHS
                 ${TARGET_EXCLUDED_SOURCE_PATHS}
             ADD_CLANG_FORMAT
-            DEVELOPER_PACKAGE
-                tests
             LINK_LIBRARIES
                 PUBLIC
                     gtest
@@ -38,11 +36,13 @@ function(add_common_utils ADD_TARGET_NAME)
                     openvino::shape_inference
                 INCLUDES
                     PUBLIC
-                        "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
                     PRIVATE
                         "${CMAKE_CURRENT_SOURCE_DIR}/src"
-
     )
+
+    ov_developer_package_export_targets(TARGET ${ADD_TARGET_NAME}
+                                        INSTALL_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/")
 
     if(ENABLE_CONFORMANCE_PGQL)
         target_compile_definitions(${ADD_TARGET_NAME} PUBLIC ENABLE_CONFORMANCE_PGQL)
@@ -58,31 +58,14 @@ function(add_common_utils ADD_TARGET_NAME)
         PCH PRIVATE "src/precomp.hpp"
     )
 
-    # detecting regex support
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
-        set(USE_BOOST_RE ON)
-    endif()
-    if (USE_BOOST_RE)
-        target_compile_definitions(${ADD_TARGET_NAME} PUBLIC USE_BOOST_RE)
-
-        debug_message(STATUS "Adding boost dependency")
-        if (CMAKE_VERBOSE_MAKEFILE)
-            set(Boost_DEBUG on)
-        endif ()
-        find_package(Boost REQUIRED COMPONENTS regex)
-        target_link_libraries(${ADD_TARGET_NAME} PUBLIC ${Boost_REGEX_LIBRARY})
-        target_include_directories(${ADD_TARGET_NAME} PUBLIC ${Boost_INCLUDE_DIRS})
-    endif ()
-
     target_include_directories(${ADD_TARGET_NAME}
         PUBLIC
             $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>
         PRIVATE
             $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
-    target_include_directories(${ADD_TARGET_NAME} SYSTEM PUBLIC ${IE_TESTS_ROOT}/test_utils)
+    target_include_directories(${ADD_TARGET_NAME} SYSTEM PUBLIC "$<BUILD_INTERFACE:${OV_TESTS_ROOT}/test_utils>")
 
     target_compile_definitions(${ADD_TARGET_NAME} PUBLIC ${ARGN})
-
 endfunction()
 
 # Keep old name so that library can be used from NPU repo

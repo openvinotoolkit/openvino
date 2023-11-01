@@ -6,28 +6,31 @@ set(TARGET_NAME ov_models)
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-addIeTarget(
+ov_add_target(
         NAME ${TARGET_NAME}
         TYPE STATIC
         ROOT ${PUBLIC_HEADERS_DIR}
         INCLUDES
             PUBLIC
-                ${PUBLIC_HEADERS_DIR}
+                "$<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>"
         ADDITIONAL_SOURCE_DIRS
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         LINK_LIBRARIES
             PUBLIC
                 openvino::runtime
                 openvino::reference
-                interpreter_backend
+                openvino::interpreter_backend
                 openvino::runtime::dev
                 common_test_utils
         ADD_CLANG_FORMAT
-        DEVELOPER_PACKAGE
-            tests
 )
 
 ov_build_target_faster(${TARGET_NAME}
     UNITY
     PCH PRIVATE "src/precomp.hpp"
 )
+
+# install & export
+
+ov_developer_package_export_targets(TARGET ${TARGET_NAME}
+                                    INSTALL_INCLUDE_DIRECTORIES "${PUBLIC_HEADERS_DIR}/")

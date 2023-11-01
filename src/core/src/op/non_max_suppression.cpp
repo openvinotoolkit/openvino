@@ -550,7 +550,7 @@ std::ostream& operator<<(std::ostream& s, const op::v5::NonMaxSuppression::BoxEn
 }
 
 template <>
-NGRAPH_API EnumNames<op::v5::NonMaxSuppression::BoxEncodingType>&
+OPENVINO_API EnumNames<op::v5::NonMaxSuppression::BoxEncodingType>&
 EnumNames<op::v5::NonMaxSuppression::BoxEncodingType>::get() {
     static auto enum_names = EnumNames<op::v5::NonMaxSuppression::BoxEncodingType>(
         "op::v5::NonMaxSuppression::BoxEncodingType",
@@ -787,7 +787,7 @@ std::ostream& operator<<(std::ostream& s, const op::v9::NonMaxSuppression::BoxEn
 }
 
 template <>
-NGRAPH_API EnumNames<op::v9::NonMaxSuppression::BoxEncodingType>&
+OPENVINO_API EnumNames<op::v9::NonMaxSuppression::BoxEncodingType>&
 EnumNames<op::v9::NonMaxSuppression::BoxEncodingType>::get() {
     static auto enum_names = EnumNames<op::v9::NonMaxSuppression::BoxEncodingType>(
         "op::v9::NonMaxSuppression::BoxEncodingType",

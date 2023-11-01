@@ -6,11 +6,9 @@
 
 #include <cstring>
 
-#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "multinomial_shape_inference.hpp"
 #include "openvino/core/attribute_visitor.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/reference/multinomial.hpp"
 
@@ -60,7 +58,7 @@ void op::v13::Multinomial::validate_and_infer_types() {
 
 std::shared_ptr<Node> op::v13::Multinomial::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v13_Multinomial_clone_with_new_inputs);
-    check_new_args_count<OutputVector>(this, new_args);
+    check_new_args_count(this, new_args);
 
     return std::make_shared<op::v13::Multinomial>(new_args.at(0),
                                                   new_args.at(1),
@@ -116,12 +114,13 @@ namespace multinomial {
 namespace validate {
 void input_types(const Node* op) {
     NODE_VALIDATION_CHECK(op,
-                          op->get_input_element_type(0).is_real(),
+                          op->get_input_element_type(0).is_real() || op->get_input_element_type(0).is_dynamic(),
                           "Expected floating point type as element type for the 'probs' input.");
 
-    NODE_VALIDATION_CHECK(op,
-                          op->get_input_element_type(1).is_integral_number(),
-                          "Expected integer type as element type for the 'num_samples' input.");
+    NODE_VALIDATION_CHECK(
+        op,
+        op->get_input_element_type(1).is_integral_number() || op->get_input_element_type(1).is_dynamic(),
+        "Expected integer type as element type for the 'num_samples' input.");
 }
 }  // namespace validate
 }  // namespace multinomial

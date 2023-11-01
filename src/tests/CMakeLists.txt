@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(IE_TESTS_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+set(OV_TESTS_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
 enable_testing()
 
-ie_option(ENABLE_CONFORMANCE_PGQL "Enables support of PostgreSQL-based reporting from test tools" OFF)
+ov_option(ENABLE_CONFORMANCE_PGQL "Enables support of PostgreSQL-based reporting from test tools" OFF)
 mark_as_advanced(FORCE ENABLE_CONFORMANCE_PGQL)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")

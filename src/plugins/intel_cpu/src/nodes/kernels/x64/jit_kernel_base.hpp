@@ -1,14 +1,23 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "openvino/core/visibility.hpp"
+
+#if defined(OPENVINO_ARCH_X86_64)
 #include "cpu/x64/jit_generator.hpp"
 #include "registers_pool.hpp"
+#endif // OPENVINO_ARCH_X86_64
 
 namespace ov {
 namespace intel_cpu {
+namespace kernel {
+
+class JitKernelBase;
+
+#if defined(OPENVINO_ARCH_X86_64)
 
 #define getReg64() RegistersPool::Reg<Xbyak::Reg64>(registersPool)
 #define getReg32() RegistersPool::Reg<Xbyak::Reg32>(registersPool)
@@ -17,7 +26,11 @@ namespace intel_cpu {
 
 class JitKernelBase: public dnnl::impl::cpu::x64::jit_generator {
 public:
-    JitKernelBase(const char* name) : dnnl::impl::cpu::x64::jit_generator(name) {}
+    JitKernelBase(const char* name, dnnl::impl::cpu::x64::cpu_isa_t max_cpu_isa);
+
+    dnnl::impl::cpu::x64::cpu_isa_t getIsa() { return m_isa; }
+
+    size_t getVectorLen() { return vlen; }
 
     void uni_vfmsub132ps(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc, const Xbyak::Operand& op);
 
@@ -31,13 +44,23 @@ public:
 
     void uni_vpaddd(const Xbyak::Ymm& vDst, const Xbyak::Ymm& vSrc, const Xbyak::Operand& op);
 
+    void uni_vpaddq(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc, const Xbyak::Operand& op);
+
     void uni_vpsubd(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc, const Xbyak::Operand& op) {
         jit_generator::uni_vpsubd(vDst, vSrc, op);
     }
 
     void uni_vpsubd(const Xbyak::Ymm& vDst, const Xbyak::Ymm& vSrc, const Xbyak::Operand& op);
 
+    void uni_vsubpd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op);
+
+    void uni_vmulpd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op);
+
+    void uni_vpmuludq(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& op_1, const Xbyak::Operand& op_2);
+
     void uni_vdivps(const Xbyak::Xmm& vDst, const Xbyak::Operand& op1, const Xbyak::Operand& op2);
+
+    void uni_vdivpd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op2);
 
     void uni_vandps(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrs, const Xbyak::Operand &op);
 
@@ -62,6 +85,18 @@ public:
     void uni_vpbroadcastd(const Xbyak::Xmm &x, const Xbyak::Operand &op);
 
     void uni_vpbroadcastd(const Xbyak::Ymm &x, const Xbyak::Operand &op);
+
+    void uni_vpbroadcastq(const Xbyak::Xmm &x, const Xbyak::Operand &op);
+
+    void uni_vroundpd(const Xbyak::Xmm& v_dst, const Xbyak::Operand& op, const uint8_t imm);
+
+    void uni_vcvtdq2pd(const Xbyak::Xmm& v_dst, const Xbyak::Operand& op);
+
+    void uni_vcvtpd2dq(const Xbyak::Xmm& v_dst, const Xbyak::Operand& op);
+
+    void uni_vpmovzxdq(const Xbyak::Xmm& v_dst, const Xbyak::Operand& op);
+
+    void uni_vshufpd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_srs, const Xbyak::Operand& op, uint8_t imm);
 
     void gatherdd(const Xbyak::Xmm&    vDst,
                   const Xbyak::Reg64&  rSrcPtr,
@@ -140,7 +175,9 @@ protected:
         return dnnl::impl::cpu::x64::mayiuse(isa);
     }
 
+    const dnnl::impl::cpu::x64::cpu_isa_t m_isa;
     RegistersPool::Ptr registersPool;
+    size_t vlen;
 
     enum {
         // Comparison predicate operand (immediate byte) for single-precision floating-point values.
@@ -155,5 +192,70 @@ protected:
     };
 };
 
+template<typename CompileParams, typename CallArgs>
+class JitKernel : public JitKernelBase {
+public:
+    using KernelFunc = void (*)(const CallArgs *);
+
+    explicit JitKernel(const char* name, const CompileParams& jcp, dnnl::impl::cpu::x64::cpu_isa_t max_cpu_isa)
+        : JitKernelBase{name, max_cpu_isa}, m_jcp{jcp}, m_func{nullptr} {}
+
+    ~JitKernel() override = default;
+
+    dnnl::impl::status_t create_kernel() override {
+        const dnnl::impl::status_t code = jit_generator::create_kernel();
+        if (code != dnnl::impl::status::success) {
+            OPENVINO_THROW("Could not create kernel. Error code: ", std::to_string(code), ". ",
+                       "Xbyak error code: ", Xbyak::ConvertErrorToString(Xbyak::GetError()));
+        }
+        m_func = (decltype(m_func))jit_ker();
+        return code;
+    }
+
+    void operator()(const CallArgs* args) const {
+        assert(m_func);
+        m_func(args);
+    }
+
+    void operator()(const CallArgs& args) const {
+        this->operator()(&args);
+    }
+
+    template <template<dnnl::impl::cpu::x64::cpu_isa_t isa> class KernelT>
+    static std::shared_ptr<JitKernel<CompileParams, CallArgs>> createInstance(const CompileParams& jcp) {
+        std::shared_ptr<JitKernel<CompileParams, CallArgs>> res;
+
+        try {
+#define IF_ISA_CASE(ISA)                                \
+            if (dnnl::impl::cpu::x64::mayiuse(ISA))     \
+                res.reset(new KernelT<ISA>(jcp));       \
+            else
+
+            IF_ISA_CASE(dnnl::impl::cpu::x64::avx512_core)
+            IF_ISA_CASE(dnnl::impl::cpu::x64::avx2)
+            IF_ISA_CASE(dnnl::impl::cpu::x64::sse41);
+
+#undef IF_ISA_CASE
+
+            if (res) {
+                res->create_kernel();
+            }
+        } catch (...) {
+            return nullptr;
+        }
+
+        return res;
+    }
+
+protected:
+    CompileParams m_jcp;
+
+private:
+    KernelFunc m_func;
+};
+
+#endif // OPENVINO_ARCH_X86_64
+
+} // namespace kernel
 } // namespace intel_cpu
 } // namespace ov

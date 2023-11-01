@@ -22,7 +22,7 @@
       :sync: system-requirements
 
       Full requirement listing is available in:
-      `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
+      :doc:`System Requirements Page <system_requirements>`
    
    .. tab-item:: Processor Notes
       :sync: processor-notes
@@ -39,15 +39,15 @@
 Installing OpenVINO Runtime with Conan Package Manager
 ############################################################
 
-1. Install Conan 2.0.8 or higher:
-   
-   .. code-block:: console
+1. `Install Conan <https://docs.conan.io/2/installation.html>`__ 2.0.8 or higher, for example, using pip:
+
+   .. code-block:: sh
 
       python3 -m pip install conan
 
 2. Create a ``conanfile.txt`` file for your OpenVINO project and add "*openvino*" dependency in there:
 
-   .. code-block:: console
+   .. code-block:: sh
 
       [requires]
       openvino/2023.1.0
@@ -58,8 +58,8 @@ Installing OpenVINO Runtime with Conan Package Manager
       cmake_layout
 
    Run the command below to create ``conan_toolchain.cmake`` file, which will be used to compile your project with OpenVINO:
-   
-   .. code-block:: console
+
+   .. code-block:: sh
 
       conan install conanfile.txt --build=missing
    
@@ -68,20 +68,20 @@ Installing OpenVINO Runtime with Conan Package Manager
    what options there are on the `Conan Package Manager page for OpenVINO <https://conan.io/center/recipes/openvino>`__ 
    and extend the command, like so:
       
-   .. code-block:: console
+   .. code-block:: sh
    
-      conan install conanfile.txt --build=missing -o:h openvino/*:enable_intel_gpu=False -o:h openvino/*:enable_onnx_frontend=False' -o:h openvino/*:shared=True.
-      
+      conan install conanfile.txt --build=missing -o:h 'openvino/*:enable_intel_gpu=False' -o:h 'openvino/*:enable_onnx_frontend=False' -o:h 'openvino/*:shared=True'
+
 3. Configure and compile your project with OpenVINO:
-   
-   .. code-block:: console
+
+   .. code-block:: sh
 
       cmake -DCMAKE_TOOLCHAIN_FILE=<path to conan_toolchain.cmake> -DCMAKE_BUILD_TYPE=Release -S <path to CMakeLists.txt of your project> -B <build dir>
       cmake --build <build dir> --parallel
 
    .. note::
    
-      OpenVINO can be used with any build interface, as long as it is supported by Conan 2.0.
+      OpenVINO can be used with any build interface, as long as it is supported by Conan 2.0. Read `more <https://docs.conan.io/2/examples/tools.html>`__.
 
 Additional Resources
 ########################

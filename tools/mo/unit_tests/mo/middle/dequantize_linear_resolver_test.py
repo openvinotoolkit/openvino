@@ -9,7 +9,7 @@ from openvino.tools.mo.middle.dequantize_linear_resolver import DequantizeLinear
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
-from generator import generator, generate
+import pytest
 
 nodes1_attributes = {
     'input': {'kind': 'op', 'op': 'AnyOp'},
@@ -145,9 +145,9 @@ class TestDequantizeLinearResolver(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, 'out', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
-@generator
-class TestDequantizeWithAxis(unittest.TestCase):
-    @generate(*[(int64_array([1, 3, 4, 4]), np.array([2, 3, 4, 5], dtype=np.float32),
+class TestDequantizeWithAxis():
+    @pytest.mark.parametrize("input_shape, scale_param_value, zero_param_value, target_shape, axis",
+                             [(int64_array([1, 3, 4, 4]), np.array([2, 3, 4, 5], dtype=np.float32),
                  np.array([2, 3, 4, 5], dtype=np.uint8), int64_array([1, 1, 4, 1]), 2),
                 (int64_array([1, 3, 4, 4]), int64_array([2, 3, 4, 5]),
                  np.array([2, 3, 4, 5], dtype=np.uint8), int64_array([1, 3, 1, 1]), 1),
@@ -234,4 +234,4 @@ class TestDequantizeWithAxis(unittest.TestCase):
         DequantizeLinearResolver().find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'out', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp

@@ -14,7 +14,7 @@ endif()
 
 list(APPEND DEFINES TEST_CUSTOM_OP_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/custom_op/custom_op.xml")
 
-addIeTargetTest(
+ov_add_test_target(
         NAME
             ${TARGET_NAME}
         ROOT
@@ -35,7 +35,7 @@ addIeTargetTest(
             OpenCL::OpenCL
         ADD_CPPLINT
         LABELS
-            GPU
+            OV GPU
 )
 
 if(ENABLE_PROXY)
@@ -56,15 +56,4 @@ endif()
 if(WIN32)
     target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_DX11)
     target_link_libraries(${TARGET_NAME} PRIVATE d3d11 dxgi)
-endif()
-
-if (ENABLE_INTEL_CPU)
-    set_source_files_properties(
-        "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_plugin/life_time.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_plugin/properties_tests.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_infer_request/perf_counters.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/multi/gpu_remote_blob_tests.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/infer_request/memory_states.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_executable_network/exec_net_base.cpp"
-        PROPERTIES COMPILE_DEFINITIONS ENABLE_INTEL_CPU=1)
 endif()

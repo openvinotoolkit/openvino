@@ -92,19 +92,19 @@ bool evaluate_select(const HostTensorVector& output_values,
     bool rc = false;
 
     switch (et) {
-        NGRAPH_TYPE_CASE(evaluate_select, i8, output_values, input_values, autob);
-        NGRAPH_TYPE_CASE(evaluate_select, i16, output_values, input_values, autob);
-        NGRAPH_TYPE_CASE(evaluate_select, i32, output_values, input_values, autob);
-        NGRAPH_TYPE_CASE(evaluate_select, i64, output_values, input_values, autob);
-        NGRAPH_TYPE_CASE(evaluate_select, u8, output_values, input_values, autob);
-        NGRAPH_TYPE_CASE(evaluate_select, u16, output_values, input_values, autob);
-        NGRAPH_TYPE_CASE(evaluate_select, u32, output_values, input_values, autob);
-        NGRAPH_TYPE_CASE(evaluate_select, u64, output_values, input_values, autob);
-        NGRAPH_TYPE_CASE(evaluate_select, bf16, output_values, input_values, autob);
-        NGRAPH_TYPE_CASE(evaluate_select, f16, output_values, input_values, autob);
-        NGRAPH_TYPE_CASE(evaluate_select, f32, output_values, input_values, autob);
-        NGRAPH_TYPE_CASE(evaluate_select, f64, output_values, input_values, autob);
-        NGRAPH_TYPE_CASE(evaluate_select, boolean, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, i8, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, i16, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, i32, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, i64, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, u8, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, u16, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, u32, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, u64, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, bf16, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, f16, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, f32, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, f64, output_values, input_values, autob);
+        OPENVINO_TYPE_CASE(evaluate_select, boolean, output_values, input_values, autob);
     default:
         rc = false;
         break;
