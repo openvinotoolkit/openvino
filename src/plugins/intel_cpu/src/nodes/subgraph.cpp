@@ -502,15 +502,21 @@ void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMe
             jit_snippets_call_args call_args;
             update_ptrs(call_args, inMemPtrs, outMemPtrs);
 #ifdef __linux__
-            __sighandler_t signal_handler = [](int signal) {
-                ov::intel_cpu::g_debug_err_handler->local()->print_debug_info();
-                OPENVINO_THROW("Segfault was caught by the signal handler");
-            };
-            struct sigaction new_handler{};
-            new_handler.sa_handler = signal_handler;
-            sigaction(SIGSEGV, &new_handler, nullptr);
-#endif
+            if (g_enable_snippets_err_detector) {
+                __sighandler_t signal_handler = [](int signal) {
+                    ov::intel_cpu::g_snippets_err_handler->local()->print_debug_info();
+                    OPENVINO_THROW("Segfault was caught by the signal handler");
+                };
+                struct sigaction new_handler{};
+                new_handler.sa_handler = signal_handler;
+                sigaction(SIGSEGV, &new_handler, nullptr);
+                callable(indexes, &call_args);
+            } else {
+                callable(indexes, &call_args);
+            }
+#else
             callable(indexes, &call_args);
+#endif
         });
 }
 
@@ -531,15 +537,21 @@ void Snippet::SnippetJitExecutor::schedule_nt(const std::vector<MemoryPtr>& inMe
                 tmp /= work_size[j];
             }
 #ifdef __linux__
-            __sighandler_t signal_handler = [](int signal) {
-                ov::intel_cpu::g_debug_err_handler->local()->print_debug_info();
-                OPENVINO_THROW("Segfault was caught by the signal handler");
-            };
-            struct sigaction new_handler{};
-            new_handler.sa_handler = signal_handler;
-            sigaction(SIGSEGV, &new_handler, nullptr);
-#endif
+            if (g_enable_snippets_err_detector) {
+                __sighandler_t signal_handler = [](int signal) {
+                    ov::intel_cpu::g_snippets_err_handler->local()->print_debug_info();
+                    OPENVINO_THROW("Segfault was caught by the signal handler");
+                };
+                struct sigaction new_handler{};
+                new_handler.sa_handler = signal_handler;
+                sigaction(SIGSEGV, &new_handler, nullptr);
+                schedule.get_callable<kernel>()(indexes.data(), &call_args);
+            } else {
+                schedule.get_callable<kernel>()(indexes.data(), &call_args);
+            }
+#else
             schedule.get_callable<kernel>()(indexes.data(), &call_args);
+#endif
         }
     });
 }

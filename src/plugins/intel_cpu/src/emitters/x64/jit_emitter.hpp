@@ -3,7 +3,6 @@
 //
 
 #pragma once
-#include <cxxabi.h>
 #include <ie_common.h>
 #include <cpu/x64/jit_generator.hpp>
 
@@ -15,13 +14,19 @@
 
 #include <set>
 
+#ifndef _WIN32
+#include <cxxabi.h>
+#endif
+
 using namespace ov::threading;
+
+extern bool g_enable_snippets_err_detector;
 
 namespace ov {
 namespace intel_cpu {
 
 class jit_emitter;
-extern std::shared_ptr<ThreadLocal<jit_emitter*>> g_debug_err_handler;
+extern std::shared_ptr<ThreadLocal<jit_emitter*>> g_snippets_err_handler;
 
 enum emitter_in_out_map {
     vec_to_vec,

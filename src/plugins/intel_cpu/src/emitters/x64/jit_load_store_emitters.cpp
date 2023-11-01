@@ -97,23 +97,25 @@ size_t jit_load_emitter::aux_gprs_count() const {
 }
 
 void jit_load_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
-    // save runtime debug info
-    h->push(h->r15);
-    Xbyak::Label label_set_current;
-    h->mov(h->r15, reinterpret_cast<size_t>(&start_address));
-    h->cmp(h->qword[h->r15], 0);
-    h->jne(label_set_current);
-    h->mov(h->qword[h->r15], Xbyak::Reg64(in_idxs[0]));
-    h->L(label_set_current);
-    {
-        h->mov(h->r15, reinterpret_cast<size_t>(&current_address));
+    if (g_enable_snippets_err_detector) {
+        // save runtime debug info
+        h->push(h->r15);
+        Xbyak::Label label_set_current;
+        h->mov(h->r15, reinterpret_cast<size_t>(&start_address));
+        h->cmp(h->qword[h->r15], 0);
+        h->jne(label_set_current);
         h->mov(h->qword[h->r15], Xbyak::Reg64(in_idxs[0]));
+        h->L(label_set_current);
+        {
+            h->mov(h->r15, reinterpret_cast<size_t>(&current_address));
+            h->mov(h->qword[h->r15], Xbyak::Reg64(in_idxs[0]));
 
-        // iteration++
-        h->mov(h->r15, reinterpret_cast<size_t>(&iteration));
-        h->add(h->qword[h->r15], 0x01);
+            // iteration++
+            h->mov(h->r15, reinterpret_cast<size_t>(&iteration));
+            h->add(h->qword[h->r15], 0x01);
+        }
+        h->pop(h->r15);
     }
-    h->pop(h->r15);
 
     const int offset = in_idxs.size() == 2 ? in_idxs[1] : 0;
     if (host_isa_ == cpu::x64::sse41) {
@@ -686,23 +688,25 @@ void jit_store_emitter::emit_data() const {
 }
 
 void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
-    // save runtime debug info
-    h->push(h->r15);
-    Xbyak::Label label_set_current;
-    h->mov(h->r15, reinterpret_cast<size_t>(&start_address));
-    h->cmp(h->qword[h->r15], 0);
-    h->jne(label_set_current);
-    h->mov(h->qword[h->r15], Xbyak::Reg64(out_idxs[0]));
-    h->L(label_set_current);
-    {
-        h->mov(h->r15, reinterpret_cast<size_t>(&current_address));
+    if (g_enable_snippets_err_detector) {
+        // save runtime debug info
+        h->push(h->r15);
+        Xbyak::Label label_set_current;
+        h->mov(h->r15, reinterpret_cast<size_t>(&start_address));
+        h->cmp(h->qword[h->r15], 0);
+        h->jne(label_set_current);
         h->mov(h->qword[h->r15], Xbyak::Reg64(out_idxs[0]));
+        h->L(label_set_current);
+        {
+            h->mov(h->r15, reinterpret_cast<size_t>(&current_address));
+            h->mov(h->qword[h->r15], Xbyak::Reg64(out_idxs[0]));
 
-        // iteration++
-        h->mov(h->r15, reinterpret_cast<size_t>(&iteration));
-        h->add(h->qword[h->r15], 0x01);
+            // iteration++
+            h->mov(h->r15, reinterpret_cast<size_t>(&iteration));
+            h->add(h->qword[h->r15], 0x01);
+        }
+        h->pop(h->r15);
     }
-    h->pop(h->r15);
 
     const int offset = in_idxs.size() == 2 ? in_idxs[1] : 0;
     if (host_isa_ == cpu::x64::sse41) {

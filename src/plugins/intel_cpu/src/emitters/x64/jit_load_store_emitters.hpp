@@ -105,7 +105,6 @@ private:
     size_t start_address = 0;
     size_t current_address = 0;
     size_t iteration = 0;
-    std::shared_ptr<snippets::op::Store> m_load_node;
 };
 
 class jit_store_emitter : public jit_emitter {

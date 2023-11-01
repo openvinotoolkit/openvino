@@ -14,7 +14,7 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 
-std::shared_ptr<ThreadLocal<jit_emitter*>> g_debug_err_handler = std::make_shared<ThreadLocal<jit_emitter*>>();
+std::shared_ptr<ThreadLocal<jit_emitter*>> g_snippets_err_handler = std::make_shared<ThreadLocal<jit_emitter*>>();
 
 size_t jit_emitter::get_max_vecs_count() const {
     return one_of(host_isa_, cpu::x64::avx512_core, cpu::x64::avx512_core) ? 32 : 16;
@@ -211,7 +211,8 @@ void jit_emitter::emit_code(const std::vector<size_t> &in_idxs, const std::vecto
                             const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
-    build_debug_info();
+    if (g_enable_snippets_err_detector)
+        build_debug_info();
 
     emit_impl(in_idxs, out_idxs);
 
@@ -232,7 +233,7 @@ void jit_emitter::build_debug_info() const {
 }
 
 void jit_emitter::set_local_handler(jit_emitter* emitter_address) {
-    g_debug_err_handler->local() = emitter_address;
+    g_snippets_err_handler->local() = emitter_address;
 }
 
 }   // namespace intel_cpu

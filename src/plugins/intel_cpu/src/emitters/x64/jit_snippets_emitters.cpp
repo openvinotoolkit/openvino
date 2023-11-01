@@ -13,7 +13,6 @@
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op//brgemm_cpu.hpp"
 #include "snippets/op/rank_normalization.hpp"
-// #include <cxxabi.h>
 
 using namespace InferenceEngine;
 using namespace Xbyak;
@@ -29,19 +28,6 @@ using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
 namespace {
 constexpr size_t gpr_size = 8;
-
-// std::string get_type_name(const jit_emitter* emitter) {
-//         std::string name = typeid(*emitter).name();
-// #ifndef _WIN32
-//         int status;
-//         std::unique_ptr<char, void (*)(void*)> demangled_name(
-//                 abi::__cxa_demangle(name.c_str(), nullptr, nullptr, &status),
-//                 std::free);
-//         name = demangled_name.get();
-// #endif
-//         return name;
-// }
-
 } // namespace
 
 inline static void transform_idxs_to_regs(const std::vector<size_t>& idxs, std::vector<Reg64>& regs) {
@@ -116,10 +102,7 @@ KernelEmitter::KernelEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
     : jit_container_emitter(h, isa, expr),
       reg_indexes_idx(abi_param1.getIdx()),
       reg_const_params_idx(abi_param2.getIdx()) {
-    // const auto kernel = ov::as_type_ptr<snippets::op::Kernel>(expr->get_node());
-    m_kernel_node = ov::as_type_ptr<snippets::op::Kernel>(expr->get_node());
-//    const auto kernel = ov::as_type_ptr<snippets::op::Kernel>(n);
-    const auto kernel = m_kernel_node;
+    const auto kernel = ov::as_type_ptr<snippets::op::Kernel>(expr->get_node());
     if (!kernel)
         IE_THROW() << "KernelEmitter invoked with invalid op argument";
     if (kernel->region.empty())
@@ -225,7 +208,8 @@ KernelEmitter::KernelEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
 void KernelEmitter::emit_code(const std::vector<size_t> &in,
                               const std::vector<size_t> &out) const {
     validate_arguments(in, out);
-    build_debug_info();
+    if (g_enable_snippets_err_detector)
+        build_debug_info();
     emit_impl(in, out);
 }
 
@@ -379,6 +363,8 @@ void LoopBeginEmitter::print_debug_info() const {
 void LoopBeginEmitter::emit_code(const std::vector<size_t> &in,
                                  const std::vector<size_t> &out) const {
     validate_arguments(in, out);
+    if (g_enable_snippets_err_detector)
+        build_debug_info();
     emit_impl(in, out);
 }
 
@@ -434,6 +420,8 @@ void LoopEndEmitter::print_debug_info() const {
 void LoopEndEmitter::emit_code(const std::vector<size_t> &in,
                                  const std::vector<size_t> &out) const {
     validate_arguments(in, out);
+    if (g_enable_snippets_err_detector)
+        build_debug_info();
     emit_impl(in, out);
 }
 
