@@ -839,11 +839,12 @@ private:
     size_t mem_size() const {
         constexpr size_t bits_in_byte = 8;
         const auto bit_width = m_element_type.bitwidth();
-        const auto bit_size = shape_size(m_shape) * bit_width;
-        if ((bit_width < bits_in_byte) && (bit_size % bits_in_byte)) {
-            return (bit_size / bits_in_byte) + 1;
+        auto size = shape_size(m_shape);
+        if (bit_width < bits_in_byte) {
+            size *= bit_width;
+            return (size % bits_in_byte) ? (size / bits_in_byte) + 1 : (size / bits_in_byte);
         } else {
-            return bit_size / bits_in_byte;
+            return size * m_element_type.size();
         }
     }
 
