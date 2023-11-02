@@ -42,7 +42,7 @@ Result MultinomialShapeInfer::infer(const std::vector<std::reference_wrapper<con
 
 ShapeInferPtr MultinomialShapeInferFactory::makeShapeInfer() const {
     if (const auto multinomial = ov::as_type_ptr<const ov::op::v13::Multinomial>(m_op)) {
-        return std::make_shared<MultinomialShapeInfer>(multinomial);
+        return std::make_shared<MultinomialShapeInfer>();
     } else {
         OPENVINO_THROW("Unexpected operation type in the Multinomial shape inference factory");
     }

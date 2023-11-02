@@ -3,7 +3,6 @@
 //
 
 #include "multinomial.hpp"
-
 #include "ov_models/builders.hpp"
 
 using namespace ov::test;
@@ -13,8 +12,8 @@ namespace CPULayerTestsDefinitions {
 
 std::string MultinomialLayerTestCPU::getTestCaseName(const testing::TestParamInfo<MultinomialTestCPUParams>& obj) {
     std::string test_type;
-    InputShape probs_shape;
-    InputShape num_samples_shape;
+    ov::Tensor probs;
+    ov::Tensor num_samples;
     ov::test::ElementType convert_type;
     bool with_replacement;
     bool log_probs;
@@ -24,8 +23,8 @@ std::string MultinomialLayerTestCPU::getTestCaseName(const testing::TestParamInf
     ov::AnyMap additional_config;
 
     std::tie(test_type,
-             probs_shape,
-             num_samples_shape,
+             probs,
+             num_samples,
              convert_type,
              with_replacement,
              log_probs,
@@ -34,17 +33,20 @@ std::string MultinomialLayerTestCPU::getTestCaseName(const testing::TestParamInf
              cpu_params,
              additional_config) = obj.param;
 
-    std::ostringstream result;
     const char separator = '_';
-
+    std::ostringstream result;
     result << test_type << separator;
-    result << "probs_shape=" << ov::test::utils::partialShape2str({probs_shape.first}) << separator;
-    result << "num_shape=" << ov::test::utils::partialShape2str({num_samples_shape.first}) << separator;
+    result << "probs_shape=" << probs.get_shape().to_string() << separator;
+    if (num_samples.get_element_type() == ov::test::ElementType::i32) {
+        result << "num_samples=" << static_cast<int*>(num_samples.data())[0] << separator;
+    } else { // i64
+        result << "num_samples=" << static_cast<long*>(num_samples.data())[0] << separator;
+    }
     result << "convert_type=" << convert_type << separator;
-    result << "replacement=" << ov::test::utils::bool2str(with_replacement) << separator;
-    result << "log_probs=" << ov::test::utils::bool2str(log_probs) << separator;
-    result << "seed_global=" << global_seed << separator;
-    result << "seed_op=" << op_seed << separator;
+    result << "replace=" << ov::test::utils::bool2str(with_replacement) << separator;
+    result << "log=" << ov::test::utils::bool2str(log_probs) << separator;
+    result << "seed_g=" << global_seed << separator;
+    result << "seed_o=" << op_seed << separator;
 
     if (!additional_config.empty()) {
         result << "PluginConf={";
@@ -55,14 +57,14 @@ std::string MultinomialLayerTestCPU::getTestCaseName(const testing::TestParamInf
         result << "}";
     }
     return result.str();
-}
+};
 
 void MultinomialLayerTestCPU::SetUp() {
     MultinomialTestCPUParams test_params;
 
     std::string test_type;
-    InputShape probs_shape;
-    InputShape num_samples_shape;
+    ov::Tensor probs;
+    ov::Tensor num_samples;
     ov::test::ElementType convert_type;
     bool with_replacement;
     bool log_probs;
@@ -72,8 +74,8 @@ void MultinomialLayerTestCPU::SetUp() {
     ov::AnyMap additional_config;
 
     std::tie(test_type,
-             probs_shape,
-             num_samples_shape,
+             probs,
+             num_samples,
              convert_type,
              with_replacement,
              log_probs,
@@ -82,40 +84,36 @@ void MultinomialLayerTestCPU::SetUp() {
              cpu_params,
              additional_config) = GetParam();
 
+    m_probs = probs;
+    m_num_samples = num_samples;
     targetDevice = ov::test::utils::DEVICE_CPU;
     updateSelectedType("ref_any", convert_type, additional_config);
 
+    InputShape probs_shape;
+    InputShape num_samples_shape;
+    const ov::Shape probs_tensor_shape = probs.get_shape();
+    const ov::Shape num_samples_tensor_shape = num_samples.get_shape();
+    if (test_type == "static") {
+        probs_shape = {ov::PartialShape(probs_tensor_shape), {probs_tensor_shape}};
+        num_samples_shape = {ov::PartialShape(num_samples_tensor_shape), {num_samples_tensor_shape}};
+    } else { // dynamic
+        probs_shape = {ov::PartialShape::dynamic(ov::Rank(probs_tensor_shape.size())), {probs_tensor_shape}};
+        num_samples_shape = {ov::PartialShape::dynamic(ov::Rank(num_samples_tensor_shape.size())), {num_samples_tensor_shape}};
+    }
     init_input_shapes({probs_shape, num_samples_shape});
-
-    size_t probs_count = std::accumulate(probs_shape.second[0].begin(), probs_shape.second[0].end(), 1, std::multiplies<size_t>());
-    std::vector<float> probs(probs_count, 0.0f);
-    // std::cout << "C: " << probs_count << std::endl; 
-    // for(size_t q = 0; q < 4; q++) {
-    //     probs.at(4 * q - 1) = 1.0f;
-    // }
-    probs.at(3)  = 10.0f;
-    probs.at(7)  = 10.0f;
-    probs.at(11) = 10.0f;
-    probs.at(15) = 10.0f;
-    auto probs_const = ngraph::builder::makeConstant(ov::test::ElementType::f32, probs_shape.second[0], probs);
-    auto num_samples_const = ngraph::builder::makeConstant(ov::test::ElementType::i32, num_samples_shape.second[0], std::vector<int>{1});
-
-    auto probs_param = std::make_shared<ov::op::v0::Parameter>(ov::test::ElementType::f32, probs_shape.first);
-    auto num_samples_param = std::make_shared<ov::op::v0::Parameter>(ov::test::ElementType::i32, num_samples_shape.first);
 
     ov::ParameterVector params;
     std::vector<std::shared_ptr<ov::Node>> inputs;
-    // probs_param->set_friendly_name("probs");
-    // inputs.push_back(probs_param);
-    // params.push_back(probs_param);
-    // num_samples_param->set_friendly_name("num_samples");
-    // inputs.push_back(num_samples_param);
-    // params.push_back(num_samples_param);
 
-    probs_const->set_friendly_name("probs");
-    num_samples_const->set_friendly_name("num_samples");
-    inputs.push_back(probs_const);
-    inputs.push_back(num_samples_const);
+    auto probs_param = std::make_shared<ov::op::v0::Parameter>(probs.get_element_type(), probs_shape.first);
+    probs_param->set_friendly_name("probs");
+    inputs.push_back(probs_param);
+    params.push_back(probs_param);
+
+    auto num_samples_param = std::make_shared<ov::op::v0::Parameter>(num_samples.get_element_type(), num_samples_shape.first);
+    num_samples_param->set_friendly_name("num_samples");
+    inputs.push_back(num_samples_param);
+    params.push_back(num_samples_param);
 
     auto multinomial = std::make_shared<ov::op::v13::Multinomial>(inputs[0],
                                                                   inputs[1],
@@ -129,6 +127,16 @@ void MultinomialLayerTestCPU::SetUp() {
     function = std::make_shared<ov::Model>(results, params, "MultinomialCPU");
 }
 
+void MultinomialLayerTestCPU::generate_inputs(const std::vector<ov::Shape>& target_shapes) {
+    inputs.clear();
+    const auto& func_inputs = function->inputs();
+
+    auto& probs = func_inputs[0];
+    inputs.insert({probs.get_node_shared_ptr(), m_probs});
+    auto& num_samples = func_inputs[1];
+    inputs.insert({num_samples.get_node_shared_ptr(), m_num_samples});
+};
+
 void MultinomialLayerTestCPU::compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) {
     for(size_t i = 0; i < expected.size(); i++) {
         for(size_t j = 0; j < expected[i].get_size(); j++) {
@@ -139,7 +147,7 @@ void MultinomialLayerTestCPU::compare(const std::vector<ov::Tensor>& expected, c
         } std::cout << "\n";
     }
     SubgraphBaseTest::compare(expected, actual);
-}
+};
 
 TEST_P(MultinomialLayerTestCPU, CompareWithRefs) {
     run();

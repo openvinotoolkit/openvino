@@ -6,6 +6,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include <openvino/runtime/tensor.hpp>
 
 using namespace ov::test;
 using namespace CPUTestUtils;
@@ -13,8 +14,8 @@ using namespace CPUTestUtils;
 namespace CPULayerTestsDefinitions {
 
 typedef std::tuple<std::string,                      // test type
-                   InputShape,                       // probs_shape
-                   InputShape,                       // num_samples_shape
+                   ov::Tensor,                       // probs_shape
+                   ov::Tensor,                       // num_samples_shape
                    ov::test::ElementType,            // convert_type
                    bool,                             // with_replacement
                    bool,                             // log_probs
@@ -33,8 +34,12 @@ public:
 
 protected:
     void SetUp() override;
-
+    void generate_inputs(const std::vector<ov::Shape>& target_shapes) override;
     void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) override;
+
+private:
+    ov::Tensor m_probs;
+    ov::Tensor m_num_samples;
 };
 
 }  // namespace CPULayerTestsDefinitions

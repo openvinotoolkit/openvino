@@ -115,11 +115,20 @@ std::string Multinomial::getPrimitiveDescriptorType() const {
     return str_type;
 }
 
+bool Multinomial::needShapeInfer() const {
+    return true;
+    // if (getChildEdgeAt(OUTPUT_PORT)->getMemoryPtr()->getShape().isDynamic()) {
+    //     return true;
+    // }
+    // return false;
+}
+
 bool Multinomial::needPrepareParams() const {
-    if (m_output_shape != getChildEdgeAt(0)->getMemoryPtr()->getShape().getStaticDims()) {
-        return true;
-    }
-    return false;
+    return true;
+    // if (m_output_shape != getChildEdgeAt(OUTPUT_PORT)->getMemory().getStaticDims()) {
+    //     return true;
+    // }
+    // return false;
 }
 
 void Multinomial::prepareParams() {

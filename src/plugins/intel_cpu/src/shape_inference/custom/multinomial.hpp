@@ -16,7 +16,7 @@ namespace node {
 using Result = IShapeInfer::Result;
 class MultinomialShapeInfer : public ShapeInferEmptyPads {
 public:
-    MultinomialShapeInfer(std::shared_ptr<const ov::op::v13::Multinomial> op) : m_op(op){};
+    MultinomialShapeInfer() {};
 
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
@@ -24,9 +24,6 @@ public:
     port_mask_t get_port_mask() const override {
         return PortMask(1);
     }
-
-private:
-    std::shared_ptr<const ov::op::v13::Multinomial> m_op;
 };
 
 class MultinomialShapeInferFactory : public ShapeInferFactory {

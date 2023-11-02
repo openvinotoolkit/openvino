@@ -36,6 +36,9 @@ public:
         return false;
     }
 
+protected:
+    bool needShapeInfer() const override;
+
 private:
     /// Multinomial params
     bool m_with_replacement = false;

@@ -3,6 +3,9 @@
 //
 
 #include "single_layer_tests/classes/multinomial.hpp"
+#include <openvino/core/type/element_type.hpp>
+#include <openvino/runtime/tensor.hpp>
+
 
 using namespace CPUTestUtils;
 using namespace ov::test;
@@ -10,55 +13,72 @@ using namespace ov::test;
 namespace CPULayerTestsDefinitions {
 namespace Multinomial {
 
-const std::vector<bool> with_replacements = {
+const std::vector<float> probs_4x4_f32 = {
+    0.1f, 0.1f, 0.1f, 10.0f, 
+    0.1f, 0.1f, 10.0f, 0.1f,
+    0.1f, 10.0f, 0.1f, 0.1f,
+    10.0f, 0.1f, 0.1f, 0.1f
+};
+
+const std::vector<short> probs_2x3_f16 = {
+    (short)0.1f, (short)0.1f, (short)10.0f, 
+    (short)10.0f, (short)0.1f, (short)0.1f
+};
+
+const std::vector<ov::bfloat16> probs_1x3_bf16 = {
+    (ov::bfloat16)0.1f, (ov::bfloat16)1.0f, (ov::bfloat16)10.0f
+};
+
+const std::vector<int> num_samples_scalar_i32 = {1};
+const std::vector<long> num_samples_1x1_i64 = {2};
+const std::vector<long> num_samples_scalar_i64 = {3};
+
+const std::vector<ov::Tensor> probs = {
+    ov::Tensor(ov::element::f32, {4, 4}, (void*)probs_4x4_f32.data()),
+    // ov::Tensor(ov::element::f16, {2, 3}, (void*)probs_2x3_f16.data()),
+    ov::Tensor(ov::element::bf16, {1, 3}, (void*)probs_1x3_bf16.data())
+};
+
+const std::vector<ov::Tensor> num_samples = {
+    ov::Tensor(ov::element::i32, {}, (void*)num_samples_scalar_i32.data()),
+    // ov::Tensor(ov::element::i64, {1}, (void*)num_samples_1x1_i64.data()),
+    // ov::Tensor(ov::element::i64, {}, (void*)num_samples_scalar_i64.data())
+};
+
+const std::vector<ov::test::ElementType> convert_type = {
+    ov::test::ElementType::i32
+};
+
+const std::vector<bool> with_replacement = {
     true,
-    // false
+    false
 };
 
 const std::vector<bool> log_probs = {
     true,
-    // false
+    false
 };
 
-const std::vector<InputShape> probs_static = {
-    {{4, 4}, {{4, 4}}},
-    // {{2, 7}, {{2, 7}}},
-};
-
-const std::vector<InputShape> probs_dynamic = {
-    {{-1, -1}, {{4, 4}}},
-    // {{-1, -1}, {{2, 7}}},
-};
-
-const std::vector<InputShape> num_samples_static = {
-    {{1}, {{1}}},
-    // {{1}, {{1}}},
-};
-
-const std::vector<InputShape> num_samples_dynamic = {
-    {{-1}, {{1}}},
-    // {{-1}, {{1}}},
-};
 
 const auto params_static = ::testing::Combine(::testing::Values("static"),
-                                              ::testing::ValuesIn(probs_static),
-                                              ::testing::ValuesIn(num_samples_static),
-                                              ::testing::Values(ov::test::ElementType::i32),
-                                              ::testing::ValuesIn(with_replacements),
+                                              ::testing::ValuesIn(probs),
+                                              ::testing::ValuesIn(num_samples),
+                                              ::testing::ValuesIn(convert_type),
+                                              ::testing::ValuesIn(with_replacement),
                                               ::testing::ValuesIn(log_probs),
-                                              ::testing::Values(1),
-                                              ::testing::Values(1),
+                                              ::testing::Values(1), // global_seed
+                                              ::testing::Values(1), // op_seed
                                               ::testing::Values(emptyCPUSpec),
                                               ::testing::Values(empty_plugin_config));
 
 const auto params_dynamic = ::testing::Combine(::testing::Values("dynamic"),
-                                               ::testing::ValuesIn(probs_dynamic),
-                                               ::testing::ValuesIn(num_samples_dynamic),
-                                               ::testing::Values(ov::test::ElementType::i32),
-                                               ::testing::ValuesIn(with_replacements),
+                                               ::testing::ValuesIn(probs),
+                                               ::testing::ValuesIn(num_samples),
+                                               ::testing::ValuesIn(convert_type),
+                                               ::testing::ValuesIn(with_replacement),
                                                ::testing::ValuesIn(log_probs),
-                                               ::testing::Values(1),
-                                               ::testing::Values(1),
+                                               ::testing::Values(1), // global_seed
+                                               ::testing::Values(1), // op_seed
                                                ::testing::Values(emptyCPUSpec),
                                                ::testing::Values(empty_plugin_config));
 
