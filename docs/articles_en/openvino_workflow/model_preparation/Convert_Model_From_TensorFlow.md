@@ -196,16 +196,33 @@ Converting TensorFlow Models from Memory Using Python API
 
 Model conversion API supports passing TensorFlow/TensorFlow2 models directly from memory.
 
-* ``tf.keras.Model``
+* ``Trackable``. The object returned by ``hub.load()`` can be converted to ``ov.Model`` with ``convert_model()``.
 
   .. code-block:: py
      :force:
 
+     import tensorflow_hub as hub
      import openvino as ov
-     model = tf.keras.applications.ResNet50(weights="imagenet")
+    
+     model = hub.load("https://tfhub.dev/svampeatlas/vision/embedder/fungi_V2/1?tf-hub-format=compressed")
      ov_model = ov.convert_model(model)
+     print(ov_model)
 
-* ``tf.keras.layers.Layer``. Requires saving model to TensorFlow ``saved_model`` file format and then loading to ``openvino.convert_model``. Saving to the file and then restoring is required due to a known bug in ``openvino.convert_model`` that ignores model signature.
+* ``tf.function``
+
+  .. code-block:: py
+     :force:
+
+     @tf.function(
+        input_signature=[tf.TensorSpec(shape=[1, 2, 3], dtype=tf.float32),
+                         tf.TensorSpec(shape=[1, 2, 3], dtype=tf.float32)])
+     def func(x, y):
+        return tf.nn.sigmoid(tf.nn.relu(x + y))
+
+     import openvino as ov
+     ov_model = ov.convert_model(func)
+
+* ``tf.keras.layers.Layer``
 
   .. code-block:: py
      :force:
@@ -214,10 +231,16 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
      import openvino as ov
 
      model = hub.KerasLayer("https://tfhub.dev/google/imagenet/mobilenet_v1_100_224/classification/5")
-     model.build([None, 224, 224, 3])
-     model.save('mobilenet_v1_100_224')  # use a temporary directory
+     ov_model = ov.convert_model(model)
 
-     ov_model = ov.convert_model('mobilenet_v1_100_224')
+* ``tf.keras.Model``
+
+  .. code-block:: py
+     :force:
+
+     import openvino as ov
+     model = tf.keras.applications.ResNet50(weights="imagenet")
+     ov_model = ov.convert_model(model)
 
 * ``tf.Module``. Requires setting shapes in ``input`` parameter.
 
@@ -269,20 +292,6 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
 
      import openvino as ov
      ov_model = ov.convert_model(model)
-
-* ``tf.function``
-
-  .. code-block:: py
-     :force:
-
-     @tf.function(
-        input_signature=[tf.TensorSpec(shape=[1, 2, 3], dtype=tf.float32),
-                         tf.TensorSpec(shape=[1, 2, 3], dtype=tf.float32)])
-     def func(x, y):
-        return tf.nn.sigmoid(tf.nn.relu(x + y))
-
-     import openvino as ov
-     ov_model = ov.convert_model(func)
 
 * ``tf.compat.v1.session``
 
