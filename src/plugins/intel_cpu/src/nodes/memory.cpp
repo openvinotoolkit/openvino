@@ -337,6 +337,7 @@ MemoryOutput& MemoryInput::getOutputNode() {
 
 void MemoryInput::assignState(MemStatePtr newState) {
     assignedMem = newState->InputMem();
+
     OPENVINO_ASSERT(assignedMem,
         "MemoryInput ",
         getName(),
@@ -371,25 +372,20 @@ void MemoryInput::assignState(MemStatePtr newState) {
         memMngr->reset();
     }
 
+    const auto& edges = getChildEdgesAtPort(0);
     if (isDynamicNode()) {
-        for (auto&& edge : getChildEdgesAtPort(0)) {
+        for (auto&& edge : edges) {
             edge->getMemoryPtr()->redefineDesc(internDesc);
         }
     }
 
-    getOutputNode().assignExtMemory(newState->OutputMem(), newState->OriginalDesc());
-}
-
-void MemoryInput::execute(dnnl::stream strm) {
-    auto outMem = getChildEdgeAt(0)->getMemoryPtr();
-    OPENVINO_ASSERT(assignedMem,
-        "MemoryInput ",
-        getName(),
-        " uninitialized assigned memory");
+    auto outMem = edges.front()->getMemoryPtr();
 
     if (outMem->getData() != assignedMem->getData()) {
         outMem->load(*assignedMem);
     }
+
+    getOutputNode().assignExtMemory(newState->OutputMem(), newState->OriginalDesc());
 }
 
 std::function<MemoryPtr(void)> MemoryInput::memoryBuilder() const {

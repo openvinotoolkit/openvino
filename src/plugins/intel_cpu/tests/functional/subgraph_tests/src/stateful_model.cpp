@@ -133,7 +133,7 @@ TEST_F(StaticShapeStatefulModel, smoke_Run_Stateful_Static) {
 
 
 // ┌─────────┐    ┌───────────┐
-// │ Param1  │    │ ReadValue │..
+// │ Param1  │--->│ ReadValue │..
 // └───┬──┬──┘    └─────┬─────┘ .
 //     │  │             │       .
 //     │  │             │       .
@@ -177,7 +177,6 @@ public:
         init_input_shapes({input_shape});
 
         auto arg = std::make_shared<ov::op::v0::Parameter>(netPrc, inputDynamicShapes.front());
-        auto init_param = std::make_shared<ov::op::v0::Parameter>(netPrc, ov::PartialShape{-1, 1});
 
         // The ReadValue/Assign operations must be used in pairs in the model.
         // For each such a pair, its own variable object must be created.
@@ -186,14 +185,14 @@ public:
             ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, variable_name});
 
         // Creating ov::Model
-        auto read = std::make_shared<ov::op::v6::ReadValue>(init_param, variable);
+        auto read = std::make_shared<ov::op::v6::ReadValue>(arg, variable);
         std::vector<std::shared_ptr<ov::Node>> args = {arg, read};
         auto add = ngraph::builder::makeEltwise(arg, read, ngraph::helpers::EltwiseTypes::ADD);
         constexpr int concat_axis = 0;
         auto concat = std::make_shared<ngraph::opset1::Concat>(ov::NodeVector{arg, add}, concat_axis);
         auto assign = std::make_shared<ov::op::v6::Assign>(concat, variable);
         auto res = std::make_shared<ov::op::v0::Result>(concat);
-        function = std::make_shared<ov::Model>(ov::ResultVector({res}), ov::SinkVector({assign}), ov::ParameterVector({arg, init_param}));
+        function = std::make_shared<ov::Model>(ov::ResultVector({res}), ov::SinkVector({assign}), ov::ParameterVector({arg}));
     }
 
     const std::vector<float>& get_inputs() const {

@@ -114,15 +114,12 @@ public:
     bool created() const override {
         return getType() == Type::MemoryInput;
     }
-    bool isExecutable() const override {
-        return true;
-    }
 
     void initSupportedPrimitiveDescriptors() override;
     void initOptimalPrimitiveDescriptor() override;
 
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override { execute(strm); };
+    void execute(dnnl::stream strm) override {/*pass*/}
+    void executeDynamicImpl(dnnl::stream strm) override {/*pass*/}
 
     void createPrimitive() override;
 
