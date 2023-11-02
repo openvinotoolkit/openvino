@@ -52,15 +52,15 @@ async function main(modelPath, imagePath, deviceName) {
 
   //----------------- Step 4. Apply preprocessing ------------------------------
   const _ppp = new ov.PrePostProcessor(model);
-  _ppp.input(0).preprocess().resize(ov.resizeAlgorithm.RESIZE_LINEAR);
+  _ppp.input().preprocess().resize(ov.resizeAlgorithm.RESIZE_LINEAR);
 
-  _ppp.input(0).tensor()
+  _ppp.input().tensor()
     .setShape(shape)
     .setElementType(ov.element.u8)
     .setLayout('NHWC');
 
   // TODO: add output tensor element type setup
-  _ppp.input(0).model().setLayout('NCHW');
+  _ppp.input().model().setLayout('NCHW');
   _ppp.build();
 
   //----------------- Step 5. Loading model to the device ----------------------

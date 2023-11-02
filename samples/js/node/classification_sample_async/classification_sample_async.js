@@ -73,8 +73,8 @@ async function main(modelPath, images, deviceName) {
 
   //----------- Step 4. Apply preprocessing ------------------------------------
   const _ppp = new ov.PrePostProcessor(model);
-  _ppp.input(0).tensor().setLayout('NHWC').setElementType(ov.element.u8);
-  _ppp.input(0).model().setLayout('NCHW');
+  _ppp.input().tensor().setLayout('NHWC').setElementType(ov.element.u8);
+  _ppp.input().model().setLayout('NCHW');
   _ppp.build();
   // TODO: add output tensor element type setup
 
