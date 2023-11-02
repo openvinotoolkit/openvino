@@ -21,7 +21,7 @@ Napi::Object PreProcessSteps::Init(Napi::Env env, Napi::Object exports) {
     return exports;
 }
 Napi::Value PreProcessSteps::resize(const Napi::CallbackInfo& info) {
-    if (info.Length() > 1 || (info.Length() == 1 && !info[0].IsString())) {
+    if (info.Length() != 1 || !info[0].IsString()) {
         reportError(info.Env(), "Error in resize(). Wrong number of parameters.");
         return Napi::Value();
     }

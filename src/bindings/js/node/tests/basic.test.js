@@ -99,6 +99,11 @@ describe('InputInfo', () => {
       /Wrong number of parameters./);
   });
 
+  it('preprocess().resize() no arg throws', () => {
+    assert.throws(() => new ov.PrePostProcessor(model).input(0).preprocess().resize(),
+      /Wrong number of parameters./);
+  });
+
   it('model().setLayout()', () => {
     assert.doesNotThrow(() => new ov.PrePostProcessor(model).input(0).model().setLayout('NCHW'));
   });
