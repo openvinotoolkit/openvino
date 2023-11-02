@@ -2,18 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-
-#include "single_layer_tests/region_yolo.hpp"
+#include "single_op_tests/region_yolo.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using ov::test::RegionYoloLayerTest;
 
-const std::vector<ngraph::Shape> inShapes_caffe = {
+const std::vector<std::vector<size_t>> inShapes_caffe = {
     {1, 125, 13, 13}
 };
 
-const std::vector<ngraph::Shape> inShapes_mxnet = {
+const std::vector<std::vector<size_t>> inShapes_mxnet = {
     {1, 75, 52, 52},
     {1, 75, 32, 32},
     {1, 75, 26, 26},
@@ -22,7 +20,7 @@ const std::vector<ngraph::Shape> inShapes_mxnet = {
     {1, 75, 8, 8}
 };
 
-const std::vector<ngraph::Shape> inShapes_v3 = {
+const std::vector<std::vector<size_t>> inShapes_v3 = {
     {1, 255, 52, 52},
     {1, 255, 26, 26},
     {1, 255, 13, 13}
@@ -51,7 +49,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYolov3,
                                             ::testing::Values(masks[2]),
                                             ::testing::Values(start_axis),
                                             ::testing::Values(end_axis),
-                                            ::testing::Values(InferenceEngine::Precision::FP32),
+                                            ::testing::Values(ov::element::f32),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          RegionYoloLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYoloMxnet,
@@ -64,7 +62,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYoloMxnet,
                                             ::testing::Values(masks[1]),
                                             ::testing::Values(start_axis),
                                             ::testing::Values(end_axis),
-                                            ::testing::Values(InferenceEngine::Precision::FP32),
+                                            ::testing::Values(ov::element::f32),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          RegionYoloLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYoloCaffe,
@@ -77,6 +75,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYoloCaffe,
                                             ::testing::Values(masks[0]),
                                             ::testing::Values(start_axis),
                                             ::testing::Values(end_axis),
-                                            ::testing::Values(InferenceEngine::Precision::FP32),
+                                            ::testing::Values(ov::element::f32),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          RegionYoloLayerTest::getTestCaseName);
