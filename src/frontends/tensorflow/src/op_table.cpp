@@ -6,6 +6,7 @@
 
 #include "common_op_table.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset13.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/opsets/opset9.hpp"
 
@@ -42,7 +43,7 @@ TF_OP_CONVERTER(translate_queue_dequeue_many_op);
 TF_OP_CONVERTER(translate_readvariable_op);
 TF_OP_CONVERTER(translate_restorev2_op);
 TF_OP_CONVERTER_NAMED(translate_sparse_fill_empty_rows_op);
-TF_OP_CONVERTER(translate_sparse_reshape_op);
+TF_OP_CONVERTER_NAMED(translate_sparse_reshape_op);
 TF_OP_CONVERTER(translate_sparse_segment_sum_op);
 TF_OP_CONVERTER(translate_staticregexfullmatch_op);
 TF_OP_CONVERTER(translate_stringjoin_op);
@@ -78,6 +79,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Erf", CreatorFunction(translate_unary_op<opset8::Erf>)},
         {"Exp", CreatorFunction(translate_unary_op<opset8::Exp>)},
         {"Floor", CreatorFunction(translate_unary_op<opset8::Floor>)},
+        {"Invert", CreatorFunction(translate_unary_op<opset13::BitwiseNot>)},
         {"IsFinite", CreatorFunction(translate_unary_op<opset10::IsFinite>)},
         {"IsInf", CreatorFunction(translate_unary_op<opset10::IsInf>)},
         {"IsNan", CreatorFunction(translate_unary_op<opset10::IsNaN>)},
@@ -100,6 +102,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         // note: BinaryOp translator declaration for each op must to be added in binary_op.cpp file
         {"Add", CreatorFunction(translate_binary_op<opset8::Add>)},
         {"AddV2", CreatorFunction(translate_binary_op<opset8::Add>)},
+        {"BitwiseAnd", CreatorFunction(translate_binary_op<opset13::BitwiseAnd>)},
+        {"BitwiseOr", CreatorFunction(translate_binary_op<opset13::BitwiseOr>)},
+        {"BitwiseXor", CreatorFunction(translate_binary_op<opset13::BitwiseXor>)},
         {"Equal", CreatorFunction(translate_binary_op<opset8::Equal>)},
         {"FloorMod", CreatorFunction(translate_binary_op<opset8::FloorMod>)},
         {"Greater", CreatorFunction(translate_binary_op<opset8::Greater>)},
@@ -189,6 +194,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"HashTableV2", CreatorFunction(translate_hash_table_op)},
         {"Identity", CreatorFunction(translate_identity_op)},
         {"IdentityN", CreatorFunction(translate_identity_n_op)},
+        {"Inv", CreatorFunction(translate_inv_op)},
         {"If", CreatorFunction(translate_if_op)},
         {"input_arg", CreatorFunction(translate_input_arg_op)},
         {"Iterator", CreatorFunction(translate_iterator_op)},
@@ -210,7 +216,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"MaxPool", CreatorFunction(translate_max_pool_op)},
         {"MaxPoolV2", CreatorFunction(translate_max_pool_op)},
         {"MaxPool3D", CreatorFunction(translate_max_pool_op)},
-        {"MaxPoolWithArgmax", CreatorFunction(translate_max_pool_op)},
+        {"MaxPoolWithArgmax", CreatorFunction(translate_max_pool_with_argmax)},
         {"Merge", CreatorFunction(translate_merge_op)},
         {"MirrorPad", CreatorFunction(translate_mirror_pad_op)},
         {"MutableHashTable", CreatorFunction(translate_hash_table_op)},
