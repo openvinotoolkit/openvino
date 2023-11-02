@@ -30,7 +30,7 @@ def main():
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
     log.info('OpenVINO:')
     log.info(f"{'Build ':.<39} {get_version()}")
-    device_name = "CPU"
+    device_name = 'CPU'
     if len(sys.argv) == 3:
         device_name = sys.argv[2]
     elif len(sys.argv) != 2:
