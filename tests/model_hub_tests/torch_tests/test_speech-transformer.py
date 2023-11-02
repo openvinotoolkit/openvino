@@ -67,6 +67,5 @@ class TestSpeechTransformerConvertModel(TestConvertModel):
         self.repo_dir.cleanup()
 
     @pytest.mark.nightly
-    @pytest.mark.precommit
     def test_convert_model(self, ie_device):
         self.run("speech-transformer", None, ie_device)
