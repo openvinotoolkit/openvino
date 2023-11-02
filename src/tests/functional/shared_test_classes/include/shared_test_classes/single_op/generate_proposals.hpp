@@ -18,7 +18,7 @@ typedef std::tuple<
         bool,                                   // normalized: specifies whether box is normalized or not
         ElementType,                            // Model type
         ElementType,                            // roi_num precision
-        std::string                             // Device name>;
+        std::string                             // Device name
 > GenerateProposalsTestParams;
 
 class GenerateProposalsLayerTest :

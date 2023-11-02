@@ -19,9 +19,9 @@ std::string GridSampleLayerTest::getTestCaseName(const testing::TestParamInfo<Gr
     ov::op::v9::GridSample::PaddingMode padding_mode;
     ov::element::Type model_type;
     ov::element::Type grid_type;
-    std::string targetDevice;
+    std::string target_device;
 
-    std::tie(data_shape, grid_shape, align_corners, mode, padding_mode, model_type, grid_type, targetDevice) = obj.param;
+    std::tie(data_shape, grid_shape, align_corners, mode, padding_mode, model_type, grid_type, target_device) = obj.param;
 
     std::ostringstream result;
     result << "DS=" << ov::test::utils::vec2str(data_shape) << "_";
@@ -31,7 +31,7 @@ std::string GridSampleLayerTest::getTestCaseName(const testing::TestParamInfo<Gr
     result << "padding_mode=" << ov::as_string(padding_mode) << "_";
     result << "model_type=" << model_type.get_type_name() << "_";
     result << "grid_type=" << grid_type.get_type_name() << "_";
-    result << "trgDev=" << targetDevice;
+    result << "trgDev=" << target_device;
     return result.str();
 }
 

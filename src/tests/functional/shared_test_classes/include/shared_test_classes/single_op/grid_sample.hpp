@@ -16,8 +16,8 @@ using GridSampleParams = std::tuple<ov::Shape,                                  
                                     bool,                                       // Align corners
                                     ov::op::v9::GridSample::InterpolationMode,  // Mode
                                     ov::op::v9::GridSample::PaddingMode,        // Padding mode
-                                    ov::element::Type,                          // Data precision
-                                    ov::element::Type,                          // Grid precision
+                                    ov::element::Type,                          // Data type
+                                    ov::element::Type,                          // Grid type
                                     std::string>;                               // Device name
 
 class GridSampleLayerTest : public testing::WithParamInterface<GridSampleParams>,

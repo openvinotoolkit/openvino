@@ -10,8 +10,8 @@ std::string GenerateProposalsLayerTest::getTestCaseName(
         const testing::TestParamInfo<GenerateProposalsTestParams>& obj) {
     std::vector<InputShape> shapes;
     ov::op::v9::GenerateProposals::Attributes attributes;
-    ElementType model_type;
-    ElementType roi_num_type;
+    ov::element::Type model_type;
+    ov::element::Type roi_num_type;
     std::string targetName;
     std::tie(
         shapes,
@@ -41,8 +41,8 @@ std::string GenerateProposalsLayerTest::getTestCaseName(
     result << "nms_eta=" << attributes.nms_eta;
     result << "}_";
 
-    result << "netPRC=" << model_type << "_";
-    result << "roiNumPRC=" << roi_num_type << "_";
+    result << "netPRC=" << model_type.get_type_name() << "_";
+    result << "roiNumPRC=" << roi_num_type.get_type_name() << "_";
     result << "trgDev=" << targetName;
     return result.str();
 }
@@ -50,9 +50,8 @@ std::string GenerateProposalsLayerTest::getTestCaseName(
 void GenerateProposalsLayerTest::SetUp() {
     std::vector<InputShape> shapes;
     ov::op::v9::GenerateProposals::Attributes attributes;
-    ElementType model_type;
-    ElementType roi_num_type;
-    std::string targetName;
+    ov::element::Type model_type;
+    ov::element::Type roi_num_type;
     std::tie(
         shapes,
         attributes.min_size,
@@ -62,10 +61,9 @@ void GenerateProposalsLayerTest::SetUp() {
         attributes.normalized,
         model_type,
         roi_num_type,
-        targetName) = this->GetParam();
+        targetDevice) = this->GetParam();
 
     inType = outType = model_type;
-    targetDevice = targetName;
     if (targetDevice == ov::test::utils::DEVICE_GPU) {
         if (model_type == element::Type_t::f16) {
             abs_threshold = 0.2;
@@ -89,9 +87,7 @@ void GenerateProposalsLayerTest::SetUp() {
         attributes,
         roi_num_type);
     function = std::make_shared<ov::Model>(
-        ov::OutputVector{generate_proposals->output(0),
-                         generate_proposals->output(1),
-                         generate_proposals->output(2)},
+        generate_proposals->outputs(),
         "GenerateProposals");
 }
 } // namespace test
