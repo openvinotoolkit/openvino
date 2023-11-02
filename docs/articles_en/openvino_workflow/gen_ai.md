@@ -129,7 +129,7 @@ Weight compression is applied by default to models larger than one billion param
     model.model = compress_weights(model.model, mode=CompressWeightsMode.INT4_SYM, group_size=128, ratio=0.8)
 
 
-Optimized model can be saved as usual with ``save_pretrained()`` call. For more details about compression options, refer to :doc:`weight compression guide <weight_compression>`.
+The optimized model can be saved as usual with a call to ``save_pretrained()``. For more details about compression options, refer to :doc:`weight compression guide <weight_compression>`.
 
 .. note::
 
