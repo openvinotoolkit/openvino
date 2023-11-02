@@ -62,31 +62,6 @@ TResult get_raw_data_as(const element::Type_t et, const void* const ptr, const s
     return out;
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-/**
- * \brief Get data from Host tensor as object TResult.
- *
- * \tparam T               TResult data type.
- * \tparam TResult         Type of return object, must support creation of std::inserter. Default std::vector<T>.
- * \tparam UnaryOperation  Unary function object applied on data with signature (T f(const U u)).
- *
- * \param tv    Input host tensor.
- * \param func  Unary operation function object.
- *
- * \return Object of TResult with data from host tensor.
- */
-template <class T, class TResult = std::vector<T>, class UnaryOperation>
-TResult get_tensor_data_as(ngraph::HostTensor& tv, UnaryOperation&& func) {
-    auto t = Tensor(tv.get_element_type(), tv.get_shape(), tv.get_data_ptr());
-    return get_tensor_data_as<T, TResult>(t, std::forward<UnaryOperation>(func));
-}
-
-template <class T, class TResult = std::vector<T>, class UnaryOperation>
-TResult get_tensor_data_as(ngraph::HostTensor* tv, UnaryOperation&& func) {
-    return get_tensor_data_as<T, TResult>(*tv, std::forward<UnaryOperation>(func));
-}
-OPENVINO_SUPPRESS_DEPRECATED_END
-
 /**
  * \brief Get data from ov:tensor as object TResult.
  *
