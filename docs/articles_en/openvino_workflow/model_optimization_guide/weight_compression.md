@@ -34,7 +34,7 @@ Now, the model is ready for compilation and inference. It can be also saved into
 
   * ``mode`` - there are two modes to choose from: ``INT4_SYM`` - stands for INT4 symmetric weight quantization and results in faster inference and smaller model size, and ``INT4_ASYM`` - INT4 asymmetric weight quantization with variable zero-point for more accurate results
 
-  * ``group_size`` - controls the size of the group of weights that share the same quantization parameters. The smaller the model size the more accurate the optimized model. We recommend using the following group sizes: ``128``, ``64``, ``32`` (``128`` is default value)
+  * ``group_size`` - controls the size of the group of weights that share the same quantization parameters. The smaller the model size the more accurate the optimized model but the larger its footprint and the slower the inference. We recommend using the following group sizes: ``128``, ``64``, ``32`` (``128`` is default value)
 
   * ``ratio`` - controls the ratio between INT4 and INT8 compressed layers in the model. For example, 0.8 means that 80% of layers will be compressed to INT4 while the rest to INT8 precision.
 
