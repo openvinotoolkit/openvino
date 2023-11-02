@@ -13,8 +13,6 @@ public:
 
     static Napi::Function GetClassConstructor(Napi::Env env);
 
-    static Napi::Object Init(Napi::Env env, Napi::Object exports);
-
     Napi::Value tensor(const Napi::CallbackInfo& info);
 
     Napi::Value preprocess(const Napi::CallbackInfo& info);

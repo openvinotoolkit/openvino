@@ -16,17 +16,6 @@ Napi::Function InputTensorInfo::GetClassConstructor(Napi::Env env) {
                         InstanceMethod("setShape", &InputTensorInfo::set_shape)});
 }
 
-Napi::Object InputTensorInfo::Init(Napi::Env env, Napi::Object exports) {
-    auto func = GetClassConstructor(env);
-
-    Napi::FunctionReference* constructor = new Napi::FunctionReference();
-    *constructor = Napi::Persistent(func);
-    env.SetInstanceData(constructor);
-
-    exports.Set("InputTensorInfo", func);
-    return exports;
-}
-
 Napi::Value InputTensorInfo::set_layout(const Napi::CallbackInfo& info) {
     if (info.Length() == 1) {
         try {

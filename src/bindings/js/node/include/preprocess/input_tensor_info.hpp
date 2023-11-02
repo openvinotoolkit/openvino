@@ -12,8 +12,6 @@ public:
     InputTensorInfo(const Napi::CallbackInfo& info);
 
     static Napi::Function GetClassConstructor(Napi::Env env);
-
-    static Napi::Object Init(Napi::Env env, Napi::Object exports);
      
     Napi::Value set_element_type(const Napi::CallbackInfo& info);
 

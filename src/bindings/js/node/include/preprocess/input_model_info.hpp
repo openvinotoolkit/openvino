@@ -13,8 +13,6 @@ public:
 
     static Napi::Function GetClassConstructor(Napi::Env env);
 
-    static Napi::Object Init(Napi::Env env, Napi::Object exports);
-
     Napi::Value set_layout(const Napi::CallbackInfo& info);
 
     void set_input_model_info(ov::preprocess::InputModelInfo& info);

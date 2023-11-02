@@ -11,9 +11,6 @@
 #include "node_output.hpp"
 #include "openvino/openvino.hpp"
 #include "preprocess/pre_post_process_wrap.hpp"
-#include "preprocess/input_info.hpp"
-#include "preprocess/input_tensor_info.hpp"
-#include "preprocess/input_model_info.hpp"
 #include "resize_algorithm.hpp"
 #include "tensor.hpp"
 
@@ -25,9 +22,6 @@ Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
     InferRequestWrap::Init(env, exports);
     TensorWrap::Init(env, exports);
     PrePostProcessorWrap::Init(env, exports);
-    InputInfo::Init(env, exports);
-    InputTensorInfo::Init(env, exports);
-    InputModelInfo::Init(env, exports);
     Output<const ov::Node>::Init(env, exports);
     Output<ov::Node>::Init(env, exports);
     Napi::PropertyDescriptor element = Napi::PropertyDescriptor::Accessor<enumElementType>("element");

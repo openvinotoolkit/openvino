@@ -14,17 +14,6 @@ Napi::Function InputModelInfo::GetClassConstructor(Napi::Env env) {
     return DefineClass(env, "InputModelInfo", {InstanceMethod("setLayout", &InputModelInfo::set_layout)});
 }
 
-Napi::Object InputModelInfo::Init(Napi::Env env, Napi::Object exports) {
-    auto func = GetClassConstructor(env);
-
-    Napi::FunctionReference* constructor = new Napi::FunctionReference();
-    *constructor = Napi::Persistent(func);
-    env.SetInstanceData(constructor);
-
-    exports.Set("InputModelInfo", func);
-    return exports;
-}
-
 Napi::Value InputModelInfo::set_layout(const Napi::CallbackInfo& info) {
     if (info.Length() == 1) {
         try {

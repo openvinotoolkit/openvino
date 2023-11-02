@@ -10,16 +10,7 @@ PreProcessSteps::PreProcessSteps(const Napi::CallbackInfo& info) : Napi::ObjectW
 Napi::Function PreProcessSteps::GetClassConstructor(Napi::Env env) {
     return DefineClass(env, "PreProcessSteps", {InstanceMethod("resize", &PreProcessSteps::resize)});
 }
-Napi::Object PreProcessSteps::Init(Napi::Env env, Napi::Object exports) {
-    auto func = GetClassConstructor(env);
 
-    Napi::FunctionReference* constructor = new Napi::FunctionReference();
-    *constructor = Napi::Persistent(func);
-    env.SetInstanceData(constructor);
-
-    exports.Set("PreProcessSteps", func);
-    return exports;
-}
 Napi::Value PreProcessSteps::resize(const Napi::CallbackInfo& info) {
     if (info.Length() != 1 || !info[0].IsString()) {
         reportError(info.Env(), "Error in resize(). Wrong number of parameters.");

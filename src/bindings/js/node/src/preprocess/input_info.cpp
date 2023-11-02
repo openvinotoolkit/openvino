@@ -18,17 +18,6 @@ Napi::Function InputInfo::GetClassConstructor(Napi::Env env) {
                         InstanceMethod("model", &InputInfo::model)});
 }
 
-Napi::Object InputInfo::Init(Napi::Env env, Napi::Object exports) {
-    auto func = GetClassConstructor(env);
-
-    Napi::FunctionReference* constructor = new Napi::FunctionReference();
-    *constructor = Napi::Persistent(func);
-    env.SetInstanceData(constructor);
-
-    exports.Set("InputInfo", func);
-    return exports;
-}
-
 Napi::Value InputInfo::tensor(const Napi::CallbackInfo& info) {
     if (info.Length() != 0) {
         reportError(info.Env(), "Error in tensor(). Function does not take any parameters.");

@@ -14,8 +14,6 @@ public:
 
     static Napi::Function GetClassConstructor(Napi::Env env);
 
-    static Napi::Object Init(Napi::Env env, Napi::Object exports);
-
     Napi::Value resize(const Napi::CallbackInfo& info);
 
     void set_preprocess_info(ov::preprocess::PreProcessSteps& info) ;
