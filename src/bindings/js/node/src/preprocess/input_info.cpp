@@ -13,7 +13,9 @@ InputInfo::InputInfo(const Napi::CallbackInfo& info) : Napi::ObjectWrap<InputInf
 Napi::Function InputInfo::GetClassConstructor(Napi::Env env) {
     return DefineClass(env,
                        "InputInfo",
-                       {InstanceMethod("tensor", &InputInfo::tensor), InstanceMethod("preprocess", &InputInfo::preprocess), InstanceMethod("model", &InputInfo::model)});
+                       {InstanceMethod("tensor", &InputInfo::tensor),
+                        InstanceMethod("preprocess", &InputInfo::preprocess),
+                        InstanceMethod("model", &InputInfo::model)});
 }
 
 Napi::Object InputInfo::Init(Napi::Env env, Napi::Object exports) {
