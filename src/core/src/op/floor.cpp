@@ -6,7 +6,6 @@
 
 #include "element_visitor.hpp"
 #include "itt.hpp"
-#include "openvino/reference/copy.hpp"
 #include "openvino/reference/floor.hpp"
 
 namespace ov {
@@ -28,11 +27,6 @@ namespace v0 {
 
 Floor::Floor(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
-}
-
-bool Floor::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v0_Floor_visit_attributes);
-    return true;
 }
 
 std::shared_ptr<Node> Floor::clone_with_new_inputs(const OutputVector& new_args) const {
