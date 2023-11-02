@@ -70,14 +70,28 @@ interface Output {
   getPartialShape(): number[];
 }
 
+interface InputTensorInfo {
+    setElementType(elementType: element | string ): InputTensorInfo;
+    setLayout(layout: string): InputTensorInfo;
+    setShape(shape: Int32Array | Array<number>): InputTensorInfo;
+}
+interface PreProcessSteps {
+    resize(algorithm: resizeAlgorithm | string): PreProcessSteps;
+}
+
+interface InputModelInfo {
+    setLayout(layout: string): InputModelInfo;
+}
+
+interface InputInfo {
+    tensor(): InputTensorInfo;
+    preprocess(): PreProcessSteps;
+    model(): InputModelInfo;
+}
+
 interface PrePostProcessor {
   build(): PrePostProcessor;
-  setInputElementType(idx: number, type: element): PrePostProcessor;
-  setInputModelLayout(layout: string[]): PrePostProcessor;
-  setInputTensorLayout(layout: string[]): PrePostProcessor;
-  preprocessResizeAlgorithm(resizeAlgorithm: resizeAlgorithm)
-    : PrePostProcessor;
-  setInputTensorShape(shape: number[]): PrePostProcessor;
+  input(idxOrTensorName?: number | string): InputInfo;
 }
 interface PrePostProcessorConstructor {
   new(model: Model): PrePostProcessor;
