@@ -40,9 +40,22 @@ OutputVector translate_partitioned_call_op(const NodeContext& node) {
         "[TensorFlow Frontend] Internal error or incorrect input model: body graph is not found for " + operation_type +
             ".");
 
+    // retrieve input_names of the body graph
+    auto input_model = dynamic_pointer_cast<InputModel>(translate_session->get_input_model());
+    TENSORFLOW_OP_VALIDATION(
+        node,
+        input_model,
+        "[TensorFlow Frontend] internal error: input_model must be of tensorflow::InputModel type");
+    auto body_input_model = input_model->get_body_input_model(operation_type);
+    TENSORFLOW_OP_VALIDATION(node,
+                             body_input_model,
+                             "[TensorFlow Frontend] internal error or inconsistent model: body graph " +
+                                 operation_type + " is not found in the graph");
+    auto body_input_names = body_input_model->get_input_names();
+
     // inject the body graph into the parent graph
     OutputVector ov_outputs;
-    inject_body_model(body_model, operation_type, ov_inputs, ov_outputs);
+    inject_body_model(body_model, operation_type, ov_inputs, ov_outputs, body_input_names);
 
     // set output tensor names
     for (size_t idx = 0; idx < ov_outputs.size(); ++idx) {
