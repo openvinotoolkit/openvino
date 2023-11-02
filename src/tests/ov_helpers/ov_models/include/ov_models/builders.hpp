@@ -70,6 +70,9 @@ std::shared_ptr<ov::Node> makeConstant(const ov::element::Type& type,
         makeNode(ov::element::Type_t::u32);
         makeNode(ov::element::Type_t::u64);
         makeNode(ov::element::Type_t::boolean);
+        makeNode(ov::element::Type_t::nf4);
+        makeNode(ov::element::Type_t::u4);
+        makeNode(ov::element::Type_t::i4);
 #undef makeNode
     default:
         throw std::runtime_error("Unhandled precision");

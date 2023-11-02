@@ -1,3 +1,5 @@
+import platform
+
 import pytest
 import tensorflow as tf
 
@@ -30,5 +32,7 @@ class TestTFLiteRFFT2DLayerTest(TFLiteLayerTest):
 
     @pytest.mark.parametrize("params", test_params)
     @pytest.mark.nightly
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 123324')
     def test_rfft2d(self, params, ie_device, precision, temp_dir):
         self._test(ie_device, precision, temp_dir, params)

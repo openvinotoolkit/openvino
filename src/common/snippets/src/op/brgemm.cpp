@@ -114,7 +114,7 @@ ov::element::Type Brgemm::get_output_type() const {
 
 std::vector<ov::PartialShape> Brgemm::get_planar_input_shapes(const std::vector<ov::Input<ov::Node>>& inputs) const {
     OPENVINO_ASSERT(inputs.size() == 2, "Brgemm::get_planar_input_shapes() expects 2 inputs");
-    return {utils::get_planar_pshape(inputs[0]), utils::get_planar_pshape(inputs[1]) };
+    return { utils::get_planar_pshape(inputs[0]), utils::get_planar_pshape(inputs[1]) };
 }
 
 ov::PartialShape Brgemm::get_planar_output_shape(const ov::PartialShape& output_shape) const {
@@ -127,7 +127,7 @@ ov::PartialShape Brgemm::get_planar_output_shape(const ov::PartialShape& output_
 }
 
 ov::PartialShape Brgemm::get_output_partial_shape(const std::vector<ov::PartialShape>& input_shapes) const {
-    NGRAPH_CHECK(input_shapes.size() == 2, "BRGEMM expects 2 input shapes for shape inference");
+    OPENVINO_ASSERT(input_shapes.size() == 2, "BRGEMM expects 2 input shapes for shape inference");
 
     // Note: All majors checks are missed because Brgemm is transformed from MatMul with whole shape infer support
 
@@ -188,77 +188,6 @@ ov::PartialShape Brgemm::get_output_partial_shape(const std::vector<ov::PartialS
     }
     return output_shape;
 }
-
-Brgemm::ShapeInfer::ShapeInfer(const std::shared_ptr<Node>& n) {
-    for (const auto& in : n->inputs()) {
-        const auto& port = lowered::PortDescriptorUtils::get_port_descriptor_ptr(in);
-        m_io_layouts.push_back(port->get_layout());
-    }
-    m_io_layouts.push_back(get_output_layout(n));
-}
-
-IShapeInferSnippets::Result Brgemm::ShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
-    OPENVINO_ASSERT(input_shapes.size() == 2, "BRGEMM expects 2 input shapes for shape inference");
-
-    // Todo: Ideally we should use the layout stored in PortDescriptors. Can we do it?
-    const auto& arg0_shape = snippets::utils::get_planar_vdims(input_shapes[0].get(), m_io_layouts[0]);
-    const auto& arg1_shape = snippets::utils::get_planar_vdims(input_shapes[1].get(), m_io_layouts[1]);
-
-    size_t arg0_rank = arg0_shape.size(), arg1_rank = arg1_shape.size();
-
-    // temporary shapes to calculate output shape
-    VectorDims arg0_shape_tmp(arg0_shape), arg1_shape_tmp(arg1_shape);
-
-    // one-dimensional tensors unsqueezing is applied to each input independently.
-    if (arg0_rank == 1) {
-        // If the first input is 1D tensor, it is unsqueezed to 2D tensor (row vector)
-        // by adding axes with size 1 at ROW_INDEX_DIM, to the left of the shape.
-        // For example {S} will be reshaped to {1, S}.
-        arg0_shape_tmp.insert(arg0_shape_tmp.begin(), 1);
-        arg0_rank = arg0_shape_tmp.size();
-    }
-    if (arg1_rank == 1) {
-        // If the second input is 1D tensor, it is unsqueezed to 2D tensor (column vector)
-        // by adding axes with size 1 at COL_INDEX_DIM, to the right of the shape.
-        // For example {S} will be reshaped to {S, 1}.
-        arg1_shape_tmp.insert(arg1_shape_tmp.end(), 1);
-        arg1_rank = arg1_shape_tmp.size();
-    }
-
-    // add 1 to begin to align shape ranks if needed
-    if (arg0_rank < arg1_rank)
-        arg0_shape_tmp.insert(arg0_shape_tmp.begin(), arg1_rank - arg0_rank, 1);
-    else if (arg0_rank > arg1_rank)
-        arg1_shape_tmp.insert(arg1_shape_tmp.begin(), arg0_rank - arg1_rank, 1);
-
-    size_t max_rank = arg0_shape_tmp.size();
-    VectorDims output_shape(max_rank);
-    for (size_t i = 0; i < max_rank - 2; ++i) {
-        if (arg0_shape_tmp[i] == arg1_shape_tmp[i]) {
-            output_shape[i] = arg0_shape_tmp[i];
-        } else {
-            if (arg0_shape_tmp[i] == 1 || arg0_shape_tmp[i] == DYNAMIC_DIMENSION)
-                output_shape[i] = arg1_shape_tmp[i];
-            else if (arg1_shape_tmp[i] == 1 || arg1_shape_tmp[i] == DYNAMIC_DIMENSION)
-                output_shape[i] = arg0_shape_tmp[i];
-            else
-                OPENVINO_THROW("Incompatible Brgemm batch dimension");
-        }
-    }
-    output_shape[output_shape.size() - 2] = arg0_shape_tmp[arg0_shape_tmp.size() - 2];  // M
-    output_shape[output_shape.size() - 1] = arg1_shape_tmp[arg1_shape_tmp.size() - 1];  // N
-
-    // removing the temporary axes from originally 1D tensors.
-    if (arg0_shape.size() == 1) {
-        output_shape.erase(output_shape.begin() + output_shape.size() - 2);
-    }
-    if (arg1_shape.size() == 1) {
-        output_shape.erase(output_shape.begin() + output_shape.size() - 1);
-    }
-    output_shape = snippets::utils::get_planar_vdims(output_shape, m_io_layouts[2]);
-    return {{output_shape}, snippets::ShapeInferStatus::success};
-}
-
 } // namespace op
 } // namespace snippets
 } // namespace ov

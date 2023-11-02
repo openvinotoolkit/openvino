@@ -28,6 +28,11 @@
 
 #include <cpu/x64/cpu_isa_traits.hpp>
 
+#if defined(OV_CPU_WITH_ACL)
+#include "nodes/executors/acl/acl_ie_scheduler.hpp"
+#include "arm_compute/runtime/CPP/CPPScheduler.h"
+#endif
+
 using namespace ov::threading;
 
 #define IE_CPU_PLUGIN_THROW(...) IE_THROW(__VA_ARGS__) << "CPU plugin: "
@@ -127,11 +132,44 @@ public:
 };
 #endif // __linux__
 
+#if defined(OV_CPU_WITH_ACL)
+std::mutex Engine::SchedulerGuard::mutex;
+std::weak_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::ptr;
+
+Engine::SchedulerGuard::SchedulerGuard() {
+#if IE_THREAD == IE_THREAD_SEQ
+    // To save state for ACL cores in single-thread mode
+    arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
+#else
+    arm_compute::Scheduler::set(std::make_shared<ACLScheduler>());
+#endif
+}
+
+std::shared_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::instance() {
+    std::lock_guard<std::mutex> lock{SchedulerGuard::mutex};
+    auto scheduler_guard_ptr = SchedulerGuard::ptr.lock();
+    if (scheduler_guard_ptr == nullptr) {
+        SchedulerGuard::ptr = scheduler_guard_ptr = std::make_shared<SchedulerGuard>();
+    }
+    return scheduler_guard_ptr;
+}
+
+Engine::SchedulerGuard::~SchedulerGuard() {
+    // To save the state of scheduler after ACLScheduler has been executed
+    // TODO: find out the cause of the state
+    std::lock_guard<std::mutex> lock{this->dest_mutex};
+    arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
+}
+#endif
+
 Engine::Engine() :
     deviceFullName(getDeviceFullName()),
     specialSetup(new CPUSpecialSetup) {
     set_device_name("CPU");
     extensionManager->AddExtension(std::make_shared<Extension>());
+#if defined(OV_CPU_WITH_ACL)
+    scheduler_guard = SchedulerGuard::instance();
+#endif
 }
 
 Engine::~Engine() {
@@ -287,7 +325,9 @@ void Engine::get_performance_streams(Config& config, const std::shared_ptr<ov::M
         streams = config.streamExecutorConfig._streams == 1 ? 0 : config.streamExecutorConfig._streams;
     }
 
-    get_num_streams(streams, model, config);
+    if (!((0 == config.streamExecutorConfig._streams) && config.streamExecutorConfig._streams_changed)) {
+        get_num_streams(streams, model, config);
+    }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     config._config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(config.streamExecutorConfig._streams);
@@ -461,6 +501,8 @@ static Config::SnippetsMode getSnippetsMode(const ov::AnyMap& modelConfig, const
         return Config::SnippetsMode::IgnoreCallback;
     else if (val == ov::util::to_string(ov::SnippetsMode::DISABLE))
         return Config::SnippetsMode::Disable;
+    else if (val == ov::util::to_string(ov::SnippetsMode::ENABLE))
+        return Config::SnippetsMode::Enable;
     else
         OPENVINO_THROW("Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK");
 }
@@ -501,16 +543,18 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, engConfig);
     DEBUG_LOG(PrintableModel(*cloned_model, "org_"));
 
-    Transformations transformations(cloned_model, enableLPT, inferencePrecision, is_legacy_api(), snippetsMode, engConfig);
+    // update the props after the perf mode translated to configs
+    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
+    Config conf = engConfig;
+
+    Transformations transformations(cloned_model, enableLPT, inferencePrecision, is_legacy_api(), snippetsMode, conf);
+
     transformations.UpToLpt();
 
     if (!is_cpu_map_available()) {
         apply_performance_hints(config, cloned_model);
     }
 
-    // update the props after the perf mode translated to configs
-    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
-    Config conf = engConfig;
     conf.readProperties(config, modelType);
     calculate_streams(conf, cloned_model);
 

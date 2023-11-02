@@ -257,6 +257,7 @@ REGISTER_FACTORY(v11, Interpolate);
 REGISTER_FACTORY(v11, TopK);
 
 // ------------------------------ Supported v12 ops ----------------------------- //
+REGISTER_FACTORY(v12, GroupNormalization);
 REGISTER_FACTORY(v12, Pad);
 REGISTER_FACTORY(v12, ScatterElementsUpdate);
 
@@ -267,3 +268,4 @@ REGISTER_FACTORY(internal, NmsStaticShapeIE8);
 REGISTER_FACTORY(internal, MulticlassNmsIEInternal);
 REGISTER_FACTORY(internal, FullyConnected);
 REGISTER_FACTORY(internal, FullyConnectedCompressed);
+REGISTER_FACTORY(internal, RMS);
