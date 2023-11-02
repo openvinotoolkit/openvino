@@ -133,15 +133,12 @@ def get_moc_frontends(argv: argparse.Namespace):
 
     available_moc_front_ends = get_available_front_ends(fem)
     if argv.framework:
-        moc_front_end = fem.load_by_framework(argv.framework) # WA to prevent process hanging. Need to remove when 115994 fixed.
         moc_front_end = fem.load_by_framework(argv.framework)
         return moc_front_end, available_moc_front_ends
     if argv.input_model:
         if isinstance(argv.input_model, (tuple, list)) and len(argv.input_model) == 2:
-            moc_front_end = fem.load_by_model([argv.input_model[0], argv.input_model[1]]) # WA to prevent process hanging. Need to remove when 115994 fixed.
             moc_front_end = fem.load_by_model([argv.input_model[0], argv.input_model[1]])  # TODO: Pass all input model parts
         else:
-            moc_front_end = fem.load_by_model(argv.input_model) # WA to prevent process hanging. Need to remove when 115994 fixed.
             moc_front_end = fem.load_by_model(argv.input_model)
         if not moc_front_end:
             return None, available_moc_front_ends
