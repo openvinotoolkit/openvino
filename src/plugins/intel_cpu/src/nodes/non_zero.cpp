@@ -6,7 +6,7 @@
 
 #include <nodes/common/cpu_memcpy.h>
 
-#include <ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 #include <openvino/opsets/opset3.hpp>
 #include <utils/bfloat16.hpp>
 #include <shape_inference/shape_inference_internal_dyn.hpp>

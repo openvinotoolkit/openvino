@@ -11,7 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include <utils/general_utils.h>
-#include <ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 #include <ie_ngraph_utils.hpp>
 #include "caseless.hpp"
 #include "common/cpu_memcpy.h"

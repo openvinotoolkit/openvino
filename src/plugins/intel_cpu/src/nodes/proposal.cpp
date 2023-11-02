@@ -189,7 +189,7 @@ void Proposal::execute(dnnl::stream strm) {
             IE_THROW() << "Proposal operation image info input must have non negative scales.";
         }
 
-        InferenceEngine::Extensions::Cpu::XARCH::proposal_exec(probabilitiesData, anchorsData, inProbDims,
+        ov::Extensions::Cpu::XARCH::proposal_exec(probabilitiesData, anchorsData, inProbDims,
                 {imgHeight, imgWidth, scaleHeight, scaleWidth}, anchors.data(), roi_indices.data(), outRoiData, outProbData, conf);
     } catch (const InferenceEngine::Exception& e) {
         std::string errorMsg = e.what();

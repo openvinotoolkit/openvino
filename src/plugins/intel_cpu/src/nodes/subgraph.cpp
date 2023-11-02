@@ -4,7 +4,7 @@
 
 #include "subgraph.h"
 
-#include <ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 
 #include <vector>
 #include <algorithm>

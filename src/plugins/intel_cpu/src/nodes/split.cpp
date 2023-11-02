@@ -8,7 +8,7 @@
 #include <vector>
 #include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
-#include <ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 #include "utils/general_utils.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "utils/ngraph_utils.hpp"

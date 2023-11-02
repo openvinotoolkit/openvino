@@ -8,7 +8,7 @@
 #include <map>
 #include <set>
 
-#include <ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 
 #include "config.h"
 #include "cpu_types.h"

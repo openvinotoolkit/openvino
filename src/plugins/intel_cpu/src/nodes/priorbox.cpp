@@ -9,7 +9,7 @@
 #include <memory>
 #include <vector>
 
-#include <ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 #include <dnnl_types.h>
 #include <openvino/opsets/opset1.hpp>
 #include "shape_inference/custom/priorbox.hpp"

@@ -5,7 +5,7 @@
 #include "eye.h"
 #include <ie_ngraph_utils.hpp>
 #include <utils/bfloat16.hpp>
-#include <ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 #include <shape_inference/shape_inference_ngraph.hpp>
 
 #define THROW_ERROR IE_THROW() << NameFromType(getType()) << " node with name '" << getName() << "' "
