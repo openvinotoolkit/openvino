@@ -82,7 +82,7 @@ The script has the following optional arguments:
 * `c OV_CONFIG_PATH, --ov_config_path OV_CONFIG_PATH`
                         Specify path to a plugin config file as `.lst` file. Default value is ``
 * `s DUMP_GRAPH, --dump_graph DUMP_GRAPH`
-                        Set '1' to create Conformance IRs from models using subgraphsDumper tool. The default value is '0'.
+                        Set '1' to create Conformance IRs from models using ov_subgraphs_dumper tool. The default value is '0'.
                         NOTE: Applicable only for Opset Conformance.
 * `sm SPECIAL_MODE, --special_mode SPECIAL_MODE`
                         Specify shape mode (`static`, `dynamic` or ``) for Opset conformance or API scope type (`mandatory` or ``). Default value is ``
