@@ -148,9 +148,8 @@ private:
 
         if (m_with_replacement) { // handles both with and without log_probs
             parallel_for(m_batches_samples_probs_count, [&](size_t idx) {
-                size_t i_sample_prob = idx % m_samples_probs_count;
-                size_t i_prob = i_sample_prob % m_probs_count;
-                size_t i_sample = i_sample_prob / m_probs_count;
+                size_t i_prob = idx % m_probs_count;
+                size_t i_sample = idx / m_input_elements_count;
                 size_t idx_batch = idx / m_samples_probs_count;
                 size_t idx_input = idx_batch * m_batches_count + i_prob;
                 size_t idx_output = idx_batch * m_batches_count + i_sample;
@@ -160,9 +159,8 @@ private:
             });
         } else if (m_log_probs) { // no replacement, log_probs
             parallel_for(m_batches_samples_probs_count, [&](size_t idx) {
-                size_t i_sample_prob = idx % m_samples_probs_count;
-                size_t i_prob = i_sample_prob % m_probs_count;
-                size_t i_sample = i_sample_prob / m_probs_count;
+                size_t i_prob = idx % m_probs_count;
+                size_t i_sample = idx / m_input_elements_count;
                 size_t idx_batch = idx / m_samples_probs_count;
                 size_t idx_input = idx_batch * m_batches_count + i_prob;
                 size_t idx_output = idx_batch * m_batches_count + i_sample;
@@ -188,9 +186,8 @@ private:
             });
         } else { // no replacement, no log probs
             parallel_for(m_batches_samples_probs_count, [&](size_t idx) {
-                size_t i_sample_prob = idx % m_samples_probs_count;
-                size_t i_prob = i_sample_prob % m_probs_count;
-                size_t i_sample = i_sample_prob / m_probs_count;
+                size_t i_prob = idx % m_probs_count;
+                size_t i_sample = idx / m_input_elements_count;
                 size_t idx_batch = idx / m_samples_probs_count;
                 size_t idx_input = idx_batch * m_batches_count + i_prob;
                 size_t idx_output = idx_batch * m_batches_count + i_sample;
