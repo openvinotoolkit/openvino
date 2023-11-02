@@ -43,6 +43,7 @@ async function main(modelPath, images, deviceName) {
   // (.xml and .bin files) or (.onnx file)
   const model = await core.readModel(modelPath);
   const [h, w] = model.inputs[0].shape.slice(-2);
+  const tensorShape = [1, h, w, 3];
 
   if (model.inputs.length !== 1)
     throw new Error('Sample supports only single input topologies');
@@ -57,7 +58,7 @@ async function main(modelPath, images, deviceName) {
   for (const imagePath of images)
     imagesData.push(await getImageData(imagePath));
 
-  const tensors = imagesData.map((imgData) => {
+  const preprocessedImages = imagesData.map((imgData) => {
     // Use opencv-wasm to preprocess image.
     const originalImage = cv.matFromImageData(imgData);
     const image = new cv.Mat();
@@ -65,10 +66,7 @@ async function main(modelPath, images, deviceName) {
     cv.cvtColor(originalImage, image, cv.COLOR_RGBA2RGB);
     cv.resize(image, image, new cv.Size(w, h));
 
-    const tensorData = new Uint8Array(image.data);
-    const shape = [1, h, w, 3];
-
-    return new ov.Tensor(ov.element.u8, shape, tensorData);
+    return new Uint8Array(image.data);
   });
 
   //----------- Step 4. Apply preprocessing ------------------------------------
@@ -76,7 +74,6 @@ async function main(modelPath, images, deviceName) {
     .setInputElementType(0, ov.element.u8)
     .setInputTensorLayout('NHWC')
     .setInputModelLayout('NCHW')
-    // TODO: add output tensor element type setup
     .build();
 
   //----------------- Step 5. Loading model to the device ----------------------
@@ -90,16 +87,8 @@ async function main(modelPath, images, deviceName) {
   // Create infer request
   const inferRequest = compiledModel.createInferRequest();
 
-  const promises = tensors.map((t, i) => {
-    const inferPromise = new Promise((resolve, reject) => {
-      try {
-        const output = inferRequest.infer([t]);
-
-        resolve(output);
-      } catch(err) {
-        reject(err);
-      }
-    });
+  const promises = preprocessedImages.map((tensorData, i) => {
+    const inferPromise = inferRequest.inferAsync([new ov.Tensor(ov.element.u8, tensorShape, tensorData)]);
 
     inferPromise.then(result =>
       completionCallback(result[outputName], images[i]));

@@ -58,6 +58,8 @@ interface InferRequest {
   getOutputTensor(idx?: number): Tensor;
   infer(inputData?: { [inputName: string]: Tensor | SupportedTypedArray}
     | Tensor[] | SupportedTypedArray[]): { [outputName: string] : Tensor};
+  inferAsync(inputData: { [inputName: string]: Tensor}
+    | Tensor[] ): Promise<{ [outputName: string] : Tensor}>;
   getCompiledModel(): CompiledModel;
 }
 
@@ -108,13 +110,6 @@ export interface NodeAddon {
 
   element: typeof element,
   resizeAlgorithm: typeof resizeAlgorithm,
-
-  asyncInfer(
-    InferRequest: InferRequest,
-    inputData: { [inputName: string]: Tensor | SupportedTypedArray }
-      | Tensor[] | SupportedTypedArray[],
-    callback: (err: Error | null, inputData: Tensor[]) => void,
-  ): void;
 }
 
 setPath();
