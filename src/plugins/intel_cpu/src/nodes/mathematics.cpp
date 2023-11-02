@@ -6,7 +6,6 @@
 #include <vector>
 #include <string>
 
-#include <ngraph/ops.hpp>
 #include "openvino/core/parallel.hpp"
 #include "mathematics.h"
 #include "utils/general_utils.h"

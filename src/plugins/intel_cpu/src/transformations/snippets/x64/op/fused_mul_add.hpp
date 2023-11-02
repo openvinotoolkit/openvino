@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov {
 namespace intel_cpu {

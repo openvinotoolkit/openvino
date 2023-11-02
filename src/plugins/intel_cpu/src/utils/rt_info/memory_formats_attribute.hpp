@@ -7,7 +7,7 @@
 #include <string>
 #include <set>
 
-#include <ngraph/node.hpp>
+#include "openvino/core/node.hpp"
 #include "openvino/op/util/op_types.hpp"
 
 namespace ov {

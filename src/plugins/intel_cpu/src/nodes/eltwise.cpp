@@ -34,16 +34,11 @@
 #include "utils/cpu_utils.hpp"
 #include <common/primitive_hashing_utils.hpp>
 
-#include "ngraph/ngraph.hpp"
-<<<<<<< HEAD
 #include <ngraph/opsets/opset1.hpp>
 #include <openvino/op/bitwise_and.hpp>
 #include <openvino/op/bitwise_not.hpp>
 #include <openvino/op/bitwise_or.hpp>
 #include <openvino/op/bitwise_xor.hpp>
-=======
-#include <openvino/opsets/opset1.hpp>
->>>>>>> 224ff317eb... [CPU] clean ngraph opset namespace and header files
 #include "transformations/cpu_opset/common/op/power_static.hpp"
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"

@@ -26,7 +26,6 @@
 
 #include "onednn/dnnl.h"
 
-#include <blob_factory.hpp>
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"

@@ -19,7 +19,7 @@
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
 
-#include <ngraph/node.hpp>
+#include "openvino/core/node.hpp"
 
 #include <oneapi/dnnl/dnnl.hpp>
 #include <string>

@@ -11,7 +11,6 @@
 
 #include <ie_parallel.hpp>
 #include <dnnl_types.h>
-#include <ngraph/ngraph.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include "shape_inference/custom/priorbox_clustered.hpp"
 

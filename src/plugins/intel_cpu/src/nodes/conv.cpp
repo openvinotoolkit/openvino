@@ -23,7 +23,6 @@
 #include <dnnl_extension_utils.h>
 #include <oneapi/dnnl/dnnl_types.h>
 #include <utils/general_utils.h>
-#include <ngraph/ops.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include "common/cpu_convert.h"
 #include <memory_desc/cpu_memory_desc_utils.h>

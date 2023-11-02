@@ -9,7 +9,6 @@
 #include "exec_graph_info.hpp"
 #include "ie_common.h"
 #include <dnnl_debug.h>
-#include "ngraph/ngraph.hpp"
 #include <openvino/pass/manager.hpp>
 #include <openvino/pass/serialize.hpp>
 

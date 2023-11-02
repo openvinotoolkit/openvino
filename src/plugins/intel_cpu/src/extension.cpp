@@ -15,7 +15,6 @@
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 
-#include <ngraph/ngraph.hpp>
 #include <ov_ops/augru_cell.hpp>
 #include <ov_ops/augru_sequence.hpp>
 #include <ov_ops/type_relaxed.hpp>

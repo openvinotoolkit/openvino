@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <ngraph/node.hpp>
+#include "openvino/core/node.hpp"
 #include "openvino/op/op.hpp"
 
 namespace ov {

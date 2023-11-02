@@ -11,10 +11,8 @@
 #include <algorithm>
 #include <cmath>
 #include <utils/general_utils.h>
-#include <ngraph/ops.hpp>
 #include <ie_parallel.hpp>
 #include <ie_ngraph_utils.hpp>
-#include <blob_factory.hpp>
 #include "caseless.hpp"
 #include "common/cpu_memcpy.h"
 #include "common/cpu_convert.h"
