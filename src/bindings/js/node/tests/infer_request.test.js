@@ -14,6 +14,7 @@ const model = core.readModelSync(testXml);
 const compiledModel = core.compileModelSync(model, 'CPU');
 
 const inferRequest = compiledModel.createInferRequest();
+const inferRequestAsync = compiledModel.createInferRequest();
 
 const tensorData = Float32Array.from({ length: 3072 }, () => (Math.random() + epsilon));
 const tensor = new ov.Tensor(
@@ -34,7 +35,7 @@ describe('InferRequest', () => {
 
   tensorLike.forEach(([tl]) => {
     const result = inferRequest.infer({ data: tl });
-    const label = tl instanceof Float32Array ? 'TypedArray' : 'Tensor';
+    const label = tl instanceof Float32Array ? 'TypedArray[]' : 'Tensor[]';
     it(`Test infer(inputData: { [inputName: string]: ${label} })`, () => {
       assert.deepStrictEqual(Object.keys(result), ['fc_out']);
       assert.deepStrictEqual(result['fc_out'].data.length, 10);
@@ -43,8 +44,8 @@ describe('InferRequest', () => {
 
   tensorLike.forEach(([tl]) => {
     const result = inferRequest.infer([tl]);
-    const label = tl instanceof Float32Array ? 'TypedArray' : 'Tensor';
-    it(`Test infer(inputData: [ [inputName: string]: ${label} ])`, () => {
+    const label = tl instanceof Float32Array ? 'TypedArray[]' : 'Tensor[]';
+    it(`Test infer(inputData: ${label})`, () => {
       assert.deepStrictEqual(Object.keys(result), ['fc_out']);
       assert.deepStrictEqual(result['fc_out'].data.length, 10);
     });
@@ -68,13 +69,41 @@ describe('InferRequest', () => {
     it(`Test infer([data]) throws ${msg}`, () => {
       assert.throws(
         () => inferRequest.infer([tl]),
-        {message: msg});
+        {message: new RegExp(msg)});
     });
     it(`Test infer({ data: tl}) throws ${msg}`, () => {
       assert.throws(
         () => inferRequest.infer({data: tl}),
-        {message: msg});
+        {message: new RegExp(msg)});
     });
+  });
+
+  it('Test inferAsync(inputData: { [inputName: string]: Tensor })', () => {
+    inferRequestAsync.inferAsync({ data: tensor }).then(result => {
+      assert.deepStrictEqual(Object.keys(result), ['fc_out']);
+      assert.deepStrictEqual(result['fc_out'].data.length, 10);}
+    );
+  });
+
+  it('Test inferAsync(inputData: Tensor[])', () => {
+    inferRequestAsync.inferAsync([ tensor ]).then(result => {
+      assert.deepStrictEqual(Object.keys(result), ['fc_out']);
+      assert.deepStrictEqual(result['fc_out'].data.length, 10);
+    });
+  });
+
+  it('Test inferAsync([data]) throws: Cannot create a tensor from the passed Napi::Value.', () => {
+    assert.throws(
+      () => inferRequestAsync.inferAsync(['string']).then(),
+      /Cannot create a tensor from the passed Napi::Value./
+    );
+  });
+
+  it('Test inferAsync({ data: "string"}) throws: Cannot create a tensor from the passed Napi::Value.', () => {
+    assert.throws(
+      () => inferRequestAsync.inferAsync({data: 'string'}).then(),
+      /Cannot create a tensor from the passed Napi::Value./
+    );
   });
 
   it('Test setInputTensor(tensor)', () => {

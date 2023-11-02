@@ -33,6 +33,7 @@
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
+#include "transformations/op_conversions/convert_bitwise_to_logical_bool.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
@@ -112,6 +113,7 @@
 #include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/common_optimizations.hpp"
+#include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/pass/extract_reshapes_from_mha.hpp"
 
 // Misc
@@ -443,6 +445,11 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_ENABLE_PASS_COMMON(manager, ov::pass::ConvertDetectionOutput1ToDetectionOutput8);
     CPU_ENABLE_PASS_COMMON(manager, ov::pass::ConvertROIAlign3To9);
 
+    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertBitwiseAndToLogicalAnd);
+    CPU_ENABLE_PASS_COMMON(manager, ov::pass::ConvertBitwiseNotToLogicalNot);
+    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertBitwiseOrToLogicalOr);
+    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertBitwiseXorToLogicalXor);
+
     if (useLpt) {
         CPU_LPT_SCOPE(LowPrecisionTransformations_Part3);
         CPU_SET_CALLBACK_COMMON(manager,
@@ -612,10 +619,14 @@ void Transformations::MainSnippets(void) {
     // To avoid sitations when Transpose is not alone node between MatMul and Result,
     // Plugin disables Transpose tokenization on output
     tokenization_config.mha_token_enable_transpose_on_output = (inferencePrecision == ov::element::f32);
-    tokenization_config.concurrency = parallel_get_num_threads();
+    tokenization_config.concurrency = config.streamExecutorConfig._threadsPerStream;
+    if (tokenization_config.concurrency == 0)
+        tokenization_config.concurrency = parallel_get_max_threads();
     // The optimization "SplitDimensionM" depends on target machine (thread count).
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is Config::SnippetsMode::IgnoreCallback
     tokenization_config.split_m_dimension = snippetsMode != Config::SnippetsMode::IgnoreCallback;
+    // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
+    tokenization_config.mha_supported_transpose_ranks = { 4 };
 
     ngraph::pass::Manager snippetsManager;
     snippetsManager.set_per_pass_validation(false);
@@ -671,15 +682,10 @@ void Transformations::MainSnippets(void) {
             return true;
         };
         auto is_unsupported_parallel_work_amount = [&](const std::shared_ptr<const ov::Node>& n, const ov::Shape& shape) {
-            const auto parallel_work_amount = std::accumulate(shape.rbegin() + 2, shape.rend(), 1, std::multiplies<size_t>());
-            // Heuristic values:
-            //    parallelism work amount - not enough work amount for parallelism
-            // TODO: The heuristic will be removed after parallelism support on JIT level
-            const auto needed_num_of_threads = 12lu;
+            const size_t parallel_work_amount = std::accumulate(shape.rbegin() + 2, shape.rend(), 1, std::multiplies<size_t>());
             const auto is_unsupported_parallel_work_amount =
-                parallel_get_num_threads() / 2 > parallel_work_amount &&
-                static_cast<size_t>(parallel_work_amount) < needed_num_of_threads &&
-                !ov::snippets::pass::CommonOptimizations::CanOptimizeParallelWA(n, tokenization_config.concurrency);
+                parallel_work_amount < tokenization_config.concurrency &&
+                !ov::snippets::pass::SplitDimensionM::can_be_optimized(n, tokenization_config.concurrency);
             return is_unsupported_parallel_work_amount;
         };
 #endif // OPENVINO_ARCH_X86_64

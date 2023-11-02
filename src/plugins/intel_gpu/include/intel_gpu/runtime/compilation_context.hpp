@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include <functional>
 #include <memory>
 #include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
 
 namespace cldnn {
 
@@ -21,7 +21,7 @@ public:
     virtual void cancel() = 0;
     virtual void wait_all() = 0;
 
-    static std::unique_ptr<ICompilationContext> create(ov::threading::IStreamsExecutor::Config task_executor_config);
+    static std::shared_ptr<ICompilationContext> create(ov::threading::IStreamsExecutor::Config task_executor_config);
 };
 
 }  // namespace cldnn
