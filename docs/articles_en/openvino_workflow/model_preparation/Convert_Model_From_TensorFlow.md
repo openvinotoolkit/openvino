@@ -206,7 +206,6 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
     
      model = hub.load("https://tfhub.dev/svampeatlas/vision/embedder/fungi_V2/1?tf-hub-format=compressed")
      ov_model = ov.convert_model(model)
-     print(ov_model)
 
 * ``tf.function``
 
