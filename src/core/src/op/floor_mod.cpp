@@ -75,12 +75,6 @@ bool FloorMod::has_evaluate() const {
         return false;
     }
 }
-
-bool FloorMod::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v1_FloorMod_visit_attributes);
-    BinaryElementwiseArithmetic::visit_attributes(visitor);
-    return true;
-}
 }  // namespace v1
 }  // namespace op
 }  // namespace ov
