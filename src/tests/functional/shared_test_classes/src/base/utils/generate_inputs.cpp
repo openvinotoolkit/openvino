@@ -1033,6 +1033,56 @@ ov::runtime::Tensor generate(const
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
 
+namespace experimental_detectron {
+template <typename T>
+ov::Tensor generate_detection_output_tensor(size_t port,
+                            const ov::element::Type& elemType,
+                            const ov::Shape& targetShape) {
+    InputGenerateData inGenData(1, 0, 1, 1);
+    auto tensor = ov::test::utils::create_and_fill_tensor(
+        elemType,
+        targetShape,
+        inGenData.range,
+        inGenData.start_from,
+        inGenData.resolution,
+        inGenData.seed);
+    auto raw_ptr = tensor.data<T>();
+    if (port == 0) {
+        raw_ptr[2] = static_cast<T>(10.f);
+        raw_ptr[3] = static_cast<T>(10.f);
+    }
+    if (port == 1) {
+        raw_ptr[0] = static_cast<T>(5.f);
+    }
+    return tensor;
+}
+} // namespace experimental_detectron
+
+ov::runtime::Tensor generate(const
+                             std::shared_ptr<ov::op::v6::ExperimentalDetectronDetectionOutput>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    switch (port) {
+    case 0:
+    case 1:
+#define CASE(X) case X: \
+        return experimental_detectron::generate_detection_output_tensor<ov::fundamental_type_for<X>>(port, elemType, targetShape);
+        switch (elemType) {
+            CASE(ov::element::Type_t::bf16)
+            CASE(ov::element::Type_t::f16)
+            CASE(ov::element::Type_t::f32)
+            CASE(ov::element::Type_t::f64)
+            default: OPENVINO_THROW("Unsupported element type: ", elemType);
+        }
+#undef CASE
+        break;
+    default:
+        InputGenerateData inGenData(1, 0, 1, 1);
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+    }
+}
+
 template<typename T>
 ov::runtime::Tensor generateInput(const std::shared_ptr<ov::Node>& node,
                                   size_t port,
