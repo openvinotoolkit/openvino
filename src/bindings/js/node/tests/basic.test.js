@@ -109,7 +109,8 @@ describe('InputInfo', () => {
   });
 
   it('model().setLayout() throws', () => {
-    assert.throws(() => new ov.PrePostProcessor(model).input(0).model().setLayout('invalidLayout')
+    assert.throws(() =>
+      new ov.PrePostProcessor(model).input(0).model().setLayout('invalidLayout')
     );
   });
 
