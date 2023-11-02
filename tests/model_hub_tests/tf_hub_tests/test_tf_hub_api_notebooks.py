@@ -24,6 +24,15 @@ class TestTFHubApiNotebooks(TestConvertModel):
             softmax = tf.keras.layers.Dense(20, activation='softmax')(feature_vector)
             classification_model = tf.keras.Model(inputs=[image], outputs=[softmax])
             return classification_model
+        elif model_name == 'film':
+            inputs = dict(
+                x0=tf.keras.layers.Input(shape=(200, 200, 3)),
+                x1=tf.keras.layers.Input(shape=(200, 200, 3)),
+                time=tf.keras.layers.Input(shape=(1)),
+            )
+            film_layer = hub.KerasLayer("https://tfhub.dev/google/film/1")(inputs)
+            film_model = tf.keras.Model(inputs=inputs, outputs=list(film_layer.values())[0])
+            return film_model
         else:
             raise "Unknown input model: {}".format(model_name)
 
@@ -58,6 +67,6 @@ class TestTFHubApiNotebooks(TestConvertModel):
         return post_outputs
 
     @pytest.mark.precommit
-    @pytest.mark.parametrize("model_name", ['mobilenet_v2_100_224_dict', 'mobilenet_v2_100_224_list'])
+    @pytest.mark.parametrize("model_name", ['mobilenet_v2_100_224_dict', 'mobilenet_v2_100_224_list', 'film'])
     def test_tf_hub_api_notebook1(self, model_name, ie_device):
         self.run(model_name, '', ie_device)
