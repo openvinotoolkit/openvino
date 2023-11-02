@@ -27,7 +27,7 @@ protected:
  * @brief Tensor data accessor functor.
  *
  * Creates the ov::Tensor found in tensors container.
- * This accessor not take ownership of tensors container.
+ * This accessor does not take ownership of tensors container.
  * Supports following containers:
  * - ov::TensorVector
  * - std::unordered_map<size_t, ov::Tensor>
