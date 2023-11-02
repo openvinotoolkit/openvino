@@ -107,7 +107,7 @@ void MultiClassNms::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    const std::vector<Precision> supportedFloatPrecision = {Precision::FP32, Precision::BF16};
+    const std::vector<Precision> supportedFloatPrecision = {Precision::FP32, Precision::FP16, Precision::BF16};
     const std::vector<Precision> supportedIntOutputPrecision = {Precision::I32, Precision::I64};
 
     checkPrecision(getOriginalInputPrecisionAtPort(NMS_BOXES), supportedFloatPrecision, "boxes", m_inType);
