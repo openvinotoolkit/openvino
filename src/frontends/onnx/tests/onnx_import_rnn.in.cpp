@@ -1155,51 +1155,51 @@ OPENVINO_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_reverse_const) {
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 8);
 }
 
-// OPENVINO_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_reverse) {
-//     auto function = onnx_import::import_onnx_model(
-//         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/gru_reverse.onnx"));
+OPENVINO_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_reverse) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/gru_reverse.onnx"));
 
-//     auto test_case = ov::test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
 
-//     test_case.add_input<float>(in_X);
-//     test_case.add_input<float>(in_W);
-//     test_case.add_input<float>(in_R);
+    test_case.add_input<float>(in_X);
+    test_case.add_input<float>(in_W);
+    test_case.add_input<float>(in_R);
 
-//     // Y
-//     test_case.add_expected_output<float>(
-//         Shape{4, 1, 3, 5},
-//         std::vector<float>{
-//             -0.51097775f, -0.85767376f, 0.8065842f,   -0.1832461f,  -0.00109532f, -0.18766233f, 0.3910985f,
-//             -0.0617601f,  -0.05733761f, -0.23259571f, -0.22787738f, -0.3715533f,  0.70320934f,  -0.17635077f,
-//             -0.0972611f,  -0.11218601f, -0.660165f,   -0.03494868f, -0.07503931f, -0.15422714f, -0.5053969f,
-//             0.5710621f,   0.1448728f,   -0.225453f,   0.07250313f,  -0.5988957f,  0.48768237f,  0.00665835f,
-//             -0.42196327f, 0.2749501f,   -0.02106231f, -0.44533628f, 0.24044508f,  -0.5907899f,  0.26883256f,
-//             -0.3462156f,  0.3782666f,   0.00699124f,  -0.00378288f, -0.2990779f,  -0.32031405f, 0.3363319f,
-//             -0.1877775f,  -0.10781199f, -0.40970552f, 0.47168806f,  -0.6330014f,  -0.1905269f,  0.26708886f,
-//             -0.19741398f, -0.3995853f,  -0.07459997f, 0.691666f,    -0.36566192f, 0.32173023f,  -0.37267625f,
-//             0.1103513f,   0.3908174f,   -0.53085154f, 0.56740737f,
-//         });
-//     // Y_h
-//     test_case.add_expected_output<float>(Shape{1, 3, 5},
-//                                          std::vector<float>{
-//                                              -0.51097775f,
-//                                              -0.85767376f,
-//                                              0.8065842f,
-//                                              -0.1832461f,
-//                                              -0.00109532f,
-//                                              -0.18766233f,
-//                                              0.3910985f,
-//                                              -0.0617601f,
-//                                              -0.05733761f,
-//                                              -0.23259571f,
-//                                              -0.22787738f,
-//                                              -0.3715533f,
-//                                              0.70320934f,
-//                                              -0.17635077f,
-//                                              -0.0972611f,
-//                                          });
-//     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 8);
-// }
+    // Y
+    test_case.add_expected_output<float>(
+        Shape{4, 1, 3, 5},
+        std::vector<float>{
+            -0.51097775f, -0.85767376f, 0.8065842f,   -0.1832461f,  -0.00109532f, -0.18766233f, 0.3910985f,
+            -0.0617601f,  -0.05733761f, -0.23259571f, -0.22787738f, -0.3715533f,  0.70320934f,  -0.17635077f,
+            -0.0972611f,  -0.11218601f, -0.660165f,   -0.03494868f, -0.07503931f, -0.15422714f, -0.5053969f,
+            0.5710621f,   0.1448728f,   -0.225453f,   0.07250313f,  -0.5988957f,  0.48768237f,  0.00665835f,
+            -0.42196327f, 0.2749501f,   -0.02106231f, -0.44533628f, 0.24044508f,  -0.5907899f,  0.26883256f,
+            -0.3462156f,  0.3782666f,   0.00699124f,  -0.00378288f, -0.2990779f,  -0.32031405f, 0.3363319f,
+            -0.1877775f,  -0.10781199f, -0.40970552f, 0.47168806f,  -0.6330014f,  -0.1905269f,  0.26708886f,
+            -0.19741398f, -0.3995853f,  -0.07459997f, 0.691666f,    -0.36566192f, 0.32173023f,  -0.37267625f,
+            0.1103513f,   0.3908174f,   -0.53085154f, 0.56740737f,
+        });
+    // Y_h
+    test_case.add_expected_output<float>(Shape{1, 3, 5},
+                                         std::vector<float>{
+                                             -0.51097775f,
+                                             -0.85767376f,
+                                             0.8065842f,
+                                             -0.1832461f,
+                                             -0.00109532f,
+                                             -0.18766233f,
+                                             0.3910985f,
+                                             -0.0617601f,
+                                             -0.05733761f,
+                                             -0.23259571f,
+                                             -0.22787738f,
+                                             -0.3715533f,
+                                             0.70320934f,
+                                             -0.17635077f,
+                                             -0.0972611f,
+                                         });
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 8);
+}
 
 OPENVINO_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_bias_initial_h_const) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
@@ -2158,49 +2158,49 @@ OPENVINO_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_reverse) {
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 3);
 }
 
-// OPENVINO_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_bias_initial_h_const) {
-//     auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
-//                                                                         SERIALIZED_ZOO,
-//                                                                         "onnx/rnn_fwd_bias_initial_h_const.onnx"));
+OPENVINO_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_bias_initial_h_const) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/rnn_fwd_bias_initial_h_const.onnx"));
 
-//     auto test_case = ov::test::TestCase(function, s_device);
-//     test_case.add_input<float>(in_X);
+    auto test_case = ov::test::TestCase(function, s_device);
+    test_case.add_input<float>(in_X);
 
-//     // Y
-//     test_case.add_expected_output<float>(
-//         Shape{4, 1, 3, 5},
-//         std::vector<float>{
-//             0.55277014f,  0.15672898f,  -0.25152922f, -0.63345766f, 0.99974346f,  0.94002223f, -0.97647303f,
-//             -0.9999884f,  0.9752002f,   0.97388494f,  0.9967754f,   0.96745205f,  0.7899921f,  0.92003024f,
-//             -0.43116868f, 0.11219919f,  0.895327f,    0.21749747f,  0.6617017f,   0.99962795f, 0.37670398f,
-//             0.7918401f,   -0.99966455f, 0.9961897f,   0.9995159f,   -0.84224236f, 0.92083716f, -0.99834263f,
-//             0.9435711f,   0.8485148f,   0.699257f,    0.9983405f,   -0.87222385f, 0.05191362f, 0.9878634f,
-//             0.75459063f,  0.8326433f,   -0.99705976f, 0.62511444f,  0.99979305f,  0.99925995f, 0.94032586f,
-//             -0.86841005f, -0.8692311f,  0.9974319f,   -0.37055743f, -0.54580235f, -0.8618355f, 0.6927968f,
-//             0.99997866f,  0.15482295f,  0.90996563f,  -0.9992051f,  0.784014f,    0.9999677f,  -0.30979204f,
-//             0.99138904f,  -0.10645419f, -0.18203181f, 0.9996245f,
-//         });
-//     // Y_h
-//     test_case.add_expected_output<float>(Shape{1, 3, 5},
-//                                          std::vector<float>{
-//                                              -0.37055743f,
-//                                              -0.54580235f,
-//                                              -0.8618355f,
-//                                              0.6927968f,
-//                                              0.99997866f,
-//                                              0.15482295f,
-//                                              0.90996563f,
-//                                              -0.9992051f,
-//                                              0.784014f,
-//                                              0.9999677f,
-//                                              -0.30979204f,
-//                                              0.99138904f,
-//                                              -0.10645419f,
-//                                              -0.18203181f,
-//                                              0.9996245f,
-//                                          });
-//     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 5);
-// }
+    // Y
+    test_case.add_expected_output<float>(
+        Shape{4, 1, 3, 5},
+        std::vector<float>{
+            0.55277014f,  0.15672898f,  -0.25152922f, -0.63345766f, 0.99974346f,  0.94002223f, -0.97647303f,
+            -0.9999884f,  0.9752002f,   0.97388494f,  0.9967754f,   0.96745205f,  0.7899921f,  0.92003024f,
+            -0.43116868f, 0.11219919f,  0.895327f,    0.21749747f,  0.6617017f,   0.99962795f, 0.37670398f,
+            0.7918401f,   -0.99966455f, 0.9961897f,   0.9995159f,   -0.84224236f, 0.92083716f, -0.99834263f,
+            0.9435711f,   0.8485148f,   0.699257f,    0.9983405f,   -0.87222385f, 0.05191362f, 0.9878634f,
+            0.75459063f,  0.8326433f,   -0.99705976f, 0.62511444f,  0.99979305f,  0.99925995f, 0.94032586f,
+            -0.86841005f, -0.8692311f,  0.9974319f,   -0.37055743f, -0.54580235f, -0.8618355f, 0.6927968f,
+            0.99997866f,  0.15482295f,  0.90996563f,  -0.9992051f,  0.784014f,    0.9999677f,  -0.30979204f,
+            0.99138904f,  -0.10645419f, -0.18203181f, 0.9996245f,
+        });
+    // Y_h
+    test_case.add_expected_output<float>(Shape{1, 3, 5},
+                                         std::vector<float>{
+                                             -0.37055743f,
+                                             -0.54580235f,
+                                             -0.8618355f,
+                                             0.6927968f,
+                                             0.99997866f,
+                                             0.15482295f,
+                                             0.90996563f,
+                                             -0.9992051f,
+                                             0.784014f,
+                                             0.9999677f,
+                                             -0.30979204f,
+                                             0.99138904f,
+                                             -0.10645419f,
+                                             -0.18203181f,
+                                             0.9996245f,
+                                         });
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 5);
+}
 
 OPENVINO_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_fwd_bias_initial_h) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
