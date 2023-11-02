@@ -20,9 +20,9 @@ const std::vector<float> probs_4x4_f32 = {
     10.0f, 0.1f, 0.1f, 0.1f
 };
 
-const std::vector<short> probs_2x3_f16 = {
-    (short)0.1f, (short)0.1f, (short)10.0f, 
-    (short)10.0f, (short)0.1f, (short)0.1f
+const std::vector<ov::float16> probs_2x3_f16 = {
+    (ov::float16)0.1f, (ov::float16)0.1f, (ov::float16)10.0f, 
+    (ov::float16)10.0f, (ov::float16)0.1f, (ov::float16)0.1f
 };
 
 const std::vector<ov::bfloat16> probs_1x3_bf16 = {
@@ -30,19 +30,19 @@ const std::vector<ov::bfloat16> probs_1x3_bf16 = {
 };
 
 const std::vector<int> num_samples_scalar_i32 = {1};
-const std::vector<long> num_samples_1x1_i64 = {2};
-const std::vector<long> num_samples_scalar_i64 = {3};
+const std::vector<int64_t> num_samples_1x1_i64 = {2};
+const std::vector<int64_t> num_samples_scalar_i64 = {3};
 
 const std::vector<ov::Tensor> probs = {
     ov::Tensor(ov::element::f32, {4, 4}, (void*)probs_4x4_f32.data()),
-    // ov::Tensor(ov::element::f16, {2, 3}, (void*)probs_2x3_f16.data()),
+    ov::Tensor(ov::element::f16, {2, 3}, (void*)probs_2x3_f16.data()),
     ov::Tensor(ov::element::bf16, {1, 3}, (void*)probs_1x3_bf16.data())
 };
 
 const std::vector<ov::Tensor> num_samples = {
     ov::Tensor(ov::element::i32, {}, (void*)num_samples_scalar_i32.data()),
-    // ov::Tensor(ov::element::i64, {1}, (void*)num_samples_1x1_i64.data()),
-    // ov::Tensor(ov::element::i64, {}, (void*)num_samples_scalar_i64.data())
+    ov::Tensor(ov::element::i64, {1}, (void*)num_samples_1x1_i64.data()),
+    ov::Tensor(ov::element::i64, {}, (void*)num_samples_scalar_i64.data())
 };
 
 const std::vector<ov::test::ElementType> convert_type = {

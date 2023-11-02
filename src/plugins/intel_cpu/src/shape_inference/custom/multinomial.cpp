@@ -17,21 +17,14 @@ using namespace InferenceEngine;
 Result MultinomialShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                                     const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     const VectorDims& input_shape = input_shapes[0].get();
-    const auto& num_samples_mem = data_dependency.at(1);
-
+    const auto& num_samples_memory = data_dependency.at(1);
     size_t num_samples;
-    if (num_samples_mem->getDesc().getPrecision() == Precision::I32) {
-        num_samples = reinterpret_cast<const int32_t*>(num_samples_mem->getData())[0];
-    } else {  // equals I64 precision
-        num_samples = reinterpret_cast<const int64_t*>(num_samples_mem->getData())[0];
+    if (num_samples_memory->getDesc().getPrecision() == InferenceEngine::Precision::I32) {
+        num_samples= reinterpret_cast<const int*>(num_samples_memory->getData())[0];
+    } else { // I64
+        num_samples= reinterpret_cast<const int64_t*>(num_samples_memory->getData())[0];
     }
-
-    VectorDims dims{num_samples};
-    if (input_shape.size() == 2) {
-        dims.insert(dims.begin(), input_shape[0]);
-    }
-
-    return {{dims}, ShapeInferStatus::success};
+    return {{{input_shape[0], num_samples}}, ShapeInferStatus::success};
 
     // const std::vector<ov::PartialShape> input_shape_vec{ov::PartialShape(input_shape)};
     // const auto output_partial_shape = shape_infer(m_op.get(), input_shape_vec,

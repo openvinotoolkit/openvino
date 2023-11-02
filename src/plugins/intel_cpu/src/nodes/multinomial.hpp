@@ -58,10 +58,14 @@ private:
     InferenceEngine::Precision m_num_samples_precision;
     InferenceEngine::Precision m_output_precision;
 
-    size_t m_input_elements_count = 0;
+    size_t m_probs_count = 0;
     size_t m_batches_count = 0;
     size_t m_samples_count = 0;
-    size_t m_probs_count = 0;
+    size_t m_samples_probs_count = 0;
+    size_t m_input_elements_count = 0;
+    size_t m_output_elements_count = 0;
+    size_t m_batches_samples_probs_count = 0;
+
 
     template <typename P>
     void execute_types() {
@@ -80,7 +84,7 @@ private:
 
         std::vector<P> m_cdf(m_input_elements_count);
         std::vector<P> m_max_per_batch(m_batches_count);
-        std::vector<P> m_random_samples(m_input_elements_count);
+        std::vector<P> m_random_samples(m_output_elements_count);
 
         std::cout << "probs" << "\n";
         for(size_t q = 0; q < m_input_elements_count; q++) {
@@ -115,18 +119,18 @@ private:
 
         // TODO RandomUniform - should use RandomUniform kernel to match other frameworks' seed results
         std::srand(m_op_seed);
-        for (size_t idx = 0lu; idx < m_input_elements_count; ++idx) {
+        for (size_t idx = 0lu; idx < m_output_elements_count; ++idx) {
             m_random_samples[idx] = static_cast<P>(std::rand()) / static_cast<P>(RAND_MAX);
         };
         std::cout << "rand" << "\n";
-        for(size_t q = 0; q < m_input_elements_count; q++) {
+        for(size_t q = 0; q < m_output_elements_count; q++) {
             std::cout << m_random_samples[q] << " ";
         } std::cout << "\n";
 
         // max (slice) & divide
-        const auto min_max_value = std::numeric_limits<P>::min();
+        const auto min_value_of_max = std::numeric_limits<P>::min();
         parallel_for(m_batches_count, [&](size_t idx) {
-            m_max_per_batch[idx] = std::max(m_cdf[(idx + 1) * m_probs_count - 1], min_max_value);
+            m_max_per_batch[idx] = std::max(m_cdf[(idx + 1) * m_probs_count - 1], min_value_of_max);
         });
         parallel_for(m_input_elements_count, [&](size_t idx) {
             size_t idx_max_elem = idx / m_probs_count;
@@ -142,28 +146,35 @@ private:
             std::cout << m_cdf[q] << " ";
         } std::cout << "\n";
 
-        if (m_with_replacement) {
-            parallel_for(m_input_elements_count, [&](size_t idx) {
-                size_t idx_output = idx / m_probs_count * m_samples_count;
-                size_t idx_class = idx % m_probs_count;
-                if (m_random_samples[idx] <= m_cdf[idx] && (!idx_class || m_random_samples[idx] > m_cdf[idx - 1])) {
-                    output[idx_output] = static_cast<O>(idx_class);
+        if (m_with_replacement) { // handles both with and without log_probs
+            parallel_for(m_batches_samples_probs_count, [&](size_t idx) {
+                size_t i_sample_prob = idx % m_samples_probs_count;
+                size_t i_prob = i_sample_prob % m_probs_count;
+                size_t i_sample = i_sample_prob / m_probs_count;
+                size_t idx_batch = idx / m_samples_probs_count;
+                size_t idx_input = idx_batch * m_batches_count + i_prob;
+                size_t idx_output = idx_batch * m_batches_count + i_sample;
+                if (m_random_samples[idx_output] <= m_cdf[idx_input] && (!i_prob || m_random_samples[idx_output] > m_cdf[idx_input - 1])) {
+                    output[idx_output] = static_cast<O>(i_prob);
                 }
             });
-        } else if (m_log_probs) {
-            parallel_for(m_input_elements_count, [&](size_t idx) {
-                size_t idx_batch = idx / m_probs_count;
-                size_t idx_class = idx % m_probs_count;
-                size_t idx_output = idx_batch * m_samples_count;
+        } else if (m_log_probs) { // no replacement, log_probs
+            parallel_for(m_batches_samples_probs_count, [&](size_t idx) {
+                size_t i_sample_prob = idx % m_samples_probs_count;
+                size_t i_prob = i_sample_prob % m_probs_count;
+                size_t i_sample = i_sample_prob / m_probs_count;
+                size_t idx_batch = idx / m_samples_probs_count;
+                size_t idx_input = idx_batch * m_batches_count + i_prob;
+                size_t idx_output = idx_batch * m_batches_count + i_sample;
 
                 P class_probability = 0.0f;
                 P divisor = 1.0f;
 
                 size_t selected_class = 0;
-                if (m_random_samples[idx] <= m_cdf[idx] && (!idx_class || m_random_samples[idx] > m_cdf[idx - 1])) {
-                    output[idx_output] = static_cast<O>(idx_class);
-                    selected_class = idx_class;
-                    class_probability = std::exp(probs[idx]); // only difference between log_probs vs no log_probs
+                if (m_random_samples[idx_output] <= m_cdf[idx_input] && (!i_prob || m_random_samples[idx_output] > m_cdf[idx_input - 1])) {
+                    output[idx_output] = static_cast<O>(i_prob);
+                    selected_class = i_prob;
+                    class_probability = std::exp(probs[idx_input]); // only difference between log_probs vs no log_probs
                     divisor = 1 - class_probability;
                 }
 
@@ -175,20 +186,23 @@ private:
                     m_cdf[idx_start + probs_idx] /= divisor;
                 };
             });
-        } else {
-            parallel_for(m_input_elements_count, [&](size_t idx) {
-                size_t idx_batch = idx / m_probs_count;
-                size_t idx_class = idx % m_probs_count;
-                size_t idx_output = idx_batch * m_samples_count;
+        } else { // no replacement, no log probs
+            parallel_for(m_batches_samples_probs_count, [&](size_t idx) {
+                size_t i_sample_prob = idx % m_samples_probs_count;
+                size_t i_prob = i_sample_prob % m_probs_count;
+                size_t i_sample = i_sample_prob / m_probs_count;
+                size_t idx_batch = idx / m_samples_probs_count;
+                size_t idx_input = idx_batch * m_batches_count + i_prob;
+                size_t idx_output = idx_batch * m_batches_count + i_sample;
 
                 P class_probability = 0.0f;
                 P divisor = 1.0f;
 
                 size_t selected_class = 0;
-                if (m_random_samples[idx] <= m_cdf[idx] && (!idx_class || m_random_samples[idx] > m_cdf[idx - 1])) {
-                    output[idx_output] = static_cast<O>(idx_class);
-                    selected_class = idx_class;
-                    class_probability = probs[idx];
+                if (m_random_samples[idx_output] <= m_cdf[idx_input] && (!i_prob || m_random_samples[idx_output] > m_cdf[idx_input - 1])) {
+                    output[idx_output] = static_cast<O>(i_prob);
+                    selected_class = i_prob;
+                    class_probability = probs[idx_input];
                     divisor = 1 - class_probability;
                 }
 

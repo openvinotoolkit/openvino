@@ -117,28 +117,20 @@ std::string Multinomial::getPrimitiveDescriptorType() const {
 
 bool Multinomial::needShapeInfer() const {
     return true;
-    // if (getChildEdgeAt(OUTPUT_PORT)->getMemoryPtr()->getShape().isDynamic()) {
-    //     return true;
-    // }
-    // return false;
 }
 
 bool Multinomial::needPrepareParams() const {
     return true;
-    // if (m_output_shape != getChildEdgeAt(OUTPUT_PORT)->getMemory().getStaticDims()) {
-    //     return true;
-    // }
-    // return false;
 }
 
 void Multinomial::prepareParams() {
     const auto probs_shape = getParentEdgeAt(PROBS_PORT)->getMemory().getStaticDims();
     const auto num_samples_shape = getParentEdgeAt(NUM_SAMPLES_PORT)->getMemory().getStaticDims();
 
-    if (probs_shape.size() != 1 && probs_shape.size() != 2) {
+    if (probs_shape.size() != 2) {
         THROW_CPU_NODE_ERR("has incompatible 'probs' shape ",
                            PartialShape(probs_shape),
-                           ". Only 1D and 2D tensors are allowed.");
+                           ". Only 2D tensors are allowed.");
     }
 
     if (num_samples_shape.size() != 1) {
@@ -154,14 +146,13 @@ void Multinomial::prepareParams() {
         m_samples_count = reinterpret_cast<const int64_t*>(
             getParentEdgeAt(NUM_SAMPLES_PORT)->getMemoryPtr()->getData())[0];
     }
-    m_input_elements_count = std::accumulate(probs_shape.begin(), probs_shape.end(), 1, std::multiplies<size_t>());
-    m_batches_count = probs_shape.size() == 2 ? probs_shape[0] : 1;
-    m_probs_count = probs_shape.size() == 2 ? probs_shape[1] : probs_shape[0];
 
-    if (probs_shape.size() != 1) {
-        m_output_shape.push_back(m_batches_count);
-    }
-    m_output_shape.push_back(m_samples_count);
+    m_batches_count = probs_shape[0];
+    m_probs_count = probs_shape[1];
+    m_samples_probs_count = m_samples_count * m_probs_count;
+    m_input_elements_count = m_batches_count * m_probs_count;
+    m_output_elements_count = m_batches_count * m_samples_count;
+    m_batches_samples_probs_count = m_batches_count * m_samples_count * m_probs_count;
 }
 
 void Multinomial::execute(dnnl::stream strm) {
@@ -169,7 +160,7 @@ void Multinomial::execute(dnnl::stream strm) {
         case InferenceEngine::Precision::FP32:
             return execute_types<float>();
         case InferenceEngine::Precision::FP16:
-            return execute_types<short>();
+            return execute_types<float16>();
         case InferenceEngine::Precision::BF16:
             return execute_types<bfloat16>();
         default:
