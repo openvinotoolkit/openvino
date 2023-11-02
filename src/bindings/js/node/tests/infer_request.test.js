@@ -8,7 +8,7 @@ const { describe, it } = require('node:test');
 const { getModelPath } = require('./utils.js');
 
 const epsilon = 0.5; // To avoid very small numbers
-const testXml = getModelPath();
+const testXml = getModelPath().xml;
 const core = new ov.Core();
 const model = core.readModelSync(testXml);
 const compiledModel = core.compileModelSync(model, 'CPU');

@@ -7,7 +7,7 @@ const assert = require('assert');
 const { describe, it } = require('node:test');
 const { getModelPath } = require('./utils.js');
 
-let testXml = getModelPath();
+const testXml = getModelPath().xml;
 const core = new ov.Core();
 const model = core.readModelSync(testXml);
 const compiledModel = core.compileModelSync(model, 'CPU');
@@ -79,7 +79,7 @@ describe('Core.compileModel()', () => {
 
   });
 
-  it('compileModel(model, device, config) throws when config isn't an object', () => {
+  it('compileModel(model, device, config) throws when config isn\'t an object', () => {
     assert.throws(
       () => core.compileModel(model, 'CPU', 'string').then(),
       /Cannot convert Napi::Value to std::map<std::string, ov::Any>/
