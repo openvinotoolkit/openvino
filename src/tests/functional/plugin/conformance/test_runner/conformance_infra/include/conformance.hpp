@@ -22,8 +22,6 @@ extern const char* refCachePath;
 
 extern std::vector<std::string> IRFolderPaths;
 extern std::vector<std::string> disabledTests;
-// first value - path to model, second - amout of tests with this path
-extern std::list<std::pair<std::string, int>> dirListInfo;
 
 extern ov::AnyMap pluginConfig;
 
@@ -66,6 +64,7 @@ static std::set<std::string> get_element_type_names() {
                                                      ov::element::Type_t::f32,
                                                      ov::element::Type_t::f16,
                                                      ov::element::Type_t::bf16,
+                                                     ov::element::Type_t::nf4,
                                                      ov::element::Type_t::i64,
                                                      ov::element::Type_t::i32,
                                                      ov::element::Type_t::i16,
@@ -78,7 +77,8 @@ static std::set<std::string> get_element_type_names() {
                                                      ov::element::Type_t::u4,
                                                      ov::element::Type_t::u1,
                                                      ov::element::Type_t::boolean,
-                                                     ov::element::Type_t::dynamic
+                                                     ov::element::Type_t::dynamic,
+                                                     ov::element::Type_t::undefined,
                                                    };
     std::set<std::string> result;
     for (const auto& element_type : element_types) {
@@ -103,16 +103,23 @@ inline std::string get_ref_path(const std::string& model_path) {
     std::string path_to_cache = refCachePath + std::string(ov::test::utils::FileSeparator);
     std::string ref_name = model_path.substr(model_path.rfind(ov::test::utils::FileSeparator) + 1);
     ref_name = ov::test::utils::replaceExt(ref_name, "bin");
-    path_to_cache +=  ref_name;
+    path_to_cache += ref_name;
     return path_to_cache;
 }
 
 // vector<ir_path, ref_path>
-inline std::vector<std::pair<std::string, std::string>> getModelPaths(const std::vector<std::string>& conformance_ir_paths,
-                                                                      const std::string& opName = "Other") {
+inline std::vector<std::pair<std::string, std::string>>
+getModelPaths(const std::vector<std::string>& conformance_ir_paths,
+              const std::string& opName = "undefined") {
     // This is required to prevent re-scan folders each call in case there is nothing found
-    static bool listPrepared = false;
-    if (!listPrepared) {
+    // {{ op_name, {irs} }}
+    static std::unordered_map<std::string, std::vector<std::pair<std::string, std::string>>> op_filelist;
+    if (op_filelist.empty()) {
+        for (const auto& op_name : unique_ops) {
+            op_filelist.insert({op_name.first, {}});
+        }
+        op_filelist.insert({"undefined", {}});
+        std::vector<std::string> filelist;
         // Looking for any applicable files in a folders
         for (const auto& conformance_ir_path : conformance_ir_paths) {
             std::vector<std::string> tmp_buf;
@@ -126,38 +133,30 @@ inline std::vector<std::pair<std::string, std::string>> getModelPaths(const std:
             }
             //Save it in a list, first value - path, second - amout of tests with this path
             for (auto& val : tmp_buf) {
-                dirListInfo.insert(dirListInfo.end(), std::make_pair(val, 0));
+                bool is_op = false;
+                for (const auto& path_item : ov::test::utils::splitStringByDelimiter(val, ov::test::utils::FileSeparator)) {
+                    auto tmp_path_item = path_item;
+                    auto pos = tmp_path_item.find('-');
+                    if (pos != std::string::npos) {
+                        tmp_path_item = tmp_path_item.substr(0, pos);
+                    }
+                    if (op_filelist.find(tmp_path_item) != op_filelist.end()) {
+                        op_filelist[tmp_path_item].push_back({val, get_ref_path(val)});
+                        is_op = true;
+                        break;
+                    }
+                }
+                if (!is_op) {
+                    op_filelist["undefined"].push_back({val, get_ref_path(val)});
+                }
             }
         }
-        listPrepared = true;
     }
 
-    std::vector<std::pair<std::string, std::string>> result;
-    if (!opName.empty() && opName != "Other") {
-        for (const auto& op_version : unique_ops[opName]) {
-            std::string final_op_name = op_version == "" ? opName : opName + "-" + op_version;
-            std::string strToFind = ov::test::utils::FileSeparator + final_op_name + ov::test::utils::FileSeparator;
-            auto it = dirListInfo.begin();
-            while (it != dirListInfo.end()) {
-                if (it->first.find(strToFind) != std::string::npos) {
-                    result.push_back({it->first, get_ref_path(it->first)});
-                    it->second++;
-                }
-                ++it;
-            }
-        }
-    } else if (opName == "Other") {
-        // For "Undefined" operation name - run all applicable files in "Undefined" handler
-        // result.insert(result.end(), dirListInfo.begin(), dirListInfo.end());
-        for (auto& file : dirListInfo) {
-            // if file wasn't used for tests previously we can create test with it
-            if (file.second == 0) {
-                result.push_back({file.first, get_ref_path(file.first)});
-                file.second++;
-            }
-        }
+    if (op_filelist.find(opName) != op_filelist.end()) {
+        return op_filelist[opName];
     }
-    return result;
+    return {};
 }
 
 }  // namespace conformance

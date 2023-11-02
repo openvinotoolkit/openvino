@@ -5,8 +5,8 @@
 
 #include <memory>
 
-#include "cache/meta/input_info.hpp"
-#include "utils/dynamism.hpp"
+#include "op_conformance_utils/meta_info/input_info.hpp"
+#include "op_conformance_utils/utils/dynamism.hpp"
 
 #include "functional_test_utils/node_utils.hpp"
 #include "functional_test_utils/summary/op_info.hpp"

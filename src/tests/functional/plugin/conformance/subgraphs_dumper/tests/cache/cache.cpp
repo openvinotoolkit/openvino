@@ -12,7 +12,7 @@
 #include "common_test_utils/graph_comparator.hpp"
 
 #include "cache/cache.hpp"
-#include "cache/meta/meta_info.hpp"
+#include "op_conformance_utils/meta_info/meta_info.hpp"
 #include "utils/model.hpp"
 
 #include "base_test.hpp"

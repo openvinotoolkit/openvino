@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME subgraphsDumperTests)
+set(OLD_TARGET_NAME subgraphsDumperTests)
+set(TARGET_NAME ov_subgraphs_dumper_tests)
 
 ov_add_test_target(
         NAME ${TARGET_NAME}
@@ -11,10 +12,25 @@ ov_add_test_target(
             ${CMAKE_CURRENT_SOURCE_DIR}/
         LINK_LIBRARIES
             PRIVATE
-                subgraphsDumperUtil
+            ov_subgraphs_dumper_util
+        ADD_CPPLINT
+        LABELS
+            OV UNIT
+)
+
+# todo: remove as product config will be updated
+ov_add_test_target(
+        NAME ${OLD_TARGET_NAME}
+        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        INCLUDES
+            ${CMAKE_CURRENT_SOURCE_DIR}/
+        LINK_LIBRARIES
+            PRIVATE
+                ov_subgraphs_dumper_util
         ADD_CPPLINT
         LABELS
             OV UNIT
 )
 
 ov_build_target_faster(${TARGET_NAME} UNITY)
+ov_build_target_faster(${OLD_TARGET_NAME} UNITY)

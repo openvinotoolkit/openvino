@@ -5,7 +5,9 @@
 #pragma once
 
 #include <map>
-#include "openvino/openvino.hpp"
+
+#include "openvino/core/shape.hpp"
+#include "openvino/core/partial_shape.hpp"
 
 namespace ov {
 namespace tools {

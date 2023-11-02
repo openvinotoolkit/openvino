@@ -191,6 +191,15 @@ inline std::ostream& operator<<(std::ostream& os, const std::map<std::string, st
     return os;
 }
 
+inline std::ostream& operator<<(std::ostream& os, const ov::AnyMap& config) {
+    os << "(";
+    for (const auto& configItem : config) {
+        os << configItem.first << "=" << configItem.second.as<std::string>() << "_";
+    }
+    os << ")";
+    return os;
+}
+
 std::string generateTestFilePrefix();
 
 size_t getVmSizeInKB();

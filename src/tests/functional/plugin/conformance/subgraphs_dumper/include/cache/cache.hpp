@@ -8,7 +8,7 @@
 
 #include "openvino/openvino.hpp"
 
-#include "cache/meta/meta_info.hpp"
+#include "op_conformance_utils/meta_info/meta_info.hpp"
 #include "matchers/single_op/manager.hpp"
 
 namespace ov {

@@ -27,7 +27,7 @@ except:
     logger.warning("Please set the above env variable to get the same conformance ir names run by run!")
     has_python_api = False
 
-API_CONFORMANCE_BIN_NAME = "apiConformanceTests"
+API_CONFORMANCE_BIN_NAME = "ov_api_conformance_tests"
 OP_CONFORMANCE_BIN_NAME = "conformanceTests"
 SUBGRAPH_DUMPER_BIN_NAME = "subgraphsDumper"
 

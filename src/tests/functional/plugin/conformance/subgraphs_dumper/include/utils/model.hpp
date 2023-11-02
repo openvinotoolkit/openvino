@@ -18,7 +18,7 @@
 
 #include "cache/cache.hpp"
 #include "utils/node.hpp"
-#include "utils/dynamism.hpp"
+#include "op_conformance_utils/utils/dynamism.hpp"
 
 namespace ov {
 namespace tools {

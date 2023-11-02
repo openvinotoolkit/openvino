@@ -4,9 +4,7 @@
 
 #include "pugixml.hpp"
 
-#include "common_test_utils/file_utils.hpp"
-
-#include "cache/meta/meta_info.hpp"
+#include "op_conformance_utils/meta_info/meta_info.hpp"
 
 namespace ov {
 namespace tools {
@@ -157,8 +155,8 @@ void MetaInfo::serialize(const std::string& serialization_path) {
                 input_node.append_attribute("max").set_value(input.second.ranges.max);
             }
             input_node.append_attribute("convert_to_const").set_value(input.second.is_const);
-            input_node.append_attribute("max_shape").set_value(ov::test::utils::partialShape2str({ input.second.max_shape }).c_str());
-            input_node.append_attribute("min_shape").set_value(ov::test::utils::partialShape2str({ input.second.min_shape }).c_str());
+            input_node.append_attribute("max_shape").set_value(input.second.max_shape.to_string().c_str());
+            input_node.append_attribute("min_shape").set_value(input.second.min_shape.to_string().c_str());
         }
         doc.save_file(serialization_path.c_str());
 }
@@ -215,8 +213,17 @@ std::map<std::string, ModelInfo> MetaInfo::get_model_info() const {
 }
 
 std::string MetaInfo::get_model_name_by_path(const std::string& model_path) {
-    auto pos = model_path.rfind(ov::test::utils::FileSeparator);
-    auto model_name = ov::test::utils::replaceExt(model_path.substr(pos + 1), "");
+    constexpr const auto file_separator =
+    #ifdef _WIN32
+            '\\';
+    #else
+            '/';
+    #endif
+
+    auto pos = model_path.rfind(file_separator);
+    auto model_name = model_path.substr(pos + 1);
+    pos = model_name.find('.');
+    model_name = model_path.substr(pos);
     return model_name;
 }
 
