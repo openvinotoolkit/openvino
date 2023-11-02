@@ -22,14 +22,11 @@ interface Core {
     device: string,
     config?: { [option: string]: string }
   ): CompiledModel;
+  readModel(modelPath: string, weightsPath?: string): Promise<Model>;
   readModel(
-    modelPath: string | Uint8Array,
-    binPath?: string | Uint8Array,
-  ): Promise<Model>;
-  readModelSync(
-    modelPath: string | Uint8Array,
-    binPath?: string | Uint8Array,
-  ): Model;
+    modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Promise<Model>;
+  readModelSync(modelPath: string, weightsPath?: string): Model;
+  readModelSync(modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Model;
 }
 interface CoreConstructor {
   new(): Core;
