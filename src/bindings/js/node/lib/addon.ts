@@ -57,7 +57,7 @@ interface InferRequest {
   infer(inputData?: { [inputName: string]: Tensor | SupportedTypedArray}
     | Tensor[] | SupportedTypedArray[]): { [outputName: string] : Tensor};
   inferAsync(inputData: { [inputName: string]: Tensor}
-    | Tensor[] ): { [outputName: string] : Tensor};
+    | Tensor[] ): Promise<{ [outputName: string] : Tensor}>;
   getCompiledModel(): CompiledModel;
 }
 
