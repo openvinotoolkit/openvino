@@ -129,12 +129,14 @@ TEST_P(AutoCompiledModelGetPropertyWithReleaseHelper, getPropertyTestAfterReleas
     std::shared_ptr<ov::ICompiledModel> exeNetwork;
     std::string result;
     ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
-    ASSERT_NO_THROW(result = exeNetwork->get_property(ov::model_name.name()).as<std::string>());
-    if (!actSleep) {
+    if (actSleep) {
+        if (!cpuSleep) {
+            ASSERT_NO_THROW(result = exeNetwork->get_property(ov::model_name.name()).as<std::string>());
+            EXPECT_EQ(result, modelNameCpu);
+        }
+    } else {
+        ASSERT_NO_THROW(result = exeNetwork->get_property(ov::model_name.name()).as<std::string>());
         EXPECT_EQ(result, modelNameActual);
-    }
-    if (!cpuSleep && actSleep) {
-        EXPECT_EQ(result, modelNameCpu);
     }
 }
 
