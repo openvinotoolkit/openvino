@@ -144,10 +144,16 @@ Constant::~Constant() = default;
 struct ValueToString : ov::element::NotSupported<std::string> {
     using ov::element::NotSupported<std::string>::visit;
 
-    template <ov::element::Type_t ET,
-              typename std::enable_if<ov::is_floating_point<fundamental_type_for<ET>>()>::type* = nullptr>
+    template <ov::element::Type_t ET, typename std::enable_if<ET == element::f64>::type* = nullptr>
     static result_type visit(const Constant* const c, const size_t index) {
-        return to_cpp_string<double>(c->get_element_value<ET>(index));
+        return to_cpp_string(c->get_element_value<ET>(index));
+    }
+
+    template <ov::element::Type_t ET,
+              typename std::enable_if<ov::is_floating_point<fundamental_type_for<ET>>() && ET != element::f64>::type* =
+                  nullptr>
+    static result_type visit(const Constant* const c, const size_t index) {
+        return to_cpp_string<float>(c->get_element_value<ET>(index));
     }
 
     template <ov::element::Type_t ET,
