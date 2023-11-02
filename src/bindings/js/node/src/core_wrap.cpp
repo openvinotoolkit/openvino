@@ -51,6 +51,8 @@ Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
     else
         model = _core.read_model(args->model_str, args->weight_tensor);
 
+    delete args;
+
     return ModelWrap::Wrap(info.Env(), model);
 }
 

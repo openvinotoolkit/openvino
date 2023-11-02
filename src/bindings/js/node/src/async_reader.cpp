@@ -18,6 +18,8 @@ void ReaderWorker::OnOK() {
     ModelWrap* m = Napi::ObjectWrap<ModelWrap>::Unwrap(mw);
     m->set_model(_model);
 
+    delete _args;
+
     _deferred.Resolve(mw);
 }
 
