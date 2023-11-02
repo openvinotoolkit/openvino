@@ -457,9 +457,24 @@ void Reorder::reorderData(const IMemory &input, const IMemory &output, MultiCach
 
         auto srcMemory = input.getPrimitive();
         auto dstMemory = output.getPrimitive();
+
+        auto srcMemoryDesc = srcMemory.get_desc();
+        auto dstMemoryDesc = dstMemory.get_desc();
+
         auto engine = dstMemory.get_engine();
+
+        if (srcMemoryDesc.get_ndims() != dstMemoryDesc.get_ndims()) {
+            //rank mismatch, try to reshape source mem descriptor
+            constexpr bool allowEmpty = true;
+            auto reshapedSrcMemDesc = srcMemoryDesc.reshape(dstMemoryDesc.get_dims(), allowEmpty);
+            if (reshapedSrcMemDesc) {
+                srcMemoryDesc = reshapedSrcMemDesc;
+                srcMemory = dnnl::memory(srcMemoryDesc, engine, srcMemory.get_data_handle());
+            }
+        }
+
         // try directly reorder
-        reorder = getReorderPrim(cache, dstMemory.get_engine(), srcMemory.get_desc(), dstMemory.get_desc());
+        reorder = getReorderPrim(cache, engine, srcMemoryDesc, dstMemoryDesc);
         if (!reorder) {
             // try precision conversion then do the reorder
             if (output.getDataType() != input.getDataType() && Convert::isSupportedDesc(input.getDesc()) &&
