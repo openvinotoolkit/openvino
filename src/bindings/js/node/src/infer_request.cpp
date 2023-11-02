@@ -11,7 +11,9 @@
 #include "node_output.hpp"
 #include "tensor.hpp"
 
+namespace {
 std::mutex infer_mutex;
+}
 
 InferRequestWrap::InferRequestWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<InferRequestWrap>(info) {}
 
