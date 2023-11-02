@@ -7,7 +7,6 @@ set(TARGET_NAME ov_subgraphs_dumper)
 
 list(APPEND LIBRARIES
         gflags
-        func_test_utils
         op_conformance_utils
 )
 

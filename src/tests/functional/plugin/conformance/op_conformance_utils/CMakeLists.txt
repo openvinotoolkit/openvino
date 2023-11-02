@@ -7,6 +7,7 @@ set(TARGET_NAME op_conformance_utils)
 list(APPEND LIBRARIES
         openvino::runtime
         openvino::pugixml
+        openvino_util
 )
 
 # add op_conformance_utils lib to get API

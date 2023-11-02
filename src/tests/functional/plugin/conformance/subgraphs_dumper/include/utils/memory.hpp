@@ -13,8 +13,7 @@
 #endif
 
 namespace ov {
-namespace tools {
-namespace subgraph_dumper {
+namespace util {
 
 static size_t get_ram_size() {
     size_t ram_mem_size_bytes = 0;
@@ -43,6 +42,5 @@ static size_t get_ram_size() {
     return ram_mem_size_bytes;
 }
 
-}  // namespace subgraph_dumper
-}  // namespace tools
+}  // namespace util
 }  // namespace ov

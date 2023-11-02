@@ -8,8 +8,7 @@
 #include <string>
 
 namespace ov {
-namespace tools {
-namespace subgraph_dumper {
+namespace conformance {
 
 struct ModelInfo {
     std::set<std::string> model_paths;
@@ -37,6 +36,5 @@ struct ModelInfo {
     }
 };
 
-}  // namespace subgraph_dumper
-}  // namespace tools
+}  // namespace conformance
 }  // namespace ov

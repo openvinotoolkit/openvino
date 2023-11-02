@@ -1,19 +1,16 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <chrono>
-#include "openvino/pass/manager.hpp"
-#include "openvino/pass/constant_folding.hpp"
+
 #include "matchers/subgraph/manager.hpp"
-#include "utils/model.hpp"
 
 using namespace ov::tools::subgraph_dumper;
 
-std::vector<ExtractedPattern>
+std::vector<SubgraphExtractor::ExtractedPattern>
 ExtractorsManager::extract(const std::shared_ptr<ov::Model> &model,
                            bool is_extract_body,
                            bool is_copy_constants) {
-    std::vector<ExtractedPattern> result;
+    std::vector<SubgraphExtractor::ExtractedPattern> result;
     for (const auto &it : m_extractors) {
         // extract patterns from original models
         auto start = std::chrono::high_resolution_clock::now();

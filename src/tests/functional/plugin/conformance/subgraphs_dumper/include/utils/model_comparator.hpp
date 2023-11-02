@@ -4,19 +4,20 @@
 
 #pragma once
 
+#include "op_conformance_utils/meta_info/input_info.hpp"
 #include "matchers/single_op/single_op.hpp"
 #include "matchers/single_op/convolutions.hpp"
 #include "matchers/single_op/manager.hpp"
 
 namespace ov {
-namespace tools {
-namespace subgraph_dumper {
+namespace util {
 
 class ModelComparator {
 public:
     using Ptr = std::shared_ptr<ModelComparator>;
     // { is_match, subgraph, graph, matched_nodes -> {subgraph_op_name, graph_op_name}}
     using IsSubgraphTuple = std::tuple<bool, std::shared_ptr<ov::Model>, std::shared_ptr<ov::Model>, std::map<std::string, std::string>>;
+    using InputInfo = ov::conformance::InputInfo;
     // { model, subgraph, graph, subgraph_in_info, model_in_info, }
     using ExtractedSubgraphTuple = std::tuple<bool, std::shared_ptr<ov::Model>, std::shared_ptr<ov::Model>, std::map<std::string, InputInfo>, std::map<std::string, InputInfo>>;
 
@@ -50,19 +51,18 @@ public:
     void set_shape_strict_match(bool is_shape_strict_match);
 
 protected:
-    MatchersManager m_manager = MatchersManager();
+    ov::tools::subgraph_dumper::MatchersManager m_manager = ov::tools::subgraph_dumper::MatchersManager();
     float match_coefficient = 0.9f;
     static std::shared_ptr<ModelComparator> m_instance;
 
     ModelComparator() {
-        MatchersManager::MatchersMap matchers = {
-            { "generic_single_op", SingleOpMatcher::Ptr(new SingleOpMatcher) },
-            { "convolutions", ConvolutionsMatcher::Ptr(new ConvolutionsMatcher) },
+        ov::tools::subgraph_dumper::MatchersManager::MatchersMap matchers = {
+            { "generic_single_op", ov::tools::subgraph_dumper::SingleOpMatcher::Ptr(new ov::tools::subgraph_dumper::SingleOpMatcher) },
+            { "convolutions", ov::tools::subgraph_dumper::ConvolutionsMatcher::Ptr(new ov::tools::subgraph_dumper::ConvolutionsMatcher) },
         };
         m_manager.set_matchers(matchers);
     }
 };
 
-}  // namespace subgraph_dumper
-}  // namespace tools
+}  // namespace util
 }  // namespace ov

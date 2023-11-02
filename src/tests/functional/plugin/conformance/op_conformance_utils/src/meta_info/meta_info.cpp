@@ -5,10 +5,10 @@
 #include "pugixml.hpp"
 
 #include "op_conformance_utils/meta_info/meta_info.hpp"
+#include "op_conformance_utils/utils/file.hpp"
 
 namespace ov {
-namespace tools {
-namespace subgraph_dumper {
+namespace conformance {
 
 unsigned long MetaInfo::MIN_MODEL_PRIORITY = std::numeric_limits<unsigned long>::max();
 unsigned long MetaInfo::MAX_MODEL_PRIORITY = std::numeric_limits<unsigned long>::min();
@@ -42,10 +42,13 @@ unsigned long MetaInfo::get_abs_graph_priority() {
 }
 
 double MetaInfo::get_graph_priority() {
-    auto delta = MAX_MODEL_PRIORITY - MIN_MODEL_PRIORITY == 0 ? 1 : MAX_MODEL_PRIORITY - MIN_MODEL_PRIORITY;
-    // return normilized graph priority from [0, 1]
-    double diff = get_abs_graph_priority() - MIN_MODEL_PRIORITY;
-    return diff / delta;
+    if (graph_priority == 0) {
+        auto delta = MAX_MODEL_PRIORITY - MIN_MODEL_PRIORITY == 0 ? 1 : MAX_MODEL_PRIORITY - MIN_MODEL_PRIORITY;
+        // return normilized graph priority from [0, 1]
+        double diff = get_abs_graph_priority() - MIN_MODEL_PRIORITY;
+        return diff / delta;
+    }
+    return graph_priority;
 }
 
 inline ov::PartialShape str_to_ov_shape(std::string str) {
@@ -63,7 +66,7 @@ inline ov::PartialShape str_to_ov_shape(std::string str) {
     return ov::PartialShape{shape_vec};
 }
 
-MetaInfo MetaInfo::read_meta_from_file(const std::string& meta_path) {
+MetaInfo MetaInfo::read_meta_from_file(const std::string& meta_path, bool read_priority) {
     pugi::xml_document doc;
     doc.load_file(meta_path.c_str());
     std::map<std::string, ModelInfo> model_info;
@@ -85,7 +88,7 @@ MetaInfo MetaInfo::read_meta_from_file(const std::string& meta_path) {
         auto input_info_xml = doc.child("meta_info").child("input_info");
         for (const auto &input : input_info_xml.children()) {
             auto in_name = std::string(input.attribute("id").value());
-            ov::tools::subgraph_dumper::InputInfo in_info;
+            InputInfo in_info;
             in_info.is_const = input.attribute("convert_to_const").as_bool();
             if (std::string(input.attribute("min").value()) != "undefined") {
                 in_info.ranges.min = input.attribute("min").as_double();
@@ -113,7 +116,9 @@ MetaInfo MetaInfo::read_meta_from_file(const std::string& meta_path) {
             extractors.insert(std::string(extractor.attribute("name").value()));
         }
     }
-    auto new_meta = MetaInfo(input_info, model_info, extractors);
+    double graph_priority = read_priority ? doc.child("meta_info").child("graph_priority").attribute("value").as_double() : 0;
+
+    auto new_meta = MetaInfo(input_info, model_info, extractors, graph_priority);
     return new_meta;
 }
 
@@ -220,13 +225,9 @@ std::string MetaInfo::get_model_name_by_path(const std::string& model_path) {
             '/';
     #endif
 
-    auto pos = model_path.rfind(file_separator);
-    auto model_name = model_path.substr(pos + 1);
-    pos = model_name.find('.');
-    model_name = model_path.substr(pos);
-    return model_name;
+    auto model_name = ov::util::split_str(model_path, file_separator).back();
+    return ov::util::replace_extension(model_name, "");
 }
 
-}  // namespace subgraph_dumper
-}  // namespace tools
+}  // namespace conformance
 }  // namespace ov

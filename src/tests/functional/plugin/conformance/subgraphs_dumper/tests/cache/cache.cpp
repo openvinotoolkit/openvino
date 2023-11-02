@@ -13,7 +13,8 @@
 
 #include "cache/cache.hpp"
 #include "op_conformance_utils/meta_info/meta_info.hpp"
-#include "utils/model.hpp"
+#include "op_conformance_utils/utils/file.hpp"
+#include "utils/cache.hpp"
 
 #include "base_test.hpp"
 
@@ -23,7 +24,7 @@ class ICacheUnitTest : public SubgraphsDumperBaseTest,
                        public virtual ov::tools::subgraph_dumper::ICache {
 protected:
     std::shared_ptr<ov::Model> test_model;
-    ov::tools::subgraph_dumper::MetaInfo test_meta;
+    ov::conformance::MetaInfo test_meta;
     std::string test_model_path, model_name;
     std::string test_artifacts_dir;
 
@@ -43,7 +44,7 @@ protected:
             test_model = std::make_shared<ov::Model>(convert, params);
             test_model->set_friendly_name(model_name);
         }
-        test_meta = ov::tools::subgraph_dumper::MetaInfo(test_model_path, {{"in_0", ov::tools::subgraph_dumper::InputInfo({1, 2}, 0, 1, true)}});
+        test_meta = ov::conformance::MetaInfo(test_model_path, {{"in_0", ov::conformance::InputInfo({1, 2}, 0, 1, true)}});
     }
 
     void TearDown() override {
@@ -67,11 +68,11 @@ TEST_F(ICacheUnitTest, serialize_cache) {
 }
 
 TEST_F(ICacheUnitTest, serialize_model) {
-    std::pair<std::shared_ptr<ov::Model>, ov::tools::subgraph_dumper::MetaInfo> graph_info({ test_model, test_meta });
+    std::pair<std::shared_ptr<ov::Model>, ov::conformance::MetaInfo> graph_info({ test_model, test_meta });
     ASSERT_TRUE(this->serialize_model(graph_info, test_artifacts_dir));
     auto xml_path = test_model_path;
-    auto bin_path = ov::test::utils::replaceExt(test_model_path, "bin");
-    auto meta_path = ov::test::utils::replaceExt(test_model_path, "meta");
+    auto bin_path = ov::util::replace_extension(test_model_path, "bin");
+    auto meta_path = ov::util::replace_extension(test_model_path, "meta");
     try {
         if (!ov::util::file_exists(xml_path) ||
             !ov::util::file_exists(bin_path)) {
@@ -80,7 +81,7 @@ TEST_F(ICacheUnitTest, serialize_model) {
         if (!ov::util::file_exists(meta_path)) {
             throw std::runtime_error("Meta was not serilized!");
         }
-        auto serialized_model = ov::tools::subgraph_dumper::core->read_model(xml_path, bin_path);
+        auto serialized_model = ov::util::core->read_model(xml_path, bin_path);
         auto res = compare_functions(test_model, serialized_model, true, true, true, true, true, true);
         if (!res.first) {
             throw std::runtime_error("Serialized and runtime model are not equal!");

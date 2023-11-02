@@ -16,6 +16,9 @@
 #include "op_conformance_utils/meta_info/meta_info.hpp"
 #include "conformance.hpp"
 
+#include "utils/models.hpp"
+#include "utils/types.hpp"
+
 #include "read_ir_test/read_ir.hpp"
 
 namespace ov {
@@ -53,14 +56,14 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
                               graph_extractors = {"fused_names", "repeat_pattern"};
         std::map<std::string, IR_TYPE> graph_type = {{"operation", IR_TYPE::OP}, {"subgraph", IR_TYPE::SUBGRAPH}};
         for (const auto& item : splitted_filename) {
-            auto ir_name = ov::test::utils::replaceExt(item, "");
+            auto ir_name = ov::util::replace_extension(item, "");
             if (ir_name != item) {
                 filled_info["hash"] = ir_name;
                 continue;
             }
-            if (std::find(ov::test::conformance::element_type_names.begin(),
-                          ov::test::conformance::element_type_names.end(),
-                          item) != ov::test::conformance::element_type_names.end()) {
+            if (std::find(element_type_names.begin(),
+                          element_type_names.end(),
+                          item) != element_type_names.end()) {
                 filled_info["element_type"] = item;
                 continue;
             }
@@ -80,9 +83,9 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
                     op_version = op_name.substr(pos + 1);
                     op_name = op_name.substr(0, pos);
                 }
-                if (std::find(ov::test::conformance::unique_ops[op_name].begin(),
-                              ov::test::conformance::unique_ops[op_name].end(), op_version) != ov::test::conformance::unique_ops[op_name].end() &&
-                    ov::test::conformance::unique_ops.find(op_name) != ov::test::conformance::unique_ops.end()) {
+                if (std::find(unique_ops[op_name].begin(),
+                              unique_ops[op_name].end(), op_version) != unique_ops[op_name].end() &&
+                    unique_ops.find(op_name) != unique_ops.end()) {
                     filled_info["op_name"] = op_name + "." + op_version;
                     continue;
                 }
@@ -130,9 +133,9 @@ void ReadIRTest::SetUp() {
     std::tie(model_pair, targetDevice, configuration) = this->GetParam();
     std::tie(path_to_model, path_to_ref_tensor) = model_pair;
     function = core->read_model(path_to_model);
-    const auto metaFile = ov::test::utils::replaceExt(path_to_model, "meta");
-    if (ov::test::utils::fileExists(metaFile)) {
-        auto meta_info = ov::tools::subgraph_dumper::MetaInfo::read_meta_from_file(metaFile);
+    const auto metaFile = ov::util::replace_extension(path_to_model, "meta");
+    if (ov::util::file_exists(metaFile)) {
+        auto meta_info = ov::conformance::MetaInfo::read_meta_from_file(metaFile, true);
         auto input_info = meta_info.get_input_info();
         rel_influence_coef = meta_info.get_graph_priority();
 
@@ -159,7 +162,7 @@ void ReadIRTest::SetUp() {
         }
     }
 
-    bool hasDynamic = tools::subgraph_dumper::is_dynamic_model(function);
+    bool hasDynamic = ov::util::is_dynamic_model(function);
 
 #ifdef ENABLE_CONFORMANCE_PGQL
     // Updating data in runtime. Should be set before possible call of a first GTEST status
@@ -343,7 +346,7 @@ namespace {
 #define _OPENVINO_OP_REG(NAME, NAMESPACE)                                                                  \
     INSTANTIATE_TEST_SUITE_P(conformance_##NAME,                                                           \
                              ReadIRTest,                                                                   \
-                             ::testing::Combine(::testing::ValuesIn(conformance::getModelPaths(conformance::IRFolderPaths, #NAME)),  \
+                             ::testing::Combine(::testing::ValuesIn(get_model_paths(conformance::IRFolderPaths, #NAME)),  \
                                                 ::testing::Values(conformance::targetDevice),                           \
                                                 ::testing::Values(conformance::pluginConfig)),                          \
                              ReadIRTest::getTestCaseName); \
@@ -354,7 +357,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(conformance_subgraph,
                         ReadIRTest,
-                        ::testing::Combine(::testing::ValuesIn(conformance::getModelPaths(conformance::IRFolderPaths)),
+                        ::testing::Combine(::testing::ValuesIn(get_model_paths(conformance::IRFolderPaths)),
                                            ::testing::Values(conformance::targetDevice),
                                            ::testing::Values(conformance::pluginConfig)),
                         ReadIRTest::getTestCaseName);

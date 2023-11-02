@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "openvino/openvino.hpp"
+#include "openvino/core/model.hpp"
 
 #include "op_conformance_utils/meta_info/meta_info.hpp"
 #include "matchers/single_op/manager.hpp"
@@ -60,7 +60,7 @@ protected:
 
     ICache() = default;
 
-    bool serialize_model(const std::pair<std::shared_ptr<ov::Model>, MetaInfo>& graph_info,
+    bool serialize_model(const std::pair<std::shared_ptr<ov::Model>, ov::conformance::MetaInfo>& graph_info,
                          const std::string& rel_serialization_path);
 };
 }  // namespace subgraph_dumper

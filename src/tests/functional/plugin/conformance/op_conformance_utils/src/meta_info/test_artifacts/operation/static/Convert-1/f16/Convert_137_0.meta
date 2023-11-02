@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<meta_info>
+	<models>
+		<model name="test_model_name" this_op_count="1" total_op_count="1" priority="1">
+			<path>
+				<model path="/Users/iefode/repo/openvino/src/tests/functional/plugin/conformance/op_conformance_utils/src/meta_info/test_artifacts/test_model_name.xml" />
+			</path>
+		</model>
+	</models>
+	<graph_priority value="0" />
+	<input_info>
+		<input id="in_0" min="undefined" max="undefined" convert_to_const="false" max_shape="[]" min_shape="[]" />
+	</input_info>
+</meta_info>

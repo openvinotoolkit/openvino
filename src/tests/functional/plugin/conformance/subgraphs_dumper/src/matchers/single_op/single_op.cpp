@@ -4,8 +4,6 @@
 
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
-#include "openvino/op/util/op_types.hpp"
-#include "common_test_utils/graph_comparator.hpp"
 #include "matchers/single_op/single_op.hpp"
 #include "utils/node.hpp"
 
@@ -85,7 +83,8 @@ SingleOpMatcher::match_outputs(const std::shared_ptr<ov::Node> &node,
 bool SingleOpMatcher::match_attrs(const std::shared_ptr<ov::Node> &node,
                                   const std::shared_ptr<ov::Node> &ref) const {
     // todo: iefode: to provide correct with ingored attributes
-    return attributes::compare(node.get(), ref.get(), Comparator::CmpValues::ATTRIBUTES).valid;
+    // return attributes::compare(node.get(), ref.get(), Comparator::CmpValues::ATTRIBUTES).valid;
+    return true;
 }
 
 bool SingleOpMatcher::match(const std::shared_ptr<ov::Node> &node,
@@ -106,7 +105,7 @@ bool SingleOpMatcher::match(const std::shared_ptr<ov::Node> &node,
     if (!match_outputs(node, ref)) {
         return false;
     }
-    if (!match_attrs(node, ref) && !is_node_to_skip(node)) {
+    if (!match_attrs(node, ref) && !ov::util::is_node_to_skip(node)) {
         return false;
     }
     return true;

@@ -4,91 +4,24 @@
 
 #pragma once
 
-#include <vector>
-#include <map>
-#include <regex>
-#include <unordered_set>
-#include <string>
-#include <functional>
-
-#include "openvino/util/file_util.hpp"
-
-#include "common_test_utils/file_utils.hpp"
-#include "common_test_utils/test_constants.hpp"
-
-#include "cache/cache.hpp"
 #include "utils/node.hpp"
-#include "op_conformance_utils/utils/dynamism.hpp"
 
 namespace ov {
-namespace tools {
-namespace subgraph_dumper {
-
-static std::vector<std::regex> FROTEND_REGEXP = {
-#ifdef ENABLE_OV_ONNX_FRONTEND
-    std::regex(R"(.*\.onnx)"),
-#endif
-#ifdef ENABLE_OV_PADDLE_FRONTEND
-    std::regex(R"(.*\.pdmodel)"),
-    std::regex(R"(.*__model__)"),
-#endif
-#ifdef ENABLE_OV_TF_FRONTEND
-    std::regex(R"(.*\model.pb)"),
-#endif
-#ifdef ENABLE_OV_IR_FRONTEND
-    std::regex(R"(.*\.xml)"),
-#endif
-#ifdef ENABLE_OV_TF_LITE_FRONTEND
-    std::regex(R"(.*\.tflite)"),
-#endif
-#ifdef ENABLE_OV_PYTORCH_FRONTEND
-    std::regex(R"(.*\.pt)"),
-#endif
-};
-
-enum ModelCacheStatus {
-    SUCCEED = 0,
-    NOT_FULLY_CACHED = 1,
-    NOT_READ = 2,
-    LARGE_MODELS_EXCLUDED = 3,
-    LARGE_MODELS_INCLUDED = 4,
-};
-
-static std::map<ModelCacheStatus, std::string> model_cache_status_to_str = {
-    { ModelCacheStatus::SUCCEED, "successful_models" },
-    { ModelCacheStatus::NOT_FULLY_CACHED, "not_fully_cached_models" },
-    { ModelCacheStatus::NOT_READ, "not_read_models" },
-    { ModelCacheStatus::LARGE_MODELS_EXCLUDED, "large_models_excluded" },
-    { ModelCacheStatus::LARGE_MODELS_INCLUDED, "large_models_included" },
-};
-
-const std::shared_ptr<ov::Core> core = std::make_shared<ov::Core>();
-
-std::pair<std::vector<std::string>, std::pair<ModelCacheStatus, std::vector<std::string>>>
-find_models(const std::vector<std::string> &dirs, const std::string& regexp = ".*");
-
-// model_cache_status: model_list
-std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
-    std::shared_ptr<ICache>& cache,
-    const std::vector<std::string>& models,
-    bool extract_body, bool from_cache = false);
-
-void save_model_status_to_file(const std::map<ModelCacheStatus, std::vector<std::string>>& caching_status,
-                               const std::string& output_dir);
+namespace util {
 
 std::string get_model_type(const std::shared_ptr<ov::Model>& model);
 
-std::map<std::string, InputInfo>
+std::map<std::string, ov::conformance::InputInfo>
 get_input_info_by_model(const std::shared_ptr<ov::Model>& model);
 
-std::map<std::string, InputInfo>
+std::map<std::string, ov::conformance::InputInfo>
 align_input_info(const std::shared_ptr<ov::Model>& model,
                  const std::shared_ptr<ov::Model>& model_ref,
-                 const std::map<std::string, InputInfo> &in_info,
-                 const std::map<std::string, InputInfo> &in_info_ref,
+                 const std::map<std::string, ov::conformance::InputInfo> &in_info,
+                 const std::map<std::string, ov::conformance::InputInfo> &in_info_ref,
                  const std::map<std::string, std::string> &matched_op = {});
 
-inline std::pair<std::shared_ptr<ov::Model>, std::map<std::string, InputInfo>>
+inline std::pair<std::shared_ptr<ov::Model>, std::map<std::string, ov::conformance::InputInfo>>
 generate_model(ov::NodeVector& nodes,
                std::unordered_set<std::string>& checked_ops,
                bool is_copy_constants = true,
@@ -99,7 +32,7 @@ generate_model(ov::NodeVector& nodes,
     // map to fill output nodes in models:
     // { original_node_names, out_port_idx_without_orig_node_to_check }
     std::unordered_map<std::string, std::unordered_set<size_t>> model_output_nodes;
-    std::map<std::string, InputInfo> model_input_info;
+    std::map<std::string, ov::conformance::InputInfo> model_input_info;
     ov::ParameterVector model_parameters;
     {
         // prepare map { original_op_name, cloned_node }
@@ -254,6 +187,5 @@ generate_model(ov::NodeVector& nodes,
     return { model, model_input_info };
 }
 
-}  // namespace subgraph_dumper
-}  // namespace tools
+}  // namespace util
 }  // namespace ov

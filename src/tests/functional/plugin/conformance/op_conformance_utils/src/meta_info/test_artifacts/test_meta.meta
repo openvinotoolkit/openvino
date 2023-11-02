@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<meta_info>
+	<models>
+		<model name="test_model_path" this_op_count="1" total_op_count="5" priority="1">
+			<path>
+				<model path="test_model_path.xml" />
+			</path>
+		</model>
+	</models>
+	<extractors>
+		<extractor name="extractor_1" />
+		<extractor name="extractor_0" />
+	</extractors>
+	<graph_priority value="0.10256410256410256" />
+	<input_info>
+		<input id="test_in_0" min="undefined" max="1" convert_to_const="true" max_shape="[10]" min_shape="[10]" />
+	</input_info>
+</meta_info>

@@ -13,6 +13,7 @@ ov_add_test_target(
         LINK_LIBRARIES
             PRIVATE
             ov_subgraphs_dumper_util
+            func_test_utils
         ADD_CPPLINT
         LABELS
             OV UNIT
@@ -27,6 +28,7 @@ ov_add_test_target(
         LINK_LIBRARIES
             PRIVATE
                 ov_subgraphs_dumper_util
+                func_test_utils
         ADD_CPPLINT
         LABELS
             OV UNIT

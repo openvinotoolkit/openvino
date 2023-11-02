@@ -2,17 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
-#include <utility>
-
-#include "openvino/core/core.hpp"
-#include "openvino/op/ops.hpp"
+#include "openvino/op/loop.hpp"
+#include "openvino/op/if.hpp"
+#include "openvino/op/tensor_iterator.hpp"
 #include "openvino/util/file_util.hpp"
-
-#include "common_test_utils/file_utils.hpp"
 
 #include "cache/op_cache.hpp"
 #include "utils/node.hpp"
+#include "op_conformance_utils/utils/file.hpp"
 
 namespace ov {
 namespace tools {
@@ -60,10 +57,10 @@ void OpCache::update_cache(const std::shared_ptr<ov::Node>& node,
                            size_t model_op_cnt, bool from_cache) {
     std::shared_ptr<ov::Node> find_op_in_cache = nullptr;
     // Clone node to get node with Parameter/Constants input only
-    auto cloned_node = clone_node(node, true);
+    auto cloned_node = ov::util::clone_node(node, true);
     if (cloned_node == nullptr)
         return;
-    cloned_node->set_friendly_name(ov::test::functional::get_node_version(cloned_node));
+    // cloned_node->set_friendly_name(ov::test::functional::get_node_version(cloned_node));
     for (auto &&it : m_ops_cache) {
         if (m_manager.match(it.first, cloned_node)) {
             // std::cout << "Match " << cloned_node->get_type_info().name <<  " " << cloned_node->get_friendly_name() <<
@@ -84,20 +81,21 @@ void OpCache::update_cache(const std::shared_ptr<ov::Node>& node,
         }
     }
 
-    MetaInfo meta;
+    ov::conformance::MetaInfo meta;
     if (from_cache) {
-        auto meta_path = ov::test::utils::replaceExt(model_path, "meta");
-        meta = MetaInfo::read_meta_from_file(meta_path);
+        auto meta_path = ov::util::replace_extension(model_path, "meta");
+        meta = ov::conformance::MetaInfo::read_meta_from_file(meta_path);
     } else {
-        size_t priority = get_node_priority_by_version(cloned_node);
-        meta = MetaInfo(model_path, get_input_info_by_node(cloned_node), model_op_cnt, 1,  "", priority);
+        size_t priority = ov::util::get_node_priority_by_version(cloned_node);
+        meta = ov::conformance::MetaInfo(model_path, ov::util::get_input_info_by_node(cloned_node),
+                                         model_op_cnt, 1,  "", priority);
     }
 
     if (find_op_in_cache != nullptr) {
         // std::cout << "[ INFO ][ OP CACHE ] Update cache node: " << cloned_node->get_type_info().name << cloned_node->get_friendly_name() <<
         //     " " << find_op_in_cache->get_friendly_name() << std::endl;
         m_ops_cache[find_op_in_cache].update(
-            model_path, get_input_info_by_node(cloned_node), model_op_cnt, 1, "", ignored_input_names);
+            model_path, ov::util::get_input_info_by_node(cloned_node), model_op_cnt, 1, "", ignored_input_names);
     }
 
     if (find_op_in_cache > cloned_node) {
@@ -119,17 +117,17 @@ void OpCache::serialize_cache() {
     }
 }
 
-bool OpCache::serialize_op(const std::pair<std::shared_ptr<ov::Node>, MetaInfo> &op_info) {
+bool
+OpCache::serialize_op(const std::pair<std::shared_ptr<ov::Node>, ov::conformance::MetaInfo> &op_info) {
     std::string serialization_dir = get_rel_serilization_dir(op_info.first);
-    std::shared_ptr<ov::Model> model = generate_model_by_node(op_info.first);
+    std::shared_ptr<ov::Model> model = ov::util::generate_model_by_node(op_info.first);
     return serialize_model(make_pair(model, op_info.second), serialization_dir);
 }
 
 std::string OpCache::get_rel_serilization_dir(const std::shared_ptr<ov::Node>& node) {
-    std::string op_folder_name = ov::test::functional::get_node_version(node);
+    std::string op_folder_name = ov::util::get_node_version(node->get_type_info());
     auto op_el_type = node->get_output_element_type(0).get_type_name();
-
-    return ov::util::path_join({m_cache_subdir, get_node_type(node), op_folder_name, op_el_type});
+    return ov::util::path_join({m_cache_subdir, ov::util::get_node_type(node), op_folder_name, op_el_type});
 }
 
 }  // namespace subgraph_dumper

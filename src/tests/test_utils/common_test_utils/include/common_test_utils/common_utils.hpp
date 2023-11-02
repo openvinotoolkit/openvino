@@ -93,16 +93,6 @@ inline std::string vec2str(const std::vector<std::vector<std::vector<vecElementT
     return result.str();
 }
 
-template <typename ElementType>
-inline void vec2File(const std::vector<ElementType>& vec, const std::string& output_file_path) {
-    std::ofstream output_file;
-    output_file.open(output_file_path, std::ios::out | std::ios::trunc);
-    for (const auto& element : vec) {
-        output_file << element << std::endl;
-    }
-    output_file.close();
-}
-
 template <typename vecElementType>
 inline std::string set2str(const std::set<vecElementType>& set) {
     if (!set.empty()) {
