@@ -60,7 +60,7 @@ class TestTupleConstruct(PytorchLayerTest):
     @pytest.mark.parametrize("case", ["single", "multiple", "none", "list", "tensor_tail", "list_and_tuple"])
     @pytest.mark.nightly
     def test_tuple_construct(self, case, ie_device, precision, ir_version):
-        self._test(*self.create_model(case), ie_device, precision, ir_version)
+        self._test(*self.create_model(case), ie_device, precision, ir_version, use_convert_model=True)
 
 
 class TestTupleConstructTupleUnpack(PytorchLayerTest):
@@ -86,7 +86,7 @@ class TestTupleConstructTupleUnpack(PytorchLayerTest):
     @pytest.mark.nightly
     def test_tuple_construct_unpack(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device,
-                   precision, ir_version, freeze_model=False)
+                   precision, ir_version, freeze_model=False, use_convert_model=True)
 
 
 class TestTupleUnpackParameterSingle(PytorchLayerTest):
@@ -208,7 +208,7 @@ class TestTupleIndex(PytorchLayerTest):
     @pytest.mark.nightly
     def test(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision,
-                   ir_version, trace_model=False, freeze_model=False)
+                   ir_version, trace_model=False, freeze_model=False, use_convert_model=True)
 
 
 class TestTcOutsideTuInsideIfBody(PytorchLayerTest):
@@ -236,4 +236,4 @@ class TestTcOutsideTuInsideIfBody(PytorchLayerTest):
     @pytest.mark.nightly
     def test(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision,
-                   ir_version, trace_model=False, freeze_model=False)
+                   ir_version, trace_model=False, freeze_model=False, use_convert_model=True)

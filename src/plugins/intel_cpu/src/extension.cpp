@@ -114,6 +114,10 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         NGRAPH_OP(MVN, ngraph::op::v6)
         NGRAPH_OP(Select, ngraph::op::v1)
         NGRAPH_OP(ConvolutionBackpropData, ngraph::op::v1)
+        NGRAPH_OP(LSTMSequence, ngraph::op::v5)
+        NGRAPH_OP(GRUSequence, ngraph::op::v5)
+        NGRAPH_OP(NonMaxSuppression, ngraph::op::v5)
+        NGRAPH_OP(NonMaxSuppression, ngraph::op::v9)
 #undef NGRAPH_OP
 
         return opset;
@@ -157,6 +161,7 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         NGRAPH_OP(Store, ov::snippets::op)
         NGRAPH_OP(Subgraph, ov::snippets::op)
         NGRAPH_OP(VectorBuffer, ov::snippets::op)
+        NGRAPH_OP(RankNormalization, ov::snippets::op)
         NGRAPH_OP_X64(LoadConvertSaturation, ov::intel_cpu)
         NGRAPH_OP_X64(LoadConvertTruncation, ov::intel_cpu)
         NGRAPH_OP_X64(StoreConvertSaturation, ov::intel_cpu)

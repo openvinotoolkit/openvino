@@ -94,7 +94,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
         if (input_model) {
             // When we have input model we should use its inputs order to create Parameters
             // We use m_inputs instead of get_inputs() because latter doesn't have "self" input
-            for (auto input_p : input_model->m_inputs) {
+            for (auto& input_p : input_model->m_inputs) {
                 auto pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(input_p);
                 FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported.");
                 auto tensor_id = pytorch_place->get_tensor_index();
@@ -108,7 +108,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 (*tensor_map)[tensor_id] = parameter;
             }
             // Add all tensors that were frozen
-            for (auto desc : input_model->m_descriptors) {
+            for (auto& desc : input_model->m_descriptors) {
                 (*tensor_map)[desc.first] = desc.second.m_value;
             }
         } else {
@@ -225,7 +225,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
         ResultVector results;
         if (input_model) {
             // For the case when we have InputModel we need to have same order as its outputs
-            for (auto output_p : input_model->get_outputs()) {
+            for (auto& output_p : input_model->get_outputs()) {
                 auto pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(output_p);
                 FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported.");
                 auto tensor_id = pytorch_place->get_tensor_index();
@@ -271,8 +271,10 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 auto mutated_tensor = tensor_map->at(tensor_id);
                 // empty external_tensor_map means this is main body of the model and we don't want to create
                 // additional outputs in that case.
-                if (mutated_tensor.get_target_inputs().empty() && !external_tensor_map.empty())
+                if (!external_tensor_map.empty()) {
+                    OPENVINO_DEBUG << "Creating Result for mutated tensor  " << tensor_id;
                     results.push_back(std::make_shared<v0::Result>(tensor_map->at(tensor_id)));
+                }
             } else {
                 OPENVINO_DEBUG << "Mutated tensor with id " << tensor_id << " doesn't exist in inputs, skipping.";
             }
