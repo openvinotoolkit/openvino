@@ -1407,6 +1407,48 @@ Tensor make_tensor_of_max_value(const element::Type_t et) {
     }
 }
 
+template <class T>
+Tensor make_tensor_of_min_value(const element::Type_t et) {
+    Tensor t{et, Shape{}};
+    *t.data<T>() = std::numeric_limits<T>::min();
+    return t;
+}
+
+Tensor make_tensor_of_min_value(const element::Type_t et) {
+    switch (et) {
+    case element::boolean:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::boolean>>(et);
+    case element::bf16:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::bf16>>(et);
+    case element::f16:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::f16>>(et);
+    case element::f32:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::f32>>(et);
+    case element::f64:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::f64>>(et);
+    case element::i8:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::i8>>(et);
+    case element::i16:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::i16>>(et);
+    case element::i32:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::i32>>(et);
+    case element::i64:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::i64>>(et);
+    case element::u1:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::u1>>(et);
+    case element::u8:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::u8>>(et);
+    case element::u16:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::u16>>(et);
+    case element::u32:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::u32>>(et);
+    case element::u64:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::u64>>(et);
+    default:
+        return {};
+    }
+}
+
 std::vector<PartialShape> get_tensors_partial_shapes(const TensorVector& tensors) {
     std::vector<PartialShape> shapes;
     shapes.reserve(tensors.size());

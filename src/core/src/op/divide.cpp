@@ -7,7 +7,6 @@
 #include "bound_evaluate.hpp"
 #include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/less.hpp"
@@ -17,6 +16,7 @@
 #include "openvino/op/select.hpp"
 #include "openvino/reference/divide.hpp"
 #include "utils.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -142,16 +142,12 @@ bool evaluate_bound(const Node* node, TensorVector& output_values, bool is_upper
             return status;
 
         // replace values where zeros inside range of second arg to maximum values
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto output_minimum_value = ngraph::get_constant_min_of_type(output_values[0].get_element_type());
-        OPENVINO_SUPPRESS_DEPRECATED_END
-        if (!output_minimum_value)
+        const auto output_min_value = ov::util::make_tensor_of_min_value(output_values[0].get_element_type());
+        if (!output_min_value)
             return false;
 
-        const auto out_min_v = Tensor(output_minimum_value->get_element_type(), output_minimum_value->get_shape());
-        memcpy(out_min_v.data(), output_minimum_value->get_data_ptr(), out_min_v.get_byte_size());
-
-        status = Select().evaluate(output_values, {input2_low_negative_up_positive_mask, out_min_v, output_values[0]});
+        status = Select().evaluate(output_values,
+                                   {input2_low_negative_up_positive_mask, output_min_value, output_values[0]});
         if (!status)
             return status;
 
