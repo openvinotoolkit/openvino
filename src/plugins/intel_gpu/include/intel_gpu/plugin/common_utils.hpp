@@ -5,6 +5,7 @@
 #pragma once
 
 #include <ostream>
+#include <tuple>
 #include "intel_gpu/runtime/layout.hpp"
 #include "openvino/core/layout.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -36,6 +37,16 @@ inline cldnn::tensor tensor_from_dims(const ov::Shape& dims, int def = 1) {
     case 5: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[4], dims[3], dims[2]));
     case 6: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[5], dims[4], dims[3], dims[2]));
     default: OPENVINO_THROW("Invalid dimensions size(", dims.size(), ") for gpu tensor");
+    }
+}
+
+template<typename T, typename V>
+std::tuple<V, V, V> get_xyz(const T data, V def) {
+    switch (data.size()) {
+        case 1:  return std::make_tuple(def,     data[0], def);
+        case 2:  return std::make_tuple(data[1], data[0], def);
+        case 3:  return std::make_tuple(data[2], data[1], data[0]);
+        default: return std::make_tuple(def,     def,     def);
     }
 }
 

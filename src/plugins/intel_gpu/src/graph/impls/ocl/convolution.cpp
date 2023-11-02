@@ -8,6 +8,7 @@
 #include "convolution/convolution_kernel_selector.h"
 #include "convolution/convolution_params.h"
 #include "ngraph/validation_util.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -113,30 +114,20 @@ public:
         uint32_t kz = weights_layout.spatial(2);
         conv_params.filterSize = { kx, ky, kz };
 
-        // WA: If 1d conv and dynamic shape, 1d pad should be applied to y axis.
-        if (pads_begin.size() == 1) pads_begin.push_back(0);
-        if (pads_end.size() == 1) pads_end.push_back(0);
-        if (stride.size() == 1) stride.push_back(1);
-        if (dilation.size() == 1) dilation.push_back(1);
-
-        uint32_t pad_begin_z = std::max<std::ptrdiff_t>(pads_begin.size() >= 3 ? pads_begin[pads_begin.size() - 3] : 0, 0);
-        uint32_t pad_begin_y = std::max<std::ptrdiff_t>(pads_begin.size() >= 2 ? pads_begin[pads_begin.size() - 2] : 0, 0);
-        uint32_t pad_begin_x = std::max<std::ptrdiff_t>(pads_begin.size() >= 1 ? pads_begin[pads_begin.size() - 1] : 0, 0);
+        uint32_t pad_begin_x, pad_begin_y, pad_begin_z;
+        std::tie(pad_begin_x, pad_begin_y, pad_begin_z) = ov::intel_gpu::get_xyz(pads_begin, 0);
         conv_params.padding_begin = {pad_begin_x, pad_begin_y, pad_begin_z};
 
-        uint32_t pad_end_z = std::max<std::ptrdiff_t>(pads_end.size() >= 3 ? pads_end[pads_end.size() - 3] : 0, 0);
-        uint32_t pad_end_y = std::max<std::ptrdiff_t>(pads_end.size() >= 2 ? pads_end[pads_end.size() - 2] : 0, 0);
-        uint32_t pad_end_x = std::max<std::ptrdiff_t>(pads_end.size() >= 1 ? pads_end[pads_end.size() - 1] : 0, 0);
+        uint32_t pad_end_x, pad_end_y, pad_end_z;
+        std::tie(pad_end_x, pad_end_y, pad_end_z) = ov::intel_gpu::get_xyz(pads_end, 0);
         conv_params.padding_end = {pad_end_x, pad_end_y, pad_end_z};
 
-        uint32_t stride_z = stride.size() >= 3 ? static_cast<uint32_t>(stride[stride.size() - 3]) : 1;
-        uint32_t stride_y = stride.size() >= 2 ? static_cast<uint32_t>(stride[stride.size() - 2]) : 1;
-        uint32_t stride_x = stride.size() >= 1 ? static_cast<uint32_t>(stride[stride.size() - 1]) : 1;
+        uint32_t stride_x, stride_y, stride_z;
+        std::tie(stride_x, stride_y, stride_z) = ov::intel_gpu::get_xyz(stride, 1);
         conv_params.stride = {stride_x, stride_y, stride_z};
 
-        uint32_t dilation_z = dilation.size() >= 3 ? static_cast<uint32_t>(dilation[dilation.size() - 3]) : 1;
-        uint32_t dilation_y = dilation.size() >= 2 ? static_cast<uint32_t>(dilation[dilation.size() - 2]) : 1;
-        uint32_t dilation_x = dilation.size() >= 1 ? static_cast<uint32_t>(dilation[dilation.size() - 1]) : 1;
+        uint32_t dilation_x, dilation_y, dilation_z;
+        std::tie(dilation_x, dilation_y, dilation_z) = ov::intel_gpu::get_xyz(dilation, 1);
         conv_params.dilation = {dilation_x, dilation_y, dilation_z};
 
         if ((impl_param.input_layouts[0].data_type == data_types::u8 ||
