@@ -33,7 +33,7 @@ OutputVector translate_pythonop(const NodeContext& context) {
     }
 
     OutputVector outputs{};
-    for (auto& result : body->get_results()) {
+    for (auto result : body->get_results()) {
         auto output = result->get_input_source_output(0);
         outputs.push_back(context.mark_output(output));
     }

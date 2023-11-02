@@ -60,8 +60,7 @@ OutputVector translate_avg_poolnd(const NodeContext& context) {
         auto pads_len = context.mark_node(v0::Constant::create(element::i32, Shape{}, {pads.size()}));
         auto pads_diff = context.mark_node(std::make_shared<v1::Subtract>(rank, pads_len));
         auto pads_remaining = context.mark_node(std::make_shared<v3::Broadcast>(zero_i32, pads_diff));
-        auto padding = context.mark_node(
-            std::make_shared<v0::Concat>(OutputVector{std::move(pads_remaining), std::move(pad_values)}, 0));
+        auto padding = context.mark_node(std::make_shared<v0::Concat>(OutputVector{pads_remaining, pad_values}, 0));
         input = context.mark_node(std::make_shared<v1::Pad>(input, padding, padding, zero, ov::op::PadMode::CONSTANT));
         pads = Shape(pads.size(), 0);
     }

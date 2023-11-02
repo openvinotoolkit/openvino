@@ -18,10 +18,7 @@ namespace op {
 using namespace ov::op;
 
 namespace {
-Output<Node> prepare_source(const NodeContext& context,
-                            const Output<Node>& src,
-                            const Output<Node>& index,
-                            const Output<Node>& input) {
+Output<Node> prepare_source(const NodeContext& context, Output<Node> src, Output<Node> index, Output<Node> input) {
     auto src_partial_shape = src.get_partial_shape();
     auto index_shape_rank = get_shape_rank(context, index);
     auto index_shape = std::get<0>(index_shape_rank);
@@ -31,9 +28,8 @@ Output<Node> prepare_source(const NodeContext& context,
     // into shape of indices.
     // TODO: Figure out way to dynamically broadcast scalar src only, without affecting Tensor src. Current
     // implementation will fail if Scalar source would have dynamic rank.
-    auto _src = std::move(src);
     if (src_partial_shape.rank().is_static() && src_partial_shape.rank().get_length() == 0) {
-        _src = context.mark_node(std::make_shared<v3::Broadcast>(_src, index_shape));
+        src = context.mark_node(std::make_shared<v3::Broadcast>(src, index_shape));
     }
 
     auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
@@ -42,13 +38,13 @@ Output<Node> prepare_source(const NodeContext& context,
     auto ones = context.mark_node(std::make_shared<v3::Broadcast>(const_1, index_rank));
     // In torch indices can be of different shape than source tensor. Create slice to trim source tensor to shape of
     // indices.
-    auto src_pruned = context.mark_node(std::make_shared<v8::Slice>(_src, zeros, index_shape, ones));
+    auto src_pruned = context.mark_node(std::make_shared<v8::Slice>(src, zeros, index_shape, ones));
 
     auto src_input_dtype = context.mark_node(std::make_shared<v1::ConvertLike>(src_pruned, input));
     return src_input_dtype;
 };
 
-const v12::ScatterElementsUpdate::Reduction get_reduction_mode(const std::string& pt_reduce_mode) {
+const v12::ScatterElementsUpdate::Reduction get_reduction_mode(std::string pt_reduce_mode) {
     static const std::unordered_map<std::string, v12::ScatterElementsUpdate::Reduction> TORCH_REDUCTION_TO_OV{
         {"add", v12::ScatterElementsUpdate::Reduction::SUM},
         {"multiply", v12::ScatterElementsUpdate::Reduction::PROD},
