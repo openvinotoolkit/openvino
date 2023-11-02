@@ -141,6 +141,40 @@ TEST(TransformationTests, ConvertPrecision_NMS5) {
     ASSERT_FALSE(has_type<element::Type_t::f32>(f));
 }
 
+TEST(TransformationTests, DoubleConvertPrecision_NMS5) {
+    std::shared_ptr<Model> f;
+    {
+        auto boxes = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1000, 4});
+        auto scores = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1000});
+        auto max_output_boxes_per_class = opset5::Constant::create(element::i64, Shape{}, {10});
+        auto iou_threshold = opset5::Constant::create(element::f32, Shape{}, {0.75});
+        auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.7});
+        auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes,
+                                                               scores,
+                                                               max_output_boxes_per_class,
+                                                               iou_threshold,
+                                                               score_threshold,
+                                                               opset5::NonMaxSuppression::BoxEncodingType::CORNER,
+                                                               true);
+
+        auto result1 = std::make_shared<opset5::Result>(nms->output(0));
+        auto result2 = std::make_shared<opset5::Result>(nms->output(1));
+        auto result3 = std::make_shared<opset5::Result>(nms->output(2));
+        f = std::make_shared<Model>(ResultVector{result1, result2, result3}, ParameterVector{boxes, scores});
+    }
+
+    pass::Manager manager;
+    static const precisions_map precisions1 = {{element::f32, element::f16}};
+    static const precisions_map precisions2 = {{element::i64, element::i32}};
+    manager.register_pass<pass::InitNodeInfo>();
+    manager.register_pass<pass::ConvertPrecision>(precisions1);
+    manager.register_pass<pass::ConvertPrecision>(precisions2);
+    manager.run_passes(f);
+    ASSERT_NO_THROW(check_rt_info(f));
+    ASSERT_FALSE(has_type<element::Type_t::i64>(f));
+    ASSERT_FALSE(has_type<element::Type_t::f32>(f));
+}
+
 TEST(TransformationTests, DoubleConvertPrecision_NMS9) {
     std::shared_ptr<Model> f;
     {
