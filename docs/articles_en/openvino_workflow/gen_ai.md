@@ -123,8 +123,7 @@ Weight compression is applied by default to models larger than one billion param
 
 .. code-block:: python
 
-    from nncf import compress_weights
-    from nncf import CompressWeightsMode
+    from nncf import compress_weights, CompressWeightsMode
 
     model = OVModelForCausalLM.from_pretrained(model_id, export=True, load_in_8bit=False)
     model.model = compress_weights(model.model, mode=CompressWeightsMode.INT4_SYM, group_size=128, ratio=0.8)
