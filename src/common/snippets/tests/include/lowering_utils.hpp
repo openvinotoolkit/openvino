@@ -6,7 +6,7 @@
 #include <common_test_utils/ov_test_utils.hpp>
 #include "snippets/op/subgraph.hpp"
 #include "snippets_helpers.hpp"
-#include "snippets/pass_manager.hpp"
+#include "snippets/pass/manager.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 
 namespace ov {

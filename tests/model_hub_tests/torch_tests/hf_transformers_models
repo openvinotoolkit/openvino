@@ -10,6 +10,7 @@ albert-base-v2,albert
 AlekseyKorshuk/test_reward_model,reward_model,skip,Load problem
 alibaba-damo/mgp-str-base,mgp-str,xfail,Compile error: unsupported Einsum
 allenai/hvila-block-layoutlm-finetuned-docbank,hierarchical_model,skip,Load problem
+allenai/longformer-base-4096,longformer
 ameya772/sentence-t5-base-atis-fine-tuned,T5,skip,Load problem
 andreasmadsen/efficient_mlm_m0.40,roberta-prelayernorm
 anton-l/emformer-base-librispeech,emformer,skip,Load problem
@@ -71,7 +72,7 @@ facebook/esm2_t6_8M_UR50D,esm
 facebook/flava-full,flava,xfail,Tracing problem
 facebook/flava-image-codebook,flava_image_codebook,skip,Load problem
 facebook/m2m100_418M,m2m_100
-facebook/mask2former-swin-base-coco-panoptic,mask2former,xfail,Accuracy validation failed
+facebook/mask2former-swin-base-coco-panoptic,mask2former
 facebook/maskformer-swin-base-coco,maskformer
 facebook/mms-tts-eng,vits,skip,Load problem
 facebook/musicgen-small,musicgen,skip,Load problem
@@ -92,6 +93,7 @@ Geor111y/flair-ner-addresses-extractor,flair,skip,Load problem
 gia-project/gia,gia,skip,Load problem
 gokuls/bert_12_layer_model_v1,hybridbert,skip,Load problem
 google/bigbird-roberta-base,big_bird
+google/bigbird-pegasus-large-arxiv,bigbird-pegasus
 google/bit-50,bit
 google/canine-s,canine,xfail,aten::slice: Parameter axis 3 out of the tensor rank range
 google/efficientnet-b2,efficientnet,xfail,Compile error: AvgPool: Kernel after dilation has size (dim: 1408) larger than the data shape after padding (dim: 9) at axis 0.
@@ -105,7 +107,7 @@ google/owlvit-base-patch32,owlvit
 google/pix2struct-docvqa-base,pix2struct,skip,Load problem
 google/realm-orqa-nq-openqa,realm,skip,Load problem
 google/reformer-crime-and-punishment,reformer,xfail,Tracing problem
-google/tapas-large-finetuned-wtq,tapas,skip,Load problem
+google/tapas-large-finetuned-wtq,tapas
 google/vit-hybrid-base-bit-384,vit-hybrid,skip,Load problem
 google/vivit-b-16x2-kinetics400,vivit
 Goutham-Vignesh/ContributionSentClassification-scibert,scibert,skip,Load problem
@@ -184,6 +186,7 @@ jambran/depression-classification,DepressionDetection,skip,Load problem
 Jellywibble/dalio-reward-charlie-v1,reward-model,skip,Load problem
 JonasGeiping/crammed-bert-legacy,crammedBERT,skip,Load problem
 jonatasgrosman/wav2vec2-large-xlsr-53-english,wav2vec2,xfail,Unsupported op aten::index_put_ prim::TupleConstruct
+facebook/mms-lid-126,wav2vec2
 Joqsan/test-my-fnet,my_fnet,skip,Load problem
 jozhang97/deta-swin-large,deta,skip,Load problem
 jploski/retnet-mini-shakespeare,retnet,skip,Load problem
@@ -300,6 +303,7 @@ pie/example-re-textclf-tacred,TransformerTextClassificationModel,skip,Load probl
 pleisto/yuren-baichuan-7b,multimodal_llama,skip,Load problem
 predictia/europe_reanalysis_downscaler_convbaseline,convbilinear,skip,Load problem
 predictia/europe_reanalysis_downscaler_convswin2sr,conv_swin2sr,skip,Load problem
+pszemraj/led-large-book-summary,led
 qmeeus/whisper-small-ner-combined,whisper_for_slu,skip,Load problem
 raman-ai/pcqv2-tokengt-lap16,tokengt,skip,Load problem
 range3/pegasus-gpt2-medium,pegasusgpt2,skip,Load problem

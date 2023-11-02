@@ -118,6 +118,7 @@ pt_to_ov_type_map = {
     "torch.float64": OVType.f64,
     "torch.uint8": OVType.u8,
     "torch.int8": OVType.i8,
+    "torch.int16": OVType.i16,
     "torch.int32": OVType.i32,
     "torch.int64": OVType.i64,
     "torch.bool": OVType.boolean,
