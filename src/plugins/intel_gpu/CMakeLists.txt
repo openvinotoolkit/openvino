@@ -34,26 +34,6 @@ add_definitions(-DCL_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
 set(MAIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-find_package(Git)
-if(GIT_FOUND)
-    execute_process(COMMAND ${GIT_EXECUTABLE} -c log.showSignature=false log --no-abbrev-commit --oneline -1 --format=%H
-        WORKING_DIRECTORY ${INCLUDE_DIR}
-        RESULT_VARIABLE RESULT
-        OUTPUT_VARIABLE OPENVINO_GIT_HASH
-        OUTPUT_STRIP_TRAILING_WHITESPACE)
-endif()
-
-if(NOT GIT_FOUND OR RESULT)
-    set(OPENVINO_GIT_HASH "N/A")
-endif()
-
-message("${INCLUDE_DIR}")
-
-configure_file(
-    "${INCLUDE_DIR}/intel_gpu/plugin/version.h.in"
-    "${INCLUDE_DIR}/intel_gpu/plugin/version.h"
-)
-
 add_subdirectory(thirdparty)
 include(thirdparty/cmake/rapidjson.cmake)
 

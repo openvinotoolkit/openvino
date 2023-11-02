@@ -1,9 +1,8 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "ie_version.hpp"
-#include "intel_gpu/plugin/version.h"
 
+#include "openvino/runtime/core.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 
@@ -154,8 +153,9 @@ program::program(engine& engine_ref,
       _compilation_context(compilation_context) {
     _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
-    GPU_DEBUG_INFO << "OpenVINO v" << IE_VERSION_MAJOR << "." << IE_VERSION_MINOR << "." << IE_VERSION_PATCH
-                   << " commit " << OPENVINO_GIT_HASH << std::endl;
+    ov::Core core;
+    GPU_DEBUG_INFO << core.get_versions("GPU");
+    GPU_DEBUG_INFO << "Driver: " << _engine.get_device_info().driver_version << std::endl;
     GPU_DEBUG_INFO << "Program config\n" << config.to_string();
     init_program();
     prepare_nodes(topology);
