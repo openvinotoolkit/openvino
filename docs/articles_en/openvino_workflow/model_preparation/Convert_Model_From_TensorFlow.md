@@ -204,7 +204,7 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
      import tensorflow_hub as hub
      import openvino as ov
     
-     model = hub.load("https://tfhub.dev/svampeatlas/vision/embedder/fungi_V2/1?tf-hub-format=compressed")
+     model = hub.load("https://tfhub.dev/google/movenet/singlepose/lightning/4?tf-hub-format=compressed")
      ov_model = ov.convert_model(model)
 
 * ``tf.function``
