@@ -109,6 +109,7 @@
 #include "transformations/convert_precision.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
 
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
@@ -158,6 +159,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ov::pass::Manager manager;
         auto pass_config = manager.get_pass_config();
         manager.set_per_pass_validation(false);
+
+        // Temporary solution, global rt info cleanup is needed
+        for (auto& node : func->get_ops()) {
+            ov::enable_constant_folding(node);
+            ov::disable_keep_const_precision(node);
+        }
 
         enableInt8 = config.get_property(ov::intel_gpu::enable_lp_transformations) && ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
         if (enableInt8) {
@@ -379,8 +386,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return lstm_seq->get_clip() == 0.0f &&
                        lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
                        max_seq_len < 16 &&
-                       !ov::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(3),
-                                                              max_seq_len);
+                       !ov::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(0),
+                                                          lstm_seq->get_input_node_shared_ptr(3));
             }
             return false;
         };

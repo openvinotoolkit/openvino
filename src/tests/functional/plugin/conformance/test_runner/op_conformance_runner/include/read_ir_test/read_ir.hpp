@@ -27,8 +27,6 @@ class ReadIRTest : public testing::WithParamInterface<ReadIRParams>,
                    virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReadIRParams> &obj);
-    void query_model() override;
-    void import_export();
     std::vector<ov::Tensor> calculate_refs() override;
 
 protected:

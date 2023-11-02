@@ -133,7 +133,7 @@ TEST_F(OpCacheUnitTest, update_cache_by_model) {
             ASSERT_EQ(meta.get_model_info().begin()->second.model_priority, 3);
             // check input_info
             ASSERT_EQ(meta.get_input_info().size(), 1);
-            ASSERT_EQ(meta.get_input_info().begin()->first, "Convert-0_0");
+            ASSERT_EQ(meta.get_input_info().begin()->first, "Convert-1_0");
             ASSERT_EQ(meta.get_input_info().begin()->second.ranges.max, DEFAULT_MAX_VALUE);
             ASSERT_EQ(meta.get_input_info().begin()->second.ranges.min, DEFAULT_MIN_VALUE);
             ASSERT_EQ(meta.get_input_info().begin()->second.is_const, false);
@@ -150,7 +150,7 @@ TEST_F(OpCacheUnitTest, update_cache_by_model) {
             ASSERT_EQ(meta.get_model_info().begin()->second.model_priority, 1);
             // check input_info
             ASSERT_EQ(meta.get_input_info().size(), 1);
-            ASSERT_EQ(meta.get_input_info().begin()->first, "ShapeOf-0_0");
+            ASSERT_EQ(meta.get_input_info().begin()->first, "ShapeOf-1_0");
             ASSERT_EQ(meta.get_input_info().begin()->second.ranges.max, DEFAULT_MAX_VALUE);
             ASSERT_EQ(meta.get_input_info().begin()->second.ranges.min, DEFAULT_MIN_VALUE);
             ASSERT_EQ(meta.get_input_info().begin()->second.is_const, false);
@@ -163,7 +163,7 @@ TEST_F(OpCacheUnitTest, serialize_op) {
     ASSERT_TRUE(this->serialize_op({convert_node, test_meta}));
     ASSERT_TRUE(ov::util::directory_exists(test_artifacts_dir));
     auto serialized_model_path = ov::util::path_join({test_artifacts_dir,
-        "operation", "static", "Convert-0", "f16", "Convert-0_0.xml"});
+        "operation", "static", "Convert-1", "f16", "Convert-1_0.xml"});
     ASSERT_TRUE(ov::util::file_exists(serialized_model_path));
     auto serialized_model = core->read_model(serialized_model_path);
     auto res = compare_functions(test_model, serialized_model, true, false, true, true, true, false);
@@ -171,7 +171,7 @@ TEST_F(OpCacheUnitTest, serialize_op) {
 }
 
 TEST_F(OpCacheUnitTest, get_rel_serilization_dir) {
-    auto ref_path = ov::util::path_join({"operation", "static", "Convert-0", "f16"});
+    auto ref_path = ov::util::path_join({"operation", "static", "Convert-1", "f16"});
     auto original_path = this->get_rel_serilization_dir(convert_node);
     ASSERT_EQ(ref_path, original_path);
 }
