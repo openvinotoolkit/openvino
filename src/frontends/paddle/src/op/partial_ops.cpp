@@ -9,11 +9,11 @@ namespace frontend {
 namespace paddle {
 namespace op {
 
-NamedOutputs elementwise_sum(const NodeContext& node_context) {
+NamedOutputs partial_sum(const NodeContext& node) {
     return partial_ops(node, "sum");
 }
 
-NamedOutputs elementwise_concat(const NodeContext& node_context) {
+NamedOutputs partial_concat(const NodeContext& node) {
     return partial_ops(node, "concat");
 }
 

@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <map>
-
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
@@ -12,8 +10,7 @@ namespace frontend {
 namespace paddle {
 namespace op {
 
-template <typename T>
-NamedOutputs partial_ops(const NodeContext& node, const string& type) {
+NamedOutputs partial_ops(const NodeContext& node, const std::string type) {
     auto x = node.get_ng_inputs("X");
     const auto start_index = node.get_attribute<int>("start_index");
     const auto length = node.get_attribute<int>("length");
@@ -34,7 +31,6 @@ NamedOutputs partial_ops(const NodeContext& node, const string& type) {
     auto left = std::make_shared<default_opset::Slice>(x[0], start_node, end_node, one_node, one_node);
     auto right = std::make_shared<default_opset::Slice>(x[1], start_node, end_node, one_node, one_node);
 
-    // return NodeVector{left, right};
     if (type == "sum")
         return node.default_single_output_mapping({std::make_shared<default_opset::Add>(left, right)}, {"Out"});
     return node.default_single_output_mapping({std::make_shared<default_opset::Concat>(NodeVector{left, right}, 1)},
