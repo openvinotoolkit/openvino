@@ -119,7 +119,7 @@ Weight compression is applied by default to models larger than one billion param
 
    8-bit weight compression is enabled by default for models larger than 1 billion parameters.
 
-`NNCF <https://github.com/openvinotoolkit/nncf>`__ also provides 4-bit weight compression that is supported by OpenVINO. It can be applied to Optimum objects as folloqs:
+`NNCF <https://github.com/openvinotoolkit/nncf>`__ also provides 4-bit weight compression that is supported by OpenVINO. It can be applied to Optimum objects as follows:
 
 .. code-block:: python
 
@@ -131,6 +131,13 @@ Weight compression is applied by default to models larger than one billion param
 
 
 Optimized model can be saved as usual with ``save_pretrained()`` call. For more details about compression options, refer to :doc:`weight compression guide <weight_compression>`.
+
+.. note::
+
+   OpenVINO also supports 4-bit models from Hugging Face `Transformers <https://github.com/huggingface/transformers>`__ library optimized 
+   with `GPTQ <https://github.com/PanQiWei/AutoGPTQ>`__. There is no need to do an extra step of model optimization in this case because 
+   model conversion will ensure that int4 optimization results are preserved and model inference will benefit from it.
+
 
 Below are some examples of using Optimum-Intel for model conversion and inference:
 

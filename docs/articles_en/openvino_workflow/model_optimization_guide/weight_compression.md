@@ -32,7 +32,7 @@ Now, the model is ready for compilation and inference. It can be also saved into
 
 - **INT4 weight quantization** - this method stands for an INT4-INT8 mixed-precision weight quantization where INT4 is considered as a primary precision and INT8 is a backup one. It usually results in a smaller model size and a lower inference latency but accuracy degradation could be higher, depending on the model. The method has several parameters that can provide different performance-accuracy trade-offs after optimization:
 
-  * ``mode``` - there are two modes to choose from: ``INT4_SYM`` - stands for INT4 symmetric weight quantization and results in faster inference and smaller model size, and ``INT4_ASYM`` - INT4 asymmetric weight quantization with variable zero-point for more accurate results
+  * ``mode`` - there are two modes to choose from: ``INT4_SYM`` - stands for INT4 symmetric weight quantization and results in faster inference and smaller model size, and ``INT4_ASYM`` - INT4 asymmetric weight quantization with variable zero-point for more accurate results
 
   * ``group_size`` - controls the size of the group of weights that share the same quantization parameters. The smaller the model size the more accurate the optimized model. We recommend using the following group sizes: ``128``, ``64``, ``32`` (``128`` is default value)
 
@@ -51,7 +51,7 @@ The example below shows 4-bit weight quantization applied on top of OpenVINO IR:
 
 .. note::
 
-   OpenVINO also supports models from Hugging Face `Transformers <https://github.com/huggingface/transformers>`__ library optimized 
+   OpenVINO also supports 4-bit models from Hugging Face `Transformers <https://github.com/huggingface/transformers>`__ library optimized 
    with `GPTQ <https://github.com/PanQiWei/AutoGPTQ>`__. There is no need to do an extra step of model optimization in this case because 
    model conversion will ensure that int4 optimization results are preserved and model inference will benefit from it.
    
