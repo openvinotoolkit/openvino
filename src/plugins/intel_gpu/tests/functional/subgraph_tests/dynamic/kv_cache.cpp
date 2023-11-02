@@ -125,12 +125,13 @@ TEST(KVCacheTest, smoke_multipleIterations) {
     auto output0 = model->get_results().at(0);
     auto output1 = model->get_results().at(1);
 
-    auto infer_request = compiled_model.create_infer_request();
-    auto input0_tensor_remote_io = infer_request.get_tensor(input0);
-    auto input1_tensor_remote_io = infer_request.get_tensor(input1);
-    auto input2_tensor_remote_io = infer_request.get_tensor(input2);
-    auto output0_tensor_remote_io = infer_request.get_tensor(output0);
-    auto output1_tensor_remote_io = infer_request.get_tensor(output1);
+    auto get_ref_results = [&model, &input0, &input1, &input2](const ov::Tensor& kv_cache, const ov::Tensor& new_token_data, const ov::Tensor& matmul_data) {
+        auto ref_model = model->clone();
+        ov::Tensor kv_cache_copy(kv_cache.get_element_type(), kv_cache.get_shape());
+        kv_cache.copy_to(kv_cache_copy);
+        ngraph::helpers::resize_function(ref_model, {kv_cache_copy.get_shape(), new_token_data.get_shape(), matmul_data.get_shape()});
+        return ngraph::helpers::interpretFunction(ref_model, {{input0, kv_cache_copy}, {input1, new_token_data}, {input2, matmul_data}});
+    };
 
     auto compare_tensors = [&model](const std::vector<ov::Tensor> expected, const std::vector<ov::Tensor>& actual) {
             ASSERT_EQ(expected.size(), actual.size());
@@ -154,28 +155,36 @@ TEST(KVCacheTest, smoke_multipleIterations) {
             }
     };
 
+    auto infer_request = compiled_model.create_infer_request();
+    auto kv_cache_input = infer_request.get_tensor(output0);
+    auto matmul_out = infer_request.get_tensor(output1);
+    auto new_token_input = infer_request.get_tensor(input1);
+    auto matmul_input = infer_request.get_tensor(input2);
+
+    infer_request.set_tensor(input0, kv_cache_input);
+    infer_request.set_tensor(input1, new_token_input);
+    infer_request.set_tensor(input2, matmul_input);
+
     {
-        const ov::Shape kv_cache_size_initial = {batch, n_heads, cache_size, n_features};
         const ov::Shape new_token_size_initial = {batch, context_size, n_heads, n_features};
+        const ov::Shape kv_cache_size_initial = {batch, n_heads, cache_size, n_features};
         const ov::Shape matmul_in_size_initial = {batch, n_heads, context_size, context_size};
 
         auto new_token_data = ov::test::utils::create_and_fill_tensor(element_type, new_token_size_initial);
         auto matmul_data = ov::test::utils::create_and_fill_tensor(element_type, matmul_in_size_initial);
 
-        auto kv_cache_input = infer_request.get_tensor(input0);
         kv_cache_input.set_shape(kv_cache_size_initial);
+        new_token_input.set_shape(new_token_data.get_shape());
+        matmul_input.set_shape(matmul_data.get_shape());
 
-        auto ref_model = model->clone();
-        ngraph::helpers::resize_function(ref_model, {kv_cache_input.get_shape(), new_token_data.get_shape(), matmul_data.get_shape()});
-        auto results = ngraph::helpers::interpretFunction(ref_model, {{input0, kv_cache_input}, {input1, new_token_data}, {input2, matmul_data}});
+        new_token_data.copy_to(new_token_input);
+        matmul_data.copy_to(matmul_input);
 
-        infer_request.set_tensor(input0, kv_cache_input);
-        infer_request.set_tensor(input1, new_token_data);
-        infer_request.set_tensor(input2, matmul_data);
+        auto ref_results = get_ref_results(kv_cache_input, new_token_data, matmul_data);
 
         infer_request.infer();
 
-        compare_tensors(results, {infer_request.get_tensor(output0), infer_request.get_tensor(output1)});
+        compare_tensors(ref_results, {kv_cache_input, matmul_out});
 
         cache_size += context_size;
     }
@@ -188,29 +197,16 @@ TEST(KVCacheTest, smoke_multipleIterations) {
         ov::Shape matmul_in_size_loop = {batch, n_heads, input_tokens, context_length};
         auto new_token_data = ov::test::utils::create_and_fill_tensor(element_type, new_token_size);
         auto matmul_data = ov::test::utils::create_and_fill_tensor(element_type, matmul_in_size_loop);
+        auto ref_results = get_ref_results(kv_cache_input, new_token_data, matmul_data);
 
-        auto kv_cache_input = infer_request.get_tensor(output0);
-        auto kv_shape = kv_cache_input.get_shape();
-
-        auto ref_model = model->clone();
-        ngraph::helpers::resize_function(ref_model, {kv_shape, new_token_data.get_shape(), matmul_data.get_shape()});
-        auto results = ngraph::helpers::interpretFunction(ref_model, {{input0, kv_cache_input}, {input1, new_token_data}, {input2, matmul_data}});
-
-        auto new_token_input = infer_request.get_tensor(input1);
         new_token_input.set_shape(new_token_data.get_shape());
-        auto matmul_input = infer_request.get_tensor(input2);
         matmul_input.set_shape(matmul_data.get_shape());
-
         new_token_data.copy_to(new_token_input);
         matmul_data.copy_to(matmul_input);
 
-        infer_request.set_tensor(input0, kv_cache_input);
-        infer_request.set_tensor(input1, new_token_input);
-        infer_request.set_tensor(input2, matmul_input);
-
         infer_request.infer();
 
-        compare_tensors(results, {infer_request.get_tensor(output0), infer_request.get_tensor(output1)});
+        compare_tensors(ref_results, {kv_cache_input, matmul_out});
     }
 }
 
