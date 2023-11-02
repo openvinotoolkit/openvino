@@ -34,11 +34,9 @@ class TestAdaptiveMaxPool3D(PytorchLayerTest):
 
         return aten_adaptive_max_pool3d(output_size, return_indices), ref_net, "aten::adaptive_max_pool3d"
 
-    @pytest.mark.parametrize('input_tensor', ([
-        np.random.randn(2, 1, 1, 4, 4).astype(np.float32),
-        np.random.randn(4, 1, 3, 32, 32).astype(np.float32),
-        np.random.randn(1, 3, 32, 32).astype(np.float32)
-    ]))
+    @pytest.mark.parametrize('input_shape', [[2, 1, 1, 4, 4],
+                                             [4, 1, 3, 32, 32],
+                                             [1, 3, 32, 32]])
     @pytest.mark.parametrize('output_size', ([
         [2, 2, 2],
         [4, 4, 4],
@@ -53,8 +51,8 @@ class TestAdaptiveMaxPool3D(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
-    def test_adaptive_max_pool3d(self, ie_device, precision, ir_version, input_tensor, output_size, return_indices):
-        self.input_tensor = input_tensor
+    def test_adaptive_max_pool3d(self, ie_device, precision, ir_version, input_shape, output_size, return_indices):
+        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
         self._test(*self.create_model(output_size, return_indices), ie_device, precision, ir_version)
 
 
@@ -81,11 +79,9 @@ class TestAdaptiveMaxPool2D(PytorchLayerTest):
 
         return aten_adaptive_max_pool2d(output_size, return_indices), ref_net, "aten::adaptive_max_pool2d"
 
-    @pytest.mark.parametrize('input_tensor', ([
-        np.random.randn(2, 1, 4, 4).astype(np.float32),
-        np.random.randn(1, 3, 32, 32).astype(np.float32),
-        np.random.randn(3, 32, 32).astype(np.float32)
-    ]))
+    @pytest.mark.parametrize('input_shape', [[2, 1, 4, 4],
+                                             [1, 3, 32, 32],
+                                             [3, 32, 32]])
     @pytest.mark.parametrize('output_size', ([
         [2, 2],
         [4, 4],
@@ -100,8 +96,8 @@ class TestAdaptiveMaxPool2D(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
-    def test_adaptive_max_pool2d(self, ie_device, precision, ir_version, input_tensor, output_size, return_indices):
-        self.input_tensor = input_tensor
+    def test_adaptive_max_pool2d(self, ie_device, precision, ir_version, input_shape, output_size, return_indices):
+        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
         self._test(*self.create_model(output_size, return_indices), ie_device, precision, ir_version)
 
 
@@ -128,11 +124,11 @@ class TestAdaptiveMaxPool1D(PytorchLayerTest):
 
         return aten_adaptive_max_pool1d(output_size, return_indices), ref_net, "aten::adaptive_max_pool1d"
 
-    @pytest.mark.parametrize('input_tensor', ([
-        np.random.randn(1, 4, 4).astype(np.float32),
-        np.random.randn(3, 32, 32).astype(np.float32),
-        np.random.randn(16, 8).astype(np.float32),
-    ]))
+    @pytest.mark.parametrize('input_shape', [
+        [1, 4, 4],
+        [3, 32, 32],
+        [16, 8]
+    ])
     @pytest.mark.parametrize('output_size', ([
         2,
         4,
@@ -147,6 +143,6 @@ class TestAdaptiveMaxPool1D(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
-    def test_adaptive_max_pool1d(self, ie_device, precision, ir_version, input_tensor, output_size, return_indices):
-        self.input_tensor = input_tensor
+    def test_adaptive_max_pool1d(self, ie_device, precision, ir_version, input_shape, output_size, return_indices):
+        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
         self._test(*self.create_model(output_size, return_indices), ie_device, precision, ir_version)

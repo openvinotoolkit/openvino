@@ -3,9 +3,15 @@
 
 #include "infer_request.hpp"
 
+#include <mutex>
+#include <random>
+#include <thread>
+
 #include "compiled_model.hpp"
 #include "node_output.hpp"
 #include "tensor.hpp"
+
+std::mutex infer_mutex;
 
 InferRequestWrap::InferRequestWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<InferRequestWrap>(info) {}
 
@@ -20,6 +26,7 @@ Napi::Function InferRequestWrap::GetClassConstructor(Napi::Env env) {
                            InstanceMethod("getInputTensor", &InferRequestWrap::get_input_tensor),
                            InstanceMethod("getOutputTensor", &InferRequestWrap::get_output_tensor),
                            InstanceMethod("infer", &InferRequestWrap::infer_dispatch),
+                           InstanceMethod("inferAsync", &InferRequestWrap::infer_async),
                            InstanceMethod("getCompiledModel", &InferRequestWrap::get_compiled_model),
                        });
 }
@@ -48,7 +55,7 @@ Napi::Object InferRequestWrap::Wrap(Napi::Env env, ov::InferRequest infer_reques
 }
 
 void InferRequestWrap::set_tensor(const Napi::CallbackInfo& info) {
-    if (info.Length() != 2 || !info[0].IsString() || !info[1].IsObject()) { 
+    if (info.Length() != 2 || !info[0].IsString() || !info[1].IsObject()) {
         reportError(info.Env(), "InferRequest.setTensor() invalid argument.");
     } else {
         std::string name = info[0].ToString();
@@ -58,10 +65,10 @@ void InferRequestWrap::set_tensor(const Napi::CallbackInfo& info) {
 }
 
 void InferRequestWrap::set_input_tensor(const Napi::CallbackInfo& info) {
-    if (info.Length() == 1 && info[0].IsObject()) {  
+    if (info.Length() == 1 && info[0].IsObject()) {
         auto tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].ToObject());
         _infer_request.set_input_tensor(tensorWrap->get_tensor());
-    } else if (info.Length() == 2 && info[0].IsNumber() && info[1].IsObject()) {  
+    } else if (info.Length() == 2 && info[0].IsNumber() && info[1].IsObject()) {
         auto idx = info[0].ToNumber().Int32Value();
         auto tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[1].ToObject());
         _infer_request.set_input_tensor(idx, tensorWrap->get_tensor());
@@ -75,7 +82,7 @@ void InferRequestWrap::set_output_tensor(const Napi::CallbackInfo& info) {
         auto tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].ToObject());
         auto t = tensorWrap->get_tensor();
         _infer_request.set_output_tensor(t);
-    } else if (info.Length() == 2 && info[0].IsNumber() && info[1].IsObject()) { 
+    } else if (info.Length() == 2 && info[0].IsNumber() && info[1].IsObject()) {
         auto idx = info[0].ToNumber().Int32Value();
         auto tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[1].ToObject());
         _infer_request.set_output_tensor(idx, tensorWrap->get_tensor());
@@ -91,7 +98,7 @@ Napi::Value InferRequestWrap::get_tensor(const Napi::CallbackInfo& info) {
     } else if (info[0].IsString()) {
         std::string tensor_name = info[0].ToString();
         tensor = _infer_request.get_tensor(tensor_name);
-    } else if (info[0].IsObject()) { 
+    } else if (info[0].IsObject()) {
         auto outputWrap = Napi::ObjectWrap<Output<const ov::Node>>::Unwrap(info[0].ToObject());
         ov::Output<const ov::Node> output = outputWrap->get_output();
         tensor = _infer_request.get_tensor(output);
@@ -189,4 +196,78 @@ void InferRequestWrap::infer(const Napi::Object& inputs) {
 
 Napi::Value InferRequestWrap::get_compiled_model(const Napi::CallbackInfo& info) {
     return CompiledModelWrap::Wrap(info.Env(), _infer_request.get_compiled_model());
+}
+
+struct TsfnContext {
+    TsfnContext(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)){};
+
+    std::thread native_thread;
+
+    Napi::Promise::Deferred deferred;
+    Napi::ThreadSafeFunction tsfn;
+
+    ov::InferRequest* _ir;
+    std::vector<ov::Tensor> _inputs;
+    std::map<std::string, ov::Tensor> result;
+};
+
+void FinalizerCallback(Napi::Env env, void* finalizeData, TsfnContext* context) {
+    context->native_thread.join();
+    delete context;
+};
+
+void performInferenceThread(TsfnContext* context) {
+    infer_mutex.lock();
+    for (size_t i = 0; i < context->_inputs.size(); ++i) {
+        context->_ir->set_input_tensor(i, context->_inputs[i]);
+    }
+    context->_ir->infer();
+
+    auto compiled_model = context->_ir->get_compiled_model().outputs();
+    std::map<std::string, ov::Tensor> outputs;
+
+    for (auto& node : compiled_model) {
+        const auto& tensor = context->_ir->get_tensor(node);
+        auto new_tensor = ov::Tensor(tensor.get_element_type(), tensor.get_shape());
+        tensor.copy_to(new_tensor);
+        outputs.insert({node.get_any_name(), new_tensor});
+    }
+
+    context->result = outputs;
+    infer_mutex.unlock();
+
+    auto callback = [](Napi::Env env, Napi::Function, TsfnContext* context) {
+        const auto& res = context->result;
+        auto outputs_obj = Napi::Object::New(env);
+
+        for (const auto& [key, tensor] : res) {
+            outputs_obj.Set(key, TensorWrap::Wrap(env, tensor));
+        }
+        context->deferred.Resolve({outputs_obj});
+    };
+
+    context->tsfn.BlockingCall(context, callback);
+    context->tsfn.Release();
+}
+
+Napi::Value InferRequestWrap::infer_async(const Napi::CallbackInfo& info) {
+    if (info.Length() != 1) {
+        reportError(info.Env(), "InferAsync method takes as an argument an array or an object.");
+    }
+    Napi::Env env = info.Env();
+
+    auto context = new TsfnContext(env);
+    context->_ir = &_infer_request;
+    try {
+        auto parsed_input = parse_input_data(info[0]);
+        context->_inputs = parsed_input;
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what());
+    }
+
+    context->tsfn =
+        Napi::ThreadSafeFunction::New(env, Napi::Function(), "TSFN", 0, 1, context, FinalizerCallback, (void*)nullptr);
+
+    context->native_thread = std::thread(performInferenceThread, context);
+    return context->deferred.Promise();
 }
