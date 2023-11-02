@@ -35,7 +35,7 @@ int main(int argc, char* argv[]) {
         ov::AnyMap tput{{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT}};
 
         // Create ov::Core and use it to compile a model.
-        // Pick a device by replacing CPU, for example MULTI:CPU(4),GPU(8).
+        // Select the device by providing the name as the second parameter to CLI.
         // It is possible to set CUMULATIVE_THROUGHPUT as ov::hint::PerformanceMode for AUTO device
         ov::Core core;
         ov::CompiledModel compiled_model = core.compile_model(argv[1], device_name, tput);
