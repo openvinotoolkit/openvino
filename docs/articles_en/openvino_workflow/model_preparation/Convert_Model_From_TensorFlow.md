@@ -221,7 +221,16 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
      import openvino as ov
      ov_model = ov.convert_model(func)
 
-* ``tf.keras.layers.Layer``
+* ``tf.keras.Model``
+
+  .. code-block:: py
+     :force:
+
+     import openvino as ov
+     model = tf.keras.applications.ResNet50(weights="imagenet")
+     ov_model = ov.convert_model(model)
+
+* ``tf.keras.layers.Layer``. The ``ov.Model`` converted from ``tf.keras.layers.Layer`` does not contain original input and output names. So it is recommended to convert the model to ``tf.keras.Model`` before conversion or use ``hub.load()`` for Tensorflow Hub models.
 
   .. code-block:: py
      :force:
@@ -232,14 +241,6 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
      model = hub.KerasLayer("https://tfhub.dev/google/imagenet/mobilenet_v1_100_224/classification/5")
      ov_model = ov.convert_model(model)
 
-* ``tf.keras.Model``
-
-  .. code-block:: py
-     :force:
-
-     import openvino as ov
-     model = tf.keras.applications.ResNet50(weights="imagenet")
-     ov_model = ov.convert_model(model)
 
 * ``tf.Module``. Requires setting shapes in ``input`` parameter.
 
