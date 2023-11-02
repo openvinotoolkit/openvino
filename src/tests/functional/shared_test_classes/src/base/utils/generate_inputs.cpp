@@ -1092,6 +1092,20 @@ ov::runtime::Tensor generate(const
     return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
 }
 
+ov::runtime::Tensor generate(const
+                             std::shared_ptr<ov::op::v6::ExperimentalDetectronPriorGridGenerator>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    InputGenerateData inGenData(0, 0, 1, 1);
+    if (0 == port) {
+        inGenData.start_from = -100;
+        inGenData.range = 200;
+        inGenData.resolution = 2;
+    }
+    return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+}
+
 template<typename T>
 ov::runtime::Tensor generateInput(const std::shared_ptr<ov::Node>& node,
                                   size_t port,
