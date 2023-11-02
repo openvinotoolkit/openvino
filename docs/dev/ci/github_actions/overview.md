@@ -88,8 +88,9 @@ The structure for all of them is the same:
 2. Build OpenVINO from source
 3. Pack and upload the artefacts (built OpenVINO and tests)
 4. Download and use the artefacts in the parallel jobs with different kinds of tests
+5. Collect the test results and upload them as artefacts
 
-**NOTE**: the supporting workflows may use the same structure or lack steps 3 and 4 and have tests present in right after the Build step.
+**NOTE**: the supporting workflows may use the same structure or lack steps 3, 4 and 5 and have tests present right after the `Build` step.
 
 Overview of the [Linux workflow](../../../../.github/workflows/linux.yml). There are several jobs present:
 ```yaml
@@ -116,6 +117,8 @@ The other jobs are responsible for running different kinds of tests using the bu
 * download and unpack the artefacts using `actions/download-artifact`
 * install the needed dependencies
 * run tests
+* collect test results
+* upload test results as [artefacts](#artefacts)
 
 #### Single Job Overview
 
