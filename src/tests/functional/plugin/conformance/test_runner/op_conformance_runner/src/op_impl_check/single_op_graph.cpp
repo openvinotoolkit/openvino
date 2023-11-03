@@ -1604,7 +1604,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v8::MatrixNms>
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 2, 4}}),
                                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 2, 2}})};
     const auto nms =
-        std::make_shared<ov::op::v8::MatrixNms>(params.front(), params.back(), ov::op::v8::MatrixNms::Attributes());
+        std::make_shared<ov::op::v8::MatrixNms>(params[0], params[1], ov::op::v8::MatrixNms::Attributes());
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(nms)};
     return std::make_shared<ov::Model>(results, params, "MatrixNms");
 }
@@ -1613,11 +1613,11 @@ std::shared_ptr<ov::Model> generateMulticlassNmsBase(const std::shared_ptr<ov::o
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 2, 4}}),
                                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 2, 2}})};
     if (ov::is_type<ov::op::v8::MulticlassNms>(node)) {
-        const auto nms = std::make_shared<ov::op::v8::MulticlassNms>(params.front(), params.back(), ov::op::v8::MulticlassNms::Attributes());
+        const auto nms = std::make_shared<ov::op::v8::MulticlassNms>(params[0], params[1], ov::op::v8::MulticlassNms::Attributes());
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(nms)};
         return std::make_shared<ov::Model>(results, params, "MulticlassNms");
     } else if (ov::is_type<ov::op::v9::MulticlassNms>(node)) {
-        const auto nms = std::make_shared<ov::op::v9::MulticlassNms>(params.front(), params.back(), ov::op::v9::MulticlassNms::Attributes());
+        const auto nms = std::make_shared<ov::op::v9::MulticlassNms>(params[0], params[1], ov::op::v9::MulticlassNms::Attributes());
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(nms)};
         return std::make_shared<ov::Model>(results, params, "MulticlassNms");
     } else {
