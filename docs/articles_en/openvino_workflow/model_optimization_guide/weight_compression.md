@@ -15,7 +15,7 @@ Currently, `Neural Network Compression Framework (NNCF) <https://github.com/open
 Compress Model Weights
 ######################
 
-- **8-bit weight quantization** - this method is aimed at accurate optimization of the model which usually leads to significant performance improvements of the Transformer-based models. Models with 8-bit compressed weights are performant on the vast majority of the supported CPU and GPU platforms.
+- **8-bit weight quantization** - this method is aimed at accurate optimization of the model, which usually leads to significant performance improvements for Transformer-based models. Models with 8-bit compressed weights are performant on the vast majority of supported CPU and GPU platforms.
 
 The code snippet below shows how to do 8-bit quantization of the model weights represented in OpenVINO IR using NNCF:
 
