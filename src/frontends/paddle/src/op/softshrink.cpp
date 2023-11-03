@@ -16,24 +16,24 @@ NamedOutputs softshrink(const NodeContext& node) {
     PADDLE_OP_CHECK(node, lambda >= 0, "Softshrink op lambda must be non-negative.");
     PADDLE_OP_CHECK(node, input_element_type.is_signed(), "Softshrink op input must be signed type.");
 
-    std::shared_ptr<ngraph::Node> output;
+    std::shared_ptr<Node> output;
     const auto positive_lambda = default_opset::Constant::create(input_element_type, Shape{}, {lambda});
     const auto negative_lambda = default_opset::Constant::create(input_element_type, Shape{}, {-lambda});
-    std::shared_ptr<ngraph::Node> negative_node = std::make_shared<default_opset::Subtract>(data, positive_lambda);
-    std::shared_ptr<ngraph::Node> positive_node = std::make_shared<default_opset::Add>(data, positive_lambda);
+    std::shared_ptr<Node> negative_node = std::make_shared<default_opset::Subtract>(data, positive_lambda);
+    std::shared_ptr<Node> positive_node = std::make_shared<default_opset::Add>(data, positive_lambda);
 
-    std::shared_ptr<ngraph::Node> zero_node = default_opset::Constant::create(input_element_type, Shape{}, {0});
+    std::shared_ptr<Node> zero_node = default_opset::Constant::create(input_element_type, Shape{}, {0});
 
     // Create masks for values below negative lambda and above positive lambda
-    std::shared_ptr<ngraph::Node> values_below_neg_lambda =
+    std::shared_ptr<Node> values_below_neg_lambda =
         std::make_shared<default_opset::Less>(data, negative_lambda);
-    std::shared_ptr<ngraph::Node> values_above_pos_lambda =
+    std::shared_ptr<Node> values_above_pos_lambda =
         std::make_shared<default_opset::Greater>(data, positive_lambda);
 
     output = std::make_shared<default_opset::Select>(values_above_pos_lambda, negative_node, data);
     output = std::make_shared<default_opset::Select>(values_below_neg_lambda, positive_node, output);
 
-    std::shared_ptr<ngraph::Node> zero_mask =
+    std::shared_ptr<Node> zero_mask =
         std::make_shared<default_opset::LogicalOr>(values_below_neg_lambda, values_above_pos_lambda);
 
     output = std::make_shared<default_opset::Select>(zero_mask, output, zero_node);
