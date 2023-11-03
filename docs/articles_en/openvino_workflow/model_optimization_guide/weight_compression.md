@@ -54,6 +54,76 @@ The example below shows 4-bit weight quantization applied on top of OpenVINO IR:
    OpenVINO also supports 4-bit models from Hugging Face `Transformers <https://github.com/huggingface/transformers>`__ library optimized 
    with `GPTQ <https://github.com/PanQiWei/AutoGPTQ>`__. There is no need to do an extra step of model optimization in this case because 
    model conversion will ensure that int4 optimization results are preserved and model inference will benefit from it.
+
+
+.. list-table::
+   :widths: 40 55 25 25
+   :header-rows: 1
+
+   * - Model
+     - Optimization
+     - Perplexity
+     - Model Size (Gb)
+   * - databricks/dolly-v2-3b
+     - FP32
+     - 5.01
+     - 10.3
+   * - databricks/dolly-v2-3b
+     - INT8
+     - 5.07
+     - 2.6
+   * - databricks/dolly-v2-3b
+     - INT4_ASYM,group_size=32,ratio=0.5
+     - 5.28
+     - 2.2
+   * - facebook/opt-6.7b
+     - FP32
+     - 4.25
+     - 24.8
+   * - facebook/opt-6.7b
+     - INT8
+     - 4.27
+     - 6.2
+   * - facebook/opt-6.7b
+     - INT4_ASYM,group_size=64,ratio=0.8
+     - 4.32
+     - 4.1
+   * - meta-llama/Llama-2-7b-chat-hf
+     - FP32
+     - 3.28
+     - 25.1
+   * - meta-llama/Llama-2-7b-chat-hf
+     - INT8
+     - 3.29
+     - 6.3
+   * - meta-llama/Llama-2-7b-chat-hf
+     - INT4_ASYM,group_size=128,ratio=0.8
+     - 3.41
+     - 4.0
+   * - togethercomputer/RedPajama-INCITE-7B-Instruct
+     - FP32
+     - 4.15
+     - 25.6
+   * - togethercomputer/RedPajama-INCITE-7B-Instruct
+     - INT8
+     - 4.17
+     - 6.4
+   * - togethercomputer/RedPajama-INCITE-7B-Instruct
+     - INT4_ASYM,group_size=128,ratio=1.0
+     - 4.17
+     - 3.6
+   * - meta-llama/Llama-2-13b-chat-hf
+     - FP32
+     - 2.92
+     - 48.5
+   * - meta-llama/Llama-2-13b-chat-hf
+     - INT8
+     - 2.91
+     - 12.1
+   * - meta-llama/Llama-2-13b-chat-hf
+     - INT4_SYM,group_size=64,ratio=0.8
+     - 2.98
+     - 8.0
    
 
 Additional Resources
