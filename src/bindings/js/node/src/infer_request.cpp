@@ -11,7 +11,9 @@
 #include "node_output.hpp"
 #include "tensor.hpp"
 
+namespace {
 std::mutex infer_mutex;
+}
 
 InferRequestWrap::InferRequestWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<InferRequestWrap>(info) {}
 
@@ -217,24 +219,25 @@ void FinalizerCallback(Napi::Env env, void* finalizeData, TsfnContext* context) 
 };
 
 void performInferenceThread(TsfnContext* context) {
-    infer_mutex.lock();
-    for (size_t i = 0; i < context->_inputs.size(); ++i) {
-        context->_ir->set_input_tensor(i, context->_inputs[i]);
+    {
+        const std::lock_guard<std::mutex> lock(infer_mutex);
+        for (size_t i = 0; i < context->_inputs.size(); ++i) {
+            context->_ir->set_input_tensor(i, context->_inputs[i]);
+        }
+        context->_ir->infer();
+
+        auto compiled_model = context->_ir->get_compiled_model().outputs();
+        std::map<std::string, ov::Tensor> outputs;
+
+        for (auto& node : compiled_model) {
+            const auto& tensor = context->_ir->get_tensor(node);
+            auto new_tensor = ov::Tensor(tensor.get_element_type(), tensor.get_shape());
+            tensor.copy_to(new_tensor);
+            outputs.insert({node.get_any_name(), new_tensor});
+        }
+
+        context->result = outputs;
     }
-    context->_ir->infer();
-
-    auto compiled_model = context->_ir->get_compiled_model().outputs();
-    std::map<std::string, ov::Tensor> outputs;
-
-    for (auto& node : compiled_model) {
-        const auto& tensor = context->_ir->get_tensor(node);
-        auto new_tensor = ov::Tensor(tensor.get_element_type(), tensor.get_shape());
-        tensor.copy_to(new_tensor);
-        outputs.insert({node.get_any_name(), new_tensor});
-    }
-
-    context->result = outputs;
-    infer_mutex.unlock();
 
     auto callback = [](Napi::Env env, Napi::Function, TsfnContext* context) {
         const auto& res = context->result;
