@@ -52,8 +52,7 @@ The example below shows 4-bit weight quantization applied on top of OpenVINO IR:
 .. note::
 
    OpenVINO also supports 4-bit models from Hugging Face `Transformers <https://github.com/huggingface/transformers>`__ library optimized 
-   with `GPTQ <https://github.com/PanQiWei/AutoGPTQ>`__. There is no need to do an extra step of model optimization in this case because 
-   model conversion will ensure that int4 optimization results are preserved and model inference will benefit from it.
+   with `GPTQ <https://github.com/PanQiWei/AutoGPTQ>`__. In this case, there is no need for an additional model optimization step because model conversion will automatically preserve the INT4 optimization results, allowing model inference to benefit from it.
    
 
 Additional Resources
