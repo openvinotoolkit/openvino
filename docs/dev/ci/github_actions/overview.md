@@ -2,6 +2,18 @@
 
 Welcome to the OpenVINO Developer guide on the GitHub Actions infrastructure. This document gives a brief overview of the GitHub Actions setup used in OpenVINO.
 
+## Table of Contents
+
+* [Workflows overview](#workflows)
+  * [Triggers and schedules](#workflows-triggers-and-schedule)
+  * [Required workflows](#required-workflows)
+* [Finding results, artefacts and logs](#finding-results-artefacts-and-logs)
+* [Custom actions overview](#custom-actions)
+* [Machines overview](#machines)
+* [Docker images overview](#docker-images)
+* [Caches overview](#caches)
+* [How to add new tests](#adding-new-tests)
+
 ## Workflows
 
 GitHub Actions workflows are configurable automated processes that will run one or more jobs via a series of steps. 
@@ -197,7 +209,7 @@ To find logs for a pipeline, use the following steps:
 2. Click `Details` to see more information about a job
 3. Click on the step to see the execution logs
 
-## Custom Actions 
+## Custom Actions
 
 setup-python, smart-ci, etc.
 
@@ -210,13 +222,34 @@ There are two types of runners available in this repository:
 * [GitHub Actions Runners](https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners) - runners provided and managed by GitHub
 * [Self-hosted Runners](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners) - runners created and managed by the OpenVINO CI team and linked to the OpenVINO repositories 
 
-Read more about the available runners and how to choose one [here](./runners.md).
+The jobs in the workflows utilize appropriate runners based on the job's needs. Read more about the available runners and how to choose one [here](./runners.md).
 
 ## Docker Images
 
+You can run jobs in Docker containers, refer to [the documentation for syntax nuances](https://docs.github.com/en/actions/using-jobs/running-jobs-in-a-container).
+
+The jobs in the workflows utilize appropriate Docker images based on the job's needs. Read more about the available images and how to choose one [here](./docker_images.md).
+
 ## Caches
 
+There are two types of caches available:
+* [GitHub Actions cache](https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows)
+  * Accessible by `actions/cache` action
+  * Available both GitHub-hosted and self-hosted runners
+  * Limited to 10GB per repository
+  * Suitable for small dependencies caches and artefacts that could be reused between runs 
+* Shared drive cache
+  * Mounted into the Docker container
+  * Available only to the self-hosted runners
+  * Large storage
+  * Suitable for large caches
+    * e.g., build caches, models, datasets
+
+The jobs in the workflows utilize appropriate caches based on the job's needs. Read more about the available caches and how to choose one [here](./caches.md).
+
 ## Adding New Tests
+
+If you would like to add new tests, refer to [this document](./adding_tests.md).
 
 ## See also
 
