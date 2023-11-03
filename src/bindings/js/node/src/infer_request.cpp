@@ -27,7 +27,7 @@ Napi::Function InferRequestWrap::GetClassConstructor(Napi::Env env) {
                            InstanceMethod("getTensor", &InferRequestWrap::get_tensor),
                            InstanceMethod("getInputTensor", &InferRequestWrap::get_input_tensor),
                            InstanceMethod("getOutputTensor", &InferRequestWrap::get_output_tensor),
-                           InstanceMethod("infer", &InferRequestWrap::infer_dispatch),
+                           InstanceMethod("inferSync", &InferRequestWrap::infer_dispatch),
                            InstanceMethod("inferAsync", &InferRequestWrap::infer_async),
                            InstanceMethod("getCompiledModel", &InferRequestWrap::get_compiled_model),
                        });
@@ -153,7 +153,7 @@ Napi::Value InferRequestWrap::infer_dispatch(const Napi::CallbackInfo& info) {
     if (info.Length() == 0)
         _infer_request.infer();
     else if (info.Length() == 1 && info[0].IsTypedArray()) {
-        reportError(info.Env(), "TypedArray cannot be passed directly into infer() method.");
+        reportError(info.Env(), "TypedArray cannot be passed directly into inferSync() method.");
         return info.Env().Null();
     } else if (info.Length() == 1 && info[0].IsArray()) {
         try {

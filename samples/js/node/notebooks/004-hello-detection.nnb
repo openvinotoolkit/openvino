@@ -17,7 +17,7 @@
         {
             "language": "typescript",
             "source": [
-                "const { cv } = require('opencv-wasm');\nconst { display } = require('node-kernel');\nconst { transform, getImageData, displayArrayAsImage, downloadFile } = require('../helpers.js');\n\nconst { addon: ov } = require('openvinojs-node'); "
+                "const { cv } = require('opencv-wasm');\nconst { display } = require('node-kernel');\nconst { transform, getImageData, displayArrayAsImage, downloadFile } = require('../helpers.js');\n\nconst { addon: ov } = require('openvinojs-node'); \n"
             ],
             "outputs": []
         },
@@ -31,7 +31,7 @@
         {
             "language": "typescript",
             "source": [
-                "const baseArtifactsDir = '../../assets/models';\n\nconst modelName = 'horizontal-text-detection-0001';\nconst modelXMLName = `${modelName}.xml`;\nconst modelBINName = `${modelName}.bin`;\n\nconst modelXMLPath = baseArtifactsDir + '/' + modelXMLName;\n\nconst baseURL = 'https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.3/models_bin/1/horizontal-text-detection-0001/FP32/';\n\nawait downloadFile(baseURL + modelXMLName, modelXMLName, baseArtifactsDir);\nawait downloadFile(baseURL + modelBINName, modelBINName, baseArtifactsDir);"
+                "const baseArtifactsDir = '../../assets/models';\n\nconst modelName = 'horizontal-text-detection-0001';\nconst modelXMLName = `${modelName}.xml`;\nconst modelBINName = `${modelName}.bin`;\n\nconst modelXMLPath = baseArtifactsDir + '/' + modelXMLName;\n\nconst baseURL = 'https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.3/models_bin/1/horizontal-text-detection-0001/FP32/';\n\nawait downloadFile(baseURL + modelXMLName, modelXMLName, baseArtifactsDir);\nawait downloadFile(baseURL + modelBINName, modelBINName, baseArtifactsDir);\n"
             ],
             "outputs": [
                 {
@@ -59,7 +59,7 @@
         {
             "language": "typescript",
             "source": [
-                "const baseImagesDir = '../../assets/images';\nconst imgUrl = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/intel_rnb.jpg';\n\nawait downloadFile(imgUrl, 'intel_rnb.jpg', baseImagesDir);"
+                "const baseImagesDir = '../../assets/images';\nconst imgUrl = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/intel_rnb.jpg';\n\nawait downloadFile(imgUrl, 'intel_rnb.jpg', baseImagesDir);\n"
             ],
             "outputs": [
                 {
@@ -86,7 +86,7 @@
         {
             "language": "typescript",
             "source": [
-                "const core = new ov.Core();\nconst model = await core.readModel(modelXMLPath);\nconst compiledModel = await core.compileModel(model, 'CPU');\n\nconst inputLayer = compiledModel.input(0);\nconst outputLayer = compiledModel.output('boxes');"
+                "const core = new ov.Core();\nconst model = await core.readModel(modelXMLPath);\nconst compiledModel = await core.compileModel(model, 'CPU');\n\nconst inputLayer = compiledModel.input(0);\nconst outputLayer = compiledModel.output('boxes');\n"
             ],
             "outputs": []
         },
@@ -123,7 +123,7 @@
         {
             "language": "typescript",
             "source": [
-                "const tensorData = new Float32Array(inputImage);\nconst tensor = new ov.Tensor(ov.element.f32, Int32Array.from(inputLayer.shape), tensorData);\n\nconst inferRequest = compiledModel.createInferRequest();\ninferRequest.setInputTensor(tensor);\ninferRequest.infer();\n\nconst output = inferRequest.getTensor(outputLayer);\nconst { data: boxes } = output;\n"
+                "const tensorData = new Float32Array(inputImage);\nconst tensor = new ov.Tensor(ov.element.f32, Int32Array.from(inputLayer.shape), tensorData);\n\nconst inferRequest = compiledModel.createInferRequest();\ninferRequest.setInputTensor(tensor);\ninferRequest.inferSync();\n\nconst output = inferRequest.getTensor(outputLayer);\nconst { data: boxes } = output;\n"
             ],
             "outputs": []
         },
