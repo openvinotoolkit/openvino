@@ -119,7 +119,7 @@ Weight compression is applied by default to models larger than one billion param
 
    8-bit weight compression is enabled by default for models larger than 1 billion parameters.
 
-`NNCF <https://github.com/openvinotoolkit/nncf>`__ also provides 4-bit weight compression that is supported by OpenVINO. It can be applied to Optimum objects as follows:
+`NNCF <https://github.com/openvinotoolkit/nncf>`__ also provides 4-bit weight compression, which is supported by OpenVINO. It can be applied to Optimum objects as follows:
 
 .. code-block:: python
 
