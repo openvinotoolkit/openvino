@@ -22,9 +22,6 @@ OutputVector translate_enter_op(const NodeContext& node) {
     auto data = node.get_input(0);
     auto frame_name = node.get_attribute<string>("frame_name");
 
-    // TODO 123651: remove this fallback to the legacy FE once GPU fixes dynamism for Loop operation
-    TENSORFLOW_OP_VALIDATION(node, false, "Fallback to legacy FE: Switch off TF1 While support due to GPU limitation");
-
     auto enter_node = make_shared<Enter>(data, frame_name, node.get_decoder());
     set_node_name(node.get_name(), enter_node);
 
