@@ -262,6 +262,10 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_CompareWithRefs_Mvn.*INFERENCE_PRECISION_HINT=f16.*)");
     retVector.emplace_back(R"(smoke_staticShapes4D.*INFERENCE_PRECISION_HINT=f16.*)");
     retVector.emplace_back(R"(smoke_dynamicShapes4D.*INFERENCE_PRECISION_HINT=f16.*)");
+    // Issue: 124309
+    retVector.emplace_back(R"(.*InferRequestPreprocessConversionTest.*oLT=NHWC.*)");
+    retVector.emplace_back(R"(.*smoke_NoReshape/ExecGraphUniqueNodeNames.CheckUniqueNodeNames.*)");
+    retVector.emplace_back(R"(.*smoke_BehaviorTests/InferRequestPerfCountersTest.CheckOperationInPerfMap.*)");
 #endif
 
 #endif
