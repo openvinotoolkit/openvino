@@ -66,12 +66,12 @@ Assign::Assign(const Output<Node>& new_value, const std::shared_ptr<util::Variab
 
 void Assign::validate_and_infer_types() {
     OV_OP_SCOPE(v6_Assign_validate_and_infer_types);
-    auto variable_info = m_variable->get_info();
-    auto variable_type = variable_info.data_type;
-    auto variable_shape = variable_info.data_shape;
+    const auto& variable_info = m_variable->get_info();
+    const auto& variable_type = variable_info.data_type;
+    const auto& variable_shape = variable_info.data_shape;
 
-    auto input_type = get_input_element_type(0);
-    auto input_shape = get_input_partial_shape(0);
+    const auto& input_type = get_input_element_type(0);
+    const auto& input_shape = get_input_partial_shape(0);
 
     OPENVINO_ASSERT(input_type.compatible(variable_type),
                     "The type specified in the Variable is not compatible with the input type.",

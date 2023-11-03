@@ -57,21 +57,21 @@ void op::v6::ReadValue::validate_and_infer_types() {
     OV_OP_SCOPE(v6_ReadValue_validate_and_infer_types);
 
     OPENVINO_ASSERT(m_variable, "Variable is not initialized.");
-    auto variable_info = m_variable->get_info();
-    auto variable_type = variable_info.data_type;
-    auto variable_shape = variable_info.data_shape;
+    const auto& variable_info = m_variable->get_info();
+    const auto& variable_type = variable_info.data_type;
+    const auto& variable_shape = variable_info.data_shape;
 
     // If no inputs provided, it means this ReadValue doesn't have initial subgraph. This is valid.
     if (get_input_size() > 0) {
-        const auto initial_type = get_input_element_type(0);
+        const auto& initial_type = get_input_element_type(0);
         const auto& initial_shape = get_input_partial_shape(0);
 
         // Variable's shape/type determine a permissible range of values for shape/type inferred from initial_subgraph.
         // If initial_subgraph is set, then we need to check that shape/type inferred from initial_subgraph
         // is within the permissible range.
 
-        bool compatible_type = variable_type.is_dynamic() || initial_type == variable_type;
-        bool compatible_shape = variable_shape.relaxes(initial_shape);
+        const auto compatible_type = variable_type.is_dynamic() || initial_type == variable_type;
+        const auto compatible_shape = variable_shape.relaxes(initial_shape);
 
         OPENVINO_ASSERT(compatible_shape,
                         "The shape specified in the Variable have to extend (relax) the shape "
@@ -98,10 +98,9 @@ shared_ptr<Node> op::v6::ReadValue::clone_with_new_inputs(const OutputVector& ne
     if (new_args.size() == 1) {
         return make_shared<ReadValue>(new_args.at(0), m_variable);
     } else if (new_args.empty()) {
-        return make_shared<ReadValue>(new_args.at(0), m_variable);
+        return make_shared<ReadValue>(m_variable);
     }
-    OPENVINO_ASSERT(false,
-                    "Unable to clone ReadValue ",
+    OPENVINO_THROW("Unable to clone ReadValue ",
                     this->get_friendly_name(),
                     " Incorrect number of inputs. Expected: 0 or 1. Actual: ",
                     new_args.size());

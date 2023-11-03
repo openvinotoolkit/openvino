@@ -129,7 +129,7 @@ def mvn(
 def read_value(init_value: NodeInput,
                variable_id: str,
                variable_type: Union[NumericType, str] = None,
-               variable_shape: TensorShape = None,
+               variable_shape: Optional[TensorShape] = None,
                name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.
 
