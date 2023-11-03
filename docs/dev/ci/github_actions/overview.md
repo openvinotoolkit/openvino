@@ -8,7 +8,7 @@ GitHub Actions workflows are configurable automated processes that will run one 
 
 In short, workflows comprise:
 * a series of commands that you would usually execute in a terminal one by one
-* the information about the environment in which the commands should be executed.
+* the information about the environment in which the commands should be executed
 
 Refer to the [official GitHub Actions documentation](https://docs.github.com/en/actions/using-workflows/about-workflows) for more.
 
@@ -155,7 +155,7 @@ Overview of the [Linux workflow's](../../../../.github/workflows/linux.yml) `Pyt
     steps: ...
 ```
 
-* All the test jobs have the `needs: Build`, they wait for the `Build` job to finish as they require artefacts from it
+* All the test jobs have the `needs: Build` which means that they wait for the `Build` job to finish as they require artefacts from it
 * The machine that is used for a job is specified using the `runs-on` key 
   * In this case `aks-linux-4-cores-16gb` is used. Read more [here](#machines) on what machines are available and how to choose one for a job
 * Some jobs could run inside a Docker container. The image could be specified using the `image` key under the `container` key
@@ -203,8 +203,14 @@ setup-python, smart-ci, etc.
 
 ## Machines
 
-* GitHub Actions Runners
-* Self-hosted Runners
+The machines that execute the commands from the workflows are referred to as _runners_ in GitHub Actions.
+
+There are two types of runners available in this repository:
+
+* [GitHub Actions Runners](https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners) - runners provided and managed by GitHub
+* [Self-hosted Runners](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners) - runners created and managed by the OpenVINO CI team and linked to the OpenVINO repositories 
+
+Read more about the available runners and how to choose one [here](./runners.md).
 
 ## Docker Images
 
