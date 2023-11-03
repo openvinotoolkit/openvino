@@ -24,11 +24,6 @@ struct Evaluate : element::NoAction<bool> {
 }  // namespace erf
 namespace v0 {
 
-bool Erf::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v0_Erf_visit_attributes);
-    return true;
-}
-
 std::shared_ptr<Node> Erf::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Erf_clone_with_new_inputs);
     check_new_args_count(this, new_args);

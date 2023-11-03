@@ -21,7 +21,6 @@ public:
     /// \param arg Node that produces the input tensor.
     Erf(const Output<Node>& arg);
 
-    bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
