@@ -66,8 +66,7 @@ protected:
             auto param_node = std::make_shared<ov::op::v0::Parameter>(types[i], inputDynamicShapes[i]);
             parameters.push_back(param_node);
         }
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(parameters));
-        auto select = ngraph::builder::makeSelect(paramOuts, broadcast);
+        auto select = std::make_shared<ov::op::v1::Select>(parameters[0], parameters[1], parameters[2], broadcast);
 
         function = makeNgraphFunction(precision, parameters, select, "Eltwise");
    }

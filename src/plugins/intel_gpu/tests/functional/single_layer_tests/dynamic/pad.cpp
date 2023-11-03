@@ -121,8 +121,7 @@ protected:
             arg_pad_value = std::make_shared<ngraph::opset3::Constant>(inType, ngraph::Shape{}, &argPadValue);
         }
 
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<ov::op::v0::Parameter>(functionParams));
-        auto pad = std::make_shared<ngraph::opset3::Pad>(paramOuts[0], pads_begin, pads_end, arg_pad_value, padMode);
+        auto pad = std::make_shared<ngraph::opset3::Pad>(functionParams[0], pads_begin, pads_end, arg_pad_value, padMode);
 
         ngraph::ResultVector results;
         for (size_t i = 0; i < pad->get_output_size(); ++i) {

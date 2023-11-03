@@ -62,9 +62,8 @@ namespace SubgraphTestsDefinitions {
         }
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-        auto clamp = std::make_shared<ngraph::opset1::Clamp>(paramOuts[0], clamp_min_max[0], clamp_min_max[1]);
+        auto clamp = std::make_shared<ngraph::opset1::Clamp>(params[0], clamp_min_max[0], clamp_min_max[1]);
 
         auto FQNode = ngraph::builder::makeFakeQuantize(clamp, ngraph::element::f32, levels[0], constShape[0],
                                                              { inputDataMin }, { inputDataMax }, { inputDataMin }, { inputDataMax });

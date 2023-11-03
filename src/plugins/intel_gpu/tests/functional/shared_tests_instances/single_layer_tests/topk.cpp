@@ -74,11 +74,10 @@ void TopKLayerTestGPU::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramIn = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     auto k = std::make_shared<ov::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, &keepK);
     auto topk = std::dynamic_pointer_cast<ov::op::v11::TopK>(
-        std::make_shared<ov::op::v11::TopK>(paramIn[0], k, axis, mode, sort, ngraph::element::Type_t::i64, stable));
+        std::make_shared<ov::op::v11::TopK>(params[0], k, axis, mode, sort, ngraph::element::Type_t::i64, stable));
 
     ngraph::ResultVector results;
     for (size_t i = 0; i < topk->get_output_size(); i++) {

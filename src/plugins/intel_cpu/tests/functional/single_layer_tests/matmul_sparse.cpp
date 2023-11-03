@@ -190,12 +190,11 @@ protected:
         selectedType = makeSelectedTypeStr(selectedType, element::i8);
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inShapeA)};
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
 
         auto matrixB = builder::makeDynamicInputLayer(element::f32, helpers::InputLayerType::CONSTANT, inShapeB);
 
         auto weiData = generateSparseVector(ngraph::shape_size(inShapeB.get_shape()), weiSparseRate);
-        auto matMul = makeMatMulRelaxed(paramOuts[0], inShapeB, weiType, transpA, transpB, weiData);
+        auto matMul = makeMatMulRelaxed(params[0], inShapeB, weiType, transpA, transpB, weiData);
 
         function = makeNgraphFunction(element::f32, params, matMul, cpuNodeType);
 

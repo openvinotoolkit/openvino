@@ -72,12 +72,11 @@ protected:
        std::string eps_mode = "inside_sqrt";
 
         ov::ParameterVector params;
-        for (auto&& shape : inputDynamicShapes) {
+        for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
-        }
-       auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+
        auto axesNode = ngraph::builder::makeConstant(axesType, ngraph::Shape{axes.size()}, axes);
-       auto mvn = ngraph::builder::makeMVN6(paramOuts[0], axesNode, normalizeVariance, eps, eps_mode);
+       auto mvn = ngraph::builder::makeMVN6(params[0], axesNode, normalizeVariance, eps, eps_mode);
 
        rel_threshold = 0.015f;
 

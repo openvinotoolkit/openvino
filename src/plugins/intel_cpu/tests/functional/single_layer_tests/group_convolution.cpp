@@ -193,13 +193,11 @@ protected:
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType) = groupConvParams;
 
         ov::ParameterVector params;
-        for (auto&& shape : inputDynamicShapes) {
+        for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
-        }
-        auto paramOuts = ngraph::helpers::convert2OutputVector(
-                ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+
         auto groupConv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(
-                ngraph::builder::makeGroupConvolution(paramOuts[0], netType, kernel, stride, padBegin,
+                ngraph::builder::makeGroupConvolution(params[0], netType, kernel, stride, padBegin,
                                                       padEnd, dilation, padType, convOutChannels, numGroups));
         function = makeNgraphFunction(netType, params, groupConv, "groupConvolution");
     }

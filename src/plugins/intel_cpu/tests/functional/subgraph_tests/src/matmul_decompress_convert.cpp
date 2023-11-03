@@ -209,7 +209,6 @@ protected:
         selectedType = makeSelectedTypeStr(selectedType, outType);
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inShapeA)};
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
         std::shared_ptr<Node> inputB = builder::makeConstant<float>(weiConstElemType, inShapeB.get_shape(), {}, true);
         if (weiConstElemType == ElementType::f16) {
             inputB = std::make_shared<opset1::Convert>(inputB, convertOutType);
@@ -217,7 +216,7 @@ protected:
         }
         expectedWeiConstElemType = weiConstElemType;
 
-        auto matMul = builder::makeMatMul(paramOuts[0], inputB, transpA, transpB);
+        auto matMul = builder::makeMatMul(params[0], inputB, transpA, transpB);
 
         function = CPUTestsBase::makeNgraphFunction(netType, params, matMul, cpuNodeType);
     }
@@ -494,7 +493,6 @@ protected:
         for (auto&& shape : {inShapeFC0, inShapeFC1}) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
         }
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
         std::shared_ptr<Node> inputWeights = builder::makeConstant<float>(weiConstElemType, inShapeWeights.get_shape(), {}, true);
         if (weiConstElemType == ElementType::f16) {
             inputWeights = std::make_shared<opset1::Convert>(inputWeights, convertOutType);
@@ -503,8 +501,8 @@ protected:
         // In this test, convert must be folded on the ngraph side, so the constant with fp32 precision is expected
         expectedWeiConstElemType = ElementType::f32;
 
-        auto matMul0 = builder::makeMatMul(paramOuts[0], inputWeights, transpA, transpB);
-        auto matMul1 = builder::makeMatMul(paramOuts[1], inputWeights, transpA, transpB);
+        auto matMul0 = builder::makeMatMul(params[0], inputWeights, transpA, transpB);
+        auto matMul1 = builder::makeMatMul(params[1], inputWeights, transpA, transpB);
 
         auto concat = builder::makeConcat({matMul0, matMul1}, 0);
 

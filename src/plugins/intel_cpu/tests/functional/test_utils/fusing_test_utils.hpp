@@ -362,9 +362,7 @@ const auto fusingSum = fusingSpecificParams{std::make_shared<postNodesMgr>(std::
                 auto shape = cfg.input->get_output_partial_shape(0);
                 ov::ParameterVector newParams{std::make_shared<ov::op::v0::Parameter>(cfg.type, shape)};
                 cfg.params.insert(cfg.params.end(), newParams.begin(), newParams.end());
-                auto newParamOuts = ngraph::helpers::convert2OutputVector(
-                     ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(newParams));
-                return std::make_shared<ngraph::opset1::Add>(cfg.input, newParamOuts[0]);
+                return std::make_shared<ngraph::opset1::Add>(cfg.input, newParams[0]);
             }, "Add(Parameters)"}}), {"Add"}};
 
 const auto fusingSumEluFQ = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
@@ -372,9 +370,7 @@ const auto fusingSumEluFQ = fusingSpecificParams{std::make_shared<postNodesMgr>(
             auto shape = cfg.input->get_output_partial_shape(0);
             ov::ParameterVector newParams{std::make_shared<ov::op::v0::Parameter>(cfg.type, shape)};
             cfg.params.insert(cfg.params.end(), newParams.begin(), newParams.end());
-            auto newParamOuts = ngraph::helpers::convert2OutputVector(
-                    ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(newParams));
-            return std::make_shared<ngraph::opset1::Add>(cfg.input, newParamOuts[0]);
+            return std::make_shared<ngraph::opset1::Add>(cfg.input, newParams[0]);
         }, "Add(Parameters)"},
         {[](postNodeConfig& cfg){
             return ngraph::builder::makeActivation(cfg.input, cfg.type, ngraph::helpers::Elu, {}, {2.0f});

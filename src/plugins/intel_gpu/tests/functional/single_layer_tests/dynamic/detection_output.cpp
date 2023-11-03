@@ -196,24 +196,23 @@ protected:
         init_input_shapes({ inShapes });
 
         ov::ParameterVector params;
-        for (auto&& shape : inputDynamicShapes) {
+        for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, shape));
-        }
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
 
         if (attrs.num_classes == -1) {
             std::shared_ptr<ov::op::v8::DetectionOutput> detOut;
 
-            if (paramOuts.size() == 3)
-                detOut = std::make_shared<ov::op::v8::DetectionOutput>(paramOuts[0], paramOuts[1], paramOuts[2], attrs);
-            else if (paramOuts.size() == 5)
-                detOut = std::make_shared<ov::op::v8::DetectionOutput>(paramOuts[0], paramOuts[1], paramOuts[2], paramOuts[3], paramOuts[4], attrs);
+            if (params.size() == 3)
+                detOut = std::make_shared<ov::op::v8::DetectionOutput>(params[0], params[1], params[2], attrs);
+            else if (params.size() == 5)
+                detOut = std::make_shared<ov::op::v8::DetectionOutput>(params[0], params[1], params[2], params[3], params[4], attrs);
             else
                 throw std::runtime_error("DetectionOutput layer supports only 3 or 5 inputs");
 
             ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
             function = std::make_shared<ngraph::Function>(results, params, "DetectionOutputDynamic");
         } else {
+            auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
             auto detOut = ngraph::builder::makeDetectionOutput(paramOuts, attrs);
             ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
             function = std::make_shared<ngraph::Function>(results, params, "DetectionOutputDynamic");

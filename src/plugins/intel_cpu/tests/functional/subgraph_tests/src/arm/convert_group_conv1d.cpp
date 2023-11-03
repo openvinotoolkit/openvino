@@ -67,15 +67,14 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, shape));
         }
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
         switch (convType) {
             case nodeType::convolution : {
-                conv = builder::makeConvolution(paramOuts.front(), element::f32, kernelSize, strides, padBegin, padEnd, dilation,
+                conv = builder::makeConvolution(inputParams[0], element::f32, kernelSize, strides, padBegin, padEnd, dilation,
                                                 paddingType, numOutChannels);
                 break;
             }
             case nodeType::groupConvolution : {
-                conv = builder::makeGroupConvolution(paramOuts.front(), element::f32, kernelSize, strides, padBegin, padEnd, dilation,
+                conv = builder::makeGroupConvolution(inputParams[0], element::f32, kernelSize, strides, padBegin, padEnd, dilation,
                                                      paddingType, numOutChannels, numOfGroups);
                 break;
             }
