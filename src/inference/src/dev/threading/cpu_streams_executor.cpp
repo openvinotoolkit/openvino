@@ -484,7 +484,14 @@ struct CPUStreamsExecutor::Impl {
             }
         }
 #endif
-        _subTaskThread.assign(_config._sub_streams, std::make_shared<SubQueue>());
+        if (_config._sub_streams > 0) {
+            for (size_t i = 0; i < _config._streams_info_table.size(); i++) {
+                if (std::abs(_config._streams_info_table[i][NUMBER_OF_STREAMS]) != 0) {  // cores in main and sub stream
+                    _cores_per_socket.push_back(_config._streams_info_table[i][THREADS_PER_STREAM]);
+                }
+            }
+            _subTaskThread.assign(_config._sub_streams, std::make_shared<SubQueue>());
+        }
         for (auto streamId = 0; streamId < _config._streams; ++streamId) {
             _threads.emplace_back([this, streamId] {
                 openvino::itt::threadName(_config._name + "_" + std::to_string(streamId));
@@ -618,6 +625,7 @@ struct CPUStreamsExecutor::Impl {
     std::queue<Task> _taskQueue;
     bool _isStopped = false;
     std::vector<std::shared_ptr<SubQueue>> _subTaskThread;
+    std::vector<int> _cores_per_socket;
     std::vector<int> _usedNumaNodes;
     CustomThreadLocal _streams;
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
@@ -648,21 +656,7 @@ int CPUStreamsExecutor::get_socket_id() {
 }
 
 std::vector<int> CPUStreamsExecutor::get_cores_mt_sockets() {
-    std::vector<int> cores;
-    std::vector<std::vector<int>> stream_table = _impl->_config._streams_info_table;
-    if (stream_table.size() > 0) {
-        if (stream_table[0][NUMBER_OF_STREAMS] == 1) {  // cores in main stream
-            cores.push_back(stream_table[0][THREADS_PER_STREAM]);
-        } else {
-            return cores;
-        }
-        for (size_t i = 1; i < stream_table.size(); i++) {
-            if (stream_table[i][NUMBER_OF_STREAMS] < 0) {  // cores in sub stream
-                cores.push_back(stream_table[i][THREADS_PER_STREAM]);
-            }
-        }
-    }
-    return cores;
+    return _impl->_cores_per_socket;
 }
 
 CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) : _impl{new Impl{config}} {}
@@ -704,8 +698,41 @@ void CPUStreamsExecutor::run(Task task) {
     }
 }
 
-void CPUStreamsExecutor::run_id(Task task, int id) {
+void CPUStreamsExecutor::run_sub_stream(Task task, int id) {
     _impl->Enqueue_sub(std::move(task), id);
+}
+
+void CPUStreamsExecutor::parallel_mt_sockets(int nthr, const std::function<void(size_t)>& func) {
+    int nsockets = static_cast<int>(_impl->_cores_per_socket.size());
+    if (nthr == 0)
+        nthr = parallel_get_max_threads();
+    if (nsockets <= 1) {
+        ov::parallel_for(nthr, [&](int ithr) {
+            func(ithr);
+        });
+    } else if (nsockets > 1) {
+        ov::parallel_for(nsockets, [&](int ithr) {
+            int ntasks = _impl->_cores_per_socket[ithr];
+            int tasks_base = ithr == 0 ? 0 : _impl->_cores_per_socket[ithr - 1];
+            if (ithr == 0) {
+                ov::parallel_for(ntasks, [&](int ithr) {
+                    func(ithr);
+                });
+            } else {
+                std::vector<ov::threading::Task> tasks;
+                tasks.resize(1);
+                for (auto&& task : tasks) {
+                    task = [&] {
+                        ov::parallel_for(ntasks, [&](int taskid) {
+                            int thread_id = tasks_base + taskid;
+                            func(thread_id);
+                        });
+                    };
+                }
+                run_and_wait_sub_stream(tasks, ithr - 1);
+            }
+        });
+    }
 }
 
 }  // namespace threading

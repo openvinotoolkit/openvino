@@ -59,8 +59,12 @@ void CPUStreamsExecutor::run(Task task) {
     _impl->run(std::move(task));
 }
 
-void CPUStreamsExecutor::run_id(Task task, int id) {
-    _impl->run_id(std::move(task), id);
+void CPUStreamsExecutor::run_sub_stream(Task task, int id) {
+    _impl->run_sub_stream(std::move(task), id);
+}
+
+void CPUStreamsExecutor::parallel_mt_sockets(int nthr, const std::function<void(size_t)>& func) {
+    _impl->parallel_mt_sockets(nthr, std::move(func));
 }
 
 }  // namespace InferenceEngine

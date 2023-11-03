@@ -378,7 +378,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                               proc_socket_table[n_max_proc][ALL_PROC],
                               SubStreamsMode::SUB_STREAMS_NULL);
             for (size_t n_node = 0; n_node < proc_socket_table.size(); n_node++) {
-                if (n_node != n_max_proc) {
+                if (static_cast<int>(n_node) != n_max_proc) {
                     create_one_stream(proc_socket_table[n_node],
                                       proc_type_table,
                                       proc_socket_table[n_node][ALL_PROC],

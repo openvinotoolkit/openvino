@@ -659,7 +659,7 @@ void IStreamsExecutor::Config::update_executor_config(int stream_nums,
     }
 }
 
-void IStreamsExecutor::run_and_wait_id(const std::vector<Task>& tasks, int id) {
+void IStreamsExecutor::run_and_wait_sub_stream(const std::vector<Task>& tasks, int id) {
     std::vector<std::packaged_task<void()>> packagedTasks;
     std::vector<std::future<void>> futures;
     for (std::size_t i = 0; i < tasks.size(); ++i) {
@@ -669,7 +669,7 @@ void IStreamsExecutor::run_and_wait_id(const std::vector<Task>& tasks, int id) {
         futures.emplace_back(packagedTasks.back().get_future());
     }
     for (std::size_t i = 0; i < tasks.size(); ++i) {
-        run_id(
+        run_sub_stream(
             [&packagedTasks, i] {
                 packagedTasks[i]();
             },

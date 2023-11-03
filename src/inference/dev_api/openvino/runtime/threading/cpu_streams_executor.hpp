@@ -50,7 +50,9 @@ public:
 
     std::vector<int> get_cores_mt_sockets() override;
 
-    void run_id(Task task, int id) override;
+    void run_sub_stream(Task task, int id) override;
+
+    void parallel_mt_sockets(int nthr, const std::function<void(size_t)>& func) override;
 
 private:
     struct Impl;

@@ -38,7 +38,7 @@ public:
     /**
      * @brief Returns streams executor by unique identificator
      * @param id An unique identificator of device (Usually string representation of TargetDevice)
-     * @return A shared pointer to existing or newly IStreamsExecutor
+     * @return A shared pointer to existing IStreamsExecutor or nullptr
      */
     virtual std::shared_ptr<ov::threading::IStreamsExecutor> get_stream_executor(const std::string& id) = 0;
 
@@ -82,8 +82,6 @@ public:
 };
 
 OPENVINO_API std::shared_ptr<ExecutorManager> executor_manager();
-
-OPENVINO_API void parallel_mt_sockets(int nthr, const std::function<void(size_t)>& func);
 
 }  // namespace threading
 }  // namespace ov

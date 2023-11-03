@@ -90,8 +90,12 @@ public:
         m_executor->execute(task);
     }
 
-    void run_id(Task task, int id) override {
-        m_executor->run_id(task, id);
+    void run_sub_stream(Task task, int id) override {
+        m_executor->run_sub_stream(task, id);
+    }
+
+    void parallel_mt_sockets(int nthr, const std::function<void(size_t)>& func) override {
+        m_executor->parallel_mt_sockets(nthr, func);
     }
 };
 
