@@ -56,44 +56,40 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
                               graph_extractors = {"fused_names", "repeat_pattern"};
         std::map<std::string, IR_TYPE> graph_type = {{"operation", IR_TYPE::OP}, {"subgraph", IR_TYPE::SUBGRAPH}};
         for (const auto& item : splitted_filename) {
-            auto ir_name = ov::util::replace_extension(item, "");
-            if (ir_name != item) {
-                filled_info["hash"] = ir_name;
-                continue;
-            }
-            if (std::find(element_type_names.begin(),
-                          element_type_names.end(),
-                          item) != element_type_names.end()) {
-                filled_info["element_type"] = item;
-                continue;
-            }
-            if (shape_type.find(item) != shape_type.end()) {
+            if (graph_type.find(item) != graph_type.end()) {
+                ir_type = graph_type.at(item);
+            } else if (shape_type.find(item) != shape_type.end()) {
                 filled_info["shape_type"] = item;
-                continue;
-            }
-            if (graph_extractors.find(item) != graph_extractors.end()) {
+            } else if (graph_extractors.find(item) != graph_extractors.end()) {
                 filled_info["extractor_name"] = item;
-                continue;
-            }
-
-            auto pos = item.find('-');
-            if (pos != std::string::npos) {
-                std::string op_name = item, op_version = "";
+            } else if (std::find(element_type_names.begin(),
+                                 element_type_names.end(),
+                                 item) != element_type_names.end()) {
+                filled_info["element_type"] = item;
+            } else {
+                auto pos = item.find('-');
                 if (pos != std::string::npos) {
-                    op_version = op_name.substr(pos + 1);
-                    op_name = op_name.substr(0, pos);
+                    std::string op_name = item, op_version = "";
+                    if (pos != std::string::npos) {
+                        op_version = op_name.substr(pos + 1);
+                        op_name = op_name.substr(0, pos);
+                    }
+                    if (std::find(unique_ops[op_name].begin(),
+                                unique_ops[op_name].end(), op_version) != unique_ops[op_name].end() &&
+                        unique_ops.find(op_name) != unique_ops.end()) {
+                        filled_info["op_name"] = op_name + "." + op_version;
+                        continue;
+                    }
                 }
-                if (std::find(unique_ops[op_name].begin(),
-                              unique_ops[op_name].end(), op_version) != unique_ops[op_name].end() &&
-                    unique_ops.find(op_name) != unique_ops.end()) {
-                    filled_info["op_name"] = op_name + "." + op_version;
+                auto ir_name = ov::util::replace_extension(item, "");
+                if (ir_name != item) {
+                    filled_info["hash"] = ir_name;
                     continue;
                 }
             }
-            if (graph_type.find(item) != graph_type.end()) {
-                ir_type = graph_type.at(item);
-                continue;
-            }
+        }
+        if (filled_info["shape_type"].empty()) {
+            auto a = 0;
         }
     }
 
