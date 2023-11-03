@@ -101,9 +101,9 @@ shared_ptr<Node> op::v6::ReadValue::clone_with_new_inputs(const OutputVector& ne
         return make_shared<ReadValue>(m_variable);
     }
     OPENVINO_THROW("Unable to clone ReadValue ",
-                    this->get_friendly_name(),
-                    " Incorrect number of inputs. Expected: 0 or 1. Actual: ",
-                    new_args.size());
+                   this->get_friendly_name(),
+                   " Incorrect number of inputs. Expected: 0 or 1. Actual: ",
+                   new_args.size());
 }
 
 bool op::v6::ReadValue::visit_attributes(AttributeVisitor& visitor) {
