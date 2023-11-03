@@ -19,17 +19,12 @@ constexpr T floor_mod(const T x, const T y) {
     return mod(x, y);
 }
 
-template <class T, typename std::enable_if<std::is_integral<T>::value && std::is_signed<T>::value>::type* = nullptr>
+template <class T, typename std::enable_if<ov::is_floating_point<T>() || std::is_signed<T>::value>::type* = nullptr>
 T floor_mod(const T x, const T y) {
-    // Cast to double is needed for integer input,
+    // Cast to double is needed for integer input (signed),
     // otherwise std::floor will act like std::trunc
-    const auto floor_div = static_cast<T>(std::floor(x / static_cast<double>(y)));
-    return x - (floor_div * y);
-}
-
-template <class T, typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
-T floor_mod(const T x, const T y) {
-    return x - (std::floor(x / y) * y);
+    const double divisor = static_cast<double>(y);
+    return static_cast<T>(x - y * std::floor(x / divisor));
 }
 }  // namespace func
 
