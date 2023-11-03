@@ -75,7 +75,7 @@ Running
 
 .. code-block:: sh
 
-   throughput_benchmark <path_to_model>
+   throughput_benchmark <path_to_model> <device_name>(default: CPU)
 
 
 To run the sample, you need to specify a model:
