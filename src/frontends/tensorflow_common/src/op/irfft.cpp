@@ -33,13 +33,22 @@ OutputVector translate_irfft_op(const NodeContext& node) {
         complex_type_mark,
         "[TensorFlow Frontend] internal error: ComplexTypeMark is not created before " + op_type + " operation.");
 
+    // compute a number of inner-most dimensions
+    int32_t num_axes = 1;
+    if (op_type == "IRFFT2D") {
+        num_axes = 2;
+    } else if (op_type == "IRFFT3D") {
+        num_axes = 3;
+    }
+
     // compute axes along which to compute inverse RFFT
+    auto const_num_axes = make_shared<v0::Constant>(element::i32, Shape{}, num_axes);
     auto data = complex_type_mark->input_value(0);
     auto data_rank = compute_subgraph_scalar_rank(data, element::i32, true);
-    auto const_two = make_shared<v0::Constant>(element::i32, Shape{}, 2);
     auto const_one = make_shared<v0::Constant>(element::i32, Shape{}, 1);
     auto data_rank_minus_one = make_shared<v1::Subtract>(data_rank, const_one);
-    auto axes = make_shared<v4::Range>(const_two, data_rank_minus_one, const_one, element::i32);
+    auto start = make_shared<v1::Subtract>(data_rank_minus_one, const_num_axes);
+    auto axes = make_shared<v4::Range>(start, data_rank_minus_one, const_one, element::i32);
     auto irdft = make_shared<v9::IRDFT>(complex_type_mark->input_value(0), axes, fft_length)->output(0);
 
     // no need to insert ComplexTypeMark because operation generates a floating-point tensor
