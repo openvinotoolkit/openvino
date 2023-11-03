@@ -5,6 +5,7 @@
 #include "common_op_table.hpp"
 #include "helper_ops/complex_type_mark.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "utils.hpp"
 
@@ -38,9 +39,12 @@ OutputVector translate_real_imag_op(const NodeContext& node) {
     // gather the required slice corresponding to Real or Imaginary part
     auto gather_index = make_shared<v0::Constant>(element::i32, Shape{}, axis_value);
     auto gather_axis = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
-    auto complex_part = make_shared<v8::Gather>(data, gather_index, gather_axis);
+    auto complex_part = make_shared<v8::Gather>(data, gather_index, gather_axis)->output(0);
 
-    set_node_name(node.get_name(), complex_part);
+    // align output type required by tout attribute
+    complex_part = make_shared<v0::Convert>(complex_part, tout);
+
+    set_node_name(node.get_name(), complex_part.get_node_shared_ptr());
 
     return {complex_part};
 }
