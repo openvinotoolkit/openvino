@@ -135,7 +135,7 @@ void multinomial(const T* probs,
             if (!with_replacement) {
                 T class_probability = selected_class_idx ? cdf[i_translated + selected_class_idx] -
                                                                cdf[i_translated + selected_class_idx - 1]
-                                                         : cdf[i_translated + selected_class_idx];
+                                                         : cdf[i_translated];
                 T divisor = 1 - class_probability;
                 for (size_t k = 0; k < class_size; ++k) {
                     if (k >= selected_class_idx) {

@@ -14,19 +14,19 @@ namespace CPULayerTestsDefinitions {
 namespace Multinomial {
 
 const std::vector<float> probs_4x4_f32 = {
-    0.1f, 0.1f, 0.1f, 10.0f, 
-    0.1f, 0.1f, 10.0f, 0.1f,
-    0.1f, 10.0f, 0.1f, 0.1f,
-    10.0f, 0.1f, 0.1f, 0.1f
+    0.00001, 0.001, 0.1, 10.0f, 
+    0.001, 0.00001, 10.0f, 0.1,
+    0.1, 10.0f, 0.00001, 0.001,
+    10.0f, 0.1, 0.001, 0.00001
 };
 
 const std::vector<ov::float16> probs_2x3_f16 = {
-    (ov::float16)0.1f, (ov::float16)0.1f, (ov::float16)10.0f, 
-    (ov::float16)10.0f, (ov::float16)0.1f, (ov::float16)0.1f
+    (ov::float16)0.001, (ov::float16)0.1, (ov::float16)10.0f, 
+    (ov::float16)10.0f, (ov::float16)0.001, (ov::float16)0.1
 };
 
 const std::vector<ov::bfloat16> probs_1x3_bf16 = {
-    (ov::bfloat16)0.1f, (ov::bfloat16)1.0f, (ov::bfloat16)10.0f
+    (ov::bfloat16)0.001, (ov::bfloat16)0.1, (ov::bfloat16)10.0f
 };
 
 const std::vector<int> num_samples_scalar_i32 = {1};
