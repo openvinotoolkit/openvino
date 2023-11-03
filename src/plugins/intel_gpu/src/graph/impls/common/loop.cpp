@@ -110,84 +110,6 @@ struct loop_impl : typed_primitive_impl<loop> {
         _back_edges = node.get_back_edges();
     }
 
-    void set_memory_in_body_network(cldnn::network::ptr body_network,
-                    const std::shared_ptr<cldnn::primitive_inst>& inst, memory::ptr mem) const {
-        if (inst->is_input()) {
-            body_network->set_input_data(inst->id(), mem);
-        } else if (inst->is_output()) {
-            body_network->set_output_memory(inst->id(), mem);
-        } else {
-            inst->set_output_memory(mem, false);
-        }
-    }
-
-    std::vector<event::ptr> handle_buffers_for_next_iteration(const loop_inst::backedge_memory_mapping& mapping,
-                                                    network::ptr body_network, int64_t iter, bool is_dynamic) const {
-        std::vector<event::ptr> event_vec;
-        OPENVINO_ASSERT(iter >= 0, "iteration should not be negative : ", iter);
-        if (mapping.type == loop_inst::backedge_memory_mapping::CONCAT_OUTPUT) {
-            if (iter == 0) {
-                set_memory_in_body_network(body_network, mapping.to_primitive, mapping.initial_mem);
-            } else if (iter > 0) {
-                if (is_dynamic) {
-                    auto from_id = mapping.from_primitive->id();
-                    if (body_network->has_event(from_id)) {
-                        auto ev = body_network->get_primitive_event(from_id);
-                        if (ev) ev->wait();
-                    }
-                    // In dynamic model, just copy data from inner body output to inner body input in back_edges.
-                    memory::ptr to_mem = mapping.to_primitive->output_memory_ptr();
-                    memory::ptr from_mem = mapping.from_primitive->output_memory_ptr();
-                    auto ev = to_mem->copy_from(body_network->get_stream(), *(from_mem));
-                    if (ev) event_vec = {ev};
-                } else {
-                    auto mem = mapping.concat_mem_mapping->get_sliced_mems().at(iter - 1);
-                    set_memory_in_body_network(body_network, mapping.to_primitive, mem);
-                }
-            }
-        } else if (mapping.type ==  loop_inst::backedge_memory_mapping::SINGLE_SHARED) {
-            if (iter == 0) {
-                if (mapping.from_mem != nullptr) {
-                    auto ev = mapping.from_mem->copy_from(body_network->get_stream(), *(mapping.initial_mem));
-                    if (ev) event_vec = {ev};
-                }
-            } else {
-                // In dynamic model, output memory is not defined before execution.
-                // After body network execution, replace input memory from initial_mem(external input memory) to output memory.
-                if (mapping.from_mem == nullptr) {
-                    mapping.from_mem = mapping.from_primitive->output_memory_ptr();
-                    OPENVINO_ASSERT(mapping.from_mem != nullptr, "from_mem should not be null");
-                    set_memory_in_body_network(body_network, mapping.to_primitive, mapping.from_mem);
-                }
-            }
-        } else if (mapping.type ==  loop_inst::backedge_memory_mapping::SINGLE) {
-            memory::ptr to_mem = mapping.to_primitive->output_memory_ptr();
-            if (iter == 0) {
-                auto ev = to_mem->copy_from(body_network->get_stream(), *(mapping.initial_mem));
-                if (ev) event_vec = {ev};
-            } else {
-                if (is_dynamic) {
-                    // In dynamic model, do not set memory buffer between input and output in inner body network.
-                    // Just copy data from input buffer memory to output buffer memory.
-                    auto from_id = mapping.from_primitive->id();
-                    if (body_network->has_event(from_id)) {
-                        auto ev = body_network->get_primitive_event(from_id);
-                        if (ev) ev->wait();
-                    }
-                    memory::ptr from_mem = mapping.from_primitive->output_memory_ptr();
-                    auto ev = to_mem->copy_from(body_network->get_stream(), *(from_mem));
-                    if (ev) event_vec = {ev};
-                } else {
-                    // In static model, swap memory buffer between output and input in inner body network
-                    memory::ptr from_mem = mapping.from_primitive->output_memory_ptr();
-                    set_memory_in_body_network(body_network, mapping.to_primitive, std::move(from_mem));
-                    set_memory_in_body_network(body_network, mapping.from_primitive, std::move(to_mem));
-                }
-            }
-        }
-        return event_vec;
-    }
-
     event::ptr execute_impl(const std::vector<event::ptr>& events, loop_inst& instance) override {
         const auto& impl_params = instance.get_impl_params();
         const auto& primitive = impl_params->typed_desc<loop>();
@@ -275,7 +197,6 @@ struct loop_impl : typed_primitive_impl<loop> {
         }
 
         const auto& concatenated_input_mem_mappings = instance.concatenated_input_mem_mappings;
-        const auto& concatenated_output_mem_mappings = instance.concatenated_output_mem_mappings;
         const auto& backedge_memory_mappings = instance.backedge_memory_mappings;
 
         // If there are concatenated_input_mem_mappings or backedge_memory_mappings we need to wait for
@@ -298,28 +219,9 @@ struct loop_impl : typed_primitive_impl<loop> {
         std::vector<event::ptr> all_events;
         std::vector<event::ptr> loop_carried_dep(events.begin(), events.end());
         while (((trip_count < 0) || (current_iteration_idx < trip_count)) && execution_condition) {
-            // Copy & Set sliced input memory
-            for (size_t i = 0; i < concatenated_input_mem_mappings.size(); ++i) {
-                const auto& concatenated_input = concatenated_input_mem_mappings.at(i);
-                memory::ptr mem = concatenated_input->get_sliced_mem(current_iteration_idx);
-                OPENVINO_ASSERT(mem != nullptr, instance.id(), " sliced input memory of loop is not allocated properly");
-                concatenated_input->get_sliced_data_prim()->set_output_memory(mem);
-            }
-
-            // Set backedges and output memory
-            for (auto& backedge_memory_mapping : backedge_memory_mappings) {
-                auto event_vec = handle_buffers_for_next_iteration(backedge_memory_mapping, body_network, current_iteration_idx, is_dynamic);
-                for (auto ev : event_vec) {
-                    loop_carried_dep.push_back(ev);
-                }
-            }
-
-            if (!is_dynamic) {
-                // Set sliced output memory for static shape model
-                // because body network generate output memory during the body network execution in dynamic model
-                for (const auto& concat_output_mem_mapping : concatenated_output_mem_mappings) {
-                    concat_output_mem_mapping->setup_sliced_output_memory(current_iteration_idx);
-                }
+            auto prev_events = instance.preprocess_memory_for_body_network(current_iteration_idx);
+            for (auto& ev : prev_events) {
+                loop_carried_dep.push_back(ev);
             }
 
             // execute body network
@@ -347,22 +249,10 @@ struct loop_impl : typed_primitive_impl<loop> {
             // After execution of body network, sliced_data_prim will has output memory buffer
             // current memory buffer move to sliced_mems and new memory buffer will be allocated in sliced_data_prim
             if (is_dynamic) {
-                for (const auto& concat_output_mem_mapping : concatenated_output_mem_mappings) {
-                    auto sliced_data_prim = concat_output_mem_mapping->get_sliced_data_prim();
-                    auto output_mem_ptr = sliced_data_prim->output_memory_ptr();
-
-                    auto sliced_id = sliced_data_prim->id();
-                    if (body_network->has_event(sliced_id)) {
-                        auto ev = body_network->get_primitive_event(sliced_id);
-                        if (ev) ev->wait();
-                    }
-                    memory::ptr new_sliced_mem = concat_output_mem_mapping->get_or_create_sliced_mem(current_iteration_idx,
-                                                                                                output_mem_ptr->get_layout());
-                    auto ev = new_sliced_mem->copy_from(body_network->get_stream(), *output_mem_ptr);
-                    if (ev) {
-                        loop_carried_dep.push_back(ev);
-                        all_events.push_back(ev);
-                    }
+                auto post_events = instance.postprocess_memory_for_body_network(current_iteration_idx);
+                for (auto& ev : post_events) {
+                    loop_carried_dep.push_back(ev);
+                    all_events.push_back(ev);
                 }
             }
 

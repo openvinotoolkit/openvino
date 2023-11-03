@@ -76,7 +76,7 @@ static void SetLoopInputOutputMap(ProgramBuilder& p,
             // sliced input
             input_primitive_maps.emplace_back(external_id, internal_id, sliceInfo->m_axis,
                 sliceInfo->m_start, sliceInfo->m_end, sliceInfo->m_stride);
-                    } else {
+        } else {
             // input without slicing
             input_primitive_maps.emplace_back(external_id, internal_id);
         }

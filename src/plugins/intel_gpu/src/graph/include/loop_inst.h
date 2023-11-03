@@ -325,14 +325,22 @@ public:
     void update_output_layout();
 
     // num_iteration is used for slicing input memory
-    int64_t calculate_num_iterations(const cldnn::loop::io_primitive_map& io_prim_map, ov::PartialShape& pshape);
     int64_t get_num_iterations();
+
+    std::vector<event::ptr> preprocess_memory_for_body_network(int64_t current_iteration_idx);
+    std::vector<event::ptr> postprocess_memory_for_body_network(int64_t current_iteration_idx);
 
 private:
     network::ptr body_network;
     memory::ptr get_external_memory(const primitive_id& external_id, size_t mem_idx = 0) const;
     layout get_external_output_layout(const primitive_id& external_id, size_t mem_idx = 0) const;
     std::shared_ptr<concatenated_memory_mapping> get_sliced_mem(const primitive_id& internal_id) const;
+    int64_t calculate_num_iterations(const cldnn::loop::io_primitive_map& io_prim_map, ov::PartialShape& pshape);
+    std::vector<event::ptr> handle_buffers_for_next_iteration(const backedge_memory_mapping& mapping,
+                                                                network::ptr body_network, int64_t iter);
+    void set_memory_in_body_network(cldnn::network::ptr body_network, const std::shared_ptr<cldnn::primitive_inst>& inst,
+                                        memory::ptr mem);
+
     std::vector<loop::io_primitive_map> _input_primitive_maps;
     std::vector<loop::io_primitive_map> _output_primitive_maps;
     std::vector<loop::backedge_mapping> _back_edges;
