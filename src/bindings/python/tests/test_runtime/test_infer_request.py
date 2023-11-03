@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+import platform
 
 from collections.abc import Iterable
 from copy import deepcopy
@@ -97,7 +98,12 @@ def abs_model_with_data(device, ov_type, numpy_dtype):
 
 def test_get_profiling_info(device):
     core = Core()
-    param = ops.parameter([1, 3, 32, 32], np.float32, name="data")
+    if platform.system() == "Darwin" and platform.machine() == "arm64":
+        # arm64 prefers fp16, and fp32 input will trigger a convert node
+        # to be added, so assert 'Softmax' will failed.
+        param = ops.parameter([1, 3, 32, 32], np.float16, name="data")
+    else:
+        param = ops.parameter([1, 3, 32, 32], np.float32, name="data")
     softmax = ops.softmax(param, 1, name="fc_out")
     model = Model([softmax], [param], "test_model")
 

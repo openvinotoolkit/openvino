@@ -294,9 +294,12 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         };
         type_to_fuse_map empty_fuse_map = {};
         const bool keep_precision_sensitive_in_fp32 = true;
-        CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, fp_convert_precision_map,
-                                                                      empty_fuse_map,
-                                                                      keep_precision_sensitive_in_fp32);
+        CPU_REGISTER_PASS_COMMON(manager,
+                                 ov::pass::ConvertPrecision,
+                                 fp_convert_precision_map,
+                                 empty_fuse_map,
+                                 keep_precision_sensitive_in_fp32,
+                                 false);
     }
 #endif
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
