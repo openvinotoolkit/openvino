@@ -9,6 +9,7 @@
 #include "itt.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/clean_rt_info.hpp"
 #include "transformations/common_optimizations/adaptive_pool_to_reduce.hpp"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/align_eltwise_input_ranks.hpp"
@@ -106,6 +107,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ov::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
     using namespace ov::pass;
+    REGISTER_PASS(manager, CleanRtInfo)
     REGISTER_PASS(manager, InitNodeInfo)
     if (m_low_precision_enabled) {
         manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
