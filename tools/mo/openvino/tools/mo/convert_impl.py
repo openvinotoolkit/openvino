@@ -316,8 +316,7 @@ def update_fallback_with_conversion_error(use_new_frontend: bool, is_tf: bool, e
         "LoopCond", "Enter", "NextIteration", "Exit", "Switch", "Merge",
         # corresponds to operations with complex tensors
         "FFT", "FFT2D", "FFT3D", "IFFT", "IFFT2D", "IFFT3D",
-        "RFFT", "RFFT2D", "RFFT3D", "IRFFT", "IRFFT2D", "IRFFT3D",
-        "Complex", "ComplexAbs", "Real", "Imag",
+        "ComplexAbs",
     ]
     if len(conversion_error_match) < 1 or len(conversion_error_match[0]) != 4:
         # no match for the fallback by unsupported operation
