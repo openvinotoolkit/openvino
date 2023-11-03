@@ -30,7 +30,7 @@ The code snippet below shows how to do 8-bit quantization of the model weights r
 
 Now, the model is ready for compilation and inference. It can be also saved into a compressed format, resulting in a smaller binary file.
 
-- **4-bit weight quantization** - this method stands for an INT4-INT8 mixed-precision weight quantization where INT4 is considered as a primary precision and INT8 is a backup one. It usually results in a smaller model size and a lower inference latency but accuracy degradation could be higher, depending on the model. The method has several parameters that can provide different performance-accuracy trade-offs after optimization:
+- **4-bit weight quantization** - this method stands for an INT4-INT8 mixed-precision weight quantization, where INT4 is considered as the primary precision and INT8 is the backup one. It usually results in a smaller model size and lower inference latency, although the accuracy degradation could be higher, depending on the model. The method has several parameters that can provide different performance-accuracy trade-offs after optimization:
 
   * ``mode`` - there are two modes to choose from: ``INT4_SYM`` - stands for INT4 symmetric weight quantization and results in faster inference and smaller model size, and ``INT4_ASYM`` - INT4 asymmetric weight quantization with variable zero-point for more accurate results
 
