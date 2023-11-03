@@ -42,7 +42,8 @@ namespace {
 ov::intel_cpu::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
     MATCHER_SCOPE(MoveEltwiseUpThroughDataMov);
     auto eltwise_pattern = ov::pass::pattern::wrap_type<ov::op::util::UnaryElementwiseArithmetic,
-                                                      ov::op::util::BinaryElementwiseArithmetic>(ov::pass::pattern::has_static_rank());
+                                                      ov::op::util::BinaryElementwiseArithmetic,
+                                                      ov::op::v0::FakeQuantize>(ov::pass::pattern::has_static_rank());
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -54,9 +55,23 @@ ov::intel_cpu::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
 
         if (eltwise->get_output_size() == 0 ||
             eltwise->get_input_size() == 0 ||
-            eltwise->get_output_element_type(0) != eltwise->get_input_element_type(0) ||
             eltwise->get_output_target_inputs(0).size() != 1) {
             return false;
+        }
+
+        const auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(eltwise);
+        if (fq) {
+            // only support per-tensor fq
+            for (size_t i = 1; i < fq->get_input_size(); ++i) {
+                const auto& shape = fq->get_input_shape(i);
+                if (std::count_if(shape.begin(), shape.end(), [](size_t x) { return x > 1; }) > 1) {
+                    return false;
+                }
+            }
+        } else {
+            if (eltwise->get_output_element_type(0) != eltwise->get_input_element_type(0)) {
+                return false;
+            }
         }
 
         bool is_binary_op = std::dynamic_pointer_cast<ov::op::util::BinaryElementwiseArithmetic>(eltwise) != nullptr;
@@ -110,6 +125,13 @@ ov::intel_cpu::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
         newChild->set_friendly_name(child->get_friendly_name());
 
         ov::replace_node(child, newChild);
+        if (fq) {
+            auto current = newChild->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+            while (is_data_movement_operation(current)) {
+                 current->validate_and_infer_types();
+                 current = current->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+            }
+        }
         return true;
     };
 
