@@ -184,7 +184,7 @@ Overview of the [Linux workflow's](../../../../.github/workflows/linux.yml) `Pyt
 
 To understand which jobs have successfully passed, which are running and which have failed, check the following:
 * For Pull Requests:
-  * If you open a Pull Request and navigate to the bottom of the page, you will see the list of jobs that ran or are running for the latest commit:
+  * Open a Pull Request and navigate to the bottom of the page, you will see the list of jobs that ran or are running for the latest commit:
   ![check_results](../../../_static/images/ci/check_results.png)
 * For scheduled runs:
   * Navigate to the [OpenVINO Repository Actions](https://github.com/openvinotoolkit/openvino/actions)
@@ -202,13 +202,16 @@ To find artefacts for a pipeline, use the following steps:
 4. Scroll to the bottom of the page
 5. You will find the artefacts produced by **all the jobs in this pipeline**:
   ![pipeline_artefacts](../../../_static/images/ci/pipeline_artefacts.png)
+6. Click on the artefact name to download it
+
+**NOTE**: artefacts are available only for the completed, i.e., successful or failed, pipelines.
 
 ### Logs
-To find logs for a pipeline, use the following steps:
+To find logs for a pipeline:
 1. Open a Pull Request and navigate to the bottom of the page, you will see the list of jobs that ran or are running for the latest commit:
   ![check_results](../../../_static/images/ci/check_results.png)
 2. Click `Details` to see more information about a job
-3. Click on the step to see the execution logs
+3. Click on a step to see its logs
 
 ## Custom Actions
 
@@ -218,7 +221,7 @@ setup-python, smart-ci, etc.
 
 The machines that execute the commands from the workflows are referred to as _runners_ in GitHub Actions.
 
-There are two types of runners available in this repository:
+There are two types of runners available for the OpenVINO organization:
 
 * [GitHub Actions Runners](https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners) - runners provided and managed by GitHub
 * [Self-hosted Runners](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners) - runners created and managed by the OpenVINO CI team and linked to the OpenVINO repositories 
@@ -227,7 +230,7 @@ The jobs in the workflows utilize appropriate runners based on the job's needs. 
 
 ## Docker Images
 
-You can run jobs in Docker containers, refer to [the documentation for syntax nuances](https://docs.github.com/en/actions/using-jobs/running-jobs-in-a-container).
+You can run jobs in Docker containers, refer to [the documentation for syntax overview](https://docs.github.com/en/actions/using-jobs/running-jobs-in-a-container).
 
 The jobs in the workflows utilize appropriate Docker images based on the job's needs. Read more about the available images and how to choose one [here](./docker_images.md).
 
