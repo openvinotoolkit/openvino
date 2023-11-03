@@ -20,11 +20,6 @@ Gelu::Gelu(const Output<Node>& data) : UnaryElementwiseArithmetic(data) {
     constructor_validate_and_infer_types();
 }
 
-bool Gelu::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v0_Gelu_visit_attributes);
-    return true;
-}
-
 std::shared_ptr<Node> Gelu::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Gelu_clone_with_new_inputs);
     if (new_args.size() != 1) {
