@@ -7,6 +7,7 @@ Welcome to the OpenVINO Developer guide on the GitHub Actions infrastructure. Th
 * [Workflows overview](#workflows)
   * [Triggers and schedules](#workflows-triggers-and-schedule)
   * [Required workflows](#required-workflows)
+  * [Workflow structure](#structure-of-the-workflows)
 * [Finding results, artefacts and logs](#finding-results-artefacts-and-logs)
 * [Custom actions overview](#custom-actions)
 * [Machines overview](#machines)
@@ -95,7 +96,7 @@ This workflow runs:
 
 TODO
 
-### Overview of the Workflows
+### Structure of the Workflows
 
 This section provides the structural overview of the Linux, Windows and macOS workflows.
 
@@ -107,7 +108,7 @@ The structure for all of them is the same:
 5. Download and use the artefacts in the parallel jobs with different kinds of tests
 6. Collect the test results and upload them as artefacts
 
-**NOTE**: the supporting workflows may use the same structure or lack the last 3 steps and have tests present right after the `Build` step.
+**NOTE**: some workflows may use the same structure or lack the last 3 steps and have tests present right after the `Build` step.
 
 Overview of the [Linux workflow](../../../../.github/workflows/linux.yml). There are several jobs present:
 ```yaml
@@ -172,10 +173,10 @@ Overview of the [Linux workflow's](../../../../.github/workflows/linux.yml) `Pyt
   * In this case `aks-linux-4-cores-16gb` is used. Read more [here](#machines) on what machines are available and how to choose one for a job
 * Some jobs could run inside a Docker container. The image could be specified using the `image` key under the `container` key
   * In this case `openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04` is used. Read more [here](#docker-images) on what images are available and when to use one
-* Some jobs could benefit from caches (Python dependencies, `cmake` build artefacts). 
-  * Caches are stored on a mounted share. The share is mounted into the container using the `volumes` key under the `container` key. Read more [here](#caches) on how to utilize cache for a job
+* Some jobs could benefit from caching, for example, Python dependencies or `cmake` build artefacts
+  * Read more [here](#caches) on how to utilize cache for a job
 * A job must define `steps` - a series of commands that would be executed in the defined above environment
-  * All the steps are executed in the shell specified by `shell` key under `defaults: run:` unless specified directly in a step
+  * All the steps are executed in the shell specified by the `shell` key under `defaults: run:` unless a shell is specified directly in a step
 
 ## Finding Results, Artefacts and Logs
 
