@@ -78,30 +78,30 @@ describe('InferRequest', () => {
     });
   });
 
-  it('Test inferAsync(inputData: { [inputName: string]: Tensor })', () => {
-    inferRequestAsync.inferAsync({ data: tensor }).then(result => {
+  it('Test infer(inputData: { [inputName: string]: Tensor })', () => {
+    inferRequestAsync.infer({ data: tensor }).then(result => {
       assert.deepStrictEqual(Object.keys(result), ['fc_out']);
       assert.deepStrictEqual(result['fc_out'].data.length, 10);}
     );
   });
 
-  it('Test inferAsync(inputData: Tensor[])', () => {
-    inferRequestAsync.inferAsync([ tensor ]).then(result => {
+  it('Test infer(inputData: Tensor[])', () => {
+    inferRequestAsync.infer([ tensor ]).then(result => {
       assert.deepStrictEqual(Object.keys(result), ['fc_out']);
       assert.deepStrictEqual(result['fc_out'].data.length, 10);
     });
   });
 
-  it('Test inferAsync([data]) throws: Cannot create a tensor from the passed Napi::Value.', () => {
+  it('Test infer([data]) throws: Cannot create a tensor from the passed Napi::Value.', () => {
     assert.throws(
-      () => inferRequestAsync.inferAsync(['string']).then(),
+      () => inferRequestAsync.infer(['string']).then(),
       /Cannot create a tensor from the passed Napi::Value./
     );
   });
 
-  it('Test inferAsync({ data: "string"}) throws: Cannot create a tensor from the passed Napi::Value.', () => {
+  it('Test infer({ data: "string"}) throws: Cannot create a tensor from the passed Napi::Value.', () => {
     assert.throws(
-      () => inferRequestAsync.inferAsync({data: 'string'}).then(),
+      () => inferRequestAsync.infer({data: 'string'}).then(),
       /Cannot create a tensor from the passed Napi::Value./
     );
   });

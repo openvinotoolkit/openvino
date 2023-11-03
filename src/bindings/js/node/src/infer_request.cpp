@@ -28,7 +28,7 @@ Napi::Function InferRequestWrap::GetClassConstructor(Napi::Env env) {
                            InstanceMethod("getInputTensor", &InferRequestWrap::get_input_tensor),
                            InstanceMethod("getOutputTensor", &InferRequestWrap::get_output_tensor),
                            InstanceMethod("inferSync", &InferRequestWrap::infer_dispatch),
-                           InstanceMethod("inferAsync", &InferRequestWrap::infer_async),
+                           InstanceMethod("infer", &InferRequestWrap::infer_async),
                            InstanceMethod("getCompiledModel", &InferRequestWrap::get_compiled_model),
                        });
 }
