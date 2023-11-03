@@ -12,10 +12,21 @@ type SupportedTypedArray =
   | Float64Array;
 
 interface Core {
-  compileModel(model: Model, device: string, config?: {[option: string]: string}): CompiledModel;
-  compileModelSync(model: Model, device: string, config?: {[option: string]: string}): CompiledModel;
-  readModel(modelPath: string, binPath?: string): Promise<Model>;
-  readModelSync(modelPath: string, binPath?: string): Model;
+  compileModel(
+    model: Model,
+    device: string,
+    config?: { [option: string]: string }
+  ): Promise<CompiledModel>;
+  compileModelSync(
+    model: Model,
+    device: string,
+    config?: { [option: string]: string }
+  ): CompiledModel;
+  readModel(modelPath: string, weightsPath?: string): Promise<Model>;
+  readModel(
+    modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Promise<Model>;
+  readModelSync(modelPath: string, weightsPath?: string): Model;
+  readModelSync(modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Model;
 }
 interface CoreConstructor {
   new(): Core;
@@ -90,11 +101,11 @@ declare enum element {
   u32,
   u16,
   i8,
-  i64,
-  i32,
   i16,
-  f64,
+  i32,
+  i64,
   f32,
+  f64,
 }
 
 declare enum resizeAlgorithm {
