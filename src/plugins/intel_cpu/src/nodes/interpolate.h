@@ -110,6 +110,7 @@ private:
     // 2. axis alignment [1,2] to [2,3].
     // 3. config planar layout support and treated it as channel_first layout.
     bool NCHWAsNHWC = false;
+    size_t dataRank = 0;
 
     class InterpolateExecutorBase {
         public:
