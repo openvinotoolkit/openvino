@@ -118,33 +118,6 @@ def get_input_spec_from_model(model):
     return input_spec
 
 
-def create_example_input_by_user_shapes(input_shapes, input_types):
-    import tensorflow as tf
-    if input_shapes is None:
-        return None
-    if isinstance(input_shapes, dict):
-        res = {}
-        for name, shape in input_shapes.items():
-            shape = get_static_shape(shape, 1)
-            args = {}
-            if name in input_types:
-                args["dtype"] = input_types[name]
-            tensor = tf.zeros(shape=shape, **args)
-            res[name] = tensor
-        return res
-    elif isinstance(input_shapes, list):
-        res = []
-        for idx, shape in enumerate(input_shapes):
-            shape = get_static_shape(shape, 1)
-            args = {}
-            if idx < len(input_types):
-                args["dtype"] = input_types[idx]
-            tensor = tf.zeros(shape=shape, **args)
-            res.append(tensor)
-        return res
-    raise Exception("Could not create example input by provided shape {}".format(input_shapes))
-
-
 def get_concrete_func(tf_function, example_input, input_needs_packing, error_message, use_example_input=True):
     """
     Runs tracing of TF function and returns a concrete function.
@@ -280,10 +253,6 @@ def trace_tf_model(model, input_shapes, input_types, example_input):
 
     if example_input is not None:
         concrete_func = get_concrete_func(tf_function, example_input, input_needs_packing,
-                                          "Could not trace the TF model with the following error: {}")
-    elif are_shapes_defined(input_shapes):
-        inp = create_example_input_by_user_shapes(input_shapes, input_types)
-        concrete_func = get_concrete_func(tf_function, inp, input_needs_packing,
                                           "Could not trace the TF model with the following error: {}")
     else:
         if isinstance(tf_function, tf.types.experimental.GenericFunction) and \
