@@ -4,8 +4,7 @@
 
 #include "softmax_reshape_elimination.hpp"
 
-#include <ngraph/validation_util.hpp>
-
+#include <openvino/core/validation_util.hpp>
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/softmax.hpp"
