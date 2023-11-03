@@ -25,10 +25,8 @@ NamedOutputs softshrink(const NodeContext& node) {
     std::shared_ptr<Node> zero_node = default_opset::Constant::create(input_element_type, Shape{}, {0});
 
     // Create masks for values below negative lambda and above positive lambda
-    std::shared_ptr<Node> values_below_neg_lambda =
-        std::make_shared<default_opset::Less>(data, negative_lambda);
-    std::shared_ptr<Node> values_above_pos_lambda =
-        std::make_shared<default_opset::Greater>(data, positive_lambda);
+    std::shared_ptr<Node> values_below_neg_lambda = std::make_shared<default_opset::Less>(data, negative_lambda);
+    std::shared_ptr<Node> values_above_pos_lambda = std::make_shared<default_opset::Greater>(data, positive_lambda);
 
     output = std::make_shared<default_opset::Select>(values_above_pos_lambda, negative_node, data);
     output = std::make_shared<default_opset::Select>(values_below_neg_lambda, positive_node, output);

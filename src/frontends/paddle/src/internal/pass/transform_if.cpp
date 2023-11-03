@@ -4,13 +4,12 @@
 
 #include "internal/pass/transform_if.hpp"
 
-#include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/common_optimizations/fold_subgraph_empty_inputs.hpp"
-
 #include "default_opset.hpp"
 #include "internal/op/conditional_block.hpp"
 #include "internal/op/tensorarray_write.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/common_optimizations/fold_subgraph_empty_inputs.hpp"
 
 using namespace std;
 using namespace ov;

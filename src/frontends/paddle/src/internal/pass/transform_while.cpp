@@ -4,14 +4,13 @@
 
 #include "internal/pass/transform_while.hpp"
 
-#include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/core/rt_info.hpp"
-#include "transformations/common_optimizations/fold_subgraph_empty_inputs.hpp"
-
 #include "default_opset.hpp"
 #include "internal/op/while.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/paddle/exception.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/common_optimizations/fold_subgraph_empty_inputs.hpp"
 
 using namespace std;
 using namespace ov;

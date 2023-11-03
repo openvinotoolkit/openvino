@@ -46,26 +46,22 @@ TEST(ONNXReader_ModelSupported, scrambled_keys) {
 
 TEST(ONNXReader_ModelUnsupported, no_graph_field) {
     // this model contains only 2 fields (it doesn't contain a graph in particular)
-    EXPECT_THROW(ov::Core{}.read_model(model_path("unsupported/no_graph_field.onnx")),
-                 ov::Exception);
+    EXPECT_THROW(ov::Core{}.read_model(model_path("unsupported/no_graph_field.onnx")), ov::Exception);
 }
 
 TEST(ONNXReader_ModelUnsupported, incorrect_onnx_field) {
     // in this model the second field's key is F8 (field number 31) which is doesn't exist in ONNX
     // this  test will have to be changed if the number of fields in onnx.proto
     // (ModelProto message definition) ever reaches 31 or more
-    EXPECT_THROW(ov::Core{}.read_model(model_path("unsupported/incorrect_onnx_field.onnx")),
-                 ov::Exception);
+    EXPECT_THROW(ov::Core{}.read_model(model_path("unsupported/incorrect_onnx_field.onnx")), ov::Exception);
 }
 
 TEST(ONNXReader_ModelUnsupported, unknown_wire_type) {
     // in this model the graph key contains wire type 7 encoded in it - this value is incorrect
-    EXPECT_THROW(ov::Core{}.read_model(model_path("unsupported/unknown_wire_type.onnx")),
-                 ov::Exception);
+    EXPECT_THROW(ov::Core{}.read_model(model_path("unsupported/unknown_wire_type.onnx")), ov::Exception);
 }
 
 TEST(ONNXReader_ModelUnsupported, duplicate_fields) {
     // the model contains the IR_VERSION field twice - this is not correct
-    EXPECT_THROW(ov::Core{}.read_model(model_path("unsupported/duplicate_onnx_fields.onnx")),
-                 ov::Exception);
+    EXPECT_THROW(ov::Core{}.read_model(model_path("unsupported/duplicate_onnx_fields.onnx")), ov::Exception);
 }

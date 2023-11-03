@@ -4,12 +4,11 @@
 
 #include "internal/pass/transform_tensorarray.hpp"
 
+#include "default_opset.hpp"
+#include "internal/op/tensorarray_write.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/remove_concat_zero_dim_input.hpp"
-
-#include "default_opset.hpp"
-#include "internal/op/tensorarray_write.hpp"
 
 using namespace std;
 using namespace ov;
@@ -22,8 +21,7 @@ ov::frontend::paddle::pass::TransformTensorArray::TransformTensorArray(std::vect
     const auto shape_label = pattern::wrap_type<ShapeOf>();
     const auto length_label = pattern::wrap_type<StridedSlice>(
         {shape_label, pattern::any_input(), pattern::any_input(), pattern::any_input()});
-    auto write_label =
-        pattern::wrap_type<ov::op::internal::TensorArrayWrite>({pattern::any_input(), length_label});
+    auto write_label = pattern::wrap_type<ov::op::internal::TensorArrayWrite>({pattern::any_input(), length_label});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();

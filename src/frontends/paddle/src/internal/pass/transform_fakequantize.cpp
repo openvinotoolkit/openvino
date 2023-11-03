@@ -4,10 +4,9 @@
 
 #include "internal/pass/transform_fakequantize.hpp"
 
+#include "default_opset.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-
-#include "default_opset.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::frontend::paddle::op::default_opset;
