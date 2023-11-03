@@ -101,10 +101,18 @@ MetaInfo MetaInfo::read_meta_from_file(const std::string& meta_path, bool read_p
                 in_info.ranges.max = DEFAULT_MAX_VALUE;
             }
             {
-                auto max_shape_str = std::string(input.attribute("max_shape").value());
-                in_info.max_shape = str_to_ov_shape(max_shape_str);
-                auto min_shape_str = std::string(input.attribute("min_shape").value());
-                in_info.min_shape = str_to_ov_shape(min_shape_str);
+                try {
+                    auto max_shape_str = std::string(input.attribute("max_shape").value());
+                    in_info.max_shape = str_to_ov_shape(max_shape_str);
+                } catch (std::exception) {
+                    in_info.max_shape = ov::PartialShape();
+                }
+                try {
+                    auto min_shape_str = std::string(input.attribute("min_shape").value());
+                    in_info.min_shape = str_to_ov_shape(min_shape_str);
+                } catch (std::exception) {
+                    in_info.min_shape = ov::PartialShape();
+                }
             }
             input_info.insert({in_name, in_info});
         }
