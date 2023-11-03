@@ -16,8 +16,7 @@ inline void evaluate(const std::shared_ptr<ov::op::v1::ConvertLike>& op,
     outputs[0].set_shape(inputs[0].get_shape());
     size_t element_count = ov::shape_size(outputs[0].get_shape());
 
-    if (((ti == ov::element::u1) || (to == ov::element::u1)) ||
-        ((ti == ov::element::u4) || (to == ov::element::u4)) ||
+    if (((ti == ov::element::u1) || (to == ov::element::u1)) || ((ti == ov::element::u4) || (to == ov::element::u4)) ||
         ((ti == ov::element::i4) || (to == ov::element::i4)) ||
         ((ti == ov::element::nf4) || (to == ov::element::nf4))) {
         ov::reference::detail::lp_convert(inputs[0].data<T_I>(), outputs[0].data<T_O>(), element_count, ti, to);
