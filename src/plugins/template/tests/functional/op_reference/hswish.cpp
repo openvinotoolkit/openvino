@@ -10,7 +10,6 @@
 
 using namespace reference_tests;
 using namespace ov;
-using namespace InferenceEngine;
 
 namespace {
 struct HSwishParams {
