@@ -94,7 +94,9 @@ TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_SetState) {
     for (auto&& state : inferReq.QueryState()) {
         state.Reset();
         auto state_val = state.GetState();
-        auto element_count = state_val->size();
+        // We cannot assume state buffer precision is float, for arm64 it maybe fp16.
+        // So the element_cout maybe not the real element cout, it is used to avoid memory out of bound.
+        auto element_count = state_val->byteSize() / sizeof(float);
 
         float* new_state_data = new float[element_count];
         for (int i = 0; i < element_count; i++) {
@@ -109,7 +111,7 @@ TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_SetState) {
 
     for (auto&& state : inferReq.QueryState()) {
         auto lastState = state.GetState();
-        auto last_state_size = lastState->size();
+        auto last_state_size = lastState->byteSize() / sizeof(float);
         auto last_state_data = lastState->cbuffer().as<float*>();
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
         for (int i = 0; i < last_state_size; i++) {
@@ -126,7 +128,9 @@ TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_Reset) {
     for (auto&& state : inferReq.QueryState()) {
         state.Reset();
         auto state_val = state.GetState();
-        auto element_count = state_val->size();
+        // We cannot assume state buffer precision is float, for arm64 it maybe fp16.
+        // So the element_cout maybe not the real element cout, it is used to avoid memory out of bound.
+        auto element_count = state_val->byteSize() / sizeof(float);
 
         float* new_state_data = new float[element_count];
         for (int i = 0; i < element_count; i++) {
@@ -145,7 +149,7 @@ TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_Reset) {
     auto states = inferReq.QueryState();
     for (int i = 0; i < states.size(); ++i) {
         auto lastState = states[i].GetState();
-        auto last_state_size = lastState->size();
+        auto last_state_size = lastState->byteSize() / sizeof(float);
         auto last_state_data = lastState->cbuffer().as<float*>();
 
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
@@ -170,7 +174,9 @@ TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_2infers_set) 
     for (auto&& state : inferReq.QueryState()) {
         state.Reset();
         auto state_val = state.GetState();
-        auto element_count = state_val->size();
+        // We cannot assume state buffer precision is float, for arm64 it maybe fp16.
+        // So the element_cout maybe not the real element cout, it is used to avoid memory out of bound.
+        auto element_count = state_val->byteSize() / sizeof(float);
 
         float* new_state_data = new float[element_count];
         for (int i = 0; i < element_count; i++) {
@@ -190,7 +196,7 @@ TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_2infers_set) 
     auto states2 = inferReq2.QueryState();
     for (int i = 0; i < states.size(); ++i) {
         auto lastState = states[i].GetState();
-        auto last_state_size = lastState->size();
+        auto last_state_size = lastState->byteSize() / sizeof(float);
         auto last_state_data = lastState->cbuffer().as<float*>();
 
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
@@ -201,7 +207,7 @@ TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_2infers_set) 
     }
     for (int i = 0; i < states2.size(); ++i) {
         auto lastState = states2[i].GetState();
-        auto last_state_size = lastState->size();
+        auto last_state_size = lastState->byteSize() / sizeof(float);
         auto last_state_data = lastState->cbuffer().as<float*>();
 
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
@@ -231,7 +237,9 @@ TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_2infers) {
     // initial state for 2nd infer request
     for (auto&& state : inferReq2.QueryState()) {
         auto state_val = state.GetState();
-        auto element_count = state_val->size();
+        // We cannot assume state buffer precision is float, for arm64 it maybe fp16.
+        // So the element_cout maybe not the real element cout, it is used to avoid memory out of bound.
+        auto element_count = state_val->byteSize() / sizeof(float);
 
         float* new_state_data = new float[element_count];
         for (int i = 0; i < element_count; i++) {
@@ -260,7 +268,7 @@ TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_2infers) {
     }
     for (int i = 0; i < states.size(); ++i) {
         auto lastState = states[i].GetState();
-        auto last_state_size = lastState->size();
+        auto last_state_size = lastState->byteSize() / sizeof(float);
         auto last_state_data = lastState->cbuffer().as<float*>();
 
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
@@ -273,7 +281,7 @@ TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_2infers) {
     // check the output and state of 2nd request
     for (int i = 0; i < states2.size(); ++i) {
         auto lastState = states2[i].GetState();
-        auto last_state_size = lastState->size();
+        auto last_state_size = lastState->byteSize() / sizeof(float);
         auto last_state_data = lastState->cbuffer().as<float*>();
 
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";

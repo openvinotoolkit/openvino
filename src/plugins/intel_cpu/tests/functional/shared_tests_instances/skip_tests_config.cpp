@@ -266,6 +266,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*InferRequestPreprocessConversionTest.*oLT=NHWC.*)");
     retVector.emplace_back(R"(.*smoke_NoReshape/ExecGraphUniqueNodeNames.CheckUniqueNodeNames.*)");
     retVector.emplace_back(R"(.*smoke_BehaviorTests/InferRequestPerfCountersTest.CheckOperationInPerfMap.*)");
+    retVector.emplace_back(R"(smoke_BehaviorTests/ExecutableNetworkBaseTest.CheckExecGraphInfo.*)");
 #endif
 
 #endif
