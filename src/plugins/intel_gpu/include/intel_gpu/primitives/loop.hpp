@@ -126,6 +126,17 @@ struct loop : public primitive_base<loop> {
             ss << "* stride         : " << stride << std::endl;
             return ss.str();
         }
+
+        std::string to_short_string() const {
+            std::stringstream ss;
+            ss << "io_primitive_map[e:" << external_id.to_string();
+            ss << "," << internal_id.to_string();
+            ss << "," << axis;
+            ss << "," << start;
+            ss << "," << end;
+            ss << "," << stride << "]";
+            return ss.str();
+        }
     };
 
     struct backedge_mapping {

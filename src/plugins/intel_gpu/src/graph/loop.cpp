@@ -567,7 +567,10 @@ void loop_inst::validate_backedges(loop_node const & node) const {
     for (const auto& back_edge : back_edges) {
         for (const auto& mapping : input_primitive_maps) {
             OPENVINO_ASSERT((mapping.internal_id.pid != back_edge.to || mapping.axis < 0),
-                node.id(), ": input with iteration axis should not have backedges");
+                node.id(), ": input with iteration axis should not have backedges external_id: ",
+                mapping.external_id.to_string(), ", internal_id: ", mapping.internal_id.to_string(),
+                ", back_edge.to: ", back_edge.to, ", back_edge.from ", back_edge.from,
+                ", mapping.axis: ", std::to_string(mapping.axis));
         }
     }
 }
@@ -763,7 +766,7 @@ void loop_inst::concatenated_memory_mapping::slice_mem(const int64_t num_iterati
         sliced_mems[i]->unlock(stream);
     }
     concatenated_mem->unlock(stream);
-    GPU_DEBUG_LOG << "slice memory from concat_mem["
+    GPU_DEBUG_LOG << "slice memory [" << io_prim_map.to_short_string() << "] from concat_mem["
                     << concatenated_mem->get_layout().to_short_string()
                     << "], current_iteration: " << num_iterations << ", stride: " << stride
                     << " to sliced_mems[" << sliced_mems.front()->get_layout().to_short_string() << "]" << std::endl;
@@ -800,7 +803,7 @@ void loop_inst::concatenated_memory_mapping::concat_mem(const int64_t curent_ite
         sliced_mems[i]->unlock(stream);
     }
     concatenated_mem->unlock(stream);
-    GPU_DEBUG_LOG << "concatenate memory from sliced_mems["
+    GPU_DEBUG_LOG << "concatenate memory [" << io_prim_map.to_short_string() << "] from sliced_mems["
                     << sliced_mems.front()->get_layout().to_short_string() << "], current_iteration: "
                     << curent_iterations << ", stride: " << stride << " to concat_mem["
                     << concatenated_mem->get_layout().to_short_string() << "]" << std::endl;

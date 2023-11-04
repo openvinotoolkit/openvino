@@ -266,7 +266,7 @@ struct loop_impl : typed_primitive_impl<loop> {
                 execution_condition = read_scalar_value(body_execution_condition_mem, body_network->get_stream());
             }
             GPU_DEBUG_IF(!execution_condition) {
-                GPU_DEBUG_LOG << "body_exec_condition is false at "<< current_iteration_idx << " iterations" << std::endl;
+                GPU_DEBUG_LOG << "body_exec_condition is false at "<< current_iteration_idx << " iteration idx" << std::endl;
             }
 
             current_iteration_idx++;
@@ -280,7 +280,7 @@ struct loop_impl : typed_primitive_impl<loop> {
         // update num_iterations (actual number of iterations)
         memory::ptr num_actual_iterations_mem = outer_network.get_primitive(primitive->num_iteration_id)->output_memory_ptr();
         write_scalar_value(num_actual_iterations_mem, stream, current_iteration_idx);
-        GPU_DEBUG_LOG << "current_iteration(" << primitive->num_iteration_id << ", "
+        GPU_DEBUG_LOG << "current_iteration_idx(" << primitive->num_iteration_id << ", "
                         << num_actual_iterations_mem << ")  : " << current_iteration_idx << std::endl;
 
         if (is_dynamic)
