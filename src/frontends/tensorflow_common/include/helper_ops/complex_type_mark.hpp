@@ -11,6 +11,13 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
+// ComplexTypeMark serves to mark places that require complex type propagation
+// that means to represent native complex type with simulating floating-point tensor
+// that has one extra dimension to concatenate real and imaginary parts of complex tensor.
+// For example, a tensor of complex type with shape [N1, N2, ..., Nk] will be transformed
+// into a floating-point tensor [N1, N2, ..., Nk, 2]
+// where a slice with index [..., 0] represents a real part and
+// a slice with index [..., 1] represents a imaginary part.
 class ComplexTypeMark : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_OP("ComplexTypeMark", "util", ov::op::util::FrameworkNode);
