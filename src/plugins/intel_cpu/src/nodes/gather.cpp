@@ -179,12 +179,6 @@ void Gather::createPrimitive() {
     if (isInPlace()) {
         return;
     }
-    // W.A gather bf16/fp16 jit impl has ACC issue on avx2_vnni_2
-    Precision dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
-    if (one_of(dataPrecision, Precision::BF16, Precision::FP16) &&
-        dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2))
-        return;
-
 #if defined(OPENVINO_ARCH_X86_64)
     uint64_t idxElPerVec = 1;
     if (!isDynamicNode()) {
