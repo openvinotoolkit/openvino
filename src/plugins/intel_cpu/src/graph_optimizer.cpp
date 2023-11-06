@@ -2081,7 +2081,9 @@ void GraphOptimizer::FuseEltwiseAndSimple(Graph &graph) {
                     graphEdges.push_back(newEdge);
                     parent->addEdge(newEdge);
 
-                    parentNode->inputShapes.push_back(parent->getOutputShapeAtPort(inNum));
+                    if (parentNode->inputShapes.size() < static_cast<size_t>(outNum + 1))
+                        parentNode->inputShapes.resize(outNum + 1);
+                    parentNode->inputShapes[outNum] = parent->getOutputShapeAtPort(inNum);
                 }
             }
 

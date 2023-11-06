@@ -27,7 +27,7 @@ concurrency:
 
 jobs:
   Build:
-    timeout-minutes: 15
+    timeout-minutes: 40
     defaults:
       run:
         shell: bash

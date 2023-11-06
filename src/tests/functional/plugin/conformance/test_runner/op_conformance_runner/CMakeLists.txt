@@ -13,6 +13,7 @@ ov_add_test_target(
             PRIVATE
                 "${CMAKE_CURRENT_SOURCE_DIR}/include"
                 "${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper/include/cache/meta/"
+                "${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper/include/utils/"
         ADD_CPPLINT
         LINK_LIBRARIES
             PUBLIC

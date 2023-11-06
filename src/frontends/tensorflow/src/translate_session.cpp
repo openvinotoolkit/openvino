@@ -26,7 +26,8 @@ std::vector<T> reorder_ops_by_names(const std::vector<std::string>& names, const
         // in case unspecified names, return the initial order of operations
         return ops;
     }
-    FRONT_END_GENERAL_CHECK(names.size() == ops.size(),
+    // some body graph input can turn to be a constant node
+    FRONT_END_GENERAL_CHECK(names.size() >= ops.size(),
                             "[TensorFlow Frontend] Internal error: cannot perform reordering of operations. The number "
                             "of names mismatches the number of operations.");
     std::vector<T> resulted_ops(ops.size(), nullptr);
@@ -700,18 +701,40 @@ std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string
         // set input shapes and types for InputModel of the body graph
         // it allows to get more optimized model after the conversion,
         // for example, to get less sub-graphs with ShapeOf and Convert operations
-        auto inputs = body_input_model->get_inputs();
-        size_t num_inputs = inputs.size();
-        FRONT_END_GENERAL_CHECK(num_inputs == ov_inputs.size(),
-                                "[TensorFlow Frontend] internal error: a number of external  and internal inputs for a "
-                                "body graph mismatch");
-        for (size_t input_ind = 0; input_ind < num_inputs; ++input_ind) {
-            auto input_place = inputs[input_ind];
-            if (input_types[input_ind].is_static()) {
-                body_input_model->set_element_type(input_place, input_types[input_ind]);
+        // input names set an order of body graph inputs
+        auto input_names = body_input_model->get_input_names();
+        auto body_inputs = body_input_model->get_inputs();
+        size_t int_num_inputs = body_inputs.size();
+        size_t ext_num_inputs = ov_inputs.size();
+        FRONT_END_GENERAL_CHECK(int_num_inputs <= ext_num_inputs,
+                                "[TensorFlow Frontend] internal error: a number of external and "
+                                "internal inputs for a body graph mismatch");
+        FRONT_END_GENERAL_CHECK(input_names.size() == ext_num_inputs,
+                                "[TensorFlow Frontend] internal error: a number of body graph names and external "
+                                "inputs to body must match");
+        for (size_t input_ind = 0; input_ind < ext_num_inputs; ++input_ind) {
+            auto required_input_name = input_names[input_ind];
+            bool is_found_body_input = false;
+            size_t body_found_ind = 0;
+            for (size_t internal_ind = 0; internal_ind < int_num_inputs; ++internal_ind) {
+                auto body_input_place = body_inputs[internal_ind];
+                auto body_input_names = body_input_place->get_names();
+                if (std::find(body_input_names.begin(), body_input_names.end(), required_input_name) !=
+                    body_input_names.end()) {
+                    is_found_body_input = true;
+                    body_found_ind = internal_ind;
+                    break;
+                }
             }
-            if (input_shapes[input_ind].rank().is_static()) {
-                body_input_model->set_partial_shape(input_place, input_shapes[input_ind]);
+            if (is_found_body_input) {
+                auto body_input_place = body_inputs[body_found_ind];
+                // if body input with required name is found, set its type
+                if (input_types[input_ind].is_static()) {
+                    body_input_model->set_element_type(body_input_place, input_types[input_ind]);
+                }
+                if (input_shapes[input_ind].rank().is_static()) {
+                    body_input_model->set_partial_shape(body_input_place, input_shapes[input_ind]);
+                }
             }
         }
 
