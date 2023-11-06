@@ -232,13 +232,13 @@ There are two types of runners available for the OpenVINO organization:
 * [GitHub Actions Runners](https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners) - runners provided and managed by GitHub
 * [Self-hosted Runners](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners) - runners created and managed by the OpenVINO CI team and linked to the OpenVINO repositories 
 
-The jobs in the workflows utilize appropriate runners based on the job's needs. Read more about the available runners and how to choose one [here](./runners.md).
+The jobs in the workflows utilize appropriate runners based on a job's needs. Read more about the available runners and how to choose one [here](./runners.md).
 
 ## Docker Images
 
 You can run jobs in Docker containers, refer to [the documentation for syntax overview](https://docs.github.com/en/actions/using-jobs/running-jobs-in-a-container).
 
-The jobs in the workflows utilize appropriate Docker images based on the job's needs. Read more about the available images and how to choose one [here](./docker_images.md).
+The jobs in the workflows utilize appropriate Docker images based on a job's needs. Read more about the available images and how to choose one [here](./docker_images.md).
 
 ## Caches
 
@@ -255,7 +255,7 @@ There are two types of caches available:
   * Suitable for large caches
     * e.g., build caches, models, datasets
 
-The jobs in the workflows utilize appropriate caches based on the job's needs. Read more about the available caches and how to choose one [here](./caches.md).
+The jobs in the workflows utilize appropriate caches based on a job's needs. Read more about the available caches and how to choose one [here](./caches.md).
 
 ## Adding New Tests
 
