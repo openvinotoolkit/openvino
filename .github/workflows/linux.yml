@@ -1277,10 +1277,10 @@ jobs:
       volumes:
         - /mount/caches:/mount/caches
     env:
-      OPENVINO_REPO: ${{ github.workspace }}/openvino
-      INSTALL_DIR: ${{ github.workspace }}/install
-      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
+      OPENVINO_REPO: /__w/openvino/openvino/openvino
+      INSTALL_DIR: /__w/openvino/openvino/install
+      INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
+      MODEL_HUB_TESTS_INSTALL_DIR: /__w/openvino/install/tests/model_hub_tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test || 
         fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
 
@@ -1316,14 +1316,13 @@ jobs:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
           sparse-checkout-cone-mode: false
-          path: 'openvino'
+          path: ${{ env.OPENVINO_REPO }}
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
           should-setup-pip-paths: 'false'
-          self-hosted-runner: 'false'
 
       - name: Install OpenVINO Python wheels
         run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
@@ -1362,10 +1361,10 @@ jobs:
       volumes:
         - /mount/caches:/mount/caches
     env:
-      OPENVINO_REPO: ${{ github.workspace }}/openvino
-      INSTALL_DIR: ${{ github.workspace }}/install
-      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
+      OPENVINO_REPO: /__w/openvino/openvino
+      INSTALL_DIR: /__w/openvino/install
+      INSTALL_TEST_DIR: /__w/openvino/install/tests
+      MODEL_HUB_TESTS_INSTALL_DIR: /__w/openvino/install/tests/model_hub_tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
 
     steps:
@@ -1405,7 +1404,7 @@ jobs:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
           sparse-checkout-cone-mode: false
-          path: 'openvino'
+          path: ${{ env.OPENVINO_REPO }}
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
