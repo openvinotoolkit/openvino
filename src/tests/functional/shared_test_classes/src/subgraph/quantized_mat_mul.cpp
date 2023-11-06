@@ -72,10 +72,9 @@ void QuantMatMulTest::SetUp() {
     std::tie(quantLevels0, inputRange0, outputRange0, quantGranularity0, fqPrec0) = quantParams0;
     std::tie(quantLevels1, inputRange1, outputRange1, quantGranularity1, fqPrec1) = quantParams1;
 
-    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(inputShape0)),
-                               std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(inputShape1))};
-    auto paramOuts =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
+    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape0)),
+                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape1))};
 
     auto makeFakeQuantizeNode = [element_type](size_t quantLevels,
                                                QuantRange inputRange,
@@ -110,14 +109,14 @@ void QuantMatMulTest::SetUp() {
                                         inputRange0,
                                         outputRange0,
                                         quantGranularity0,
-                                        paramOuts[0],
+                                        params[0],
                                         inputShape0,
                                         fqPrec0);
     auto dataFq1 = makeFakeQuantizeNode(quantLevels1,
                                         inputRange1,
                                         outputRange1,
                                         quantGranularity1,
-                                        paramOuts[1],
+                                        params[1],
                                         inputShape1,
                                         fqPrec1);
 

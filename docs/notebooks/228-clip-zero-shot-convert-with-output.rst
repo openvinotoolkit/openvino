@@ -1,8 +1,6 @@
 Zero-shot Image Classification with OpenAI CLIP and OpenVINO™
 =============================================================
 
-
-
 Zero-shot image classification is a computer vision task to classify
 images into one of several classes without any prior training or
 knowledge of the classes.
@@ -26,28 +24,25 @@ image classification. The notebook contains the following steps:
 
 1. Download the model.
 2. Instantiate the PyTorch model.
-3. Export the ONNX model and convert it to OpenVINO IR, using model
-   conversion API.
+3. Convert model to OpenVINO IR, using model conversion API.
 4. Run CLIP with OpenVINO.
 
-.. _top:
+**Table of contents:**
 
-**Table of contents**:
 
-- `Instantiate model <#instantiate-model>`__
-- `Run PyTorch model inference <#run-pytorch-model-inference>`__
+-  `Instantiate model <#instantiate-model>`__
+-  `Run PyTorch model
+   inference <#run-pytorch-model-inference>`__
+-  `Convert model to OpenVINO Intermediate Representation (IR)
+   format. <#convert-model-to-openvino-intermediate-representation-ir-format>`__
+-  `Run OpenVINO model <#run-openvino-model>`__
 
-  - `Convert model to OpenVINO Intermediate Representation (IR) format. <#convert-model-to-openvino-intermediate-representation-ir-format>`__
+   -  `Select inference device <#select-inference-device>`__
 
-- `Run OpenVINO model <#run-openvino-model>`__
+-  `Next Steps <#next-steps>`__
 
-  - `Select inference device <#select-inference-device>`__
-
-- `Next Steps <#next-steps>`__
-
-Instantiate model `⇑ <#top>`__
-###############################################################################################################################
-
+Instantiate model 
+-----------------------------------------------------------
 
 CLIP (Contrastive Language-Image Pre-Training) is a neural network
 trained on various (image, text) pairs. It can be instructed in natural
@@ -86,6 +81,10 @@ tokenizer and preparing the images.
 
 .. code:: ipython3
 
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu gradio "openvino>=2023.1.0" "transformers[torch]>=4.30"
+
+.. code:: ipython3
+
     from transformers import CLIPProcessor, CLIPModel
     
     # load pre-trained model
@@ -94,57 +93,18 @@ tokenizer and preparing the images.
     processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch16")
 
 
-
 .. parsed-literal::
 
-    Downloading (…)lve/main/config.json:   0%|          | 0.00/4.10k [00:00<?, ?B/s]
+    /home/ea/work/ov_venv/lib/python3.8/site-packages/torch/cuda/__init__.py:138: UserWarning: CUDA initialization: The NVIDIA driver on your system is too old (found version 11080). Please update your GPU driver by downloading and installing a new version from the URL: http://www.nvidia.com/Download/index.aspx Alternatively, go to: https://pytorch.org to install a PyTorch version that has been compiled with your version of the CUDA driver. (Triggered internally at ../c10/cuda/CUDAFunctions.cpp:108.)
+      return torch._C._cuda_getDeviceCount() > 0
+    2023-10-26 14:25:33.940360: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-10-26 14:25:33.975867: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2023-10-26 14:25:34.675789: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-
-.. parsed-literal::
-
-    Downloading pytorch_model.bin:   0%|          | 0.00/599M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    Downloading (…)rocessor_config.json:   0%|          | 0.00/316 [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    Downloading (…)okenizer_config.json:   0%|          | 0.00/905 [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    Downloading (…)olve/main/vocab.json:   0%|          | 0.00/961k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    Downloading (…)olve/main/merges.txt:   0%|          | 0.00/525k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    Downloading (…)/main/tokenizer.json:   0%|          | 0.00/2.22M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    Downloading (…)cial_tokens_map.json:   0%|          | 0.00/389 [00:00<?, ?B/s]
-
-
-Run PyTorch model inference `⇑ <#top>`__
-###############################################################################################################################
-
+Run PyTorch model inference 
+---------------------------------------------------------------------
 
 To perform classification, define labels and load an image in RGB
 format. To give the model wider text context and improve guidance, we
@@ -158,10 +118,26 @@ similarity score for the final result.
 
 .. code:: ipython3
 
+    from urllib.request import urlretrieve
+    from pathlib import Path
+    
     from PIL import Image
+    
+    urlretrieve(
+        "https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/228-clip-zero-shot-image-classification/visualize.py",
+        filename='visualize.py'
+    )
     from visualize import visualize_result
     
-    image = Image.open('../data/image/coco.jpg')
+    
+    sample_path = Path("data/coco.jpg")
+    sample_path.parent.mkdir(parents=True, exist_ok=True)
+    urlretrieve(
+        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg",
+        sample_path,
+    )
+    image = Image.open(sample_path)
+    
     input_labels = ['cat', 'dog', 'wolf', 'tiger', 'man', 'horse', 'frog', 'tree', 'house', 'computer']
     text_descriptions = [f"This is a photo of a {label}" for label in input_labels]
     
@@ -174,87 +150,50 @@ similarity score for the final result.
 
 
 
-.. image:: 228-clip-zero-shot-convert-with-output_files/228-clip-zero-shot-convert-with-output_4_0.png
+.. image:: 228-clip-zero-shot-convert-with-output_files/228-clip-zero-shot-convert-with-output_5_0.png
 
 
-Convert model to OpenVINO Intermediate Representation (IR) format. `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-.. figure:: https://user-images.githubusercontent.com/29454499/208048580-8264e54c-151c-43ef-9e25-1302cd0dd7a2.png
-   :alt: conversion_path
-
-   conversion_path
+Convert model to OpenVINO Intermediate Representation (IR) format. 
+------------------------------------------------------------------------------------------------------------
 
 For best results with OpenVINO, it is recommended to convert the model
-to OpenVINO IR format. OpenVINO supports PyTorch via ONNX conversion.
-The ``torch.onnx.export`` function enables conversion of PyTorch models
-to ONNX format. It requires to provide initialized model object, example
-of inputs for tracing and path for saving result. The model contains
-operations which supported for ONNX tracing starting with opset 14, it
-is recommended to use it as ``opset_version`` parameter. Besides that,
-we need to have opportunity to provide descriptions various of length
-and images with different sizes, for preserving this capability after
-ONNX conversion, ``dynamic_axes`` parameter can be used. More
-information about PyTorch to ONNX exporting can be found in this
-`tutorial <https://pytorch.org/tutorials/advanced/super_resolution_with_onnxruntime.html>`__
-and `PyTorch
-documentation <https://pytorch.org/docs/stable/onnx.html>`__. We will
-use ``mo.convert_model`` functionality to convert the ONNX model. The
-``mo.convert_model`` Python function returns an OpenVINO model ready to
-load on the device and start making predictions. We can save it on disk
-for the next usage with ``openvino.runtime.serialize``.
+to OpenVINO IR format. OpenVINO supports PyTorch via Model conversion
+API. To convert the PyTorch model to OpenVINO IR format we will use
+``ov.convert_model`` of `model conversion
+API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+The ``ov.convert_model`` Python function returns an OpenVINO Model
+object ready to load on the device and start making predictions. We can
+save it on disk for the next usage with ``ov.save_model``.
 
 .. code:: ipython3
 
-    import torch
+    import openvino as ov
     
-    torch.onnx.export(
-        model,  # model being run
-        # model input in one of acceptable format: torch.Tensor (for single input), tuple or list of tensors for multiple inputs or dictionary with string keys and tensors as values.
-        dict(inputs),
-        "clip-vit-base-patch16.onnx",  # where to save the model
-        opset_version=14,  # the ONNX version to export the model to
-        input_names=["input_ids", "pixel_values", "attention_mask"],  # the model's input names
-        output_names=["logits_per_image", "logits_per_text", "text_embeds", "image_embeds"],  # the model's output names
-        dynamic_axes={  # variable length axes
-            "input_ids": {0: "batch", 1: "sequence"},
-            "pixel_values": {0: "batch", 1: "num_channels", 2: "height", 3: "width"},
-            "attention_mask": {0: "batch", 1: "sequence"},
-            "logits_per_image": {0: "batch"},
-            "logits_per_text": {0: "batch"},
-            "text_embeds": {0: "batch"},
-            "image_embeds": {0: "batch"}
-        }
-    )
+    model.config.torchscript = True
+    ov_model = ov.convert_model(model, example_input=dict(inputs))
+    ov.save_model(ov_model, 'clip-vit-base-patch16.xml')
 
 
 .. parsed-literal::
 
-    /home/adrian/repos/openvino_notebooks/recipes/intelligent_queue_management/venv/lib/python3.10/site-packages/transformers/models/clip/modeling_clip.py:284: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
+
+
+.. parsed-literal::
+
+    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
+    /home/ea/work/ov_venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:287: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attn_weights.size() != (bsz * self.num_heads, tgt_len, src_len):
-    /home/adrian/repos/openvino_notebooks/recipes/intelligent_queue_management/venv/lib/python3.10/site-packages/transformers/models/clip/modeling_clip.py:324: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ea/work/ov_venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:327: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attn_output.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
-    /home/adrian/repos/openvino_notebooks/recipes/intelligent_queue_management/venv/lib/python3.10/site-packages/transformers/models/clip/modeling_clip.py:684: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
-      mask = torch.full((tgt_len, tgt_len), torch.tensor(torch.finfo(dtype).min, device=device), device=device)
-    /home/adrian/repos/openvino_notebooks/recipes/intelligent_queue_management/venv/lib/python3.10/site-packages/transformers/models/clip/modeling_clip.py:292: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ea/work/ov_venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:295: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if causal_attention_mask.size() != (bsz, 1, tgt_len, src_len):
-    /home/adrian/repos/openvino_notebooks/recipes/intelligent_queue_management/venv/lib/python3.10/site-packages/transformers/models/clip/modeling_clip.py:301: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ea/work/ov_venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:304: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attention_mask.size() != (bsz, 1, tgt_len, src_len):
-    /home/adrian/repos/openvino_notebooks/recipes/intelligent_queue_management/venv/lib/python3.10/site-packages/torch/onnx/symbolic_opset9.py:5408: UserWarning: Exporting aten::index operator of advanced indexing in opset 14 is achieved by combination of multiple ONNX operators, including Reshape, Transpose, Concat, and Gather. If indices include negative values, the exported graph will produce incorrect results.
-      warnings.warn(
 
 
-.. code:: ipython3
-
-    from openvino.runtime import serialize
-    from openvino.tools import mo
-    
-    ov_model = mo.convert_model('clip-vit-base-patch16.onnx', compress_to_fp16=True)
-    serialize(ov_model, 'clip-vit-base-patch16.xml')
-
-Run OpenVINO model `⇑ <#top>`__
-###############################################################################################################################
-
+Run OpenVINO model 
+------------------------------------------------------------
 
 The steps for making predictions with the OpenVINO CLIP model are
 similar to the PyTorch model. Let us check the model result using the
@@ -263,16 +202,14 @@ same input data from the example above with PyTorch.
 .. code:: ipython3
 
     from scipy.special import softmax
-    from openvino.runtime import Core
     
     # create OpenVINO core object instance
-    core = Core()
+    core = ov.Core()
 
-Select inference device `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Select inference device 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
-Select device from dropdown list for running inference using OpenVINO:
+select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
@@ -292,7 +229,7 @@ Select device from dropdown list for running inference using OpenVINO:
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=3, options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
 
 
 
@@ -325,63 +262,74 @@ example, ``cat,dog,bird``)
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    style = {'description_width': 'initial'}
+    import gradio as gr
     
-    image_widget = widgets.FileUpload(
-        accept='',
-        multiple=False,
-        description='Upload image',
-        style=style
-    )
     
-    labels_widget = widgets.Textarea(
-        value='cat,dog,bird',
-        placeholder='Type something',
-        description='Enter your classes separated by ,:',
-        disabled=False,
-        style=style
+    def classify(image, text):
+        """Classify image using classes listing.
+        Args:
+            image (np.ndarray): image that needs to be classified in CHW format.
+            text (str): comma-separated list of class labels
+        Returns:
+            (dict): Mapping between class labels and class probabilities.
+        """
+        labels = text.split(",")
+        text_descriptions = [f"This is a photo of a {label}" for label in labels]
+        inputs = processor(text=text_descriptions, images=[image], return_tensors="np", padding=True)
+        ov_logits_per_image = compiled_model(dict(inputs))[logits_per_image_out]
+        probs = softmax(ov_logits_per_image, axis=1)[0]
+        
+        return {label: float(prob) for label, prob in zip(labels, probs)}
+    
+    
+    demo = gr.Interface(
+        classify,
+        [
+            gr.Image(label="Image", type="pil"),
+            gr.Textbox(label="Labels", info="Comma-separated list of class labels"),
+        ],
+        gr.Label(label="Result"),
+        examples=[[sample_path, "cat,dog,bird"]],
     )
-    widgets.VBox(children=[image_widget, labels_widget])
-
-
+    try:
+        demo.launch(debug=False)
+    except Exception:
+        demo.launch(share=True, debug=False)
+    # if you are launching remotely, specify server_name and server_port
+    # demo.launch(server_name='your server name', server_port='server port in int')
+    # Read more in the docs: https://gradio.app/docs/
 
 
 .. parsed-literal::
 
-    VBox(children=(FileUpload(value=(), description='Upload image'), Textarea(value='cat,dog,bird', description='E…
+    Running on local URL:  http://127.0.0.1:7861
+    Rerunning server... use `close()` to stop if you need to change `launch()` parameters.
+    ----
 
 
+.. parsed-literal::
 
-Run the next cell to get the result for your submitted data:
+    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+    To disable this warning, you can either:
+    	- Avoid using `tokenizers` before the fork if possible
+    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
 
-.. code:: ipython3
 
-    import io
-    # read uploaded image
-    image = Image.open(io.BytesIO(image_widget.value[-1]['content'])) if image_widget.value else image
-    # obtain list of labels
-    labels = labels_widget.value.split(',')
-    # convert labels to text description
-    text_descriptions = [f"This is a photo of a {label}" for label in labels]
+.. parsed-literal::
+
+    Running on public URL: https://4ec3df1c48219763b1.gradio.live
     
-    # preprocess input
-    inputs = processor(text=text_descriptions, images=[image], return_tensors="np", padding=True)
-    # run inference
-    ov_logits_per_image = compiled_model(dict(inputs))[logits_per_image_out]
-    # perform softmax on score
-    probs = softmax(ov_logits_per_image, axis=1)
-    # visualize prediction
-    visualize_result(image, labels, probs[0])
+    This share link expires in 72 hours. For free permanent hosting and GPU upgrades, run `gradio deploy` from Terminal to deploy to Spaces (https://huggingface.co/spaces)
 
 
 
-.. image:: 228-clip-zero-shot-convert-with-output_files/228-clip-zero-shot-convert-with-output_17_0.png
+.. .. raw:: html
+
+..    <div><iframe src="https://4ec3df1c48219763b1.gradio.live" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
-Next Steps `⇑ <#top>`__
-###############################################################################################################################
-
+Next Steps 
+----------------------------------------------------
 
 Open the
 `228-clip-zero-shot-quantize <228-clip-zero-shot-quantize.ipynb>`__
