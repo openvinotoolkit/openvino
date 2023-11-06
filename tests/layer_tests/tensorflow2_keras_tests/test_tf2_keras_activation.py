@@ -105,6 +105,7 @@ class TestKerasMultipleOutputsWithActivation(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_tf_fe
     def test_keras_outputs_order_test(self, params, ie_device, precision, ir_version, temp_dir,
                                       use_old_api, use_new_frontend):
         self._test(*self.create_keras_multiple_outputs_net(**params, ir_version=ir_version), ie_device,
