@@ -62,7 +62,6 @@ protected:
 
         std::vector<ngraph::Shape> WRB = {inputShapes[3], inputShapes[4], inputShapes[5], inputShapes[2]};
 
-        auto in = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params));
         std::vector<float> weights_vals =
             ov::test::utils::generate_float_numbers(ngraph::shape_size(WRB[0]), -0.0001f, 0.0001f);
         std::vector<float> reccurrenceWeights_vals =
@@ -74,13 +73,13 @@ protected:
         auto reccurrenceWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, WRB[1], reccurrenceWeights_vals);
         auto biasNode = ngraph::builder::makeConstant<float>(ngPrc, WRB[2], bias_vals);
 
-        std::vector<float> lengths(in[0].get_partial_shape()[0].get_min_length(),
-                                   in[0].get_partial_shape()[1].get_min_length());
+        std::vector<float> lengths(params[0]->get_partial_shape()[0].get_min_length(),
+                                   params[0]->get_partial_shape()[1].get_min_length());
         std::shared_ptr<ngraph::Node> seq_length =
             ngraph::builder::makeConstant(ngraph::element::i64, WRB[3], lengths, false);
 
-        auto gru_sequence = std::make_shared<ngraph::opset8::GRUSequence>(in[0],
-                                                                          in[1],
+        auto gru_sequence = std::make_shared<ngraph::opset8::GRUSequence>(params[0],
+                                                                          params[1],
                                                                           seq_length,
                                                                           weightsNode,
                                                                           reccurrenceWeightsNode,

@@ -51,8 +51,6 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
         {-12.8f},
         {12.7f});
 
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
-
     std::vector<std::shared_ptr<ngraph::Node>> branches(2);
     {
         ngraph::Strides strides{1, 1};
