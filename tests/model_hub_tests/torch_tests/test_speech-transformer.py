@@ -21,6 +21,7 @@ class TestSpeechTransformerConvertModel(TestConvertModel):
         self.repo_dir = tempfile.TemporaryDirectory()
         os.system(
             f"git clone https://github.com/mvafin/Speech-Transformer.git {self.repo_dir.name}")
+        subprocess.check_call(["git", "checkout", "071eebb7549b66bae2cb93e3391fe99749389456"], cwd=self.repo_dir.name)
         checkpoint_url = "https://github.com/foamliu/Speech-Transformer/releases/download/v1.0/speech-transformer-cn.pt"
         subprocess.check_call(["wget", checkpoint_url], cwd=self.repo_dir.name)
 
