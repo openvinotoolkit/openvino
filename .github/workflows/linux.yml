@@ -1323,6 +1323,7 @@ jobs:
         with:
           version: ${{ env.PYTHON_VERSION }}
           should-setup-pip-paths: 'false'
+          self-hosted-runner: 'true'
 
       - name: Install OpenVINO Python wheels
         run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
@@ -1411,7 +1412,7 @@ jobs:
         with:
           version: ${{ env.PYTHON_VERSION }}
           should-setup-pip-paths: 'false'
-          self-hosted-runner: 'false'
+          self-hosted-runner: 'true'
 
       - name: Install OpenVINO Python wheels
         run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
