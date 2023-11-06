@@ -88,12 +88,17 @@ def component_name_from_label(label: str, component_pattern: str = None) -> str:
     return component
 
 
-def get_changed_component_names(pr, component_pattern: str = None) -> set:
+def get_changed_component_names(pr, all_possible_components: set, component_pattern: str = None) -> set:
     """Returns component names changed in a given PR"""
     components = set()
     for label in pr.labels:
         component = component_name_from_label(label.name, component_pattern)
-        components.add(component if component else label)
+        if component:
+            components.add(component)
+        elif label.name in all_possible_components:
+            # Allow any labels defined explicitly in labeler config as components
+            # (predefined labels, such as "do not merge", are still ignored)
+            components.add(label.name)
 
     return components
 
@@ -144,18 +149,6 @@ def main():
     gh_api = GhApi(owner=owner, repo=repository, token=os.getenv("GITHUB_TOKEN"))
     pr = gh_api.pulls.get(args.pr) if args.pr else None
 
-    # For now, we don't want to apply smart ci rules for post-commits
-    is_postcommit = not pr
-    if is_postcommit:
-        logger.info(f"The run is a post-commit run, executing full validation scope for all components")
-
-    # In post-commits - validate all components regardless of changeset
-    # In pre-commits - validate only changed components with their dependencies
-    all_defined_components = components_config.keys()
-    changed_component_names = set(all_defined_components) if is_postcommit else \
-        get_changed_component_names(pr, args.pattern)
-    logger.info(f"changed_component_names: {changed_component_names}")
-
     with open(Path(args.components_config_schema), 'r') as schema_file:
         schema = yaml.safe_load(schema_file)
 
@@ -165,8 +158,19 @@ def main():
     all_possible_components = set()
     for label in labeler_config.keys():
         component_name = component_name_from_label(label, args.pattern)
-        if component_name:
-            all_possible_components.add(component_name)
+        all_possible_components.add(component_name if component_name else label)
+
+    # For now, we don't want to apply smart ci rules for post-commits
+    is_postcommit = not pr
+    if is_postcommit:
+        logger.info(f"The run is a post-commit run, executing full validation scope for all components")
+
+    # In post-commits - validate all components regardless of changeset
+    # In pre-commits - validate only changed components with their dependencies
+    all_defined_components = components_config.keys()
+    changed_component_names = set(all_defined_components) if is_postcommit else \
+        get_changed_component_names(pr, all_possible_components, args.pattern)
+    logger.info(f"changed_component_names: {changed_component_names}")
 
     cfg = ComponentConfig(components_config, schema, all_possible_components)
     affected_components = cfg.get_affected_components(changed_component_names)
