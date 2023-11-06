@@ -11,6 +11,8 @@ type SupportedTypedArray =
   | Float32Array
   | Float64Array;
 
+type elementTypeString = 'u8' | 'u32'| 'u16' | 'u64' | 'i8' | 'i64' | 'i32' | 'i16' | 'f64' | 'f32';
+
 interface Core {
   compileModel(model: Model, device: string, config?: {[option: string]: string}): CompiledModel;
   compileModelSync(model: Model, device: string, config?: {[option: string]: string}): CompiledModel;
@@ -44,7 +46,7 @@ interface Tensor {
   getData(): number[];
 }
 interface TensorConstructor {
-  new(type: element,
+  new(type: element | elementTypeString,
       shape: number[],
       tensorData?: number[] | SupportedTypedArray): Tensor;
 }
@@ -71,7 +73,7 @@ interface Output {
 }
 
 interface InputTensorInfo {
-    setElementType(elementType: element | string ): InputTensorInfo;
+    setElementType(elementType: element | elementTypeString ): InputTensorInfo;
     setLayout(layout: string): InputTensorInfo;
     setShape(shape: Int32Array | Array<number>): InputTensorInfo;
 }
@@ -101,6 +103,7 @@ declare enum element {
   u8,
   u32,
   u16,
+  u64,
   i8,
   i64,
   i32,
