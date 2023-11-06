@@ -16,7 +16,7 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
-OutputVector translate_sparse_reshape_op(const ov::frontend::tensorflow::NodeContext& node) {
+NamedOutputVector translate_sparse_reshape_op(const ov::frontend::tensorflow::NodeContext& node) {
     // Currently, the translation for SparseReshape is possible only if new shape value is the same as the input shape
     // value or it is different just by one dynamic dimension of the new shape that can be replace with the
     // corresponding static dimension of the input shape.
@@ -67,7 +67,12 @@ OutputVector translate_sparse_reshape_op(const ov::frontend::tensorflow::NodeCon
                              "This case with SparseReshape is not possible to translate to OpenVINO opset. The number "
                              "of dynamic shapes in new shape must be 1 at most.");
     */
-    return {input_indices, input_shape};
+    auto output_indices = input_indices;
+    auto output_shape = input_shape;
+    set_out_name(node.get_name() + ":0", output_indices);
+    set_out_name(node.get_name() + ":1", output_shape);
+
+    return {{"output_indices", output_indices}, {"output_shape", output_shape}};
 }
 
 NamedOutputVector translate_sparse_fill_empty_rows_op(const ov::frontend::tensorflow::NodeContext& node) {
