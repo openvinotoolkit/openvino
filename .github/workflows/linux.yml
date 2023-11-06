@@ -1270,13 +1270,12 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores'}}
     timeout-minutes: ${{ github.event_name == 'schedule' && 400 || 5 }}
-    # TODO: Switch back to self-hosted runners
-    # container:
-    #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-    #   volumes:
-    #     - /mount/caches:/mount/caches
+    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-4-cores-32gb' || 'aks-linux-4-cores'}}
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount/caches:/mount/caches
     env:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
@@ -1357,12 +1356,11 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores'}}
-    # TODO: Switch back to self-hosted runners
-    # container:
-    #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-    #   volumes:
-    #     - /mount/caches:/mount/caches
+    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-4-cores-32gb' || 'aks-linux-4-cores'}}
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount/caches:/mount/caches
     env:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
