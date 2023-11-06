@@ -2,28 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/softplus.hpp"
-
-#include <ngraph/validation_util.hpp>
+#include "openvino/op/softplus.hpp"
 
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/runtime/host_tensor.hpp"  // tbr
+#include "ngraph/validation_util.hpp"      // tbr
 #include "openvino/reference/softplus.hpp"
 
-using namespace std;
 using namespace ngraph;
 
-op::v4::SoftPlus::SoftPlus(const Output<Node>& arg) : util::UnaryElementwiseArithmetic(arg) {
+namespace ov {
+namespace op {
+namespace v4 {
+SoftPlus::SoftPlus(const Output<Node>& arg) : util::UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
-bool op::v4::SoftPlus::visit_attributes(AttributeVisitor& visitor) {
+bool SoftPlus::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v4_SoftPlus_visit_attributes);
     return true;
 }
 
-void op::v4::SoftPlus::validate_and_infer_types() {
+void SoftPlus::validate_and_infer_types() {
     OV_OP_SCOPE(v4_SoftPlus_validate_and_infer_types);
     const element::Type& input_et = get_input_element_type(0);
 
@@ -36,10 +36,10 @@ void op::v4::SoftPlus::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-shared_ptr<Node> op::v4::SoftPlus::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> SoftPlus::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v4_SoftPlus_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::v4::SoftPlus>(new_args.at(0));
+    return std::make_shared<SoftPlus>(new_args.at(0));
 }
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -70,7 +70,7 @@ bool evaluate_softplus(const HostTensorPtr& arg, const HostTensorPtr& out) {
 }  // namespace
 }  // namespace softplus
 
-bool op::v4::SoftPlus::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool SoftPlus::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v4_SoftPlus_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
     OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
@@ -78,15 +78,17 @@ bool op::v4::SoftPlus::evaluate(const HostTensorVector& outputs, const HostTenso
     return softplus::evaluate_softplus(inputs[0], outputs[0]);
 }
 
-bool op::v4::SoftPlus::has_evaluate() const {
+bool SoftPlus::has_evaluate() const {
     OV_OP_SCOPE(v4_SoftPlus_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
+    case element::bf16:
+    case element::f16:
+    case element::f32:
         return true;
     default:
-        break;
+        return false;
     }
-    return false;
 }
+}  // namespace v4
+}  // namespace op
+}  // namespace ov
