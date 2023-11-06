@@ -52,10 +52,13 @@ protected:
 
     GraphCache(const std::string& device = "") {
         ExtractorsManager::ExtractorsMap matchers = {
-            // temporary disabling according mem leaks in CI and not using swap mem
-            // { "fused_names", FusedNamesExtractor::Ptr(new FusedNamesExtractor(device)) },
             { "repeat_pattern", RepeatPatternExtractor::Ptr(new RepeatPatternExtractor) },
         };
+        try {
+            matchers.insert({ "fused_names", FusedNamesExtractor::Ptr(new FusedNamesExtractor(device)) });
+        } catch(const std::exception& e) {
+            std::cout << "[ GRAPH CACHE ][ WARNING ] Fused names extractor is disabled according: " << e.what() << std::endl;
+        }
         m_manager.set_extractors(matchers);
         m_cache_subdir = "subgraph";
     }

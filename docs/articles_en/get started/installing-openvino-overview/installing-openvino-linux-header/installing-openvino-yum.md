@@ -10,7 +10,7 @@
    
    Note that the YUM distribution:
    
-   * offers C/C++ APIs only
+   * offers both C/C++ and Python APIs
    * does not offer support for GNA and NPU inference
    * is dedicated to Linux users only
    * additionally includes code samples 
@@ -21,11 +21,20 @@
       :sync: system-requirements
    
       | Full requirement listing is available in:
-      | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
+      | :doc:`System Requirements Page <system_requirements>`
    
       .. note::
    
-         Installing OpenVINO from YUM is only supported on RHEL 8.2 and higher versions. CentOS 7 is not supported for this installation method.
+         OpenVINO RPM packages are compatible with and can be run on the following operating systems:
+         - RHEL 8.2 and higher
+         - Amazon Linux 2022 and 2023
+         - Rocky Linux 8.7, 8.8 and 9.2
+         - Alma Linux 8.7, 8.8 and 9.2
+         - Oracle Linix 8.7, 8.8 and 9.2
+         - Fedora 29 and higher up to 40
+         - OpenEuler 20.03 and 22.03
+         - Anolis OS 8.6 and 8.8
+         - CentOS Stream 8 and 9
    
    .. tab-item:: Processor Notes
       :sync: processor-notes

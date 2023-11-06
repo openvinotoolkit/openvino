@@ -41,6 +41,9 @@
 #include "nodes/executors/mvn_list.hpp"
 #include "nodes/executors/executor.hpp"
 
+#define THROW_CPU_NODE_ERR(...) OPENVINO_THROW(getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
+#define CPU_NODE_ASSERT(condition, ...) OPENVINO_ASSERT(condition, getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
+
 namespace ov {
 namespace intel_cpu {
 
@@ -353,7 +356,7 @@ public:
         inplace = InPlaceType::Unknown;
     }
 
-    std::string getPrimitiveDescriptorType() const;
+    virtual std::string getPrimitiveDescriptorType() const;
 
     PerfCount &PerfCounter() { return perfCounter; }
 
@@ -364,6 +367,7 @@ public:
     void updateDynamicParams();
     void executeDynamic(dnnl::stream strm);
     virtual void redefineOutputMemory(const std::vector<VectorDims> &newShapes);
+    void redefineOutputMemory(const size_t port, const VectorDims& new_output_shape);
     bool outputShapeDataDependency() const;
 
     virtual void initSupportedPrimitiveDescriptors();

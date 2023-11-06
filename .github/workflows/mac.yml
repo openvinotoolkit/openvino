@@ -1,6 +1,9 @@
-name: macOS (macOS 12, Python 3.11)
+name: macOS (Python 3.11)
 on:
   workflow_dispatch:
+  schedule:
+    # at 00:00 on workdays
+    - cron: '0 0 * * 1,2,3,4,5'
 #  pull_request:
 #    paths-ignore:
 #      - '**/docs/**'
@@ -9,17 +12,17 @@ on:
 #      - '**.md'
 #      - '**/layer_tests_summary/**'
 #      - '**/conformance/**'
-  push:
-    paths-ignore:
-      - '**/docs/**'
-      - 'docs/**'
-      - '**/**.md'
-      - '**.md'
-      - '**/layer_tests_summary/**'
-      - '**/conformance/**'
-    branches:
-      - master
-      - 'releases/**'
+#  push:
+#    paths-ignore:
+#      - '**/docs/**'
+#      - 'docs/**'
+#      - '**/**.md'
+#      - '**.md'
+#      - '**/layer_tests_summary/**'
+#      - '**/conformance/**'
+#    branches:
+#      - master
+#      - 'releases/**'
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -31,14 +34,26 @@ env:
 
 jobs:
   Build:
+    timeout-minutes: 150
     defaults:
       run:
         shell: bash
-    runs-on: macos-12-large
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        include:
+          - arhitecture: 'x86_64'
+            machine: 'macos-13-large'
+            macos_deployment_target: '10.12'
+          - arhitecture: 'arm64'
+            machine: 'macos-13-xlarge'
+            macos_deployment_target: '11.0'
+    runs-on: ${{ matrix.machine }}
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
-      MACOSX_DEPLOYMENT_TARGET: '10.12'
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.macos_deployment_target }}
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
       OPENVINO_REPO: ${{ github.workspace }}/openvino
@@ -60,15 +75,25 @@ jobs:
           path: 'openvino_contrib'
 
       #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
+      #
       # Dependencies
       #
 
       - name: Install build dependencies
         run: brew install coreutils ninja scons
 
-      - uses: actions/setup-python@v4
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
 
       - name: Install python dependencies
         run: |
@@ -100,9 +125,9 @@ jobs:
           # github.ref_name is 'ref/PR_#' in case of the PR, and 'branch_name' when executed on push
           save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
           verbose: 2
-          key: ${{ runner.os }}-main
+          key: ${{ runner.os }}-${{ matrix.arhitecture }}-main
           restore-keys: |
-            ${{ runner.os }}-main
+            ${{ runner.os }}-${{ matrix.arhitecture }}-main
 
       - name: CMake configure
         run: |
@@ -128,7 +153,7 @@ jobs:
         run: |
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_TEST_DIR }} -DCOMPONENT=tests -P ${{ env.BUILD_DIR }}/cmake_install.cmake
-          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -DCOMPONENT=python_wheels -P ${{ env.BUILD_DIR }}/cmake_install.cmake      
+          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -DCOMPONENT=python_wheels -P ${{ env.BUILD_DIR }}/cmake_install.cmake
 
       - name: Pack Artifacts
         run: |
@@ -144,6 +169,7 @@ jobs:
         run: |
           cmake \
             -DBUILD_nvidia_plugin=OFF \
+            -DBUILD_java_api=OFF \
             -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
             -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}/modules \
             -S ${{ env.OPENVINO_REPO }} \
@@ -158,7 +184,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v3
         with:
-          name: openvino_package
+          name: openvino_package_${{ matrix.arhitecture }}
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
 
@@ -166,22 +192,34 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v3
         with:
-          name: openvino_tests
+          name: openvino_tests_${{ matrix.arhitecture }}
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
 
   Samples:
     needs: Build
+    timeout-minutes: 5
     defaults:
       run:
         shell: bash
-    runs-on: macos-12
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        include:
+          - arhitecture: 'x86_64'
+            machine: 'macos-13'
+          - arhitecture: 'arm64'
+            machine: 'macos-13-xlarge'
+    runs-on: ${{ matrix.machine }}
     env:
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       BUILD_DIR: ${{ github.workspace }}/build
 
     steps:
+
       #
       # Initialize OpenVINO
       #
@@ -189,13 +227,13 @@ jobs:
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_package
+          name: openvino_package_${{ matrix.arhitecture }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_tests
+          name: openvino_tests_${{ matrix.arhitecture }}
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Extract OpenVINO packages
@@ -203,7 +241,7 @@ jobs:
           pushd ${INSTALL_DIR}
             tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
           popd
-          
+
           pushd ${INSTALL_TEST_DIR}
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
@@ -211,9 +249,20 @@ jobs:
       - name: Install dependencies
         run: brew install coreutils
 
-      - uses: actions/setup-python@v4
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
 
       - name: Build cpp samples
         run: ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples
@@ -248,17 +297,27 @@ jobs:
         uses: actions/upload-artifact@v3
         if: ${{ !cancelled() }}
         with:
-          name: test-results-samples
+          name: test-results-samples-${{ matrix.arhitecture }}
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
 
   CXX_Unit_Tests:
     name: C++ Unit tests
     needs: Build
+    timeout-minutes: 20
     defaults:
       run:
         shell: bash
-    runs-on: macos-12
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        include:
+          - arhitecture: 'x86_64'
+            machine: 'macos-13'
+          - arhitecture: 'arm64'
+            machine: 'macos-13-xlarge'
+    runs-on: ${{ matrix.machine }}
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
@@ -271,13 +330,13 @@ jobs:
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_package
+          name: openvino_package_${{ matrix.arhitecture }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_tests
+          name: openvino_tests_${{ matrix.arhitecture }}
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Extract OpenVINO packages
@@ -314,7 +373,11 @@ jobs:
       - name: Low Precision Transformations Tests
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
-          ${{ env.INSTALL_TEST_DIR }}/ov_lp_transformations_tests --gtest_print_time=1 \
+          
+          # Skips under Ticket: 122660
+          skip_filter=${{ matrix.arhitecture == 'arm64' && '--gtest_filter=-*smoke_LPT/FoldFakeQuantizeInTransformations.CompareFunctions*' || '' }}
+          
+          ${{ env.INSTALL_TEST_DIR }}/ov_lp_transformations_tests --gtest_print_time=1 "$skip_filter" \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-LpTransformations.xml
 
       - name: OpenVINO Conditional compilation tests
@@ -337,8 +400,10 @@ jobs:
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-PaddleTests.xml
 
       - name: ONNX frontend tests
+        if: ${{ matrix.arhitecture == 'x86_64' }} # Ticket for ARM64: 122663
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
+          
           ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* \
                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend.xml
 
@@ -351,7 +416,11 @@ jobs:
       - name: TensorFlow frontend tests
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
-          ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_frontend_tests --gtest_print_time=1 \
+          
+          # Skips under Ticket: 122666
+          skip_filter=${{ matrix.arhitecture == 'arm64' && '--gtest_filter=-*CompileModelsTests.ModelWithSplitConvConcat*:*NgramCompilation*' || '' }}
+          
+          ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_frontend_tests --gtest_print_time=1 "$skip_filter" \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowFrontend.xml
 
       - name: TensorFlow Lite frontend tests
@@ -363,7 +432,11 @@ jobs:
       - name: Transformations func tests
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
-          ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_print_time=1 \
+          
+          # Skips under Ticket: 122668
+          skip_filter=${{ matrix.arhitecture == 'arm64' && '--gtest_filter=-*TransformationTestsF.CompressQuantizeWeights*:*TransformationTests/CompressQuantizeWeightsTests.FusionTest*' || '' }}
+          
+          ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_print_time=1 "$skip_filter" \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-Transformations.xml
 
       - name: Common test utils tests
@@ -383,6 +456,18 @@ jobs:
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_cpu_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CPUUnitTests.xml
+
+      - name: SubgraphsDumper tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/subgraphsDumperTests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-SubgraphsDumperTests.xml
+
+      - name: Template OpImpl tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/conformanceTests --gtest_print_time=1 --device=TEMPLATE --gtest_filter="*OpImpl*" \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TemplateOpImplTests.xml
 
       - name: AUTO unit tests
         run: |
@@ -444,17 +529,27 @@ jobs:
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
         with:
-          name: test-results-cpp
+          name: test-results-cpp-${{ matrix.arhitecture }}
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
 
   Python_Unit_Tests:
     name: Python unit tests
     needs: Build
+    timeout-minutes: 55
     defaults:
       run:
         shell: bash
-    runs-on: macos-12
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        include:
+          - arhitecture: 'x86_64'
+            machine: 'macos-13'
+          - arhitecture: 'arm64'
+            machine: 'macos-13-xlarge'
+    runs-on: ${{ matrix.machine }}
     env:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
@@ -462,30 +557,35 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
     steps:
-      - name: Clone OpenVINO
+      - name: Fetch setup_python action
         uses: actions/checkout@v4
         with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
           path: 'openvino'
-          submodules: 'true'
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
 
       #
       # Dependencies
       #
 
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_package
+          name: openvino_package_${{ matrix.arhitecture }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_tests
+          name: openvino_tests_${{ matrix.arhitecture }}
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Extract OpenVINO packages
@@ -498,24 +598,30 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }}
           popd
 
-      - name: Install Python API tests dependencies
-        run: |
-          # For torchvision to OpenVINO preprocessing converter
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/src/openvino/preprocess/torchvision/requirements.txt
-
-          # TODO: replace with Python API tests requirements
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_dev.txt
-
       - name: Install OpenVINO Python wheels
         run: |
           # Install the core OV wheel
           python3 -m pip install ${{ env.INSTALL_DIR }}/tools/openvino-*.whl
           
+          # mxnet is only available on x86_64
+          extras_to_install="caffe,kaldi,onnx,tensorflow2,pytorch"
+          if [[ "${{ matrix.arhitecture }}" == "x86_64" ]]; then
+            extras_to_install="mxnet,$extras_to_install"
+          fi
+          
           # Find and install OV dev wheel
           pushd ${{ env.INSTALL_DIR }}/tools
             ov_dev_wheel_name=$(find . -name 'openvino_dev*.whl')
-            python3 -m pip install $ov_dev_wheel_name[mxnet,caffe,kaldi,onnx,tensorflow2,pytorch]
+            python3 -m pip install $ov_dev_wheel_name[$extras_to_install]
           popd
+
+      - name: Install Python API tests dependencies
+        run: |
+          # For torchvision to OpenVINO preprocessing converter
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/python/preprocess/torchvision/requirements.txt
+
+          # TODO: replace with Python API tests requirements
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/mo/requirements_dev.txt
 
       - name: Python API 1.0 Tests
         run: |
@@ -538,9 +644,9 @@ jobs:
       - name: MO Python API Tests
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          export PYTHONPATH=${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
-          # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
-          source ${INSTALL_DIR}/setupvars.sh
+          
+          # Used for 'test_utils' installed in '<test_package>/python/openvino/test_utils'
+          export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}/python/openvino/test_utils:${{ env.INSTALL_TEST_DIR }}/python:$PYTHONPATH
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/mo_python_api_tests/ --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_mo_convert.xml
         env:
@@ -550,8 +656,9 @@ jobs:
       - name: OVC Python API Tests
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          # TODO: remove setupvars.sh from here; currently, it's used for 'test_utils' installed in '<package>/python/openvino'
-          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          
+          # Used for 'test_utils' installed in '<test_package>/python/openvino/test_utils'
+          export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}/python/openvino/test_utils:${{ env.INSTALL_TEST_DIR }}/python:$PYTHONPATH
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/ovc_python_api_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_ovc_convert.xml
         env:
@@ -578,9 +685,9 @@ jobs:
       - name: ONNX Layer Tests
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          
-          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
-          
+
+          export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}/mo:$PYTHONPATH
+
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/onnx_tests -m "not launch_only_if_manually_specified and precommit" --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-onnx.xml
         env:
           TEST_DEVICE: CPU
@@ -590,16 +697,18 @@ jobs:
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
 
-          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}/mo:$PYTHONPATH
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
         env:
           TEST_DEVICE: CPU
 
       - name: TensorFlow 2 Layer Tests - TF FE
+        if: ${{ 'false' }} # Ticket: 123322
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+
+          export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}/mo:$PYTHONPATH
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_fe.xml
         env:
@@ -608,14 +717,16 @@ jobs:
       - name: TensorFlow 1 Layer Tests - Legacy FE
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          
+          export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}/mo:$PYTHONPATH
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_Roll.xml
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          
+          export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}/mo:$PYTHONPATH
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/test_tf2_keras_activation.py \
               --ir_version=11 --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_Activation.xml -k "sigmoid"
@@ -626,7 +737,8 @@ jobs:
       - name: TensorFlow Lite Layer Tests - TFL FE
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          
+          export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}/mo:$PYTHONPATH
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_lite_tests/ --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tfl_fe.xml
         env:
@@ -634,16 +746,19 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: Python ONNX operators tests
+        if: ${{ 'false' }} # Ticket: 123325
         run: |
           # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
-          python3 -m pytest -sv ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests -k 'not cuda' \
+          python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/onnx -k 'not cuda' \
             --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-onnx_frontend.xml \
-            --ignore=${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/test_python/test_zoo_models.py
+            --ignore=${{ env.INSTALL_TEST_DIR }}/onnx/test_python/test_zoo_models.py
 
       - name: Python Frontend tests
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          
+          export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}/mo:$PYTHONPATH
+          
           # to allow 'libtest_builtin_extensions.so' to find 'libopenvino_onnx_frontend.so'
           source ${{ env.INSTALL_DIR }}/setupvars.sh
 
@@ -651,24 +766,34 @@ jobs:
 
       # TODO: install to 'tests' component via cpack
       - name: OVC unit tests
-        run: python3 -m pytest -s ${{ env.OPENVINO_REPO }}/tools/ovc/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
+        run: python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/ovc/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
         with:
-          name: test-results-python
+          name: test-results-python-${{ matrix.arhitecture }}
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
 
   CPU_Functional_Tests:
     name: CPU functional tests
-    if: ${{ 'false' }} # Ticket: 122001
     needs: Build
+    timeout-minutes: 25
     defaults:
       run:
         shell: bash
-    runs-on: macos-12
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        include:
+        # ticket: 122001
+        #  - arhitecture: 'x86_64'
+        #    machine: 'macos-13'
+          - arhitecture: 'arm64'
+            machine: 'macos-13-xlarge'
+    runs-on: ${{ matrix.machine }}
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
@@ -680,33 +805,37 @@ jobs:
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_package
+          name: openvino_package_${{ matrix.arhitecture }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_tests
+          name: openvino_tests_${{ matrix.arhitecture }}
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Extract OpenVINO packages
         run: |
           pushd ${{ env.INSTALL_DIR }}
-            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_package.tar.gz || exit 1
+            tar -xzf openvino_package.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_package.tar.gz
           popd
           pushd ${{ env.INSTALL_TEST_DIR }}
-            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
+            tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz
           popd
 
-      - name: Intel CPU plugin func tests
+      - name: CPU plugin func tests
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
-          ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:"${{ env.INSTALL_TEST_DIR }}/TEST-CPUFuncTests.xml"
+          
+          # Skips under Ticket: 122769
+          skip_filter=${{ matrix.arhitecture == 'arm64' && '--gtest_filter=-*smoke_nonzero/NonZeroLayerTest.Inference/IS*:*smoke_NormalizeL2_*:*Extension.XmlModelWithExtensionFromDSO*:*Extension.OnnxModelWithExtensionFromDSO*:*ONNXQuantizedModels/QuantizedModelsTests.MaxPool*:*ONNXQuantizedModels/QuantizedModelsTests.Convolution*:**' || '' }}
+          
+          ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke* "$skip_filter" --gtest_output=xml:"${{ env.INSTALL_TEST_DIR }}/TEST-CPUFuncTests.xml"
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
         with:
-          name: test-results-functional-cpu
+          name: test-results-functional-cpu-${{ matrix.arhitecture }}
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'

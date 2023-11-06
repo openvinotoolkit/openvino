@@ -1188,7 +1188,7 @@ void constant_convert_test(element::Type type_from,
     }
     ASSERT_TRUE(actual.size() >= expected.size());
     for (size_t i = 0; i < expected.size(); i++) {
-        ASSERT_EQ(expected[i], actual[i]);
+        EXPECT_EQ(expected[i], actual[i]) << "Elements with index " << i << " are not equal.";
     }
 }
 
@@ -1378,7 +1378,7 @@ TEST(TransformationTests, ConvertPrecision_ConstantConversion_U1ToU4) {
     constant_convert_test<uint8_t, uint8_t>(element::u1,
                                             element::u4,
                                             std::vector<uint8_t>{171},
-                                            {1, 0, 1, 0, 1, 0, 1, 1});
+                                            {0, 1, 0, 1, 0, 1, 1, 1});
 }
 
 TEST(TransformationTests, ConvertPrecision_keep_precission_sensitive_fp32_with_exp) {
@@ -2192,7 +2192,7 @@ TEST(TransformationTests, align_mixed_fp16_fp32_with_parameter_for_shape_1) {
         auto upscale_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {2.0f});
         auto mul_1 = make_shared<ov::op::v1::Multiply>(shape_input, upscale_const);
         auto axis_const = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
-        auto final_float_shape = make_shared<ov::op::v1::ReduceProd>(mul_1, axis_const);
+        auto final_float_shape = make_shared<ov::op::v1::ReduceProd>(mul_1, axis_const, true);
         auto final_int_shape = make_shared<ov::op::v0::Convert>(final_float_shape, element::i64);
         auto reshape_1 = make_shared<ov::op::v1::Reshape>(input_1, final_int_shape, false);
 
@@ -2214,7 +2214,7 @@ TEST(TransformationTests, align_mixed_fp16_fp32_with_parameter_for_shape_1) {
         auto upscale_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {2.0f});
         auto mul_1 = make_shared<ov::op::v1::Multiply>(shape_input, upscale_const);
         auto axis_const = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
-        auto final_float_shape = make_shared<ov::op::v1::ReduceProd>(mul_1, axis_const);
+        auto final_float_shape = make_shared<ov::op::v1::ReduceProd>(mul_1, axis_const, true);
         auto final_int_shape = make_shared<ov::op::v0::Convert>(final_float_shape, element::i64);
         auto reshape_1 = make_shared<ov::op::v1::Reshape>(input_1, final_int_shape, false);
 
@@ -2235,7 +2235,7 @@ TEST(TransformationTests, align_mixed_fp16_fp32_with_parameter_for_shape_2) {
         auto upscale_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {2.0f});
         auto mul_1 = make_shared<ov::op::v1::Multiply>(shape_input, upscale_const);
         auto axis_const = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
-        auto final_float_shape = make_shared<ov::op::v1::ReduceProd>(mul_1, axis_const);
+        auto final_float_shape = make_shared<ov::op::v1::ReduceProd>(mul_1, axis_const, true);
         auto final_int_shape = make_shared<ov::op::v0::Convert>(final_float_shape, element::i64);
         auto reshape_1 = make_shared<ov::op::v1::Reshape>(input_1, final_int_shape, false);
 
@@ -2260,7 +2260,7 @@ TEST(TransformationTests, align_mixed_fp16_fp32_with_parameter_for_shape_2) {
         auto upscale_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {2.0f});
         auto mul_1 = make_shared<ov::op::v1::Multiply>(shape_input, upscale_const);
         auto axis_const = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
-        auto final_float_shape = make_shared<ov::op::v1::ReduceProd>(mul_1, axis_const);
+        auto final_float_shape = make_shared<ov::op::v1::ReduceProd>(mul_1, axis_const, true);
         auto final_int_shape = make_shared<ov::op::v0::Convert>(final_float_shape, element::i64);
         auto reshape_1 = make_shared<ov::op::v1::Reshape>(convert_to_f16, final_int_shape, false);
         auto convert_to_f32 = make_shared<ov::op::v0::Convert>(reshape_1, element::f32);
