@@ -6,39 +6,27 @@
 
 #include <algorithm>
 
+#include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/validation_util.hpp"  // tbr
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/reference/softmax.hpp"
-
-using ngraph::HostTensorPtr;                // tbr
-using ngraph::validate_host_tensor_vector;  // tbr
+#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
+namespace softmax {
 namespace {
-template <element::Type_t ET>
-inline bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const ov::Shape& shape, const AxisSet& axes) {
-    ov::reference::softmax(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape, axes);
-    return true;
-}
+struct Evaluate : element::NoAction<bool> {
+    using element::NoAction<bool>::visit;
 
-bool evaluate_softmax(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes) {
-    auto shape = out->get_shape();
-    bool rc = true;
-
-    switch (arg->get_element_type()) {
-        OPENVINO_TYPE_CASE(evaluate_softmax, bf16, arg, out, shape, axes);
-        OPENVINO_TYPE_CASE(evaluate_softmax, f16, arg, out, shape, axes);
-        OPENVINO_TYPE_CASE(evaluate_softmax, f32, arg, out, shape, axes);
-        OPENVINO_TYPE_CASE(evaluate_softmax, f64, arg, out, shape, axes);
-    default:
-        rc = false;
-        break;
+    template <element::Type_t ET, class T = fundamental_type_for<ET>>
+    static result_type visit(const Tensor& in, Tensor& out, const Shape& shape, const AxisSet& axes) {
+        ov::reference::softmax(in.data<const T>(), out.data<T>(), shape, axes);
+        return true;
     }
-    return rc;
-}
+};
 }  // namespace
+}  // namespace softmax
 
 namespace v1 {
 Softmax::Softmax(const Output<Node>& arg, const size_t axis) : Op({arg}), m_axis(axis) {
@@ -53,7 +41,7 @@ bool Softmax::visit_attributes(AttributeVisitor& visitor) {
 
 void Softmax::validate_and_infer_types() {
     OV_OP_SCOPE(v1_Softmax_validate_and_infer_types);
-    const ov::PartialShape& input_shape = get_input_partial_shape(0);
+    const auto& input_shape = get_input_partial_shape(0);
     if (input_shape.rank().is_static())
         NODE_VALIDATION_CHECK(this,
                               m_axis < static_cast<size_t>(input_shape.rank().get_length()),
@@ -72,13 +60,19 @@ std::shared_ptr<Node> Softmax::clone_with_new_inputs(const OutputVector& new_arg
     return std::make_shared<Softmax>(new_args.at(0), m_axis);
 }
 
-bool Softmax::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool Softmax::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v1_Softmax_evaluate);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    outputs[0]->set_unary(inputs[0]);
-    return evaluate_softmax(inputs[0], outputs[0], AxisSet{m_axis});
+    OPENVINO_ASSERT(outputs.size() == 1);
+    OPENVINO_ASSERT(inputs.size() == 1);
+
+    const auto& input_shape = inputs[0].get_shape();
+    outputs[0].set_shape(input_shape);
+    using namespace ov::element;
+    return IfTypeOf<bf16, f16, f32, f64>::apply<softmax::Evaluate>(inputs[0].get_element_type(),
+                                                                   inputs[0],
+                                                                   outputs[0],
+                                                                   input_shape,
+                                                                   AxisSet{m_axis});
 }
 
 bool Softmax::has_evaluate() const {
@@ -129,23 +123,28 @@ std::shared_ptr<Node> Softmax::clone_with_new_inputs(const OutputVector& new_arg
     return std::make_shared<Softmax>(new_args.at(0), m_axis);
 }
 
-bool Softmax::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool Softmax::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v8_Softmax_evaluate);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    outputs[0]->set_unary(inputs[0]);
-    auto rank = static_cast<int64_t>(inputs[0]->get_shape().size());
+    OPENVINO_ASSERT(outputs.size() == 1);
+    OPENVINO_ASSERT(inputs.size() == 1);
+
+    const auto& input_shape = inputs[0].get_shape();
+    const auto rank = static_cast<int64_t>(input_shape.size());
     OPENVINO_ASSERT(-rank <= m_axis && m_axis < rank,
                     "Reduction axis (",
                     m_axis,
                     ") is out of bounds (argument shape: ",
-                    inputs[0]->get_shape(),
+                    input_shape,
                     ").");
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    size_t axis = static_cast<size_t>(ov::normalize_axis(this->description(), m_axis, rank));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    return evaluate_softmax(inputs[0], outputs[0], AxisSet{axis});
+    const auto axis = static_cast<size_t>(ov::util::normalize(m_axis, rank));
+
+    outputs[0].set_shape(input_shape);
+    using namespace ov::element;
+    return IfTypeOf<bf16, f16, f32, f64>::apply<softmax::Evaluate>(inputs[0].get_element_type(),
+                                                                   inputs[0],
+                                                                   outputs[0],
+                                                                   input_shape,
+                                                                   AxisSet{axis});
 }
 
 bool Softmax::has_evaluate() const {
