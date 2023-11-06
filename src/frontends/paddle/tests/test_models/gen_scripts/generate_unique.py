@@ -12,29 +12,14 @@ import sys
 data_type = "float32"
 
 
-def unique(
-    name: str,
-    x,
-    reture_index=False,
-    reture_inverse=False,
-    reture_counts=False,
-    dtype="int64",
-    axes=None,
-):
+def unique(name: str, x, **op_args):
     paddle.enable_static()
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name="x", shape=x.shape, dtype=data_type)
 
-        unique_outs = paddle.unique(
-            node_x,
-            return_index=reture_index,
-            return_inverse=reture_inverse,
-            return_counts=reture_counts,
-            dtype=dtype,
-            axis=axes,
-        )
-        if reture_counts or reture_inverse or reture_index:
+        unique_outs = paddle.unique(node_x, **op_args)
+        if isinstance(unique_outs, tuple):
             outputs = []
             for out in unique_outs:
                 if out is not None:
@@ -67,23 +52,23 @@ def unique(
 def main():
     data = np.array([2, 3, 3, 1, 5, 3]).astype(data_type)
     unique("unique", data)
-    unique("unique_ret_index", data, reture_index=True)
-    unique("unique_ret_inverse", data, reture_inverse=True)
-    unique("unique_ret_counts", data, reture_counts=True)
-    unique("unique_ret_index_inverse", data, reture_index=True, reture_inverse=True)
-    unique("unique_ret_index_counts", data, reture_index=True, reture_counts=True)
-    unique("unique_ret_inverse_counts", data, reture_inverse=True, reture_counts=True)
+    unique("unique_ret_index", data, return_index=True)
+    unique("unique_ret_inverse", data, return_inverse=True)
+    unique("unique_ret_counts", data, return_counts=True)
+    unique("unique_ret_index_inverse", data, return_index=True, return_inverse=True)
+    unique("unique_ret_index_counts", data, return_index=True, return_counts=True)
+    unique("unique_ret_inverse_counts", data, return_inverse=True, return_counts=True)
     unique(
         "unique_ret_index_inverse_counts",
         data,
-        reture_index=True,
-        reture_inverse=True,
-        reture_counts=True,
+        return_index=True,
+        return_inverse=True,
+        return_counts=True,
     )
 
     data = np.array([[2, 1, 3], [3, 0, 1], [2, 1, 3]]).astype(data_type)
-    unique("unique_ret_index_axis", data, reture_index=True, axes=0)
-    unique("unique_ret_index_i32", data, reture_index=True, dtype="int32")
+    unique("unique_ret_index_axis", data, return_index=True, axis=0)
+    unique("unique_ret_index_i32", data, return_index=True, dtype="int32")
 
 
 if __name__ == "__main__":
