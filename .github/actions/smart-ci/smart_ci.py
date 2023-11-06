@@ -93,8 +93,8 @@ def get_changed_component_names(pr, component_pattern: str = None) -> set:
     components = set()
     for label in pr.labels:
         component = component_name_from_label(label.name, component_pattern)
-        if component:
-            components.add(component)
+        components.add(component if component else label)
+
     return components
 
 
