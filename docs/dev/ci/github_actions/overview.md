@@ -94,7 +94,7 @@ This workflow runs:
 
 ### Required Workflows
 
-TODO
+The listed above workflows are not required at the moment, but it is strongly encouraged to pay attention to their [results](#finding-results-artefacts-and-logs) while working within the OpenVINO repository.
 
 ### Structure of the Workflows
 
@@ -193,6 +193,7 @@ To understand which jobs have successfully passed, which are running and which h
     * You can additionally filter the results per branch, actor and result
 
 ### Artefacts
+
 To find artefacts for a pipeline, use the following steps:
 1. Open a Pull Request and navigate to the bottom of the page, you will see the list of jobs that ran or are running for the latest commit: 
   ![check_results](../../../_static/images/ci/check_results.png)
@@ -207,6 +208,7 @@ To find artefacts for a pipeline, use the following steps:
 **NOTE**: artefacts are available only for the completed, i.e., successful or failed, pipelines.
 
 ### Logs
+
 To find logs for a pipeline:
 1. Open a Pull Request and navigate to the bottom of the page, you will see the list of jobs that ran or are running for the latest commit:
   ![check_results](../../../_static/images/ci/check_results.png)
@@ -215,7 +217,11 @@ To find logs for a pipeline:
 
 ## Custom Actions
 
-setup-python, smart-ci, etc.
+There are several actions written specifically for the needs of the OpenVINO workflows.
+
+Read more about the available actions and what they do [here](./custom_actions.md).
+
+You can find more information about reusing actions and workflows [here](https://github.com/marketplace?type=actions) and [here](https://docs.github.com/en/actions/using-workflows/reusing-workflows).
 
 ## Machines
 
