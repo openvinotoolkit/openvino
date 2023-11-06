@@ -159,6 +159,11 @@ enum class TensorIteratorBody {
     // CNN todo: implement
 };
 
+enum QuantizationGranularity {
+    Pertensor,
+    Perchannel
+};
+
 // clang-format on
 
 std::ostream& operator<<(std::ostream& os, const ReductionType& m);
@@ -190,6 +195,23 @@ std::ostream& operator<<(std::ostream& os, ov::op::v8::MatrixNms::SortResultType
 std::ostream& operator<<(std::ostream& os, ov::op::v8::MatrixNms::DecayFunction type);
 
 std::ostream& operator<<(std::ostream& os, TensorIteratorBody type);
+
+inline std::string quantizationGranularityToString(const QuantizationGranularity& granularity) {
+    static std::map<QuantizationGranularity, std::string> names = {
+        {ov::test::utils::Pertensor, "Pertensor"},
+        {ov::test::utils::Perchannel, "Perchannel"},
+    };
+
+    auto i = names.find(granularity);
+    if (i != names.end())
+        return i->second;
+    else
+        throw std::runtime_error("Unsupported QuantizationGranularity type");
+}
+
+inline std::ostream& operator<<(std::ostream& out, const QuantizationGranularity& granularity) {
+    return out << quantizationGranularityToString(granularity);
+}
 
 }  // namespace utils
 }  // namespace test

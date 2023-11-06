@@ -4,22 +4,28 @@
 
 #include "shared_test_classes/subgraph/quantized_convolution_backprop_data.hpp"
 
-namespace SubgraphTestsDefinitions {
-using ngraph::helpers::QuantizationGranularity;
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
-std::string QuantConvBackpropDataLayerTest::getTestCaseName(const testing::TestParamInfo<quantConvBackpropDataLayerTestParamsSet>& obj) {
+namespace ov {
+namespace test {
+using ov::test::utils::QuantizationGranularity;
+
+std::string QuantConvBackpropDataLayerTest::getTestCaseName(
+    const testing::TestParamInfo<quantConvBackpropDataLayerTestParamsSet>& obj) {
     quantConvBackpropDataSpecificParams groupConvBackpropDataParams;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+    ov::element::Type element_type;
+    ov::Shape inputShapes;
     std::string targetDevice;
-    std::tie(groupConvBackpropDataParams, netPrecision, inputShapes, targetDevice) = obj.param;
-    ngraph::op::PadType padType;
+    std::tie(groupConvBackpropDataParams, element_type, inputShapes, targetDevice) = obj.param;
+    ov::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t convOutChannels;
     size_t quantLevels;
     QuantizationGranularity quantGranularity;
-    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, quantLevels, quantGranularity) = groupConvBackpropDataParams;
+    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, quantLevels, quantGranularity) =
+        groupConvBackpropDataParams;
 
     std::ostringstream result;
     result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
@@ -32,50 +38,60 @@ std::string QuantConvBackpropDataLayerTest::getTestCaseName(const testing::TestP
     result << "AP=" << padType << "_";
     result << "Levels=" << quantLevels << "_";
     result << "QG=" << quantGranularity << "_";
-    result << "netPRC=" << netPrecision.name() << "_";
+    result << "netPRC=" << element_type << "_";
     result << "targetDevice=" << targetDevice;
     return result.str();
 }
 
 void QuantConvBackpropDataLayerTest::SetUp() {
-    threshold = 0.5f;
+    // threshold = 0.5f;
 
     quantConvBackpropDataSpecificParams groupConvBackpropDataParams;
     std::vector<size_t> inputShape;
-    auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
-    std::tie(groupConvBackpropDataParams, netPrecision, inputShape, targetDevice) = this->GetParam();
-    ngraph::op::PadType padType;
+    ov::element::Type element_type;
+    std::tie(groupConvBackpropDataParams, element_type, inputShape, targetDevice) = this->GetParam();
+    ov::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t convOutChannels;
     size_t quantLevels;
     QuantizationGranularity quantGranularity;
-    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, quantLevels, quantGranularity) = groupConvBackpropDataParams;
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, quantLevels, quantGranularity) =
+        groupConvBackpropDataParams;
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(inputShape))};
+    auto paramOuts =
+        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
 
     std::vector<size_t> dataFqConstShapes(inputShape.size(), 1);
-    if (quantGranularity == ngraph::helpers::Perchannel)
+    if (quantGranularity == ov::test::utils::Perchannel)
         dataFqConstShapes[1] = inputShape[1];
-    auto dataFq = ngraph::builder::makeFakeQuantize(paramOuts[0], ngPrc, quantLevels, dataFqConstShapes);
+    auto dataFq = ngraph::builder::makeFakeQuantize(paramOuts[0], element_type, quantLevels, dataFqConstShapes);
 
     std::vector<size_t> weightsShapes = {inputShape[1], convOutChannels};
     weightsShapes.insert(weightsShapes.end(), kernel.begin(), kernel.end());
 
     std::vector<float> weightsData;
-    auto weightsNode = ngraph::builder::makeConstant(ngPrc, weightsShapes, weightsData, weightsData.empty());
+    auto weightsNode = ngraph::builder::makeConstant(element_type, weightsShapes, weightsData, weightsData.empty());
 
     std::vector<size_t> weightsFqConstShapes(weightsShapes.size(), 1);
-    if (quantGranularity == ngraph::helpers::Perchannel)
+    if (quantGranularity == ov::test::utils::Perchannel)
         weightsFqConstShapes[0] = weightsShapes[0];
 
-    auto weightsFq = ngraph::builder::makeFakeQuantize(weightsNode, ngPrc, quantLevels, weightsFqConstShapes);
+    auto weightsFq = ngraph::builder::makeFakeQuantize(weightsNode, element_type, quantLevels, weightsFqConstShapes);
 
-    auto convBackpropData = std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(
-            ngraph::builder::makeConvolutionBackpropData(dataFq, weightsFq, ngPrc, stride, padBegin, padEnd, dilation, padType));
+    auto convBackpropData = std::dynamic_pointer_cast<ov::op::v1::ConvolutionBackpropData>(
+        ngraph::builder::makeConvolutionBackpropData(dataFq,
+                                                     weightsFq,
+                                                     element_type,
+                                                     stride,
+                                                     padBegin,
+                                                     padEnd,
+                                                     dilation,
+                                                     padType));
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(convBackpropData)};
-    function = std::make_shared<ngraph::Function>(results, params, "QuantConvolutionBackpropData");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(convBackpropData)};
+    function = std::make_shared<ov::Model>(results, params, "QuantConvolutionBackpropData");
 }
-}  // namespace SubgraphTestsDefinitions
+
+}  // namespace test
+}  // namespace ov
