@@ -353,8 +353,6 @@ loop_inst::concatenated_memory_mapping::ptr loop_inst::create_concat_memory_map(
     auto& engine = body_network->get_engine();
     auto& stream = body_network->get_stream();
     auto prim = body_network->get_primitive(internal_id.pid);
-    int64_t start = io_prim_map.start < 0? num_iterations - 1: io_prim_map.start;
-    start = start < 0 ? 0 : start;
 
     std::vector<memory::ptr> sliced_mems;
 
@@ -637,6 +635,8 @@ void loop_inst::load(BinaryInputBuffer& ib) {
     ib >> _condition_id;
     ib >> _num_iterations_id;
     body_network = std::make_shared<cldnn::network>(ib, get_network().get_stream_ptr(), get_network().get_engine(), get_network().is_primary_stream(), 0);
+    // set inner network to the new loaded _impl_params from cache.
+    set_inner_networks({body_network});
 }
 
 void loop_inst::postprocess_output_memory(bool is_dynamic, int64_t current_iteration) {
