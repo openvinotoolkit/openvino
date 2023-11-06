@@ -39,14 +39,12 @@
     "107-speech-recognition-quantization-data2vec": [
         "Benchmark Model",
         "NNCF",
-        "ONNX",
         "Pytorch",
         "Transformers"
     ],
     "107-speech-recognition-quantization-wav2vec2": [
         "Benchmark Model",
         "NNCF",
-        "ONNX",
         "Pytorch",
         "Transformers"
     ],
@@ -84,7 +82,6 @@
     "112-pytorch-post-training-quantization-nncf": [
         "Benchmark Model",
         "NNCF",
-        "ONNX",
         "Pytorch",
         "Torchvision"
     ],
@@ -127,18 +124,34 @@
         "NNCF",
         "Pytorch"
     ],
+    "123-detectron2-to-openvino": [
+        "Pytorch"
+    ],
+    "124-hugging-face-hub": [
+        "Pytorch",
+        "Transformers"
+    ],
+    "125-convnext-classification": [
+        "Pytorch",
+        "Torchvision"
+    ],
+    "125-lraspp-segmentation": [
+        "Pytorch",
+        "Torchvision"
+    ],
+    "126-tensorflow-hub": [
+        "Tensorflow"
+    ],
     "203-meter-reader": [
         "Dynamic Shape",
         "Reshape Model"
     ],
     "204-segmenter-semantic-segmentation": [
         "Benchmark Model",
-        "ONNX",
         "Pytorch",
         "Torchvision"
     ],
     "205-vision-background-removal": [
-        "ONNX",
         "Pytorch"
     ],
     "206-vision-paddlegan-anime": [
@@ -154,9 +167,6 @@
         "Download Model",
         "ONNX"
     ],
-    "209-handwritten-ocr": [
-        "Download Model"
-    ],
     "210-slowfast-video-recognition": [
         "ONNX",
         "Pytorch"
@@ -165,7 +175,6 @@
         "Convert Model",
         "Download Model",
         "Dynamic Shape",
-        "ONNX",
         "Pytorch",
         "Reshape Model"
     ],
@@ -173,11 +182,8 @@
         "ONNX",
         "Pytorch"
     ],
-    "213-question-answering": [
-        "Convert Model",
-        "Download Model"
-    ],
     "214-grammar-correction": [
+        "Async Inference",
         "Transformers"
     ],
     "216-attention-center": [
@@ -187,22 +193,14 @@
         "Download Model",
         "Pytorch"
     ],
-    "218-vehicle-detection-and-recognition": [
-        "Download Model"
-    ],
     "219-knowledge-graphs-conve": [
         "Benchmark Model",
-        "ONNX",
         "Pytorch"
     ],
     "220-cross-lingual-books-alignment": [
         "Async Inference",
-        "Optimize Model",
         "Pytorch",
         "Transformers"
-    ],
-    "221-machine-translation": [
-        "Download Model"
     ],
     "222-vision-image-colorization": [
         "Convert Model",
@@ -210,7 +208,7 @@
     ],
     "223-text-prediction": [
         "Dynamic Shape",
-        "ONNX",
+        "Pytorch",
         "Transformers"
     ],
     "224-3D-segmentation-point-clouds": [
@@ -237,8 +235,6 @@
         "Transformers"
     ],
     "228-clip-zero-shot-convert": [
-        "ONNX",
-        "Pytorch",
         "Transformers"
     ],
     "228-clip-zero-shot-quantize": [
@@ -254,37 +250,39 @@
     "230-yolov8-instance-segmentation": [
         "Benchmark Model",
         "NNCF",
-        "ONNX",
         "Pytorch",
         "Reshape Model"
     ],
     "230-yolov8-keypoint-detection": [
         "Benchmark Model",
         "NNCF",
-        "ONNX",
         "Pytorch",
         "Reshape Model"
     ],
     "230-yolov8-object-detection": [
         "Benchmark Model",
         "NNCF",
-        "ONNX",
         "Pytorch",
         "Reshape Model"
     ],
     "231-instruct-pix2pix-image-editing": [
-        "ONNX",
+        "Benchmark Model",
+        "NNCF",
         "Pytorch",
         "Transformers"
     ],
     "232-clip-language-saliency-map": [
         "Async Inference",
-        "ONNX",
         "Pytorch",
         "Transformers"
     ],
-    "233-blip-visual-language-processing": [
-        "Dynamic Shape",
+    "233-blip-convert": [
+        "Pytorch",
+        "Transformers"
+    ],
+    "233-blip-optimize": [
+        "Benchmark Model",
+        "NNCF",
         "Pytorch",
         "Transformers"
     ],
@@ -314,16 +312,20 @@
     "237-segment-anything": [
         "Benchmark Model",
         "NNCF",
-        "ONNX",
         "Pytorch",
         "Torchvision"
     ],
-    "238-deep-floyd-if": [
+    "238-deep-floyd-if-convert": [
+        "Pytorch",
+        "Reshape Model"
+    ],
+    "238-deep-floyd-if-optimize": [
+        "Benchmark Model",
+        "NNCF",
         "Pytorch",
         "Reshape Model"
     ],
     "239-image-bind-convert": [
-        "ONNX",
         "Pytorch"
     ],
     "239-image-bind-quantize": [
@@ -335,21 +337,17 @@
         "Transformers"
     ],
     "241-riffusion-text-to-music": [
-        "Pytorch"
+        "Pytorch",
+        "Transformers"
     ],
     "242-freevc-voice-conversion": [
         "ONNX",
         "Pytorch"
     ],
     "244-named-entity-recognition": [
-        "ONNX",
-        "Pytorch",
         "Transformers"
     ],
     "245-typo-detector": [
-        "ONNX",
-        "Optimize Model",
-        "Pytorch",
         "Transformers"
     ],
     "246-depth-estimation-videpth": [
@@ -361,7 +359,11 @@
         "ONNX",
         "Transformers"
     ],
+    "248-stable-diffusion-xl": [
+        "Transformers"
+    ],
     "249-oneformer-segmentation": [
+        "NNCF",
         "Pytorch",
         "Transformers"
     ],
@@ -390,6 +392,44 @@
         "Reshape Model",
         "Transformers"
     ],
+    "255-mms-massively-multilingual-speech": [
+        "NNCF",
+        "Pytorch",
+        "Transformers"
+    ],
+    "256-bark-text-to-audio": [
+        "Dynamic Shape",
+        "Pytorch"
+    ],
+    "257-llava-multimodal-chatbot": [
+        "Async Inference",
+        "NNCF",
+        "Pytorch",
+        "Transformers"
+    ],
+    "258-blip-diffusion-subject-generation": [
+        "Dynamic Shape",
+        "Pytorch"
+    ],
+    "259-decidiffusion-image-generation": [
+        "Pytorch",
+        "Transformers"
+    ],
+    "260-pix2struct-docvqa": [
+        "Async Inference",
+        "Transformers"
+    ],
+    "261-fast-segment-anything": [
+        "ONNX",
+        "Pytorch"
+    ],
+    "262-softvc-voice-conversion": [
+        "Pytorch"
+    ],
+    "263-latent-consistency-models-image-generation": [
+        "Pytorch",
+        "Transformers"
+    ],
     "301-tensorflow-training-openvino-nncf": [
         "Benchmark Model",
         "NNCF",
@@ -402,7 +442,6 @@
     "302-pytorch-quantization-aware-training": [
         "Benchmark Model",
         "NNCF",
-        "ONNX",
         "Pytorch",
         "Torchvision",
         "Train Model"
