@@ -607,13 +607,17 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         auto input_num = inputs.size() - (fuse_concat ? 2 : 0);
         if (fuse_concat) {
             PlainTensor<T> past_k_input, past_v_input, past_k_output, past_v_output;
-            past_k_input.reset(inputs[input_num + 0]);
-            past_v_input.reset(inputs[input_num + 1]);
-            L0 = past_k_input.size(2);
-            past_k_output.reset(outputs[1]);
-            past_v_output.reset(outputs[2]);
-            //past_k_output.permute({1, 2, 0, 3});
-            //past_v_output.permute({1, 2, 0, 3});
+            auto past_k_mem = inputs[input_num + 0];
+            L0 = past_k_mem->getStaticDims()[2];
+            // [S, B, L0, S]
+            past_k_input.resize({L0, B, H, S}, static_cast<T*>(past_k_mem->getData()));
+            past_v_input.resize({L0, B, H, S}, static_cast<T*>(inputs[input_num + 1]->getData()));
+            past_k_output.resize({L0 + L1, B, H, S}, static_cast<T*>(outputs[1]->getData()));
+            past_v_output.resize({L0 + L1, B, H, S}, static_cast<T*>(outputs[2]->getData()));
+            past_k_input = past_k_input.permute({1, 2, 0, 3});
+            past_v_input = past_v_input.permute({1, 2, 0, 3});
+            past_k_output = past_k_output.permute({1, 2, 0, 3});
+            past_v_output = past_v_output.permute({1, 2, 0, 3});
             // TODO: remove after redefineOutputMemory can grow memory while keeping original content
             parallel_for3d(B, H, L0, [&](size_t b, size_t h, size_t m) {
                 memcpy(&past_k_output.at({b, h, m, 0}),
@@ -783,9 +787,9 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
             ov::element::f32, getInputShapeAtPort(nextPortIdx)));
     }
     if (m_config.fuse_concat) {
-        config.inConfs[orginSDPInputNumber + 0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+        config.inConfs[orginSDPInputNumber + 0].setMemDesc(creatorsMap.at(LayoutType::cabd)->createSharedDesc(
             rtPrecision, getInputShapeAtPort(orginSDPInputNumber + 0)));
-        config.inConfs[orginSDPInputNumber + 1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+        config.inConfs[orginSDPInputNumber + 1].setMemDesc(creatorsMap.at(LayoutType::cabd)->createSharedDesc(
             rtPrecision, getInputShapeAtPort(orginSDPInputNumber + 1)));
     }
 
@@ -793,12 +797,12 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
         rtPrecision, getOutputShapeAtPort(0)));
 
     if (m_config.fuse_concat) {
-        config.outConfs[1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+        config.outConfs[1].setMemDesc(creatorsMap.at(LayoutType::cabd)->createSharedDesc(
             rtPrecision, getOutputShapeAtPort(1)));
-        config.outConfs[2].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+        config.outConfs[2].setMemDesc(creatorsMap.at(LayoutType::cabd)->createSharedDesc(
             rtPrecision, getOutputShapeAtPort(2)));
     }
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
 void ScaledDotProductAttention::execute(dnnl::stream strm) {
