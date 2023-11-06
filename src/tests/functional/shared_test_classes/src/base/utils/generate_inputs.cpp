@@ -469,60 +469,6 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v5::LSTMSequence>& no
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
 
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::NonMaxSuppression>& node,
-                             size_t port,
-                             const ov::element::Type& elemType,
-                             const ov::Shape& targetShape) {
-    switch (port) {
-        case 1: {
-            ov::runtime::Tensor tensor = ov::runtime::Tensor(elemType, targetShape);
-
-            const size_t range = 1;
-            const size_t startFrom = 0;
-            const size_t k = 1000;
-            const int seed = 1;
-            std::default_random_engine random(seed);
-            std::uniform_int_distribution<int32_t> distribution(k * startFrom, k * (startFrom + range));
-
-            auto *dataPtr = tensor.data<float>();
-            for (size_t i = 0; i < tensor.get_size(); i++) {
-                auto value = static_cast<float>(distribution(random));
-                dataPtr[i] = value / static_cast<float>(k);
-            }
-            return tensor;
-        }
-        default:
-            return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
-    }
-}
-
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v9::NonMaxSuppression>& node,
-                             size_t port,
-                             const ov::element::Type& elemType,
-                             const ov::Shape& targetShape) {
-    switch (port) {
-        case 1: {
-            ov::runtime::Tensor tensor = ov::runtime::Tensor(elemType, targetShape);
-
-            const size_t range = 1;
-            const size_t startFrom = 0;
-            const size_t k = 1000;
-            const int seed = 1;
-            std::default_random_engine random(seed);
-            std::uniform_int_distribution<int32_t> distribution(k * startFrom, k * (startFrom + range));
-
-            auto *dataPtr = tensor.data<float>();
-            for (size_t i = 0; i < tensor.get_size(); i++) {
-                auto value = static_cast<float>(distribution(random));
-                dataPtr[i] = value / static_cast<float>(k);
-            }
-            return tensor;
-        }
-        default:
-            return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
-    }
-}
-
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v3::EmbeddingSegmentsSum>& node,
                              size_t port,
                              const ov::element::Type& elemType,
@@ -1092,6 +1038,30 @@ ov::runtime::Tensor generate(const
 
 ov::runtime::Tensor generate(const
                              std::shared_ptr<ov::op::v8::MatrixNms>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    if (port == 1) {
+        InputGenerateData inGenData(0, 1, 1000, 1);
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+    }
+    return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+}
+
+ov::runtime::Tensor generate(const
+                             std::shared_ptr<ov::op::v5::NonMaxSuppression>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    if (port == 1) {
+        InputGenerateData inGenData(0, 1, 1000, 1);
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+    }
+    return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+}
+
+ov::runtime::Tensor generate(const
+                             std::shared_ptr<ov::op::v9::NonMaxSuppression>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
