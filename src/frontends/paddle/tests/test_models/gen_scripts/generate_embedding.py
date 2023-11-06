@@ -17,15 +17,15 @@ def ov_embedding(ids, vocab_embeddings, vocab_size, embedding_dim, padding_idx, 
     decomposing embedding with OpenVINO ops.
     """
     import openvino as ov
-    import openvino.runtime.opset8 as ov_opset8
+    from openvino.runtime import opset8
     from openvino import Core
 
     if vocab_embeddings is None:
         # 
         vocab_embeddings = np.zeros((vocab_size, embedding_dim)).astype("float32")
 
-    node_ids = ov_opset8.parameter(shape=ids.shape, name='ids', dtype=ids.dtype)
-    node_w = ov_opset8.parameter(shape=vocab_embeddings.shape, name='w', dtype=vocab_embeddings.dtype)
+    node_ids = opset8.parameter(shape=ids.shape, name='ids', dtype=ids.dtype)
+    node_w = opset8.parameter(shape=vocab_embeddings.shape, name='w', dtype=vocab_embeddings.dtype)
 
     if padding_idx == -1:
         padding_idx += vocab_size
@@ -37,22 +37,22 @@ def ov_embedding(ids, vocab_embeddings, vocab_size, embedding_dim, padding_idx, 
         masked_embeddings = np.ones(vocab_embeddings.shape, dtype='int64')
         masked_embeddings[padding_idx,:] = 0 # mask
 
-        node_mask = ov_opset8.constant(masked_embeddings, name='mask', dtype=vocab_embeddings.dtype)
-        node_masked_w = ov_opset8.multiply(node_w, node_mask)
+        node_mask = opset8.constant(masked_embeddings, name='mask', dtype=vocab_embeddings.dtype)
+        node_masked_w = opset8.multiply(node_w, node_mask)
 
-    node_axis = ov_opset8.constant([0], name='const0', dtype=np.int64)
-    node_gather = ov_opset8.gather(data=node_masked_w if padding_idx else node_w, indices=node_ids, axis=node_axis, batch_dims=0)
+    node_axis = opset8.constant([0], name='const0', dtype=np.int64)
+    node_gather = opset8.gather(data=node_masked_w if padding_idx else node_w, indices=node_ids, axis=node_axis, batch_dims=0)
 
-    graph = ov_opset8.result(node_gather, name='y')
+    graph = opset8.result(node_gather, name='y')
 
     parameters = [node_ids, node_w]
     inputs_dict = {'ids': ids, "w": vocab_embeddings}
 
     # 
     ov_model = ov.Model(graph, parameters, "embedding")
-    ie = Core()
-    executable_network = ie.compile_model(ov_model, 'CPU')
-    output = executable_network(inputs_dict)
+    core = Core()
+    compiled_model = core.compile_model(ov_model, 'CPU')
+    output = compiled_model(inputs_dict)
 
     return output
 
