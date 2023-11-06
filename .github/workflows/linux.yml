@@ -115,7 +115,8 @@ jobs:
       - if: ${{ runner.os == 'Linux' && runner.arch == 'ARM64' }}
         name: Check Actions Locations
         run: |
-          ls -laR /
+          ls -laR /github
+          ls -laR /__w
 
       - if: ${{ runner.os == 'Linux' && runner.arch == 'ARM64' }}
         name: Setup Python ${{ inputs.version }}
