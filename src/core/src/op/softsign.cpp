@@ -3,14 +3,15 @@
 //
 #include "openvino/op/softsign.hpp"
 
-#include <openvino/core/validation_util.hpp>
-
 #include "itt.hpp"
-#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/shape_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/softsign.hpp"
 #include "openvino/runtime/tensor.hpp"
 
+namespace ov {
+namespace op {
+namespace v9 {
 namespace {
 template <ov::element::Type_t ET>
 inline bool evaluate(const ov::Tensor& arg, const ov::Tensor& out, const size_t count) {
@@ -36,11 +37,11 @@ bool evaluate_softsign(const ov::Tensor& arg, const ov::Tensor& out) {
 }
 }  // namespace
 
-ov::op::v9::SoftSign::SoftSign(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
+SoftSign::SoftSign(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
-void ov::op::v9::SoftSign::validate_and_infer_types() {
+void SoftSign::validate_and_infer_types() {
     OV_OP_SCOPE(v9_SoftSign_validate_and_infer_types);
     const element::Type& input_et = get_input_element_type(0);
 
@@ -52,34 +53,28 @@ void ov::op::v9::SoftSign::validate_and_infer_types() {
     UnaryElementwiseArithmetic::validate_and_infer_types();
 }
 
-bool ov::op::v9::SoftSign::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v9_SoftSign_visit_attributes);
-    return true;
-}
-
-std::shared_ptr<ov::Node> ov::op::v9::SoftSign::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> SoftSign::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v9_SoftSign_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<ov::op::v9::SoftSign>(new_args.at(0));
+    return std::make_shared<SoftSign>(new_args.at(0));
 }
 
-bool ov::op::v9::SoftSign::has_evaluate() const {
+bool SoftSign::has_evaluate() const {
     OV_OP_SCOPE(v9_SoftSign_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ov::element::bf16:
-    case ov::element::f16:
-    case ov::element::f32:
-    case ov::element::f64:
+    case element::bf16:
+    case element::f16:
+    case element::f32:
+    case element::f64:
         return true;
     default:
-        break;
+        return false;
     }
-    return false;
 }
 
-bool ov::op::v9::SoftSign::evaluate(ov::TensorVector& outputs,
-                                    const ov::TensorVector& inputs,
-                                    const ov::EvaluationContext& evaluation_context) const {
+bool SoftSign::evaluate(TensorVector& outputs,
+                        const TensorVector& inputs,
+                        const EvaluationContext& evaluation_context) const {
     OV_OP_SCOPE(v9_SoftSign_evaluate);
 
     OPENVINO_ASSERT(outputs.size() == 1 && inputs.size() == 1,
@@ -95,3 +90,6 @@ bool ov::op::v9::SoftSign::evaluate(ov::TensorVector& outputs,
     out.set_shape(in.get_shape());
     return evaluate_softsign(in, out);
 }
+}  // namespace v9
+}  // namespace op
+}  // namespace ov
