@@ -916,32 +916,8 @@ std::shared_ptr<op::v0::Constant> get_constant_max_of_type(element::Type_t t) {
 }
 
 std::shared_ptr<op::v0::Constant> get_constant_min_of_type(element::Type_t t) {
-#define OPENVINO_TYPE_TO_MIN_CONST(t)                                                   \
-    case t:                                                                             \
-        return ov::op::v0::Constant::create(                                            \
-            t,                                                                          \
-            {},                                                                         \
-            {std::numeric_limits<typename element_type_traits<t>::value_type>::min()}); \
-        break
-
-    switch (t) {
-        OPENVINO_TYPE_TO_MIN_CONST(element::boolean);
-        OPENVINO_TYPE_TO_MIN_CONST(element::bf16);
-        OPENVINO_TYPE_TO_MIN_CONST(element::f16);
-        OPENVINO_TYPE_TO_MIN_CONST(element::f32);
-        OPENVINO_TYPE_TO_MIN_CONST(element::f64);
-        OPENVINO_TYPE_TO_MIN_CONST(element::i8);
-        OPENVINO_TYPE_TO_MIN_CONST(element::i16);
-        OPENVINO_TYPE_TO_MIN_CONST(element::i32);
-        OPENVINO_TYPE_TO_MIN_CONST(element::i64);
-        OPENVINO_TYPE_TO_MIN_CONST(element::u1);
-        OPENVINO_TYPE_TO_MIN_CONST(element::u8);
-        OPENVINO_TYPE_TO_MIN_CONST(element::u16);
-        OPENVINO_TYPE_TO_MIN_CONST(element::u32);
-        OPENVINO_TYPE_TO_MIN_CONST(element::u64);
-    default:
-        return nullptr;
-    }
+    auto tensor = ov::util::make_tensor_of_min_value(t);
+    return tensor ? std::make_shared<op::v0::Constant>(tensor) : nullptr;
 }
 
 std::shared_ptr<op::v0::Constant> get_constant_lowest_of_type(element::Type_t t) {
@@ -1402,6 +1378,48 @@ Tensor make_tensor_of_max_value(const element::Type_t et) {
         return make_tensor_of_max_value<ov::fundamental_type_for<element::u32>>(et);
     case element::u64:
         return make_tensor_of_max_value<ov::fundamental_type_for<element::u64>>(et);
+    default:
+        return {};
+    }
+}
+
+template <class T>
+Tensor make_tensor_of_min_value(const element::Type_t et) {
+    Tensor t{et, Shape{}};
+    *t.data<T>() = std::numeric_limits<T>::min();
+    return t;
+}
+
+Tensor make_tensor_of_min_value(const element::Type_t et) {
+    switch (et) {
+    case element::boolean:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::boolean>>(et);
+    case element::bf16:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::bf16>>(et);
+    case element::f16:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::f16>>(et);
+    case element::f32:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::f32>>(et);
+    case element::f64:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::f64>>(et);
+    case element::i8:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::i8>>(et);
+    case element::i16:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::i16>>(et);
+    case element::i32:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::i32>>(et);
+    case element::i64:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::i64>>(et);
+    case element::u1:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::u1>>(et);
+    case element::u8:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::u8>>(et);
+    case element::u16:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::u16>>(et);
+    case element::u32:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::u32>>(et);
+    case element::u64:
+        return make_tensor_of_min_value<ov::fundamental_type_for<element::u64>>(et);
     default:
         return {};
     }
