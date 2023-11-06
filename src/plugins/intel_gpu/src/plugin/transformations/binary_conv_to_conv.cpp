@@ -71,20 +71,22 @@ ConvertBinaryConvolutionToConvolution::ConvertBinaryConvolutionToConvolution() {
         }
 
         auto new_weights_const = std::make_shared<ov::op::v0::Constant>(new_weights_data);
+        auto rank = activations.get_partial_shape().size();
 
         auto in_lo = pattern_map.at(in_lo_m);
         auto in_hi = pattern_map.at(in_hi_m);
-        auto out_lo = std::make_shared<ov::op::v0::Constant>(fp_element_type, ov::Shape{1}, std::vector<float>{-1.0f});
-        auto out_hi = std::make_shared<ov::op::v0::Constant>(fp_element_type, ov::Shape{1}, std::vector<float>{1.0f});
+        auto out_lo = std::make_shared<ov::op::v0::Constant>(fp_element_type, ov::Shape(rank, 1), std::vector<float>{-1.0f});
+        auto out_hi = std::make_shared<ov::op::v0::Constant>(fp_element_type, ov::Shape(rank, 1), std::vector<float>{1.0f});
 
         auto new_fq = std::make_shared<ov::op::v0::FakeQuantize>(activations, in_lo, in_hi, out_lo, out_hi, 2);
+        std::vector<std::shared_ptr<ov::Node>> result_nodes = { new_fq };
 
         std::shared_ptr<ov::Node> conv_input = new_fq;
         auto pb = binary_conv->get_pads_begin();
         auto pe = binary_conv->get_pads_end();
         if (binary_conv->get_pad_value() != 0.0f) {
-            pb.insert(pb.begin(), new_fq->get_output_partial_shape(0).size() - pb.size(), 0);
-            pe.insert(pe.begin(), new_fq->get_output_partial_shape(0).size() - pe.size(), 0);
+            pb.insert(pb.begin(), rank - pb.size(), 0);
+            pe.insert(pe.begin(), rank - pe.size(), 0);
             auto pad_b = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{pb.size()}, pb);
             auto pad_e = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{pe.size()}, pe);
             auto pad_v = std::make_shared<ov::op::v0::Constant>(fp_element_type, ov::Shape{}, std::vector<float>{binary_conv->get_pad_value()});
@@ -93,6 +95,7 @@ ConvertBinaryConvolutionToConvolution::ConvertBinaryConvolutionToConvolution() {
 
             pb = ov::CoordinateDiff(binary_conv->get_pads_begin().size(), 0);
             pe = ov::CoordinateDiff(binary_conv->get_pads_end().size(), 0);
+            result_nodes.push_back(pad);
         }
         auto convolution = std::make_shared<ov::op::v1::Convolution>(conv_input,
                                                                      new_weights_const,
@@ -102,8 +105,9 @@ ConvertBinaryConvolutionToConvolution::ConvertBinaryConvolutionToConvolution() {
                                                                      binary_conv->get_dilations(),
                                                                      ov::op::PadType::EXPLICIT);
 
+        result_nodes.push_back(convolution);
         convolution->set_friendly_name(binary_conv->get_friendly_name());
-        ov::copy_runtime_info(m.get_matched_nodes(), convolution);
+        ov::copy_runtime_info(m.get_matched_nodes(), result_nodes);
         ov::replace_node(binary_conv, convolution);
         return true;
     };

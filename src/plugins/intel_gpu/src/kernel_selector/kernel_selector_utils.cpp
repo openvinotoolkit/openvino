@@ -24,8 +24,6 @@ static WeightsType DataTypeToWeightsType(Datatype t) {
             return WeightsType::F16;
         case Datatype::F32:
             return WeightsType::F32;
-        case Datatype::BINARY:
-            return WeightsType::BINARY;
         case Datatype::INT32:
             return WeightsType::INT32;
         default:
@@ -468,7 +466,6 @@ bool CheckInputsOutputNoPitchSameDims(const base_params& params) {
         {DataLayout::b_fs_yx_fsv8,           {1, 8}},
         {DataLayout::b_fs_zyx_fsv8,          {1, 8}},
         {DataLayout::fs_b_yx_fsv32,          {1, 32}},
-        {DataLayout::b_fs_yx_32fp,           {1, 32}},
         {DataLayout::bs_fs_yx_bsv32_fsv16,   {32, 16}},
         {DataLayout::bs_fs_zyx_bsv32_fsv16,  {32, 16}},
         {DataLayout::bs_fs_yx_bsv32_fsv32,   {32, 32}},
