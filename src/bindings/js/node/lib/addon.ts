@@ -11,6 +11,18 @@ type SupportedTypedArray =
   | Float32Array
   | Float64Array;
 
+type elementTypeString =
+  | 'u8'
+  | 'u32'
+  | 'u16'
+  | 'u64'
+  | 'i8'
+  | 'i64'
+  | 'i32'
+  | 'i16'
+  | 'f64'
+  | 'f32';
+
 interface Core {
   compileModel(
     model: Model,
@@ -55,7 +67,7 @@ interface Tensor {
   getData(): number[];
 }
 interface TensorConstructor {
-  new(type: element,
+  new(type: element | elementTypeString,
       shape: number[],
       tensorData?: number[] | SupportedTypedArray): Tensor;
 }
@@ -83,14 +95,28 @@ interface Output {
   getPartialShape(): number[];
 }
 
+interface InputTensorInfo {
+    setElementType(elementType: element | elementTypeString ): InputTensorInfo;
+    setLayout(layout: string): InputTensorInfo;
+    setShape(shape: number[]): InputTensorInfo;
+}
+interface PreProcessSteps {
+    resize(algorithm: resizeAlgorithm | string): PreProcessSteps;
+}
+
+interface InputModelInfo {
+    setLayout(layout: string): InputModelInfo;
+}
+
+interface InputInfo {
+    tensor(): InputTensorInfo;
+    preprocess(): PreProcessSteps;
+    model(): InputModelInfo;
+}
+
 interface PrePostProcessor {
   build(): PrePostProcessor;
-  setInputElementType(idx: number, type: element): PrePostProcessor;
-  setInputModelLayout(layout: string[]): PrePostProcessor;
-  setInputTensorLayout(layout: string[]): PrePostProcessor;
-  preprocessResizeAlgorithm(resizeAlgorithm: resizeAlgorithm)
-    : PrePostProcessor;
-  setInputTensorShape(shape: number[]): PrePostProcessor;
+  input(idxOrTensorName?: number | string): InputInfo;
 }
 interface PrePostProcessorConstructor {
   new(model: Model): PrePostProcessor;
@@ -100,6 +126,7 @@ declare enum element {
   u8,
   u32,
   u16,
+  u64,
   i8,
   i16,
   i32,

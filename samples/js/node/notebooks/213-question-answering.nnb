@@ -86,7 +86,7 @@
         {
             "language": "typescript",
             "source": [
-                "const core = new ov.Core();\nconst model = await core.readModel(modelXMLPath);\n\nnew ov.PrePostProcessor(model)\n  .setInputElementType(0, ov.element.f32)\n  .setInputElementType(1, ov.element.f32)\n  .setInputElementType(2, ov.element.f32)\n  .setInputElementType(3, ov.element.f32)\n  .build();\n\nconst compiledModel = await core.compileModel(model, 'CPU');\n\nconst inputs = compiledModel.inputs;\nconst outputs = compiledModel.outputs;\n\nconst inputSize = compiledModel.input(0).shape[1];\n"
+                "const core = new ov.Core();\nconst model = await core.readModel(modelXMLPath);\n\nconst _ppp = new ov.PrePostProcessor(model);\n_ppp.input(0).tensor().setElementType(ov.element.f32);\n_ppp.input(1).tensor().setElementType(ov.element.f32);\n_ppp.input(2).tensor().setElementType(ov.element.f32);\n_ppp.input(3).tensor().setElementType(ov.element.f32);\n_ppp.build();\n\nconst compiledModel = await core.compileModel(model, 'CPU');\n\nconst inputs = compiledModel.inputs;\nconst outputs = compiledModel.outputs;\n\nconst inputSize = compiledModel.input(0).shape[1];\n"
             ],
             "outputs": []
         },

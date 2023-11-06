@@ -44,12 +44,11 @@ async function main(modelPath, imagePath, deviceName) {
   const inputTensor = new ov.Tensor(ov.element.f32, shape, tensorData);
 
   //----------------- Step 4. Apply preprocessing ------------------------------
-  new ov.PrePostProcessor(model)
-    .setInputTensorShape(shape)
-    .preprocessResizeAlgorithm(ov.resizeAlgorithm.RESIZE_LINEAR)
-    .setInputTensorLayout('NHWC')
-    .setInputModelLayout('NCHW')
-    .build();
+  const _ppp = new ov.PrePostProcessor(model);
+  _ppp.input().tensor().setShape(shape).setLayout('NHWC');
+  _ppp.input().preprocess().resize(ov.resizeAlgorithm.RESIZE_LINEAR);
+  _ppp.input().model().setLayout('NCHW');
+  _ppp.build();
 
   //----------------- Step 5. Loading model to the device ----------------------
   console.log('Loading the model to the plugin');
