@@ -125,6 +125,7 @@ class TestAlikedConvertModel(TestConvertModel):
         self.repo_dir.cleanup()
 
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.parametrize("name", ['aliked-t16', 'aliked-n16', 'aliked-n16rot', 'aliked-n32'])
     def test_convert_model_all_models(self, name, ie_device):
         self.run(name, None, ie_device)
