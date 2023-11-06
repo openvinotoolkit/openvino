@@ -27,9 +27,9 @@ void relu(const T* arg, T* out, const size_t count) {
         arg + count,
         out,
         [](const T v) {
-            return v < 0;
+            return v < T{0};
         },
-        0);
+        T{0});
 }
 
 /**
