@@ -25,7 +25,7 @@ System Requirements
       :sync: system-requirements
 
       | Full requirement listing is available in:
-      | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
+      | :doc:`System Requirements Page <system_requirements>`
    
    .. tab-item:: Processor Notes
       :sync: processor-notes
@@ -98,7 +98,7 @@ Step 1: Download and Install OpenVINO Core Components
    .. code-block:: sh
 
       tar -xf openvino_2023.1.0.zip
-      ren w_openvino_toolkit_windows_2023.1.0.10926.b4452d56304_x86_64 openvino_2023.1.0
+      ren w_openvino_toolkit_windows_2023.1.0.12185.47b736f63ed_x86_64 openvino_2023.1.0
       move openvino_2023.1.0 "C:\Program Files (x86)\Intel"
 
 

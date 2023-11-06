@@ -372,7 +372,7 @@ struct CPUStreamsExecutor::Impl {
 
     public:
         CustomThreadLocal(std::function<std::shared_ptr<Stream>()> callback_construct, Impl* impl)
-            : ThreadLocal<std::shared_ptr<Stream>>(callback_construct),
+            : ThreadLocal<std::shared_ptr<Stream>>(std::move(callback_construct)),
               _impl(impl) {}
         std::shared_ptr<Stream> local() {
             // maybe there are two CPUStreamsExecutors in the same thread.

@@ -238,12 +238,12 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
 
     SetLoopInputOutputMap(p, op, inputs, input_primitive_maps, output_primitive_maps, back_edges);
 
-    auto shape = is_dynamic? ngraph::Shape{1} : ngraph::Shape{1, 1, 1, 1};
+    auto shape = is_dynamic? ngraph::Shape{} : ngraph::Shape{1, 1, 1, 1};
     auto prec = ngraph::element::i64;
     if (current_iteration_input_op) {
-        current_iteration_input_op->set_output_type(0, prec, shape);
-        current_iteration_input_op->set_partial_shape(shape);
-        current_iteration_input_op->set_element_type(prec);
+        OPENVINO_ASSERT(current_iteration_input_op->get_partial_shape().is_static(), "current_iteration should be static layout");
+        shape = is_dynamic? current_iteration_input_op->get_partial_shape().to_shape() : shape;
+        prec = current_iteration_input_op->get_element_type();
 
         auto increment_value_id = current_iteration_input_op->get_friendly_name() + "_inc";
         auto increment_value_op = std::make_shared<op::v0::Constant>(prec, shape, 1);
@@ -280,7 +280,7 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     config.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
 
     // get body program from ov::Model
-    ProgramBuilder prog(ov_model, p.get_engine(), config, false, false, p.get_task_executor(), true);
+    ProgramBuilder prog(ov_model, p.get_engine(), config, false, false, p.get_task_executor(), p.get_compilation_context(), true);
     auto body_program = prog.get_compiled_program();
 
     GPU_DEBUG_LOG << "* trip_count_id                 : " << trip_count_id << std::endl;

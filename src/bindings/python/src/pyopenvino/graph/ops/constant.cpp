@@ -127,6 +127,8 @@ void regclass_graph_op_Constant(py::module m) {
 
     constant.def("get_value_strings", &ov::op::v0::Constant::get_value_strings);
 
+    constant.def("get_byte_size", &ov::op::v0::Constant::get_byte_size);
+
     constant.def("get_vector", [](const ov::op::v0::Constant& self) {
         auto element_type = self.get_element_type();
         if (element_type == ov::element::boolean) {

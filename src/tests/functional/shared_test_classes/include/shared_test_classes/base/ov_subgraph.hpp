@@ -31,6 +31,7 @@ public:
     virtual void run();
     virtual void serialize();
     virtual void query_model();
+    virtual void import_export();
 
 protected:
     virtual void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual);
