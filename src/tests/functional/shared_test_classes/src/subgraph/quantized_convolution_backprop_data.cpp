@@ -56,8 +56,7 @@ void QuantConvBackpropDataLayerTest::SetUp() {
     size_t convOutChannels;
     size_t quantLevels;
     QuantizationGranularity quantGranularity;
-    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, quantLevels, quantGranularity) =
-        groupConvBackpropDataParams;
+    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, quantLevels, quantGranularity) = groupConvBackpropDataParams;
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(inputShape))};
     auto paramOuts =
         ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
