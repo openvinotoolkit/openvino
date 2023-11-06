@@ -403,6 +403,8 @@ void remove_redundant_reorders::run(program& p) {
             if (!same_data_type && !allowed_dt_conversion_fuse)
                 continue;
 
+            if (node.id() == "transpose:time_distributed_1/conv2d_1/Relu_reorder_2")
+                std::cout << "Reorder remove!" << std::endl;
             if (!lo.can_fuse_reorder_to_prev(input, node, input.get_output_layout().format, output_layout.format))
                 continue;
 

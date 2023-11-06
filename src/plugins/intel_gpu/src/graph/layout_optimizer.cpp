@@ -476,6 +476,10 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         if (fmt_prev.dimension() > 6 || fmt_next.dimension() > 6)
             return false;
 
+        // Skip reorder fusing to avoid CVS-123934 issue
+        if ((fmt_prev.dimension() == 4) && (fmt_next.dimension() == 5) && (!node.get_users().front()->is_output()))
+            return false;
+
         return true;
     }
 
