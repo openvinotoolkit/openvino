@@ -22,7 +22,7 @@ runs:
     - if: ${{ runner.os == 'Linux' && inputs.self-hosted-runner == 'true' }}
       name: Install 'actions/setup-python@v4' dependencies
       shell: bash
-      run: apt-get update && apt-get install -y ca-certificates
+      run: apt-get update && apt-get install -y ca-certificates software-properties-common
 
     - if: ${{ runner.os == 'Linux' && runner.arch == 'ARM64' }}
       name: Setup sudo
