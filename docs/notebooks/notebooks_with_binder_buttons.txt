@@ -11,6 +11,11 @@
 115-async-api
 120-tensorflow-object-detection-to-openvino
 121-convert-to-openvino
+123-detectron2-to-openvino
+124-hugging-face-hub
+125-convnext-classification
+125-lraspp-segmentation
+126-tensorflow-hub
 201-vision-monodepth
 202-vision-superresolution-image
 202-vision-superresolution-video
@@ -31,6 +36,7 @@
 243-tflite-selfie-segmentation
 247-code-language-id
 250-music-generation
+261-fast-segment-anything
 401-object-detection
 402-pose-estimation
 403-action-recognition-webcam
