@@ -579,15 +579,12 @@ int main(int argc, char* argv[]) {
                 break;
             case 4:
                 device_config.insert(ov::intel_gpu::hint::queue_throttle(ov::hint::Priority::HIGH));
-                device_config.insert(ov::hint::enable_cpu_pinning(false));
                 break;
             case 5:
                 device_config.insert(ov::intel_gpu::hint::queue_throttle(ov::hint::Priority::MEDIUM));
-                device_config.insert(ov::hint::enable_cpu_pinning(false));
                 break;
             case 6:
                 device_config.insert(ov::intel_gpu::hint::queue_throttle(ov::hint::Priority::LOW));
-                device_config.insert(ov::hint::enable_cpu_pinning(false));
                 break;
             }
         }
