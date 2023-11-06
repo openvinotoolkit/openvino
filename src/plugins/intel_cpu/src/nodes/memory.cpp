@@ -86,6 +86,8 @@ void MemoryOutput::initSupportedPrimitiveDescriptors() {
     config.inConfs.push_back(std::move(inPortConfig));
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+    config.inConfs[0].setMemDesc(descCreators.at(LayoutType::cabd)->createSharedDesc(precision, shape));
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
 void MemoryOutput::initOptimalPrimitiveDescriptor() {
@@ -273,6 +275,8 @@ void MemoryInput::initSupportedPrimitiveDescriptors() {
     config.outConfs.push_back(std::move(outPortConfig));
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+    config.outConfs[0].setMemDesc(descCreators.at(LayoutType::cabd)->createSharedDesc(precision, shape));
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
 void MemoryInput::initOptimalPrimitiveDescriptor() {
@@ -298,6 +302,34 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
     config.outConfs.front().setMemDesc(mem_desc);
     //bypass any checks, we enforce the child descriptor
     selectedPd->setConfig(config);
+}
+
+void MemoryInput::selectOptimalPrimitiveDescriptor() {
+    auto childEdge = getChildEdgeAt(0);
+    auto child = childEdge->getChild();
+    child->selectOptimalPrimitiveDescriptor();
+    auto childPd = child->getSelectedPrimitiveDescriptor();
+    OPENVINO_ASSERT(childPd,
+        child->getTypeStr(), " ",
+        child->getName(),
+        "failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
+
+    const auto& childConfig = childPd->getConfig();
+    auto childDesc = childConfig.inConfs[childEdge->getOutputNum()].getMemDesc();
+    bool hasMatchDesc = false;
+    size_t i;
+    for (i = 0; i < supportedPrimitiveDescriptors.size(); i++) {
+        const auto& outputDesc = supportedPrimitiveDescriptors[i].getConfig().outConfs[0].getMemDesc();
+        if (outputDesc->isCompatible(*childDesc)) {
+            hasMatchDesc = true;
+            break;
+        }
+    }
+    if (hasMatchDesc) {
+        selectPrimitiveDescriptorByIndex(static_cast<int>(i));
+    } else {
+        selectPrimitiveDescriptorByIndex(0);
+    }
 }
 
 void MemoryInput::resolveInPlaceEdges(Edge::LOOK look) {

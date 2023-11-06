@@ -127,7 +127,7 @@ public:
     void reset() {
         for (auto&& state : inferRequest.query_state()) {
             state.reset();
-        }  
+        }
         inferRequest = ov::InferRequest();
         compiledModel = ov::CompiledModel();
     }

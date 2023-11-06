@@ -125,6 +125,7 @@ public:
 
     void initSupportedPrimitiveDescriptors() override;
     void initOptimalPrimitiveDescriptor() override;
+    void selectOptimalPrimitiveDescriptor() override;
 
     void execute(dnnl::stream strm) override {/*pass*/}
     void executeDynamicImpl(dnnl::stream strm) override {/*pass*/}
