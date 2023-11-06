@@ -241,8 +241,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::model_name) {
         std::lock_guard<std::mutex> lock(m_context->m_mutex);
         {
-            if (m_scheduler->m_compile_context[CPU].m_is_enabled && m_scheduler->m_compile_context[CPU].m_is_already &&
-                m_scheduler->m_compile_context[CPU].m_compiled_model._ptr)
+            if (m_scheduler->m_compile_context[CPU].m_is_enabled && m_scheduler->m_compile_context[CPU].m_is_already)
                 return m_scheduler->m_compile_context[CPU].m_compiled_model->get_property(name);
             return m_scheduler->m_compile_context[ACTUALDEVICE].m_compiled_model->get_property(name);
         }
