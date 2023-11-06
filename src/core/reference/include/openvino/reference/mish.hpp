@@ -9,11 +9,19 @@
 
 namespace ov {
 namespace reference {
+
+/**
+ * @brief Reference implementation of Mish operator.
+ *
+ * @param arg    Pointer to input data.
+ * @param out    Pointer to output data.
+ * @param count  Number of elements in input buffer.
+ */
 template <typename T>
-void mish(const T* arg, T* out, size_t count) {
-    for (size_t i = 0; i < count; i++) {
-        out[i] = static_cast<T>(arg[i] * std::tanh(std::log((std::exp(arg[i]) + 1.0))));
-    }
+void mish(const T* arg, T* out, const size_t count) {
+    std::transform(arg, arg + count, out, [](const T v) {
+        return v * std::tanh(std::log(std::exp(v) + T{1}));
+    });
 }
 }  // namespace reference
 }  // namespace ov
