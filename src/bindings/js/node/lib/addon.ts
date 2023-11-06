@@ -67,9 +67,9 @@ interface InferRequest {
   getTensor(nameOrOutput: string | Output): Tensor;
   getInputTensor(idx?: number): Tensor;
   getOutputTensor(idx?: number): Tensor;
-  infer(inputData?: { [inputName: string]: Tensor | SupportedTypedArray}
+  inferSync(inputData?: { [inputName: string]: Tensor | SupportedTypedArray}
     | Tensor[] | SupportedTypedArray[]): { [outputName: string] : Tensor};
-  inferAsync(inputData: { [inputName: string]: Tensor}
+  infer(inputData: { [inputName: string]: Tensor}
     | Tensor[] ): Promise<{ [outputName: string] : Tensor}>;
   getCompiledModel(): CompiledModel;
 }
