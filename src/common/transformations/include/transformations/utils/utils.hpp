@@ -193,7 +193,8 @@ TRANSFORMATIONS_API bool shapes_equal_except_dynamic_expected_batch(const Partia
                                                                     const PartialShape& actual);
 
 /**
- * \brief Traverses a shapeOf subgraph starting from the node and not including the ShapeOf nodes, and calls "func" for each ov::Node.
+ * \brief Traverses a shapeOf subgraph starting from the node and not including the ShapeOf nodes,
+ * and calls "func" for each ov::Node.
  *
  * \param node  The node from which constant path is started.
  * \param visited  Set of nodes which were visited.
