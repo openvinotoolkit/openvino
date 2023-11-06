@@ -767,7 +767,8 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ONNXFrontend.xml
 
       - name: TensorFlow Common frontend tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test || 
+            fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_tensorflow_common_tests --gtest_print_time=1 \
