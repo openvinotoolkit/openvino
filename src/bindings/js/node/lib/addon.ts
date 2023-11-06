@@ -14,10 +14,21 @@ type SupportedTypedArray =
 type elementTypeString = 'u8' | 'u32'| 'u16' | 'u64' | 'i8' | 'i64' | 'i32' | 'i16' | 'f64' | 'f32';
 
 interface Core {
-  compileModel(model: Model, device: string, config?: {[option: string]: string}): CompiledModel;
-  compileModelSync(model: Model, device: string, config?: {[option: string]: string}): CompiledModel;
-  readModel(modelPath: string, binPath?: string): Promise<Model>;
-  readModelSync(modelPath: string, binPath?: string): Model;
+  compileModel(
+    model: Model,
+    device: string,
+    config?: { [option: string]: string }
+  ): Promise<CompiledModel>;
+  compileModelSync(
+    model: Model,
+    device: string,
+    config?: { [option: string]: string }
+  ): CompiledModel;
+  readModel(modelPath: string, weightsPath?: string): Promise<Model>;
+  readModel(
+    modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Promise<Model>;
+  readModelSync(modelPath: string, weightsPath?: string): Model;
+  readModelSync(modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Model;
 }
 interface CoreConstructor {
   new(): Core;
@@ -58,9 +69,9 @@ interface InferRequest {
   getTensor(nameOrOutput: string | Output): Tensor;
   getInputTensor(idx?: number): Tensor;
   getOutputTensor(idx?: number): Tensor;
-  infer(inputData?: { [inputName: string]: Tensor | SupportedTypedArray}
+  inferSync(inputData?: { [inputName: string]: Tensor | SupportedTypedArray}
     | Tensor[] | SupportedTypedArray[]): { [outputName: string] : Tensor};
-  inferAsync(inputData: { [inputName: string]: Tensor}
+  infer(inputData: { [inputName: string]: Tensor}
     | Tensor[] ): Promise<{ [outputName: string] : Tensor}>;
   getCompiledModel(): CompiledModel;
 }
@@ -107,11 +118,11 @@ declare enum element {
   u16,
   u64,
   i8,
-  i64,
-  i32,
   i16,
-  f64,
+  i32,
+  i64,
   f32,
+  f64,
 }
 
 declare enum resizeAlgorithm {

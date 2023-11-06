@@ -90,7 +90,7 @@ public:
     Napi::Value get_output_tensors(const Napi::CallbackInfo& info);
 
     /** @brief  Checks incoming Napi::Value and calls overloaded infer() method */
-    Napi::Value infer_dispatch(const Napi::CallbackInfo& info);
+    Napi::Value infer_sync_dispatch(const Napi::CallbackInfo& info);
 
     /** @brief  Checks incoming Napi::Value and asynchronously returns the result of inference. */
     Napi::Value infer_async(const Napi::CallbackInfo& info);
@@ -98,12 +98,12 @@ public:
     /** @brief Infers specified inputs in synchronous mode.
      * @param inputs  An object with a collection of pairs key (input_name) and a value (tensor, tensor's data)
      */
-    void infer(const Napi::Object& inputs);
+    void infer_sync(const Napi::Object& inputs);
 
     /** @brief Infers specified inputs in synchronous mode.
      * @param inputs  An Array with values (tensors, tensors' data)
      */
-    void infer(const Napi::Array& inputs);
+    void infer_sync(const Napi::Array& inputs);
 
     /** @return A Javascript CompiledModel. */
     Napi::Value get_compiled_model(const Napi::CallbackInfo& info);

@@ -11,7 +11,9 @@
 #include "node_output.hpp"
 #include "tensor.hpp"
 
+namespace {
 std::mutex infer_mutex;
+}
 
 InferRequestWrap::InferRequestWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<InferRequestWrap>(info) {}
 
@@ -25,8 +27,8 @@ Napi::Function InferRequestWrap::GetClassConstructor(Napi::Env env) {
                            InstanceMethod("getTensor", &InferRequestWrap::get_tensor),
                            InstanceMethod("getInputTensor", &InferRequestWrap::get_input_tensor),
                            InstanceMethod("getOutputTensor", &InferRequestWrap::get_output_tensor),
-                           InstanceMethod("infer", &InferRequestWrap::infer_dispatch),
-                           InstanceMethod("inferAsync", &InferRequestWrap::infer_async),
+                           InstanceMethod("inferSync", &InferRequestWrap::infer_sync_dispatch),
+                           InstanceMethod("infer", &InferRequestWrap::infer_async),
                            InstanceMethod("getCompiledModel", &InferRequestWrap::get_compiled_model),
                        });
 }
@@ -147,22 +149,22 @@ Napi::Value InferRequestWrap::get_output_tensors(const Napi::CallbackInfo& info)
     return outputs_obj;
 }
 
-Napi::Value InferRequestWrap::infer_dispatch(const Napi::CallbackInfo& info) {
+Napi::Value InferRequestWrap::infer_sync_dispatch(const Napi::CallbackInfo& info) {
     if (info.Length() == 0)
         _infer_request.infer();
     else if (info.Length() == 1 && info[0].IsTypedArray()) {
-        reportError(info.Env(), "TypedArray cannot be passed directly into infer() method.");
+        reportError(info.Env(), "TypedArray cannot be passed directly into inferSync() method.");
         return info.Env().Null();
     } else if (info.Length() == 1 && info[0].IsArray()) {
         try {
-            infer(info[0].As<Napi::Array>());
+            infer_sync(info[0].As<Napi::Array>());
         } catch (std::exception& e) {
             reportError(info.Env(), e.what());
             return info.Env().Null();
         }
     } else if (info.Length() == 1 && info[0].IsObject()) {
         try {
-            infer(info[0].As<Napi::Object>());
+            infer_sync(info[0].As<Napi::Object>());
         } catch (std::exception& e) {
             reportError(info.Env(), e.what());
             return info.Env().Null();
@@ -173,7 +175,7 @@ Napi::Value InferRequestWrap::infer_dispatch(const Napi::CallbackInfo& info) {
     return get_output_tensors(info);
 }
 
-void InferRequestWrap::infer(const Napi::Array& inputs) {
+void InferRequestWrap::infer_sync(const Napi::Array& inputs) {
     for (size_t i = 0; i < inputs.Length(); ++i) {
         auto tensor = value_to_tensor(inputs[i], _infer_request, i);
         _infer_request.set_input_tensor(i, tensor);
@@ -181,7 +183,7 @@ void InferRequestWrap::infer(const Napi::Array& inputs) {
     _infer_request.infer();
 }
 
-void InferRequestWrap::infer(const Napi::Object& inputs) {
+void InferRequestWrap::infer_sync(const Napi::Object& inputs) {
     auto keys = inputs.GetPropertyNames();
 
     for (size_t i = 0; i < keys.Length(); ++i) {
@@ -217,24 +219,25 @@ void FinalizerCallback(Napi::Env env, void* finalizeData, TsfnContext* context) 
 };
 
 void performInferenceThread(TsfnContext* context) {
-    infer_mutex.lock();
-    for (size_t i = 0; i < context->_inputs.size(); ++i) {
-        context->_ir->set_input_tensor(i, context->_inputs[i]);
+    {
+        const std::lock_guard<std::mutex> lock(infer_mutex);
+        for (size_t i = 0; i < context->_inputs.size(); ++i) {
+            context->_ir->set_input_tensor(i, context->_inputs[i]);
+        }
+        context->_ir->infer();
+
+        auto compiled_model = context->_ir->get_compiled_model().outputs();
+        std::map<std::string, ov::Tensor> outputs;
+
+        for (auto& node : compiled_model) {
+            const auto& tensor = context->_ir->get_tensor(node);
+            auto new_tensor = ov::Tensor(tensor.get_element_type(), tensor.get_shape());
+            tensor.copy_to(new_tensor);
+            outputs.insert({node.get_any_name(), new_tensor});
+        }
+
+        context->result = outputs;
     }
-    context->_ir->infer();
-
-    auto compiled_model = context->_ir->get_compiled_model().outputs();
-    std::map<std::string, ov::Tensor> outputs;
-
-    for (auto& node : compiled_model) {
-        const auto& tensor = context->_ir->get_tensor(node);
-        auto new_tensor = ov::Tensor(tensor.get_element_type(), tensor.get_shape());
-        tensor.copy_to(new_tensor);
-        outputs.insert({node.get_any_name(), new_tensor});
-    }
-
-    context->result = outputs;
-    infer_mutex.unlock();
 
     auto callback = [](Napi::Env env, Napi::Function, TsfnContext* context) {
         const auto& res = context->result;

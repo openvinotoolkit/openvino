@@ -32,10 +32,10 @@ public:
      * @brief Reads a model synchronously.
      * @param info contains passed arguments.
      * One argument is passed:
-     * @param info[0] path to a model. (model_path)
+     * @param info[0] path to a model as string or Buffer<UInt8Array> with a model 
      * Two arguments are passed:
-     * @param info[0] path to a model. (model_path)
-     * @param info[1] path to a data file. (e.g. bin_path)
+     * @param info[0] path to a model. (model_path string or Buffer<UInt8Array>)
+     * @param info[1] path to a data file. (e.g. bin_path string or Buffer<UInt8Array>)
      * @return A Javascript Model object.
      */
     Napi::Value read_model_sync(const Napi::CallbackInfo& info);
