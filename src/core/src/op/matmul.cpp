@@ -106,7 +106,8 @@ void MatMul::validate_and_infer_types() {
                           get_input_element_type(1),
                           ").");
 
-    const auto &A_shape = get_input_partial_shape(0), &B_shape = get_input_partial_shape(1);
+    const auto& A_shape = get_input_partial_shape(0);
+    const auto& B_shape = get_input_partial_shape(1);
     const auto output_shapes = shape_infer(this, std::vector<ov::PartialShape>{A_shape, B_shape});
     set_output_type(0, result_et, output_shapes[0]);
 }
