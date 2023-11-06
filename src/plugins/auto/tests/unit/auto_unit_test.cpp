@@ -34,9 +34,42 @@ std::shared_ptr<ov::Model> ov::mock_auto_plugin::tests::BaseTest::create_model()
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 }
 
+std::shared_ptr<ov::Model> ov::mock_auto_plugin::tests::BaseTest::create_stateful_model() {
+    auto param = std::make_shared<ov::opset11::Parameter>(ov::element::i64, ov::Shape{1, 3, 2, 2});
+    param->set_friendly_name("input");
+    auto const_value = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1, 1, 1, 1}, {1});
+    const_value->set_friendly_name("const_val");
+
+    const std::string variable_name("variable0");
+    auto variable = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, variable_name});
+
+    // Creating ov::Model
+    auto read = std::make_shared<ov::opset11::ReadValue>(const_value, variable);
+    read->set_friendly_name("read");
+
+    std::vector<std::shared_ptr<ov::Node>> args = {param, read};
+    auto add = std::make_shared<ov::opset11::Add>(param, read);
+    add->set_friendly_name("add_sum");
+
+    auto assign = std::make_shared<ov::opset11::Assign>(add, variable);
+    assign->set_friendly_name("save");
+
+    auto add2 = std::make_shared<ov::opset11::Add>(add, read);
+    add2->set_friendly_name("add_sum_2");
+
+    auto res = std::make_shared<ov::opset11::Result>(add2);
+    res->set_friendly_name("res");
+
+    auto model =
+        std::make_shared<ov::Model>(ov::ResultVector({res}), ov::SinkVector({assign}), ov::ParameterVector({param}));
+    return model;
+}
+
 ov::mock_auto_plugin::tests::BaseTest::BaseTest() {
     set_log_level("LOG_NONE");
     model = create_model();
+    stateful_model = create_stateful_model();
     // construct mock auto plugin
     NiceMock<MockAutoPlugin>* mock_auto = new NiceMock<MockAutoPlugin>();
     plugin.reset(mock_auto);

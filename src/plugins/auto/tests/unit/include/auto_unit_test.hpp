@@ -69,6 +69,7 @@ namespace tests {
 class BaseTest {
 public:
     std::shared_ptr<const ov::Model> model;
+    std::shared_ptr<const ov::Model> stateful_model;
     std::shared_ptr<ov::Model> model_can_batch;
     std::shared_ptr<NiceMock<ov::MockIPlugin>> mock_plugin_cpu;
     std::shared_ptr<NiceMock<ov::MockIPlugin>> mock_plugin_gpu;
@@ -91,6 +92,7 @@ public:
 
 protected:
     std::shared_ptr<ov::Model> create_model();
+    std::shared_ptr<ov::Model> create_stateful_model();
 };
 // for auto unit tests which can covered by mock core, or need to test with gmock icore
 class AutoTest : public BaseTest {

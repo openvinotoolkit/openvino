@@ -917,33 +917,56 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
     }
 
     std::vector<DeviceInformation> filter_device;
-    auto is_stateful = [&]() {
-        for (auto& op : model->get_ops()) {
-            if (std::dynamic_pointer_cast<ngraph::op::AssignBase>(op) ||
-                std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(op)) {
-                    LOG_INFO_TAG("stateful mode, try deployed to CPU");
-                    return true;
-                }
-        }
-        return false;
-    };
+    std::vector<std::string> stateful_node_names;
 
     // Check if CPU is in candidate list
     auto cpuiter = std::find_if(meta_devices.begin(), meta_devices.end(), [](const DeviceInformation& device_info) {
         return device_info.device_name.find("CPU") != std::string::npos;
     });
-
     // If CPU is in candidate list, load dynamic model to CPU first
     // For MULTI do not only load stateful model to CPU
     // For AUTO CTPUT only load stateful model to CPU
-    if (((model->is_dynamic()) || (is_stateful() && get_device_name() != "MULTI")) && cpuiter != meta_devices.end()) {
+    if (model->is_dynamic() && cpuiter != meta_devices.end()) {
         filter_device.push_back(*cpuiter);
         return filter_device;
     }
-
     // If CPU is not in candidate list, continue to run selection logic regardless of whether the input model is a
     // dynamic model or not
-    return meta_devices;
+
+    for (auto& op : model->get_ops()) {
+        if (std::dynamic_pointer_cast<ngraph::op::AssignBase>(op) ||
+            std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(op)) {
+            LOG_INFO_TAG("stateful mode, try deployed to CPU");
+            stateful_node_names.push_back(op->get_friendly_name());
+        }
+    }
+    if (stateful_node_names.empty()) {
+        // not stateful model
+        return meta_devices;
+    }
+
+    auto is_supported_stateful = [&](const std::string& device_name, const ov::AnyMap& config) {
+        auto device_qm = get_core()->query_model(model, device_name, config);
+        for (auto&& node_name : stateful_node_names) {
+            if (device_qm.find(node_name) == device_qm.end())
+                return false;
+        }
+        return true;
+    };
+
+    for (auto& item : meta_devices) {
+        if (is_supported_stateful(item.device_name, item.config))
+            filter_device.push_back(item);
+    }
+    if (filter_device.empty()) {
+        return meta_devices;
+    }
+
+    if (get_device_name() == "MULTI") {
+        OPENVINO_THROW("AUTO cumulative model didn't support stateful model.");
+    }
+
+    return filter_device;
 }
 
 std::string Plugin::get_log_tag() const noexcept {
