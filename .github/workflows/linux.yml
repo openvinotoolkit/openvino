@@ -435,9 +435,9 @@ jobs:
           source ${INSTALL_DIR}/setupvars.sh
 
           python3 -m pytest -sv ${INSTALL_TEST_DIR}/smoke_tests \
-            --ignore=${{ matrix.architecture == 'x86_64' && '' || "${INSTALL_TEST_DIR}/smoke_tests/test_speech_sample.py" }}
             --env_conf ${INSTALL_TEST_DIR}/smoke_tests/env_config.yml \
-            --junitxml=${INSTALL_TEST_DIR}/TEST-SamplesSmokeTests.xml
+            --junitxml=${INSTALL_TEST_DIR}/TEST-SamplesSmokeTests.xml \
+            ${{ matrix.architecture == 'x86_64' && '' || '--ignore-glob=**/smoke_tests/test_speech_sample.py' }}
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
