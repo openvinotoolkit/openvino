@@ -12,7 +12,8 @@
 namespace ov {
 namespace reference {
 namespace func {
-
+// Use custom implementation as function instead std::multiplies functor, gives smaller binary size.
+// If removed or replace check impact on library binary size.
 template <class T>
 constexpr T multiply(const T a, const T b) {
     return a * b;
