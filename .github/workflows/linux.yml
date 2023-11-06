@@ -119,12 +119,8 @@ jobs:
           ls -laR /__w
 
       - if: ${{ runner.os == 'Linux' && runner.arch == 'ARM64' }}
-        run: echo "$GITHUB_ACTION_PATH" >> $GITHUB_PATH
-
-
-      - if: ${{ runner.os == 'Linux' && runner.arch == 'ARM64' }}
         name: Setup Python ${{ inputs.version }}
-        uses: deadsnakes/action@v3.0.1
+        uses: akashchi/deadsnakes-action@fa2eedac92a134009e6a31b0a9131f6a43170992
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
