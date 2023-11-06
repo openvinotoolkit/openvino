@@ -987,7 +987,7 @@ jobs:
           # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
           python3 -m pytest -sv ${INSTALL_TEST_DIR}/onnx -k 'not cuda' \
             --junitxml=${INSTALL_TEST_DIR}/TEST-onnx_frontend.xml \
-            --ignore=${INSTALL_TEST_DIR}/onnx/test_python/test_zoo_models.py \
+            --ignore=${INSTALL_TEST_DIR}/onnx/test_python/test_zoo_models.py
 
       - name: OVC unit tests
         run: python3 -m pytest -s ${INSTALL_TEST_DIR}/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
