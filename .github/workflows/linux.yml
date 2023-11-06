@@ -112,6 +112,12 @@ jobs:
         with:
           version: "v0.5.4"
 
+      - if: ${{ runner.os == 'Linux' && runner.arch == 'ARM64' }}
+        name: Setup Python ${{ inputs.version }}
+        uses: deadsnakes/action@v3.0.1
+        with:
+          python-version: ${{ inputs.version }}
+
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
         with:
