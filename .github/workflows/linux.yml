@@ -227,7 +227,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v3
         with:
-          name: openvino_package
+          name: openvino_package_${{ matrix.arhitecture }}
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
 
@@ -235,7 +235,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v3
         with:
-          name: openvino_developer_package
+          name: openvino_developer_package_${{ matrix.arhitecture }}
           path: ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
           if-no-files-found: 'error'
 
@@ -243,7 +243,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v3
         with:
-          name: openvino_debian_packages
+          name: openvino_debian_packages_${{ matrix.arhitecture }}
           path: ${{ env.BUILD_DIR }}/*.deb
           if-no-files-found: 'error'
 
@@ -251,167 +251,202 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v3
         with:
-          name: openvino_tests
+          name: openvino_tests_${{ matrix.arhitecture }}
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
 
-#  Debian_Packages:
-#    name: Debian Packages
-#    needs: Build
-#    timeout-minutes: 5
-#    defaults:
-#      run:
-#        shell: bash
-#    runs-on: ubuntu-20.04
-#    container:
-#      image: ubuntu:20.04
-#    env:
-#      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-#      DEBIAN_PACKAGES_DIR: /__w/openvino/packages/
-#
-#    steps:
-#      - name: Download OpenVINO debian packages
-#        uses: actions/download-artifact@v3
-#        with:
-#          name: openvino_debian_packages
-#          path: ${{ env.DEBIAN_PACKAGES_DIR }}
-#
-#      - name: Install debian packages & check conflicts
-#        run: |
-#          apt-get update -y
-#          # Install debian packages from previous release
-#          apt-get install --no-install-recommends -y gnupg wget ca-certificates
-#          wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-#          apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-#          echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu20 main" | tee /etc/apt/sources.list.d/intel-openvino-2023.list
-#          apt-get update -y
-#          apt-get install -y openvino
-#          # install our local one and make sure the conflicts are resolved
-#          apt-get install --no-install-recommends -y dpkg-dev
-#          dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
-#          echo "deb [trusted=yes] file:${DEBIAN_PACKAGES_DIR} ./" | tee /etc/apt/sources.list.d/openvino-local.list
-#          apt-get update -y
-#          apt-get install openvino -y
-#        working-directory: ${{ env.DEBIAN_PACKAGES_DIR }}
-#
-#      - name: Test debian packages
-#        run: |
-#          /usr/share/openvino/samples/cpp/build_samples.sh
-#          /usr/share/openvino/samples/c/build_samples.sh
-#          ~/openvino_cpp_samples_build/intel64/Release/hello_query_device
-#          python3 /usr/share/openvino/samples/python/hello_query_device/hello_query_device.py
-#          python3 -c 'from openvino import Core; Core().get_property("CPU", "AVAILABLE_DEVICES")'
-#          python3 -c 'from openvino import Core; Core().get_property("GPU", "AVAILABLE_DEVICES")'
-#          python3 -c 'from openvino import Core; Core().get_property("AUTO", "SUPPORTED_METRICS")'
-#          python3 -c 'from openvino import Core; Core().get_property("MULTI", "SUPPORTED_METRICS")'
-#          python3 -c 'from openvino import Core; Core().get_property("HETERO", "SUPPORTED_METRICS")'
-#          python3 -c 'from openvino import Core; Core().get_property("BATCH", "SUPPORTED_METRICS")'
-#          python3 -c 'from openvino.frontend import FrontEndManager; assert len(FrontEndManager().get_available_front_ends()) == 6'
-#          benchmark_app --help
-#          ovc --help
-#
-#  Samples:
-#    needs: Build
-#    timeout-minutes: 20
-#    defaults:
-#      run:
-#        shell: bash
-#    runs-on: ubuntu-20.04
-#    container:
-#      image: ubuntu:20.04
-#    env:
-#      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-#      INSTALL_DIR: /__w/openvino/openvino/install
-#      INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
-#      BUILD_DIR: /__w/openvino/openvino/build
-#
-#    steps:
-#      - name: Download OpenVINO package
-#        uses: actions/download-artifact@v3
-#        with:
-#          name: openvino_package
-#          path: ${{ env.INSTALL_DIR }}
-#
-#      - name: Download OpenVINO tests package
-#        uses: actions/download-artifact@v3
-#        with:
-#          name: openvino_tests
-#          path: ${{ env.INSTALL_TEST_DIR }}
-#
-#      - name: Extract OpenVINO packages
-#        run: |
-#          pushd ${INSTALL_DIR}
-#            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
-#          popd
-#          pushd ${INSTALL_TEST_DIR}
-#            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
-#          popd
-#
-#      - name: Install OpenVINO dependencies
-#        run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
-#
-#      - name: Fetch setup_python action
-#        uses: actions/checkout@v4
-#        with:
-#          sparse-checkout: |
-#            .github/actions/setup_python/action.yml
-#          sparse-checkout-cone-mode: false
-#          path: 'openvino'
-#
-#      - name: Setup Python ${{ env.PYTHON_VERSION }}
-#        uses: ./openvino/.github/actions/setup_python
-#        with:
-#          version: ${{ env.PYTHON_VERSION }}
-#          should-setup-pip-paths: 'false'
-#          self-hosted-runner: 'false'
-#
-#      - name: Build cpp samples - GCC
-#        run: ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples
-#        env:
-#          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
-#
-#      - name: Build cpp samples - Clang
-#        run: |
-#          apt-get install -y clang
-#          ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples_clang
-#        env:
-#          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
-#          CC: clang
-#          CXX: clang++
-#
-#      - name: Build c samples
-#        run: ${INSTALL_DIR}/samples/c/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/c_samples
-#        env:
-#          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
-#
-#      #
-#      # Tests
-#      #
-#
-#      - name: Samples tests
-#        run: |
-#          export WORKSPACE=${INSTALL_DIR}
-#          export IE_APP_PATH=${INSTALL_DIR}/samples_bin
-#          export IE_APP_PYTHON_PATH=${INSTALL_DIR}/samples/python
-#          export SHARE=${INSTALL_TEST_DIR}/smoke_tests/samples_smoke_tests_data
-#
-#          python3 -m pip install --ignore-installed PyYAML -r ${INSTALL_TEST_DIR}/smoke_tests/requirements.txt
-#          export LD_LIBRARY_PATH=${IE_APP_PATH}:$LD_LIBRARY_PATH
-#
-#          source ${INSTALL_DIR}/setupvars.sh
-#
-#          python3 -m pytest -sv ${INSTALL_TEST_DIR}/smoke_tests \
-#            --env_conf ${INSTALL_TEST_DIR}/smoke_tests/env_config.yml \
-#            --junitxml=${INSTALL_TEST_DIR}/TEST-SamplesSmokeTests.xml
-#
-#      - name: Upload Test Results
-#        uses: actions/upload-artifact@v3
-#        if: ${{ !cancelled() }}
-#        with:
-#          name: test-results-samples
-#          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
-#          if-no-files-found: 'error'
-#
+  Debian_Packages:
+    name: Debian Packages
+    needs: Build
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        include:
+          - arhitecture: 'x86_64'
+            machine: 'ubuntu-20.04'
+            image: 'ubuntu-20.04'
+          - arhitecture: 'arm64'
+            machine: 'aks-linux-16-cores-arm'
+            image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
+    runs-on: ${{ matrix.machine }}
+    container:
+      image: ${{ matrix.image }}
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      DEBIAN_PACKAGES_DIR: /__w/openvino/packages/
+
+    steps:
+      - name: Download OpenVINO debian packages
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_debian_packages_${{ matrix.arhitecture }}
+          path: ${{ env.DEBIAN_PACKAGES_DIR }}
+
+      - name: Install debian packages & check conflicts
+        run: |
+          apt-get update -y
+          
+          if [[ "${{ matrix.arhitecture }}" == "x86_64" ]]; then
+            # Install debian packages from previous release
+            apt-get install --no-install-recommends -y gnupg wget ca-certificates
+            wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+            apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+            echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu20 main" | tee /etc/apt/sources.list.d/intel-openvino-2023.list
+            apt-get update -y
+            apt-get install -y openvino
+          fi
+          
+          # install our local one
+          apt-get install --no-install-recommends -y dpkg-dev
+          dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
+          echo "deb [trusted=yes] file:${DEBIAN_PACKAGES_DIR} ./" | tee /etc/apt/sources.list.d/openvino-local.list
+          apt-get update -y
+          apt-get install openvino -y
+        working-directory: ${{ env.DEBIAN_PACKAGES_DIR }}
+
+      - name: Test debian packages
+        run: |
+          /usr/share/openvino/samples/cpp/build_samples.sh
+          /usr/share/openvino/samples/c/build_samples.sh
+          
+          if [[ "${{ matrix.arhitecture }}" == "x86_64" ]]; then
+            ~/openvino_cpp_samples_build/intel64/Release/hello_query_device
+          elif [[ "${{ matrix.arhitecture }}" == "arm64" ]]
+            ~/openvino_cpp_samples_build/aarch64/Release/hello_query_device
+          fi
+          
+          python3 /usr/share/openvino/samples/python/hello_query_device/hello_query_device.py
+          python3 -c 'from openvino import Core; Core().get_property("CPU", "AVAILABLE_DEVICES")'
+          if [[ "${{ matrix.arhitecture }}" == "x86_64" ]]; then
+            python3 -c 'from openvino import Core; Core().get_property("GPU", "AVAILABLE_DEVICES")'
+          fi
+          python3 -c 'from openvino import Core; Core().get_property("AUTO", "SUPPORTED_METRICS")'
+          python3 -c 'from openvino import Core; Core().get_property("MULTI", "SUPPORTED_METRICS")'
+          python3 -c 'from openvino import Core; Core().get_property("HETERO", "SUPPORTED_METRICS")'
+          python3 -c 'from openvino import Core; Core().get_property("BATCH", "SUPPORTED_METRICS")'
+          python3 -c 'from openvino.frontend import FrontEndManager; assert len(FrontEndManager().get_available_front_ends()) == 6'
+          benchmark_app --help
+          ovc --help
+
+  Samples:
+    needs: Build
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        include:
+          - arhitecture: 'x86_64'
+            machine: 'ubuntu-20.04'
+            image: 'ubuntu-20.04'
+          - arhitecture: 'arm64'
+            machine: 'aks-linux-16-cores-arm'
+            image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
+    runs-on: ${{ matrix.machine }}
+    container:
+      image: ${{ matrix.image }}
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      INSTALL_DIR: /__w/openvino/openvino/install
+      INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
+      BUILD_DIR: /__w/openvino/openvino/build
+
+    steps:
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_package_${{ matrix.arhitecture }}
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_tests_${{ matrix.arhitecture }}
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd ${INSTALL_DIR}
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
+          popd
+          pushd ${INSTALL_TEST_DIR}
+            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
+          popd
+
+      - name: Install OpenVINO dependencies
+        run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
+
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
+
+      - name: Build cpp samples - GCC
+        run: ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples
+        env:
+          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
+
+      - name: Build cpp samples - Clang
+        run: |
+          apt-get install -y clang
+          ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples_clang
+        env:
+          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
+          CC: clang
+          CXX: clang++
+
+      - name: Build c samples
+        run: ${INSTALL_DIR}/samples/c/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/c_samples
+        env:
+          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
+
+      #
+      # Tests
+      #
+
+      - name: Samples tests
+        run: |
+          export WORKSPACE=${INSTALL_DIR}
+          export IE_APP_PATH=${INSTALL_DIR}/samples_bin
+          export IE_APP_PYTHON_PATH=${INSTALL_DIR}/samples/python
+          export SHARE=${INSTALL_TEST_DIR}/smoke_tests/samples_smoke_tests_data
+
+          python3 -m pip install --ignore-installed PyYAML -r ${INSTALL_TEST_DIR}/smoke_tests/requirements.txt
+          export LD_LIBRARY_PATH=${IE_APP_PATH}:$LD_LIBRARY_PATH
+
+          source ${INSTALL_DIR}/setupvars.sh
+
+          python3 -m pytest -sv ${INSTALL_TEST_DIR}/smoke_tests \
+            --ignore=${{ matrix.architecture == 'x86_64' && '' || "${INSTALL_TEST_DIR}/smoke_tests/test_speech_sample.py" }}
+            --env_conf ${INSTALL_TEST_DIR}/smoke_tests/env_config.yml \
+            --junitxml=${INSTALL_TEST_DIR}/TEST-SamplesSmokeTests.xml
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results-samples-${{ matrix.architecture }}
+          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          if-no-files-found: 'error'
+
 #  Conformance:
 #    needs: Build
 #    timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 5 || 15 }}
