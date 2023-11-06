@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/sign.hpp"
+
 #include "element_visitor.hpp"
 #include "itt.hpp"
-#include "openvino/op/sign.hpp"
 #include "openvino/reference/sign.hpp"
 
 namespace ov {
