@@ -11,7 +11,17 @@ type SupportedTypedArray =
   | Float32Array
   | Float64Array;
 
-type elementTypeString = 'u8' | 'u32'| 'u16' | 'u64' | 'i8' | 'i64' | 'i32' | 'i16' | 'f64' | 'f32';
+type elementTypeString =
+  | 'u8'
+  | 'u32'
+  | 'u16'
+  | 'u64'
+  | 'i8'
+  | 'i64'
+  | 'i32'
+  | 'i16'
+  | 'f64'
+  | 'f32';
 
 interface Core {
   compileModel(
