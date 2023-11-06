@@ -7,20 +7,26 @@ log = logging.getLogger()
 log.level = logging.DEBUG
 
 
+def log_handler(func):
+    def wrapper(*args, **kwargs):
+        stream_handler = logging.StreamHandler(sys.stdout)
+        log.addHandler(stream_handler)
+        result = func(*args, **kwargs)
+        log.removeHandler(stream_handler)
+        return result
+    return wrapper
+
+
 class TestComponentConfig(unittest.TestCase):
     def setUp(self):
         self.all_possible_components = {'comp1', 'comp2', 'comp3', 'comp4'}
 
+    @log_handler
     def validate(self, config_data: dict, changed_components: set, expected_result: dict):
-        stream_handler = logging.StreamHandler(sys.stdout)
-        log.addHandler(stream_handler)
         log.info(f"{self._testMethodName}:")
-
         config = ComponentConfig(config_data, {}, self.all_possible_components)
         result = config.get_affected_components(changed_components)
         self.assertEqual(expected_result, result)
-
-        log.removeHandler(stream_handler)
 
     def test_no_changed_components(self):
         config_data = {
