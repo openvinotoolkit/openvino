@@ -52,7 +52,11 @@ class TestKerasConcatenate(CommonTF2LayerTest):
              input_type=tf.float32),
         dict(axis=2, input_names=["x1", "x2", "x3"],
              input_shapes=[[5, 4, 8, 2, 3], [5, 4, 8, 2, 3], [5, 4, 8, 2, 3]],
-             input_type=tf.float32)
+             input_type=tf.float32),
+        dict(axis=0, input_names=["x", "l", "a", "m", "c"],
+             input_shapes=[[2], [2], [2], [2], [2]], input_type=tf.float32),
+        dict(axis=0, input_names=["inp3", "inp1", "inp2"],
+             input_shapes=[[3], [3], [3]], input_type=tf.int32)
     ]
 
     @pytest.mark.parametrize("params", test_data_extended_float32)
