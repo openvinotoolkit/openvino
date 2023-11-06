@@ -45,9 +45,6 @@ def main():
     data = np.random.uniform(-10, 20, [4, 3, 2]).astype(np.float32)
     tanh_shrink("tanh_shrink_2", data)
 
-    # data = np.random.uniform(10, 20, [2, 3, 4]).astype(np.float16) // only on gpu
-    # tanh_shrink("tanh_shrink_3", data)
-
 if __name__ == "__main__":
     main()
 
