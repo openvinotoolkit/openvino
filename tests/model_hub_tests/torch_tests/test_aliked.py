@@ -126,6 +126,11 @@ class TestAlikedConvertModel(TestConvertModel):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.parametrize("name", ['aliked-t16', 'aliked-n16', 'aliked-n16rot', 'aliked-n32'])
+    @pytest.mark.parametrize("name", ['aliked-n16rot'])
+    def test_convert_model_all_models_default(self, name, ie_device):
+        self.run(name, None, ie_device)
+
+    @pytest.mark.nightly
+    @pytest.mark.parametrize("name", ['aliked-t16', 'aliked-n16', 'aliked-n32'])
     def test_convert_model_all_models(self, name, ie_device):
         self.run(name, None, ie_device)
