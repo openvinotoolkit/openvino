@@ -141,6 +141,7 @@ std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>
 
 std::ostream& operator<<(std::ostream& os, MemoryTransformation type);
 
+// todo: remove the following function from the source code after cleaning up VPU repo
 void resize_function(std::shared_ptr<ov::Model> function, const std::vector<ov::Shape>& targetInputStaticShapes);
 
 using ov::test::utils::operator<<;

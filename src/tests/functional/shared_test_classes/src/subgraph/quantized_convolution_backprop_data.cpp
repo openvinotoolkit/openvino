@@ -56,16 +56,15 @@ void QuantConvBackpropDataLayerTest::SetUp() {
     size_t convOutChannels;
     size_t quantLevels;
     QuantizationGranularity quantGranularity;
-    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, quantLevels, quantGranularity) =
+    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, quantLevels, quantGranularity) = 
         groupConvBackpropDataParams;
-    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(inputShape))};
-    auto paramOuts =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
+    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     std::vector<size_t> dataFqConstShapes(inputShape.size(), 1);
     if (quantGranularity == ov::test::utils::Perchannel)
         dataFqConstShapes[1] = inputShape[1];
-    auto dataFq = ngraph::builder::makeFakeQuantize(paramOuts[0], element_type, quantLevels, dataFqConstShapes);
+    auto dataFq = ngraph::builder::makeFakeQuantize(params[0], ngPrc, quantLevels, dataFqConstShapes);
 
     std::vector<size_t> weightsShapes = {inputShape[1], convOutChannels};
     weightsShapes.insert(weightsShapes.end(), kernel.begin(), kernel.end());

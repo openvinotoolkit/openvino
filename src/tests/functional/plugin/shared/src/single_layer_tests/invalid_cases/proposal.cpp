@@ -73,10 +73,9 @@ void ProposalBehTest::SetUp() {
                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(boxesShape))};
     params[0]->set_friendly_name("scores");
     params[1]->set_friendly_name("boxes");
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     auto proposal = std::dynamic_pointer_cast<ngraph::opset1::Proposal>(
-             ngraph::builder::makeProposal(paramOuts[0], paramOuts[1], img_info, ngPrc,
+             ngraph::builder::makeProposal(params[0], params[1], img_info, ngPrc,
                                            base_size,
                                            pre_nms_topn,
                                            post_nms_topn,
