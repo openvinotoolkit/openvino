@@ -28,7 +28,7 @@ class MemoryNode {
     explicit MemoryNode(std::string id) : _id(id) {}
     explicit MemoryNode(const std::shared_ptr<ov::Node>& op);
     virtual ~MemoryNode() = default;
-    std::string getId() {
+    std::string getId() const {
         return _id;
     }
     virtual void registerInputNode(MemoryInput*) = 0;
@@ -133,7 +133,7 @@ public:
     void deregisterSibling(MemoryNode* node) override;
 
     void assignState(MemStatePtr newState);
-    std::function<MemoryPtr(void)> memoryBuilder() const;
+    MemStatePtr makeState() const;
 
 private:
     MemoryOutput& getOutputNode();

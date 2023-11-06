@@ -239,10 +239,12 @@ MemoryInput::MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext
 
 void MemoryInput::createPrimitive() {
     Input::createPrimitive();
-    auto parentEdge = getParentEdgeAt(0);
+    if (!inputShapes.empty()) {
+        auto parentEdge = getParentEdgeAt(0);
 
-    if (parentEdge->getParent()->isConstant()) {
-        Input::resetMemoryPtr(parentEdge->getMemoryPtr());
+        if (parentEdge->getParent()->isConstant()) {
+            Input::resetMemoryPtr(parentEdge->getMemoryPtr());
+        }
     }
 }
 
@@ -385,13 +387,29 @@ void MemoryInput::assignState(MemStatePtr newState) {
         outMem->load(*assignedMem);
     }
 
-    getOutputNode().assignExtMemory(newState->OutputMem(), newState->OriginalDesc());
+    getOutputNode().assignExtMemory(newState->OutputMem(), newState->InternalDesc());
 }
 
-std::function<MemoryPtr(void)> MemoryInput::memoryBuilder() const {
+MemStatePtr MemoryInput::makeState() const {
+    // assume ov::Tensor is always dense
+    auto original_desc =
+        std::make_shared<CpuBlockedMemoryDesc>(getOriginalOutputPrecisionAtPort(0), outputShapes.at(0));
+
     auto mem_desc = getBaseMemDescAtOutputPort(0);
     const auto& eng = getEngine();
-    return [mem_desc, eng](){ return std::make_shared<Memory>(eng, mem_desc); };
+
+    auto state_name = getId();
+
+    // Remove suffix with pair ID. Internal information.
+    auto suffix_idx = state_name.find("/id=");
+    if (suffix_idx != std::string::npos) {
+        state_name = state_name.substr(0, suffix_idx);
+    }
+
+    return std::make_shared<VariableStateDoubleBuffer>(state_name,
+        [mem_desc, eng](){ return std::make_shared<Memory>(eng, mem_desc); },
+        original_desc,
+        getMemoryPtr());
 }
 
 void MemoryInput::registerOutputNode(MemoryOutput* node) {

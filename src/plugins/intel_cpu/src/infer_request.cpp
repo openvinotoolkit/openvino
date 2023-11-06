@@ -70,16 +70,8 @@ void SyncInferRequest::create_infer_request() {
             if (!memoryNode) {
                 OPENVINO_THROW("Cannot cast ", node->getName(), " to MemoryInput");
             }
-            auto state_name = memoryNode->getId();
 
-            // Remove suffix with pair ID. Internal information.
-            auto suffix_idx = state_name.find("/id=");
-            if (suffix_idx != std::string::npos) {
-                state_name = state_name.substr(0, suffix_idx);
-            }
-
-            m_memory_states.emplace_back(
-                std::make_shared<VariableStateDoubleBuffer>(state_name, memoryNode->memoryBuilder(), memoryNode->getMemoryPtr()));
+            m_memory_states.emplace_back(memoryNode->makeState());
         }
     }
 }
