@@ -22,12 +22,19 @@ public:
     std::string m_binary_path;
     std::string m_out_xml_path;
     std::string m_out_bin_path;
+    std::string m_out_directory;
 
-    void CompareSerialized(std::function<void(const std::shared_ptr<ov::Model>&)> serializer) {
+    void CompareSerialized(std::function<void(const std::shared_ptr<ov::Model>&)> serializer,
+                           bool directory_was_set = false) {
         auto expected = ov::test::readModel(m_model_path, m_binary_path);
         auto orig = expected->clone();
         serializer(expected);
-        auto result = ov::test::readModel(m_out_xml_path, m_out_bin_path);
+        std::shared_ptr<ov::Model> result = nullptr;
+        if (directory_was_set) {
+            result = ov::test::readModel(ov::util::path_join({m_out_directory, "model.xml"}),
+                                         ov::util::path_join({m_out_directory, "model.bin"}));
+        } else
+            result = ov::test::readModel(m_out_xml_path, m_out_bin_path);
         const auto fc = FunctionsComparator::with_default()
                             .enable(FunctionsComparator::ATTRIBUTES)
                             .enable(FunctionsComparator::CONST_VALUES);
@@ -48,11 +55,15 @@ public:
         std::string filePrefix = ov::test::utils::generateTestFilePrefix();
         m_out_xml_path = filePrefix + ".xml";
         m_out_bin_path = filePrefix + ".bin";
+        m_out_directory = filePrefix + "_dir";
     }
 
     void TearDown() override {
         std::remove(m_out_xml_path.c_str());
         std::remove(m_out_bin_path.c_str());
+        std::remove(ov::util::path_join({m_out_directory, "model.xml"}).c_str());
+        std::remove(ov::util::path_join({m_out_directory, "model.bin"}).c_str());
+        std::remove(m_out_directory.c_str());
     }
 };
 
@@ -72,6 +83,22 @@ TEST_P(SerializationTest, SaveModel) {
     CompareSerialized([this](const std::shared_ptr<ov::Model>& m) {
         ov::save_model(m, m_out_xml_path, false);
     });
+}
+
+TEST_P(SerializationTest, SaveModelCheckDirectory) {
+    CompareSerialized(
+        [this](const std::shared_ptr<ov::Model>& m) {
+            ov::save_model(m, m_out_directory, false);
+        },
+        true);
+}
+
+TEST_P(SerializationTest, SerializeCheckDirectory) {
+    CompareSerialized(
+        [this](const std::shared_ptr<ov::Model>& m) {
+            ov::serialize(m, m_out_directory);
+        },
+        true);
 }
 
 INSTANTIATE_TEST_SUITE_P(

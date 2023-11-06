@@ -1146,13 +1146,12 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
     }
 }
 
-std::string valid_xml_path(const std::string& path) {
-    OPENVINO_ASSERT(path.length() > 4, "Path for xml file is too short: \"" + path + "\"");
-
+std::string convert_to_valid_xml_path(const std::string& path) {
     const char* const extension = ".xml";
     const bool has_xml_extension = path.rfind(extension) == path.size() - std::strlen(extension);
-    OPENVINO_ASSERT(has_xml_extension,
-                    "Path for xml file doesn't contains file name with 'xml' extension: \"" + path + "\"");
+    if (!has_xml_extension) {
+        return ov::util::path_join({path, "model.xml"});
+    }
     return path;
 }
 
@@ -1269,8 +1268,8 @@ pass::Serialize::Serialize(const std::string& xmlPath,
                            pass::Serialize::Version version)
     : m_xmlFile{nullptr},
       m_binFile{nullptr},
-      m_xmlPath{valid_xml_path(xmlPath)},
-      m_binPath{provide_bin_path(xmlPath, binPath)},
+      m_xmlPath{convert_to_valid_xml_path(xmlPath)},
+      m_binPath{provide_bin_path(m_xmlPath, binPath)},
       m_version{version},
       m_custom_opsets{custom_opsets} {}
 
