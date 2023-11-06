@@ -5,28 +5,36 @@ A very basic introduction to using segmentation models with OpenVINO™.
 
 In this tutorial, a pre-trained
 `road-segmentation-adas-0001 <https://docs.openvino.ai/2023.0/omz_models_model_road_segmentation_adas_0001.html>`__
-model from the `Open Model Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used.
+model from the `Open Model
+Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used.
 ADAS stands for Advanced Driver Assistance Services. The model
 recognizes four classes: background, road, curb and mark.
 
 **Table of contents:**
 
-- `Imports <#imports>`__
-- `Download model weights <#download-model-weights>`__
-- `Select inference device <#select-inference-device>`__
-- `Load the Model <#load-the-model>`__
-- `Load an Image <#load-an-image>`__
-- `Do Inference <#do-inference>`__
-- `Prepare Data for Visualization <#prepare-data-for-visualization>`__
-- `Visualize data <#visualize-data>`__
+
+-  `Imports <#imports>`__
+-  `Download model weights <#download-model-weights>`__
+-  `Select inference device <#select-inference-device>`__
+-  `Load the Model <#load-the-model>`__
+-  `Load an Image <#load-an-image>`__
+-  `Do Inference <#do-inference>`__
+-  `Prepare Data for Visualization <#prepare-data-for-visualization>`__
+-  `Visualize data <#visualize-data>`__
 
 .. code:: ipython3
 
     # Install openvino package
-    !pip install -q "openvino==2023.1.0.dev20230811"
+    %pip install -q "openvino>=2023.1.0"
 
-Imports
-#########################################
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+Imports 
+-------------------------------------------------
 
 .. code:: ipython3
 
@@ -34,13 +42,18 @@ Imports
     import matplotlib.pyplot as plt
     import numpy as np
     import openvino as ov
-    import sys
     
-    sys.path.append("../utils")
+    # Fetch `notebook_utils` module
+    import urllib.request
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
+        filename='notebook_utils.py'
+    )
+    
     from notebook_utils import segmentation_map_to_image, download_file
 
-Download model weights
-#############################################################################################################################
+Download model weights 
+----------------------------------------------------------------
 
 .. code:: ipython3
 
@@ -76,10 +89,10 @@ Download model weights
     model/road-segmentation-adas-0001.bin:   0%|          | 0.00/720k [00:00<?, ?B/s]
 
 
-Select inference device
-#############################################################################################################################
+Select inference device 
+-----------------------------------------------------------------
 
-Select device from dropdown list for running inference using OpenVINO:
+select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
@@ -104,8 +117,8 @@ Select device from dropdown list for running inference using OpenVINO:
 
 
 
-Load the Model
-#############################################################################################################################
+Load the Model 
+--------------------------------------------------------
 
 .. code:: ipython3
 
@@ -117,16 +130,23 @@ Load the Model
     input_layer_ir = compiled_model.input(0)
     output_layer_ir = compiled_model.output(0)
 
-Load an Image
-#############################################################################################################################
+Load an Image 
+-------------------------------------------------------
 
-A sample image from the `Mapillary Vistas <https://www.mapillary.com/dataset/vistas>`__ dataset is
+A sample image from the `Mapillary
+Vistas <https://www.mapillary.com/dataset/vistas>`__ dataset is
 provided.
 
 .. code:: ipython3
 
+    # Download the image from the openvino_notebooks storage
+    image_filename = download_file(
+        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/empty_road_mapillary.jpg",
+        directory="data"
+    )
+    
     # The segmentation network expects images in BGR format.
-    image = cv2.imread("../data/image/empty_road_mapillary.jpg")
+    image = cv2.imread(str(image_filename))
     
     rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     image_h, image_w, _ = image.shape
@@ -145,19 +165,25 @@ provided.
 
 
 
+.. parsed-literal::
+
+    data/empty_road_mapillary.jpg:   0%|          | 0.00/227k [00:00<?, ?B/s]
+
+
+
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7fe21c3c5970>
+    <matplotlib.image.AxesImage at 0x7f42f835ec10>
 
 
 
 
-.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_11_1.png
+.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_11_2.png
 
 
-Do Inference
-#############################################################################################################################
+Do Inference 
+------------------------------------------------------
 
 .. code:: ipython3
 
@@ -173,7 +199,7 @@ Do Inference
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7fe21c2a7940>
+    <matplotlib.image.AxesImage at 0x7f42f823fa90>
 
 
 
@@ -181,8 +207,8 @@ Do Inference
 .. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_13_1.png
 
 
-Prepare Data for Visualization
-#############################################################################################################################
+Prepare Data for Visualization 
+------------------------------------------------------------------------
 
 .. code:: ipython3
 
@@ -199,8 +225,8 @@ Prepare Data for Visualization
     # Create an image with mask.
     image_with_mask = cv2.addWeighted(resized_mask, alpha, rgb_image, 1 - alpha, 0)
 
-Visualize data
-#############################################################################################################################
+Visualize data 
+--------------------------------------------------------
 
 .. code:: ipython3
 

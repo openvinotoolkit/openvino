@@ -1,8 +1,6 @@
 `FastComposer: Tuning-Free Multi-Subject Image Generation with Localized Attention <https://fastcomposer.mit.edu/>`__
 =====================================================================================================================
 
-
-
 FastComposer uses subject embeddings extracted by an image encoder to
 augment the generic text conditioning in diffusion models, enabling
 personalized image generation based on subject images and textual
@@ -22,51 +20,50 @@ problems:
 FastComposer generates images of multiple unseen individuals with
 different styles, actions, and contexts.
 
-.. image:: 252-fastcomposer-image-generation-with-output_files/multi-subject.png
-
-.. note::
-
-   ``model.py`` is slightly changed ``model.py`` from
+   **NOTE**: ``model.py`` is slightly changed ``model.py`` from
    fastcomposer repository. There are two main changes: - some unused
    lines of code are removed to avoid errors if there are no CUDA
    drivers in the system - changes to have compatibility with
    transformers >= 4.30.1 (due to security vulnerability)
 
-.. _top:
-
-**Table of contents**:
+**Table of contents:**
+---
 
 - `Install Prerequisites <#install-prerequisites>`__
-- `Convert models to OpenVINO Intermediate representation (IR) format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
-- `Convert text_encoder <#convert-text_encoder>`__
-- `The Object Transform <#the-object-transform>`__
-- `The Image Encoder <#the-image-encoder>`__
-- `Postfuse module <#postfuse-module>`__
-- `Convert Unet <#convert-unet>`__
-- `Rebuild pipeline <#rebuild-pipeline>`__
-- `Inference <#inference>`__
-- `Run Gradio <#run-gradio>`__
+-  `Convert models to OpenVINO Intermediate representation (IR)
+   format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
 
-.. important::
+   -  `Convert text_encoder <#convert-text_encoder>`__
+   -  `The Object Transform <#the-object-transform>`__
+   -  `The Image Encoder <#the-image-encoder>`__
+   -  `Postfuse module <#postfuse-module>`__
+   -  `Convert Unet <#convert-unet>`__
 
-   This tutorial requires about 25-28GB of free memory to generate one image. Each extra image requires ~11GB of free memory.
+-  `Rebuild pipeline <#rebuild-pipeline>`__
+-  `Inference <#inference>`__
+-  `Run Gradio <#run-gradio>`__
 
+.. container:: alert alert-block alert-warning
 
-Install Prerequisites `⇑ <#top>`__ 
-###############################################################################################################################
+   ::
+
+      This tutorial requires about 25-28GB of free memory to generate one image. Each extra image requires ~11GB of free memory.
+
+Install Prerequisites 
+---------------------------------------------------------------
 
 Install required packages.
 
-.. code:: ipython2
+.. code:: ipython3
 
     !pip install -q --upgrade pip
-    !pip install -q torch torchvision huggingface-hub
-    !pip install -q transformers accelerate "diffusers==0.16.1" gradio
-    !pip install -q "openvino==2023.1.0.dev20230811"
+    !pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision
+    !pip install -q transformers  huggingface-hub accelerate "diffusers==0.16.1" gradio
+    !pip install -q "openvino>=2023.1.0"
 
 Clone FastComposer project from GitHub
 
-.. code:: ipython2
+.. code:: ipython3
 
     from pathlib import Path
     
@@ -79,19 +76,19 @@ Clone FastComposer project from GitHub
 
 Download pretrained model.
 
-.. code:: ipython2
+.. code:: ipython3
 
     from huggingface_hub import hf_hub_download
     
     
     model_path = hf_hub_download(repo_id='mit-han-lab/fastcomposer', filename='pytorch_model.bin')
 
-Convert models to OpenVINO Intermediate representation (IR) format `⇑ <#top>`__
-###############################################################################################################################
+Convert models to OpenVINO Intermediate representation (IR) format 
+------------------------------------------------------------------------------------------------------------
 
 Define a configuration and make instance of ``FastComposerModel``.
 
-.. code:: ipython2
+.. code:: ipython3
 
     from dataclasses import dataclass
     
@@ -129,15 +126,15 @@ Pipeline consist of next models: ``Unet``, ``TextEncoder``,
 
 So, convert the models into OpenVINO IR format.
 
-Convert text_encoder `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Convert text_encoder 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Model components are PyTorch modules, that can be converted with
 openvino.convert_model function directly. We also use
 openvino.save_model function to serialize the result of conversion.
 Let’s create a helper function.
 
-.. code:: ipython2
+.. code:: ipython3
 
     import gc
     import openvino
@@ -165,7 +162,7 @@ The input for the text encoder consists of a tensor ``input_ids``, which
 contains token indices from the text processed by the tokenizer and
 padded to the maximum length accepted by the model.
 
-.. code:: ipython2
+.. code:: ipython3
 
     text_encoder_ir_xml_path = Path('models/text_encoder_ir.xml')
     example_input = torch.zeros((1, 77), dtype=torch.int64)
@@ -176,13 +173,13 @@ padded to the maximum length accepted by the model.
     del model.text_encoder
     gc.collect();
 
-The Object Transform `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+The Object Transform 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-It pads an incoming user image to
-square and resize it. An input is a tensor of size [3, height, width].
+It pads an incoming user image to square and resize it. An input is a
+tensor of size [3, height, width].
 
-.. code:: ipython2
+.. code:: ipython3
 
     from collections import OrderedDict
     from torchvision import transforms as T
@@ -215,15 +212,14 @@ square and resize it. An input is a tensor of size [3, height, width].
     del object_transforms
     gc.collect();
 
-The Image Encoder `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+The Image Encoder 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The image encoder is a CLIP
-(Contrastive Language-Image Pretraining) Image Encoder. It takes a
-transformed image from the previous step as input and transforms it into
-a high-dimensional vector or embeddings.
+The image encoder is a CLIP (Contrastive Language-Image Pretraining)
+Image Encoder. It takes a transformed image from the previous step as
+input and transforms it into a high-dimensional vector or embeddings.
 
-.. code:: ipython2
+.. code:: ipython3
 
     image_encoder_ir_xml_path = Path('models/image_encoder_ir.xml')
     example_input = torch.zeros((1, 2, 3, 256, 256), dtype=torch.float32)
@@ -234,16 +230,16 @@ a high-dimensional vector or embeddings.
     del model.image_encoder
     gc.collect();
 
-Postfuse module `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Postfuse module 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-On this step it is employed a multilayer
-perceptron (MLP) to augment the text embeddings with visual features
-extracted from the reference subjects. The Postfuse module concatenates
-the word embeddings with the visual features and feeds the resulting
-augmented embeddings into the MLP.
+On this step it is employed a multilayer perceptron (MLP) to augment the
+text embeddings with visual features extracted from the reference
+subjects. The Postfuse module concatenates the word embeddings with the
+visual features and feeds the resulting augmented embeddings into the
+MLP.
 
-.. code:: ipython2
+.. code:: ipython3
 
     postfuse_module_ir_xml_path = Path('models/postfuse_module_ir.xml')
     
@@ -260,13 +256,13 @@ augmented embeddings into the MLP.
     del model.postfuse_module
     gc.collect();
 
-Convert Unet `⇑ <#top>`__ 
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Convert Unet 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-U-Net model gradually denoises latent image
-representation guided by text encoder hidden state.
+U-Net model gradually denoises latent image representation guided by
+text encoder hidden state.
 
-.. code:: ipython2
+.. code:: ipython3
 
     unet_ir_xml_path = Path('models/unet_ir.xml')
     
@@ -284,14 +280,14 @@ representation guided by text encoder hidden state.
     
     gc.collect()
 
-Rebuild pipeline `⇑ <#top>`__ 
-###############################################################################################################################
+Rebuild pipeline 
+----------------------------------------------------------
 
-Also, it needs to modify some internal
-FastComposer entities, to use OpenVINO models. First of all, how to get
-results. For example, to convert outputs from numpy to torch types.
+Also, it needs to modify some internal FastComposer entities, to use
+OpenVINO models. First of all, how to get results. For example, to
+convert outputs from numpy to torch types.
 
-.. code:: ipython2
+.. code:: ipython3
 
     import numpy as np
     from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
@@ -784,7 +780,7 @@ results. For example, to convert outputs from numpy to torch types.
 
 And replace all model in the pipeline by converted models.
 
-.. code:: ipython2
+.. code:: ipython3
 
     import PIL
     from transformers import CLIPTokenizer
@@ -904,16 +900,16 @@ And replace all model in the pipeline by converted models.
         )
     )
 
-Inference `⇑ <#top>`__ 
-###############################################################################################################################
+Inference 
+---------------------------------------------------
 
-And now it is possible to make inference. You
-can provide 1 or 2 images (``image1`` and ``image2``). If you want to
-provide only one image pass in inference ``None`` instead image.
-``prompt`` describes context in what objects from user images will be
-generated. Word ``img`` is a token that correlates with input images.
+And now it is possible to make inference. You can provide 1 or 2 images
+(``image1`` and ``image2``). If you want to provide only one image pass
+in inference ``None`` instead image. ``prompt`` describes context in
+what objects from user images will be generated. Word ``img`` is a token
+that correlates with input images.
 
-.. code:: ipython2
+.. code:: ipython3
 
     image1 = Image.open('fastcomposer/data/newton_einstein/einstein/0.png')
     image2 = Image.open('fastcomposer/data/newton_einstein/newton/0.png')
@@ -941,16 +937,16 @@ generated. Word ``img`` is a token that correlates with input images.
 Result consists of several (``num_images``) images and now it possible
 to display them.
 
-.. code:: ipython2
+.. code:: ipython3
 
     display(result[0][0])
 
-Run Gradio `⇑ <#top>`__
-###############################################################################################################################
+Run Gradio 
+----------------------------------------------------
 
 Also, it is possible to run with Gradio
 
-.. code:: ipython2
+.. code:: ipython3
 
     import gradio as gr
     
@@ -1061,9 +1057,9 @@ Also, it is possible to run with Gradio
     
     if __name__ == "__main__":
         try:
-            demo.launch(debug=True)
+            demo.launch(debug=False)
         except Exception:
-            demo.launch(share=True, debug=True)
+            demo.launch(share=True, debug=False)
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/

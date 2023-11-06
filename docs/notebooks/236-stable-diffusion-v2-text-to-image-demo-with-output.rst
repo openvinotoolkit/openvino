@@ -1,8 +1,6 @@
 Stable Diffusion Text-to-Image Demo
 ===================================
 
-
-
 Stable Diffusion is an innovative generative AI technique that allows us
 to generate and manipulate images in interesting ways, including
 generating image from text and restoring missing parts of pictures
@@ -13,38 +11,31 @@ including being able to use more data, employ more training, and has
 less restrictive filtering of the dataset. All of these features give us
 promising results for selecting a wide range of input text prompts!
 
-.. note::
-
-   This is a shorter version of the
-   `236-stable-diffusion-v2-text-to-image <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-text-to-image.ipynb>`__
-   notebook for demo purposes and to get started quickly. This version does
-   not have the full implementation of the helper utilities needed to
-   convert the models from PyTorch to ONNX to OpenVINO, and the OpenVINO
-   ``OVStableDiffusionPipeline`` within the notebook directly. If you would
-   like to see the full implementation of stable diffusion for text to
-   image, please visit
-   `236-stable-diffusion-v2-text-to-image <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-text-to-image.ipynb>`__.
+**Note:** This is a shorter version of the
+`236-stable-diffusion-v2-text-to-image <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-text-to-image.ipynb>`__
+notebook for demo purposes and to get started quickly. This version does
+not have the full implementation of the helper utilities needed to
+convert the models from PyTorch to ONNX to OpenVINO, and the OpenVINO
+``OVStableDiffusionPipeline`` within the notebook directly. If you would
+like to see the full implementation of stable diffusion for text to
+image, please visit
+`236-stable-diffusion-v2-text-to-image <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-text-to-image.ipynb>`__.
 
 
-.. _top:
+**Table of contents:**
+---
 
-**Table of contents**:
+- `Step 0: Install and import prerequisites <#step--install-and-import-prerequisites>`__
+- `Step 1: Stable Diffusion v2 Fundamental components <#step--stable-diffusion-v-fundamental-components>`__
+- `Step 1.1: Retrieve components from HuggingFace <#step--retrieve-components-from-huggingface>`__
+- `Step 2: Convert the models to OpenVINO <#step--convert-the-models-to-openvino>`__
+- `Step 3: Text-to-Image Generation Inference Pipeline <#step--text-to-image-generation-inference-pipeline>`__
+- `Step 3.1: Load and Understand Text to Image OpenVINO models <#step--load-and-understand-text-to-image-openvino-models>`__
+- `Step 3.2: Select inference device <#step--select-inference-device>`__
+- `Step 3.3: Run Text-to-Image generation <#step--run-text-to-image-generation>`__
 
-- `Step 0: Install and import prerequisites <#step-0-install-and-import-prerequisites>`__
-- `Step 1: Stable Diffusion v2 Fundamental components <#step-1-stable-diffusion-v2-fundamental-components>`__
-
-  - `Step 1.1: Retrieve components from HuggingFace <#step-1-1-retrieve-components-from-huggingface>`__
-
-- `Step 2: Convert the models to OpenVINO <#step-2-convert-the-models-to-openvino>`__
-- `Step 3: Text-to-Image Generation Inference Pipeline <#step-3-text-to-image-generation-inference-pipeline>`__
-
-  - `Step 3.1: Load and Understand Text to Image OpenVINO models <#step-3-1-load-and-understand-text-to-image-openvino-models>`__
-  - `Select inference device <#select-inference-device>`__
-  - `Step 3.3: Run Text-to-Image generation <#step-3-3-run-text-to-image-generation>`__
-
-Step 0: Install and import prerequisites `⇑ <#top>`__
-###############################################################################################################################
-
+Step 0: Install and import prerequisites 
+----------------------------------------------------------------------------------
 
 .. code:: ipython3
 
@@ -60,11 +51,25 @@ pipelines <https://huggingface.co/docs/diffusers/api/pipelines/overview>`__.
 
 .. code:: ipython3
 
-    !pip install -q "diffusers>=0.14.0" openvino-dev openvino "transformers >= 4.25.1" accelerate
+    %pip install -q "diffusers>=0.14.0" "openvino>=2023.1.0" "transformers >= 4.31" accelerate "urllib3==1.26.15"
 
-Step 1: Stable Diffusion v2 Fundamental components `⇑ <#top>`__
-###############################################################################################################################
 
+.. parsed-literal::
+
+    WARNING: Ignoring invalid distribution -orch (/home/ea/work/ov_venv/lib/python3.8/site-packages)
+    WARNING: Ignoring invalid distribution -orch (/home/ea/work/ov_venv/lib/python3.8/site-packages)
+    WARNING: Ignoring invalid distribution -orch (/home/ea/work/ov_venv/lib/python3.8/site-packages)
+    WARNING: Ignoring invalid distribution -orch (/home/ea/work/ov_venv/lib/python3.8/site-packages)
+    WARNING: Ignoring invalid distribution -orch (/home/ea/work/ov_venv/lib/python3.8/site-packages)
+    WARNING: Ignoring invalid distribution -orch (/home/ea/work/ov_venv/lib/python3.8/site-packages)
+    
+    [notice] A new release of pip available: 22.3 -> 23.2.1
+    [notice] To update, run: pip install --upgrade pip
+    Note: you may need to restart the kernel to use updated packages.
+
+
+Step 1: Stable Diffusion v2 Fundamental components 
+--------------------------------------------------------------------------------------------
 
 Stable Diffusion pipelines for both Text to Image and Inpainting consist
 of three important parts:
@@ -78,9 +83,8 @@ of three important parts:
 Depending on the pipeline, the parameters for these parts can differ,
 which we’ll explore in this demo!
 
-Step 1.1: Retrieve components from HuggingFace `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Step 1.1: Retrieve components from HuggingFace 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Let’s start by retrieving these components from HuggingFace!
 
@@ -109,30 +113,36 @@ using ``stable-diffusion-2-1``.
 
 .. parsed-literal::
 
-    text_encoder\model.safetensors not found
+    2023-09-12 11:59:21.971103: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-09-12 11:59:22.005818: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2023-09-12 11:59:22.607625: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-Step 2: Convert the models to OpenVINO `⇑ <#top>`__
-###############################################################################################################################
 
+.. parsed-literal::
+
+    Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]
+
+
+Step 2: Convert the models to OpenVINO 
+--------------------------------------------------------------------------------
 
 Now that we’ve retrieved the three parts for both of these pipelines, we
 now need to:
 
-1. Convert the original PyTorch models to ONNX format
+1. Convert the original PyTorch models to OpenVINO format using Model
+   Conversion API
 
 ::
 
-   with torch.no_grad():
-       torch.onnx.export(model_part, image, onnx_path, input_names=[
-                         '...'], output_names=['...'])
+   ov_model_part = ov.convert_model(model_part, example_input=input_data)
 
-2. Convert these ONNX models to OpenVINO IR format, using ``mo``
-   command-line tool:
+2. Save OpenVINO models on disk:
 
 ::
 
-   !mo --input_model $onnx_file_path --output_dir $model_dir
+   ov.save_model(ov_model_part, xml_file_path)
 
 We can then run our Stable Diffusion v2 text to image and inpainting
 pipelines in OpenVINO on our own data!
@@ -145,45 +155,32 @@ pipelines in OpenVINO on our own data!
 
 .. code:: ipython3
 
-    from implementation.conversion_helper_utils import convert_txt_encoder_onnx_OV, convert_unet_onnx_OV
-    from implementation.conversion_helper_utils import convert_vae_encoder_onnx_OV, convert_vae_decoder_onnx_OV
+    from implementation.conversion_helper_utils import convert_encoder, convert_unet, convert_vae_decoder, convert_vae_encoder 
     
     # Convert the Text-to-Image models from PyTorch -> Onnx -> OpenVINO
     # 1. Convert the Text Encoder
-    txt_encoder_ov_path = convert_txt_encoder_onnx_OV(txt2img_model_dir, text_encoder)
+    txt_encoder_ov_path = txt2img_model_dir / "text_encoder.xml"
+    convert_encoder(text_encoder, txt_encoder_ov_path)
     # 2. Convert the U-NET
-    unet_ov_path = convert_unet_onnx_OV(txt2img_model_dir, unet, num_channels=4, width=96, height=96)
+    unet_ov_path = txt2img_model_dir / "unet.xml"
+    convert_unet(unet, unet_ov_path, num_channels=4, width=96, height=96)
     # 3. Convert the VAE encoder
-    vae_encoder_ov_path = convert_vae_encoder_onnx_OV(txt2img_model_dir, vae, width=768, height=768)
+    vae_encoder_ov_path = txt2img_model_dir / "vae_encoder.xml"
+    convert_vae_encoder(vae, vae_encoder_ov_path, width=768, height=768)
     # 4. Convert the VAE decoder
-    vae_decoder_ov_path = convert_vae_decoder_onnx_OV(txt2img_model_dir, vae, width=96, height=96)
+    vae_decoder_ov_path = txt2img_model_dir / "vae_decoder.xml"
+    convert_vae_decoder(vae, vae_decoder_ov_path, width=96, height=96)
 
+Step 3: Text-to-Image Generation Inference Pipeline 
+---------------------------------------------------------------------------------------------
 
-.. parsed-literal::
+Step 3.1: Load and Understand Text to Image OpenVINO models 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    Text encoder will be loaded from sd2.1\text_encoder.xml
+Step 3.2: Select inference device 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
-.. parsed-literal::
-
-    WARNING:root:Failed to send event with error cannot schedule new futures after shutdown.
-    WARNING:root:Failed to send event with error cannot schedule new futures after shutdown.
-    WARNING:root:Failed to send event with error cannot schedule new futures after shutdown.
-    WARNING:root:Failed to send event with error cannot schedule new futures after shutdown.
-
-
-Step 3: Text-to-Image Generation Inference Pipeline `⇑ <#top>`__
-###############################################################################################################################
-
-
-Step 3.1: Load and Understand Text to Image OpenVINO models `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-Select inference device `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-
-Select device from dropdown list for running inference using OpenVINO:
+select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
@@ -200,6 +197,15 @@ Select device from dropdown list for running inference using OpenVINO:
     )
     
     device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
+
+
 
 Let’s create instances of our OpenVINO Model for Text to Image.
 
@@ -258,13 +264,12 @@ As part of the ``OVStableDiffusionPipeline()`` class:
 
 .. parsed-literal::
 
-    C:\Users\rcheruvu\Desktop\openvino_notebooks\notebooks\236-stable-diffusion-v2\implementation\ov_stable_diffusion_pipeline.py:10: FutureWarning: Importing `DiffusionPipeline` or `ImagePipelineOutput` from diffusers.pipeline_utils is deprecated. Please import from diffusers.pipelines.pipeline_utils instead.
+    /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/implementation/ov_stable_diffusion_pipeline.py:10: FutureWarning: Importing `DiffusionPipeline` or `ImagePipelineOutput` from diffusers.pipeline_utils is deprecated. Please import from diffusers.pipelines.pipeline_utils instead.
       from diffusers.pipeline_utils import DiffusionPipeline
 
 
-Step 3.3: Run Text-to-Image generation `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Step 3.3: Run Text-to-Image generation 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Now, let’s define some text prompts for image generation and run our
 inference pipeline.

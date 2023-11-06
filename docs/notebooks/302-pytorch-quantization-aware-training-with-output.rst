@@ -1,8 +1,6 @@
 Quantization Aware Training with NNCF, using PyTorch framework
 ==============================================================
 
-
-
 This notebook is based on `ImageNet training in
 PyTorch <https://github.com/pytorch/examples/blob/master/imagenet/main.py>`__.
 
@@ -14,8 +12,7 @@ optimization process contains the following steps:
 
 -  Transforming the original ``FP32`` model to ``INT8``
 -  Using fine-tuning to restore the accuracy.
--  Exporting optimized and original models to ONNX and then to OpenVINO
-   IR
+-  Exporting optimized and original models to OpenVINO IR
 -  Measuring and comparing the performance of models.
 
 For more advanced usage, refer to these
@@ -29,43 +26,55 @@ notebook. Using the smaller model and dataset will speed up training and
 download time. To see other ResNet models, visit `PyTorch
 hub <https://pytorch.org/hub/pytorch_vision_resnet/>`__.
 
-.. note::
+   **NOTE**: This notebook requires a C++ compiler.
 
-   This notebook requires a C++ compiler.
+**Table of contents:**
 
 
-.. _top:
+-  `Imports and Settings <#imports-and-settings>`__
+-  `Pre-train Floating-Point
+   Model <#pre-train-floating-point-model>`__
 
-**Table of contents**:
+   -  `Train Function <#train-function>`__
+   -  `Validate Function <#validate-function>`__
+   -  `Helpers <#helpers>`__
+   -  `Get a Pre-trained FP32
+      Model <#get-a-pre-trained-fp-model>`__
 
-- `Imports and Settings <#imports-and-settings>`__
-- `Pre-train Floating-Point Model <#pre-train-floating-point-model>`__
+-  `Create and Initialize
+   Quantization <#create-and-initialize-quantization>`__
+-  `Fine-tune the Compressed
+   Model <#fine-tune-the-compressed-model>`__
+-  `Export INT8 Model to OpenVINO
+   IR <#export-int-model-to-openvino-ir>`__
+-  `Benchmark Model Performance by Computing Inference
+   Time <#benchmark-model-performance-by-computing-inference-time>`__
 
-  - `Train Function <#train-function>`__
-  - `Validate Function <#validate-function>`__
-  - `Helpers <#helpers>`__
-  - `Get a Pre-trained FP32 Model <#get-a-pre-trained-fp32-model>`__
+.. code:: ipython3
 
-- `Create and Initialize Quantization <#create-and-initialize-quantization>`__
-- `Fine-tune the Compressed Model <#fine-tune-the-compressed-model>`__ 
-- `Export INT8 Model to ONNX <#export-int8-model-to-onnx>`__ 
-- `Convert ONNX models to OpenVINO Intermediate Representation (IR) <#convert-onnx-models-to-openvino-intermediate-representation-ir>`__
-- `Benchmark Model Performance by Computing Inference Time <#benchmark-model-performance-by-computing-inference-time>`__
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu  "openvino>=2023.1.0" "torch" "torchvision"
+    %pip install -q "nncf>=2.6.0"
 
-Imports and Settings `⇑ <#top>`__
-###############################################################################################################################
 
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    Note: you may need to restart the kernel to use updated packages.
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    Note: you may need to restart the kernel to use updated packages.
+
+
+Imports and Settings 
+--------------------------------------------------------------
 
 On Windows, add the required C++ directories to the system PATH.
 
 Import NNCF and all auxiliary packages from your Python code. Set a name
 for the model, and the image width and height that will be used for the
-network. Also define paths where PyTorch, ONNX and OpenVINO IR versions
-of the models will be stored.
+network. Also define paths where PyTorch and OpenVINO IR versions of the
+models will be stored.
 
-.. note::
-
-   All NNCF logging messages below ERROR level (INFO and
+   **NOTE**: All NNCF logging messages below ERROR level (INFO and
    WARNING) are disabled to simplify the tutorial. For production use,
    it is recommended to enable logging by removing
    ``set_log_level(logging.ERROR)``.
@@ -110,7 +119,7 @@ of the models will be stored.
 
     import sys
     import time
-    import warnings  # To disable warnings on export to ONNX.
+    import warnings  # To disable warnings on export model
     import zipfile
     from pathlib import Path
     import logging
@@ -131,8 +140,7 @@ of the models will be stored.
     set_log_level(logging.ERROR)  # Disables all NNCF info and warning messages.
     from nncf import NNCFConfig
     from nncf.torch import create_compressed_model, register_default_init_args
-    from openvino.runtime import Core, serialize
-    from openvino.tools import mo
+    import openvino as ov
     from torch.jit import TracerWarning
     
     sys.path.append("../utils")
@@ -152,25 +160,15 @@ of the models will be stored.
     MODEL_DIR.mkdir(exist_ok=True)
     DATA_DIR.mkdir(exist_ok=True)
     
-    # Paths where PyTorch, ONNX and OpenVINO IR models will be stored.
+    # Paths where PyTorch and OpenVINO IR models will be stored.
     fp32_pth_path = Path(MODEL_DIR / (BASE_MODEL_NAME + "_fp32")).with_suffix(".pth")
-    fp32_onnx_path = Path(OUTPUT_DIR / (BASE_MODEL_NAME + "_fp32")).with_suffix(".onnx")
-    fp32_ir_path = fp32_onnx_path.with_suffix(".xml")
-    int8_onnx_path = Path(OUTPUT_DIR / (BASE_MODEL_NAME + "_int8")).with_suffix(".onnx")
-    int8_ir_path = int8_onnx_path.with_suffix(".xml")
+    fp32_ir_path = fp32_pth_path.with_suffix(".xml")
+    int8_ir_path = Path(MODEL_DIR / (BASE_MODEL_NAME + "_int8")).with_suffix(".xml")
     
     # It is possible to train FP32 model from scratch, but it might be slow. Therefore, the pre-trained weights are downloaded by default.
     pretrained_on_tiny_imagenet = True
     fp32_pth_url = "https://storage.openvinotoolkit.org/repositories/nncf/openvino_notebook_ckpts/302_resnet18_fp32_v1.pth"
     download_file(fp32_pth_url, directory=MODEL_DIR, filename=fp32_pth_path.name)
-
-
-.. parsed-literal::
-
-    2023-08-16 01:10:37.605341: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-08-16 01:10:37.639047: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-08-16 01:10:38.206632: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -198,7 +196,7 @@ of the models will be stored.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/302-pytorch-quantization-aware-training/model/resnet18_fp32.pth')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/302-pytorch-quantization-aware-training/model/resnet18_fp32.pth')
 
 
 
@@ -257,11 +255,11 @@ Download Tiny ImageNet dataset
     Successfully downloaded and prepared dataset at: data/tiny-imagenet-200
 
 
-Pre-train Floating-Point Model `⇑ <#top>`__
-###############################################################################################################################
+Pre-train Floating-Point Model 
+------------------------------------------------------------------------
 
-Using NNCF for model compression assumes that a pre-trained model and a training pipeline are
-already in use.
+Using NNCF for model compression assumes that a pre-trained model and a
+training pipeline are already in use.
 
 This tutorial demonstrates one possible training pipeline: a ResNet-18
 model pre-trained on 1000 classes from ImageNet is fine-tuned with 200
@@ -270,9 +268,8 @@ classes from Tiny-ImageNet.
 Subsequently, the training and validation functions will be reused as is
 for quantization-aware training.
 
-Train Function `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Train Function 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -316,9 +313,8 @@ Train Function `⇑ <#top>`__
             if i % print_frequency == 0:
                 progress.display(i)
 
-Validate Function `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Validate Function 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -359,9 +355,8 @@ Validate Function `⇑ <#top>`__
             print(" * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}".format(top1=top1, top5=top5))
         return top1.avg
 
-Helpers `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Helpers 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -423,9 +418,8 @@ Helpers `⇑ <#top>`__
                 res.append(correct_k.mul_(100.0 / batch_size))
             return res
 
-Get a Pre-trained FP32 Model `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Get a Pre-trained FP32 Model 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 А pre-trained floating-point model is a prerequisite for quantization.
 It can be obtained by tuning from scratch with the code below. However,
@@ -491,9 +485,9 @@ section at the top of this notebook.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=None`.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=None`.
       warnings.warn(msg)
 
 
@@ -534,25 +528,25 @@ section at the top of this notebook.
     Accuracy of FP32 model: 55.520
 
 
-Export the ``FP32`` model to ONNX, which is supported by OpenVINO™
-Toolkit, to benchmark it in comparison with the ``INT8`` model.
+Export the ``FP32`` model to OpenVINO™ Intermediate Representation, to
+benchmark it in comparison with the ``INT8`` model.
 
 .. code:: ipython3
 
     dummy_input = torch.randn(1, 3, image_size, image_size).to(device)
     
-    torch.onnx.export(model, dummy_input, fp32_onnx_path)
-    print(f"FP32 ONNX model was exported to {fp32_onnx_path}.")
+    ov_model = ov.convert_model(model, example_input=dummy_input, input=[1, 3, image_size, image_size])
+    ov.save_model(ov_model, fp32_ir_path, compress_to_fp16=False)
+    print(f"FP32 model was exported to {fp32_ir_path}.")
 
 
 .. parsed-literal::
 
-    FP32 ONNX model was exported to output/resnet18_fp32.onnx.
+    FP32 model was exported to model/resnet18_fp32.xml.
 
 
-Create and Initialize Quantization `⇑ <#top>`__
-###############################################################################################################################
-
+Create and Initialize Quantization 
+----------------------------------------------------------------------------
 
 NNCF enables compression-aware training by integrating into regular
 training pipelines. The framework is designed so that modifications to
@@ -587,6 +581,15 @@ scenario and requires only 3 modifications.
 
     compression_ctrl, model = create_compressed_model(model, nncf_config)
 
+
+.. parsed-literal::
+
+    2023-10-31 00:15:43.733728: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-10-31 00:15:43.767038: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2023-10-31 00:15:44.314131: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
+
 Evaluate the new model on the validation set after initialization of
 quantization. The accuracy should be close to the accuracy of the
 floating-point ``FP32`` model for a simple case like the one being
@@ -600,21 +603,20 @@ demonstrated here.
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.161 (0.161)	Loss 0.981 (0.981)	Acc@1 78.91 (78.91)	Acc@5 89.84 (89.84)
-    Test: [10/79]	Time 0.145 (0.152)	Loss 1.905 (1.623)	Acc@1 46.88 (60.51)	Acc@5 82.03 (84.09)
-    Test: [20/79]	Time 0.149 (0.150)	Loss 1.734 (1.692)	Acc@1 63.28 (58.63)	Acc@5 79.69 (83.04)
-    Test: [30/79]	Time 0.148 (0.150)	Loss 2.282 (1.781)	Acc@1 50.00 (57.31)	Acc@5 69.53 (81.50)
-    Test: [40/79]	Time 0.148 (0.150)	Loss 1.540 (1.825)	Acc@1 62.50 (55.83)	Acc@5 85.94 (80.96)
-    Test: [50/79]	Time 0.146 (0.150)	Loss 1.972 (1.820)	Acc@1 57.03 (56.05)	Acc@5 75.00 (80.73)
-    Test: [60/79]	Time 0.147 (0.150)	Loss 1.731 (1.846)	Acc@1 57.81 (55.51)	Acc@5 85.16 (80.21)
-    Test: [70/79]	Time 0.151 (0.150)	Loss 2.412 (1.872)	Acc@1 47.66 (55.15)	Acc@5 71.88 (79.61)
+    Test: [ 0/79]	Time 0.168 (0.168)	Loss 0.981 (0.981)	Acc@1 78.91 (78.91)	Acc@5 89.84 (89.84)
+    Test: [10/79]	Time 0.156 (0.165)	Loss 1.905 (1.623)	Acc@1 46.88 (60.51)	Acc@5 82.03 (84.09)
+    Test: [20/79]	Time 0.155 (0.160)	Loss 1.734 (1.692)	Acc@1 63.28 (58.63)	Acc@5 79.69 (83.04)
+    Test: [30/79]	Time 0.154 (0.157)	Loss 2.282 (1.781)	Acc@1 50.00 (57.31)	Acc@5 69.53 (81.50)
+    Test: [40/79]	Time 0.152 (0.156)	Loss 1.540 (1.825)	Acc@1 62.50 (55.83)	Acc@5 85.94 (80.96)
+    Test: [50/79]	Time 0.152 (0.156)	Loss 1.972 (1.820)	Acc@1 57.03 (56.05)	Acc@5 75.00 (80.73)
+    Test: [60/79]	Time 0.152 (0.156)	Loss 1.731 (1.846)	Acc@1 57.81 (55.51)	Acc@5 85.16 (80.21)
+    Test: [70/79]	Time 0.154 (0.155)	Loss 2.412 (1.872)	Acc@1 47.66 (55.15)	Acc@5 71.88 (79.61)
      * Acc@1 55.540 Acc@5 80.200
     Accuracy of initialized INT8 model: 55.540
 
 
-Fine-tune the Compressed Model `⇑ <#top>`__
-###############################################################################################################################
-
+Fine-tune the Compressed Model 
+------------------------------------------------------------------------
 
 At this step, a regular fine-tuning process is applied to further
 improve quantized model accuracy. Normally, several epochs of tuning are
@@ -639,109 +641,67 @@ training pipeline are required. Here is a simple example.
 
 .. parsed-literal::
 
-    Epoch:[0][  0/782]	Time 0.391 (0.391)	Loss 0.740 (0.740)	Acc@1 84.38 (84.38)	Acc@5 96.88 (96.88)
-    Epoch:[0][ 50/782]	Time 0.387 (0.383)	Loss 0.911 (0.802)	Acc@1 78.91 (80.15)	Acc@5 92.97 (94.42)
-    Epoch:[0][100/782]	Time 0.387 (0.384)	Loss 0.631 (0.798)	Acc@1 84.38 (80.24)	Acc@5 95.31 (94.38)
-    Epoch:[0][150/782]	Time 0.377 (0.383)	Loss 0.836 (0.792)	Acc@1 80.47 (80.48)	Acc@5 94.53 (94.43)
-    Epoch:[0][200/782]	Time 0.431 (0.385)	Loss 0.873 (0.780)	Acc@1 75.00 (80.65)	Acc@5 94.53 (94.59)
+    Epoch:[0][  0/782]	Time 0.412 (0.412)	Loss 0.740 (0.740)	Acc@1 84.38 (84.38)	Acc@5 96.88 (96.88)
+    Epoch:[0][ 50/782]	Time 0.383 (0.387)	Loss 0.911 (0.802)	Acc@1 78.91 (80.15)	Acc@5 92.97 (94.42)
+    Epoch:[0][100/782]	Time 0.387 (0.388)	Loss 0.631 (0.798)	Acc@1 84.38 (80.24)	Acc@5 95.31 (94.38)
+    Epoch:[0][150/782]	Time 0.381 (0.388)	Loss 0.836 (0.792)	Acc@1 80.47 (80.48)	Acc@5 94.53 (94.43)
+    Epoch:[0][200/782]	Time 0.369 (0.386)	Loss 0.873 (0.780)	Acc@1 75.00 (80.65)	Acc@5 94.53 (94.59)
     Epoch:[0][250/782]	Time 0.385 (0.386)	Loss 0.735 (0.778)	Acc@1 84.38 (80.77)	Acc@5 95.31 (94.53)
-    Epoch:[0][300/782]	Time 0.411 (0.386)	Loss 0.615 (0.771)	Acc@1 85.16 (80.99)	Acc@5 97.66 (94.58)
-    Epoch:[0][350/782]	Time 0.386 (0.386)	Loss 0.599 (0.767)	Acc@1 85.16 (81.14)	Acc@5 95.31 (94.58)
-    Epoch:[0][400/782]	Time 0.385 (0.386)	Loss 0.798 (0.765)	Acc@1 82.03 (81.21)	Acc@5 92.97 (94.56)
-    Epoch:[0][450/782]	Time 0.432 (0.386)	Loss 0.630 (0.762)	Acc@1 85.16 (81.26)	Acc@5 96.88 (94.58)
-    Epoch:[0][500/782]	Time 0.397 (0.386)	Loss 0.633 (0.757)	Acc@1 85.94 (81.45)	Acc@5 96.88 (94.63)
-    Epoch:[0][550/782]	Time 0.383 (0.387)	Loss 0.749 (0.755)	Acc@1 82.03 (81.49)	Acc@5 92.97 (94.65)
-    Epoch:[0][600/782]	Time 0.394 (0.387)	Loss 0.927 (0.753)	Acc@1 78.12 (81.53)	Acc@5 88.28 (94.67)
-    Epoch:[0][650/782]	Time 0.384 (0.387)	Loss 0.645 (0.749)	Acc@1 84.38 (81.60)	Acc@5 95.31 (94.71)
-    Epoch:[0][700/782]	Time 0.383 (0.387)	Loss 0.816 (0.749)	Acc@1 82.03 (81.62)	Acc@5 91.41 (94.69)
-    Epoch:[0][750/782]	Time 0.385 (0.387)	Loss 0.811 (0.746)	Acc@1 80.47 (81.69)	Acc@5 94.53 (94.72)
-    Test: [ 0/79]	Time 0.189 (0.189)	Loss 1.092 (1.092)	Acc@1 75.00 (75.00)	Acc@5 86.72 (86.72)
-    Test: [10/79]	Time 0.145 (0.154)	Loss 1.917 (1.526)	Acc@1 48.44 (62.64)	Acc@5 78.12 (83.88)
-    Test: [20/79]	Time 0.144 (0.149)	Loss 1.631 (1.602)	Acc@1 64.06 (60.68)	Acc@5 81.25 (83.71)
-    Test: [30/79]	Time 0.145 (0.148)	Loss 2.037 (1.691)	Acc@1 57.81 (59.25)	Acc@5 71.09 (82.23)
-    Test: [40/79]	Time 0.144 (0.147)	Loss 1.563 (1.743)	Acc@1 64.84 (58.02)	Acc@5 82.81 (81.33)
-    Test: [50/79]	Time 0.146 (0.147)	Loss 1.926 (1.750)	Acc@1 52.34 (57.77)	Acc@5 76.56 (81.04)
-    Test: [60/79]	Time 0.144 (0.146)	Loss 1.559 (1.781)	Acc@1 67.19 (57.24)	Acc@5 84.38 (80.58)
-    Test: [70/79]	Time 0.144 (0.146)	Loss 2.353 (1.806)	Acc@1 46.88 (56.81)	Acc@5 72.66 (80.08)
+    Epoch:[0][300/782]	Time 0.368 (0.386)	Loss 0.615 (0.771)	Acc@1 85.16 (80.99)	Acc@5 97.66 (94.58)
+    Epoch:[0][350/782]	Time 0.392 (0.386)	Loss 0.599 (0.767)	Acc@1 85.16 (81.14)	Acc@5 95.31 (94.58)
+    Epoch:[0][400/782]	Time 0.382 (0.386)	Loss 0.798 (0.765)	Acc@1 82.03 (81.21)	Acc@5 92.97 (94.56)
+    Epoch:[0][450/782]	Time 0.377 (0.386)	Loss 0.630 (0.762)	Acc@1 85.16 (81.26)	Acc@5 96.88 (94.58)
+    Epoch:[0][500/782]	Time 0.367 (0.386)	Loss 0.633 (0.757)	Acc@1 85.94 (81.45)	Acc@5 96.88 (94.63)
+    Epoch:[0][550/782]	Time 0.406 (0.386)	Loss 0.749 (0.755)	Acc@1 82.03 (81.49)	Acc@5 92.97 (94.65)
+    Epoch:[0][600/782]	Time 0.397 (0.385)	Loss 0.927 (0.753)	Acc@1 78.12 (81.53)	Acc@5 88.28 (94.67)
+    Epoch:[0][650/782]	Time 0.392 (0.385)	Loss 0.645 (0.749)	Acc@1 84.38 (81.60)	Acc@5 95.31 (94.71)
+    Epoch:[0][700/782]	Time 0.399 (0.386)	Loss 0.816 (0.749)	Acc@1 82.03 (81.62)	Acc@5 91.41 (94.69)
+    Epoch:[0][750/782]	Time 0.404 (0.386)	Loss 0.811 (0.746)	Acc@1 80.47 (81.69)	Acc@5 94.53 (94.72)
+    Test: [ 0/79]	Time 0.166 (0.166)	Loss 1.092 (1.092)	Acc@1 75.00 (75.00)	Acc@5 86.72 (86.72)
+    Test: [10/79]	Time 0.150 (0.140)	Loss 1.917 (1.526)	Acc@1 48.44 (62.64)	Acc@5 78.12 (83.88)
+    Test: [20/79]	Time 0.137 (0.138)	Loss 1.631 (1.602)	Acc@1 64.06 (60.68)	Acc@5 81.25 (83.71)
+    Test: [30/79]	Time 0.136 (0.138)	Loss 2.037 (1.691)	Acc@1 57.81 (59.25)	Acc@5 71.09 (82.23)
+    Test: [40/79]	Time 0.134 (0.137)	Loss 1.563 (1.743)	Acc@1 64.84 (58.02)	Acc@5 82.81 (81.33)
+    Test: [50/79]	Time 0.137 (0.137)	Loss 1.926 (1.750)	Acc@1 52.34 (57.77)	Acc@5 76.56 (81.04)
+    Test: [60/79]	Time 0.137 (0.137)	Loss 1.559 (1.781)	Acc@1 67.19 (57.24)	Acc@5 84.38 (80.58)
+    Test: [70/79]	Time 0.137 (0.137)	Loss 2.353 (1.806)	Acc@1 46.88 (56.81)	Acc@5 72.66 (80.08)
      * Acc@1 57.320 Acc@5 80.730
     Accuracy of tuned INT8 model: 57.320
     Accuracy drop of tuned INT8 model over pre-trained FP32 model: -1.800
 
 
-Export INT8 Model to ONNX `⇑ <#top>`__
-###############################################################################################################################
-
-
-.. code:: ipython3
-
-    if not int8_onnx_path.exists():
-        warnings.filterwarnings("ignore", category=TracerWarning)
-        warnings.filterwarnings("ignore", category=UserWarning)
-        # Export INT8 model to ONNX that is supported by OpenVINO™ Toolkit
-        compression_ctrl.export_model(int8_onnx_path)
-        print(f"INT8 ONNX model exported to {int8_onnx_path}.")
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/quantize_functions.py:140: FutureWarning: 'torch.onnx._patch_torch._graph_op' is deprecated in version 1.13 and will be removed in version 1.14. Please note 'g.op()' is to be removed from torch.Graph. Please open a GitHub issue if you need this functionality..
-      output = g.op(
-
-
-.. parsed-literal::
-
-    INT8 ONNX model exported to output/resnet18_int8.onnx.
-
-
-Convert ONNX models to OpenVINO Intermediate Representation (IR). `⇑ <#top>`__
-###############################################################################################################################
-
-Use model conversion Python API to convert the ONNX model to OpenVINO
-IR, with ``FP16`` precision. Then, add the mean values to the model and
-scale the input with the standard deviation by the ``mean_values`` and
-``scale_values`` parameters. It is not necessary to normalize input data
-before propagating it through the network with these options.
-
-For more information about model conversion, see this
-`page <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__.
-
-.. code:: ipython3
-
-    if not fp32_ir_path.exists():
-        model = mo.convert_model(
-            input_model=fp32_onnx_path,
-            input_shape=[1, 3, image_size, image_size],
-            mean_values=[123.675, 116.28, 103.53],
-            scale_values=[58.395, 57.12, 57.375],
-            compress_to_fp16=True,
-        )
-        serialize(model, str(fp32_ir_path))
+Export INT8 Model to OpenVINO IR 
+--------------------------------------------------------------------------
 
 .. code:: ipython3
 
     if not int8_ir_path.exists():
-        model = mo.convert_model(
-            input_model=int8_onnx_path,
-            input_shape=[1, 3, image_size, image_size],
-            compress_to_fp16=True,
-        )
-        serialize(model, str(int8_ir_path))
+        warnings.filterwarnings("ignore", category=TracerWarning)
+        warnings.filterwarnings("ignore", category=UserWarning)
+        # Export INT8 model to OpenVINO™ IR
+        ov_model = ov.convert_model(model, example_input=dummy_input, input=[1, 3, image_size, image_size])
+        ov.save_model(ov_model, int8_ir_path)
+        print(f"INT8 Omodel exported to {int8_ir_path}.")
 
-Benchmark Model Performance by Computing Inference Time `⇑ <#top>`__
-###############################################################################################################################
 
+.. parsed-literal::
+
+    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
+    INT8 Omodel exported to model/resnet18_int8.xml.
+
+
+Benchmark Model Performance by Computing Inference Time 
+-------------------------------------------------------------------------------------------------
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
-Tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 - inference performance measurement tool in OpenVINO. By default,
 Benchmark Tool runs inference for 60 seconds in asynchronous mode on
 CPU. It returns inference speed as latency (milliseconds per image) and
 throughput (frames per second) values.
 
-.. note::
-
-   This notebook runs ``benchmark_app`` for 15 seconds to give
+   **NOTE**: This notebook runs ``benchmark_app`` for 15 seconds to give
    a quick indication of performance. For more accurate performance, it
    is recommended to run ``benchmark_app`` in a terminal/command prompt
    after closing other applications. Run
@@ -749,7 +709,6 @@ throughput (frames per second) values.
    CPU for one minute. Change CPU to GPU to benchmark on GPU. Run
    ``benchmark_app --help`` to see an overview of all command-line
    options.
-
 
 .. code:: ipython3
 
@@ -770,16 +729,16 @@ throughput (frames per second) values.
 .. parsed-literal::
 
     Benchmark FP32 model (IR)
-    [ INFO ] Throughput:   2896.36 FPS
+    [ INFO ] Throughput:   2952.65 FPS
     Benchmark INT8 model (IR)
-    [ INFO ] Throughput:   12326.44 FPS
+    [ INFO ] Throughput:   11986.34 FPS
 
 
 Show CPU Information for reference.
 
 .. code:: ipython3
 
-    ie = Core()
+    ie = ov.Core()
     ie.get_property("CPU", "FULL_DEVICE_NAME")
 
 

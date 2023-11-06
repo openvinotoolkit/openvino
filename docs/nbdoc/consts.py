@@ -8,7 +8,7 @@ repo_name = "openvino_notebooks"
 
 repo_branch = "tree/main"
 
-artifacts_link = "http://repository.toolbox.iotg.sclab.intel.com/projects/ov-notebook/0.1.0-latest/20230815220807/dist/rst_files/"
+artifacts_link = "http://repository.toolbox.iotg.sclab.intel.com/projects/ov-notebook/0.1.0-latest/20231030220807/dist/rst_files/"
 
 blacklisted_extensions = ['.xml', '.bin']
 

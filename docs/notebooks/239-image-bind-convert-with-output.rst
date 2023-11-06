@@ -1,8 +1,6 @@
 Binding multimodal data using ImageBind and OpenVINO
 ====================================================
 
-
-
 Exploring the surrounding world, people get information using multiple
 senses, for example, seeing a busy street and hearing the sounds of car
 engines. ImageBind introduces an approach that brings machines one step
@@ -69,52 +67,45 @@ represented on the image below:
 In this tutorial, we consider how to use ImageBind for multimodal
 zero-shot classification.
 
-.. _top:
+**Table of contents:**
 
-**Table of contents**:
 
-- `Prerequisites <#prerequisites>`__
-- `Instantiate PyTorch model <#instantiate-pytorch-model>`__
-- `Prepare input data <#prepare-input-data>`__
-- `Convert Model to OpenVINO Intermediate Representation (IR) format <#convert-model-to-openvino-intermediate-representation-ir-format>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Instantiate PyTorch model <#instantiate-pytorch-model>`__
+-  `Prepare input data <#prepare-input-data>`__
+-  `Convert Model to OpenVINO Intermediate Representation (IR)
+   format <#convert-model-to-openvino-intermediate-representation-ir-format>`__
 
-  - `Select inference device <#select-inference-device>`__
+   -  `Select inference device <#select-inference-device>`__
 
-- `Zero-shot classification using ImageBind and OpenVINO <#zero-shot-classification-using-imagebind-and-openvino>`__
+-  `Zero-shot classification using ImageBind and
+   OpenVINO <#zero-shot-classification-using-imagebind-and-openvino>`__
 
-  - `Text-Image classification <#text-image-classification>`__
-  - `Text-Audio classification <#text-audio-classification>`__
-  - `Image-Audio classification <#image-audio-classification>`__
+   -  `Text-Image classification <#text-image-classification>`__
+   -  `Text-Audio classification <#text-audio-classification>`__
+   -  `Image-Audio
+      classification <#image-audio-classification>`__
 
-- `Next Steps <#next-steps>`__
+-  `Next Steps <#next-steps>`__
 
-Prerequisites `⇑ <#top>`__
-###############################################################################################################################
-
+Prerequisites 
+-------------------------------------------------------
 
 .. code:: ipython3
 
     import sys
     
-    !pip install -q soundfile pytorchvideo ftfy "timm==0.6.7" einops fvcore
+    %pip install -q soundfile pytorchvideo ftfy "timm==0.6.7" einops fvcore "openvino>=2023.1.0"
     
     if sys.version_info.minor < 8:
-        !pip install -q "decord"
+        %pip install -q "decord"
     else:
-        !pip install -q "eva-decord"
+        %pip install -q "eva-decord"
     
-    if sys.platform == "darwin":
-        !pip install -q "torchaudio==0.13.1" --find-links https://download.pytorch.org/whl/torch_stable.html
+    if sys.platform != "linux":
+        %pip install -q "torch==2.0.1" "torchvision==0.15.2" "torchaudio==2.0.2"
     else:
-        !pip install -q "torchaudio==0.13.1+cpu" --find-links https://download.pytorch.org/whl/torch_stable.html
-
-
-.. parsed-literal::
-
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
+        %pip install -q "torch==2.0.1" "torchvision==0.15.2" "torchaudio==2.0.2" --index-url https://download.pytorch.org/whl/cpu
 
 .. code:: ipython3
 
@@ -130,19 +121,11 @@ Prerequisites `⇑ <#top>`__
 
 .. parsed-literal::
 
-    Cloning into 'ImageBind'...
-    remote: Enumerating objects: 112, done.[K
-    remote: Counting objects: 100% (60/60), done.[K
-    remote: Compressing objects: 100% (26/26), done.[K
-    remote: Total 112 (delta 43), reused 34 (delta 34), pack-reused 52[K
-    Receiving objects: 100% (112/112), 2.64 MiB | 3.81 MiB/s, done.
-    Resolving deltas: 100% (50/50), done.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/239-image-bind/ImageBind
+    /home/ea/work/openvino_notebooks/notebooks/239-image-bind/ImageBind
 
 
-Instantiate PyTorch model `⇑ <#top>`__
-###############################################################################################################################
-
+Instantiate PyTorch model 
+-------------------------------------------------------------------
 
 To start work with the model, we should instantiate the PyTorch model
 class. ``imagebind_model.imagebind_huge(pretrained=True)`` downloads
@@ -150,8 +133,6 @@ model weights and creates a PyTorch model object for ImageBind.
 Currently, there is only one ImageBind model available for downloading,
 ``imagebind_huge``, more details about it can be found in `model
 card <https://github.com/facebookresearch/ImageBind/blob/main/model_card.md>`__.
-
-.. note::
 
    Please note, depending on internet connection speed, the model
    downloading process can take some time. It also requires at least 5
@@ -171,26 +152,16 @@ card <https://github.com/facebookresearch/ImageBind/blob/main/model_card.md>`__.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/transforms/_functional_video.py:6: UserWarning: The 'torchvision.transforms._functional_video' module is deprecated since 0.12 and will be removed in the future. Please use the 'torchvision.transforms.functional' module instead.
+    /home/ea/work/ov_venv/lib/python3.8/site-packages/torchvision/transforms/functional_tensor.py:5: UserWarning: The torchvision.transforms.functional_tensor module is deprecated in 0.15 and will be **removed in 0.17**. Please don't rely on it. You probably just need to use APIs in torchvision.transforms.functional or in torchvision.transforms.v2.functional.
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/transforms/_transforms_video.py:22: UserWarning: The 'torchvision.transforms._transforms_video' module is deprecated since 0.12 and will be removed in the future. Please use the 'torchvision.transforms' module instead.
+    /home/ea/work/ov_venv/lib/python3.8/site-packages/torchvision/transforms/_functional_video.py:6: UserWarning: The 'torchvision.transforms._functional_video' module is deprecated since 0.12 and will be removed in the future. Please use the 'torchvision.transforms.functional' module instead.
+      warnings.warn(
+    /home/ea/work/ov_venv/lib/python3.8/site-packages/torchvision/transforms/_transforms_video.py:22: UserWarning: The 'torchvision.transforms._transforms_video' module is deprecated since 0.12 and will be removed in the future. Please use the 'torchvision.transforms' module instead.
       warnings.warn(
 
 
-.. parsed-literal::
-
-    Downloading imagebind weights to .checkpoints/imagebind_huge.pth ...
-
-
-
-.. parsed-literal::
-
-      0%|          | 0.00/4.47G [00:00<?, ?B/s]
-
-
-Prepare input data `⇑ <#top>`__
-###############################################################################################################################
-
+Prepare input data 
+------------------------------------------------------------
 
 ImageBind works with data across 6 different modalities. Each of them
 requires its steps for preprocessing. ``data`` module is responsible for
@@ -221,26 +192,15 @@ data reading and preprocessing for each modality.
         ModalityType.AUDIO: data.load_and_transform_audio_data(audio_paths, "cpu"),
     }
 
-Convert Model to OpenVINO Intermediate Representation (IR) format. `⇑ <#top>`__
-###############################################################################################################################
+Convert Model to OpenVINO Intermediate Representation (IR) format 
+-----------------------------------------------------------------------------------------------------------
 
-OpenVINO supports PyTorch through export to the ONNX format. You will
-use the ``torch.onnx.export`` function for obtaining the ONNX model. You
-can learn more in the `PyTorch
-documentation <https://pytorch.org/docs/stable/onnx.html>`__. You need
-to provide a model object, input data for model tracing, and a path for
-saving the model. Optionally, you can provide the target onnx opset for
-conversion and other parameters specified in the documentation (for
-example, input and output names or dynamic shapes).
-
-While ONNX models are directly supported by OpenVINO™ runtime, it can be
-useful to convert them to IR format to take advantage of advanced
-OpenVINO optimization tools and features. You will use `model conversion
-Python
-API <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__
-to convert model to IR format and compress weights to ``FP16`` format.
-The ``mo.convert_model`` function returns OpenVINO Model class instance
-ready to load on a device or save on a disk for next loading.
+OpenVINO supports PyTorch through Model Conversion API. You will use
+`model conversion Python
+API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+to convert model to IR format. The ``ov.convert_model`` function returns
+OpenVINO Model class instance ready to load on a device or save on a
+disk for next loading using ``ov.save_model``.
 
 ImageBind accepts data that represents different modalities
 simultaneously in any combinations, however, their processing is
@@ -262,16 +222,14 @@ embeddings.
 
 .. code:: ipython3
 
-    from openvino.tools import mo
-    from openvino.runtime import serialize, Core
+    import openvino as ov
     
-    core = Core()
+    core = ov.Core()
 
-Select inference device `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Select inference device 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
-Select device from dropdown list for running inference using OpenVINO:
+select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
@@ -291,7 +249,7 @@ Select device from dropdown list for running inference using OpenVINO:
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
 
 
 
@@ -304,16 +262,12 @@ Select device from dropdown list for running inference using OpenVINO:
         export_dir = Path(f"image-bind-{modality}")
         file_name = f"image-bind-{modality}"
         export_dir.mkdir(exist_ok=True)
-        onnx_path = export_dir / "onnx" / f"{file_name}.onnx"
-        onnx_path.parent.mkdir(exist_ok=True)
-        ir_path = export_dir / onnx_path.name.replace(".onnx", ".xml")
+        ir_path = export_dir / f"{file_name}.xml"
         if not ir_path.exists():
-            if not onnx_path.exists():
-                exportable_model = ModelExporter(model, modality)
-                model_input = inputs[modality]
-                torch.onnx.export(exportable_model, model_input, str(onnx_path), input_names=["input"], dynamic_axes={"input": {0: "batch_size"}})
-            ov_model = mo.convert_model(onnx_path, compress_to_fp16=True)
-            serialize(ov_model, str(ir_path))
+            exportable_model = ModelExporter(model, modality)
+            model_input = inputs[modality]
+            ov_model = ov.convert_model(exportable_model, example_input=model_input)
+            ov.save_model(ov_model, ir_path)
         else:
             ov_model = core.read_model(ir_path)
         ov_modality_models[modality] = core.compile_model(ov_model, device.value)
@@ -321,25 +275,22 @@ Select device from dropdown list for running inference using OpenVINO:
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/symbolic_opset9.py:5408: UserWarning: Exporting aten::index operator of advanced indexing in opset 14 is achieved by combination of multiple ONNX operators, including Reshape, Transpose, Concat, and Gather. If indices include negative values, the exported graph will produce incorrect results.
-      warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/_internal/jit_utils.py:258: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
-      _C._jit_pass_onnx_node_shape_type_inference(node, params_dict, opset_version)
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
-      _C._jit_pass_onnx_graph_shape_type_inference(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
-      _C._jit_pass_onnx_graph_shape_type_inference(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/239-image-bind/ImageBind/imagebind/models/multimodal_preprocessors.py:433: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
+
+
+.. parsed-literal::
+
+    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+    /home/ea/work/openvino_notebooks/notebooks/239-image-bind/ImageBind/imagebind/models/multimodal_preprocessors.py:433: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if x.shape[self.time_dim] == 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/239-image-bind/ImageBind/imagebind/models/multimodal_preprocessors.py:259: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ea/work/openvino_notebooks/notebooks/239-image-bind/ImageBind/imagebind/models/multimodal_preprocessors.py:259: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert tokens.shape[2] == self.embed_dim
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/239-image-bind/ImageBind/imagebind/models/multimodal_preprocessors.py:74: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ea/work/openvino_notebooks/notebooks/239-image-bind/ImageBind/imagebind/models/multimodal_preprocessors.py:74: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if npatch_per_img == N:
 
 
-Zero-shot classification using ImageBind and OpenVINO `⇑ <#top>`__
-###############################################################################################################################
-
+Zero-shot classification using ImageBind and OpenVINO 
+-----------------------------------------------------------------------------------------------
 
 In zero-shot classification, a piece of data is embedded and fed to the
 model to retrieve a label that corresponds with the contents of the
@@ -399,9 +350,8 @@ they represent the same object.
     image_list = [img.split('/')[-1] for img in image_paths]
     audio_list = [audio.split('/')[-1] for audio in audio_paths]
 
-Text-Image classification `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Text-Image classification 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -414,9 +364,8 @@ Text-Image classification `⇑ <#top>`__
 .. image:: 239-image-bind-convert-with-output_files/239-image-bind-convert-with-output_20_0.png
 
 
-Text-Audio classification `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Text-Audio classification 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -429,9 +378,8 @@ Text-Audio classification `⇑ <#top>`__
 .. image:: 239-image-bind-convert-with-output_files/239-image-bind-convert-with-output_22_0.png
 
 
-Image-Audio classification `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Image-Audio classification 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -491,7 +439,7 @@ Putting all together, we can match text, image, and sound for our data.
 .. parsed-literal::
 
     Predicted label: A bird 
-    probability for image - 0.987
+    probability for image - 0.986
     probability for audio - 1.000
 
 
@@ -543,9 +491,9 @@ Putting all together, we can match text, image, and sound for our data.
 
 
 
-Next Steps `⇑ <#top>`__
-###############################################################################################################################
+Next Steps 
+----------------------------------------------------
 
-Open the `239-image-bind-quantize <239-image-bind-quantize.ipynb>`__ notebook to
-quantize the IR model with the Post-training Quantization API of NNCF
-and compare ``FP16`` and ``INT8`` models.
+Open the `239-image-bind-quantize <239-image-bind-quantize.ipynb>`__
+notebook to quantize the IR model with the Post-training Quantization
+API of NNCF and compare ``FP16`` and ``INT8`` models.
