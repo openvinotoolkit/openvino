@@ -104,7 +104,7 @@ public:
             VF<float> rnd_vec = generate_unique_indices<float>(p);
             set_values(prim, rnd_vec);
         } else if (indices_layout.data_type == data_types::f16) {
-            VF<FLOAT16> rnd_vec = generate_unique_indices<FLOAT16>(p);
+            VF<ov::float16> rnd_vec = generate_unique_indices<ov::float16>(p);
             set_values(prim, rnd_vec);
         } else if (indices_layout.data_type == data_types::i8) {
             VF<int8_t> rnd_vec = generate_unique_indices<int8_t>(p);

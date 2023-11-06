@@ -317,7 +317,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (searchInterfaceSa) {
             let ver = getCurrentVersion();
             if (ver) {
-                searchInterfaceSa.innerHTML = searchInterfaceSa.innerHTML.replace('search.html', 'search.html#f-ovversion=' + ver);
+                searchInterfaceSa.innerHTML = searchInterfaceSa.innerHTML.replace('search.html', '/' + ver +'/search.html#f-ovversion=' + ver);
             }
             await searchInterfaceSa.initialize({ 
             accessToken: "xx1f2aebd3-4307-4632-aeea-17c13378b237",

@@ -76,6 +76,16 @@ const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {
         { 0, 0, 1, 1 },
         { 0, 0, 1, 1 },
     },
+    {
+            { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -2.f }, { 10.5f }, { -2.f }, { 10.5f } },
+            { 0, 0, -1, 1 },
+            { 0, 0, 1, -1 },
+    },
+    {
+            { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -2.f }, { 10.5f }, { -2.f }, { 10.5f } },
+            { 0, 0, -1, -1 },
+            { 0, 0, -1, -1 },
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, PadTransformation,

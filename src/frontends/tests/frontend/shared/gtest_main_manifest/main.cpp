@@ -6,14 +6,19 @@
 
 #include "gtest/gtest.h"
 #include "utils.hpp"
+#include "common_test_utils/file_utils.hpp"
 
-static const std::string manifest{
+#include "ngraph/file_util.hpp"
+
+OPENVINO_SUPPRESS_DEPRECATED_START
+static const std::string s_manifest{
 #ifdef MANIFEST
-    MANIFEST
+    ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(), MANIFEST)
 #endif
 };
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 int main(int argc, char** argv) {
     printf("Running main() from %s:%d\n", __FILE__, __LINE__);
-    return FrontEndTestUtils::run_tests(argc, argv, manifest);
+    return FrontEndTestUtils::run_tests(argc, argv, s_manifest);
 }

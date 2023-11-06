@@ -2,44 +2,53 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/constant.hpp"
+#include "openvino/op/constant.hpp"
 
 #include <cmath>
 #include <cstdio>
 #include <cstring>
-#include <ngraph/validation_util.hpp>
 #include <sstream>
 
 #include "itt.hpp"
-#include "ngraph/log.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/util.hpp"
-
-using namespace std;
-OPENVINO_SUPPRESS_DEPRECATED_START
+#include "ngraph/runtime/aligned_buffer.hpp"
+#include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/runtime/tensor.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "openvino/core/type/nf4.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 
 template <typename T>
-static inline string to_cpp_string(T value) {
-    string rc;
+static inline std::string to_cpp_string(T value) {
+    std::string rc;
     if (std::isnan(value)) {
         rc = "NAN";
     } else if (std::isinf(value)) {
         rc = (value > 0 ? "INFINITY" : "-INFINITY");
     } else {
-        stringstream ss;
+        std::stringstream ss;
         ss << value;
         rc = ss.str();
     }
     return rc;
 }
+OPENVINO_SUPPRESS_DEPRECATED_START
+std::shared_ptr<ov::AlignedBuffer> ov::op::v0::Constant::legacy_to_ov_aligned_buffer(
+    const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer) {
+    return std::make_shared<ov::SharedBuffer<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(buffer->get_ptr<char>(),
+                                                                                               buffer->size(),
+                                                                                               buffer);
+}
+OPENVINO_SUPPRESS_DEPRECATED_END
 
-ov::op::v0::Constant::Constant(const shared_ptr<ngraph::runtime::Tensor>& tensor) {
+OPENVINO_SUPPRESS_DEPRECATED_START
+ov::op::v0::Constant::Constant(const std::shared_ptr<ngraph::runtime::Tensor>& tensor) {
     m_element_type = tensor->get_element_type();
     m_shape = tensor->get_shape();
     // Share data from HostTensor if we work with it
     // And copy data in other cas
     if (auto hostTensor = std::dynamic_pointer_cast<ngraph::runtime::HostTensor>(tensor)) {
-        m_data = make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ngraph::runtime::Tensor>>>(
+        m_data = std::make_shared<ov::SharedBuffer<std::shared_ptr<ngraph::runtime::Tensor>>>(
             static_cast<char*>(hostTensor->get_data_ptr()),
             tensor->get_size_in_bytes(),
             tensor);
@@ -50,14 +59,15 @@ ov::op::v0::Constant::Constant(const shared_ptr<ngraph::runtime::Tensor>& tensor
     }
     constructor_validate_and_infer_types();
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 ov::op::v0::Constant::Constant(const ov::Tensor& tensor) {
     m_element_type = tensor.get_element_type();
     m_shape = tensor.get_shape();
     // Share data from ov::Tensor
-    m_data = make_shared<ngraph::runtime::SharedBuffer<ov::Tensor>>(static_cast<char*>(tensor.data()),
-                                                                    tensor.get_byte_size(),
-                                                                    tensor);
+    m_data = std::make_shared<ov::SharedBuffer<ov::Tensor>>(static_cast<char*>(tensor.data()),
+                                                            tensor.get_byte_size(),
+                                                            tensor);
 
     constructor_validate_and_infer_types();
 }
@@ -130,6 +140,9 @@ ov::op::v0::Constant::Constant(const element::Type& type,
         case Type_t::u64:
             fill_data<Type_t::u64>(ngraph::parse_string<uint64_t>(values[0]));
             break;
+        case Type_t::nf4:
+            fill_data<Type_t::nf4>(ngraph::parse_string<uint64_t>(values[0]));
+            break;
         case Type_t::undefined:
             OPENVINO_THROW("deserialize unsupported type undefined");
         case Type_t::dynamic:
@@ -186,6 +199,9 @@ ov::op::v0::Constant::Constant(const element::Type& type,
         case Type_t::u64:
             write_buffer<Type_t::u64>(ngraph::parse_string<uint64_t>(values));
             break;
+        case Type_t::nf4:
+            write_buffer<Type_t::nf4>(ngraph::parse_string<uint8_t>(values));
+            break;
         case Type_t::undefined:
             OPENVINO_THROW("deserialize unsupported type undefined");
         case Type_t::dynamic:
@@ -206,7 +222,7 @@ ov::op::v0::Constant::Constant(bool memset_allocation, const element::Type& type
 }
 
 void ov::op::v0::Constant::allocate_buffer(bool memset_allocation) {
-    m_data = make_shared<ngraph::runtime::AlignedBuffer>(mem_size(), host_alignment());
+    m_data = std::make_shared<ov::AlignedBuffer>(mem_size(), host_alignment());
     if (memset_allocation) {
         std::memset(m_data->get_ptr(), 0, m_data->size());
     }
@@ -227,9 +243,9 @@ ov::op::v0::Constant::Constant(const Constant& other) {
 }
 
 ov::op::v0::Constant::Constant(const Constant& other, const ov::Shape& new_shape) {
-    NGRAPH_CHECK(shape_size(other.m_shape) == shape_size(new_shape),
-                 "ov::Shape size " + std::to_string(shape_size(new_shape)) + " is not equal to " +
-                     std::to_string(shape_size(other.m_shape)));
+    OPENVINO_ASSERT(shape_size(other.m_shape) == shape_size(new_shape),
+                    "ov::Shape size " + std::to_string(shape_size(new_shape)) + " is not equal to " +
+                        std::to_string(shape_size(other.m_shape)));
     m_element_type = other.m_element_type;
     m_shape = new_shape;
     m_data = other.m_data;
@@ -239,8 +255,8 @@ ov::op::v0::Constant::Constant(const Constant& other, const ov::Shape& new_shape
 
 ov::op::v0::Constant::~Constant() = default;
 
-string ov::op::v0::Constant::convert_value_to_string(size_t index) const {
-    string rc;
+std::string ov::op::v0::Constant::convert_value_to_string(size_t index) const {
+    std::string rc;
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #    pragma GCC diagnostic push
 #    pragma GCC diagnostic error "-Wswitch"
@@ -249,7 +265,7 @@ string ov::op::v0::Constant::convert_value_to_string(size_t index) const {
     using Type_t = element::Type_t;
     switch (get_element_type()) {
     case Type_t::boolean:
-        rc = to_string(get_element_value<Type_t::boolean>(index));
+        rc = std::to_string(get_element_value<Type_t::boolean>(index));
         break;
     case Type_t::bf16:
         rc = to_cpp_string(static_cast<float>(get_element_value<Type_t::bf16>(index)));
@@ -264,37 +280,40 @@ string ov::op::v0::Constant::convert_value_to_string(size_t index) const {
         rc = to_cpp_string(get_element_value<Type_t::f64>(index));
         break;
     case Type_t::i4:
-        rc = to_string(get_element_value<Type_t::i4>(index));
+        rc = std::to_string(get_element_value<Type_t::i4>(index));
         break;
     case Type_t::i8:
-        rc = to_string(get_element_value<Type_t::i8>(index));
+        rc = std::to_string(get_element_value<Type_t::i8>(index));
         break;
     case Type_t::i16:
-        rc = to_string(get_element_value<Type_t::i16>(index));
+        rc = std::to_string(get_element_value<Type_t::i16>(index));
         break;
     case Type_t::i32:
-        rc = to_string(get_element_value<Type_t::i32>(index));
+        rc = std::to_string(get_element_value<Type_t::i32>(index));
         break;
     case Type_t::i64:
-        rc = to_string(get_element_value<Type_t::i64>(index));
+        rc = std::to_string(get_element_value<Type_t::i64>(index));
         break;
     case Type_t::u1:
-        rc = to_string(get_element_value<Type_t::u1>(index));
+        rc = std::to_string(get_element_value<Type_t::u1>(index));
         break;
     case Type_t::u4:
-        rc = to_string(get_element_value<Type_t::u4>(index));
+        rc = std::to_string(get_element_value<Type_t::u4>(index));
         break;
     case Type_t::u8:
-        rc = to_string(get_element_value<Type_t::u8>(index));
+        rc = std::to_string(get_element_value<Type_t::u8>(index));
         break;
     case Type_t::u16:
-        rc = to_string(get_element_value<Type_t::u16>(index));
+        rc = std::to_string(get_element_value<Type_t::u16>(index));
         break;
     case Type_t::u32:
-        rc = to_string(get_element_value<Type_t::u32>(index));
+        rc = std::to_string(get_element_value<Type_t::u32>(index));
         break;
     case Type_t::u64:
-        rc = to_string(get_element_value<Type_t::u64>(index));
+        rc = std::to_string(get_element_value<Type_t::u64>(index));
+        break;
+    case Type_t::nf4:
+        rc = std::to_string(get_element_value<Type_t::nf4>(index));
         break;
     case Type_t::undefined:
     case Type_t::dynamic:
@@ -306,8 +325,20 @@ string ov::op::v0::Constant::convert_value_to_string(size_t index) const {
     return rc;
 }
 
-vector<string> ov::op::v0::Constant::get_value_strings() const {
-    vector<string> rc;
+size_t ov::op::v0::Constant::get_byte_size() const {
+    return m_data->size();
+}
+
+const void* ov::op::v0::Constant::get_data_ptr() const {
+    return (m_data ? m_data->get_ptr() : nullptr);
+}
+
+void* ov::op::v0::Constant::get_data_ptr_nc() {
+    return (m_data ? m_data->get_ptr() : nullptr);
+}
+
+std::vector<std::string> ov::op::v0::Constant::get_value_strings() const {
+    std::vector<std::string> rc;
 
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #    pragma GCC diagnostic push
@@ -317,7 +348,7 @@ vector<string> ov::op::v0::Constant::get_value_strings() const {
     switch (get_element_type()) {
     case element::Type_t::boolean:
         for (int value : get_vector<char>()) {
-            rc.push_back(to_string(value));
+            rc.push_back(std::to_string(value));
         }
         break;
     case element::Type_t::bf16:
@@ -342,53 +373,54 @@ vector<string> ov::op::v0::Constant::get_value_strings() const {
         break;
     case element::Type_t::i4:
         for (auto value : cast_vector<int8_t>()) {
-            rc.push_back(to_string(value));
+            rc.push_back(std::to_string(value));
         }
         break;
     case element::Type_t::i8:
         for (int value : get_vector<int8_t>()) {
-            rc.push_back(to_string(value));
+            rc.push_back(std::to_string(value));
         }
         break;
     case element::Type_t::i16:
         for (int value : get_vector<int16_t>()) {
-            rc.push_back(to_string(value));
+            rc.push_back(std::to_string(value));
         }
         break;
     case element::Type_t::i32:
         for (int32_t value : get_vector<int32_t>()) {
-            rc.push_back(to_string(value));
+            rc.push_back(std::to_string(value));
         }
         break;
     case element::Type_t::i64:
         for (int64_t value : get_vector<int64_t>()) {
-            rc.push_back(to_string(value));
+            rc.push_back(std::to_string(value));
         }
         break;
     case element::Type_t::u1:
     case element::Type_t::u4:
+    case element::Type_t::nf4:
         for (auto value : cast_vector<uint8_t>()) {
-            rc.push_back(to_string(value));
+            rc.push_back(std::to_string(value));
         }
         break;
     case element::Type_t::u8:
         for (uint32_t value : get_vector<uint8_t>()) {
-            rc.push_back(to_string(value));
+            rc.push_back(std::to_string(value));
         }
         break;
     case element::Type_t::u16:
         for (uint32_t value : get_vector<uint16_t>()) {
-            rc.push_back(to_string(value));
+            rc.push_back(std::to_string(value));
         }
         break;
     case element::Type_t::u32:
         for (uint32_t value : get_vector<uint32_t>()) {
-            rc.push_back(to_string(value));
+            rc.push_back(std::to_string(value));
         }
         break;
     case element::Type_t::u64:
         for (uint64_t value : get_vector<uint64_t>()) {
-            rc.push_back(to_string(value));
+            rc.push_back(std::to_string(value));
         }
         break;
     case element::Type_t::undefined:
@@ -403,7 +435,7 @@ vector<string> ov::op::v0::Constant::get_value_strings() const {
 }
 
 ov::Shape ov::op::v0::Constant::get_shape_val() const {
-    NGRAPH_CHECK(m_element_type.is_integral_number());
+    OPENVINO_ASSERT(m_element_type.is_integral_number());
     std::vector<int64_t> out_shape = cast_vector<int64_t>();
     ov::Shape output_shape(shape_size(m_shape));
     std::transform(out_shape.begin(), out_shape.end(), output_shape.begin(), [&](const int64_t& v) {
@@ -413,7 +445,7 @@ ov::Shape ov::op::v0::Constant::get_shape_val() const {
 }
 
 ov::Strides ov::op::v0::Constant::get_strides_val() const {
-    NGRAPH_CHECK(m_element_type == element::i64);
+    OPENVINO_ASSERT(m_element_type == element::i64);
     std::vector<int64_t> out_strides = cast_vector<int64_t>();
     Strides output_strides(shape_size(m_shape));
     std::transform(out_strides.begin(), out_strides.end(), output_strides.begin(), [&](const int64_t& v) {
@@ -423,7 +455,7 @@ ov::Strides ov::op::v0::Constant::get_strides_val() const {
 }
 
 ov::Coordinate ov::op::v0::Constant::get_coordinate_val() const {
-    NGRAPH_CHECK(m_element_type == element::i64);
+    OPENVINO_ASSERT(m_element_type == element::i64);
     std::vector<int64_t> out_coordinate = cast_vector<int64_t>();
     Coordinate output_coordinate(shape_size(m_shape));
     std::transform(out_coordinate.begin(), out_coordinate.end(), output_coordinate.begin(), [&](const int64_t& v) {
@@ -433,7 +465,7 @@ ov::Coordinate ov::op::v0::Constant::get_coordinate_val() const {
 }
 
 ov::CoordinateDiff ov::op::v0::Constant::get_coordinate_diff_val() const {
-    NGRAPH_CHECK(m_element_type == element::i64);
+    OPENVINO_ASSERT(m_element_type == element::i64);
     std::vector<int64_t> out_coordinate_diff = cast_vector<int64_t>();
     CoordinateDiff output_coordinate_diff(shape_size(m_shape));
     std::transform(out_coordinate_diff.begin(),
@@ -446,7 +478,7 @@ ov::CoordinateDiff ov::op::v0::Constant::get_coordinate_diff_val() const {
 }
 
 ov::AxisVector ov::op::v0::Constant::get_axis_vector_val() const {
-    NGRAPH_CHECK(m_element_type.is_integral_number());
+    OPENVINO_ASSERT(m_element_type.is_integral_number());
     std::vector<int64_t> out_axis_vector = cast_vector<int64_t>();
     AxisVector output_axis_vector(shape_size(m_shape));
     std::transform(out_axis_vector.begin(), out_axis_vector.end(), output_axis_vector.begin(), [&](const int64_t& v) {
@@ -456,7 +488,7 @@ ov::AxisVector ov::op::v0::Constant::get_axis_vector_val() const {
 }
 
 ov::AxisSet ov::op::v0::Constant::get_axis_set_val() const {
-    NGRAPH_CHECK(m_element_type.is_integral_number());
+    OPENVINO_ASSERT(m_element_type.is_integral_number());
     std::vector<int64_t> out_axis_set = cast_vector<int64_t>();
     AxisSet output_axis_set;
     for (auto& axis : out_axis_set) {
@@ -465,10 +497,10 @@ ov::AxisSet ov::op::v0::Constant::get_axis_set_val() const {
     return output_axis_set;
 }
 
-shared_ptr<ov::Node> ov::op::v0::Constant::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<ov::Node> ov::op::v0::Constant::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Constant_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<Constant>(*this);
+    return std::make_shared<Constant>(*this);
 }
 
 template <typename T>
@@ -523,6 +555,7 @@ bool ov::op::v0::Constant::are_all_data_elements_bitwise_identical() const {
     case element::Type_t::i4:
     case element::Type_t::u1:
     case element::Type_t::u4:
+    case element::Type_t::nf4:
     case element::Type_t::undefined:
     case element::Type_t::dynamic:
         break;
@@ -555,11 +588,13 @@ bool ov::op::v0::Constant::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-bool ov::op::v0::Constant::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ov::op::v0::Constant::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     OV_OP_SCOPE(v0_Constant_evaluate);
-    auto output = outputs[0];
-    output->set_shape(m_shape);
-    output->write(get_data_ptr(), output->get_size_in_bytes());
+    if (outputs.empty())
+        outputs.emplace_back(ov::Tensor(m_element_type, m_shape));
+    else
+        outputs[0].set_shape(m_shape);
+    std::memcpy(outputs[0].data(), get_data_ptr(), outputs[0].get_byte_size());
     return true;
 }
 
@@ -573,4 +608,8 @@ bool ov::op::v0::Constant::evaluate_lower(TensorVector& outputs) const {
 }
 bool ov::op::v0::Constant::evaluate_upper(TensorVector& outputs) const {
     return evaluate(outputs, {});
+}
+
+uint8_t ov::op::v0::Constant::quantize_nf4(float x) {
+    return ov::ConvertNF4::quantize(x);
 }

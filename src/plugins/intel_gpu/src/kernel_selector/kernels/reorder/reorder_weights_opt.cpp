@@ -20,6 +20,11 @@ ParamsKey ReorderWeightsOpt::GetSupportedKey() const {
     k.EnableOutputWeightsType(WeightsType::INT32);
     k.EnableInputWeightsLayout(WeightsLayout::oiyx);
     k.EnableInputWeightsLayout(WeightsLayout::ioyx);
+    k.EnableInputWeightsLayout(WeightsLayout::oyxi);
+    k.EnableInputWeightsLayout(WeightsLayout::oyix);
+    k.EnableInputWeightsLayout(WeightsLayout::oxiy);
+    k.EnableInputWeightsLayout(WeightsLayout::iyxo);
+    k.EnableInputWeightsLayout(WeightsLayout::yxio);
     k.EnableInputWeightsLayout(WeightsLayout::oizyx);
     k.EnableInputWeightsLayout(WeightsLayout::iozyx);
     k.EnableInputWeightsLayout(WeightsLayout::goiyx);

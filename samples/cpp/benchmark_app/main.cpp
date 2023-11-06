@@ -20,9 +20,6 @@
 #    define WAS_OV_LIBRARY_DEFINED
 #endif
 
-#include "gna/gna_config.hpp"
-#include "gpu/gpu_config.hpp"
-
 #ifdef WAS_OV_LIBRARY_DEFINED
 #    undef IN_OV_COMPONENT
 #    undef WAS_OV_LIBRARY_DEFINED
@@ -315,11 +312,11 @@ int main(int argc, char* argv[]) {
             // Override config if command line parameter is specified
             if (!config.count("GPU"))
                 config["GPU"] = {};
-            config["GPU"][CONFIG_KEY(CONFIG_FILE)] = FLAGS_c;
+            config["GPU"]["CONFIG_FILE"] = FLAGS_c;
         }
-        if (config.count("GPU") && config.at("GPU").count(CONFIG_KEY(CONFIG_FILE))) {
-            auto ext = config.at("GPU").at(CONFIG_KEY(CONFIG_FILE)).as<std::string>();
-            core.set_property("GPU", {{CONFIG_KEY(CONFIG_FILE), ext}});
+        if (config.count("GPU") && config.at("GPU").count("CONFIG_FILE")) {
+            auto ext = config.at("GPU").at("CONFIG_FILE").as<std::string>();
+            core.set_property("GPU", {{"CONFIG_FILE", ext}});
             slog::info << "GPU extensions are loaded: " << ext << slog::endl;
         }
         OPENVINO_SUPPRESS_DEPRECATED_END
@@ -877,9 +874,8 @@ int main(int argc, char* argv[]) {
                     slog::info << "  " << item.first << ": " << slog::endl;
                     for (auto& item2 : item.second.as<ov::AnyMap>()) {
                         OPENVINO_SUPPRESS_DEPRECATED_START
-                        if (item2.first == ov::supported_properties ||
-                            item2.first == METRIC_KEY(SUPPORTED_CONFIG_KEYS) ||
-                            item2.first == METRIC_KEY(SUPPORTED_METRICS))
+                        if (item2.first == ov::supported_properties || item2.first == "SUPPORTED_CONFIG_KEYS)" ||
+                            item2.first == "SUPPORTED_METRICS")
                             continue;
                         OPENVINO_SUPPRESS_DEPRECATED_END
                         slog::info << "    " << item2.first << ": " << item2.second.as<std::string>() << slog::endl;

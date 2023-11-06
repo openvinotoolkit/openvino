@@ -36,7 +36,7 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
         //exclusive_async_requests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
         return plugin->get_executor_manager()->get_executor("GPU");
     } else if (config.get_property(ov::hint::enable_cpu_pinning)) {
-        auto executorConfig =
+        auto executor_config =
             ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor",
                                                     0,
                                                     0,
@@ -47,8 +47,8 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
                                                     ov::threading::IStreamsExecutor::Config::PreferredCoreType::BIG,
                                                     {{config.get_property(ov::num_streams), MAIN_CORE_PROC, 1, 0, 0}},
                                                     true};
-        auto postConfig = ov::threading::IStreamsExecutor::Config::reserve_cpu_threads(executorConfig);
-        return std::make_shared<ov::threading::CPUStreamsExecutor>(postConfig);
+        auto post_config = ov::threading::IStreamsExecutor::Config::reserve_cpu_threads(executor_config);
+        return std::make_shared<ov::threading::CPUStreamsExecutor>(post_config);
     } else {
         return std::make_shared<ov::threading::CPUStreamsExecutor>(
             ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor", config.get_property(ov::num_streams)});
@@ -63,7 +63,8 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
     : ov::ICompiledModel(model,
                          plugin,
                          wrap_if_old_api(context, plugin->is_new_api()),
-                         create_task_executor(plugin, config))
+                         create_task_executor(plugin, config),
+                         nullptr)
     , m_context(context)
     , m_config(config)
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
@@ -86,7 +87,8 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer ib,
     : ov::ICompiledModel(nullptr,
                          plugin,
                          wrap_if_old_api(context, plugin->is_new_api()),
-                         create_task_executor(plugin, config))
+                         create_task_executor(plugin, config),
+                         nullptr)
     , m_context(context)
     , m_config(config)
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
@@ -169,7 +171,7 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer ib,
     auto pos = ib.tellg();
     for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
         ib.seekg(pos);
-        auto graph = std::make_shared<Graph>(ib, context, m_config, 0);
+        auto graph = std::make_shared<Graph>(ib, context, m_config, n);
         m_graphs.push_back(graph);
     }
 }

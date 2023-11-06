@@ -39,10 +39,7 @@
 #    define OPENVINO_PLUGIN_API OPENVINO_EXTERN_C
 #endif
 
-namespace InferenceEngine {}
-
 namespace ov {
-namespace ie = InferenceEngine;
 
 /**
  * @brief This type of map is used for result of Core::query_model

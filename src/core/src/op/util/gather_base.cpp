@@ -118,15 +118,15 @@ bool evaluate_gather(const ngraph::HostTensorPtr& arg0,
 
     using ov::element::Type_t;
     switch (out->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_gather, i32, arg0, arg1, out, axis, batch_dims);
-        NGRAPH_TYPE_CASE(evaluate_gather, i64, arg0, arg1, out, axis, batch_dims);
-        NGRAPH_TYPE_CASE(evaluate_gather, i8, arg0, arg1, out, axis, batch_dims);
-        NGRAPH_TYPE_CASE(evaluate_gather, u8, arg0, arg1, out, axis, batch_dims);
-        NGRAPH_TYPE_CASE(evaluate_gather, u32, arg0, arg1, out, axis, batch_dims);
-        NGRAPH_TYPE_CASE(evaluate_gather, u64, arg0, arg1, out, axis, batch_dims);
-        NGRAPH_TYPE_CASE(evaluate_gather, f16, arg0, arg1, out, axis, batch_dims);
-        NGRAPH_TYPE_CASE(evaluate_gather, f32, arg0, arg1, out, axis, batch_dims);
-        NGRAPH_TYPE_CASE(evaluate_gather, boolean, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, i32, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, i64, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, i8, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, u8, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, u32, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, u64, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, f16, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, f32, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, boolean, arg0, arg1, out, axis, batch_dims);
     default:
         rc = false;
         break;

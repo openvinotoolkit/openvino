@@ -6,9 +6,9 @@
 
 #include <cmath>
 #include <cstddef>
-#include <ngraph/op/util/attr_types.hpp>
-#include <ngraph/shape.hpp>
 
+#include "openvino/core/shape.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "openvino/reference/autobroadcast_binop.hpp"
 
 namespace ov {
@@ -22,15 +22,9 @@ void prelu(const T* arg, const T* slope, T* out, const Shape& arg_shape, const S
         channel_slope_shape[channel_dim_idx] = slope_shape[0];
         std::swap(slope_shape_tmp, channel_slope_shape);
     }
-    autobroadcast_binop(arg,
-                        slope,
-                        out,
-                        arg_shape,
-                        slope_shape_tmp,
-                        ngraph::op::AutoBroadcastType::NUMPY,
-                        [](T x, T y) -> T {
-                            return x < T(0) ? T(x * y) : x;
-                        });
+    autobroadcast_binop(arg, slope, out, arg_shape, slope_shape_tmp, op::AutoBroadcastType::NUMPY, [](T x, T y) -> T {
+        return x < T(0) ? T(x * y) : x;
+    });
 }
 }  // namespace reference
 }  // namespace ov

@@ -7,10 +7,10 @@
 #include <memory>
 
 #include "openvino/core/except.hpp"
+#include "openvino/core/shape_util.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "shape_util.hpp"
 
 namespace ov {
 
@@ -25,9 +25,10 @@ size_t ITensor::get_byte_size() const {
 }
 
 bool ITensor::is_continuous() const {
-    if (get_element_type().bitwidth() < 8)
+    if ((get_element_type().bitwidth() < 8) || get_size() == 0) {
         // OpenVINO doesn't support strides for lp types
         return true;
+    }
     const auto& shape = get_shape();
     const auto& type = get_element_type();
     std::vector<size_t> strides(shape.size());

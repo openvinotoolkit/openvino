@@ -2,21 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/lstm_cell.hpp"
+#include "openvino/op/lstm_cell.hpp"
 
 #include <cmath>
 #include <functional>
 
 #include "itt.hpp"
 #include "lstm_cell_shape_inference.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/concat.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/type/element_type.hpp"
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
 
-using namespace std;
-using namespace ngraph;
+namespace ov {
 
 op::v0::LSTMCell::LSTMCell() : m_input_forget(false), m_weights_format(LSTMWeightsFormat::IFCO) {
     m_activations = {"sigmoid", "tanh", "tanh"};
@@ -32,9 +30,9 @@ op::v0::LSTMCell::LSTMCell(const Output<Node>& X,
                            const Output<Node>& R,
                            size_t hidden_size,
                            op::LSTMWeightsFormat weights_format,
-                           const vector<string>& activations,
-                           const vector<float>& activations_alpha,
-                           const vector<float>& activations_beta,
+                           const std::vector<std::string>& activations,
+                           const std::vector<float>& activations_alpha,
+                           const std::vector<float>& activations_beta,
                            float clip,
                            bool input_forget)
     : RNNCellBase({X, initial_hidden_state, initial_cell_state, W, R},
@@ -61,9 +59,9 @@ op::v0::LSTMCell::LSTMCell(const Output<Node>& X,
                            const Output<Node>& B,
                            size_t hidden_size,
                            op::LSTMWeightsFormat weights_format,
-                           const vector<string>& activations,
-                           const vector<float>& activations_alpha,
-                           const vector<float>& activations_beta,
+                           const std::vector<std::string>& activations,
+                           const std::vector<float>& activations_alpha,
+                           const std::vector<float>& activations_beta,
                            float clip,
                            bool input_forget)
     : RNNCellBase({X, initial_hidden_state, initial_cell_state, W, R, B},
@@ -90,9 +88,9 @@ op::v0::LSTMCell::LSTMCell(const Output<Node>& X,
                            const Output<Node>& P,
                            size_t hidden_size,
                            op::LSTMWeightsFormat weights_format,
-                           const vector<string>& activations,
-                           const vector<float>& activations_alpha,
-                           const vector<float>& activations_beta,
+                           const std::vector<std::string>& activations,
+                           const std::vector<float>& activations_alpha,
+                           const std::vector<float>& activations_beta,
                            float clip,
                            bool input_forget)
     : RNNCellBase({X, initial_hidden_state, initial_cell_state, W, R, B, P},
@@ -109,7 +107,7 @@ op::v0::LSTMCell::LSTMCell(const Output<Node>& X,
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::LSTMCell::visit_attributes(AttributeVisitor& visitor) {
+bool op::v0::LSTMCell::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v0_LSTMCell_visit_attributes);
     visitor.on_attribute("hidden_size", m_hidden_size);
     visitor.on_attribute("activations", m_activations);
@@ -176,74 +174,73 @@ void op::v0::LSTMCell::validate_and_infer_types() {
 Output<Node> op::v0::LSTMCell::get_default_bias_input() const {
     return Output<Node>{op::v0::Constant::create(get_input_element_type(0),
                                                  Shape{lstm_cell::gates_count * get_hidden_size()},
-                                                 vector<float>{0.f})};
+                                                 std::vector<float>{0.f})};
 }
 
 Output<Node> op::v0::LSTMCell::get_default_peepholes_input() const {
     return Output<Node>{op::v0::Constant::create(get_input_element_type(0),
                                                  Shape{lstm_cell::peepholes_count * get_hidden_size()},
-                                                 vector<float>{0.f})};
+                                                 std::vector<float>{0.f})};
 }
 
-shared_ptr<Node> op::v0::LSTMCell::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v0::LSTMCell::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_LSTMCell_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 5) {
-        return make_shared<op::v0::LSTMCell>(new_args.at(0),
-                                             new_args.at(1),
-                                             new_args.at(2),
-                                             new_args.at(3),
-                                             new_args.at(4),
-                                             get_hidden_size(),
-                                             get_weights_format(),
-                                             get_activations(),
-                                             get_activations_alpha(),
-                                             get_activations_beta(),
-                                             get_clip(),
-                                             m_input_forget);
+        return std::make_shared<op::v0::LSTMCell>(new_args.at(0),
+                                                  new_args.at(1),
+                                                  new_args.at(2),
+                                                  new_args.at(3),
+                                                  new_args.at(4),
+                                                  get_hidden_size(),
+                                                  get_weights_format(),
+                                                  get_activations(),
+                                                  get_activations_alpha(),
+                                                  get_activations_beta(),
+                                                  get_clip(),
+                                                  m_input_forget);
     } else if (new_args.size() == 6) {
-        return make_shared<op::v0::LSTMCell>(new_args.at(0),
-                                             new_args.at(1),
-                                             new_args.at(2),
-                                             new_args.at(3),
-                                             new_args.at(4),
-                                             new_args.at(5),
-                                             get_hidden_size(),
-                                             get_weights_format(),
-                                             get_activations(),
-                                             get_activations_alpha(),
-                                             get_activations_beta(),
-                                             get_clip(),
-                                             m_input_forget);
+        return std::make_shared<op::v0::LSTMCell>(new_args.at(0),
+                                                  new_args.at(1),
+                                                  new_args.at(2),
+                                                  new_args.at(3),
+                                                  new_args.at(4),
+                                                  new_args.at(5),
+                                                  get_hidden_size(),
+                                                  get_weights_format(),
+                                                  get_activations(),
+                                                  get_activations_alpha(),
+                                                  get_activations_beta(),
+                                                  get_clip(),
+                                                  m_input_forget);
     } else if (new_args.size() == 7) {
-        return make_shared<op::v0::LSTMCell>(new_args.at(0),
-                                             new_args.at(1),
-                                             new_args.at(2),
-                                             new_args.at(3),
-                                             new_args.at(4),
-                                             new_args.at(5),
-                                             new_args.at(6),
-                                             get_hidden_size(),
-                                             get_weights_format(),
-                                             get_activations(),
-                                             get_activations_alpha(),
-                                             get_activations_beta(),
-                                             get_clip(),
-                                             m_input_forget);
+        return std::make_shared<op::v0::LSTMCell>(new_args.at(0),
+                                                  new_args.at(1),
+                                                  new_args.at(2),
+                                                  new_args.at(3),
+                                                  new_args.at(4),
+                                                  new_args.at(5),
+                                                  new_args.at(6),
+                                                  get_hidden_size(),
+                                                  get_weights_format(),
+                                                  get_activations(),
+                                                  get_activations_alpha(),
+                                                  get_activations_beta(),
+                                                  get_clip(),
+                                                  m_input_forget);
     } else {
         OPENVINO_THROW("Incorrect number of new arguments");
     }
 }
 
-namespace ov {
 template <>
-NGRAPH_API EnumNames<ngraph::op::LSTMWeightsFormat>& EnumNames<ngraph::op::LSTMWeightsFormat>::get() {
-    static auto enum_names = EnumNames<ngraph::op::LSTMWeightsFormat>("op::LSTMWeightsFormat",
-                                                                      {{"fico", ngraph::op::LSTMWeightsFormat::FICO},
-                                                                       {"icof", ngraph::op::LSTMWeightsFormat::ICOF},
-                                                                       {"ifco", ngraph::op::LSTMWeightsFormat::IFCO},
-                                                                       {"ifoc", ngraph::op::LSTMWeightsFormat::IFOC},
-                                                                       {"iofc", ngraph::op::LSTMWeightsFormat::IOFC}});
+OPENVINO_API EnumNames<op::LSTMWeightsFormat>& EnumNames<op::LSTMWeightsFormat>::get() {
+    static auto enum_names = EnumNames<op::LSTMWeightsFormat>("op::LSTMWeightsFormat",
+                                                              {{"fico", op::LSTMWeightsFormat::FICO},
+                                                               {"icof", op::LSTMWeightsFormat::ICOF},
+                                                               {"ifco", op::LSTMWeightsFormat::IFCO},
+                                                               {"ifoc", op::LSTMWeightsFormat::IFOC},
+                                                               {"iofc", op::LSTMWeightsFormat::IOFC}});
     return enum_names;
 }
 
@@ -263,9 +260,8 @@ ov::op::util::LSTMWeightsFormat op::convert_lstm_weights_enums(op::LSTMWeightsFo
         OPENVINO_ASSERT(false, "Incorrect LSTM weights format");
     }
 }
-}  // namespace ov
 
-std::ostream& ov::operator<<(std::ostream& s, const op::LSTMWeightsFormat& type) {
+std::ostream& operator<<(std::ostream& s, const op::LSTMWeightsFormat& type) {
     return s << as_string(type);
 }
 
@@ -282,9 +278,9 @@ op::v4::LSTMCell::LSTMCell(const Output<Node>& X,
                            const Output<Node>& W,
                            const Output<Node>& R,
                            size_t hidden_size,
-                           const vector<string>& activations,
-                           const vector<float>& activations_alpha,
-                           const vector<float>& activations_beta,
+                           const std::vector<std::string>& activations,
+                           const std::vector<float>& activations_alpha,
+                           const std::vector<float>& activations_beta,
                            float clip)
     : RNNCellBase({X, initial_hidden_state, initial_cell_state, W, R},
                   hidden_size,
@@ -306,9 +302,9 @@ op::v4::LSTMCell::LSTMCell(const Output<Node>& X,
                            const Output<Node>& R,
                            const Output<Node>& B,
                            size_t hidden_size,
-                           const vector<string>& activations,
-                           const vector<float>& activations_alpha,
-                           const vector<float>& activations_beta,
+                           const std::vector<std::string>& activations,
+                           const std::vector<float>& activations_alpha,
+                           const std::vector<float>& activations_beta,
                            float clip)
     : RNNCellBase({X, initial_hidden_state, initial_cell_state, W, R, B},
                   hidden_size,
@@ -322,7 +318,7 @@ op::v4::LSTMCell::LSTMCell(const Output<Node>& X,
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v4::LSTMCell::visit_attributes(AttributeVisitor& visitor) {
+bool op::v4::LSTMCell::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v4_LSTMCell_visit_attributes);
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
@@ -368,36 +364,37 @@ void op::v4::LSTMCell::validate_and_infer_types() {
 Output<Node> op::v4::LSTMCell::get_default_bias_input() const {
     return Output<Node>{op::v0::Constant::create(get_input_element_type(0),
                                                  Shape{lstm_cell::gates_count * get_hidden_size()},
-                                                 vector<float>{0.f})};
+                                                 std::vector<float>{0.f})};
 }
 
-shared_ptr<Node> op::v4::LSTMCell::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v4::LSTMCell::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v4_LSTMCell_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 5) {
-        return make_shared<LSTMCell>(new_args.at(0),
-                                     new_args.at(1),
-                                     new_args.at(2),
-                                     new_args.at(3),
-                                     new_args.at(4),
-                                     get_hidden_size(),
-                                     get_activations(),
-                                     get_activations_alpha(),
-                                     get_activations_beta(),
-                                     get_clip());
+        return std::make_shared<LSTMCell>(new_args.at(0),
+                                          new_args.at(1),
+                                          new_args.at(2),
+                                          new_args.at(3),
+                                          new_args.at(4),
+                                          get_hidden_size(),
+                                          get_activations(),
+                                          get_activations_alpha(),
+                                          get_activations_beta(),
+                                          get_clip());
     } else if (new_args.size() == 6) {
-        return make_shared<LSTMCell>(new_args.at(0),
-                                     new_args.at(1),
-                                     new_args.at(2),
-                                     new_args.at(3),
-                                     new_args.at(4),
-                                     new_args.at(5),
-                                     get_hidden_size(),
-                                     get_activations(),
-                                     get_activations_alpha(),
-                                     get_activations_beta(),
-                                     get_clip());
+        return std::make_shared<LSTMCell>(new_args.at(0),
+                                          new_args.at(1),
+                                          new_args.at(2),
+                                          new_args.at(3),
+                                          new_args.at(4),
+                                          new_args.at(5),
+                                          get_hidden_size(),
+                                          get_activations(),
+                                          get_activations_alpha(),
+                                          get_activations_beta(),
+                                          get_clip());
     } else {
         OPENVINO_THROW("Incorrect number of new arguments");
     }
 }
+}  // namespace ov

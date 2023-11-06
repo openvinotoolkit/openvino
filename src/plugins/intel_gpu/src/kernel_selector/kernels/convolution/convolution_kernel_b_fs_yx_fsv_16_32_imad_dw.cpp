@@ -213,6 +213,9 @@ bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::ValidateAutoTuneParams(const c
                                                                          const AutoTuneParams& tparams) const {
     bool valid_tune_params = true;
 
+    if (!IsSIMDSizeSupported(params.engineInfo, tparams.simd))
+        return false;
+
     auto total_lws = tparams.simd * tparams.lws0 * tparams.lws1;
     valid_tune_params &= total_lws <= params.engineInfo.maxWorkGroupSize;
 

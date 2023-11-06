@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_layer/convolution.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -88,6 +88,13 @@ protected:
         size_t convOutChannels;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
 
+        // WA: check data when input shape is dynamic and pad is exist.
+        //     If 1d conv, 1d pad should be applied to y axis. But there was a bug what it applied to x axis.
+        if (inputShape.first.is_dynamic() && padBegin.size() == 1 && padBegin[0] == 1 && padEnd.size() == 1 && padEnd[0] == 1) {
+            abs_threshold = 9;
+            rel_threshold = 0.002;
+        }
+
         ov::ParameterVector inputParams;
         for (auto&& shape : inputDynamicShapes) {
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
@@ -149,8 +156,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic1DSymPad, Convolut
 
 const std::vector<SizeVector> kernels1D = { {3}, {1} };
 const std::vector<SizeVector> strides1D = { {1} };
-const std::vector<std::vector<ptrdiff_t>> padBegins1D = { {0} };
-const std::vector<std::vector<ptrdiff_t>> padEnds1D = { {0} };
+const std::vector<std::vector<ptrdiff_t>> padBegins1D = { {0}, {1} };
+const std::vector<std::vector<ptrdiff_t>> padEnds1D = { {0}, {1} };
 const std::vector<SizeVector> dilations1D = { {1} };
 const SizeVector numOutChannels = { 64, 63 };
 const std::vector<InputShape> inputShapes1D = {

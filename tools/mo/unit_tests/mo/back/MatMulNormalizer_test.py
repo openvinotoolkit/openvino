@@ -5,7 +5,7 @@ import unittest
 from argparse import Namespace
 
 import numpy as np
-from generator import generate, generator
+import pytest
 
 from openvino.tools.mo.back.MatMulNormalizer import SmartReshape_HC_Reshape_MatMul, PullTransposeThroughFQUp
 from openvino.tools.mo.ops.MatMul import MatMul
@@ -19,10 +19,9 @@ from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, val
 from unit_tests.utils.graph import regular_op_with_empty_data as op_with_empty_data
 
 
-@generator
-class SmartReshape_HC_Reshape_MatMulTest(unittest.TestCase):
-    @generate(
-        *[
+class TestSmartReshape_HC_Reshape_MatMulTest():
+    @pytest.mark.parametrize("in1_shape, in2_shape, reshape_pattern, transpose_a, transpose_b, updated_pattern",
+        [
             ([1, 20, 30], [30, 40], [20, -1], False, False, [-1, 30]),
             ([1, 20, 30], [40, 30], [20, -1], False, True, [-1, 30]),
             ([1, 30, 20], [30, 40], [-1, 20], True, False, [30, -1]),
@@ -59,9 +58,9 @@ class SmartReshape_HC_Reshape_MatMulTest(unittest.TestCase):
         graph_ref.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
-    @generate(*[
+    @pytest.mark.parametrize("in1_shape, in2_shape, reshape_pattern, transpose_a, transpose_b, updated_pattern",[
         ([20, 30], [1, 30, 40], [-1, 40], False, False, [30, -1]),
         ([20, 30], [1, 40, 30], [40, -1], False, True, [-1, 30]),
         ([30, 20], [1, 30, 40], [-1, 40], True, False, [30, -1]),
@@ -97,7 +96,7 @@ class SmartReshape_HC_Reshape_MatMulTest(unittest.TestCase):
         graph_ref.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
 
 class FQTransposePullerTest(unittest.TestCase):

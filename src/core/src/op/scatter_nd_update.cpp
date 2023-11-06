@@ -64,13 +64,13 @@ bool evaluate_scatter(const HostTensorPtr& arg0,
     bool rc = true;
 
     switch (out->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_scatter, i32, arg0, arg1, arg2, out);
-        NGRAPH_TYPE_CASE(evaluate_scatter, i64, arg0, arg1, arg2, out);
-        NGRAPH_TYPE_CASE(evaluate_scatter, u32, arg0, arg1, arg2, out);
-        NGRAPH_TYPE_CASE(evaluate_scatter, u64, arg0, arg1, arg2, out);
-        NGRAPH_TYPE_CASE(evaluate_scatter, f16, arg0, arg1, arg2, out);
-        NGRAPH_TYPE_CASE(evaluate_scatter, f32, arg0, arg1, arg2, out);
-        NGRAPH_TYPE_CASE(evaluate_scatter, boolean, arg0, arg1, arg2, out);
+        OPENVINO_TYPE_CASE(evaluate_scatter, i32, arg0, arg1, arg2, out);
+        OPENVINO_TYPE_CASE(evaluate_scatter, i64, arg0, arg1, arg2, out);
+        OPENVINO_TYPE_CASE(evaluate_scatter, u32, arg0, arg1, arg2, out);
+        OPENVINO_TYPE_CASE(evaluate_scatter, u64, arg0, arg1, arg2, out);
+        OPENVINO_TYPE_CASE(evaluate_scatter, f16, arg0, arg1, arg2, out);
+        OPENVINO_TYPE_CASE(evaluate_scatter, f32, arg0, arg1, arg2, out);
+        OPENVINO_TYPE_CASE(evaluate_scatter, boolean, arg0, arg1, arg2, out);
     default:
         rc = false;
         break;
@@ -82,10 +82,10 @@ bool evaluate_scatter(const HostTensorPtr& arg0,
 
 bool op::v3::ScatterNDUpdate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v3_ScatterNDUpdate_evaluate);
-    NGRAPH_CHECK(!inputs.empty());
+    OPENVINO_ASSERT(!inputs.empty());
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 3));
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_ASSERT(validate_host_tensor_vector(inputs, 3));
+    OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
 
     return scatter::evaluate_scatter(inputs[0], inputs[1], inputs[2], outputs[0]);

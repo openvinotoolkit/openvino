@@ -35,20 +35,22 @@ class ICompilationContext;
 struct program {
     using ptr = std::shared_ptr<program>;
     using cptr = std::shared_ptr<const program>;
-    friend class calculate_prior_boxes;      // to be removed when possible
-    friend class graph_initializations;      // to be removed when possible
-    friend class prepare_padding;            // to be removed when possible
-    friend class propagate_constants;        // to be removed when possible
-    friend class pre_replace_deconv;         // to be removed when possible
-    friend class prepare_primitive_fusing;   // to be removed when possible
-    friend class prepare_quantization;       // to be removed when possible
-    friend class prepare_conv_eltw_fusing;   // to be removed when possible
-    friend class reorder_inputs;             // to be removed when possible
-    friend class remove_redundant_reorders;  // to be removed when possible
-    friend class post_optimize_weights;      // to be removed when possible
-    friend class program_wrapper;            // this class is intended to extend the interface of program for
-                                             // the usage within tests_core_internal project only
-    friend class prepare_primitive_fusing_through;   // to be removed when possible
+    friend class calculate_prior_boxes;             // to be removed when possible
+    friend class graph_initializations;             // to be removed when possible
+    friend class prepare_padding;                   // to be removed when possible
+    friend class propagate_constants;               // to be removed when possible
+    friend class pre_replace_deconv;                // to be removed when possible
+    friend class prepare_primitive_fusing;          // to be removed when possible
+    friend class prepare_quantization;              // to be removed when possible
+    friend class prepare_conv_eltw_fusing;          // to be removed when possible
+    friend class reorder_inputs;                    // to be removed when possible
+    friend class remove_redundant_reorders;         // to be removed when possible
+    friend class post_optimize_weights;             // to be removed when possible
+    friend class prepare_primitive_fusing_through;  // to be removed when possible
+    friend class reorder_transfer;                  // to be removed when possible
+    friend class fuse_constant_transposes;          // to be removed when possible
+    friend class program_wrapper;                   // this class is intended to extend the interface of program for
+                                                    // the usage within tests_core_internal project only
 public:
     struct nodes_ordering {
     public:
@@ -129,6 +131,7 @@ public:
             topology const& topology,
             const ExecutionConfig& config,
             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
+            std::shared_ptr<ICompilationContext> compilation_context,
             bool is_internal = false,
             bool no_optimizations = false,
             bool is_body_program = false);
@@ -250,6 +253,14 @@ public:
                              bool no_optimizations = false,
                              bool is_body_program = false);
     static ptr build_program(engine& engine,
+                             const topology& topology,
+                             const ExecutionConfig& config,
+                             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
+                             std::shared_ptr<ICompilationContext> compilation_context,
+                             bool is_internal = false,
+                             bool no_optimizations = false,
+                             bool is_body_program = false);
+    static ptr build_program(engine& engine,
                              const std::set<std::shared_ptr<program_node>>& nodes,
                              const ExecutionConfig& config,
                              std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
@@ -264,9 +275,11 @@ public:
 
     ImplementationsCache& get_implementations_cache() const { return *_impls_cache; }
     ICompilationContext& get_compilation_context() const { return *_compilation_context; }
+    std::shared_ptr<ICompilationContext> get_compilation_context_ptr() const { return _compilation_context; }
     void cancel_compilation_context();
 
     static std::shared_ptr<ov::threading::IStreamsExecutor> make_task_executor(const ExecutionConfig& config);
+    static std::shared_ptr<ICompilationContext> make_compilation_context(const ExecutionConfig& config);
 
 private:
     uint32_t prog_id = 0;
@@ -284,8 +297,7 @@ private:
     bool is_body_program;
     std::unique_ptr<ImplementationsCache> _impls_cache;
     const size_t _impls_cache_capacity = 10000;
-    const int _num_async_build_threads = 1;
-    std::unique_ptr<ICompilationContext> _compilation_context;
+    std::shared_ptr<ICompilationContext> _compilation_context;
 
     std::map<primitive_id, std::shared_ptr<program_node>> nodes_map;
     std::list<primitive_id> optimized_out;

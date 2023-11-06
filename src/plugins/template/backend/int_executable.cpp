@@ -9,12 +9,12 @@
 
 #include "evaluates_map.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/shape_util.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/variable_context.hpp"
 #include "perf_counter.hpp"
-#include "shape_util.hpp"
 
 class TemporaryOverrideOutputs {
     std::shared_ptr<ov::Model> model;

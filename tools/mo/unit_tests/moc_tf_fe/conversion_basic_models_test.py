@@ -3,10 +3,10 @@
 
 import os
 import unittest
+from sys import platform
 
 import numpy as np
 from generator import generator, generate
-
 from openvino.runtime import Core
 from openvino.tools.mo.convert import convert_model
 
@@ -39,7 +39,6 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
         if dtype is not None:
             assert values.dtype == dtype
         assert np.allclose(values, expected)
-
 
     @generate(
         *[
@@ -236,17 +235,14 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
                    freeze_placeholder_with_value,
                    input_shape, only_conversion, True)
 
-    def test_conversion_failure_fallback_default(self):
+    def test_conversion_tf1_while_default(self):
         self.basic("ctc_model_based.pbtxt", None, None, None, None,
                    None, None, True, True, False, False)
 
-    def test_conversion_failure_fallback_use_new_frontend(self):
-        with self.assertRaisesRegex(Exception,
-                                    "\[TensorFlow Frontend\] Internal error, no translator found for operation\(s\)\: "
-                                    "Enter\, Exit\, LoopCond\, Merge\, NextIteration\, Switch\, TensorArrayGatherV3\, "
-                                    "TensorArraySizeV3\, TensorArrayV3"):
-            self.basic("ctc_model_based.pbtxt", None, None, None, None,
-                       None, None, True, True, True, False)
+    @unittest.skip("123651: enable when GPU fixes dynamism in Loop operation")
+    def test_conversion_tf1_while_use_new_frontend(self):
+        self.basic("ctc_model_based.pbtxt", None, None, None, None,
+                   None, None, True, True, True, False)
 
     @unittest.skip("88349: Fix auto-pruning in legacy FE")
     def test_conversion_model_oneshot_iterator_use_legacy_frontend(self):

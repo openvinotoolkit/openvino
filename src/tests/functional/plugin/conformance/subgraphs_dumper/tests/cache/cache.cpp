@@ -13,6 +13,7 @@
 
 #include "cache/cache.hpp"
 #include "cache/meta/meta_info.hpp"
+#include "utils/model.hpp"
 
 #include "base_test.hpp"
 
@@ -42,7 +43,7 @@ protected:
             test_model = std::make_shared<ov::Model>(convert, params);
             test_model->set_friendly_name(model_name);
         }
-        test_meta = ov::tools::subgraph_dumper::MetaInfo(test_model_path, {{"in_0", ov::tools::subgraph_dumper::InputInfo(0, 1, true)}});
+        test_meta = ov::tools::subgraph_dumper::MetaInfo(test_model_path, {{"in_0", ov::tools::subgraph_dumper::InputInfo({1, 2}, 0, 1, true)}});
     }
 
     void TearDown() override {
@@ -79,8 +80,7 @@ TEST_F(ICacheUnitTest, serialize_model) {
         if (!ov::util::file_exists(meta_path)) {
             throw std::runtime_error("Meta was not serilized!");
         }
-        auto core = ov::Core();
-        auto serialized_model = core.read_model(xml_path, bin_path);
+        auto serialized_model = ov::tools::subgraph_dumper::core->read_model(xml_path, bin_path);
         auto res = compare_functions(test_model, serialized_model, true, true, true, true, true, true);
         if (!res.first) {
             throw std::runtime_error("Serialized and runtime model are not equal!");
@@ -91,6 +91,24 @@ TEST_F(ICacheUnitTest, serialize_model) {
         ov::test::utils::removeFile(meta_path);
         GTEST_FAIL() << e.what() << std::endl;
     }
+}
+
+TEST_F(ICacheUnitTest, is_model_large_to_read) {
+    this->mem_size = 0;
+    ASSERT_NO_THROW(this->is_model_large_to_read(test_model, test_model_path));
+    ASSERT_TRUE(this->is_model_large_to_read(test_model, test_model_path));
+    this->mem_size = 1 << 30;
+    ASSERT_NO_THROW(this->is_model_large_to_read(test_model, test_model_path));
+    ASSERT_FALSE(this->is_model_large_to_read(test_model, test_model_path));
+}
+
+TEST_F(ICacheUnitTest, is_model_large_to_store_const) {
+    this->mem_size = 0;
+    ASSERT_NO_THROW(this->is_model_large_to_store_const(test_model));
+    ASSERT_TRUE(this->is_model_large_to_store_const(test_model));
+    this->mem_size = 1 << 30;
+    ASSERT_NO_THROW(this->is_model_large_to_store_const(test_model));
+    ASSERT_FALSE(this->is_model_large_to_store_const(test_model));
 }
 
 }  // namespace

@@ -98,7 +98,7 @@ static const char layout_message[] =
     "For example, \"input1[NCHW],input2[NC]\" or \"[NCHW]\" in case of one input size.";
 
 /// @brief message for execution mode
-static const char api_message[] = "Optional (deprecated). Enable Sync/Async API. Default value is \"async\".";
+static const char api_message[] = "Optional. Enable Sync/Async API. Default value is \"async\".";
 
 /// @brief message for #streams for CPU inference
 static const char infer_num_streams_message[] =

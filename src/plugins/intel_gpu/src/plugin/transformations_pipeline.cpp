@@ -50,6 +50,7 @@
 
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
@@ -58,7 +59,6 @@
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
-#include "transformations/common_optimizations/compress_float_constants.hpp"
 
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
@@ -88,6 +88,7 @@
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_previous_nms_to_nms_9.hpp"
 #include "transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp"
+#include "transformations/op_conversions/convert_nms_rotated_to_nms_ie_internal.hpp"
 #include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
@@ -102,16 +103,19 @@
 #include "transformations/op_conversions/convert_prior_box_v8_to_v0.hpp"
 #include "transformations/op_conversions/convert_shapeof3.hpp"
 #include "transformations/op_conversions/convert_topk11_downgrade.hpp"
+#include "transformations/op_conversions/group_normalization_decomposition.hpp"
 #include "transformations/op_conversions/eye_decomposition.hpp"
 #include "transformations/op_conversions/convert_pad12_downgrade.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
 
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
+#include "plugin/transformations/rms_fusion.hpp"
 
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "low_precision/pull_reshape_through_dequantization.hpp"
@@ -148,13 +152,19 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply");
     using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
-    const auto& defaultPrecisions = ov::pass::low_precision::precision_set::int8_support;
+    const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
     bool enableInt8;
     bool unroll_loop = config.get_property(ov::intel_gpu::enable_loop_unrolling);
     {
         ov::pass::Manager manager;
         auto pass_config = manager.get_pass_config();
         manager.set_per_pass_validation(false);
+
+        // Temporary solution, global rt info cleanup is needed
+        for (auto& node : func->get_ops()) {
+            ov::enable_constant_folding(node);
+            ov::disable_keep_const_precision(node);
+        }
 
         enableInt8 = config.get_property(ov::intel_gpu::enable_lp_transformations) && ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
         if (enableInt8) {
@@ -220,14 +230,17 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // decompose MVNs that sre not supported in GPU, so that they will be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::MVN6Decomposition>();
 
-        auto is_matmul_output = [](const_node_ptr &node) -> bool {
-            const auto outputs = node->get_output_target_inputs(0);
-            return !is_type<ov::op::v0::MatMul>(outputs.begin()->get_node());
-        };
+        manager.register_pass<ov::pass::KeepConstantsPrecisionAndAddConverts>();
+        pass_config->set_callback<ov::pass::KeepConstantsPrecisionAndAddConverts>(
+            [](const_node_ptr& node) -> bool {
+                auto next_node = node->get_output_target_inputs(0).begin()->get_node();
+                if (is_type<ov::op::v0::Convert>(next_node)) {
+                    next_node = next_node->get_output_target_inputs(0).begin()->get_node();
+                }
+                return !is_type<ov::op::v0::MatMul>(next_node);
+            });
 
-        manager.register_pass<ov::pass::KeepConstAndDecompression>();
-        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8}, true);
-        pass_config->set_callback<ov::pass::KeepConstAndDecompression>(is_matmul_output);
+        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8, ov::element::u4, ov::element::i4}, true);
 
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
@@ -267,6 +280,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::ConvertNMS4ToNMS9>();
         manager.register_pass<ov::pass::ConvertNMS5ToNMS9>();
         manager.register_pass<ov::pass::ConvertNMS9ToNMSIEInternal>();
+        manager.register_pass<ov::pass::ConvertNMSRotatedToNMSIEInternal>();
         manager.register_pass<ov::pass::ConvertGP9ToGPIEInternal>();
         manager.register_pass<ov::pass::ConvertMatrixNmsToMatrixNmsIE>();
         manager.register_pass<ov::pass::ConvertGather0D>();
@@ -372,8 +386,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return lstm_seq->get_clip() == 0.0f &&
                        lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
                        max_seq_len < 16 &&
-                       !ov::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(3),
-                                                              max_seq_len);
+                       !ov::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(0),
+                                                          lstm_seq->get_input_node_shared_ptr(3));
             }
             return false;
         };
@@ -485,6 +499,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::ConvertGather8ToGather7>();
         pass_config->disable<ov::pass::ConvertGather7ToGather1>();
         pass_config->disable<ov::pass::ConvertTopK11ToTopK3>();
+        pass_config->disable<ov::pass::GroupNormalizationDecomposition>();
 
         pass_config->enable<ov::pass::ConvertInterpolate1ToInterpolate4>();
 
@@ -627,7 +642,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     return num_iter != 1;
                 return num_iter >= 16;
             });
-        manager.register_pass<ov::pass::ResolveNameCollisions>(true);
 
         manager.run_passes(func);
     }
@@ -637,6 +651,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
+        manager.register_pass<ov::intel_gpu::RMSFusion>();
+
+        // This is supposed to be the last pass to ensure that we don't have name collisions until
+        // GPU plugin stops using friendly names for program creation
+        manager.register_pass<ov::pass::ResolveNameCollisions>(true);
 
         manager.run_passes(func);
     }

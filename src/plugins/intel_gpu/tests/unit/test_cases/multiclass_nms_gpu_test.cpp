@@ -27,7 +27,7 @@ float getError<float>() {
 }
 
 template<>
-float getError<half_t>() {
+float getError<ov::float16>() {
     return 0.2;
 }
 
@@ -66,8 +66,8 @@ struct multiclass_nms_test : public ::testing::TestWithParam<MulticlassNmsParams
 public:
     void test(const std::vector<format::type>& formats = {format::bfyx}) {
         const MulticlassNmsParams<T, T_IND> param = testing::TestWithParam<MulticlassNmsParams<T, T_IND>>::GetParam();
-        auto data_type = type_to_data_type<T>::value;
-        auto index_data_type = type_to_data_type<T_IND>::value;
+        auto data_type = ov::element::from<T>();
+        auto index_data_type = ov::element::from<T_IND>();
         constexpr auto plain_format = format::bfyx;
 
         for (const auto target_format : formats) {
@@ -240,14 +240,14 @@ struct PrintToStringParamName {
         const auto &p = info.param;
         std::ostringstream result;
         result << p.test_name << "_";
-        result << "InputType=" << data_type_traits::name(type_to_data_type<T_IND>::value) << "_";
-        result << "DataType=" << data_type_traits::name(type_to_data_type<T>::value);
+        result << "InputType=" << ov::element::Type(ov::element::from<T_IND>()) << "_";
+        result << "DataType=" << ov::element::Type(ov::element::from<T>());
         return result.str();
     }
 };
 
 using multiclass_nms_test_f32_i32 = multiclass_nms_test<float, int32_t>;
-using multiclass_nms_test_f16_i64 = multiclass_nms_test<half_t, int64_t>;
+using multiclass_nms_test_f16_i64 = multiclass_nms_test<ov::float16, int64_t>;
 using multiclass_nms_test_blocked = multiclass_nms_test<float, int32_t>;
 
 TEST_P(multiclass_nms_test_f32_i32, basic) {
@@ -848,7 +848,7 @@ INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test,
 
 INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test,
                      multiclass_nms_test_f16_i64,
-                     ::testing::ValuesIn(getMulticlassNmsParams<half_t, int64_t>()),
+                     ::testing::ValuesIn(getMulticlassNmsParams<ov::float16, int64_t>()),
                      PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test_blocked,
@@ -864,7 +864,7 @@ INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test_cached,
 
 INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test_cached,
                      multiclass_nms_test_f16_i64,
-                     ::testing::ValuesIn(getMulticlassNmsParams<half_t, int64_t>(true)),
+                     ::testing::ValuesIn(getMulticlassNmsParams<ov::float16, int64_t>(true)),
                      PrintToStringParamName());
 #endif
 INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test_blocked_cached,

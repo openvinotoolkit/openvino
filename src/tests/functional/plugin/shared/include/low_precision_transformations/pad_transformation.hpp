@@ -5,14 +5,14 @@
 #pragma once
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 
 namespace LayerTestsDefinitions {
 class PadTransformationParam {
 public:
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
-    std::vector<uint64_t> padsBegin;
-    std::vector<uint64_t> padsEnd;
+    std::vector<int64_t> padsBegin;
+    std::vector<int64_t> padsEnd;
     float padValue;
     std::string layerName;
     std::string expectedKernelType;

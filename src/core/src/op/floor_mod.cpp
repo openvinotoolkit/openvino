@@ -46,15 +46,15 @@ bool evaluate_floor_mod(const HostTensorPtr& arg0,
     bool rc = true;
     out->set_broadcast(broadcast_spec, arg0, arg1);
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_floor_mod, i8, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_floor_mod, i32, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_floor_mod, i64, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_floor_mod, u8, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_floor_mod, u32, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_floor_mod, u64, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_floor_mod, bf16, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_floor_mod, f16, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_floor_mod, f32, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_floor_mod, i8, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_floor_mod, i32, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_floor_mod, i64, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_floor_mod, u8, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_floor_mod, u32, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_floor_mod, u64, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_floor_mod, bf16, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_floor_mod, f16, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_floor_mod, f32, arg0, arg1, out, broadcast_spec);
     default:
         rc = false;
         break;

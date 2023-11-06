@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from sys import platform
+
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -49,13 +51,13 @@ class TestWhile(CommonTFLayerTest):
     test_data_basic = [
         dict(y_shape=[2, 3], data_type=np.int32, lower_control_flow=False),
         dict(y_shape=[2, 1, 4], data_type=np.int32, lower_control_flow=False),
-        pytest.param(dict(y_shape=[2, 1, 4], data_type=np.int32, lower_control_flow=True),
-                     marks=pytest.mark.xfail(reason="105670"))
+        pytest.param(dict(y_shape=[2, 1, 4], data_type=np.int32, lower_control_flow=True), marks=pytest.mark.xfail(reason="123651"))
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
+    @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
     def test_while_basic(self, params, ie_device, precision, ir_version, temp_dir,
                          use_new_frontend, use_old_api):
         self._test(*self.create_while_net(**params),
@@ -108,13 +110,13 @@ class TestWhileShapeVariant(CommonTFLayerTest):
     test_data_basic = [
         dict(y_shape=[2, 3], lower_control_flow=False),
         dict(y_shape=[2, 1, 4], lower_control_flow=False),
-        pytest.param(dict(y_shape=[2, 1, 4], lower_control_flow=True),
-                     marks=pytest.mark.xfail(reason="105670"))
+        pytest.param(dict(y_shape=[2, 1, 4], lower_control_flow=True), marks=pytest.mark.xfail(reason="123651"))
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
+    @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
     def test_while_basic(self, params, ie_device, precision, ir_version, temp_dir,
                          use_new_frontend, use_old_api):
         self._test(*self.create_while_net(**params),

@@ -59,7 +59,7 @@ struct generate_proposals
     int64_t post_nms_count = 0;
     bool normalized = false;
     float nms_eta = 0.0f;
-    data_types roi_num_type = data_types::bin;
+    data_types roi_num_type = data_types::undefined;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

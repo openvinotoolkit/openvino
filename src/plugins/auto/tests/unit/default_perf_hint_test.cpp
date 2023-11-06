@@ -7,12 +7,11 @@ using namespace ov::mock_auto_plugin;
 
 using ConfigParams = std::tuple<std::string,               // virtual device name to load network
                                 std::vector<std::string>,  // hardware device name to expect loading network on
-                                ov::AnyMap>;                   // secondary property setting to device
+                                ov::AnyMap>;               // secondary property setting to device
 
 static std::vector<ConfigParams> testConfigs;
 
-class AutoDefaultPerfHintTest : public tests::AutoTest,
-                                public ::testing::TestWithParam<ConfigParams> {
+class AutoDefaultPerfHintTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
         std::string deviceName;
@@ -37,35 +36,36 @@ public:
         testConfigs.clear();
         testConfigs.push_back(
             ConfigParams{"AUTO", {"CPU"}, {{"MULTI_DEVICE_PRIORITIES", "CPU"}}});  // CPU: get default_hint:lantency
-        testConfigs.push_back(
-            ConfigParams{"AUTO",
-                         {"CPU"},
-                         {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});  // CPU: no perf_hint
+        testConfigs.push_back(ConfigParams{"AUTO",
+                                           {"CPU"},
+                                           {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"},
+                                            {"MULTI_DEVICE_PRIORITIES", "CPU"}}});  // CPU: no perf_hint
         testConfigs.push_back(
             ConfigParams{"AUTO",
                          {"CPU", "GPU"},
                          {{"MULTI_DEVICE_PRIORITIES",
                            "GPU,CPU"}}});  // CPU: as helper, get default_hint:lantency GPU:get default_hint:lantency
-        testConfigs.push_back(ConfigParams{
-            "AUTO",
-            {"CPU", "GPU"},
-            {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"},
-             {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});  // CPU: as helper, get default_hint:lantency GPU:get default_hint:lantency
+        testConfigs.push_back(
+            ConfigParams{"AUTO",
+                         {"CPU", "GPU"},
+                         {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"},
+                          {"MULTI_DEVICE_PRIORITIES",
+                           "GPU,CPU"}}});  // CPU: as helper, get default_hint:lantency GPU:get default_hint:lantency
         testConfigs.push_back(ConfigParams{
             "AUTO",
             {"CPU", "GPU"},
             {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:3}}"},
              {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});  // CPU: as helper, get default_hint:lantency GPU:no perf_hint
-        testConfigs.push_back(
-            ConfigParams{"AUTO",
-                         {"CPU"},
-                         {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:5}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint
+        testConfigs.push_back(ConfigParams{"AUTO",
+                                           {"CPU"},
+                                           {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:5}}"},
+                                            {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint
         testConfigs.push_back(
             ConfigParams{"AUTO", {"GPU"}, {{"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: get default_hint:lantency
-        testConfigs.push_back(
-            ConfigParams{"AUTO",
-                         {"GPU"},
-                         {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: no perf_hint
+        testConfigs.push_back(ConfigParams{"AUTO",
+                                           {"GPU"},
+                                           {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:3}}"},
+                                            {"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: no perf_hint
 
         testConfigs.push_back(ConfigParams{
             "MULTI:CPU,GPU",
@@ -91,30 +91,30 @@ public:
 
     static std::vector<ConfigParams> CreatePerfHintAndDefaultPerfHintTestConfigs() {
         testConfigs.clear();
-        testConfigs.push_back(ConfigParams{
-            "AUTO",
-            {"CPU"},
-            {{"DEVICE_PROPERTIES", "{CPU:{PERFORMANCE_HINT:THROUGHPUT}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});  // CPU: get perf_hint:tput
+        testConfigs.push_back(ConfigParams{"AUTO",
+                                           {"CPU"},
+                                           {{"DEVICE_PROPERTIES", "{CPU:{PERFORMANCE_HINT:THROUGHPUT}}"},
+                                            {"MULTI_DEVICE_PRIORITIES", "CPU"}}});  // CPU: get perf_hint:tput
         testConfigs.push_back(
             ConfigParams{"AUTO",
                          {"CPU", "GPU"},
                          {{"DEVICE_PROPERTIES", "{CPU:{PERFORMANCE_HINT:THROUGHPUT}}"},
                           {"MULTI_DEVICE_PRIORITIES",
                            "GPU,CPU"}}});  // CPU: as helper, get perf_hint:lantency GPU:get default_hint:lantency
-        testConfigs.push_back(
-            ConfigParams{"AUTO",
-                         {"CPU", "GPU"},
-                         {{"DEVICE_PROPERTIES", "{CPU:{PERFORMANCE_HINT:THROUGHPUT},GPU:{PERFORMANCE_HINT:THROUGHPUT}}"},
-                          {"MULTI_DEVICE_PRIORITIES",
-                           "GPU,CPU"}}});  // CPU: as helper, get perf_hint:lantency GPU:get perf_hint:tput
+        testConfigs.push_back(ConfigParams{
+            "AUTO",
+            {"CPU", "GPU"},
+            {{"DEVICE_PROPERTIES", "{CPU:{PERFORMANCE_HINT:THROUGHPUT},GPU:{PERFORMANCE_HINT:THROUGHPUT}}"},
+             {"MULTI_DEVICE_PRIORITIES",
+              "GPU,CPU"}}});  // CPU: as helper, get perf_hint:lantency GPU:get perf_hint:tput
         testConfigs.push_back(ConfigParams{"AUTO",
                                            {"CPU"},
                                            {{"DEVICE_PROPERTIES", "{CPU:{PERFORMANCE_HINT:THROUGHPUT}}"},
                                             {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: get perf_hint:tput
-        testConfigs.push_back(ConfigParams{
-            "AUTO",
-            {"GPU"},
-            {{"DEVICE_PROPERTIES", "{GPU:{PERFORMANCE_HINT:THROUGHPUT}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: get perf_hint:tput
+        testConfigs.push_back(ConfigParams{"AUTO",
+                                           {"GPU"},
+                                           {{"DEVICE_PROPERTIES", "{GPU:{PERFORMANCE_HINT:THROUGHPUT}}"},
+                                            {"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: get perf_hint:tput
 
         testConfigs.push_back(ConfigParams{
             "MULTI:CPU,GPU",
@@ -136,30 +136,29 @@ public:
 
     static std::vector<ConfigParams> CreateSecPropAndDefaultPerfHintTestConfigs() {
         testConfigs.clear();
-        testConfigs.push_back(ConfigParams{
-            "AUTO",
-            {"CPU"},
-            {{"DEVICE_PROPERTIES", "{CPU:{ALLOW_AUTO_BATCHING:TRUE}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});  // CPU: no perf_hint
+        testConfigs.push_back(ConfigParams{"AUTO",
+                                           {"CPU"},
+                                           {{"DEVICE_PROPERTIES", "{CPU:{ALLOW_AUTO_BATCHING:TRUE}}"},
+                                            {"MULTI_DEVICE_PRIORITIES", "CPU"}}});  // CPU: no perf_hint
         testConfigs.push_back(
             ConfigParams{"AUTO",
                          {"CPU", "GPU"},
                          {{"DEVICE_PROPERTIES", "{CPU:{ALLOW_AUTO_BATCHING:TRUE}}"},
                           {"MULTI_DEVICE_PRIORITIES",
                            "GPU,CPU"}}});  // CPU: as helper, get perf_hint:lantency GPU:get default_hint:lantency
-        testConfigs.push_back(
-            ConfigParams{"AUTO",
-                         {"CPU", "GPU"},
-                         {{"DEVICE_PROPERTIES", "{CPU:{ALLOW_AUTO_BATCHING:TRUE},GPU:{ALLOW_AUTO_BATCHING:TRUE}}"},
-                          {"MULTI_DEVICE_PRIORITIES",
-                           "GPU,CPU"}}});  // CPU: as helper, get perf_hint:lantency GPU:no perf_hint
+        testConfigs.push_back(ConfigParams{
+            "AUTO",
+            {"CPU", "GPU"},
+            {{"DEVICE_PROPERTIES", "{CPU:{ALLOW_AUTO_BATCHING:TRUE},GPU:{ALLOW_AUTO_BATCHING:TRUE}}"},
+             {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});  // CPU: as helper, get perf_hint:lantency GPU:no perf_hint
         testConfigs.push_back(ConfigParams{"AUTO",
                                            {"CPU"},
                                            {{"DEVICE_PROPERTIES", "{CPU:{ALLOW_AUTO_BATCHING:FALSE}}"},
                                             {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint
-        testConfigs.push_back(ConfigParams{
-            "AUTO",
-            {"GPU"},
-            {{"DEVICE_PROPERTIES", "{GPU:{ALLOW_AUTO_BATCHING:FALSE}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: no perf_hint
+        testConfigs.push_back(ConfigParams{"AUTO",
+                                           {"GPU"},
+                                           {{"DEVICE_PROPERTIES", "{GPU:{ALLOW_AUTO_BATCHING:FALSE}}"},
+                                            {"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: no perf_hint
 
         testConfigs.push_back(ConfigParams{
             "MULTI:CPU,GPU",
@@ -171,11 +170,11 @@ public:
             {"CPU", "GPU"},
             {{"DEVICE_PROPERTIES", "{GPU:{ALLOW_AUTO_BATCHING:FALSE}}"},
              {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: get default_hint:tput  GPU: get default_hint:tput
-        testConfigs.push_back(ConfigParams{
-            "MULTI:CPU,GPU",
-            {"CPU", "GPU"},
-            {{"DEVICE_PROPERTIES", "{CPU:{ALLOW_AUTO_BATCHING:TRUE},GPU:{ALLOW_AUTO_BATCHING:FALSE}}"},
-             {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint GPU: get default_hint:tput
+        testConfigs.push_back(
+            ConfigParams{"MULTI:CPU,GPU",
+                         {"CPU", "GPU"},
+                         {{"DEVICE_PROPERTIES", "{CPU:{ALLOW_AUTO_BATCHING:TRUE},GPU:{ALLOW_AUTO_BATCHING:FALSE}}"},
+                          {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint GPU: get default_hint:tput
         return testConfigs;
     }
 
@@ -183,13 +182,17 @@ public:
         std::vector<std::string> availableDevs = {"CPU", "GPU"};
         ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevs));
 
-        ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                    ::testing::Matcher<const std::string&>(StrEq("CPU")), _))
-                    .WillByDefault(Return(mockExeNetwork));
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq("CPU")),
+                              _))
+            .WillByDefault(Return(mockExeNetwork));
 
-        ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                    ::testing::Matcher<const std::string&>(StrEq("GPU")), _))
-                    .WillByDefault(Return(mockExeNetworkActual));
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq("GPU")),
+                              _))
+            .WillByDefault(Return(mockExeNetworkActual));
     }
 };
 
@@ -246,21 +249,21 @@ TEST_P(NumStreamsAndDefaultPerfHintMockTest, NumStreamsAndDefaultPerfHintTest) {
             // do not pass default perf_hint to HW
             HW_PerfHint = "No PERFORMANCE_HINT";
         }
-        EXPECT_CALL(
-            *core,
-            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                        ::testing::Matcher<const std::string&>(deviceName),
-                        ::testing::Matcher<const ov::AnyMap&>(ComparePerfHint(HW_PerfHint))))
+        EXPECT_CALL(*core,
+                    compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                                  ::testing::Matcher<const std::string&>(deviceName),
+                                  ::testing::Matcher<const ov::AnyMap&>(ComparePerfHint(HW_PerfHint))))
             .Times(1);
     }
 
     ASSERT_NO_THROW(plugin->compile_model(model, config));
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiMock_NumStreamsAndDefaultPerfHintToHWTest,
-                         NumStreamsAndDefaultPerfHintMockTest,
-                         ::testing::ValuesIn(NumStreamsAndDefaultPerfHintMockTest::CreateNumStreamsAndDefaultPerfHintTestConfigs()),
-                         NumStreamsAndDefaultPerfHintMockTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_AutoMultiMock_NumStreamsAndDefaultPerfHintToHWTest,
+    NumStreamsAndDefaultPerfHintMockTest,
+    ::testing::ValuesIn(NumStreamsAndDefaultPerfHintMockTest::CreateNumStreamsAndDefaultPerfHintTestConfigs()),
+    NumStreamsAndDefaultPerfHintMockTest::getTestCaseName);
 
 TEST_P(PerHintAndDefaultPerfHintMockTest, PerfHintAndDefaultPerfHintTest) {
     std::string device;
@@ -309,21 +312,21 @@ TEST_P(PerHintAndDefaultPerfHintMockTest, PerfHintAndDefaultPerfHintTest) {
         if (itor != deviceConfigs.end() && !isCPUHelper) {
             HW_PerfHint = itor->second.as<std::string>();
         }
-        EXPECT_CALL(
-            *core,
-            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                        ::testing::Matcher<const std::string&>(StrEq(deviceName)),
-                        ::testing::Matcher<const ov::AnyMap&>(ComparePerfHint(HW_PerfHint))))
+        EXPECT_CALL(*core,
+                    compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                                  ::testing::Matcher<const std::string&>(StrEq(deviceName)),
+                                  ::testing::Matcher<const ov::AnyMap&>(ComparePerfHint(HW_PerfHint))))
             .Times(1);
     }
 
     ASSERT_NO_THROW(plugin->compile_model(model, config));
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiMock_PerHintAndDefaultPerfHintToHWTest,
-                         PerHintAndDefaultPerfHintMockTest,
-                         ::testing::ValuesIn(PerHintAndDefaultPerfHintMockTest::CreatePerfHintAndDefaultPerfHintTestConfigs()),
-                         PerHintAndDefaultPerfHintMockTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_AutoMultiMock_PerHintAndDefaultPerfHintToHWTest,
+    PerHintAndDefaultPerfHintMockTest,
+    ::testing::ValuesIn(PerHintAndDefaultPerfHintMockTest::CreatePerfHintAndDefaultPerfHintTestConfigs()),
+    PerHintAndDefaultPerfHintMockTest::getTestCaseName);
 
 TEST_P(SecPropAndDefaultPerfHintMockTest, SecPropAndDefaultPerfHintTest) {
     std::string device;
@@ -372,18 +375,18 @@ TEST_P(SecPropAndDefaultPerfHintMockTest, SecPropAndDefaultPerfHintTest) {
                 }
             }
         }
-        EXPECT_CALL(
-            *core,
-            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                        ::testing::Matcher<const std::string&>(StrEq(deviceName)),
-                        ::testing::Matcher<const ov::AnyMap&>(ComparePerfHint(HW_PerfHint))))
+        EXPECT_CALL(*core,
+                    compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                                  ::testing::Matcher<const std::string&>(StrEq(deviceName)),
+                                  ::testing::Matcher<const ov::AnyMap&>(ComparePerfHint(HW_PerfHint))))
             .Times(1);
     }
 
     ASSERT_NO_THROW(plugin->compile_model(model, config));
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiMock_SecPropAndDefaultPerfHintToHWTest,
-                         SecPropAndDefaultPerfHintMockTest,
-                         ::testing::ValuesIn(SecPropAndDefaultPerfHintMockTest::CreateSecPropAndDefaultPerfHintTestConfigs()),
-                         SecPropAndDefaultPerfHintMockTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_AutoMultiMock_SecPropAndDefaultPerfHintToHWTest,
+    SecPropAndDefaultPerfHintMockTest,
+    ::testing::ValuesIn(SecPropAndDefaultPerfHintMockTest::CreateSecPropAndDefaultPerfHintTestConfigs()),
+    SecPropAndDefaultPerfHintMockTest::getTestCaseName);

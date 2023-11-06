@@ -202,7 +202,8 @@ attach_strided_slice_impl::attach_strided_slice_impl() {
 
     auto formats = {
         format::bfyx,
-        format::bfzyx
+        format::bfzyx,
+        format::bfwzyx,
     };
 
     implementation_map<strided_slice>::add(impl_types::ocl,

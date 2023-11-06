@@ -8,9 +8,9 @@ set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY_OLD ${CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY}
 set(CMAKE_PDB_OUTPUT_DIRECTORY_OLD ${CMAKE_PDB_OUTPUT_DIRECTORY})
 
 if(OV_GENERATOR_MULTI_CONFIG)
-    set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api)
+    set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python/openvino)
 else()
-    set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api)
+    set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python/openvino)
 endif()
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
@@ -25,14 +25,10 @@ set(PYBIND_FE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/mock_mo_python_api.cpp)
 
 source_group("src" FILES ${PYBIND_FE_SRC})
 
-if(PYTHON_VERSION_MINOR GREATER_EQUAL 11)
+if(Python3_VERSION_MINOR GREATER_EQUAL 11)
     set(pybind11_min_version 2.9.2)
 else()
     set(pybind11_min_version 2.8.0)
-endif()
-if(CMAKE_CROSSCOMPILING)
-    # since this version pybind11 has PYBIND11_PYTHONLIBS_OVERWRITE
-    set(pybind11_min_version 2.10.1)
 endif()
 
 find_package(pybind11 ${pybind11_min_version} QUIET)
@@ -43,6 +39,13 @@ if(NOT pybind11_FOUND)
                     EXCLUDE_FROM_ALL)
 endif()
 
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.18)
+    set(python3_development_component Development.Module)
+else()
+    set(python3_development_component Development)
+endif()
+
+find_package(Python3 REQUIRED COMPONENTS Interpreter ${python3_development_component})
 pybind11_add_module(${PYBIND_FE_NAME} MODULE NO_EXTRAS ${PYBIND_FE_SRC})
 
 target_link_libraries(${PYBIND_FE_NAME} PRIVATE openvino::runtime)

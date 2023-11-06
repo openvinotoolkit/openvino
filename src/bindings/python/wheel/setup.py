@@ -253,7 +253,7 @@ class CustomBuild(build):
                     binary_dir = os.path.join(self.build_temp, binary_dir)
                     self.announce(f"Configuring {comp} cmake project", level=3)
                     self.spawn(["cmake", f"-DOpenVINODeveloperPackage_DIR={OPENVINO_BINARY_DIR}",
-                                         f"-DPYTHON_EXECUTABLE={sys.executable}",
+                                         f"-DPython3_EXECUTABLE={sys.executable}",
                                          f"-DCPACK_GENERATOR={CPACK_GENERATOR}",
                                          f"-DCMAKE_BUILD_TYPE={CONFIG}",
                                          "-DENABLE_WHEEL=OFF",
@@ -512,7 +512,7 @@ def set_rpath(rpath, binary):
                 log.warn(f"WARNING: {binary}: missed ELF header")
                 return
         rpath_tool = "patchelf"
-        cmd = [rpath_tool, "--set-rpath", rpath, binary]
+        cmd = [rpath_tool, "--set-rpath", rpath, binary, "--force-rpath"]
     elif sys.platform == "darwin":
         rpath_tool = "install_name_tool"
         cmd = [rpath_tool, "-add_rpath", rpath, binary]

@@ -7,7 +7,7 @@
 #include "common/gna_target.hpp"
 #include "gna_mock_api_initializer.hpp"
 #include "gna_plugin.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace {
 typedef struct {
