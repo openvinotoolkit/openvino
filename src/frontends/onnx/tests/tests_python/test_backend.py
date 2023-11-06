@@ -2,6 +2,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
 import logging
 
 import onnx.backend.test
@@ -24,6 +25,7 @@ from tests import (
     xfail_issue_38735,
     skip_issue_39658,
     skip_issue_39658,
+    skip_issue_58676,
     xfail_issue_44858,
     xfail_issue_44965,
     xfail_issue_45180,
@@ -376,12 +378,6 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_90649,
-        "OnnxBackendNodeModelTest.test_blackmanwindow_cpu",
-        "OnnxBackendNodeModelTest.test_blackmanwindow_symmetric_cpu",
-        "OnnxBackendNodeModelTest.test_hammingwindow_cpu",
-        "OnnxBackendNodeModelTest.test_hammingwindow_symmetric_cpu",
-        "OnnxBackendNodeModelTest.test_hannwindow_cpu",
-        "OnnxBackendNodeModelTest.test_hannwindow_symmetric_cpu",
         "OnnxBackendNodeModelTest.test_melweightmatrix_cpu",
         "OnnxBackendNodeModelTest.test_sequence_map_add_1_sequence_1_tensor_cpu",
         "OnnxBackendNodeModelTest.test_sequence_map_add_2_sequences_cpu",
@@ -441,9 +437,7 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_99955,
-        "OnnxBackendNodeModelTest.test_group_normalization_epsilon_cpu",
         "OnnxBackendNodeModelTest.test_group_normalization_epsilon_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_group_normalization_example_cpu",
         "OnnxBackendNodeModelTest.test_group_normalization_example_expanded_cpu",
     ),
     (
@@ -682,6 +676,22 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_roialign_mode_max_cpu",
     ),
 ]
+
+if platform.system() == 'Darwin':
+    tests_expected_to_fail.extend([
+        (
+            skip_issue_58676,
+            "OnnxBackendNodeModelTest.test_mish_expanded_cpu"
+        ),
+        (
+            skip_issue_58676,
+            "OnnxBackendNodeModelTest.test_resize_downsample_scales_linear_cpu"
+        ),
+        (
+            skip_issue_58676,
+            "OnnxBackendNodeModelTest.test_div_uint8_cpu"
+        )]
+    )
 
 for test_group in tests_expected_to_fail:
     for test_case in test_group[1:]:
