@@ -120,7 +120,7 @@ jobs:
 
       - if: ${{ runner.os == 'Linux' && runner.arch == 'ARM64' }}
         name: Setup Python ${{ inputs.version }}
-        uses: akashchi/deadsnakes-action@3a79d737cfbef774db17a92c7987c7b99b2550bf
+        uses: akashchi/deadsnakes-action@433de1996f707c4ef463b5a800fe172297f7554c
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
