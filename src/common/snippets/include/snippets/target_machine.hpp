@@ -50,6 +50,11 @@ public:
      */
     virtual size_t get_lanes() const = 0;
 
+    /**
+     * @brief checks if build-in error detector is enabled
+     * @return true, if enabled
+     */
+    virtual bool is_err_detector_enabled() const;
 
     /**
      * @brief called by generator to all the emitter for a target machine

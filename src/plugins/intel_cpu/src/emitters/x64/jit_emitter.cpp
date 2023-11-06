@@ -211,7 +211,7 @@ void jit_emitter::emit_code(const std::vector<size_t> &in_idxs, const std::vecto
                             const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
-    if (g_enable_snippets_err_detector)
+    if (m_snippets_err_detector)
         build_debug_info();
 
     emit_impl(in_idxs, out_idxs);

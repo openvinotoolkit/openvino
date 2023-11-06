@@ -25,3 +25,7 @@ TargetMachine::get_supported_precisions(const ov::DiscreteTypeInfo& type) const 
 bool TargetMachine::has(const ov::DiscreteTypeInfo& type) const {
     return jitters.find(type) != jitters.end();
 }
+
+bool TargetMachine::is_err_detector_enabled() const {
+    return false;
+}

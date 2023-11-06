@@ -49,7 +49,6 @@ public:
     jit_dnnl_aux_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                            dnnl_alg_kind_t algKind, float inpAlpha, float inpBeta,
                            ov::element::Type exec_prc = ov::element::f32);
-    void print_debug_info() const override;
 
 private:
 };

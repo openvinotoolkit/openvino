@@ -20,8 +20,6 @@
 
 using namespace ov::threading;
 
-extern bool g_enable_snippets_err_detector;
-
 namespace ov {
 namespace intel_cpu {
 
@@ -46,6 +44,10 @@ public:
                 ov::element::Type exec_prc = ov::element::f32, emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec)
         : Emitter(), h(host), host_isa_(host_isa), exec_prc_(exec_prc), l_table (new Xbyak::Label()), in_out_type_(in_out_type) {
         k_mask = Xbyak::Opmask(1); // FIXME: in general case we need preserve k_mask state as well
+#ifdef CPU_DEBUG_CAPS
+        DebugCapsConfig debugCaps;
+        m_snippets_err_detector = !debugCaps.snippets_err_detector.empty();
+#endif
     }
 
     void emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
@@ -64,8 +66,7 @@ public:
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
 
     virtual void print_debug_info() const {
-        std::cerr << "Emitter type name:" << get_type_name(this)
-            << " This is default info from base jit_emitter. Exact emitter type name is not set." << std::endl;
+        std::cerr << "Emitter type name:" << get_type_name(this) << std::endl;
     }
 
 protected:
@@ -151,6 +152,7 @@ protected:
 
     void build_debug_info() const;
     static void set_local_handler(jit_emitter* emitter_address);
+    bool m_snippets_err_detector = false;
 
     std::string get_type_name(const jit_emitter* emitter) const {
         std::string name = typeid(*emitter).name();

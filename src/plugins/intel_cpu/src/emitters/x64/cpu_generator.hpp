@@ -30,6 +30,7 @@ public:
     snippets::CompiledSnippetPtr get_snippet() override;
     size_t get_lanes() const override;
     dnnl::impl::cpu::x64::cpu_isa_t get_isa() const;
+    bool is_err_detector_enabled() const override;
 
 private:
     std::unique_ptr<dnnl::impl::cpu::x64::jit_generator> h;

@@ -19,10 +19,6 @@ public:
 
     size_t get_inputs_num() const override { return 1; }
 
-    void print_debug_info() const override {
-        std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
-    }
-
 private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override {
         if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {

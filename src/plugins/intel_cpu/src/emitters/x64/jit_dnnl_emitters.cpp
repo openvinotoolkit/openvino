@@ -54,7 +54,7 @@ size_t jit_dnnl_emitter::get_inputs_num() const { return 1; }
 
 void jit_dnnl_emitter::emit_code(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
                                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
-    if (g_enable_snippets_err_detector)
+    if (m_snippets_err_detector)
         build_debug_info();
     if (host_isa_ == cpu::x64::sse41) {
         if (out_vec_idxs[0] != in_vec_idxs[0])
@@ -94,11 +94,6 @@ jit_dnnl_aux_emitter::jit_dnnl_aux_emitter(jit_generator *host, cpu_isa_t host_i
                                            dnnl_alg_kind_t algKind, float inpAlpha, float inpBeta,
                                            ov::element::Type exec_prc)
     : jit_dnnl_emitter(host, host_isa, algKind, inpAlpha, inpBeta, exec_prc) {
-}
-
-void jit_dnnl_aux_emitter::print_debug_info() const {
-    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
-    std::cerr << "dnnl_alg_kind:" << kind << " alpha" << alpha << " beta" << beta << "\n";
 }
 
 }   // namespace intel_cpu

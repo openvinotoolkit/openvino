@@ -204,7 +204,7 @@ KernelEmitter::KernelEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
 void KernelEmitter::emit_code(const std::vector<size_t> &in,
                               const std::vector<size_t> &out) const {
     validate_arguments(in, out);
-    if (g_enable_snippets_err_detector)
+    if (m_snippets_err_detector)
         build_debug_info();
     emit_impl(in, out);
 }
@@ -363,7 +363,7 @@ void LoopBeginEmitter::print_debug_info() const {
 void LoopBeginEmitter::emit_code(const std::vector<size_t> &in,
                                  const std::vector<size_t> &out) const {
     validate_arguments(in, out);
-    if (g_enable_snippets_err_detector)
+    if (m_snippets_err_detector)
         build_debug_info();
     emit_impl(in, out);
 }
@@ -420,7 +420,7 @@ void LoopEndEmitter::print_debug_info() const {
 void LoopEndEmitter::emit_code(const std::vector<size_t> &in,
                                  const std::vector<size_t> &out) const {
     validate_arguments(in, out);
-    if (g_enable_snippets_err_detector)
+    if (m_snippets_err_detector)
         build_debug_info();
     emit_impl(in, out);
 }
@@ -611,10 +611,6 @@ void StoreEmitter::emit_data() const {
     store_emitter->emit_data();
 }
 
-void StoreEmitter::print_debug_info() const {
-    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
-}
-
 LoadEmitter::LoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : MemoryEmitter(h, isa, expr) {
     if (src_prc != dst_prc)
         OPENVINO_THROW("LoadEmitter supports only equal input and output types but gets: ",
@@ -651,10 +647,6 @@ void LoadEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size
 
 void LoadEmitter::emit_data() const {
     load_emitter->emit_data();
-}
-
-void LoadEmitter::print_debug_info() const {
-    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 BroadcastLoadEmitter::BroadcastLoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
@@ -700,10 +692,6 @@ void BroadcastLoadEmitter::emit_isa(const std::vector<size_t> &in, const std::ve
     }
 }
 
-void BroadcastLoadEmitter::print_debug_info() const {
-    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
-}
-
 LoadConvertEmitter::LoadConvertEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : MemoryEmitter(h, isa, expr) {
     const auto load = ov::as_type_ptr<snippets::op::Load>(expr->get_node());
@@ -735,10 +723,6 @@ void LoadConvertEmitter::emit_isa(const std::vector<size_t> &in, const std::vect
 
 void LoadConvertEmitter::emit_data() const {
     load_emitter->emit_data();
-}
-
-void LoadConvertEmitter::print_debug_info() const {
-    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 StoreConvertEmitter::StoreConvertEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
@@ -777,10 +761,6 @@ void StoreConvertEmitter::emit_isa(const std::vector<size_t> &in, const std::vec
 
 void StoreConvertEmitter::emit_data() const {
     store_emitter->emit_data();
-}
-
-void StoreConvertEmitter::print_debug_info() const {
-    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 
@@ -1362,10 +1342,6 @@ void HorizonEmitter::perform_op(const Vmm &vmm1, const Vmm &vmm2, const Vmm &vmm
     }
 }
 
-void HorizonEmitter::print_debug_info() const {
-    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
-}
-
 FillEmitter::FillEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_emitter(h, isa, ov::element::f32, emitter_in_out_map::vec_to_vec) {
     const auto fill = ov::as_type_ptr<snippets::op::Fill>(expr->get_node());
@@ -1447,10 +1423,6 @@ void FillEmitter::fill_tail(const Vmm& src_vmm, const Vmm& dst_vmm) const {
             h->uni_vblendps(dst_vmm, src_vmm, table_val("value"), imm);
         }
     }
-}
-
-void FillEmitter::print_debug_info() const {
-    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
 }
 
 }  // namespace intel_cpu

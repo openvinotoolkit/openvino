@@ -97,7 +97,7 @@ size_t jit_load_emitter::aux_gprs_count() const {
 }
 
 void jit_load_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
-    if (g_enable_snippets_err_detector) {
+    if (m_snippets_err_detector) {
         // save runtime debug info
         h->push(h->r15);
         Xbyak::Label label_set_current;
@@ -702,7 +702,7 @@ void jit_store_emitter::emit_data() const {
 }
 
 void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
-    if (g_enable_snippets_err_detector) {
+    if (m_snippets_err_detector) {
         // save runtime debug info
         h->push(h->r15);
         Xbyak::Label label_set_current;

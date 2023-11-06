@@ -51,6 +51,8 @@ namespace intel_cpu {
 namespace node {
 namespace {
 
+std::mutex err_print_lock;
+
 struct SnippetKey {
     Snippet::SnippetAttrs attrs;
 
@@ -394,7 +396,7 @@ void Snippet::prepareParams() {
 
     auto builder = [this](const SnippetKey& key) -> std::shared_ptr<SnippetExecutor> {
         std::shared_ptr<SnippetExecutor> executor =
-                std::make_shared<SnippetJitExecutor>(key.attrs, is_dynamic, context->getConfig().inferencePrecision == ov::element::bf16);
+                std::make_shared<SnippetJitExecutor>(key.attrs, is_dynamic, context);
         return executor;
     };
 
@@ -519,10 +521,13 @@ void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMe
             jit_snippets_call_args call_args;
             update_ptrs(call_args, inMemPtrs, outMemPtrs);
 #ifdef __linux__
-            if (g_enable_snippets_err_detector) {
+            if (enable_err_detector) {
                 __sighandler_t signal_handler = [](int signal) {
-                    ov::intel_cpu::g_snippets_err_handler->local()->print_debug_info();
-                    OPENVINO_THROW("Segfault was caught by the signal handler");
+                    std::lock_guard<std::mutex> guard(err_print_lock);
+                    if (auto err_emitter = ov::intel_cpu::g_snippets_err_handler->local())
+                        err_emitter->print_debug_info();
+                    auto tid = parallel_get_thread_num();
+                    OPENVINO_THROW("Segfault was caught by the signal handler in snippets node execution on thread " + std::to_string(tid));
                 };
                 struct sigaction new_handler{};
                 new_handler.sa_handler = signal_handler;
@@ -554,10 +559,13 @@ void Snippet::SnippetJitExecutor::schedule_nt(const std::vector<MemoryPtr>& inMe
                 tmp /= work_size[j];
             }
 #ifdef __linux__
-            if (g_enable_snippets_err_detector) {
+            if (enable_err_detector) {
                 __sighandler_t signal_handler = [](int signal) {
-                    ov::intel_cpu::g_snippets_err_handler->local()->print_debug_info();
-                    OPENVINO_THROW("Segfault was caught by the signal handler");
+                    std::lock_guard<std::mutex> guard(err_print_lock);
+                    if (auto err_emitter = ov::intel_cpu::g_snippets_err_handler->local())
+                        err_emitter->print_debug_info();
+                    auto tid = parallel_get_thread_num();
+                    OPENVINO_THROW("Segfault was caught by the signal handler in snippets node execution on thread " + std::to_string(tid));
                 };
                 struct sigaction new_handler{};
                 new_handler.sa_handler = signal_handler;
@@ -573,11 +581,15 @@ void Snippet::SnippetJitExecutor::schedule_nt(const std::vector<MemoryPtr>& inMe
     });
 }
 
-Snippet::SnippetExecutor::SnippetExecutor(SnippetAttrs attrs, bool is_dynamic, bool enforceBF16)
-    : snippetAttrs(std::move(attrs)), is_dynamic(is_dynamic), enforceBF16(enforceBF16) {}
+Snippet::SnippetExecutor::SnippetExecutor(SnippetAttrs attrs, bool is_dynamic, const GraphContext::CPtr& context)
+    : snippetAttrs(std::move(attrs)), is_dynamic(is_dynamic) {
+#ifdef CPU_DEBUG_CAPS
+    enable_err_detector = !context->getConfig().debugCaps.snippets_err_detector.empty();
+#endif
+    }
 
-Snippet::SnippetJitExecutor::SnippetJitExecutor(SnippetAttrs attrs, bool is_dynamic, bool enforceBF16) :
-    SnippetExecutor(std::move(attrs), is_dynamic, enforceBF16) {
+Snippet::SnippetJitExecutor::SnippetJitExecutor(SnippetAttrs attrs, bool is_dynamic, const GraphContext::CPtr& context) :
+    SnippetExecutor(std::move(attrs), is_dynamic, context) {
     numInput = snippetAttrs.inMemBlockedDims.size();
     numOutput = snippetAttrs.outMemBlockedDims.size();
     start_offset_in.resize(numInput);
