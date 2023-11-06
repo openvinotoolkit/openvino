@@ -9,74 +9,134 @@ const packageJson = require('../package.json');
 
 const codeENOENT = 'ENOENT';
 
-main();
+if (require.main === module) {
+  main();
+}
 
 async function main() {
-  const osInfo = await detectOS();
-  const isForce = process.argv.includes('-f');
   const modulePath = packageJson.binary['module_path'];
+  const destinationPath = path.resolve(__dirname, '..', modulePath);
+  const force = process.argv.includes('-f');
+  const ignoreIfExists = process.argv.includes('--ignore-if-exists');
+  const { env } = process;
+  const proxy = env.http_proxy || env.HTTP_PROXY || env.npm_config_proxy;
+  try {
+    await downloadRuntime(destinationPath, { force, ignoreIfExists, proxy });
+  } catch (error) {
+    if (error instanceof RuntimeExistsError) {
+      console.error(
+        `Directory '${destinationPath}' already exists. To force runtime downloading run 'npm run download_runtime -- -f'`
+      );
+    } else {
+      throw error;
+    }
+    process.exit(1);
+  }
+}
 
-  const isRuntimeDirExists = await checkDirExistence(modulePath);
+class RuntimeExistsError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'RuntimeExistsError';
+    Error.captureStackTrace(this, RuntimeExistsError);
+  }
+}
 
-  if (isRuntimeDirExists && !isForce) {
-    if (process.argv.includes('--ignore-if-exists')) {
-      console.log(`Directory '${modulePath}' exists, skip runtime init `
-        + 'because \'--ignore-if-exists\' flag passed');
+/**
+ * Download OpenVINO Runtime archive and extract it to destination directory.
+ *
+ * @async
+ * @function downloadRuntime
+ * @param {string} destinationPath - The destination directory path.
+ * @param {Object} [config] - The configuration object.
+ * @param {boolean} [config.force=false] - The flag to force install and replace runtime if it exists. Default is `false`.
+ * @param {boolean} [config.ignoreIfExists=true] - The flag to skip installation if it exists Default is `true`.
+ * @param {string|null} [config.proxy=null] - The proxy URL. Default is `null`.
+ * @returns {Promise<void>}
+ * @throws {RuntimeExistsError}
+ */
+async function downloadRuntime(destinationPath, config = { force: false, ignoreIfExists: true, proxy: null }) {
+  const osInfo = await getOsInfo();
+
+  const isRuntimeDirectoryExists = await checkIfDirectoryExists(destinationPath);
+
+  if (isRuntimeDirectoryExists && !config.force) {
+    if (config.ignoreIfExists) {
+      console.warn(
+        `Directory '${destinationPath}' already exists. Skipping runtime downloading because 'ignoreIfExists' flag is passed.`
+      );
       return;
     }
 
-    console.error(`Directory '${modulePath}' already exists, to force `
-      + `runtime installation run 'npm run download_runtime -- -f'`);
-    process.exit(1);
+    throw new RuntimeExistsError(
+      `Directory '${destinationPath}' already exists. To force runtime downloading use 'force' flag.`
+    );
   }
 
-  const originalPackageName = packageJson.binary['package_name'];
-
-  let packageName = originalPackageName.replace('{letter}', osInfo.letter);
-  packageName = packageName.replace('{os}', osInfo.os);
-  packageName = packageName.replace('{extension}', osInfo.extension);
-  packageName = packageName.replace('{arch}', osInfo.arch);
-  packageName = packageName.replace('{version}', packageJson.binary.version);
-
-  const binaryUrl = packageJson.binary.host + packageJson.binary['remote_path']
-    + `${osInfo.dir}/` + packageName;
+  const runtimeArchiveUrl = getRuntimeArchiveUrl(osInfo);
 
   try {
-    await fetchRuntime(binaryUrl);
-  } catch (err) {
-    console.log(`Runtime fetch failed. Reason ${err}`);
+    const filename = path.basename(runtimeArchiveUrl);
+    const tempDirectoryPath = path.join(os.tmpdir(), 'temp-ov-runtime-archive');
+    const archiveFilePath = path.resolve(tempDirectoryPath, filename);
 
-    if (err instanceof Error) throw err;
+    await removeDirectory(tempDirectoryPath);
+    await fs.mkdir(tempDirectoryPath);
 
-    return;
+    console.log('Downloading OpenVINO runtime archive...');
+    await downloadFile(runtimeArchiveUrl, filename, tempDirectoryPath, config.proxy);
+    console.log('OpenVINO runtime archive downloaded.');
+
+    await removeDirectory(destinationPath);
+
+    console.log('Extracting archive...');
+    await decompress(archiveFilePath, destinationPath, { strip: 1 });
+    await removeDirectory(tempDirectoryPath);
+    console.log('The archive was successfully extracted.');
+  } catch (error) {
+    console.error(`Failed to download OpenVINO runtime: ${error}.`);
+    throw error;
   }
-
-  console.log('Ready');
 }
 
-async function detectOS() {
+/**
+ * The OS information object.
+ * @typedef {Object} OsInfo
+ * @property {NodeJS.Platform} platform
+ * @property {string} os
+ * @property {string} dir
+ * @property {string} letter
+ * @property {string} extension
+ */
+
+/**
+ * Get information about OS.
+ *
+ * @async
+ * @function getOsInfo
+ * @returns {Promise<OsInfo>}
+ */
+async function getOsInfo() {
   const platform = os.platform();
 
   if (!['win32', 'linux', 'darwin'].includes(platform)) {
-    console.error(`Platform '${platform}' doesn't support`);
-    process.exit(1);
+    throw new Error(`Platform '${platform}' is not supported.`);
   }
 
-  const platformMapping = {
+  const osArchiveMapping = {
     win32: {
-      os: 'windows',
       dir: 'windows',
       letter: 'w',
       extension: 'zip',
     },
     linux: {
-      letter: 'l',
       dir: 'linux',
+      letter: 'l',
       extension: 'tgz',
     },
     darwin: {
-      letter: 'm',
       dir: 'macos',
+      letter: 'm',
       extension: 'tgz',
     },
   };
@@ -84,8 +144,7 @@ async function detectOS() {
   const arch = os.arch();
 
   if (!['arm64', 'armhf', 'x64'].includes(arch)) {
-    console.error(`Architecture '${arch}' doesn't support`);
-    process.exit(1);
+    throw new Error(`Architecture '${arch}' is not supported.`);
   }
 
   const archMapping = {
@@ -94,138 +153,169 @@ async function detectOS() {
     x64: 'x86_64',
   };
 
-  let osVersion = null;
-  switch(platform) {
+  let detectedOs = null;
+
+  switch (platform) {
     case 'linux':
       const osReleaseData = await fs.readFile('/etc/os-release', 'utf8');
 
-      osVersion = osReleaseData.includes('Ubuntu 22')
+      detectedOs = osReleaseData.includes('Ubuntu 22')
         ? 'ubuntu22'
         : osReleaseData.includes('Ubuntu 20')
         ? 'ubuntu20'
         : osReleaseData.includes('Ubuntu 18')
         ? 'ubuntu18'
-        : ['arm64', 'armhf'].includes(arch)
-          && osReleaseData.includes('ID=debian')
+        : ['arm64', 'armhf'].includes(arch) && osReleaseData.includes('ID=debian')
         ? 'debian9'
         : null;
 
       break;
 
     case 'darwin':
-      const [major, minor] = os.release().split('.');
+      const [major] = os.release().split('.');
 
-      osVersion = (major === 10 && minor >= 15)
+      // os.release() returns not the macOS release but the Darwin release:
+      // https://en.wikipedia.org/wiki/Darwin_(operating_system)#Release_history - mapping could be found here
+      // in the form of MAJOR.MINOR.PATCH
+      detectedOs = major === '19'
         ? 'macos_10_15'
-        : major === 11
+        : major === '20'
         ? 'macos_11_0'
         : null;
 
       break;
 
     case 'win32':
-      osVersion = true;
+      detectedOs = 'windows';
 
       break;
   }
 
-  if (!osVersion) {
-    console.error('Cannot detect your OS');
-    process.exit(1);
+  if (!detectedOs) {
+    throw new Error('Failed to detect OS.');
   }
 
   return {
     platform,
-    os: osVersion,
+    os: detectedOs,
     arch: archMapping[arch],
-    ...platformMapping[platform]
+    ...osArchiveMapping[platform],
   };
 }
 
-async function checkDirExistence(pathToDir) {
+/**
+ * Check if directory exists.
+ *
+ * @async
+ * @function checkIfDirectoryExists
+ * @param {string} directoryPath - The directory path.
+ * @returns {Promise<boolean>}
+ */
+async function checkIfDirectoryExists(directoryPath) {
   try {
-    await fs.access(pathToDir);
-
+    await fs.access(directoryPath);
     return true;
-  }
-  catch (err) {
-    if (err.code !== codeENOENT) throw err;
-
-    return false;
+  } catch (error) {
+    if (error.code === codeENOENT) {
+      return false;
+    }
+    throw error;
   }
 }
 
-async function fetchRuntime(uri) {
-  const filename = path.basename(uri);
-  const tmpPath = path.resolve(__dirname, '..', 'temp');
-  const fullPath = path.resolve(tmpPath, filename);
-  const runtimeDir = path.resolve(__dirname, '..', 'ov_runtime');
+/**
+ * Get OpenVINO runtime archive URL.
+ *
+ * @function getRuntimeArchiveUrl
+ * @param {OsInfo} osInfo - The OS related data.
+ * @returns {string}
+ */
+function getRuntimeArchiveUrl(osInfo) {
+  const packageNameTemplate = packageJson.binary['package_name'];
 
-  try {
-    await fs.rm(tmpPath, { recursive: true, force: true });
-  } catch(err) {
-    if (err.code !== codeENOENT) throw err;
-  }
+  const packageName = packageNameTemplate
+    .replace('{letter}', osInfo.letter)
+    .replace('{os}', osInfo.os)
+    .replace('{extension}', osInfo.extension)
+    .replace('{arch}', osInfo.arch)
+    .replace('{version}', packageJson.binary.version);
 
-  await fs.mkdir(tmpPath);
-  console.log('Downloading openvino runtime archive...');
-  await downloadFile(uri, filename, tmpPath);
-  console.log('Downloaded');
+  const { host, remote_path } = packageJson.binary;
 
-  console.log('Uncompressing...');
-  try {
-    await fs.rm(runtimeDir, { recursive: true, force: true });
-  } catch(err) {
-    if (err.code !== codeENOENT) throw err;
-  }
-  await decompress(fullPath, runtimeDir, { strip: 1 });
-  await fs.rm(tmpPath, { recursive: true, force: true });
-  console.log('The archive was successfully uncompressed');
+  return new URL(path.join(remote_path, osInfo.dir, packageName), host).toString();
 }
 
-function downloadFile(url, filename, destination) {
-  const { env } = process;
+/**
+ * Remove directory and its content.
+ *
+ * @async
+ * @function removeDirectory
+ * @param {string} path - The directory path.
+ * @returns {Promise<void>}
+ */
+async function removeDirectory(path) {
+  try {
+    await fs.rm(path, { recursive: true, force: true });
+  } catch (error) {
+    if (error.code !== codeENOENT) {
+      throw error;
+    }
+  }
+}
+
+/**
+ * Download file by URL and save it to the destination path.
+ *
+ * @function downloadFile
+ * @param {string} url - The file URL.
+ * @param {string} filename - The filename of result file.
+ * @param {string} destination - The destination path of result file.
+ * @param {string} [proxy=null] - (Optional) The proxy URL.
+ * @returns {Promise<void>}
+ */
+function downloadFile(url, filename, destination, proxy = null) {
   const timeout = 5000;
   const fullPath = path.resolve(destination, filename);
   const file = createWriteStream(fullPath);
-  const protocolString = new URL(url).protocol === 'https:' ? 'https' : 'http';
-  const module = require(`node:${protocolString}`);
-  const proxyUrl = env.http_proxy || env.HTTP_PROXY || env.npm_config_proxy;
+  const httpModule = new URL(url).protocol === 'https:' ? require('node:https') : require('node:http');
 
   let agent;
 
-  if (proxyUrl) {
-    agent = new HttpsProxyAgent(proxyUrl);
-    console.log(`Proxy agent configured using: '${proxyUrl}'`);
+  if (proxy) {
+    agent = new HttpsProxyAgent(proxy);
+    console.log(`Proxy agent is configured with '${proxy}'.`);
   }
 
   return new Promise((resolve, reject) => {
-    file.on('error', e => {
-      reject(`Error oppening file stream: ${e}`);
+    file.on('error', (error) => {
+      reject(`Failed to open file stream: ${error}.`);
     });
 
-    const getRequest = module.get(url, { agent }, res => {
+    const request = httpModule.get(url, { agent }, (res) => {
       const { statusCode } = res;
 
-      if (statusCode !== 200)
-        return reject(`Server returns status code: ${statusCode}`);
+      if (statusCode !== 200) {
+        return reject(`Server returned status code ${statusCode}.`);
+      }
 
       res.pipe(file);
 
       file.on('finish', () => {
         file.close();
-        console.log(`File successfully stored at '${fullPath}'`);
+        console.log(`File was successfully downloaded to '${fullPath}'.`);
         resolve();
       });
     });
 
-    getRequest.on('error', e => {
-      reject(`Error sending request: ${e}`);
+    request.on('error', (error) => {
+      reject(`Failed to send request: ${error}.`);
     });
 
-    getRequest.setTimeout(timeout, () => {
-      getRequest.destroy();
-      reject(`Request timed out after ${timeout}`);
+    request.setTimeout(timeout, () => {
+      request.destroy();
+      reject(`Request was timed out after ${timeout} ms.`);
     });
   });
 }
+
+module.exports = { downloadRuntime };

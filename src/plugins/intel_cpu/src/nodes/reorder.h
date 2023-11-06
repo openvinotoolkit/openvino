@@ -53,6 +53,10 @@ public:
         this->isOptimized = isOptimized;
     }
 
+    bool getOptimized() const {
+        return isOptimized;
+    }
+
     bool canBeInPlace() const override {
         return false;
     }

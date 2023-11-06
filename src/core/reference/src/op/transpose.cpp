@@ -18,12 +18,12 @@ void transpose(const char* data,
                char* out,
                const Shape& data_shape,
                size_t element_size,
-               const int64_t* axes_order,
-               Shape out_shape) {
+               const std::vector<int64_t>& axes_order,
+               const Shape& out_shape) {
     // To reuse reference::reshape axes order vector has to be converted to AxisVector
     // Negative axes are not supported, it is validated by transpose evaluate method
-    std::vector<size_t> axis_vector(axes_order, axes_order + data_shape.size());
-    reshape(data, out, data_shape, axis_vector, out_shape, element_size);
+    const AxisVector axes_vector(axes_order.begin(), axes_order.end());
+    reshape(data, out, data_shape, axes_vector, out_shape, element_size);
 }
 }  // namespace reference
 }  // namespace ov

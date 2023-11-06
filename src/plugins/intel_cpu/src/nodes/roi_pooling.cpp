@@ -434,13 +434,6 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    refParams.src_prc = getOriginalInputPrecisionAtPort(0);
-
-    if (!mayiuse(avx512_core)) {
-        if (refParams.src_prc == Precision::BF16)
-            refParams.src_prc = Precision::FP32;
-    }
-
     auto format = mayiuse(avx512_core) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
     impl_desc_type impl_type;
     if (mayiuse(cpu::x64::avx512_core)) {
@@ -451,6 +444,17 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
         impl_type = impl_desc_type::jit_sse42;
     } else {
         impl_type = impl_desc_type::ref;
+    }
+
+    refParams.src_prc = getOriginalInputPrecisionAtPort(0);
+
+    if (!mayiuse(avx512_core)) {
+        if (refParams.src_prc == Precision::BF16)
+            refParams.src_prc = Precision::FP32;
+    }
+
+    if (impl_type != impl_desc_type::ref && refParams.src_prc == Precision::FP16) {
+        refParams.src_prc = Precision::FP32;
     }
 
     addSupportedPrimDesc({{format, refParams.src_prc},
@@ -826,7 +830,8 @@ std::shared_ptr<ROIPooling::ROIPoolingExecutor> ROIPooling::ROIPoolingExecutor::
 
     OV_SWITCH(intel_cpu, ROIPoolingExecutorCreation, ctx, jpp.src_prc,
               OV_CASE(Precision::FP32, float),
-              OV_CASE(Precision::BF16, bfloat16_t))
+              OV_CASE(Precision::BF16, bfloat16_t),
+              OV_CASE(Precision::FP16, float16_t))
 
     return ctx.executor;
 }
