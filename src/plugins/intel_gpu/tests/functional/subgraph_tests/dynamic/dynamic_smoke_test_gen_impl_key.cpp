@@ -84,12 +84,10 @@ protected:
         const auto inShapeShapeOf = inputDynamicShapes[0];
         const auto inShapeElt = inputDynamicShapes[1];
         ov::ParameterVector params;
-        for (auto&& shape : {inShapeShapeOf, inShapeElt}) {
+        for (auto&& shape : {inShapeShapeOf, inShapeElt})
             params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
-        }
-        auto paramOuts = helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
 
-        auto addOp1 = ngraph::builder::makeEltwise(paramOuts[1], paramOuts[1], ngraph::helpers::EltwiseTypes::ADD);
+        auto addOp1 = ngraph::builder::makeEltwise(params[1], params[1], ngraph::helpers::EltwiseTypes::ADD);
         addOp1->set_friendly_name("add1");
 
         auto shapeOfOp1 = std::make_shared<ngraph::opset3::ShapeOf>(addOp1, ElementType::i64);
@@ -110,7 +108,7 @@ protected:
         auto reshapeOp1 = std::make_shared<ngraph::opset1::Reshape>(addOp1, concatOp1, false);
         reshapeOp1->set_friendly_name("reshapeOp1");
 
-        auto addOp2 = ngraph::builder::makeEltwise(paramOuts[1], paramOuts[1], ngraph::helpers::EltwiseTypes::ADD);
+        auto addOp2 = ngraph::builder::makeEltwise(params[1], params[1], ngraph::helpers::EltwiseTypes::ADD);
         addOp2->set_friendly_name("add2");
 
         auto shapeOfOp2 = std::make_shared<ngraph::opset3::ShapeOf>(addOp2, ElementType::i64);
