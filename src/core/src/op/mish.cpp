@@ -29,11 +29,6 @@ Mish::Mish(const Output<Node>& arg) : util::UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
-bool Mish::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v4_Mish_visit_attributes);
-    return true;
-}
-
 void Mish::validate_and_infer_types() {
     OV_OP_SCOPE(v4_Mish_validate_and_infer_types);
 

@@ -22,7 +22,6 @@ public:
     ///
     /// \param data Input tensor
     Mish(const Output<Node>& arg);
-    bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
