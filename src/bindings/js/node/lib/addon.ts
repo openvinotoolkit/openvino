@@ -77,7 +77,7 @@ interface Output {
 interface InputTensorInfo {
     setElementType(elementType: element | elementTypeString ): InputTensorInfo;
     setLayout(layout: string): InputTensorInfo;
-    setShape(shape: Int32Array | Array<number>): InputTensorInfo;
+    setShape(shape: number[]): InputTensorInfo;
 }
 interface PreProcessSteps {
     resize(algorithm: resizeAlgorithm | string): PreProcessSteps;
