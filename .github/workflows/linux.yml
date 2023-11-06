@@ -112,19 +112,6 @@ jobs:
         with:
           version: "v0.5.4"
 
-      - if: ${{ runner.os == 'Linux' && runner.arch == 'ARM64' }}
-        name: Check Actions Locations
-        run: |
-          ls -laR /github
-          ls -laR /__w
-
-      - if: ${{ runner.os == 'Linux' && runner.arch == 'ARM64' }}
-        name: Setup Python ${{ inputs.version }}
-        uses: akashchi/deadsnakes-action@c448323fa5caf174c8031875f5dbec027a4a3ce6
-        with:
-          inside-container: true
-          python-version: ${{ env.PYTHON_VERSION }}
-
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
         with:
