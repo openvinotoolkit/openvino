@@ -20,7 +20,7 @@ namespace reference {
 template <typename T>
 void mish(const T* arg, T* out, const size_t count) {
     std::transform(arg, arg + count, out, [](const T v) {
-        return v * std::tanh(std::log(std::exp(v) + T{1}));
+        return static_cast<T>(v * std::tanh(std::log(std::exp(v) + T{1})));
     });
 }
 }  // namespace reference
