@@ -12,6 +12,7 @@
 
 #include "openvino/core/shape.hpp"
 #include "openvino/op/grid_sample.hpp"
+#include "openvino/reference/rounding_guard.hpp"
 
 namespace ov {
 namespace reference {
@@ -20,10 +21,20 @@ namespace {
 using index_4D_t = typename std::array<size_t, 4>;
 
 template <typename GRID_ET>
-using denormalize_fn_t = typename std::function<GRID_ET(GRID_ET, size_t)>;
+using denormalize_fn_t = GRID_ET (*)(GRID_ET, size_t);
 
 template <typename DATA_ET>
-using get_padded_fn_t = typename std::function<DATA_ET(const DATA_ET*, const Shape&, size_t, size_t, long, long)>;
+using get_padded_fn_t = DATA_ET (*)(const DATA_ET*, const Shape&, size_t, size_t, long, long);
+
+template <typename DATA_ET, typename GRID_ET>
+using interpolate_fn_t = DATA_ET (*)(const DATA_ET* data,
+                                     const Shape&,
+                                     const size_t n,
+                                     const size_t c,
+                                     const GRID_ET,
+                                     const GRID_ET,
+                                     const get_padded_fn_t<DATA_ET>&,
+                                     const denormalize_fn_t<GRID_ET>&);
 
 template <typename T>
 T& get_single_value(T* buffer, const Shape& shape, const index_4D_t& index) {
@@ -240,8 +251,7 @@ void grid_sample(DATA_ET* output,
     const auto W_out = grid_shape[2];
     const Shape output_shape{N, C, H_out, W_out};
 
-    const auto prev_rounding_mode = std::fegetround();
-    std::fesetround(FE_TONEAREST);
+    const RoundingGuard rounding_guard{FE_TONEAREST};
 
     get_padded_fn_t<DATA_ET> get_padded_fn;
     switch (padding_mode) {
@@ -253,18 +263,25 @@ void grid_sample(DATA_ET* output,
         get_padded_fn = border_padding<DATA_ET>;
         break;
     case ov::op::v9::GridSample::PaddingMode::REFLECTION:
-        if (align_corners)
-            get_padded_fn = reflection_data_with_align<DATA_ET>;
-        else
-            get_padded_fn = reflection_data_no_align<DATA_ET>;
+        get_padded_fn = align_corners ? reflection_data_with_align<DATA_ET> : reflection_data_no_align<DATA_ET>;
         break;
     }
 
-    denormalize_fn_t<GRID_ET> denormalize_fn;
-    if (align_corners)
-        denormalize_fn = rescale_align<GRID_ET>;
-    else
-        denormalize_fn = rescale_noalign<GRID_ET>;
+    const auto denormalize_fn = align_corners ? rescale_align<GRID_ET> : rescale_noalign<GRID_ET>;
+
+    interpolate_fn_t<DATA_ET, GRID_ET> interpolate_fn;
+    switch (interpolation_mode) {
+    default:
+    case ov::op::v9::GridSample::InterpolationMode::BILINEAR:
+        interpolate_fn = bilinear<DATA_ET, GRID_ET>;
+        break;
+    case ov::op::v9::GridSample::InterpolationMode::NEAREST:
+        interpolate_fn = nearest<DATA_ET, GRID_ET>;
+        break;
+    case ov::op::v9::GridSample::InterpolationMode::BICUBIC:
+        interpolate_fn = bicubic<DATA_ET, GRID_ET>;
+        break;
+    }
 
     for (size_t n = 0; n < N; ++n) {
         for (size_t c = 0; c < C; ++c) {
@@ -274,24 +291,11 @@ void grid_sample(DATA_ET* output,
                     const auto x_n = get_single_value(grid, grid_shape, index_4D_t{n, y, x, 0});
 
                     auto& out = get_single_value(output, output_shape, index_4D_t{n, c, y, x});
-
-                    switch (interpolation_mode) {
-                    case ov::op::v9::GridSample::InterpolationMode::BILINEAR:
-                        out = bilinear(data, data_shape, n, c, y_n, x_n, get_padded_fn, denormalize_fn);
-                        break;
-                    case ov::op::v9::GridSample::InterpolationMode::NEAREST:
-                        out = nearest(data, data_shape, n, c, y_n, x_n, get_padded_fn, denormalize_fn);
-                        break;
-                    case ov::op::v9::GridSample::InterpolationMode::BICUBIC:
-                        out = bicubic(data, data_shape, n, c, y_n, x_n, get_padded_fn, denormalize_fn);
-                        break;
-                    }
+                    out = interpolate_fn(data, data_shape, n, c, y_n, x_n, get_padded_fn, denormalize_fn);
                 }
             }
         }
     }
-
-    std::fesetround(prev_rounding_mode);
 }
 }  // namespace reference
 }  // namespace ov
