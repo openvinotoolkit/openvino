@@ -379,6 +379,9 @@ std::shared_ptr<ov::Node> makeProposal(const ov::Output<Node>& class_probs,
                                        float box_coordinate_scale,
                                        std::string framework);
 
+std::shared_ptr<ov::Node> makeSelect(std::vector<ov::Output<Node>>& in,
+                                     const ov::op::AutoBroadcastSpec& auto_broadcast);
+
 std::shared_ptr<Node> makeFakeQuantize(const ov::Output<Node>& in,
                                        const element::Type& type,
                                        std::size_t levels,
