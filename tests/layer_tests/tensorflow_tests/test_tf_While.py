@@ -126,7 +126,7 @@ class TestWhileShapeVariant(CommonTFLayerTest):
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
 
-class TestWhileWithNextedIf(CommonTFLayerTest):
+class TestWhileWithNestedIf(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         assert 'x' in inputs_info, "Test error: inputs_info must contain `x`"
         assert 'y' in inputs_info, "Test error: inputs_info must contain `y`"
