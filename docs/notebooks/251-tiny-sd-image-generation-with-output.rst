@@ -1,8 +1,6 @@
 Image Generation with Tiny-SD and OpenVINO™
 ===========================================
 
-
-
 In recent times, the AI community has witnessed a remarkable surge in
 the development of larger and more performant language models, such as
 Falcon 40B, LLaMa-2 70B, Falcon 40B, MPT 30B, and in the imaging domain
@@ -41,12 +39,12 @@ The notebook contains the following steps:
 3. Run Inference pipeline with OpenVINO.
 4. Run Interactive demo for Tiny-SD model
 
-.. _toc:
+**Table of contents:**
 
-**Table of contents**:
 
 -  `Prerequisites <#prerequisites>`__
--  `Create PyTorch Models pipeline <#create-pytorch-models-pipeline>`__
+-  `Create PyTorch Models
+   pipeline <#create-pytorch-models-pipeline>`__
 -  `Convert models to OpenVINO Intermediate representation (IR)
    format <#convert-models-to-openvino-intermediate-representation-format>`__
 
@@ -55,28 +53,26 @@ The notebook contains the following steps:
    -  `VAE <#vae>`__
 
 -  `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
--  `Configure Inference Pipeline <#configure-inference-pipeline>`__
+-  `Configure Inference
+   Pipeline <#configure-inference-pipeline>`__
 
    -  `Text-to-Image generation <#text-to-image-generation>`__
    -  `Image-to-Image generation <#image-to-image-generation>`__
 
-Prerequisites `⇑ <#top>`__
-###############################################################################################################################
+-  `Interactive Demo <#interactive-demo>`__
+
+Prerequisites 
+-------------------------------------------------------
 
 Install required dependencies
 
 .. code:: ipython3
-   :force:
 
-    ! pip install -q --find-links https://download.pytorch.org/whl/torch_stable.html \
-    "torch==1.13.1; sys_platform == 'darwin'" \
-    "torch==1.13.1+cpu; sys_platform == 'linux' or platform_system == 'Windows'" \
-    "torchvision==0.14.1; sys_platform == 'darwin'" \
-    "torchvision==0.14.1+cpu; sys_platform == 'linux' or platform_system == 'Windows'"
-    !pip -q install "openvino==2023.1.0.dev20230811" "diffusers>=0.18.0" "transformers>=4.30.2" "gradio"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision
+    %pip -q install "openvino>=2023.1.0" "diffusers>=0.18.0" "transformers>=4.30.2" "gradio"
 
-Create PyTorch Models pipeline `⇑ <#top>`__
-###############################################################################################################################
+Create PyTorch Models pipeline 
+------------------------------------------------------------------------
 
 ``StableDiffusionPipeline`` is an end-to-end inference pipeline that you
 can use to generate images from text with just a few lines of code.
@@ -104,12 +100,12 @@ First, load the pre-trained weights of all components of the model.
 
 .. parsed-literal::
 
-    2023-08-17 16:52:46.141349: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-08-17 16:52:46.179746: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-09-18 15:58:40.831193: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-09-18 15:58:40.870576: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-08-17 16:52:46.808512: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    vae/diffusion_pytorch_model.safetensors not found
-    
+    2023-09-18 15:58:41.537042: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    text_encoder/model.safetensors not found
+
 
 
 .. parsed-literal::
@@ -121,12 +117,12 @@ First, load the pre-trained weights of all components of the model.
 
 .. parsed-literal::
 
-    36
+    27
 
 
 
-Convert models to OpenVINO Intermediate representation format `⇑ <#top>`__
-###############################################################################################################################
+Convert models to OpenVINO Intermediate representation format 
+-------------------------------------------------------------------------------------------------------
 
 OpenVINO supports PyTorch through conversion to OpenVINO Intermediate
 Representation (IR) format. To take the advantage of OpenVINO
@@ -154,8 +150,8 @@ The model consists of three important parts:
 
 Let us convert each part.
 
-Text Encoder `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Text Encoder 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -174,7 +170,7 @@ hidden states.
 
     from pathlib import Path
     import torch
-    from openvino import convert_model, save_model
+    import openvino as ov
     
     TEXT_ENCODER_OV_PATH = Path("text_encoder.xml")
     
@@ -196,8 +192,8 @@ hidden states.
         # disable gradients calculation for reducing memory consumption
         with torch.no_grad():
             # Export model to IR format
-            ov_model = convert_model(text_encoder, example_input=input_ids, input=[(1,77),])
-        save_model(ov_model, ir_path)
+            ov_model = ov.convert_model(text_encoder, example_input=input_ids, input=[(1,77),])
+        ov.save_model(ov_model, ir_path)
         del ov_model
         print(f'Text Encoder successfully converted to IR and saved to {ir_path}')
         
@@ -214,7 +210,7 @@ hidden states.
 .. parsed-literal::
 
     Text encoder will be loaded from text_encoder.xml
-    
+
 
 
 
@@ -224,8 +220,8 @@ hidden states.
 
 
 
-U-net `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+U-net 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 U-net model has three inputs:
 
@@ -273,8 +269,8 @@ Model predicts the ``sample`` state for the next step.
     
         unet.eval()
         with torch.no_grad():
-            ov_model = convert_model(unet, example_input=dummy_inputs, input=input_info)
-        save_model(ov_model, ir_path)
+            ov_model = ov.convert_model(unet, example_input=dummy_inputs, input=input_info)
+        ov.save_model(ov_model, ir_path)
         del ov_model
         print(f'Unet successfully converted to IR and saved to {ir_path}')
     
@@ -291,7 +287,7 @@ Model predicts the ``sample`` state for the next step.
 .. parsed-literal::
 
     Unet will be loaded from unet.xml
-    
+
 
 
 
@@ -301,8 +297,8 @@ Model predicts the ``sample`` state for the next step.
 
 
 
-VAE `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+VAE 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -347,8 +343,8 @@ of the pipeline, it will be better to convert them to separate models.
         vae_encoder.eval()
         image = torch.zeros((1, 3, 512, 512))
         with torch.no_grad():
-            ov_model = convert_model(vae_encoder, example_input=image, input=[((1,3,512,512),)])
-        save_model(ov_model, ir_path)
+            ov_model = ov.convert_model(vae_encoder, example_input=image, input=[((1,3,512,512),)])
+        ov.save_model(ov_model, ir_path)
         del ov_model
         print(f'VAE encoder successfully converted to IR and saved to {ir_path}')
     
@@ -384,8 +380,8 @@ of the pipeline, it will be better to convert them to separate models.
     
         vae_decoder.eval()
         with torch.no_grad():
-            ov_model = convert_model(vae_decoder, example_input=latents, input=[((1,4,64,64),)])
-        save_model(ov_model, ir_path)
+            ov_model = ov.convert_model(vae_decoder, example_input=latents, input=[((1,4,64,64),)])
+        ov.save_model(ov_model, ir_path)
         del ov_model
         print(f'VAE decoder successfully converted to IR and saved to {ir_path}')
     
@@ -403,7 +399,7 @@ of the pipeline, it will be better to convert them to separate models.
 
     VAE encoder will be loaded from vae_encodr.xml
     VAE decoder will be loaded from vae_decoder.xml
-    
+
 
 
 
@@ -413,8 +409,8 @@ of the pipeline, it will be better to convert them to separate models.
 
 
 
-Prepare Inference Pipeline `⇑ <#top>`__
-###############################################################################################################################
+Prepare Inference Pipeline 
+--------------------------------------------------------------------
 
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow.
@@ -473,7 +469,6 @@ of the variational auto encoder.
     from transformers import CLIPTokenizer
     from diffusers.pipelines.pipeline_utils import DiffusionPipeline
     from diffusers.schedulers import DDIMScheduler, LMSDiscreteScheduler, PNDMScheduler
-    from openvino.runtime import Model
     
     
     def scale_fit_to_window(dst_width:int, dst_height:int, image_width:int, image_height:int):
@@ -525,12 +520,12 @@ of the variational auto encoder.
     class OVStableDiffusionPipeline(DiffusionPipeline):
         def __init__(
             self,
-            vae_decoder: Model,
-            text_encoder: Model,
+            vae_decoder: ov.Model,
+            text_encoder: ov.Model,
             tokenizer: CLIPTokenizer,
-            unet: Model,
+            unet: ov.Model,
             scheduler: Union[DDIMScheduler, PNDMScheduler, LMSDiscreteScheduler],
-            vae_encoder: Model = None,
+            vae_encoder: ov.Model = None,
         ):
             """
             Pipeline for text-to-image generation using Stable Diffusion.
@@ -815,15 +810,14 @@ of the variational auto encoder.
     
             return timesteps, num_inference_steps - t_start 
 
-Configure Inference Pipeline
-----------------------------
+Configure Inference Pipeline 
+----------------------------------------------------------------------
 
 First, you should create instances of OpenVINO Model.
 
 .. code:: ipython3
 
-    from openvino.runtime import Core
-    core = Core()
+    core = ov.Core()
 
 Select device from dropdown list for running inference using OpenVINO.
 
@@ -859,8 +853,10 @@ Select device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
-    vae_decoder = core.compile_model(VAE_DECODER_OV_PATH, device.value)
-    vae_encoder = core.compile_model(VAE_ENCODER_OV_PATH, device.value)
+    ov_config = {"INFERENCE_PRECISION_HINT": "f32"} if device.value != "CPU" else {}
+    
+    vae_decoder = core.compile_model(VAE_DECODER_OV_PATH, device.value, ov_config)
+    vae_encoder = core.compile_model(VAE_ENCODER_OV_PATH, device.value, ov_config)
 
 Model tokenizer and scheduler are also important parts of the pipeline.
 Let us define them and put all components together
@@ -886,8 +882,8 @@ Let us define them and put all components together
         scheduler=lms
     )
 
-Text-to-Image generation `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Text-to-Image generation 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Now, let’s see model in action
 
@@ -911,7 +907,7 @@ Now, let’s see model in action
     Input text: RAW studio photo of An intricate forest minitown landscape trapped in a bottle, atmospheric oliva lighting, on the table, intricate details, dark shot, soothing tones, muted colors 
     Seed: 431
     Number of steps: 20
-    
+
 
 .. code:: ipython3
 
@@ -947,16 +943,16 @@ Now is show time!
 
     Input text:
     	RAW studio photo of An intricate forest minitown landscape trapped in a bottle, atmospheric oliva lighting, on the table, intricate details, dark shot, soothing tones, muted colors 
-    
 
 
-.. image:: 251-tiny-sd-image-generation-with-output_files/251-tiny-sd-image-generation_33_1.png
+
+.. image:: 251-tiny-sd-image-generation-with-output_files/251-tiny-sd-image-generation-with-output_33_1.png
 
 
 Nice. As you can see, the picture has quite a high definition 🔥.
 
-Image-to-Image generation `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Image-to-Image generation 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 One of the most amazing features of Stable Diffusion model is the
 ability to condition image generation from an existing image or sketch.
@@ -1021,10 +1017,10 @@ found in this
     Number of steps: 40
     Strength: 0.68
     Input image:
-    
 
 
-.. image:: 251-tiny-sd-image-generation-with-output_files/251-tiny-sd-image-generation_37_1.png
+
+.. image:: 251-tiny-sd-image-generation-with-output_files/251-tiny-sd-image-generation-with-output_37_1.png
 
 
 
@@ -1050,89 +1046,89 @@ found in this
 
     Input text:
     	professional photo portrait of woman, highly detailed, hyper realistic, cinematic effects, soft lighting
-    
 
 
-.. image:: 251-tiny-sd-image-generation-with-output_files/251-tiny-sd-image-generation_39_1.png
+
+.. image:: 251-tiny-sd-image-generation-with-output_files/251-tiny-sd-image-generation-with-output_39_1.png
 
 
-.. Interactive Demo `⇑ <#top>`__
-.. ###############################################################################################################################
+Interactive Demo 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. .. code:: ipython3
+.. code:: ipython3
 
-..     import gradio as gr
+    import gradio as gr
     
-..     sample_img_url = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/tower.jpg"
+    sample_img_url = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/tower.jpg"
     
-..     img = load_image(sample_img_url).save("tower.jpg")
+    img = load_image(sample_img_url).save("tower.jpg")
     
-..     def generate_from_text(text, negative_text, seed, num_steps, _=gr.Progress(track_tqdm=True)):
-..         result = ov_pipe(text, negative_prompt=negative_text, num_inference_steps=num_steps, seed=seed)
-..         return result["sample"][0]
-    
-    
-..     def generate_from_image(img, text, negative_text, seed, num_steps, strength, _=gr.Progress(track_tqdm=True)):
-..         result = ov_pipe(text, img, negative_prompt=negative_text, num_inference_steps=num_steps, seed=seed, strength=strength)
-..         return result["sample"][0]
+    def generate_from_text(text, negative_text, seed, num_steps, _=gr.Progress(track_tqdm=True)):
+        result = ov_pipe(text, negative_prompt=negative_text, num_inference_steps=num_steps, seed=seed)
+        return result["sample"][0]
     
     
-..     with gr.Blocks() as demo:
-..         with gr.Tab("Text-to-Image generation"):
-..             with gr.Row():
-..                 with gr.Column():
-..                     text_input = gr.Textbox(lines=3, label="Positive prompt")
-..                     negative_text_input = gr.Textbox(lines=3, label="Negative prompt")
-..                     seed_input = gr.Slider(0, 10000000, value=751, label="Seed")
-..                     steps_input = gr.Slider(1, 50, value=20, step=1, label="Steps")
-..                 out = gr.Image(label="Result", type="pil")
-..             sample_text = "futuristic synthwave city, retro sunset, crystals, spires, volumetric lighting, studio Ghibli style, rendered in unreal engine with clean details"
-..             sample_text2 = "RAW studio photo of tiny cute happy  cat in a yellow raincoat in the woods, rain, a character portrait, soft lighting, high resolution, photo realistic, extremely detailed"
-..             negative_sample_text = ""
-..             negative_sample_text2 = "bad anatomy, blurry, noisy, jpeg artifacts, low quality, geometry, mutation, disgusting. ugly"
-..             btn = gr.Button()
-..             btn.click(generate_from_text, [text_input, negative_text_input, seed_input, steps_input], out)
-..             gr.Examples([[sample_text, negative_sample_text, 42, 20], [sample_text2, negative_sample_text2, 1561, 25]], [text_input, negative_text_input, seed_input, steps_input])
-..         with gr.Tab("Image-to-Image generation"):
-..             with gr.Row():
-..                 with gr.Column():
-..                     i2i_input = gr.Image(label="Image", type="pil")
-..                     i2i_text_input = gr.Textbox(lines=3, label="Text")
-..                     i2i_negative_text_input = gr.Textbox(lines=3, label="Negative prompt")
-..                     i2i_seed_input = gr.Slider(0, 10000000, value=42, label="Seed")
-..                     i2i_steps_input = gr.Slider(1, 50, value=10, step=1, label="Steps")
-..                     strength_input = gr.Slider(0, 1, value=0.5, label="Strength")
-..                 i2i_out = gr.Image(label="Result", type="pil")
-..             i2i_btn = gr.Button()
-..             sample_i2i_text = "amazing watercolor painting"
-..             i2i_btn.click(
-..                 generate_from_image,
-..                 [i2i_input, i2i_text_input, i2i_negative_text_input, i2i_seed_input, i2i_steps_input, strength_input],
-..                 i2i_out,
-..             )
-..             gr.Examples(
-..                 [["tower.jpg", sample_i2i_text, "", 6400023, 40, 0.3]],
-..                 [i2i_input, i2i_text_input, i2i_negative_text_input, i2i_seed_input, i2i_steps_input, strength_input],
-..             )
+    def generate_from_image(img, text, negative_text, seed, num_steps, strength, _=gr.Progress(track_tqdm=True)):
+        result = ov_pipe(text, img, negative_prompt=negative_text, num_inference_steps=num_steps, seed=seed, strength=strength)
+        return result["sample"][0]
     
-..     try:
-..         demo.queue().launch(debug=True)
-..     except Exception:
-..         demo.queue().launch(share=True, debug=True)
-..     # if you are launching remotely, specify server_name and server_port
-..     # demo.launch(server_name='your server name', server_port='server port in int')
-..     # Read more in the docs: https://gradio.app/docs/
+    
+    with gr.Blocks() as demo:
+        with gr.Tab("Text-to-Image generation"):
+            with gr.Row():
+                with gr.Column():
+                    text_input = gr.Textbox(lines=3, label="Positive prompt")
+                    negative_text_input = gr.Textbox(lines=3, label="Negative prompt")
+                    seed_input = gr.Slider(0, 10000000, value=751, label="Seed")
+                    steps_input = gr.Slider(1, 50, value=20, step=1, label="Steps")
+                out = gr.Image(label="Result", type="pil")
+            sample_text = "futuristic synthwave city, retro sunset, crystals, spires, volumetric lighting, studio Ghibli style, rendered in unreal engine with clean details"
+            sample_text2 = "RAW studio photo of tiny cute happy  cat in a yellow raincoat in the woods, rain, a character portrait, soft lighting, high resolution, photo realistic, extremely detailed"
+            negative_sample_text = ""
+            negative_sample_text2 = "bad anatomy, blurry, noisy, jpeg artifacts, low quality, geometry, mutation, disgusting. ugly"
+            btn = gr.Button()
+            btn.click(generate_from_text, [text_input, negative_text_input, seed_input, steps_input], out)
+            gr.Examples([[sample_text, negative_sample_text, 42, 20], [sample_text2, negative_sample_text2, 1561, 25]], [text_input, negative_text_input, seed_input, steps_input])
+        with gr.Tab("Image-to-Image generation"):
+            with gr.Row():
+                with gr.Column():
+                    i2i_input = gr.Image(label="Image", type="pil")
+                    i2i_text_input = gr.Textbox(lines=3, label="Text")
+                    i2i_negative_text_input = gr.Textbox(lines=3, label="Negative prompt")
+                    i2i_seed_input = gr.Slider(0, 10000000, value=42, label="Seed")
+                    i2i_steps_input = gr.Slider(1, 50, value=10, step=1, label="Steps")
+                    strength_input = gr.Slider(0, 1, value=0.5, label="Strength")
+                i2i_out = gr.Image(label="Result", type="pil")
+            i2i_btn = gr.Button()
+            sample_i2i_text = "amazing watercolor painting"
+            i2i_btn.click(
+                generate_from_image,
+                [i2i_input, i2i_text_input, i2i_negative_text_input, i2i_seed_input, i2i_steps_input, strength_input],
+                i2i_out,
+            )
+            gr.Examples(
+                [["tower.jpg", sample_i2i_text, "", 6400023, 40, 0.3]],
+                [i2i_input, i2i_text_input, i2i_negative_text_input, i2i_seed_input, i2i_steps_input, strength_input],
+            )
+    
+    try:
+        demo.queue().launch(debug=False)
+    except Exception:
+        demo.queue().launch(share=True, debug=False)
+    # if you are launching remotely, specify server_name and server_port
+    # demo.launch(server_name='your server name', server_port='server port in int')
+    # Read more in the docs: https://gradio.app/docs/
 
 
-.. .. parsed-literal::
+.. parsed-literal::
 
-..     Running on local URL:  http://127.0.0.1:7860
+    Running on local URL:  http://127.0.0.1:7863
     
-..     To create a public link, set `share=True` in `launch()`.
-    
+    To create a public link, set `share=True` in `launch()`.
+
 
 
 .. .. raw:: html
 
-..     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..    <div><iframe src="http://127.0.0.1:7863/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
