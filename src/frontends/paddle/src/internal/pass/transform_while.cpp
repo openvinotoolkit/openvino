@@ -4,21 +4,13 @@
 
 #include "internal/pass/transform_while.hpp"
 
-#include <ngraph/ngraph.hpp>
-#include <ngraph/pattern/matcher.hpp>
-#include <ngraph/pattern/op/or.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <transformations/common_optimizations/fold_subgraph_empty_inputs.hpp>
-
 #include "default_opset.hpp"
-#include "internal/op/conditional_block.hpp"
-#include "internal/op/tensorarray_write.hpp"
 #include "internal/op/while.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/paddle/exception.hpp"
-#include "openvino/op/util/op_types.hpp"
-#include "openvino/pass/constant_folding.hpp"
-#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/common_optimizations/fold_subgraph_empty_inputs.hpp"
 
 using namespace std;
 using namespace ov;
@@ -34,7 +26,7 @@ using namespace ov::frontend::paddle::op::default_opset;
 // TensorArray could be a non-empty input of the loop body, which needs extra concat.
 // What's more, we have to tell which output is of TensorArray type to concate.
 ov::frontend::paddle::pass::TransformWhile::TransformWhile(std::vector<std::shared_ptr<Model>> functions) {
-    const auto while_label = ngraph::pattern::wrap_type<ov::op::internal::While>();
+    const auto while_label = pattern::wrap_type<ov::op::internal::While>();
 
     matcher_pass_callback callback = [functions](pattern::Matcher& m) -> bool {
         const auto& while_node = std::dynamic_pointer_cast<ov::op::internal::While>(m.get_match_root());
@@ -98,6 +90,6 @@ ov::frontend::paddle::pass::TransformWhile::TransformWhile(std::vector<std::shar
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(while_label, "while_loop");
+    auto m = std::make_shared<pattern::Matcher>(while_label, "while_loop");
     this->register_matcher(m, callback);
 }
