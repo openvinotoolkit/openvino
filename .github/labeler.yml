@@ -48,6 +48,9 @@
 - 'scripts/**/*'
 - '.gitmodules'
 - '**/setup.py'
+- 'conan.lock'
+- 'conanfile.txt'
+- 'vcpkg.json'
 - any: ['thirdparty/**/*',
         '!thirdparty/**/CMakeLists.txt']
 
@@ -65,7 +68,6 @@
 
 'category: GPU':
 - 'src/plugins/intel_gpu/**/*'
-- 'src/tests/**/gpu/**/*'
 - 'thirdparty/ocl/**/*'
 
 'category: HETERO':
@@ -74,13 +76,11 @@
 'category: IE Tests':
 - 'thirdparty/gtest/**/*'
 - 'src/frontends/tests/frontend/shared/**/*'
-- any: ['src/tests/**/*',
-        '!src/tests/**/gpu/**/*',
-        '!src/tests/**/inference_engine/**/*']
+- 'src/tests/**/*'
 
 'category: inference':
 - 'src/inference/**/*'
-- 'src/tests/functional/inference_engine/**/*'
+- 'src/cmake/**/*'
 
 'category: IR FE':
 - 'src/frontends/ir/**/*'
@@ -91,10 +91,13 @@
 'category: MO':
 - 'tools/mo/**/*'
 - 'tools/ovc/**/*'
+- 'tests/layer_tests/mo_python_api_tests/**/*'
+- 'tests/layer_tests/ovc_python_api_tests/**/*'
 
 'category: ONNX FE':
 - 'src/frontends/onnx/**/*'
 - 'thirdparty/onnx/**/*'
+- 'tests/layer_tests/onnx_tests/**/*'
 
 'category: packaging':
 - 'cmake/**/packaging/**/*'
@@ -103,6 +106,7 @@
 
 'category: PDPD FE':
 - 'src/frontends/paddle/**/*'
+- 'tests/layer_tests/py_frontend_tests/test_paddle_frontend.py'
 
 'category: POT':
 - 'tools/pot/**/*'
@@ -119,6 +123,7 @@
 - 'thirdparty/gflags/**/*'
 - 'thirdparty/json/**/*'
 - 'thirdparty/cnpy/**/*'
+- 'tests/samples_tests/smoke_tests/**/*'
 
 'category: TEMPLATE':
 - 'src/plugins/template/**/*'
@@ -127,6 +132,10 @@
 - 'src/frontends/tensorflow/**/*'
 - 'src/frontends/tensorflow_common/**/*'
 - 'tests/layer_tests/tensorflow_tests/**/*'
+- 'tests/layer_tests/tensorflow2_keras_tests/**/*'
+- 'tests/layer_tests/jax_tests/**/*'
+- any: ['tests/model_hub_tests/**',
+        '!tests/model_hub_tests/torch_tests/**/*']
 
 'category: TFL FE':
 - 'src/frontends/tensorflow_lite/**/*'
@@ -137,12 +146,21 @@
 - 'src/frontends/pytorch/**/*'
 - 'tests/layer_tests/pytorch_tests/**/*'
 - 'src/bindings/python/src/openvino/frontend/pytorch/**/*'
+- 'tests/layer_tests/py_frontend_tests/test_torch_decoder.py'
+- 'tests/layer_tests/py_frontend_tests/test_torch_frontend.py'
+- any: ['tests/model_hub_tests/**',
+        '!tests/model_hub_tests/tf_hub_tests/**/*']
 
 'category: tools':
 - any: ['tools/**',
         '!tools/pot/**/*',
-        '!tools/mo/**/*']
+        '!tools/mo/**/*',
+        '!tools/ovc/**/*']
 
 'category: transformations':
 - 'src/common/transformations/**/*'
 - 'src/common/offline_transformations/**/*'
+
+'category: licensing':
+- 'licensing/**/*'
+- 'LICENSE'
