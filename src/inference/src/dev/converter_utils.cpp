@@ -495,7 +495,7 @@ class IInferRequestInternalWrapper : public InferenceEngine::IInferRequestIntern
             if (get_legacy_name_from_port(port) == legacy_name)
                 return port;
         }
-        OPENVINO_ASSERT(false, "Cannot find port with name: ", legacy_name);
+        OPENVINO_THROW("Failed to find input or output with name: \'", legacy_name, "\'");
     }
 
 public:

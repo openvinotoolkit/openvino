@@ -112,14 +112,22 @@ ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
             // Insert additional squeeze operation to preserve output shape
             const auto new_out_shape_size = matmul_new->get_output_partial_shape(0).size();
             size_t squeeze_axis = 0;
-            if (input0shape.size() == 1)
-                squeeze_axis = new_out_shape_size - 2;
-            else if (input1shape.size() == 1)
-                squeeze_axis = new_out_shape_size - 1;
-            std::shared_ptr<ngraph::Node> squeeze_output = std::make_shared<ngraph::op::v0::Squeeze>(
-                matmul_new,
-                ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {squeeze_axis}));
-
+            std::shared_ptr<ngraph::Node> squeeze_output;
+            // If output data is scalar && new_out_shape is [1 1 .. 1], squeeze all the axis to produce a scalar
+            auto& new_output_partial_shape = matmul_new->get_output_partial_shape(0);
+            const bool can_squeeze_scalar =
+                new_output_partial_shape.is_static() ? ov::shape_size(new_output_partial_shape.to_shape()) == 1 : false;
+            if (ov::is_scalar(output_shape) && can_squeeze_scalar) {
+                squeeze_output = std::make_shared<ngraph::op::v0::Squeeze>(matmul_new);
+            } else {
+                if (input0shape.size() == 1)
+                    squeeze_axis = new_out_shape_size - 2;
+                else if (input1shape.size() == 1)
+                    squeeze_axis = new_out_shape_size - 1;
+                squeeze_output = std::make_shared<ngraph::op::v0::Squeeze>(
+                    matmul_new,
+                    ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {squeeze_axis}));
+            }
             new_ops.push_back(squeeze_output);
             matmul_new->set_friendly_name(matmul->get_friendly_name() + "/MM");
             // Set the name of the last node after transformation to initial node name

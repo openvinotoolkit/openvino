@@ -21,7 +21,6 @@ from tests_compatibility import (
     xfail_issue_47495,
     xfail_issue_48145,
     xfail_issue_48190,
-    xfail_issue_58676,
     xfail_issue_78843,
     xfail_issue_onnx_models_140)
 

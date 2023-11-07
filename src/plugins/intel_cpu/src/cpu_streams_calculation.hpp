@@ -58,19 +58,19 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
  *               - LATENCY hint equals 1 stream.
  * @param[in]  proc_type_table candidate processors available at this time
  *               - candidate processors have benn updated based on properties like "Ecore only" in previous function
- * @param[in]  ngraphFunc ngraph function
+ * @param[in]  model model
  * @param[in]  config intel cpu configuration
  * @return     model_prefer_threads "0" means generating the optimal threads per stream based on platform
  */
 int get_model_prefer_threads(const int num_streams,
                              const std::vector<std::vector<int>> proc_type_table,
-                             const std::shared_ptr<ngraph::Function>& ngraphFunc,
+                             const std::shared_ptr<ov::Model>& model,
                              Config& config);
 
 /**
  * @brief      Generate streams information according to processors type table
  * @param[in]  streams number of streams
- * @param[in]  ngraphFunc graph handle
+ * @param[in]  model graph handle
  * @param[in]  config intel cpu configuration
  * @param[in]  proc_type_table candidate processors available at current platform
  * @param[in]  preferred_nthreads_per_stream is initial preferred number of threads per stream
@@ -78,7 +78,7 @@ int get_model_prefer_threads(const int num_streams,
  * ov::hint::enable_hyper_threading
  */
 std::vector<std::vector<int>> generate_stream_info(const int streams,
-                                                   const std::shared_ptr<ngraph::Function>& ngraphFunc,
+                                                   const std::shared_ptr<ov::Model>& model,
                                                    Config& config,
                                                    std::vector<std::vector<int>>& proc_type_table,
                                                    int preferred_nthreads_per_stream = -1);
@@ -96,11 +96,11 @@ struct StreamCfg {
 /**
  * @brief      Get information about number of streams, threads and pinning threads on different processors
  * @param[in]  streams number of streams
- * @param[in]  ngraphFunc graph handle
+ * @param[in]  model graph handle
  * @param[in]  config intel cpu configuration
  */
 void get_num_streams(const int streams,
-                     const std::shared_ptr<ngraph::Function>& ngraphFunc,
+                     const std::shared_ptr<ov::Model>& model,
                      Config& config);
 
 /**

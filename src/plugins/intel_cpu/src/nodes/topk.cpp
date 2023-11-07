@@ -2073,7 +2073,7 @@ void TopK::createPrimitive() {
         layout = TopKLayoutType::topk_blocked;
     }
 
-    if (inputShapesDefined() && isExecutable()) {
+    if (!isDynamicNode() && isExecutable()) {
         if (needPrepareParams())
             prepareParams();
         updateLastInputDims();

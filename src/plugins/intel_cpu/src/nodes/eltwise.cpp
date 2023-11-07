@@ -2180,6 +2180,8 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         } else if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), prc) == supportedPrecisions.end()) {
             if (prc == Precision::U32 || prc == Precision::I64 || prc == Precision::U64) {
                 return Precision(Precision::I32);
+            } else if (prc == Precision::FP64) {
+                return Precision(Precision::FP32);
             } else {
                 IE_THROW() << "Eltwise node with name `" << getName() << "` doesn't support " << prc << " precision.";
             }

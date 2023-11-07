@@ -1247,7 +1247,7 @@ std::vector<InferenceEngine::Precision> Node::getInputPrecisions() const {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated) {
-            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->getDataType())));
+            inputPrecisions.emplace_back(parentEdge->getMemoryPtr()->getDesc().getPrecision());
         }
     }
     return inputPrecisions;
@@ -1258,7 +1258,7 @@ std::vector<InferenceEngine::Precision> Node::getOutputPrecisions() const {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto childEdge = getChildEdgeAt(i);
         if (childEdge && childEdge->getStatus() == Edge::Status::Validated) {
-            outputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((childEdge->getMemoryPtr()->getDataType())));
+            outputPrecisions.emplace_back(childEdge->getMemoryPtr()->getDesc().getPrecision());
         }
     }
     return outputPrecisions;

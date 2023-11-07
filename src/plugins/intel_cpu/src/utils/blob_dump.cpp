@@ -211,7 +211,32 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) const {
                 stream << static_cast<int>(blob_ptr[desc.getElementOffset(i)]) << std::endl;
             break;
         }
+        case Precision::I64: {
+            auto* blob_ptr = reinterpret_cast<const int64_t*>(ptr);
+            for (size_t i = 0; i < data_size; i++)
+                stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
+            break;
+        }
+        case Precision::U32: {
+            auto* blob_ptr = reinterpret_cast<const uint32_t*>(ptr);
+            for (size_t i = 0; i < data_size; i++)
+                stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
+            break;
+        }
+        case Precision::U16: {
+            auto* blob_ptr = reinterpret_cast<const uint16_t*>(ptr);
+            for (size_t i = 0; i < data_size; i++)
+                stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
+            break;
+        }
+        case Precision::I16: {
+            auto* blob_ptr = reinterpret_cast<const int16_t*>(ptr);
+            for (size_t i = 0; i < data_size; i++)
+                stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
+            break;
+        }
         default:
+            break;
             IE_THROW() << "Dumper. Unsupported precision";
     }
 }

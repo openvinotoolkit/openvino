@@ -3,18 +3,17 @@
 //
 
 #include "memory_state.h"
+
 #include "dnnl_extension_utils.h"
-#include "blob_factory.hpp"
 
 using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
 
-void VariableState::Reset() {
-    std::memset(state->buffer(), 0, state->byteSize());
+void VariableState::reset() {
+    std::memset(m_state->data(), 0, m_state->get_byte_size());
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
-
+}  // namespace intel_cpu
+}  // namespace ov

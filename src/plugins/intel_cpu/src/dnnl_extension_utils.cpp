@@ -20,6 +20,8 @@ namespace intel_cpu {
 
 uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
     switch (dataType) {
+    case dnnl::memory::data_type::f64:
+        return 8;
     case dnnl::memory::data_type::f32:
     case dnnl::memory::data_type::s32:
         return 4;
@@ -36,7 +38,7 @@ uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
     case dnnl::memory::data_type::undef:
         return 0;
     default:
-        IE_THROW() << "Unsupported data type.";
+        OPENVINO_THROW("Unsupported data type.");
     }
 }
 
@@ -66,7 +68,7 @@ memory::data_type DnnlExtensionUtils::IEPrecisionToDataType(const InferenceEngin
         case InferenceEngine::Precision::UNSPECIFIED:
             return memory::data_type::undef;
         default: {
-            IE_THROW() << "The plugin does not support " << prec.name();
+            OPENVINO_THROW("The plugin does not support ", prec.name());
         }
     }
 }
@@ -87,6 +89,8 @@ InferenceEngine::Precision DnnlExtensionUtils::DataTypeToIEPrecision(memory::dat
             return InferenceEngine::Precision::BIN;
         case memory::data_type::f16:
             return InferenceEngine::Precision::FP16;
+        case memory::data_type::f64:
+            return InferenceEngine::Precision::FP64;
         case memory::data_type::nf4:
             return InferenceEngine::Precision::NF4;
         case memory::data_type::s4:

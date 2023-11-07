@@ -46,7 +46,6 @@ from tests import (
     xfail_issue_82039,
     xfail_issue_90649,
     xfail_issue_91151,
-    xfail_issue_91490,
     xfail_issue_99949,
     xfail_issue_99950,
     xfail_issue_99952,
@@ -289,11 +288,6 @@ tests_expected_to_fail = [
     (
         xfail_issue_38710,
         "OnnxBackendNodeModelTest.test_reshape_allowzero_reordered_cpu",
-    ),
-    (
-        xfail_issue_91490,
-        "OnnxBackendNodeModelTest.test_tril_zero_cpu",
-        "OnnxBackendNodeModelTest.test_triu_zero_cpu",
     ),
     (
         skip_dynamic_model,
@@ -575,8 +569,6 @@ tests_expected_to_fail = [
         xfail_issue_99973,
         "OnnxBackendNodeModelTest.test_split_1d_uneven_split_opset18_cpu",
         "OnnxBackendNodeModelTest.test_split_2d_uneven_split_opset18_cpu",
-        "OnnxBackendNodeModelTest.test_split_zero_size_splits_opset13_cpu",
-        "OnnxBackendNodeModelTest.test_split_zero_size_splits_opset18_cpu",
     ),
     (
         xfail_issue_101965,

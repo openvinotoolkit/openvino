@@ -4,28 +4,29 @@
 
 #pragma once
 
-#include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
-#include "blob_factory.hpp"
-#include "cpu_memory.h"
-#include "nodes/common/cpu_memcpy.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
-
 #include <string>
+
+#include "cpu_memory.h"
+#include "ie_ngraph_utils.hpp"
+#include "memory_desc/cpu_memory_desc_utils.h"
+#include "nodes/common/cpu_memcpy.h"
+#include "openvino/runtime/ivariable_state.hpp"
+#include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-class VariableState : public InferenceEngine::IVariableStateInternal {
+class VariableState : public ov::IVariableState {
 public:
-    VariableState(std::string name, MemoryPtr storage)
-        : InferenceEngine::IVariableStateInternal{name} {
-        state = make_blob_with_precision(MemoryDescUtils::convertToTensorDesc(storage->getDesc()));
-        state->allocate();
-        cpu_memcpy(state->buffer(), storage->getData(), storage->getSize());
+    VariableState(std::string name, MemoryPtr storage) : ov::IVariableState{name} {
+        const auto& memDesc = MemoryDescUtils::convertToTensorDesc(storage->getDesc());
+        m_state = ov::make_tensor(InferenceEngine::details::convertPrecision(memDesc.getPrecision()), memDesc.getDims());
+        cpu_memcpy(m_state->data(), storage->getData(), storage->getSize());
     }
 
-    void Reset() override;
+    void reset() override;
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov
