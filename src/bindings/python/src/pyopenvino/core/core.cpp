@@ -12,8 +12,8 @@
 #include <pyopenvino/core/tensor.hpp>
 
 #include "common.hpp"
-#include "pyopenvino/utils/utils.hpp"
 #include "gpu/gpu_params.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -221,7 +221,8 @@ void regclass_Core(py::module m) {
             :type device_name: str
             :param va_display: HW handle associated with target device.
             :type va_display: gpu_handle_param
-            :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
+            :param properties: Optional dict of pairs: (property name, property value) relevant only for this load
+             operation.
             :type properties: dict
             :return: A compiled model.
             :rtype: openvino.runtime.CompiledModel
@@ -248,7 +249,8 @@ void regclass_Core(py::module m) {
 
             :param model: Model acquired from read_model function.
             :type model: openvino.runtime.Model
-            :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
+            :param properties: Optional dict of pairs: (property name, property value) relevant only for this load
+             operation.
             :type properties: dict
             :return: A compiled model.
             :rtype: openvino.runtime.CompiledModel
@@ -279,7 +281,8 @@ void regclass_Core(py::module m) {
             :type model_path: Union[str, pathlib.Path]
             :param device_name: Name of the device to load the model to.
             :type device_name: str
-            :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
+            :param properties: Optional dict of pairs: (property name, property value) relevant only for this load
+             operation.
             :type properties: dict
             :return: A compiled model.
             :rtype: openvino.runtime.CompiledModel
@@ -296,7 +299,8 @@ void regclass_Core(py::module m) {
         py::arg("model_path"),
         py::arg("properties"),
         R"(
-            Reads model and creates a compiled model from IR / ONNX / PDPD / TF and TFLite file with device selected by AUTO plugin.
+            Reads model and creates a compiled model from IR / ONNX / PDPD / TF and TFLite file with device selected
+             by AUTO plugin.
             This can be more efficient than using read_model + compile_model(model_in_memory_object) flow,
             especially for cases when caching is enabled and cached model is available.
 
@@ -304,7 +308,8 @@ void regclass_Core(py::module m) {
 
             :param model_path: A path to a model in IR / ONNX / PDPD / TF and TFLite format.
             :type model_path: Union[str, pathlib.Path]
-            :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
+            :param properties: Optional dict of pairs: (property name, property value) relevant only for this load
+             operation.
             :type properties: dict
             :return: A compiled model.
             :rtype: openvino.runtime.CompiledModel
@@ -508,7 +513,8 @@ void regclass_Core(py::module m) {
             :param device_name: Name of device to which compiled model is imported.
                                 Note: if device_name is not used to compile the original model, an exception is thrown.
             :type device_name: str
-            :param properties: Optional map of pairs: (property name, property value) relevant only for this load operation.
+            :param properties: Optional map of pairs: (property name, property value) relevant only for this load
+             operation.
             :type properties: dict, optional
             :return: A compiled model.
             :rtype: openvino.runtime.CompiledModel
@@ -564,7 +570,8 @@ void regclass_Core(py::module m) {
             :param device_name: Name of device to which compiled model is imported.
                                 Note: if device_name is not used to compile the original model, an exception is thrown.
             :type device_name: str
-            :param properties: Optional map of pairs: (property name, property value) relevant only for this load operation.
+            :param properties: Optional map of pairs: (property name, property value) relevant only for this load
+             operation.
             :type properties: dict, optional
             :return: A compiled model.
             :rtype: openvino.runtime.CompiledModel
