@@ -10,13 +10,13 @@
 #include <vector>
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
+#include "common_test_utils/test_enums.hpp"
 
 namespace ov {
 namespace test {
 
 using MemoryLayerTestParams = std::tuple<
-        ngraph::helpers::MemoryTransformation,   // Apply Memory transformation
+        ov::test::utils::MemoryTransformation,   // Apply Memory transformation
         int64_t,                                 // iterationCount
         ov::Shape,                               // inputShape
         ov::element::Type,                       // modelType
@@ -35,7 +35,7 @@ protected:
 
     void CreateCommonFunc(ov::element::Type model_type, ov::Shape input_shape);
     void CreateTIFunc(ov::element::Type model_type, ov::Shape input_shape);
-    void ApplyLowLatency(ngraph::helpers::MemoryTransformation transformation);
+    void ApplyLowLatency(ov::test::utils::MemoryTransformation transformation);
 
     bool use_version_3 = false;
     int64_t iteration_count;

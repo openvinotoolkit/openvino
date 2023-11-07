@@ -4,11 +4,8 @@
 
 #include "shared_test_classes/single_op/memory.hpp"
 
-#include <ie_transformations.hpp>
-#include <transformations/control_flow/unroll_tensor_iterator.hpp>
-#include <functional_test_utils/core_config.hpp>
-#include "ngraph/pass/low_latency.hpp"
-#include "openvino/op/util/variable_context.hpp"
+#include "openvino/pass/low_latency.hpp"
+#include "openvino/pass/manager.hpp"
 #include "template/properties.hpp"
 
 #include "openvino/op/parameter.hpp"
@@ -27,16 +24,16 @@ std::string MemoryLayerTest::getTestCaseName(const testing::TestParamInfo<Memory
     int64_t iteration_count;
     ov::element::Type model_type;
     ov::Shape input_shape;
-    std::string targetDevice;
-    ngraph::helpers::MemoryTransformation transformation;
-    std::tie(transformation, iteration_count, input_shape, model_type, targetDevice) = obj.param;
+    std::string target_device;
+    ov::test::utils::MemoryTransformation transformation;
+    std::tie(transformation, iteration_count, input_shape, model_type, target_device) = obj.param;
 
     std::ostringstream result;
     result << "transformation=" << transformation << "_";
     result << "iteration_count=" << iteration_count << "_";
     result << "IS=" << ov::test::utils::vec2str(input_shape) << "_";
-    result << "netPRC=" << model_type.get_type_name() << "_";
-    result << "trgDev=" << targetDevice;
+    result << "modelType=" << model_type.get_type_name() << "_";
+    result << "trgDev=" << target_device;
     result << ")";
     return result.str();
 }
@@ -44,11 +41,11 @@ std::string MemoryLayerTest::getTestCaseName(const testing::TestParamInfo<Memory
 void MemoryLayerTest::SetUp() {
     ov::element::Type model_type;
     ov::Shape input_shape;
-    ngraph::helpers::MemoryTransformation transformation;
+    ov::test::utils::MemoryTransformation transformation;
 
     std::tie(transformation, iteration_count, input_shape, model_type, targetDevice) = this->GetParam();
 
-    if (transformation == ngraph::helpers::MemoryTransformation::NONE) {
+    if (transformation == ov::test::utils::MemoryTransformation::NONE) {
         CreateCommonFunc(model_type, input_shape);
     } else {
         CreateTIFunc(model_type, input_shape);
@@ -113,15 +110,15 @@ void MemoryLayerTest::CreateTIFunc(ov::element::Type model_type, ov::Shape input
                                            "PureTI");
 }
 
-void MemoryLayerTest::ApplyLowLatency(ngraph::helpers::MemoryTransformation transformation) {
-    if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2) {
+void MemoryLayerTest::ApplyLowLatency(ov::test::utils::MemoryTransformation transformation) {
+    if (transformation == ov::test::utils::MemoryTransformation::LOW_LATENCY_V2) {
         function->validate_nodes_and_infer_types();
-        pass::Manager manager;
+        ov::pass::Manager manager;
         manager.register_pass<pass::LowLatency2>();
         manager.run_passes(function);
-    } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT) {
+    } else if (transformation == ov::test::utils::MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT) {
         function->validate_nodes_and_infer_types();
-        pass::Manager manager;
+        ov::pass::Manager manager;
         manager.register_pass<pass::LowLatency2>(false);
         manager.run_passes(function);
     }

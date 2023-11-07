@@ -9,10 +9,10 @@
 namespace {
 using ov::test::MemoryLayerTest;
 
-std::vector<ngraph::helpers::MemoryTransformation> transformation {
-        ngraph::helpers::MemoryTransformation::NONE,
-        ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2,
-        ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT,
+std::vector<ov::test::utils::MemoryTransformation> transformation {
+        ov::test::utils::MemoryTransformation::NONE,
+        ov::test::utils::MemoryTransformation::LOW_LATENCY_V2,
+        ov::test::utils::MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT,
 };
 
 const std::vector<ov::Shape> inShapes = {
