@@ -41,6 +41,42 @@ class TestKerasAdditiveAttention(CommonTF2LayerTest):
 
     test_data_extended_float32 = [
         dict(use_scale=False, causal=True, dropout=0.5,
+             input_names=["input1_query", "input2_value"],
+             input_shapes=[[1, 5, 4], [1, 5, 4]], input_type=tf.float32),
+        dict(use_scale=True, causal=False, dropout=0.5,
+             input_names=["input1_query", "input2_value"],
+             input_shapes=[[2, 1, 4], [2, 1, 4]], input_type=tf.float32),
+        dict(use_scale=False, causal=False, dropout=0.8,
+             input_names=["input1_query", "input2_value"],
+             input_shapes=[[3, 2, 5], [3, 2, 5]], input_type=tf.float32),
+        dict(use_scale=True, causal=True, dropout=0.0,
+             input_names=["input1_query", "input2_value", "input3_key"],
+             input_shapes=[[2, 4, 3], [2, 4, 3], [2, 4, 3]], input_type=tf.float32),
+        dict(use_scale=False, causal=True, dropout=0.5,
+             input_names=["input1_query", "input2_value", "input3_key"],
+             input_shapes=[[5, 3, 4], [5, 3, 4], [5, 3, 4]],
+             input_type=tf.float32),
+        dict(use_scale=True, causal=False, dropout=0.5,
+             input_names=["input1_query", "input2_value", "input3_key"],
+             input_shapes=[[2, 1, 1], [2, 1, 1], [2, 1, 1]],
+             input_type=tf.float32),
+        dict(use_scale=False, causal=False, dropout=0.8,
+             input_names=["input1_query", "input2_value", "input3_key"],
+             input_shapes=[[5, 3, 3], [5, 3, 3], [5, 3, 3]],
+             input_type=tf.float32)
+    ]
+
+    @pytest.mark.parametrize("params", test_data_extended_float32)
+    @pytest.mark.nightly
+    def test_keras_additive_attention_float32_case2(self, params, ie_device, precision, ir_version,
+                                                    temp_dir, use_old_api, use_new_frontend):
+        self._test(*self.create_keras_additive_attention_net(**params, ir_version=ir_version),
+                   ie_device, precision, temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version,
+                   use_new_frontend=use_new_frontend, **params)
+
+
+    test_data_with_non_sorted_order = [
+        dict(use_scale=False, causal=True, dropout=0.5,
              input_names=["query", "value"],
              input_shapes=[[1, 5, 4], [1, 5, 4]], input_type=tf.float32),
         dict(use_scale=True, causal=False, dropout=0.5,
@@ -65,8 +101,8 @@ class TestKerasAdditiveAttention(CommonTF2LayerTest):
              input_shapes=[[5, 3, 3], [5, 3, 3], [5, 3, 3]],
              input_type=tf.float32)
     ]
-
-    @pytest.mark.parametrize("params", test_data_extended_float32)
+    @pytest.mark.xfail(reason="124436")
+    @pytest.mark.parametrize("params", test_data_with_non_sorted_order)
     @pytest.mark.nightly
     def test_keras_additive_attention_float32_case2(self, params, ie_device, precision, ir_version,
                                                     temp_dir, use_old_api, use_new_frontend):

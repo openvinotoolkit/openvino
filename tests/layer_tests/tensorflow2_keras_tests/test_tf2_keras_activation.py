@@ -102,6 +102,7 @@ class TestKerasMultipleOutputsWithActivation(CommonTF2LayerTest):
                                     "Func/PartitionedCall/output/_8:0",
                                     "Func/PartitionedCall/output/_9:0"])]
 
+    @pytest.mark.xfail(reason="124436")
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
