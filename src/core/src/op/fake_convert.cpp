@@ -21,6 +21,14 @@ FakeConvert::FakeConvert(const ov::Output<ov::Node>& arg,
     constructor_validate_and_infer_types();
 }
 
+bool FakeConvert::get_apply_scale() const {
+    return m_apply_scale;
+}
+
+const std::string& FakeConvert::get_destination_type() const {
+    return m_destination_type;
+}
+
 const std::vector<std::string> FakeConvert::m_valid_types({"F8E4M3", "F8E5M2"});
 
 void FakeConvert::validate_and_infer_types() {

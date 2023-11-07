@@ -26,13 +26,8 @@ public:
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
     bool has_evaluate() const override;
 
-    bool get_apply_scale() const {
-        return m_apply_scale;
-    }
-
-    const std::string& destination_type() const {
-        return m_destination_type;
-    }
+    bool get_apply_scale() const;
+    const std::string& get_destination_type() const;
 
 private:
     void validate() const;

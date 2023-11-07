@@ -25,7 +25,7 @@ TEST(attributes, fake_convert_v13_attributes_default) {
     auto g_op = ov::as_type_ptr<FakeConvert>(builder.create());
 
     EXPECT_EQ(g_op->get_apply_scale(), op->get_apply_scale());
-    EXPECT_EQ(g_op->destination_type(), op->destination_type());
+    EXPECT_EQ(g_op->get_destination_type(), op->get_destination_type());
     EXPECT_EQ(g_op->get_output_element_type(0), op->get_output_element_type(0));
     EXPECT_EQ(g_op->get_output_partial_shape(0), op->get_output_partial_shape(0));
 }
@@ -43,7 +43,7 @@ TEST(attributes, fake_convert_v13_attributes_custom) {
     auto g_op = ov::as_type_ptr<FakeConvert>(builder.create());
 
     EXPECT_EQ(g_op->get_apply_scale(), op->get_apply_scale());
-    EXPECT_EQ(g_op->destination_type(), op->destination_type());
+    EXPECT_EQ(g_op->get_destination_type(), op->get_destination_type());
     EXPECT_EQ(g_op->get_output_element_type(0), op->get_output_element_type(0));
     EXPECT_EQ(g_op->get_output_partial_shape(0), op->get_output_partial_shape(0));
 }
