@@ -269,7 +269,7 @@ jobs:
         include:
           - arhitecture: 'x86_64'
             machine: 'ubuntu-20.04'
-            image: 'ubuntu-20.04'
+            image: 'ubuntu:20.04'
           - arhitecture: 'arm64'
             machine: 'aks-linux-16-cores-arm'
             image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
@@ -346,7 +346,7 @@ jobs:
         include:
           - arhitecture: 'x86_64'
             machine: 'ubuntu-20.04'
-            image: 'ubuntu-20.04'
+            image: 'ubuntu:20.04'
           - arhitecture: 'arm64'
             machine: 'aks-linux-16-cores-arm'
             image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
