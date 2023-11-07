@@ -98,12 +98,7 @@ def abs_model_with_data(device, ov_type, numpy_dtype):
 
 def test_get_profiling_info(device):
     core = Core()
-    if platform.system() == "Darwin" and platform.machine() == "arm64":
-        # arm64 prefers fp16, and fp32 input will trigger a convert node
-        # to be added, so assert 'Softmax' will failed.
-        param = ops.parameter([1, 3, 32, 32], np.float16, name="data")
-    else:
-        param = ops.parameter([1, 3, 32, 32], np.float32, name="data")
+    param = ops.parameter([1, 3, 32, 32], np.float32, name="data")
     softmax = ops.softmax(param, 1, name="fc_out")
     model = Model([softmax], [param], "test_model")
 
@@ -115,8 +110,8 @@ def test_get_profiling_info(device):
     request.infer({tensor_name: img})
     assert request.latency > 0
     prof_info = request.get_profiling_info()
-    soft_max_node = next(node for node in prof_info if node.node_name == "fc_out")
-    assert "Softmax" in soft_max_node.node_type
+    soft_max_node = next(node for node in prof_info if node.node_type == "Softmax")
+    assert soft_max_node
     assert soft_max_node.status == ProfilingInfo.Status.EXECUTED
     assert isinstance(soft_max_node.real_time, datetime.timedelta)
     assert isinstance(soft_max_node.cpu_time, datetime.timedelta)
