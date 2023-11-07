@@ -16,6 +16,8 @@ namespace tensorflow {
 namespace pass {
 
 bool ConstToResultRemover::run_on_model(const std::shared_ptr<ov::Model>& m) {
+    // Note: need to perform this transformation only on the main ov::Model graph
+    // no need to apply it for sub-graphs!
     ResultVector results_to_remove;
     // look for isolated UnsupportedConst->Result sub-graphs to remove
     // also, find isolated Constant->Result sub-graphs to remove
