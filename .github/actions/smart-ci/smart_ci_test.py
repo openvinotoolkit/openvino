@@ -20,6 +20,7 @@ def log_handler(func):
 class TestComponentConfig(unittest.TestCase):
     def setUp(self):
         self.all_possible_components = {'comp1', 'comp2', 'comp3', 'comp4'}
+        ComponentConfig.ScopeKeys = {'build', 'revalidate', '_scope_1', '_scope_2', '_scope_3'}
 
     @log_handler
     def validate(self, config_data: dict, changed_components: set, expected_result: dict):
@@ -30,10 +31,10 @@ class TestComponentConfig(unittest.TestCase):
 
     def test_no_changed_components(self):
         config_data = {
-            'comp1': {'dependent_components': {}},
-            'comp2': {'dependent_components': {}},
-            'comp3': {'dependent_components': {}},
-            'comp4': {'dependent_components': {}},
+            'comp1': {'build': {}, 'revalidate': {}},
+            'comp2': {'build': {}, 'revalidate': {}},
+            'comp3': {'build': {}, 'revalidate': {}},
+            'comp4': {'build': {}, 'revalidate': {}},
         }
         changed_components = set()
         expected_result = {
@@ -46,10 +47,10 @@ class TestComponentConfig(unittest.TestCase):
 
     def test_all_components_changed(self):
         config_data = {
-            'comp1': {'dependent_components': {}},
-            'comp2': {'dependent_components': {}},
-            'comp3': {'dependent_components': {}},
-            'comp4': {'dependent_components': {}},
+            'comp1': {'build': {}, 'revalidate': {}},
+            'comp2': {'build': {}, 'revalidate': {}},
+            'comp3': {'build': {}, 'revalidate': {}},
+            'comp4': {'build': {}, 'revalidate': {}},
         }
         changed_components = {'comp1', 'comp2', 'comp3', 'comp4'}
         expected_result = {
@@ -62,9 +63,9 @@ class TestComponentConfig(unittest.TestCase):
 
     def test_changed_component_not_defined(self):
         config_data = {
-            'comp2': {'dependent_components': {}},
-            'comp3': {'dependent_components': {}},
-            'comp4': {'dependent_components': {}},
+            'comp2': {'build': {}, 'revalidate': {}},
+            'comp3': {'build': {}, 'revalidate': {}},
+            'comp4': {'build': {}, 'revalidate': {}},
         }
         changed_components = {'comp1'}
         expected_result = {
@@ -75,7 +76,7 @@ class TestComponentConfig(unittest.TestCase):
         }
         self.validate(config_data, changed_components, expected_result)
 
-    def test_component_changed_no_dependents_key(self):
+    def test_component_changed_no_scope_keys(self):
         config_data = {
             'comp1': {},
             'comp2': {},
@@ -93,10 +94,10 @@ class TestComponentConfig(unittest.TestCase):
 
     def test_one_component_changed_dependents_empty(self):
         config_data = {
-            'comp1': {'dependent_components': {}},
-            'comp2': {'dependent_components': {}},
-            'comp3': {'dependent_components': {}},
-            'comp4': {'dependent_components': {}},
+            'comp1': {'build': {}, 'revalidate': {}},
+            'comp2': {'build': {}, 'revalidate': {}},
+            'comp3': {'build': {}, 'revalidate': {}},
+            'comp4': {'build': {}, 'revalidate': {}},
         }
         changed_components = {'comp1'}
         expected_result = {
@@ -106,10 +107,10 @@ class TestComponentConfig(unittest.TestCase):
 
     def test_not_changed_dependent_component(self):
         config_data = {
-            'comp1': {'dependent_components': {'comp2': {'build'}}},
-            'comp2': {'dependent_components': {}},
-            'comp3': {'dependent_components': {}},
-            'comp4': {'dependent_components': {}},
+            'comp1': {'build': {'comp2'}, 'revalidate': {}},
+            'comp2': {'build': {}, 'revalidate': {}},
+            'comp3': {'build': {}, 'revalidate': {}},
+            'comp4': {'build': {}, 'revalidate': {}},
         }
         changed_components = {'comp1'}
         expected_result = {
@@ -120,10 +121,10 @@ class TestComponentConfig(unittest.TestCase):
 
     def test_changed_dependent_component(self):
         config_data = {
-            'comp1': {'dependent_components': {'comp2': {'build'}}},
-            'comp2': {'dependent_components': {}},
-            'comp3': {'dependent_components': {}},
-            'comp4': {'dependent_components': {}},
+            'comp1': {'build': {'comp2'}, 'revalidate': {}},
+            'comp2': {'build': {}, 'revalidate': {}},
+            'comp3': {'build': {}, 'revalidate': {}},
+            'comp4': {'build': {}, 'revalidate': {}},
         }
         changed_components = {'comp1', 'comp2'}
         expected_result = {
@@ -134,39 +135,41 @@ class TestComponentConfig(unittest.TestCase):
 
     def test_dependent_component_multiple_parents(self):
         config_data = {
-            'comp1': {'dependent_components': {'comp2': {'_build_'}}},
-            'comp2': {'dependent_components': {}},
-            'comp3': {'dependent_components': {'comp2': {'_test_1', '_test_2'}}},
-            'comp4': {'dependent_components': {}},
+            'comp1': {'_scope_1': {'comp2'}, 'revalidate': {}},
+            'comp2': {'build': {}, 'revalidate': {}},
+            'comp3': {'build': {}, '_scope_2': {'comp2'}, '_scope_3': {'comp2'}},
+            'comp4': {'build': {}, 'revalidate': {}},
         }
         changed_components = {'comp1', 'comp3'}
         expected_result = {
             'comp1': ComponentConfig.FullScope,
-            'comp2': {'_build_', '_test_1', '_test_2'},
+            'comp2': {'_scope_1', '_scope_2', '_scope_3'},
             'comp3': ComponentConfig.FullScope
         }
         self.validate(config_data, changed_components, expected_result)
 
-    def test_dependent_component_empty_scope(self):
+    def test_dependent_component_empty_scopes(self):
         config_data = {
-            'comp1': {'dependent_components': {'comp2': {}}},
-            'comp2': {'dependent_components': {}},
-            'comp3': {'dependent_components': {}},
-            'comp4': {'dependent_components': {}},
+            'comp1': {'build': {}, 'revalidate': {'comp2'}},
+            'comp2': {},
+            'comp3': {},
+            'comp4': {},
         }
-        changed_components = {'comp1'}
+        changed_components = {'comp1', 'comp3'}
         expected_result = {
             'comp1': ComponentConfig.FullScope,
-            'comp2': ComponentConfig.FullScope
+            'comp2': ComponentConfig.FullScope,
+            'comp3': ComponentConfig.FullScope,
+            'comp4': ComponentConfig.FullScope
         }
         self.validate(config_data, changed_components, expected_result)
 
     def test_changed_component_empty_dependencies(self):
         config_data = {
-            'comp1': {'dependent_components': {}},
-            'comp2': {'dependent_components': {}},
-            'comp3': {'dependent_components': {}},
-            'comp4': {'dependent_components': {}},
+            'comp1': {'build': {}, 'revalidate': {}},
+            'comp2': {'build': {}, 'revalidate': {}},
+            'comp3': {'build': {}, 'revalidate': {}},
+            'comp4': {'build': {}, 'revalidate': {}},
         }
         changed_components = {'comp1'}
         expected_result = {
@@ -176,16 +179,16 @@ class TestComponentConfig(unittest.TestCase):
 
     def test_multiple_dependents(self):
         config_data = {
-            'comp1': {'dependent_components': {'comp2': {'build'}, 'comp3': {'test'}}},
-            'comp2': {'dependent_components': {}},
-            'comp3': {'dependent_components': {'comp4': {'build'}}},
-            'comp4': {'dependent_components': {}},
+            'comp1': {'build': {'comp2'}, 'revalidate': {'comp3'}},
+            'comp2': {'build': {}, 'revalidate': {}},
+            'comp3': {'build': {'comp4'}, 'revalidate': {}},
+            'comp4': {'build': {}, 'revalidate': {}},
         }
         changed_components = {'comp1'}
         expected_result = {
             'comp1': ComponentConfig.FullScope,
             'comp2': {'build'},
-            'comp3': {'test'},
+            'comp3': ComponentConfig.FullScope,
             # We don't consider dependencies of dependencies affected, so comp4 is not expected here
         }
         self.validate(config_data, changed_components, expected_result)

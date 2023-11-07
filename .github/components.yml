@@ -1,67 +1,198 @@
 CPU:
-  dependent_components:
-    Python_API: [build, test]
-    C_API: [build, test]
+  revalidate:
+    - C_API
+    - Python_API
+    - samples
+  build:
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - AUTO
+    - IR_FE
 
-Python_API:
-  dependent_components:
-    CPU: [build]
+GPU:
+  build:
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - AUTO
+    - IR_FE
 
-C_API:
-  dependent_components:
-    CPU: [build]
-
-Model_Hub_Tests:
-  dependent_components:
-    Torch_Model_Hub_Tests: [build, test]
-    TF_Model_Hub_Tests: [build, test]
-
-TF_FE:
-  dependent_components:
-    TF_Model_Hub_Tests: [build, test]
-
-PyTorch_FE:
-  dependent_components:
-    Torch_Model_Hub_Tests: [build, test]
-
-TFL_FE:
-  dependent_components: {}
-
-ONNX_FE:
-  dependent_components: {}
-
-PDPD_FE:
-  dependent_components: {}
-
-IR_FE:
-  dependent_components: {}
-
-AUTO:
-  dependent_components: {}
-
-AUTO_BATCH:
-  dependent_components: {}
-
-TEMPLATE:
-  dependent_components: {}
+GNA:
+  build:
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - AUTO
+    - IR_FE
 
 HETERO:
-  dependent_components: {}
+  revalidate:
+    - CPU
+    - GPU
+    - GNA
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - AUTO
+    - C_API
+    - Python_API
+  build:
+    - IR_FE
 
-MO:
-  dependent_components: {}
+AUTO_BATCH:
+  revalidate:
+    - CPU
+    - GPU
+    - GNA
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - AUTO
+    - C_API
+    - Python_API
+  build:
+    - IR_FE
+
+TEMPLATE:
+  revalidate:
+    - CPU
+    - GPU
+    - GNA
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - AUTO
+    - C_API
+    - Python_API
+  build:
+    - IR_FE
+
+AUTO:
+  revalidate:
+    - CPU
+    - GPU
+    - GNA
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - AUTO
+    - C_API
+    - Python_API
+  build:
+    - IR_FE
+
+IR_FE:
+  revalidate:
+    - C_API
+    - Python_API
+    - samples
+  build:
+    - CPU
+
+ONNX_FE:
+  revalidate:
+    - MO
+  build:
+    - CPU
+    - Python_API
+
+PDPD_FE:
+  revalidate:
+    - MO
+  build:
+    - CPU
+    - Python_API
+
+TF_FE:
+  revalidate:
+    - MO
+  build:
+    - CPU
+    - Python_API
+
+TFL_FE:
+  revalidate:
+    - MO
+  build:
+    - CPU
+    - Python_API
+
+PyTorch_FE:
+  revalidate:
+    - MO
+  build:
+    - CPU
+    - Python_API
+
+C_API:
+  build:
+    - CPU
+    - HETERO
+    - AUTO_BATCH
+    - AUTO
+    - IR_FE
+
+Python_API:
+  revalidate:
+    - samples
+    - MO
+    - POT
+    - tools
+  build:
+    - CPU
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - AUTO
+    - IR_FE
+    - ONNX_FE
+    - PDPD_FE
+    - TF_FE
+    - TFL_FE
+    - PyTorch_FE
 
 samples:
-  dependent_components: {}
+  build:
+    - CPU
+    - AUTO_BATCH
+    - AUTO
+    - IR_FE
+    - C_API
+    - Python_API
 
-transformations:
-  dependent_components: {}
+IE_Tests:
+  revalidate:
+    - CPU
+    - GPU
+    - GNA
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - AUTO
+  build:
+    - IR_FE
 
-LP_transformations:
-  dependent_components: {}
+MO:
+  revalidate:
+    - POT
+  build:
+    - Python_API
 
-Torch_Model_Hub_Tests:
-  dependent_components: {}
+POT:
+  build:
+    - CPU
+    - Python_API
 
-TF_Model_Hub_Tests:
-  dependent_components: {}
+tools:
+  build:
+    - CPU
+    - Python_API
+
+docs:
+  revalidate: []
+  build: []
+
+licensing:
+  revalidate: []
+  build: []

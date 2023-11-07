@@ -11,6 +11,7 @@ from ghapi.all import GhApi
 
 class ComponentConfig:
     FullScope = {'build', 'test'}
+    ScopeKeys = {'build', 'revalidate'}
 
     def __init__(self, config: dict, schema: dict, all_possible_components: set):
         self.config = config
@@ -54,13 +55,18 @@ class ComponentConfig:
 
         # Else check changed components' dependencies and add them to affected
         for name in changed_components_names:
-            component_data = self.config.get(name, dict())
-            dependent_components = component_data.get('dependent_components', dict()) if component_data else \
-                {name: self.FullScope for name in self.all_possible_components}
+            component_scopes = {k: v for k, v in self.config.get(name, dict()).items() if k in self.ScopeKeys}
+            for key, dependents in component_scopes.items():
+                for dep_name in dependents:
+                    affected_components[dep_name] = affected_components.get(dep_name, set())
+                    scope = self.FullScope if key == 'revalidate' else {key}
+                    affected_components[dep_name] = affected_components[dep_name].union(scope)
 
-            for dep_name, scope in dependent_components.items():
-                _scope = affected_components.get(dep_name, set()).union(scope)
-                affected_components.update({dep_name: _scope if scope else self.FullScope})
+            if not component_scopes:
+                self.log.info(f"Changed component '{name}' doesn't have {self.ScopeKeys} keys in components config. "
+                              f"Assuming that it affects everything, the whole scope will be started")
+                for dep_name in self.all_possible_components:
+                    affected_components[dep_name] = self.FullScope
 
         # If the component was explicitly changed, run full scope for it
         affected_components.update({name: self.FullScope for name in changed_components_names})
