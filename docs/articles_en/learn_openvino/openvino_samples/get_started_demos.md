@@ -184,65 +184,65 @@ Instructions below show how to build sample applications with CMake. If you are 
          .. tab-item:: C and C++
             :sync: c-cpp
    
-         To build the C or C++ sample applications for macOS, go to the ``<INSTALL_DIR>/samples/c`` or ``<INSTALL_DIR>/samples/cpp`` directory, respectively, and run the ``build_samples.sh`` script:
-         
-         .. code-block:: sh
+            To build the C or C++ sample applications for macOS, go to the ``<INSTALL_DIR>/samples/c`` or ``<INSTALL_DIR>/samples/cpp`` directory, respectively, and run the ``build_samples.sh`` script:
             
-            build_samples.sh
-         
-         Once the build is completed, you can find sample binaries in the following folders:
-         
-         * C samples: ``~/openvino_c_samples_build/<architecture>/Release``
-         * C++ samples: ``~/openvino_cpp_samples_build/<architecture>/Release``
-         
-         You can also build the sample applications manually. Before proceeding, make sure you have OpenVINO™ environment set correctly. This can be done manually by:
-   
-         .. code-block:: sh
-   
-            cd <INSTALL_DIR>/
-            source setupvars.sh
-   
-         .. note::
-   
-            If you have installed the product as a root user, switch to root mode before you continue: ``sudo -i``
-   
-         1. Navigate to a directory that you have write access to and create a samples build directory. This example uses a directory named ``build``:
-         
             .. code-block:: sh
+               
+               build_samples.sh
             
-               mkdir build
+            Once the build is completed, you can find sample binaries in the following folders:
             
-            .. note:: 
+            * C samples: ``~/openvino_c_samples_build/<architecture>/Release``
+            * C++ samples: ``~/openvino_cpp_samples_build/<architecture>/Release``
             
-               If you ran the Image Classification verification script during the installation, the C++ samples build directory was already created in your home directory: ``~/openvino_cpp_samples_build/``
-            
-         2. Go to the created directory:
-         
+            You can also build the sample applications manually. Before proceeding, make sure you have OpenVINO™ environment set correctly. This can be done manually by:
+      
             .. code-block:: sh
+      
+               cd <INSTALL_DIR>/
+               source setupvars.sh
+      
+            .. note::
+      
+               If you have installed the product as a root user, switch to root mode before you continue: ``sudo -i``
+      
+            1. Navigate to a directory that you have write access to and create a samples build directory. This example uses a directory named ``build``:
             
-               cd build
-         
-         3. Run CMake to generate the Make files for release or debug configuration. For example, for C++ samples:
-         
-            - For release configuration:
-         
-              .. code-block:: sh
-         
-                 cmake -DCMAKE_BUILD_TYPE=Release <INSTALL_DIR>/samples/cpp
+               .. code-block:: sh
+               
+                  mkdir build
+               
+               .. note:: 
+               
+                  If you ran the Image Classification verification script during the installation, the C++ samples build directory was already created in your home directory: ``~/openvino_cpp_samples_build/``
+               
+            2. Go to the created directory:
             
-            - For debug configuration:
-         
-              .. code-block:: sh
-         
-                 cmake -DCMAKE_BUILD_TYPE=Debug <INSTALL_DIR>/samples/cpp
+               .. code-block:: sh
+               
+                  cd build
             
-         4. Run ``make`` to build the samples:
-         
-            .. code-block:: sh
+            3. Run CMake to generate the Make files for release or debug configuration. For example, for C++ samples:
             
-               make
-         
-         For the release configuration, the sample application binaries are in ``<path_to_build_directory>/<architecture>/Release/``; for the debug configuration — in ``<path_to_build_directory>/<architecture>/Debug/``.
+               - For release configuration:
+            
+                 .. code-block:: sh
+            
+                    cmake -DCMAKE_BUILD_TYPE=Release <INSTALL_DIR>/samples/cpp
+               
+               - For debug configuration:
+            
+                 .. code-block:: sh
+            
+                    cmake -DCMAKE_BUILD_TYPE=Debug <INSTALL_DIR>/samples/cpp
+               
+            4. Run ``make`` to build the samples:
+            
+               .. code-block:: sh
+               
+                  make
+            
+            For the release configuration, the sample application binaries are in ``<path_to_build_directory>/<architecture>/Release/``; for the debug configuration — in ``<path_to_build_directory>/<architecture>/Debug/``.
       
 
 
