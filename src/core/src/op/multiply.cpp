@@ -41,6 +41,7 @@ bool evaluate_multiply(const HostTensorPtr& arg0,
         OPENVINO_TYPE_CASE(evaluate_multiply, u64, arg0, arg1, out, broadcast_spec);
         OPENVINO_TYPE_CASE(evaluate_multiply, f16, arg0, arg1, out, broadcast_spec);
         OPENVINO_TYPE_CASE(evaluate_multiply, f32, arg0, arg1, out, broadcast_spec);
+        OPENVINO_TYPE_CASE(evaluate_multiply, f64, arg0, arg1, out, broadcast_spec);
         OPENVINO_TYPE_CASE(evaluate_multiply, bf16, arg0, arg1, out, broadcast_spec);
         OPENVINO_TYPE_CASE(evaluate_multiply, u8, arg0, arg1, out, broadcast_spec);
         OPENVINO_TYPE_CASE(evaluate_multiply, i16, arg0, arg1, out, broadcast_spec);
@@ -80,6 +81,7 @@ bool op::v1::Multiply::has_evaluate() const {
     case ngraph::element::u64:
     case ngraph::element::f16:
     case ngraph::element::f32:
+    case ngraph::element::f64:
     case ngraph::element::bf16:
         return true;
     default:
