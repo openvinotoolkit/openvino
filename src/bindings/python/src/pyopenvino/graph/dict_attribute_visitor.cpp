@@ -113,10 +113,10 @@ void util::DictAttributeDeserializer::on_adapter(const std::string& name, ov::Va
             if (py::isinstance<ov::PartialShape>(m_attributes[name.c_str()])) {
                 a->set(m_attributes[name.c_str()].cast<ov::PartialShape>());
             } else {
-                OPENVINO_ASSERT(false, "No AttributeVisitor support for accessing attribute named: ", name);
+                OPENVINO_THROW("No AttributeVisitor support for accessing attribute named: ", name);
             }
         } else {
-            OPENVINO_ASSERT(false, "No AttributeVisitor support for accessing attribute named: ", name);
+            OPENVINO_THROW("No AttributeVisitor support for accessing attribute named: ", name);
         }
     }
 }

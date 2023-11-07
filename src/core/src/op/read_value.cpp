@@ -95,15 +95,18 @@ void op::v6::ReadValue::validate_and_infer_types() {
 shared_ptr<Node> op::v6::ReadValue::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v6_ReadValue_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    if (new_args.size() == 1) {
-        return make_shared<ReadValue>(new_args.at(0), m_variable);
-    } else if (new_args.empty()) {
-        return make_shared<ReadValue>(m_variable);
+
+    switch (new_args.size()) {
+        case 0:
+            return make_shared<ReadValue>(m_variable);
+        case 1:
+            return make_shared<ReadValue>(new_args[0], m_variable);
+        default:
+            OPENVINO_THROW("Unable to clone ReadValue ",
+                           this->get_friendly_name(),
+                           " Incorrect number of inputs. Expected: 0 or 1. Actual: ",
+                           new_args.size());
     }
-    OPENVINO_THROW("Unable to clone ReadValue ",
-                   this->get_friendly_name(),
-                   " Incorrect number of inputs. Expected: 0 or 1. Actual: ",
-                   new_args.size());
 }
 
 bool op::v6::ReadValue::visit_attributes(AttributeVisitor& visitor) {

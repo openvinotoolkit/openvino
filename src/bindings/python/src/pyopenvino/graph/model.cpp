@@ -64,7 +64,7 @@ static std::vector<std::shared_ptr<ov::Node>> cast_to_node_vector(const ov::Sink
 // ReadValue operations. This function attempts to resolve this situation by finding correct Variables
 // for Assigns.
 static void set_correct_variables_for_assign_ops(const std::shared_ptr<ov::Model>& model, const ov::SinkVector& sinks) {
-    auto variables = model->get_variables();
+    const auto& variables = model->get_variables();
     for (const auto& sink : sinks) {
         if (auto assign = ov::as_type_ptr<ov::op::v6::Assign>(sink)) {
             for (const auto& variable : variables) {

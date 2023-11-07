@@ -96,3 +96,13 @@ TEST(type_prop, read_value_v6_init_shape_is_not_in_range_2) {
     std::shared_ptr<ov::op::v6::ReadValue> read_value;
     EXPECT_ANY_THROW(read_value = std::make_shared<ov::op::v6::ReadValue>(input, variable));
 }
+
+TEST(type_prop, read_value_v6_no_init) {
+    auto variable_info = op::util::VariableInfo{PartialShape{1, 2, 64, 64}, element::f32, "variable_id"};
+    auto variable = std::make_shared<op::util::Variable>(variable_info);
+
+    std::shared_ptr<ov::op::v6::ReadValue> read_value = std::make_shared<ov::op::v6::ReadValue>(variable);
+    ASSERT_EQ(read_value->get_element_type(), element::f32);
+    ASSERT_EQ(read_value->get_output_partial_shape(0), (PartialShape{1, 2, 64, 64}));
+    ASSERT_EQ(read_value->get_variable_id(), "variable_id");
+}
