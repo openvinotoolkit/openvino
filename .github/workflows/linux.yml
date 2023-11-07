@@ -316,7 +316,7 @@ jobs:
           
           if [[ "${{ matrix.arhitecture }}" == "x86_64" ]]; then
             ~/openvino_cpp_samples_build/intel64/Release/hello_query_device
-          elif [[ "${{ matrix.arhitecture }}" == "arm64" ]]
+          elif [[ "${{ matrix.arhitecture }}" == "arm64" ]]; then
             ~/openvino_cpp_samples_build/aarch64/Release/hello_query_device
           fi
           
@@ -397,7 +397,7 @@ jobs:
         with:
           version: ${{ env.PYTHON_VERSION }}
           should-setup-pip-paths: 'false'
-          self-hosted-runner: 'false'
+          self-hosted-runner: ${{ matrix.machine == 'ubuntu-20.04' && 'false' || 'true' }}
 
       - name: Build cpp samples - GCC
         run: ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples
