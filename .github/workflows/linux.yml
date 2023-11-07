@@ -552,7 +552,7 @@ jobs:
   ONNX_Runtime:
     name: ONNX Runtime Integration
     needs: Build
-    timeout-minutes: 10
+    timeout-minutes: 30
     defaults:
       run:
         shell: bash
@@ -1032,6 +1032,10 @@ jobs:
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
 
+      - name: Install Dependencies
+        if: ${{ matrix.architecture == 'arm64' }}
+        run: apt-get update && apt-get install -y gcc python3-dev # Needed to build `psutil`
+
       - name: Install OpenVINO Python wheels
         run: |
           # Install the core OV wheel
@@ -1367,13 +1371,13 @@ jobs:
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_package
+          name: openvino_package_x86_64
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_tests
+          name: openvino_tests_x86_64
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Extract OpenVINO packages
