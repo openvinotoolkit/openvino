@@ -11,9 +11,9 @@
 #include <openvino/runtime/remote_context.hpp>
 #include <pyopenvino/core/tensor.hpp>
 
-#include "gpu/gpu_params.hpp"
 #include "common.hpp"
 #include "pyopenvino/utils/utils.hpp"
+#include "gpu/gpu_params.hpp"
 
 namespace py = pybind11;
 
@@ -150,7 +150,8 @@ void regclass_Core(py::module m) {
             :type model: openvino.runtime.Model
             :param device_name: Name of the device which will load the model.
             :type device_name: str
-            :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
+            :param properties: Optional dict of pairs: (property name, property value) relevant only for this load
+             operation.
             :type properties: dict
             :return: A compiled model.
             :rtype: openvino.runtime.CompiledModel
@@ -312,7 +313,6 @@ void regclass_Core(py::module m) {
     cls.def(
         "create_context",
         [](ov::Core& self, const std::string& device_name, const InferenceEngine::gpu_handle_param va_display) {
-
             ov::AnyMap context_params = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)},
                                          {GPU_PARAM_KEY(VA_DEVICE), va_display},
                                          {GPU_PARAM_KEY(TILE_ID), -1}};
