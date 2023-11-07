@@ -695,6 +695,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                     RO_property(ov::range_for_streams.name()),
                                                     RO_property(ov::device::full_name.name()),
                                                     RO_property(ov::device::capabilities.name()),
+                                                    RO_property(ov::optimal_batch_size.name()),
         };
         // the whole config is RW before model is loaded.
         std::vector<ov::PropertyName> rwProperties {RW_property(ov::num_streams.name()),
