@@ -79,45 +79,17 @@ using ov::test::utils::ConversionTypes;
 using ov::test::utils::LogicalTypes;
 using ov::test::utils::SqueezeOpType;
 using ov::test::utils::MinMaxOpType;
-
-enum QuantizationGranularity {
-    Pertensor,
-    Perchannel
-};
-
+using ov::test::utils::QuantizationGranularity;
 using ov::test::utils::TensorIteratorBody;
 using ov::test::utils::ReductionType;
 using ov::test::utils::DFTOpType;
 using ov::test::utils::InputLayerType;
 using ov::test::utils::PadMode;
 using ov::test::utils::SequenceTestsMode;
-
-enum class MemoryTransformation {
-    NONE,
-    LOW_LATENCY_V2,
-    LOW_LATENCY_V2_REGULAR_API,
-    LOW_LATENCY_V2_ORIGINAL_INIT
-};
+using ov::test::utils::MemoryTransformation;
 // clang-format on
 
 bool is_tensor_iterator_exist(const std::shared_ptr<ngraph::Function>& func);
-
-inline std::string quantizationGranularityToString(const QuantizationGranularity& granularity) {
-    static std::map<QuantizationGranularity, std::string> names = {
-        {Pertensor, "Pertensor"},
-        {Perchannel, "Perchannel"},
-    };
-
-    auto i = names.find(granularity);
-    if (i != names.end())
-        return i->second;
-    else
-        throw std::runtime_error("Unsupported QuantizationGranularity type");
-}
-
-inline std::ostream& operator<<(std::ostream& out, const QuantizationGranularity& granularity) {
-    return out << quantizationGranularityToString(granularity);
-}
 
 ngraph::OutputVector convert2OutputVector(const std::vector<std::shared_ptr<ngraph::Node>>& nodes);
 
@@ -146,8 +118,6 @@ std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>
                                                  const element::Type_t& fromPrecision,
                                                  const element::Type_t& toPrecision,
                                                  const size_t elementsCount);
-
-std::ostream& operator<<(std::ostream& os, MemoryTransformation type);
 
 // todo: remove the following function from the source code after cleaning up VPU repo
 void resize_function(std::shared_ptr<ov::Model> function, const std::vector<ov::Shape>& targetInputStaticShapes);

@@ -538,26 +538,6 @@ std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>
     }
 }
 
-std::ostream& operator<<(std::ostream& os, MemoryTransformation type) {
-    switch (type) {
-    case MemoryTransformation::NONE:
-        os << "NONE";
-        break;
-    case MemoryTransformation::LOW_LATENCY_V2:
-        os << "LOW_LATENCY_V2";
-        break;
-    case MemoryTransformation::LOW_LATENCY_V2_REGULAR_API:
-        os << "LOW_LATENCY_V2_REGULAR_API";
-        break;
-    case MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT:
-        os << "LOW_LATENCY_V2_ORIGINAL_INIT";
-        break;
-    default:
-        throw std::runtime_error("NOT_SUPPORTED_TYPE");
-    }
-    return os;
-}
-
 void resize_function(std::shared_ptr<ov::Model> function, const std::vector<ov::Shape>& targetInputStaticShapes) {
     auto inputs = function->inputs();
     std::map<ov::Output<ov::Node>, ov::PartialShape> shapes;
