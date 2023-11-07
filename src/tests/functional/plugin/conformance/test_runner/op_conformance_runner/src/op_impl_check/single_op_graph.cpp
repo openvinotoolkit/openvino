@@ -1277,6 +1277,15 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v13::BitwiseNo
     return std::make_shared<ov::Model>(results, ov::ParameterVector{param}, "BitwiseNotGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v13::FakeConvert>& node) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 3, 8, 6});
+    const auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{});
+    const auto shift = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{});
+    const auto op = std::make_shared<ov::op::v13::FakeConvert>(data, scale, shift, "F8E5M2", false);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(op)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{data, scale, shift}, "FakeConvert");
+}
+
 std::shared_ptr<ov::Model> generateArithmeticReductionKeepDims(const std::shared_ptr<ov::op::Op> &node) {
     const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{3, 3});
     const auto axes = ov::op::v0::Constant::create(ov::element::i32, {1}, {1});
