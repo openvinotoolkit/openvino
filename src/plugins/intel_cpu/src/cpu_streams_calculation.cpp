@@ -12,7 +12,6 @@
 
 #include "cpu_map_scheduling.hpp"
 #include "graph.h"
-// #include "ie_system_conf.h"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "performance_heuristics.hpp"

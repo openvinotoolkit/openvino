@@ -9,6 +9,7 @@
 #include "itt.h"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
+
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
@@ -253,7 +254,6 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
                                ov::hint::num_requests.name(),
                                ". Expected only positive integer numbers");
             }
-
             if (val > 0)
                 streams_info.num_streams = std::min(streams_info.num_streams, val);
         } else if (engConfig.hintNumRequests > 0) {  // set thru SetConfig to the plugin, 2nd priority
@@ -262,6 +262,7 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
         return std::pair<std::string, StreamCfg>(std::to_string(streams_info.num_streams), streams_info);
     };
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto getPerfHintName = [&]() {
         const bool streamsExplicitlySetForModel = streamsSet(config);
         // checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via
@@ -310,6 +311,7 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
             std::to_string(tput_hints.second.threads_per_stream_small);
         config[ov::internal::small_core_offset.name()] = std::to_string(tput_hints.second.small_core_offset);
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void Engine::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const{

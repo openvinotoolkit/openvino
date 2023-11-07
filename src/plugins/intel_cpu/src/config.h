@@ -8,6 +8,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "openvino/util/common_util.hpp"
+
 #include "utils/debug_caps_config.h"
 
 #include <bitset>

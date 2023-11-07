@@ -361,6 +361,7 @@ void Config::updateProperties() {
     if (!_config.empty())
         return;
 
+    using namespace InferenceEngine;
     switch (streamExecutorConfig._threadBindingType) {
     case IStreamsExecutor::ThreadBindingType::NONE:
         _config.insert({ov::internal::cpu_bind_thread.name(), "NO"});

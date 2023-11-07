@@ -1,23 +1,22 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "ie_metric_helpers.hpp"  // must be included first
 
 #include "compiled_model.h"
-
 #include "async_infer_request.h"
 #include "infer_request.h"
 #include "itt.h"
 #include "low_precision/low_precision.hpp"
 #include "memory_state.h"
 #include "nodes/memory.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "serialize.h"
 #include "threading/ie_executor_manager.hpp"
 #include "transformations/transformation_pipeline.h"
 #define FIX_62820 0
-#if FIX_62820 && ((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO))
+#if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
 #    include <threading/ie_tbb_streams_executor.hpp>
 #endif
 
@@ -73,14 +72,14 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 : IStreamsExecutor::Config::make_default_multi_threaded(m_cfg.streamExecutorConfig, isFloatModel);
         streamsExecutorConfig._name = "CPUStreamsExecutor";
         m_cfg.streamExecutorConfig._threads = streamsExecutorConfig._threads;
-#if FIX_62820 && (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         m_task_executor = std::make_shared<TBBStreamsExecutor>(streamsExecutorConfig);
 #else
         m_task_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig);
 #endif
     }
     if (0 != cfg.streamExecutorConfig._streams) {
-#if FIX_62820 && (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         // There is no additional threads but we still need serialize callback execution to preserve legacy behaviour
         m_callback_executor = std::make_shared<ImmediateSerialExecutor>();
 #else
@@ -208,28 +207,26 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
 ov::Any CompiledModel::get_metric_legacy(const std::string& name, const GraphGuard& graph) const {
     OPENVINO_SUPPRESS_DEPRECATED_START
     if (name == METRIC_KEY(NETWORK_NAME)) {
-        auto name = graph.dump()->get_friendly_name();
-        return decltype(ov::model_name)::value_type(name);
+        IE_SET_METRIC_RETURN(NETWORK_NAME, graph.dump()->get_friendly_name());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
         metrics.push_back(METRIC_KEY(NETWORK_NAME));
         metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
         metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
         metrics.push_back(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS));
-        return metrics;
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
         for (auto&& key : graph.getConfig()._config) {
             configKeys.push_back(key.first);
         }
-        return configKeys;
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         Config engConfig = graph.getConfig();
         auto option = engConfig._config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
         IE_ASSERT(option != engConfig._config.end());
         auto streams = std::stoi(option->second);
-        auto ret = static_cast<unsigned int>(streams ? streams : 1);
-        return decltype(ov::optimal_number_of_infer_requests)::value_type(ret);
+        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(streams ? streams : 1));
     } else {
         OPENVINO_THROW("Unsupported property: ", name);
     }
