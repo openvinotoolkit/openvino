@@ -19,7 +19,7 @@ op::v13::FakeConvert::FakeConvert(const ov::Output<ov::Node>& arg,
     constructor_validate_and_infer_types();
 }
 
-const std::vector<std::string> op::v13::FakeConvert::m_valid_types({"HF8", "BF8"});
+const std::vector<std::string> op::v13::FakeConvert::m_valid_types({"F8E4M3", "F8E5M2"});
 
 void op::v13::FakeConvert::validate_and_infer_types() {
     OV_OP_SCOPE(v13_FakeConvert_validate_and_infer_types);

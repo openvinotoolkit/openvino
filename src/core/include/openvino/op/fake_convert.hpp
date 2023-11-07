@@ -28,7 +28,7 @@ namespace v13 {
 
     private:
         void validate() const;
-        std::string m_destination_type = "HF8";
+        std::string m_destination_type = "F8E4M3";
         bool m_apply_scale = false;
         static const std::vector<std::string> m_valid_types;
     };
