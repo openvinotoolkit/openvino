@@ -8,8 +8,6 @@
 #include "itt.hpp"
 #include "openvino/reference/log.hpp"
 
-using namespace ngraph;
-
 namespace ov {
 namespace op {
 namespace log {
