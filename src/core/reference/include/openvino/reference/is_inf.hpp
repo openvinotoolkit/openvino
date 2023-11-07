@@ -4,8 +4,11 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
+
+#include "openvino/op/is_inf.hpp"
 
 namespace ov {
 namespace reference {

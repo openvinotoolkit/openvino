@@ -6,72 +6,15 @@
 
 #include <cstring>
 #include <limits>
-#include <openvino/op/util/variable_context.hpp>
 
 #include "evaluates_map.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/shape_util.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/op/util/variable_context.hpp"
 #include "perf_counter.hpp"
-#include "tensor_conversion_util.hpp"
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace {
-
-class DynamicTensor : public ngraph::runtime::HostTensor {
-private:
-    ov::Tensor tensor;
-
-public:
-    DynamicTensor(const ov::element::Type& type) : ngraph::runtime::HostTensor(type, ov::PartialShape::dynamic()) {}
-
-    ov::Tensor get_tensor() {
-        return tensor;
-    }
-
-protected:
-    void allocate_buffer() override {
-        OPENVINO_ASSERT(get_partial_shape().is_static(),
-                        "Attempt to allocate buffer for tensor with partial shape: ",
-                        get_partial_shape());
-        OPENVINO_ASSERT(get_element_type().is_static(),
-                        "Attempt to allocate buffer for tensor with dynamic type: ",
-                        get_element_type());
-        m_buffer_size = m_descriptor->size();
-        tensor = ov::Tensor(get_element_type(), get_partial_shape().get_shape());
-        m_memory_pointer = tensor.data();
-        m_aligned_buffer_pool = m_memory_pointer;
-    }
-};
-
-inline ngraph::HostTensorPtr make_tmp_host_tensor(const ov::Tensor& t) {
-    if (!t) {
-        return std::make_shared<DynamicTensor>(ov::element::dynamic);
-    } else if (t.get_shape() == ov::Shape{0, std::numeric_limits<size_t>::max()}) {
-        return std::make_shared<DynamicTensor>(t.get_element_type());
-    } else {
-        return std::make_shared<ngraph::runtime::HostTensor>(t.get_element_type(), t.get_shape(), t.data());
-    }
-}
-inline ngraph::HostTensorVector create_tmp_tensors(const ov::TensorVector& tensors) {
-    ngraph::HostTensorVector result;
-    result.reserve(tensors.size());
-    for (const auto& tensor : tensors) {
-        result.push_back(make_tmp_host_tensor(tensor));
-    }
-    return result;
-}
-
-inline void update_output_tensors(ov::TensorVector& output_values, const ngraph::HostTensorVector& outputs) {
-    OPENVINO_ASSERT(output_values.size() == outputs.size());
-    for (size_t i = 0; i < outputs.size(); i++) {
-        if (auto dyn_output = std::dynamic_pointer_cast<DynamicTensor>(outputs[i])) {
-            output_values[i] = dyn_output->get_tensor();
-        }
-    }
-}
-}  // namespace
 
 class TemporaryOverrideOutputs {
     std::shared_ptr<ov::Model> model;
@@ -184,10 +127,11 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
             auto it = tensor_map.find(tensor);
             auto output = op->output(i);
             if (op::util::is_output(op) || it == tensor_map.end() || !it->second) {
-                host_tensor = ov::Tensor(output.get_element_type(),
-                                         output.get_partial_shape().is_dynamic()
-                                             ? ov::Shape{0, std::numeric_limits<size_t>::max()}
-                                             : output.get_shape());
+                OPENVINO_SUPPRESS_DEPRECATED_START
+                host_tensor = ov::Tensor(
+                    output.get_element_type(),
+                    output.get_partial_shape().is_dynamic() ? ov::util::make_dynamic_shape() : output.get_shape());
+                OPENVINO_SUPPRESS_DEPRECATED_END
             } else {
                 host_tensor = it->second;
             }
@@ -268,17 +212,14 @@ std::vector<ov::Tensor> ov::runtime::interpreter::INTExecutable::create_output_t
 bool ov::runtime::interpreter::INTExecutable::evaluate_node(const std::shared_ptr<Node>& node,
                                                             ov::TensorVector& outputs,
                                                             const ov::TensorVector& inputs) const {
-    auto& map = ngraph::runtime::interpreter::get_evaluators_map();
+    auto& map = ov::runtime::interpreter::get_evaluators_map();
     auto it = map.find(node->get_type_info());
     bool res = false;
-    const auto tensor_inputs = create_tmp_tensors(inputs);
-    auto tensor_outputs = create_tmp_tensors(outputs);
     OPENVINO_ASSERT(it != map.end(),
                     "Interpreter backend doesn't implement evaluate method for OP ",
                     node->get_type_info().name);
-    res = it->second(node, tensor_outputs, tensor_inputs);
+    res = it->second(node, outputs, inputs);
     OPENVINO_ASSERT(res, "Running evaluate method for OP ", node->get_type_info().name, " failed!");
-    update_output_tensors(outputs, tensor_outputs);
     return res;
 }
 

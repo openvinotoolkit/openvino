@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include "shared_test_classes/subgraph/split_concat_memory.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "shared_test_classes/subgraph/split_concat_memory.hpp"
 
 namespace ov {
 namespace test {
-namespace subgraph {
 
 TEST_P(SplitConcatMemory, cyclicBufferCorrectness) {
     /*
@@ -28,7 +27,7 @@ TEST_P(SplitConcatMemory, cyclicBufferCorrectness) {
     auto o_tensor = inferRequest.get_tensor(*function->outputs().begin());
     auto output_tensor_ref = ov::Tensor(o_tensor.get_element_type(), o_tensor.get_shape());
 
-    auto fill_by_quarter = [this] (ov::Tensor& tensor, std::vector<float> vals) {
+    auto fill_by_quarter = [this](ov::Tensor& tensor, std::vector<float> vals) {
         OPENVINO_ASSERT(vals.size() == 4);
         auto quarter_blocked_shape = tensor.get_shape();
 
@@ -38,7 +37,7 @@ TEST_P(SplitConcatMemory, cyclicBufferCorrectness) {
         quarter_blocked_shape.insert(quarter_blocked_shape.begin() + axis, vals.size());
 
         OPENVINO_ASSERT(ov::shape_size(quarter_blocked_shape) == tensor.get_size());
-        auto quarter_blocked_view =  ov::Tensor(tensor.get_element_type(), quarter_blocked_shape, tensor.data());
+        auto quarter_blocked_view = ov::Tensor(tensor.get_element_type(), quarter_blocked_shape, tensor.data());
 
         ov::test::utils::fill_data_with_broadcast(quarter_blocked_view, axis, vals);
     };
@@ -63,7 +62,6 @@ TEST_P(SplitConcatMemory, cyclicBufferCorrectness) {
     compare({output_tensor_ref}, {o_tensor});
 }
 
-}  // namespace subgraph
 }  // namespace test
 }  // namespace ov
 

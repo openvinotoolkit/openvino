@@ -21,7 +21,6 @@ TEST_P(ReadIRTest, Inference) {
     run();
 }
 
-// temporarty disable to provide correct numbers for release
 TEST_P(ReadIRTest, QueryModel) {
     query_model();
 }
@@ -45,8 +44,8 @@ TEST_P(ReadIRTest, ImportExport) {
 INSTANTIATE_TEST_SUITE_P(conformance_subgraph,
                         ReadIRTest,
                         ::testing::Combine(::testing::ValuesIn(getModelPaths(IRFolderPaths)),
-                                        ::testing::Values(targetDevice),
-                                        ::testing::Values(pluginConfig)),
+                                           ::testing::Values(targetDevice),
+                                           ::testing::Values(pluginConfig)),
                         ReadIRTest::getTestCaseName);
 
 }  // namespace

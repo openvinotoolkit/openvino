@@ -7,13 +7,13 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "gtest/gtest.h"
 #include "ie_common.h"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "precomp.hpp"
 
 namespace {
@@ -895,7 +895,6 @@ void check_rt_info(const std::shared_ptr<ov::Model>& f) {
 
 namespace attributes {
 namespace detail {
-OPENVINO_SUPPRESS_DEPRECATED_START
 void ReadAndStoreAttributes::on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) {
     if (auto inputs = ov::as_type<ov::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
         insert(name, inputs->get());
@@ -904,7 +903,7 @@ void ReadAndStoreAttributes::on_adapter(const std::string& name, ov::ValueAccess
     } else if (ov::is_type<ov::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
         // drop comparison, no more info than port indexes which will be check in
         // subgraph::compare_io
-    } else if (auto a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
+    } else if (auto a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
         const auto beg = static_cast<unsigned char*>(a->get()->get_ptr());
         const auto end = beg + a->get()->size();
         insert(name, storage::MemoryChunk{storage::MemoryChunk::Data(beg, end)});
@@ -923,7 +922,6 @@ void ReadAndStoreAttributes::on_adapter(const std::string& name, ov::ValueAccess
                          adapter.get_type_info().name + "']";
     }
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 template <typename AttrValue>
 void ReadAndCompareAttributes::verify(const std::string& name, const AttrValue& attr_value) {
     if (should_return()) {
@@ -942,9 +940,8 @@ void ReadAndCompareAttributes::verify(const std::string& name, const AttrValue& 
     }
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 void ReadAndCompareAttributes::verify_mem_buf(const std::string& name,
-                                              const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer) {
+                                              const std::shared_ptr<ov::AlignedBuffer>& buffer) {
     if (should_return()) {
         return;
     }
@@ -961,7 +958,6 @@ void ReadAndCompareAttributes::verify_mem_buf(const std::string& name,
         return;
     }
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 void ReadAndCompareAttributes::verify_function(const std::string& name, ModelAccessor& adapter) {
     if (should_return()) {
@@ -980,7 +976,6 @@ void ReadAndCompareAttributes::verify_function(const std::string& name, ModelAcc
     }
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 void ReadAndCompareAttributes::verify_others(const std::string& name, ov::ValueAccessor<void>& adapter) {
     if (auto inputs = ov::as_type<ov::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
         verify(name, inputs->get());
@@ -989,7 +984,7 @@ void ReadAndCompareAttributes::verify_others(const std::string& name, ov::ValueA
     } else if (ov::is_type<ov::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
         // drop comparison, no more info than port indexes which will be check in
         // subgraph::compare_io
-    } else if (auto a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
+    } else if (auto a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
         verify_mem_buf(name, a->get());
     } else if (auto attrs = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
         verify(name, attrs->get());
@@ -1005,7 +1000,6 @@ void ReadAndCompareAttributes::verify_others(const std::string& name, ov::ValueA
                         adapter.get_type_info().name + "']";
     }
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace detail
 
@@ -1042,7 +1036,6 @@ AccuracyCheckResult accuracy_check(const std::shared_ptr<ov::Model>& ref_functio
 
         auto ref_outputs = ngraph::helpers::interpretFunction(ref_function, ref_input_data);
         auto outputs = ngraph::helpers::interpretFunction(cur_function, cur_input_data);
-
         IE_ASSERT(ref_outputs.size() == outputs.size());
 
         for (int i = 0; i < ref_outputs.size(); i++) {

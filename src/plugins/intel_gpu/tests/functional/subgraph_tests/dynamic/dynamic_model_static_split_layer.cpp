@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_layer/split.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
@@ -79,10 +79,8 @@ protected:
         const auto inShapSplit = inputDynamicShapes[0];
         const auto inShapeElt = inputDynamicShapes[1];
         ov::ParameterVector params;
-        for (auto&& shape : {inShapSplit, inShapeElt}) {
+        for (auto&& shape : {inShapSplit, inShapeElt})
             params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
-        }
-        auto paramOuts = helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
 
         auto axis = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
         axis->set_friendly_name("axis");
@@ -90,10 +88,10 @@ protected:
         auto split_sizes = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 1});
         split_sizes->set_friendly_name("split_sizes");
 
-        auto variadicSplitOp = std::make_shared<ngraph::opset1::VariadicSplit>(paramOuts[0], axis, split_sizes);
+        auto variadicSplitOp = std::make_shared<ngraph::opset1::VariadicSplit>(params[0], axis, split_sizes);
         variadicSplitOp->set_friendly_name("variadicSplit");
 
-        auto addOp = ngraph::builder::makeEltwise(paramOuts[1], variadicSplitOp->output(1), ngraph::helpers::EltwiseTypes::ADD);
+        auto addOp = ngraph::builder::makeEltwise(params[1], variadicSplitOp->output(1), ngraph::helpers::EltwiseTypes::ADD);
         addOp->set_friendly_name("add");
 
         ngraph::ResultVector results = {std::make_shared<ngraph::opset1::Result>(addOp)};

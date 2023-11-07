@@ -65,6 +65,7 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/op_conversions/batch_norm_decomposition.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
+#include "transformations/op_conversions/convert_bitwise_to_logical_bool.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
 #include "transformations/op_conversions/convert_convertlike.hpp"
 #include "transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp"
@@ -97,7 +98,6 @@
 #include "transformations/op_conversions/detection_output_upgrade.hpp"
 #include "transformations/op_conversions/einsum_decomposition.hpp"
 #include "transformations/op_conversions/eye_decomposition.hpp"
-#include "transformations/op_conversions/gather_normalize_negative_indices.hpp"
 #include "transformations/op_conversions/gelu7_downgrade.hpp"
 #include "transformations/op_conversions/group_normalization_decomposition.hpp"
 #include "transformations/op_conversions/hsigmoid_decomposition.hpp"
@@ -111,6 +111,7 @@
 #include "transformations/op_conversions/softmax_decomposition.hpp"
 #include "transformations/op_conversions/softsign_decomposition.hpp"
 #include "transformations/op_conversions/unique_decomposition.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(CommonOptimizations);
@@ -169,7 +170,6 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(decomp, EinsumDecomposition)
     decomp->add_matcher<SoftmaxDecomposition, false>();
     ADD_MATCHER(decomp, SoftSignDecomposition)
-    ADD_MATCHER(decomp, GatherNegativeConstIndicesNormalize)
     ADD_MATCHER(decomp, DropoutWithRandomUniformReplacer)
     ADD_MATCHER(decomp, TransposeReshapeEliminationForMatmul)
     ADD_MATCHER(decomp, EyeDecomposition)
@@ -227,10 +227,16 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(fq_fusions, MulFakeQuantizeFusion)
     fq_fusions->set_name("ov::pass::FakeQuantizeFusions");
 
+    // Temporary transformation to allow for PyTorch frontend to
+    // partially support bitwise operators with boolean inputs for plugins
+    // that didn't enabled BitwiseOps from opset13
+    REGISTER_PASS(manager, ConvertBitwiseToLogical)
+
     // StridesOptimization should be at the very end
     // because we cannot insert any MaxPools since they may prevent
     // other optimizations
-    manager.register_pass<StridesOptimization>();
+    REGISTER_PASS(manager, StridesOptimization)
+    REGISTER_PASS(manager, SymbolicOptimizations)
     REGISTER_PASS(manager, Validate)
     manager.run_passes(f);
 

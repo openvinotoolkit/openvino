@@ -7,7 +7,7 @@
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "jit_generator.hpp"
 
-using namespace ngraph::runtime;
+using namespace ov::runtime;
 #endif
 
 namespace ov {

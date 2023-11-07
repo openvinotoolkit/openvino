@@ -5,7 +5,7 @@
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 

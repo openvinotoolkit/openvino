@@ -10,11 +10,14 @@
 
 #include "cnn_network_ngraph_impl.hpp"
 #include "common_test_utils/graph_comparator.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "ie_common.h"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -26,7 +29,7 @@ using namespace testing;
 
 namespace {
 
-using reshape_map = std::map<std::string, std::vector<size_t>>;
+using reshape_map = std::map<std::string, ov::PartialShape>;
 
 struct ReshapeMatMulTestCase {
     bool reshape_is_A_input;
@@ -75,8 +78,10 @@ public:
         {
             auto input_A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, test_case.A_shape);
             input_A->set_friendly_name("input_A");
+            input_A->output(0).set_names({"input_A"});
             auto input_B = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, test_case.B_shape);
             input_B->set_friendly_name("input_B");
+            input_B->output(0).set_names({"input_B"});
 
             auto reshape_pattern = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                                           ov::Shape{test_case.reshape_pattern.size()},
@@ -99,15 +104,13 @@ public:
             ov::ResultVector results = {result};
             model = std::make_shared<ov::Model>(results, params);
         }
-
-        InferenceEngine::details::CNNNetworkNGraphImpl network(model);
-        const auto& resp = network.reshape(test_case.new_shapes, nullptr);
-        ASSERT_EQ(resp, InferenceEngine::StatusCode::OK);
+        ASSERT_NO_THROW(model->reshape(test_case.new_shapes));
     }
 };
 
 TEST_P(SmartReshapeMatMulTests, ReshapeMatMul) {}
 
+// clang-format off
 INSTANTIATE_TEST_SUITE_P(
     OVModel,
     SmartReshapeMatMulTests,
@@ -116,11 +119,14 @@ INSTANTIATE_TEST_SUITE_P(
         ReshapeMatMulTestCase{true, {1, 20, 30}, {40, 30}, {20, -1}, false, true, {{"input_A", {2, 20, 30}}}},
         ReshapeMatMulTestCase{true, {1, 30, 20}, {30, 20}, {-1, 20}, true, false, {{"input_A", {2, 30, 20}}}},
         ReshapeMatMulTestCase{true, {1, 30, 20}, {40, 30}, {-1, 20}, true, true, {{"input_A", {2, 30, 20}}}},
+        ReshapeMatMulTestCase{true, {-1, 30, 40}, {-1, 1, 1200}, {1200, 1200}, false, true, {{"input_A", {1200, 30, 40}}}},
         ReshapeMatMulTestCase{false, {20, 30}, {1, 30, 40}, {-1, 40}, false, false, {{"input_B", {2, 30, 40}}}},
         ReshapeMatMulTestCase{false, {20, 30}, {1, 40, 30}, {40, -1}, false, true, {{"input_B", {2, 40, 30}}}},
         ReshapeMatMulTestCase{false, {30, 20}, {1, 30, 40}, {-1, 40}, true, false, {{"input_B", {2, 30, 40}}}},
-        ReshapeMatMulTestCase{false, {30, 20}, {1, 40, 30}, {40, -1}, true, true, {{"input_B", {2, 40, 30}}}}),
+        ReshapeMatMulTestCase{false, {30, 20}, {1, 40, 30}, {40, -1}, true, true, {{"input_B", {2, 40, 30}}}},
+        ReshapeMatMulTestCase{false, {-1, 1, 1200}, {-1, 30, 40}, {1200, 1200}, false, false, {{"input_B", {1200, 30, 40}}}}),
     SmartReshapeMatMulTests::getTestCaseName);
+// clang-format on
 }  // namespace
 
 TEST(SmartReshapeTransposeMatMulTests, TransposeAMatMulFuse) {
@@ -353,4 +359,36 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeBothMatMulWithAttrFuse) {
 
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST_F(TransformationTestsF, SmartReshapeReshapeAMatMulSeveralConsumers) {
+    // Reshape has 2 consumers: matmul and reduce.
+    // Since reshape movement leads to loop creation (circular dependencies), the transformation can't be applied
+    auto data_A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 2, 3});
+    auto reshape_const = ov::op::v0::Constant::create(ov::element::i32, {2}, {3, 6});
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(data_A, reshape_const, false);
+
+    auto data_B = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{6, 12});
+    auto reduction_axes = ov::op::v0::Constant::create(ov::element::i32, {2}, {0, 1});
+    auto reduce = std::make_shared<ov::op::v1::ReduceMax>(reshape, reduction_axes);
+    auto sum = std::make_shared<ov::op::v1::Add>(data_B, reduce);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(reshape, sum);
+    model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{data_A, data_B});
+    manager.register_pass<ov::pass::ReshapeAMatMul>();
+}
+
+TEST_F(TransformationTestsF, SmartReshapeReshapeBMatMulSeveralConsumers) {
+    // Reshape has 2 consumers: matmul and reduce.
+    // Since reshape movement leads to loop creation (circular dependencies), the transformation can't be applied
+    auto data_B = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 2, 3});
+    auto reshape_const = ov::op::v0::Constant::create(ov::element::i32, {2}, {6, 3});
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(data_B, reshape_const, false);
+
+    auto data_A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{12, 6});
+    auto reduction_axes = ov::op::v0::Constant::create(ov::element::i32, {2}, {0, 1});
+    auto reduce = std::make_shared<ov::op::v1::ReduceMax>(reshape, reduction_axes);
+    auto sum = std::make_shared<ov::op::v1::Add>(data_A, reduce);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(sum, reshape);
+    model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{data_A, data_B});
+    manager.register_pass<ov::pass::ReshapeBMatMul>();
 }

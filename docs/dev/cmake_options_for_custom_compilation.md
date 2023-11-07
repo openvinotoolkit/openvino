@@ -114,6 +114,9 @@ This document provides description and default values for CMake options that can
     * `OFF` is default, because it increases binary size.
 * `SELECTIVE_BUILD` enables [[Conditional compilation|ConditionalCompilation]] feature.
     * `OFF` is default.
+* `ENABLE_MLAS_FOR_CPU` enables MLAS library for CPU plugin
+    * `ON` is default for x86_64 and AARCH64 platforms
+    * Affects only OpenVINO CPU plugin
 
 ## Building with OpenCV
 
@@ -154,8 +157,6 @@ In this case OpenVINO CMake scripts take `TBBROOT` environment variable into acc
 * `ENABLE_CLANG_FORMAT` enables [Clang format] code style check:
     * `ON` is default.
     * Used only for ngraph component.
-* `TREAT_WARNING_AS_ERROR` treats all warnings as an error:
-    * `OFF` is default.
 * `ENABLE_FASTER_BUILD` enables [precompiled headers] and [unity build] using CMake:
     * `OFF` is default.
 * `ENABLE_INTEGRITYCHECK` builds DLLs with [/INTEGRITYCHECK] flag:

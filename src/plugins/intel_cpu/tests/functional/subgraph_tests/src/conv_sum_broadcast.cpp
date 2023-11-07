@@ -6,8 +6,8 @@
 #include "test_utils/fusing_test_utils.hpp"
 #include "test_utils/convolution_params.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 using namespace CPUTestUtils;

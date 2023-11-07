@@ -28,7 +28,7 @@ add_library(${TARGET_NAME}_obj OBJECT EXCLUDE_FROM_ALL
             ${LIBRARY_SRC}
             ${PUBLIC_HEADERS})
 
-ie_faster_build(${TARGET_NAME}_obj
+ov_build_target_faster(${TARGET_NAME}_obj
     PCH PRIVATE "src/precomp.hpp")
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE
@@ -43,7 +43,7 @@ target_compile_definitions(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:ngraph,I
 
 target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt)
 
-add_clang_format_target(${TARGET_NAME}_obj_clang FOR_TARGETS ${TARGET_NAME}_obj)
+ov_add_clang_format_target(${TARGET_NAME}_obj_clang FOR_TARGETS ${TARGET_NAME}_obj)
 
 # Create static library
 

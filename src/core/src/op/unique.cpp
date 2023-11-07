@@ -6,7 +6,7 @@
 
 #include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/unique.hpp"
 #include "openvino/op/util/op_types.hpp"
 
@@ -142,7 +142,7 @@ void op::v10::Unique::validate_and_infer_types() {
 
             if (input_shape.rank().is_static()) {
                 OPENVINO_SUPPRESS_DEPRECATED_START
-                const auto normalized_axis = ngraph::normalize_axis(this, axis, input_shape.rank());
+                const auto normalized_axis = ov::normalize_axis(this, axis, input_shape.rank());
                 OPENVINO_SUPPRESS_DEPRECATED_END
                 const auto dim_at_axis = input_shape[normalized_axis];
 

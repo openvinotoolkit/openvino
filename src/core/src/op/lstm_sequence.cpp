@@ -2,21 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/lstm_sequence.hpp"
+#include "openvino/op/lstm_sequence.hpp"
 
 #include "itt.hpp"
 #include "lstm_sequence_shape_inference.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/builder/autobroadcast.hpp"
-#include "ngraph/builder/reshape.hpp"
-#include "ngraph/builder/split.hpp"
-#include "ngraph/op/util/recurrent_sequence.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset4.hpp"
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/op/util/recurrent_sequence.hpp"
 
-using namespace ngraph;
-using namespace std;
-
+namespace ov {
 op::v0::LSTMSequence::LSTMSequence(const Output<Node>& X,
                                    const Output<Node>& initial_hidden_state,
                                    const Output<Node>& initial_cell_state,
@@ -95,42 +88,42 @@ bool op::v0::LSTMSequence::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-shared_ptr<Node> op::v0::LSTMSequence::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v0::LSTMSequence::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_LSTMSequence_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 8) {
-        return make_shared<op::v0::LSTMSequence>(new_args.at(0),  // X
-                                                 new_args.at(1),  // initial_hidden_state
-                                                 new_args.at(2),  // initial_cell_state
-                                                 new_args.at(3),  // sequence_lengths
-                                                 new_args.at(4),  // W
-                                                 new_args.at(5),  // R
-                                                 new_args.at(6),  // B
-                                                 new_args.at(7),  // P
-                                                 m_hidden_size,
-                                                 m_direction,
-                                                 m_weights_format,
-                                                 m_activations_alpha,
-                                                 m_activations_beta,
-                                                 m_activations,
-                                                 m_clip,
-                                                 m_input_forget);
+        return std::make_shared<op::v0::LSTMSequence>(new_args.at(0),  // X
+                                                      new_args.at(1),  // initial_hidden_state
+                                                      new_args.at(2),  // initial_cell_state
+                                                      new_args.at(3),  // sequence_lengths
+                                                      new_args.at(4),  // W
+                                                      new_args.at(5),  // R
+                                                      new_args.at(6),  // B
+                                                      new_args.at(7),  // P
+                                                      m_hidden_size,
+                                                      m_direction,
+                                                      m_weights_format,
+                                                      m_activations_alpha,
+                                                      m_activations_beta,
+                                                      m_activations,
+                                                      m_clip,
+                                                      m_input_forget);
     } else if (new_args.size() == 7) {
-        return make_shared<op::v0::LSTMSequence>(new_args.at(0),  // X
-                                                 new_args.at(1),  // initial_hidden_state
-                                                 new_args.at(2),  // initial_cell_state
-                                                 new_args.at(3),  // sequence_lengths
-                                                 new_args.at(4),  // W
-                                                 new_args.at(5),  // R
-                                                 new_args.at(6),  // B
-                                                 m_hidden_size,
-                                                 m_direction,
-                                                 m_weights_format,
-                                                 m_activations_alpha,
-                                                 m_activations_beta,
-                                                 m_activations,
-                                                 m_clip,
-                                                 m_input_forget);
+        return std::make_shared<op::v0::LSTMSequence>(new_args.at(0),  // X
+                                                      new_args.at(1),  // initial_hidden_state
+                                                      new_args.at(2),  // initial_cell_state
+                                                      new_args.at(3),  // sequence_lengths
+                                                      new_args.at(4),  // W
+                                                      new_args.at(5),  // R
+                                                      new_args.at(6),  // B
+                                                      m_hidden_size,
+                                                      m_direction,
+                                                      m_weights_format,
+                                                      m_activations_alpha,
+                                                      m_activations_beta,
+                                                      m_activations,
+                                                      m_clip,
+                                                      m_input_forget);
     } else {
         OPENVINO_THROW("Incorrect number of new arguments");
     }
@@ -166,29 +159,29 @@ void op::v0::LSTMSequence::validate_and_infer_types() {
     set_output_type(2, result_et, output_shapes[2]);
 }
 
-bool ngraph::op::v5::LSTMSequence::visit_attributes(AttributeVisitor& visitor) {
+bool op::v5::LSTMSequence::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v5_LSTMSequence_visit_attributes);
     visitor.on_attribute("direction", m_direction);
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
-shared_ptr<Node> op::v5::LSTMSequence::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v5::LSTMSequence::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v5_LSTMSequence_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 7) {
-        return make_shared<op::v5::LSTMSequence>(new_args.at(0),  // X
-                                                 new_args.at(1),  // initial_hidden_state
-                                                 new_args.at(2),  // initial_cell_state
-                                                 new_args.at(3),  // sequence_lengths
-                                                 new_args.at(4),  // W
-                                                 new_args.at(5),  // R
-                                                 new_args.at(6),  // B
-                                                 m_hidden_size,
-                                                 m_direction,
-                                                 m_activations_alpha,
-                                                 m_activations_beta,
-                                                 m_activations,
-                                                 m_clip);
+        return std::make_shared<op::v5::LSTMSequence>(new_args.at(0),  // X
+                                                      new_args.at(1),  // initial_hidden_state
+                                                      new_args.at(2),  // initial_cell_state
+                                                      new_args.at(3),  // sequence_lengths
+                                                      new_args.at(4),  // W
+                                                      new_args.at(5),  // R
+                                                      new_args.at(6),  // B
+                                                      m_hidden_size,
+                                                      m_direction,
+                                                      m_activations_alpha,
+                                                      m_activations_beta,
+                                                      m_activations,
+                                                      m_clip);
     } else {
         OPENVINO_THROW("Incorrect number of new arguments");
     }
@@ -224,3 +217,4 @@ void op::v5::LSTMSequence::validate_and_infer_types() {
     set_output_type(1, result_et, output_shapes[1]);
     set_output_type(2, result_et, output_shapes[2]);
 }
+}  // namespace ov

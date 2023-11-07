@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/dft.hpp"
+
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/dft.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -16,13 +17,13 @@ namespace {
 struct DFTParams {
     template <class T>
     DFTParams(const Shape& input_shape,
-                 const Shape& expected_shape,
-                 const element::Type_t& input_type,
-                 const element::Type_t& expected_type,
-                 const std::vector<T>& input_value,
-                 const std::vector<T>& expected_value,
-                 const std::shared_ptr<op::v0::Constant>& axes,
-                 const std::shared_ptr<op::v0::Constant>& signal) {
+              const Shape& expected_shape,
+              const element::Type_t& input_type,
+              const element::Type_t& expected_type,
+              const std::vector<T>& input_value,
+              const std::vector<T>& expected_value,
+              const std::shared_ptr<op::v0::Constant>& axes,
+              const std::shared_ptr<op::v0::Constant>& signal) {
         m_input_shape = input_shape;
         m_expected_shape = expected_shape;
         m_input_type = input_type;
@@ -1118,7 +1119,7 @@ static const std::vector<float> expected_dft3d_signal_size_results = {
     1.1392056,    -4.696983,   0.45275614,   1.9134089,  -3.8572056,   -2.009159,   1.6307822,   -0.9646755,
     -1.2407924,   2.6003554};
 
-template<class T>
+template <class T>
 static std::vector<T> convert(const std::vector<float>& v) {
     if (v.empty()) {
         return std::vector<T>();
@@ -1402,10 +1403,9 @@ std::vector<DFTParams> generateCombinedParamsForDFT() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_DFT_With_Hardcoded_Refs,
-    ReferenceDFTLayerTest,
-    ::testing::ValuesIn(generateCombinedParamsForDFT()),
-    ReferenceDFTLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DFT_With_Hardcoded_Refs,
+                         ReferenceDFTLayerTest,
+                         ::testing::ValuesIn(generateCombinedParamsForDFT()),
+                         ReferenceDFTLayerTest::getTestCaseName);
 
 }  // namespace

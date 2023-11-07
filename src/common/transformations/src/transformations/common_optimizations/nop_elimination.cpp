@@ -833,7 +833,8 @@ ov::pass::NopSliceBeforeGatherElements::NopSliceBeforeGatherElements() {
 
 ov::pass::PrepareShapeOpsForEliminationAroundBE::PrepareShapeOpsForEliminationAroundBE() {
     MATCHER_SCOPE(PrepareShapeOpsForEliminationAroundBE);
-    auto first_label = pattern::wrap_type<op::v1::Reshape, op::v0::Squeeze>(pattern::rank_equals(0));
+    auto first_label = pattern::wrap_type<op::v1::Reshape, op::v0::Squeeze, op::v1::StridedSlice, op::util::GatherBase>(
+        pattern::rank_equals(0));
     auto other_input_label = pattern::any_input(pattern::rank_equals(0));
     auto binary_op_label = pattern::wrap_type<op::util::BinaryElementwiseArithmetic,
                                               op::util::BinaryElementwiseComparison,

@@ -201,7 +201,9 @@ CPU::CPU() {
                                _cpu_mapping_table);
     }
 
-    if ((_proc_type_table.size() == 0) || (_proc_type_table[0][MAIN_CORE_PROC] == 0)) {
+    if ((_proc_type_table.size() == 0) ||
+        ((_proc_type_table[0][MAIN_CORE_PROC] == 0) && (_proc_type_table[0][ALL_PROC] > 0) &&
+         (_proc_type_table[0][ALL_PROC] != _proc_type_table[0][EFFICIENT_CORE_PROC]))) {
         if (!get_freq_info_linux()) {
             parse_freq_info_linux(system_info_table,
                                   node_info_table,
@@ -214,7 +216,9 @@ CPU::CPU() {
         }
     }
 
-    if ((_proc_type_table.size() == 0) || (_proc_type_table[0][MAIN_CORE_PROC] == 0)) {
+    if ((_proc_type_table.size() == 0) ||
+        ((_proc_type_table[0][MAIN_CORE_PROC] == 0) && (_proc_type_table[0][ALL_PROC] > 0) &&
+         (_proc_type_table[0][ALL_PROC] != _proc_type_table[0][EFFICIENT_CORE_PROC]))) {
         /*Previous CPU resource based on calculation*/
         std::ifstream cpuinfo("/proc/cpuinfo");
         std::vector<int> processors;

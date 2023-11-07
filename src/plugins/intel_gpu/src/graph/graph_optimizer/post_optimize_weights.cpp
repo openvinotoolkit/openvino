@@ -79,30 +79,19 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
 
         if (weights_reorder_params != nullptr) {
             bool can_be_fused = prev_node.is_type<reorder>() &&
+                                prev_node.as<reorder>().is_simple_reorder() &&
                                 prev_node.get_users().size() == 1 &&
-                                prev_node.get_dependencies().size() == 1 &&
-                                !prev_node.has_fused_primitives() &&
-                                !prev_node.as<reorder>().has_mean() &&
-                                prev_node.as<reorder>().get_primitive()->subtract_per_feature.empty();
-            if (impl->is_dynamic()) {
-                if (weights_reorder_params->get_output_layout().compatible(prev_node.get_output_layout())) {
-                    // if compatible, it can be reinterpreted, thus no need to reorder at build time
-                    continue;
-                }
-                // Need to restore the original shape
-                auto updated_output_layout = weights_reorder_params->get_output_layout();
-                auto orig_rank = prev_node.get_output_layout().get_partial_shape().size();
-                auto weight_format_dims = format::dimension(weights_reorder_params->get_output_layout().format);
-                updated_output_layout.set_partial_shape(
-                    updated_output_layout.get_tensor().get_partial_shape(orig_rank, weight_format_dims));
-                if (updated_output_layout != weights_reorder_params->get_output_layout())
-                    weights_reorder_params->set_output_layout(updated_output_layout);
-            }
+                                prev_node.get_dependencies().size() == 1;
             if (can_be_fused) {
                 // Need to update input data_type for correct merging format reorder with precision reorder
-                data_types input_dtype = prev_node.get_input_layouts()[0].data_type;
                 auto updated_input_layout = weights_reorder_params->get_input_layout();
+                data_types input_dtype = prev_node.get_input_layout().data_type;
                 updated_input_layout.data_type = input_dtype;
+
+                // Need to update input format in case of fusing weights constant with transpose
+                format input_fmt = prev_node.get_input_layout().format;
+                updated_input_layout.format = from_weights_layout(to_weights_layout(input_fmt, false));
+
                 weights_reorder_params->set_input_layout(updated_input_layout);
                 auto weights_reorder = _rf.get_weights_reorder(prev_node.get_primitive()->input[0].pid,
                                                                weights_reorder_params);

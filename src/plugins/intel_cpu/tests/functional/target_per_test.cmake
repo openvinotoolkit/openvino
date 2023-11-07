@@ -33,7 +33,7 @@ endif()
     set(TEST_TARGET_NAME ${TARGET_PREFIX}_${TEST_FILE_WE})
 
     # create target
-    addIeTargetTest(
+    ov_add_test_target(
       NAME ${TEST_TARGET_NAME}
       ROOT ${TEST_DIR}
       INCLUDES ${INCLUDES}
@@ -43,8 +43,7 @@ endif()
       DEPENDENCIES ${DEPENDENCIES}
       LINK_LIBRARIES ${LINK_LIBRARIES}
       ADD_CPPLINT
-      LABELS
-      CPU
+      LABELS OV CPU
     )
 
     ov_set_threading_interface_for(${TEST_TARGET_NAME})
@@ -73,7 +72,7 @@ endif()
     set(TEST_TARGET_NAME ${TARGET_PREFIX}_${TEST_CLASS})
 
     # create target
-    addIeTargetTest(
+    ov_add_test_target(
       NAME ${TEST_TARGET_NAME}
       ROOT ${TEST_DIR}
       INCLUDES ${INCLUDES}
@@ -82,8 +81,7 @@ endif()
       DEFINES ${DEFINES}
       DEPENDENCIES ${DEPENDENCIES}
       LINK_LIBRARIES ${LINK_LIBRARIES}
-      LABELS
-      CPU
+      LABELS OV CPU
     )
 
     ov_set_threading_interface_for(${TEST_TARGET_NAME})

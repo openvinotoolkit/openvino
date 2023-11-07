@@ -278,6 +278,8 @@ bool ov::batch_util::detach_detection_output(const std::shared_ptr<ov::Model>& f
     return !new_outputs.empty() || !outputs_to_delete.empty();
 }
 
+namespace {
+
 std::map<std::shared_ptr<ov::op::v0::Parameter>, ov::PartialShape> collect_original_input_shapes(
     const std::shared_ptr<ov::Model>& m) {
     const auto& parameters = m->get_parameters();
@@ -290,6 +292,8 @@ std::map<std::shared_ptr<ov::op::v0::Parameter>, ov::PartialShape> collect_origi
     }
     return parameter_to_shape;
 }
+
+}  // namespace
 
 bool ov::pass::FindBatch::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_MODEL_SCOPE(FindBatch);

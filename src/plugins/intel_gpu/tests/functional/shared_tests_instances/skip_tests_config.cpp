@@ -37,13 +37,9 @@ std::vector<std::string> disabledTestPatterns() {
 
             // Not allowed dynamic loop tests on GPU
             R"(.*smoke_StaticShapeLoop_dynamic_exit.*)",
-            // Not expected behavior
-            R"(.*Behavior.*(Multi|Auto).*InferRequestSetBlobByType.*Batched.*)",
-            R"(.*(Multi|Auto).*Behavior.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
             // TODO Issue 100145
             R"(.*Behavior.*OVInferRequestIOTensorTest.*canInferAfterIOBlobReallocation.*)",
             R"(.*Behavior.*OVInferRequestDynamicTests.*InferUpperBoundNetworkAfterIOTensorsReshaping.*)",
-            R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
             // Not implemented yet:
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
             // TODO: Issue 67408
@@ -60,16 +56,12 @@ std::vector<std::string> disabledTestPatterns() {
             R"(smoke_PrePostProcess.*resize_dynamic.*)",
             // Dynamic batch allocates output using upper bound
             R"(.*smoke_BehaviorTests.*InferUpperBoundNetworkWithGetTensor.*)",
-            // need dynamic shapes
-            R"(.*RangeLayerTest.*)",
             // need dynamic rank
             R"(.*smoke.*BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
             R"(.*smoke.*BehaviorTests.*DynamicOutputToDynamicInput.*)",
             R"(.*smoke.*BehaviorTests.*DynamicInputToDynamicOutput.*)",
             // Issue: 76197
             R"(.*registerPluginsXMLUnicodePath.*)",
-            // Issue: CVS-76980
-            R"(.*smoke_Auto_BehaviorTests.*InferDynamicNetwork/.*)",
             // Issue: CVS-88667 - Need to verify hetero interoperability
             R"(.*nightly_OVClassHeteroExecutableNetworlGetMetricTest.*SUPPORTED_(CONFIG_KEYS|METRICS).*)",
             // TODO: Issue: 89555
@@ -89,19 +81,13 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_ConvolutionLayerGPUTest_dynamic1DSymPad.*)",
             // Looks like the test is targeting CPU plugin and doesn't respect that execution graph may vary from plugin to plugin
             R"(.*ExecGraphSerializationTest.*)",
-            // TODO: support getconfig in auto/multi CVS-104942
-            // TODO: move auto/multi cases to dedicated unit tests
-            R"(.*(Auto|Multi).*SetPropLoadNetWorkGetPropTests.*)",
             // unsupported metrics
-            R"(.*nightly_MultiHeteroAutoBatchOVGetMetricPropsTest.*OVGetMetricPropsTest.*(FULL_DEVICE_NAME_with_DEVICE_ID|AVAILABLE_DEVICES|DEVICE_UUID|OPTIMIZATION_CAPABILITIES|MAX_BATCH_SIZE|DEVICE_GOPS|DEVICE_TYPE|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
+            R"(.*nightly_HeteroAutoBatchOVGetMetricPropsTest.*OVGetMetricPropsTest.*(FULL_DEVICE_NAME_with_DEVICE_ID|AVAILABLE_DEVICES|DEVICE_UUID|OPTIMIZATION_CAPABILITIES|MAX_BATCH_SIZE|DEVICE_GOPS|DEVICE_TYPE|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
             // Issue: 111437
             R"(.*smoke_Deconv_2D_Dynamic_.*FP32/DeconvolutionLayerGPUTest.CompareWithRefs.*)",
             R"(.*smoke_GroupDeconv_2D_Dynamic_.*FP32/GroupDeconvolutionLayerGPUTest.CompareWithRefs.*)",
             // Issue: 111440
             R"(.*smoke_set1/GatherElementsGPUTest.CompareWithRefs.*)",
-            // New plugin API doesn't support changes of pre-processing
-            R"(.*(Auto|Multi).*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
-            R"(.*(Auto|Multi).*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
             // New plugin work with tensors, so it means that blob in old API can have different pointers
             R"(.*InferRequestIOBBlobTest.*secondCallGetInputDoNotReAllocateData.*)",
             R"(.*InferRequestIOBBlobTest.*secondCallGetOutputDoNotReAllocateData.*)",
@@ -127,8 +113,11 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_LPT.*ElementwiseBranchSelectionTransformation.*)",
             // Dynamic state unsupported for now
             R"(.*MemoryDynamicBatch.*)",
-            // Meta plugins may miss saving HW plugin so handle, thus plugin may be unloaded before all objects are deleted which leads to segfault
-            // Issue: 118840
-            R"(.*OVHoldersTest.*)",
+            // Issue: 123493
+            R"(.*GroupNormalizationTest.*CompareWithRefs.*NetType=f16.*)",
+            // Issue: 123507
+            R"(.*ReverseLayerTest.*mask.*f16.*)",
+            // Issue: 123516
+            R"(.*RandomUniformLayerTest.*f16.*)",
     };
 }

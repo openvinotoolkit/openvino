@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace ngraph;
@@ -38,16 +38,15 @@ protected:
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 512, 32}),
                                    std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 128, 32})};
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-        auto FQ = ngraph::builder::makeFakeQuantize(paramOuts[1], ngPrc, 256, {}, {-2.8215785026550293}, {2.799535036087036},
+        auto FQ = ngraph::builder::makeFakeQuantize(params[1], ngPrc, 256, {}, {-2.8215785026550293}, {2.799535036087036},
                                                       {-2.8215785026550293}, {2.799535036087036});
-        auto FQ_0 = ngraph::builder::makeFakeQuantize(paramOuts[1], ngPrc, 256, {}, {-5.031249523162842}, {4.991942882537842},
+        auto FQ_0 = ngraph::builder::makeFakeQuantize(params[1], ngPrc, 256, {}, {-5.031249523162842}, {4.991942882537842},
                                                     {-5.031249523162842}, {4.991942882537842});
 
         auto Add_0 = ngraph::builder::makeEltwise(FQ_0, FQ, EltwiseTypes::ADD);
 
-        auto FQ_1 = ngraph::builder::makeFakeQuantize(paramOuts[0], ngPrc, 256, {}, {-2.122633457183838}, {2.106050491333008},
+        auto FQ_1 = ngraph::builder::makeFakeQuantize(params[0], ngPrc, 256, {}, {-2.122633457183838}, {2.106050491333008},
                                                       {-2.122633457183838}, {2.106050491333008});
 
         auto Const = ngraph::builder::makeConstant(ngPrc, {128, 512, 1}, std::vector<float>{-0.0512377955019474}, false);
@@ -58,7 +57,7 @@ protected:
 
         auto Add = ngraph::builder::makeEltwise(Add_0, Conv, EltwiseTypes::ADD);
 
-        auto FQ_11 = ngraph::builder::makeFakeQuantize(paramOuts[0], ngPrc, 256, {}, {-3.2050728797912598}, {3.1800332069396973},
+        auto FQ_11 = ngraph::builder::makeFakeQuantize(params[0], ngPrc, 256, {}, {-3.2050728797912598}, {3.1800332069396973},
                                                       {-3.2050728797912598}, {3.1800332069396973});
 
         auto Const_ = ngraph::builder::makeConstant(ngPrc, {128, 512, 1}, std::vector<float>{-0.001183388871140778}, false);

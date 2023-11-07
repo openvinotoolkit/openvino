@@ -54,7 +54,7 @@ float getError<float>() {
 }
 
 template<>
-float getError<half_t>() {
+float getError<ov::float16>() {
     return 0.2;
 }
 
@@ -305,7 +305,7 @@ public:
 
 private:
     void run_test(const ReorgYoloParams<T>& params, const format::type target_format, bool is_caching_test) {
-        const auto data_type = type_to_data_type<T>::value;
+        const auto data_type = ov::element::from<T>();
         const format::type plain_format = format::bfyx;
 
         auto& engine = get_test_engine();
@@ -336,7 +336,7 @@ private:
 
 
 using test_f32 = reorg_yolo_test<float>;
-using test_f16 = reorg_yolo_test<half_t>;
+using test_f16 = reorg_yolo_test<ov::float16>;
 
 TEST_P(test_f32, basic) {
     test(false);
@@ -359,7 +359,7 @@ INSTANTIATE_TEST_SUITE_P(reorg_yolo_f32,
 INSTANTIATE_TEST_SUITE_P(reorg_yolo_f16,
                          test_f16,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(generateParams<half_t>()),
+                                 ::testing::ValuesIn(generateParams<ov::float16>()),
                                  ::testing::ValuesIn(dataFormats),
                                  ::testing::Values(false)),
                          PrintToStringParamName());

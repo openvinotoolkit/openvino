@@ -8,6 +8,7 @@
 #include <pugixml.hpp>
 
 #include "common_test_utils/file_utils.hpp"
+#include "functional_test_utils/summary/op_info.hpp"
 
 using namespace ov::test::utils;
 
@@ -27,16 +28,28 @@ void OpSummaryDestroyer::initialize(OpSummary* p) {
     p_instance = p;
 }
 
-OpSummary::OpSummary() {
+OpSummary::OpSummary(unsigned short int in_downgrade_coefficient) {
     reportFilename = ov::test::utils::OP_REPORT_FILENAME;
+    downgrade_coefficient = in_downgrade_coefficient;
 }
 
-OpSummary& OpSummary::getInstance() {
+OpSummary& OpSummary::createInstance(unsigned short int in_downgrade_coefficient) {
     if (!p_instance) {
-        p_instance = new OpSummary();
+        p_instance = new OpSummary(in_downgrade_coefficient);
         destroyer.initialize(p_instance);
     }
     return *p_instance;
+}
+
+OpSummary& OpSummary::getInstance() {
+    return createInstance();
+}
+
+void OpSummary::setDowngradeCoefficient(unsigned short int in_downgrade_coefficient) {
+    if (p_instance && p_instance->downgrade_coefficient != in_downgrade_coefficient) {
+        p_instance->downgrade_coefficient = in_downgrade_coefficient;
+    }
+    auto& summary_instance = createInstance(in_downgrade_coefficient);
 }
 
 void OpSummary::updateOPsStats(const ov::NodeTypeInfo& op,
@@ -97,13 +110,13 @@ void OpSummary::updateOPsImplStatus(const ov::NodeTypeInfo& op, const bool implS
     }
 }
 
-std::string OpSummary::getOpVersion(const std::string& version) {
+std::string OpSummary::get_opset_number(const std::string& opset_full_name) {
     std::string opset_name = "opset";
-    auto pos = version.find(opset_name);
+    auto pos = opset_full_name.find(opset_name);
     if (pos == std::string::npos) {
         return "undefined";
     } else {
-        return version.substr(pos + opset_name.size());
+        return opset_full_name.substr(pos + opset_name.size());
     }
 }
 
@@ -139,19 +152,14 @@ void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model>& model, const Pa
     if (model->get_parameters().empty()) {
         return;
     }
-    bool isFunctionalGraph = false, isReportConvert = true;
+    bool isFunctionalGraph = false;
     for (const auto& op : model->get_ordered_ops()) {
         if (!std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) &&
             !std::dynamic_pointer_cast<ov::op::v0::Constant>(op) &&
             !std::dynamic_pointer_cast<ov::op::v0::Result>(op)) {
             // find all features
-            if (!std::dynamic_pointer_cast<ov::op::v0::Convert>(op)) {
-                isReportConvert = false;
-            }
             isFunctionalGraph = true;
-            if (!isReportConvert && isFunctionalGraph) {
-                break;
-            }
+            break;
         }
     }
 
@@ -161,14 +169,6 @@ void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model>& model, const Pa
              std::dynamic_pointer_cast<ov::op::v0::Result>(op)) &&
             isFunctionalGraph) {
             continue;
-        }
-        // todo: remove w/a to provide correct convert reporting after merge CVS-110714
-        if (std::dynamic_pointer_cast<ov::op::v0::Convert>(op)) {
-            if (!isReportConvert) {
-                continue;
-            } else {
-                isReportConvert = false;
-            }
         }
         if (extractBody) {
             if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op)) {
@@ -231,23 +231,6 @@ void OpSummary::updateOPsImplStatus(const std::shared_ptr<ov::Model>& model, con
     }
 }
 
-#ifdef IE_TEST_DEBUG
-void Summary::saveDebugReport(const char* className,
-                              const char* opName,
-                              unsigned long passed,
-                              unsigned long failed,
-                              unsigned long skipped,
-                              unsigned long crashed,
-                              unsigned long hanged) {
-    std::string outputFilePath = "./part_report.txt";
-    std::ofstream file;
-    file.open(outputFilePath, std::ios_base::app);
-    file << className << ' ' << opName << ' ' << passed << ' ' << failed << ' ' << skipped << ' ' << crashed << ' '
-         << hanged << '\n';
-    file.close();
-}
-#endif  // IE_TEST_DEBUG
-
 void OpSummary::saveReport() {
     if (isReported) {
         return;
@@ -277,7 +260,7 @@ void OpSummary::saveReport() {
         const auto& type_info_set = opset.get_type_info_set();
         for (const auto& type_info : type_info_set) {
             auto it = opsInfo.find(type_info);
-            std::string op_version = getOpVersion(opset_version);
+            std::string op_version = get_opset_number(opset_version);
             if (it == opsInfo.end()) {
                 opsInfo.insert({type_info, op_version});
             } else {
@@ -322,15 +305,18 @@ void OpSummary::saveReport() {
 
     pugi::xml_node opsNode = root.append_child("ops_list");
     for (const auto& op : opsInfo) {
-        std::string name = std::string(op.first.name) + "-" + getOpVersion(op.first.version_id);
+        std::string name = functional::get_node_version(op.first);
         opsNode.append_child(name.c_str()).append_attribute("opsets").set_value(op.second.c_str());
     }
 
     pugi::xml_node resultsNode = root.child("results");
     pugi::xml_node currentDeviceNode = resultsNode.append_child(summary.deviceName.c_str());
     std::unordered_set<std::string> opList;
-    for (const auto& it : stats) {
-        std::string name = std::string(it.first.name) + "-" + getOpVersion(it.first.version_id);
+    for (auto& it : stats) {
+        it.second.rel_passed /= downgrade_coefficient;
+        it.second.rel_all /= downgrade_coefficient;
+
+        std::string name = functional::get_node_version(it.first);
         opList.insert(name);
         pugi::xml_node entry = currentDeviceNode.append_child(name.c_str());
         entry.append_attribute("implemented").set_value(it.second.isImplemented);

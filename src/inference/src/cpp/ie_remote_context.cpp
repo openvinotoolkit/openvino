@@ -7,7 +7,6 @@
 #include <exception>
 
 #include "any_copy.hpp"
-#include "ie_ngraph_utils.hpp"
 #include "ie_remote_blob.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/iremote_context.hpp"

@@ -6,16 +6,16 @@
 
 #include "base_reference_test.hpp"
 #include "common_test_utils/test_enums.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "openvino/op/reduce_logical_and.hpp"
-#include "openvino/op/reduce_logical_or.hpp"
 #include "openvino/op/reduce_l1.hpp"
 #include "openvino/op/reduce_l2.hpp"
-#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_logical_and.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace ov;
 
@@ -42,9 +42,16 @@ AXIS_VALUES reduce(const AXIS_VALUES& axis_values, const ov::AxisSet& deleted_ax
 }
 
 struct ReductionParams {
-    ReductionParams(const ReductionType& reductType, const bool keepDims, const std::vector<int64_t>& axes,
-        const reference_tests::Tensor& dataTensor, const reference_tests::Tensor& outputTensor) : reductionType(reductType), keepDimensions(keepDims), reductionAxes(axes),
-        data(dataTensor), output(outputTensor) {}
+    ReductionParams(const ReductionType& reductType,
+                    const bool keepDims,
+                    const std::vector<int64_t>& axes,
+                    const reference_tests::Tensor& dataTensor,
+                    const reference_tests::Tensor& outputTensor)
+        : reductionType(reductType),
+          keepDimensions(keepDims),
+          reductionAxes(axes),
+          data(dataTensor),
+          output(outputTensor) {}
 
     ReductionType reductionType;
     bool keepDimensions;
@@ -53,7 +60,7 @@ struct ReductionParams {
     reference_tests::Tensor output;
 };
 
-class ReferenceReductionLayerTest : public  testing::TestWithParam<ReductionParams>, public CommonReferenceTest {
+class ReferenceReductionLayerTest : public testing::TestWithParam<ReductionParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
         auto params = GetParam();
@@ -125,5 +132,5 @@ private:
         return std::make_shared<ov::Model>(reduction, ov::ParameterVector{data});
     }
 };
-} // namespace ReductionOpsRefTestDefinitions
-} // namespace reference_tests
+}  // namespace ReductionOpsRefTestDefinitions
+}  // namespace reference_tests

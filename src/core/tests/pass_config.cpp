@@ -73,7 +73,7 @@ public:
     }
 };
 
-std::tuple<std::shared_ptr<Model>, std::shared_ptr<Node>, std::shared_ptr<Node>> get_test_function() {
+static std::tuple<std::shared_ptr<Model>, std::shared_ptr<Node>, std::shared_ptr<Node>> get_test_function() {
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
     auto relu = std::make_shared<ov::op::v0::Relu>(data);
     relu->set_friendly_name("relu");

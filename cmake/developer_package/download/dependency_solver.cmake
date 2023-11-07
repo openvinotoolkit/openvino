@@ -136,6 +136,8 @@ function (RESOLVE_DEPENDENCY NAME_OF_CMAKE_VAR)
 endfunction(RESOLVE_DEPENDENCY)
 
 function (resolve_model_dependency network archive network_model_path)
+  message(WARNING "DEPRECATED: 'resolve_model_dependency' must not be used")
+
   RESOLVE_DEPENDENCY(${network_model_path}
         ARCHIVE "models_archives/${archive}"
         TARGET_PATH "${MODELS_PATH}/${network}")

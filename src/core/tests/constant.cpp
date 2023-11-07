@@ -10,6 +10,8 @@
 
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 
 using namespace ov;
 using namespace std;
@@ -266,8 +268,8 @@ TEST(constant, int4_string) {
     EXPECT_EQ(v[2], -1);
 
     const auto p = c.get_data_ptr<uint8_t>();
-    EXPECT_EQ(0x10, p[0]);
-    EXPECT_EQ(0xF0, p[1] & 0xF0);
+    EXPECT_EQ(0x01, p[0]);
+    EXPECT_EQ(0x0F, p[1] & 0x0F);
 
     EXPECT_EQ(input, c.get_value_strings());
 
@@ -318,8 +320,8 @@ TEST(constant, int4_vector_negative_number) {
     EXPECT_EQ(v[2], int8_t(-1));
 
     const auto p = c.get_data_ptr<uint8_t>();
-    EXPECT_EQ(0xFE, p[0]);
-    EXPECT_EQ(0xF0, p[1] & 0xF0);
+    EXPECT_EQ(0xEF, p[0]);
+    EXPECT_EQ(0x0F, p[1] & 0x0F);
 }
 
 TEST(constant, int4_vector_positive_number) {
@@ -332,8 +334,8 @@ TEST(constant, int4_vector_positive_number) {
     EXPECT_EQ(v[2], int8_t(5));
 
     const auto p = c.get_data_ptr<uint8_t>();
-    EXPECT_EQ(0x12, p[0]);
-    EXPECT_EQ(0x50, p[1] & 0xF0);
+    EXPECT_EQ(0x21, p[0]);
+    EXPECT_EQ(0x05, p[1] & 0x0F);
 }
 
 TEST(constant, int4_vector_broadcast_negative_number) {
@@ -795,8 +797,8 @@ TEST(constant, uint4_string) {
     EXPECT_EQ(v[3], 0);
 
     const auto p = c.get_data_ptr<uint8_t>();
-    EXPECT_EQ(p[0], 0x10);
-    EXPECT_EQ(p[1], 0x10);
+    EXPECT_EQ(p[0], 0x01);
+    EXPECT_EQ(p[1], 0x01);
 
     EXPECT_EQ(input, c.get_value_strings());
 
@@ -831,8 +833,8 @@ TEST(constant, uint4_vector) {
     EXPECT_EQ(v[3], 0);
 
     const auto p = c.get_data_ptr<uint8_t>();
-    EXPECT_EQ(p[0], 0x10);
-    EXPECT_EQ(p[1], 0x10);
+    EXPECT_EQ(p[0], 0x01);
+    EXPECT_EQ(p[1], 0x01);
 }
 
 TEST(constant, uint4_vector_broadcast) {
@@ -1726,14 +1728,12 @@ TEST(constant, lazy_bitwise_identical) {
     auto shape = Shape{10, 1000, 1000};
     auto type = element::i32;
     auto byte_size = shape_size(shape) * sizeof(int32_t);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto aligned_weights_buffer = std::make_shared<ngraph::runtime::AlignedBuffer>(byte_size);
+    auto aligned_weights_buffer = std::make_shared<ov::AlignedBuffer>(byte_size);
     std::memset(aligned_weights_buffer->get_ptr<char>(), 1, byte_size);
-    auto weights = std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
-        aligned_weights_buffer->get_ptr<char>(),
-        aligned_weights_buffer->size(),
-        aligned_weights_buffer);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    auto weights =
+        std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(aligned_weights_buffer->get_ptr<char>(),
+                                                                               aligned_weights_buffer->size(),
+                                                                               aligned_weights_buffer);
 
     using namespace std::chrono;
     auto create_constant = [&]() {
@@ -1778,4 +1778,44 @@ TEST(constant, lazy_bitwise_identical) {
     // Comparing getting comparison value from cache with first-time calculation
     // '10' times is guaranteed to be faster here (typical value is ~200'000)
     EXPECT_GT(bitwise_check_count_only, bitwise_check_count * 10);
+}
+
+TEST(constant, cast_vector) {
+    std::vector<element::Type_t> types = {element::boolean,
+                                          element::bf16,
+                                          element::f16,
+                                          element::f32,
+                                          element::f64,
+                                          element::i4,
+                                          element::i8,
+                                          element::i16,
+                                          element::i32,
+                                          element::i64,
+                                          element::u1,
+                                          element::u4,
+                                          element::u8,
+                                          element::u16,
+                                          element::u32,
+                                          element::u64};
+    std::vector<int64_t> data = {0, 1, 0, 0, 1, 1, 0, 1};
+    std::vector<int64_t> expected_partial_data = {0, 1, 0, 0, 1, 1};
+
+    for (const auto& type : types) {
+        const auto& constant = op::v0::Constant::create(type, Shape{data.size()}, data);
+
+        const auto& default_casted = constant->cast_vector<int64_t>();
+        EXPECT_EQ(default_casted, data) << "Constant::cast_vector failed default casting for type " << type;
+
+        int64_t num_elements_for_partial_casting = static_cast<int64_t>(expected_partial_data.size());
+        const auto& partially_casted = constant->cast_vector<int64_t>(num_elements_for_partial_casting);
+        EXPECT_EQ(partially_casted, expected_partial_data)
+            << "Constant::cast_vector failed partial casting for type " << type;
+
+        int64_t num_elements_for_over_casting = static_cast<int64_t>(data.size()) + 10;
+        const auto& over_casted = constant->cast_vector<int64_t>(num_elements_for_over_casting);
+        EXPECT_EQ(over_casted, data) << "Constant::cast_vector failed for partial casting for type " << type;
+
+        EXPECT_TRUE(constant->cast_vector<int64_t>(0).empty())
+            << "Constant::cast_vector failed empty casting for type " << type;
+    }
 }

@@ -8,7 +8,7 @@
 #include <cmath>
 #include <numeric>
 
-#include "ngraph/util.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {
@@ -61,7 +61,6 @@ void lrn(const T* arg,
          double dbeta,
          double dbias,
          size_t size) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
     T alpha = static_cast<T>(dalpha);
     T beta = static_cast<T>(dbeta);
     T bias = static_cast<T>(dbias);
@@ -74,7 +73,7 @@ void lrn(const T* arg,
         axes_map[axis_coord] = true;
     }
 
-    CoordinateTransform input_transform(arg_shape);
+    const CoordinateTransformBasic input_transform{arg_shape};
     for (const Coordinate& in_coord : input_transform) {
         // area determined by in_coord local neighborhood
         for (size_t i = 0; i < axes_map.size(); i++) {
@@ -89,11 +88,10 @@ void lrn(const T* arg,
         }
 
         T square_sum = sum_region_across_axes(arg, slice_indices(arg_shape, begin_area, area_shape));
-        auto index = input_transform.index(in_coord);
+        const auto index = coordinate_index(in_coord, arg_shape);
         T x = arg[index];
         out[index] = x / static_cast<T>(std::pow(bias + scale * square_sum, beta));
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
 }  // namespace ov

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "fully_connected_inst.h"
 #include "pooling_inst.h"
 #include "quantize_inst.h"
 #include "reorder_inst.h"
@@ -96,7 +97,7 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
     auto lock_memory = [&stream] (memory::ptr memory, std::function<void(std::size_t, float)>& set_data,
                                   std::function<float(size_t)>& get_data) {
         using float_mem_lock = mem_lock<float, mem_lock_type::write>;
-        using uint16_t_mem_lock = mem_lock<uint16_t, mem_lock_type::write>;
+        using float16_mem_lock = mem_lock<ov::float16, mem_lock_type::write>;
         switch (memory->get_layout().data_type) {
             case data_types::f32: {
                 std::shared_ptr<float_mem_lock> data_lock_ptr = std::make_shared<float_mem_lock>(memory, stream);
@@ -107,18 +108,18 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
                 get_data = [data] (size_t idx) {
                     return data[idx];
                 };
-                return std::pair<std::shared_ptr<float_mem_lock>, std::shared_ptr<uint16_t_mem_lock>>(data_lock_ptr, nullptr);
+                return std::pair<std::shared_ptr<float_mem_lock>, std::shared_ptr<float16_mem_lock>>(data_lock_ptr, nullptr);
             }
             case data_types::f16: {
-                std::shared_ptr<uint16_t_mem_lock> data_lock_ptr = std::make_shared<uint16_t_mem_lock>(memory, stream);
-                uint16_t* data = data_lock_ptr->data();
+                std::shared_ptr<float16_mem_lock> data_lock_ptr = std::make_shared<float16_mem_lock>(memory, stream);
+                ov::float16* data = data_lock_ptr->data();
                 set_data = [data] (size_t idx, float value) {
-                    data[idx] = float_to_half(value);
+                    data[idx] = ov::float16(value);
                 };
                 get_data = [data] (size_t idx) {
-                    return half_to_float(data[idx]);
+                    return static_cast<float>(data[idx]);
                 };
-                return std::pair<std::shared_ptr<float_mem_lock>, std::shared_ptr<uint16_t_mem_lock>>(nullptr, data_lock_ptr);
+                return std::pair<std::shared_ptr<float_mem_lock>, std::shared_ptr<float16_mem_lock>>(nullptr, data_lock_ptr);
             }
             default:
                 throw std::runtime_error("prepare_quantization: Unsupported precision of quantize output values");
@@ -358,7 +359,7 @@ void prepare_quantization::prepare_packed_quantize(program& p, quantize_node& qu
 
     auto output_dt = quantize_node.get_output_layout().data_type;
     if (is_binarization) {
-        output_dt = data_types::bin;
+        output_dt = data_types::u1;
     }
 
     quantize_node.typed_desc()->output_data_types = {optional_data_type{output_dt}};
@@ -847,6 +848,42 @@ bool prepare_quantization::optimize_quantize(program &p, quantize_node& quantize
     return true;
 }
 
+static void optimize_weights_decompression_parameters(fully_connected_node& fc_node, program& p) {
+    auto fc_prim = fc_node.get_primitive();
+    if (!fc_prim->compressed_weights)
+        return;
+
+    auto reorder_bfyx_to_fbyx = [&](size_t dep_id) {
+        auto& dep = fc_node.get_dependency(dep_id);
+        auto target_layout = dep.get_output_layout();
+        target_layout.format = format::fbyx;
+        auto reorder_prim = std::make_shared<reorder>(dep.id() + "_reorder", dep.id(), target_layout);
+        p.add_intermediate(reorder_prim, fc_node, dep_id, true);
+        fc_node.get_dependency(dep_id).recalc_output_layout(false);
+    };
+
+    auto need_reorder = [&](size_t dep_id) {
+        auto dep_layout = fc_node.get_input_layout(dep_id);
+        auto dep_pshape = dep_layout.get_partial_shape();
+
+        auto groups_count = dep_pshape[dep_pshape.size() - 1].get_length();
+
+        return groups_count > 1;
+    };
+
+    auto decompression_scale_idx = !fc_node.bias_term() ? 2 : 3;
+    if (need_reorder(decompression_scale_idx)) {
+        reorder_bfyx_to_fbyx(decompression_scale_idx);
+    }
+
+    if (!fc_prim->decompression_zero_point.empty()) {
+        auto decompression_zp_idx = decompression_scale_idx + 1;
+        if (need_reorder(decompression_zp_idx)) {
+            reorder_bfyx_to_fbyx(decompression_zp_idx);
+        }
+    }
+}
+
 void prepare_quantization::run(program& p) {
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
@@ -859,6 +896,8 @@ void prepare_quantization::run(program& p) {
             remove_fake_reorders(p, node->as<reorder>());
         } else if (node->is_type<convolution>()) {
             prepare_asymmetric_quantization(p, node->as<convolution>());
+        } else if (node->is_type<fully_connected>()) {
+            optimize_weights_decompression_parameters(node->as<fully_connected>(), p);
         }
     }
 }

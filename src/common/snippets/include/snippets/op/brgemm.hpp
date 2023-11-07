@@ -39,14 +39,6 @@ public:
 
     bool has_evaluate() const override { return false; }
 
-    class ShapeInfer : public IShapeInferSnippets {
-    protected:
-        std::vector<std::vector<size_t>> m_io_layouts;
-    public:
-        explicit ShapeInfer(const std::shared_ptr<Node>& n);
-        Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
-    };
-
 protected:
     ov::element::Type get_output_type() const;
     std::vector<ov::PartialShape> get_planar_input_shapes(const std::vector<ov::Input<ov::Node>>& inputs) const;

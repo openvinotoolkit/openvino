@@ -13,6 +13,8 @@
 using namespace std;
 using namespace ov;
 
+namespace {
+
 struct gru_sequence_parameters {
     Dimension batch_size = 8;
     Dimension num_directions = 1;
@@ -79,6 +81,8 @@ shared_ptr<ov::op::v5::GRUSequence> gru_seq_direction_initialization(const gru_s
 
     return gru_sequence;
 }
+
+}  // namespace
 
 TEST(type_prop, gru_sequence_forward) {
     const size_t batch_size = 8;

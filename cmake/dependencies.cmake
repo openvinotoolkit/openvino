@@ -5,23 +5,7 @@
 cmake_policy(SET CMP0054 NEW)
 
 # TODO: fix it, outside of source dir MO cannot find TBB dependency
-set_temp_directory(TEMP "${CMAKE_SOURCE_DIR}")
-
-if(ENABLE_SAME_BRANCH_FOR_MODELS)
-    branchName(MODELS_BRANCH)
-else()
-    set(MODELS_BRANCH "master")
-endif()
-
-if(ENABLE_DATA)
-    add_models_repo(${ENABLE_DATA} "data:https://github.com/openvinotoolkit/testdata.git")
-    set(MODELS_PATH "${TEMP}/models/src/data")
-    set(DATA_PATH "${MODELS_PATH}")
-endif()
-
-message(STATUS "MODELS_PATH=" ${MODELS_PATH})
-
-fetch_models_and_validation_set()
+ov_set_temp_directory(TEMP "${CMAKE_SOURCE_DIR}")
 
 ## Intel OMP package
 if(THREADING STREQUAL "OMP")
@@ -87,12 +71,16 @@ function(ov_download_tbb)
 
     if(NOT DEFINED ENV{TBBROOT} AND (DEFINED ENV{TBB_DIR} OR DEFINED TBB_DIR))
         if(DEFINED ENV{TBB_DIR})
-            set(TEMP_ROOT $ENV{TBB_DIR})
-        elseif (DEFINED TBB_DIR)
-            set(TEMP_ROOT ${TBB_DIR})
+            set(TBB_DIR "$ENV{TBB_DIR}")
         endif()
+        set(TEMP_ROOT "${TBB_DIR}")
         while(NOT EXISTS "${TEMP_ROOT}/include")
-            get_filename_component(TEMP_ROOT ${TEMP_ROOT} PATH)
+            get_filename_component(TEMP_ROOT_PARENT ${TEMP_ROOT} PATH)
+            if(TEMP_ROOT_PARENT STREQUAL TEMP_ROOT)
+                # to prevent recursion
+                message(FATAL_ERROR "${TBB_DIR} does not contain 'include' folder. Please, unset TBB_DIR")
+            endif()
+            set(TEMP_ROOT "${TEMP_ROOT_PARENT}")
         endwhile()
         set(TBBROOT ${TEMP_ROOT})
     endif()
@@ -116,10 +104,10 @@ function(ov_download_tbb)
     elseif(LINUX AND X86_64 AND OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         # build oneTBB 2021.2.1 with gcc 4.8 (glibc 2.17)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "oneapi-tbb-2021.2.3-lin.tgz"
+                ARCHIVE_LIN "oneapi-tbb-2021.2.4-lin.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "f3f2edd8e7875b02220f11ab5b201411d5af6822e525e8da5444b4a666514e8b"
+                SHA256 "6523661559a340e88131472ea9a595582c306af083e55293b7357d11b8015546"
                 USE_NEW_LOCATION TRUE)
     elseif(YOCTO_AARCH64)
         RESOLVE_DEPENDENCY(TBB
@@ -147,10 +135,10 @@ function(ov_download_tbb)
     elseif(LINUX AND AARCH64 AND OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         # build oneTBB 2021.2.1 with gcc 4.8 (glibc 2.17)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "oneapi-tbb-2021.2.1-lin-arm64-canary.tgz"
+                ARCHIVE_LIN "oneapi-tbb-2021.2.1-lin-arm64-20231012.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "042fdac53be65841a970b05d892f4b20b556b06fd3b20d2d0068e49c4fd74f07"
+                SHA256 "cbb239cbda7ea2937cec7008c12fe628dd44488e1eafd9630f8814f9eb2c13e2"
                 USE_NEW_LOCATION TRUE)
     elseif(APPLE AND AARCH64)
         # build oneTBB 2021.2.1 with export MACOSX_DEPLOYMENT_TARGET=11.0
@@ -216,10 +204,10 @@ function(ov_download_tbbbind_2_5)
                 USE_NEW_LOCATION TRUE)
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(TBBBIND_2_5
-                ARCHIVE_LIN "tbbbind_2_5_static_lin_v3.tgz"
+                ARCHIVE_LIN "tbbbind_2_5_static_lin_v4.tgz"
                 TARGET_PATH "${TEMP}/tbbbind_2_5"
                 ENVIRONMENT "TBBBIND_2_5_ROOT"
-                SHA256 "d39deb262c06981b5e2d2e3c593e9fc9be62ce4feb91dd4e648e92753659a6b3"
+                SHA256 "4ebf30246530795f066fb9616e6707c6b17be7a65d29d3518b578a769dd54eea"
                 USE_NEW_LOCATION TRUE)
     else()
         # TMP: for Apple Silicon TBB does not provide TBBBind

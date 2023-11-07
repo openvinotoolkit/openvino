@@ -4,7 +4,7 @@
 
 set(TARGET_NAME conformanceTests)
 
-addIeTargetTest(
+ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include"
         ADDITIONAL_SOURCE_DIRS
@@ -13,12 +13,13 @@ addIeTargetTest(
             PRIVATE
                 "${CMAKE_CURRENT_SOURCE_DIR}/include"
                 "${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper/include/cache/meta/"
+                "${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper/include/utils/"
         ADD_CPPLINT
         LINK_LIBRARIES
             PUBLIC
                 conformanceShared
         LABELS
-            OP_CONFORMANCE
+            OV OP_CONFORMANCE
 )
 
-ie_faster_build(${TARGET_NAME} UNITY)
+ov_build_target_faster(${TARGET_NAME} UNITY)

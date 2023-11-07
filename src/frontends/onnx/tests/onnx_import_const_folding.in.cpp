@@ -21,7 +21,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 using namespace ngraph;
 using namespace ngraph::onnx_import;
 
-static std::string s_manifest = "${MANIFEST}";
+static std::string s_manifest = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(), "${MANIFEST}");
 
 namespace {
 template <typename T>

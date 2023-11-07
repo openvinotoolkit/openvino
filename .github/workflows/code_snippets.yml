@@ -27,18 +27,17 @@ jobs:
       - name: Clone OpenVINO
         uses: actions/checkout@v4
         with:
-          submodules: recursive
-          lfs: true
+          submodules: 'true'
 
       - name: Install OpenCL
-        uses: awalsh128/cache-apt-pkgs-action@v1.3.0
+        uses: awalsh128/cache-apt-pkgs-action@v1.3.1
         if: runner.os == 'Linux'
         with:
           packages: ocl-icd-opencl-dev opencl-headers
           version: 3.0
 
       - name: CMake configure
-        run: cmake -DCMAKE_BUILD_TYPE=Release -B build
+        run: cmake -DCMAKE_BUILD_TYPE=Release -DTHREADING=SEQ -B build
 
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v2

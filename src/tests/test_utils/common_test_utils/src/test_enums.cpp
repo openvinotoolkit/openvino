@@ -70,6 +70,18 @@ std::ostream& operator<<(std::ostream& os, const ov::test::utils::EltwiseTypes t
     case ov::test::utils::EltwiseTypes::ERF:
         os << "Erf";
         break;
+    case ov::test::utils::EltwiseTypes::BITWISE_AND:
+        os << "BitwiseAnd";
+        break;
+    case ov::test::utils::EltwiseTypes::BITWISE_NOT:
+        os << "BitwiseNot";
+        break;
+    case ov::test::utils::EltwiseTypes::BITWISE_OR:
+        os << "BitwiseOr";
+        break;
+    case ov::test::utils::EltwiseTypes::BITWISE_XOR:
+        os << "BitwiseXor";
+        break;
     default:
         throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
     }
@@ -318,6 +330,23 @@ std::ostream& operator<<(std::ostream& os, op::v8::MatrixNms::DecayFunction type
         break;
     default:
         throw std::runtime_error("NOT_SUPPORTED_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, TensorIteratorBody type) {
+    switch (type) {
+    case TensorIteratorBody::LSTM:
+        os << "LSTM";
+        break;
+    case TensorIteratorBody::RNN:
+        os << "RNN";
+        break;
+    case TensorIteratorBody::GRU:
+        os << "GRU";
+        break;
+    default:
+        throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
     }
     return os;
 }

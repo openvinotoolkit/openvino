@@ -14,8 +14,8 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
     get_filename_component(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.." REALPATH)
 endif()
 
-if(NOT IEDevScripts_FOUND)
-    find_package(IEDevScripts REQUIRED
+if(NOT OpenVINODeveloperScripts_FOUND)
+    find_package(OpenVINODeveloperScripts REQUIRED
                 PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
                 NO_CMAKE_FIND_ROOT_PATH
                 NO_DEFAULT_PATH)
@@ -36,7 +36,10 @@ set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this r
 ov_cpack_add_component(${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES} HIDDEN)
 
 set(REQUIREMENTS_IN "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.txt.in")
-set(EXTRAS_LIST _ caffe kaldi mxnet onnx pytorch tensorflow tensorflow2)
+set(EXTRAS_LIST _ caffe kaldi onnx pytorch tensorflow tensorflow2)
+if(NOT (APPLE AND AARCH64))
+    list(APPEND EXTRAS_LIST mxnet)
+endif()
 
 foreach(EXTRAS IN LISTS EXTRAS_LIST)
     if(EXTRAS STREQUAL "_")
@@ -53,6 +56,33 @@ foreach(EXTRAS IN LISTS EXTRAS_LIST)
             COMPONENT ${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES}
             ${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL})
 endforeach()
+
+# check __init__.py files alignment
+
+function(ov_check_init_files_alignment init_files)
+    # check the files in pairs
+    list(LENGTH init_files init_files_count)
+    math(EXPR file_loop_range "${init_files_count}-2")
+    foreach(init_file_idx RANGE 0 ${file_loop_range})
+        math(EXPR init_file_idx_next "${init_file_idx}+1")
+        list(GET init_files ${init_file_idx} file1)
+        list(GET init_files ${init_file_idx_next} file2)
+
+        execute_process(COMMAND ${CMAKE_COMMAND} -E compare_files ${file1} ${file2}
+            RESULT_VARIABLE compare_result
+        )
+        if(compare_result EQUAL 1)
+            message(FATAL_ERROR "The tools __init__.py files are misaligned: ${file1} and ${file2}")
+        endif()
+    endforeach()
+endfunction()
+
+set(INIT_FILES_TOOLS
+"${OpenVINO_SOURCE_DIR}/tools/mo/openvino/__init__.py"
+"${OpenVINO_SOURCE_DIR}/tools/pot/openvino/__init__.py"
+"${OpenVINO_SOURCE_DIR}/tools/openvino_dev/src/openvino/__init__.py")
+
+ov_check_init_files_alignment("${INIT_FILES_TOOLS}")
 
 # openvino_dev build
 
@@ -73,14 +103,14 @@ add_custom_command(OUTPUT ${openvino_wheel_path}
     COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/readme.txt" "${CMAKE_CURRENT_BINARY_DIR}"
     COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/setup.cfg" "${CMAKE_CURRENT_BINARY_DIR}"
     COMMAND ${CMAKE_COMMAND} -E env OPENVINO_VERSION=${WHEEL_VERSION}
-        ${PYTHON_EXECUTABLE} ${SETUP_PY}
+        ${Python3_EXECUTABLE} ${SETUP_PY}
             --quiet
             --no-user-cfg
              bdist_wheel
             --dist-dir ${openvino_wheels_output_dir}
             --build=${WHEEL_BUILD}
     COMMAND ${CMAKE_COMMAND} -E env OPENVINO_VERSION=${WHEEL_VERSION}
-        ${PYTHON_EXECUTABLE} ${SETUP_PY} clean
+        ${Python3_EXECUTABLE} ${SETUP_PY} clean
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Building Python wheel ${openvino_wheel_name}"
     VERBATIM)

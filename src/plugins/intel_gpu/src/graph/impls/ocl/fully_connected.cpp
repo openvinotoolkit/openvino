@@ -19,6 +19,31 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::fully_connected_impl)
 
+    fully_connected_impl() = default;
+
+    fully_connected_impl(const kernel_selector::kernel_data& kd) {
+        const auto& params = kd.weightsReorderParams;
+
+        if (params.is_initialized) {
+            // Assumption that kernel data contains already reshaped 2d weights
+            auto crop_to_2d = [](const ov::PartialShape& shape) {
+                return ov::PartialShape({shape[0], shape[1]});
+            };
+
+            auto weights_reorder_params = std::make_shared<WeightsReorderParams>(from_weights_tensor(params.src),
+                                                                                 from_weights_tensor(params.dest),
+                                                                                 params.rotate);
+            auto output_layout = weights_reorder_params->get_output_layout();
+            output_layout.set_partial_shape(crop_to_2d(output_layout.get_partial_shape()));
+            weights_reorder_params->set_output_layout(output_layout);
+
+            _weights_reorder_params = weights_reorder_params;
+        }
+        _kernel_data = kd;
+        _kernel_name = kd.kernelName;
+        can_reuse_memory = _kernel_data.can_reuse_memory;
+    }
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<fully_connected_impl>(*this);
     }
@@ -85,20 +110,13 @@ public:
             bool has_scale = !primitive->decompression_scale.empty();
 
             size_t offset = primitive->bias.empty() ? 2 : 3;
-            const auto& weights_pshape = input1_layout.get_partial_shape();
             if (has_scale) {
                 auto scale_layout = input_layouts[offset++];
-                if (input1_pshape.size() != 2) {
-                    scale_layout.set_partial_shape(reshape_to_2d(scale_layout.get_partial_shape(), weights_pshape[0], primitive->weights_rank));
-                }
                 layouts.push_back(scale_layout);
             }
 
             if (has_zp) {
                 auto zp_layout = input_layouts[offset];
-                if (input1_pshape.size() != 2) {
-                    zp_layout.set_partial_shape(reshape_to_2d(zp_layout.get_partial_shape(), weights_pshape[0], primitive->weights_rank));
-                }
                 layouts.push_back(zp_layout);
             }
 
@@ -143,6 +161,10 @@ public:
             if (with_zp) {
                 params.has_decompression_zp = true;
                 params.decompression_zero_point = convert_data_tensor(input_layouts[3]);
+            } else if (primitive->decompression_zero_point_scalar.has_value()) {
+                params.has_decompression_zp = true;
+                params.scalar_zp = true;
+                params.zp_value = primitive->decompression_zero_point_scalar.value();
             }
         }
 

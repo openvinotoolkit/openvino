@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/proposal.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/op/proposal.hpp"
 namespace ov {
 namespace reference {
 namespace details {

@@ -20,8 +20,8 @@ std::vector<std::pair<ov::AnyMap, ov::AnyMap>> generate_remote_params() {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVRemoteTest,
-                         ::testing::Combine(::testing::Values(ngraph::element::f32),
-                                            ::testing::Values(::ov::test::utils::DEVICE_TEMPLATE),
+                         ::testing::Combine(::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                                             ::testing::ValuesIn(template_config()),
                                             ::testing::ValuesIn(generate_remote_params())),
                          OVRemoteTest::getTestCaseName);

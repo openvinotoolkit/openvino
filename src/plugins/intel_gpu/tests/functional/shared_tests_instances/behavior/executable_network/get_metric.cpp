@@ -22,27 +22,27 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(
         nightly_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
-        ::testing::Values("GPU", "MULTI:GPU", "HETERO:GPU", "AUTO:GPU,CPU", "BATCH:GPU")
+        ::testing::Values("GPU", "HETERO:GPU", "BATCH:GPU")
 );
 
 INSTANTIATE_TEST_SUITE_P(
         nightly_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values("GPU", "MULTI:GPU", "HETERO:GPU", "AUTO:GPU,CPU", "BATCH:GPU")
+        ::testing::Values("GPU", "HETERO:GPU", "BATCH:GPU")
 );
 
 INSTANTIATE_TEST_SUITE_P(
         nightly_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
-        ::testing::Values("GPU", "MULTI:GPU", "HETERO:GPU", "AUTO:GPU,CPU", "BATCH:GPU")
+        ::testing::Values("GPU", "HETERO:GPU", "BATCH:GPU")
 );
 
 INSTANTIATE_TEST_SUITE_P(
         nightly_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_NETWORK_NAME,
-        ::testing::Values("GPU", "MULTI:GPU", "HETERO:GPU", "AUTO:GPU,CPU", "BATCH:GPU")
+        ::testing::Values("GPU", "HETERO:GPU", "BATCH:GPU")
 );
 
 INSTANTIATE_TEST_SUITE_P(
         nightly_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
-        ::testing::Values("GPU", "MULTI:GPU", "HETERO:GPU", "AUTO:GPU,CPU", "BATCH:GPU")
+        ::testing::Values("GPU", "HETERO:GPU", "BATCH:GPU")
 );
 
 //

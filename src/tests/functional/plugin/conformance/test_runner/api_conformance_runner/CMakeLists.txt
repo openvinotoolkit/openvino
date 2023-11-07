@@ -4,7 +4,7 @@
 
 set(TARGET_NAME apiConformanceTests)
 
-addIeTargetTest(
+ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include"
         ADDITIONAL_SOURCE_DIRS
@@ -17,7 +17,7 @@ addIeTargetTest(
             PUBLIC
                 conformanceShared
         LABELS
-            API_CONFORMANCE
+            OV API_CONFORMANCE
 )
 
-ie_faster_build(${TARGET_NAME} UNITY)
+ov_build_target_faster(${TARGET_NAME} UNITY)

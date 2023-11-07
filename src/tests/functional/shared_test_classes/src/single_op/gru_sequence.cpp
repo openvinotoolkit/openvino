@@ -8,7 +8,7 @@
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 #include "openvino/pass/manager.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 namespace ov {
 namespace test {
@@ -61,7 +61,8 @@ void GRUSequenceTest::SetUp() {
     bool linear_before_reset;
     ov::op::RecurrentSequenceDirection direction;
     InputLayerType wbr_type;
-    std::tie(m_mode, shapes, activations, clip, linear_before_reset, direction, wbr_type,
+    ov::test::utils::SequenceTestsMode mode;
+    std::tie(mode, shapes, activations, clip, linear_before_reset, direction, wbr_type,
             inType, targetDevice) = this->GetParam();
     outType = inType;
     init_input_shapes(shapes);
@@ -87,15 +88,15 @@ void GRUSequenceTest::SetUp() {
     const auto& b_shape = ov::Shape{num_directions, (linear_before_reset ? 4 : 3) * hidden_size};
 
     std::shared_ptr<ov::Node> seq_lengths_node;
-    if (m_mode == SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM ||
-        m_mode == SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM ||
-        m_mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM) {
+    if (mode == SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM ||
+        mode == SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM ||
+        mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM) {
         auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputDynamicShapes[2]);
         param->set_friendly_name("seq_lengths");
         params.push_back(param);
         seq_lengths_node = param;
-    } else if (m_mode == SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST ||
-               m_mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST) {
+    } else if (mode == SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST ||
+               mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST) {
         auto tensor = ov::test::utils::create_and_fill_tensor(ov::element::i64, targetStaticShapes[0][2], seq_lengths, 0);
         seq_lengths_node = std::make_shared<ov::op::v0::Constant>(tensor);
     } else {
@@ -131,9 +132,9 @@ void GRUSequenceTest::SetUp() {
                              std::make_shared<ov::op::v0::Result>(gru_sequence->output(1))};
     function = std::make_shared<ov::Model>(results, params, "gru_sequence");
 
-    bool is_pure_sequence = (m_mode == SequenceTestsMode::PURE_SEQ ||
-                             m_mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM ||
-                             m_mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST);
+    bool is_pure_sequence = (mode == SequenceTestsMode::PURE_SEQ ||
+                             mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM ||
+                             mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST);
     if (!is_pure_sequence) {
         ov::pass::Manager manager;
         if (direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL)
@@ -145,16 +146,6 @@ void GRUSequenceTest::SetUp() {
     } else {
         bool ti_found = is_tensor_iterator_exist(function);
         EXPECT_EQ(ti_found, false);
-    }
-}
-
-void GRUSequenceTest::generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) {
-    inputs.clear();
-    auto params = function->get_parameters();
-    OPENVINO_ASSERT(target_input_static_shapes.size() >= params.size());
-    for (int i = 0; i < params.size(); i++) {
-        auto tensor = ov::test::utils::create_and_fill_tensor(params[i]->get_element_type(), target_input_static_shapes[i], m_max_seq_len, 0);
-        inputs.insert({params[i], tensor});
     }
 }
 } //  namespace test

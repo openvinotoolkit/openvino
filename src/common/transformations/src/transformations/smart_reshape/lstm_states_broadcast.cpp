@@ -22,6 +22,8 @@
 
 using namespace std;
 
+namespace {
+
 ov::Input<ov::Node> get_outer_input_of_ti_by_parameter(const shared_ptr<ov::op::v0::Parameter>& parameter,
                                                        const shared_ptr<ov::op::v0::TensorIterator>& ti) {
     int64_t parameter_index = ti->get_body()->get_parameter_index(parameter);
@@ -153,6 +155,8 @@ bool relax_batch_for_initial_states_of_lstm(const shared_ptr<ov::op::v4::LSTMCel
     rewritten |= broadcast_state_by_batch(lstm_cell->input(2), batch_delivering_node);
     return rewritten;
 }
+
+}  // namespace
 
 bool ov::pass::LSTMStatesBroadcast::run_on_model(const shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(LSTMStatesBroadcast);

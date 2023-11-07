@@ -31,6 +31,8 @@ bool get_single_value(const std::shared_ptr<op::v0::Constant>& const_node, float
         return util::normalize_single_value(const_node->get_vector<bfloat16>(), value, check_value_range);
     case element::Type_t::f64:
         return util::normalize_single_value(const_node->get_vector<double>(), value, check_value_range);
+    case element::Type_t::i4:
+        return util::normalize_single_value(const_node->cast_vector<int8_t>(), value, check_value_range);
     case element::Type_t::i8:
         return util::normalize_single_value(const_node->get_vector<int8_t>(), value, check_value_range);
     case element::Type_t::i16:
@@ -39,6 +41,8 @@ bool get_single_value(const std::shared_ptr<op::v0::Constant>& const_node, float
         return util::normalize_single_value(const_node->get_vector<int32_t>(), value, check_value_range);
     case element::Type_t::i64:
         return util::normalize_single_value(const_node->get_vector<int64_t>(), value, check_value_range);
+    case element::Type_t::u4:
+        return util::normalize_single_value(const_node->cast_vector<int8_t>(), value, check_value_range);
     case element::Type_t::u8:
         return util::normalize_single_value(const_node->get_vector<uint8_t>(), value, check_value_range);
     case element::Type_t::u16:
@@ -128,11 +132,56 @@ std::shared_ptr<ov::Node> activation(const std::string& activation_name, const o
     }
 }
 
-bool is_seq_len_provided(const std::shared_ptr<Node>& seq_len_input, int64_t max_seq_len) {
+bool is_seq_len_provided(const std::shared_ptr<Node>& X, const std::shared_ptr<Node>& seq_len_input) {
+    auto max_seq_dim = X->get_output_partial_shape(0)[1];
+    if (max_seq_dim.is_dynamic()) {
+        // if values in seq_len input are equal to max_seq_len dim in X input
+        // then we don't need to insert Select operations
+        // supported seq_len_input:
+        // X -> ShapeOf -> Gather (max_seq_dim)  -> Optional (Broadcast)
+        std::shared_ptr<Node> input = seq_len_input;
+        auto broadcast = ov::as_type_ptr<ov::op::v3::Broadcast>(input);
+        if (broadcast) {
+            input = seq_len_input->input_value(0).get_node_shared_ptr();
+        }
+
+        auto gather = ov::as_type_ptr<ov::op::util::GatherBase>(input);
+        bool valid_gather = false;
+        if (gather) {
+            auto indices = gather->input_value(1).get_node_shared_ptr();
+            auto axis = gather->input_value(2).get_node_shared_ptr();
+            auto indices_const = ov::as_type_ptr<ov::op::v0::Constant>(indices);
+            auto axis_const = ov::as_type_ptr<ov::op::v0::Constant>(axis);
+            if (indices_const && axis_const) {
+                auto ind_values = indices_const->cast_vector<int64_t>();
+                auto axis_values = axis_const->cast_vector<int64_t>();
+                if (ind_values.size() == 1 && ind_values[0] == 1 && axis_values.size() == 1 && axis_values[0] == 0) {
+                    valid_gather = true;
+                }
+            }
+        }
+
+        if (!valid_gather) {
+            return true;
+        }
+
+        auto shape_of = ov::as_type_ptr<ov::op::util::ShapeOfBase>(gather->input_value(0).get_node_shared_ptr());
+        if (!shape_of) {
+            return true;
+        }
+
+        if (shape_of->input_value(0).get_node_shared_ptr() != X) {
+            return true;
+        }
+
+        return false;
+    }
+
+    auto max_seq_len_val = max_seq_dim.get_length();
     if (const auto& seq_len_const = std::dynamic_pointer_cast<op::v0::Constant>(seq_len_input)) {
         const auto& seq_len_values = seq_len_const->cast_vector<int64_t>();
-        return std::any_of(seq_len_values.begin(), seq_len_values.end(), [max_seq_len](const int64_t val) {
-            return val != max_seq_len;
+        return std::any_of(seq_len_values.begin(), seq_len_values.end(), [max_seq_len_val](const int64_t val) {
+            return val != max_seq_len_val;
         });
     }
     return true;
@@ -162,16 +211,24 @@ std::vector<Input<Node>> get_node_target_inputs(const std::shared_ptr<Node>& nod
 
 std::shared_ptr<ov::Node> node_to_get_shape_value_of_indices_from_shape_node(
     const std::shared_ptr<ov::Node>& shape_node,
-    const std::vector<size_t>& indices) {
-    return make_try_fold<v7::Gather>(shape_node,
-                                     v0::Constant::create(ov::element::i64, {indices.size()}, indices),
-                                     v0::Constant::create(ov::element::i64, {}, {0}));
+    const std::vector<size_t>& indices,
+    const std::vector<std::shared_ptr<ov::Node>>& copy_rt_info_from) {
+    const auto& indices_op = v0::Constant::create(ov::element::i64, {indices.size()}, indices);
+    const auto& axis_op = v0::Constant::create(ov::element::i64, {}, {0});
+    auto op = make_try_fold<v7::Gather>(shape_node, indices_op, axis_op);
+    if (!copy_rt_info_from.empty())
+        ov::copy_runtime_info(copy_rt_info_from, {op, indices_op, axis_op});
+    return op;
 }
 
-std::shared_ptr<ov::Node> node_to_get_shape_value_of_indices_from_shape_source(const ov::Output<ov::Node>& shape_source,
-                                                                               const std::vector<size_t>& indices) {
+std::shared_ptr<ov::Node> node_to_get_shape_value_of_indices_from_shape_source(
+    const ov::Output<ov::Node>& shape_source,
+    const std::vector<size_t>& indices,
+    const std::vector<std::shared_ptr<ov::Node>>& copy_rt_info_from) {
     const auto& shape_node = make_try_fold<v3::ShapeOf>(shape_source);
-    return node_to_get_shape_value_of_indices_from_shape_node(shape_node, indices);
+    if (!copy_rt_info_from.empty())
+        ov::copy_runtime_info(copy_rt_info_from, shape_node);
+    return node_to_get_shape_value_of_indices_from_shape_node(shape_node, indices, copy_rt_info_from);
 }
 
 bool shapes_equal_except_dynamic_expected_batch(const ov::PartialShape& expected, const ov::PartialShape& actual) {

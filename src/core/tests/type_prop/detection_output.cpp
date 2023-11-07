@@ -18,15 +18,16 @@ using namespace ov;
 using namespace testing;
 
 // ------------------------------ V0 ------------------------------
-std::shared_ptr<op::v0::DetectionOutput> create_detection_output(PartialShape box_logits_shape,
-                                                                 PartialShape class_preds_shape,
-                                                                 PartialShape proposals_shape,
-                                                                 PartialShape aux_class_preds_shape,
-                                                                 PartialShape aux_box_preds_shape,
-                                                                 const ov::op::v0::DetectionOutput::Attributes& attrs,
-                                                                 element::Type input_type,
-                                                                 element::Type proposals_type,
-                                                                 bool set_labels = false) {
+static std::shared_ptr<op::v0::DetectionOutput> create_detection_output(
+    PartialShape box_logits_shape,
+    PartialShape class_preds_shape,
+    PartialShape proposals_shape,
+    PartialShape aux_class_preds_shape,
+    PartialShape aux_box_preds_shape,
+    const ov::op::v0::DetectionOutput::Attributes& attrs,
+    element::Type input_type,
+    element::Type proposals_type,
+    bool set_labels = false) {
     if (set_labels) {
         // The labels are set for all of the shapes,
         // but the output dimension is always a product of multiplication, so labels are not preserved
@@ -325,12 +326,12 @@ TEST(type_prop_layers, detection_output_v0_dynamic_batch) {
     EXPECT_EQ(op->get_element_type(), element::f32);
 }
 
-void detection_output_invalid_data_type_test(element::Type box_logits_et,
-                                             element::Type class_preds_et,
-                                             element::Type proposals_et,
-                                             element::Type aux_class_preds_et,
-                                             element::Type aux_box_preds_et,
-                                             const std::string& expected_msg) {
+static void detection_output_invalid_data_type_test(element::Type box_logits_et,
+                                                    element::Type class_preds_et,
+                                                    element::Type proposals_et,
+                                                    element::Type aux_class_preds_et,
+                                                    element::Type aux_box_preds_et,
+                                                    const std::string& expected_msg) {
     try {
         auto box_logits = make_shared<ov::op::v0::Parameter>(box_logits_et, Shape{4, 20});
         auto class_preds = make_shared<ov::op::v0::Parameter>(class_preds_et, Shape{4, 10});

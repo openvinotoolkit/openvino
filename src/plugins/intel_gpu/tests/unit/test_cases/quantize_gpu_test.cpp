@@ -209,7 +209,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8_binary_pack) 
         data("input_high", input_thresh),
         data("output_low", output_low),
         data("output_high", output_high),
-        quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 2, data_types::bin),
+        quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 2, data_types::u1),
         reorder("reorder", input_info("quantize"), layout{data_types::f32, format::bfyx, tensor{1,8,2,2}})
     );
 
@@ -760,7 +760,7 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
             fill_random_typed<float>(mem, -127, 127, 2);
             break;
         case data_types::f16:
-            fill_random_typed<FLOAT16>(mem, -127, 127, 2);
+            fill_random_typed<ov::float16>(mem, -127, 127, 2);
             break;
         case data_types::i8:
             fill_random_typed<int8_t>(mem, -127, 127, 1);
@@ -859,7 +859,7 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
         if (params.input_type == data_types::f32) {
             fill_typed<float>(input, input_opt);
         } else if (params.input_type == data_types::f16) {
-            fill_typed<FLOAT16>(input, input_opt);
+            fill_typed<ov::float16>(input, input_opt);
         } else if (params.input_type == data_types::i8) {
             fill_typed<int8_t>(input, input_opt);
         } else if (params.input_type == data_types::u8) {
@@ -896,7 +896,7 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
             if (params.output_type == data_types::f32) {
                 compare_outputs<float>(output, output_opt);
             } else if (params.output_type == data_types::f16) {
-                compare_outputs<FLOAT16>(output, output_opt);
+                compare_outputs<ov::float16>(output, output_opt);
             } else if (params.output_type == data_types::i8) {
                 compare_outputs<int8_t>(output, output_opt);
             } else if (params.output_type == data_types::u8) {

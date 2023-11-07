@@ -19,7 +19,29 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API WeightableLayerTransformation : public LayerTransformation {
 public:
-    WeightableLayerTransformation(const Params& params);
+    struct LP_TRANSFORMATIONS_API CanBeTransformedParams {
+        CanBeTransformedParams(
+            const bool constantWeight = true,
+            const bool perTensorQuantizationOnData = true,
+            const bool limitWeightsDataPrecision = true,
+            const bool dynamicWeights = false) :
+            constantWeight(constantWeight),
+            perTensorQuantizationOnData(perTensorQuantizationOnData),
+            limitWeightsDataPrecision(limitWeightsDataPrecision),
+            dynamicWeights(dynamicWeights) {
+        }
+
+        // weights on constant path only
+        const bool constantWeight;
+        // data with per-tensor quantization only
+        const bool perTensorQuantizationOnData;
+        // limit weights by expected precisions
+        const bool limitWeightsDataPrecision;
+        const bool dynamicWeights;
+    };
+
+    WeightableLayerTransformation(const Params& params, const CanBeTransformedParams& canBeTransformedParams = {});
+
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
     bool canConvolutionBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer,
         const std::vector<ov::element::Type>& defaultPrecisions) const;
@@ -33,7 +55,7 @@ public:
 
     static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer,
         const bool reshapeIsRequired,
-        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::int8_support);
+        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());
 
 protected:
     std::tuple<bool, std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantizeForWeightsPath(
@@ -47,7 +69,10 @@ public:
     static std::shared_ptr<ov::opset1::FakeQuantize> getFakeQuantizeOnWeights(const std::shared_ptr<Node>& node);
     static DataPrecision getDataPrecisionOnWeights(const std::shared_ptr<Node>& node, const std::vector<ov::element::Type>& defaultPrecisions);
     static bool isAsymmetricOnWeights(const std::shared_ptr<const Node>& node,
-        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::int8_support);
+        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());
+
+private:
+    const CanBeTransformedParams canBeTransformedParams;
 };
 
 } // namespace low_precision

@@ -10,7 +10,7 @@
 #include "gtest/gtest.h"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 namespace ov {
 namespace test {
@@ -26,10 +26,8 @@ typedef std::tuple<
 
 class ComparisonLayerTest : public testing::WithParamInterface<ComparisonTestParams>,
     virtual public ov::test::SubgraphBaseTest {
-    ngraph::helpers::ComparisonTypes comparison_op_type;
 protected:
     void SetUp() override;
-    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ComparisonTestParams> &obj);
 };

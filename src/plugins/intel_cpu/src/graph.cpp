@@ -1308,17 +1308,16 @@ public:
         auto startCounter = m_prepareCounter.load();
 
         #pragma omp parallel
-        #pragma omp single
+        #pragma omp sections
         {
-            #pragma omp task
+            #pragma omp section
             {
                 updateDynParams(startCounter, stopIndx);
             }
-            #pragma omp task
+            #pragma omp section
             {
                 updateShapes(startCounter, stopIndx);
             }
-            #pragma omp taskwait
         }
     }
 };
@@ -1710,7 +1709,10 @@ void Graph::EnforceInferencePrecision() {
 
     if (inferPrec == Precision::FP32)
         return; // nothing to do, only precision reduction is currently allowed
-
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+    if (inferPrec == Precision::FP16)
+        return; // precision of configured by ov::pass::ConvertPrecision
+#endif
     std::function<void(const NodePtr&, std::unordered_set<NodePtr>& skipNodes)> searchForNodesToSkip;
     searchForNodesToSkip = [&](const NodePtr& node, std::unordered_set<NodePtr>& skipNodes) -> void {
         for (size_t i = 0; i < node->getParentEdges().size(); i++) {

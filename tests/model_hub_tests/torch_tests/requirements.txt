@@ -2,6 +2,15 @@
 numpy
 pytest
 pytest-html
-torch
+torch<2.1
 torchvision
 av
+transformers
+timm
+sacremoses
+sentencepiece
+datasets
+pyctcdecode
+protobuf
+soundfile
+pandas

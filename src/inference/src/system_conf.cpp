@@ -103,6 +103,9 @@ bool with_cpu_x86_avx() {
 bool with_cpu_x86_avx2() {
     return false;
 }
+bool with_cpu_x86_avx2_vnni() {
+    return false;
+}
 bool with_cpu_x86_avx512f() {
     return false;
 }

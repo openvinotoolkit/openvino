@@ -20,7 +20,7 @@ Post-Training Optimization Tool includes standalone command-line tool and Python
 
 ### System requirements
 - Ubuntu 18.04 or later (64-bit)
-- Python 3.7 or later
+- Python 3.8 or later
 - OpenVINO
 
 ### Installation (Temporary)

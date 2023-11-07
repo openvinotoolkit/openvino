@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/select.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include <string>
 
@@ -66,10 +66,8 @@ protected:
         }
         init_input_shapes({inputShape});
         ov::ParameterVector dyn_params{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
-        auto paramOuts =
-            ngraph::helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(dyn_params));
         auto split = std::dynamic_pointer_cast<ngraph::opset5::Split>(
-                     ngraph::builder::makeSplit(paramOuts[0], netPrecision, numSplits, axis));
+                     ngraph::builder::makeSplit(dyn_params[0], netPrecision, numSplits, axis));
         ngraph::ResultVector results;
         for (size_t i = 0; i < outIndices.size(); i++) {
             results.push_back(std::make_shared<ngraph::opset1::Result>(split->output(outIndices[i])));
@@ -205,7 +203,6 @@ protected:
         init_input_shapes(inputShapes);
 
         ov::ParameterVector dyn_params{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
-        auto paramOuts = ngraph::helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(dyn_params));
 
         auto splitAxisOp = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{}, std::vector<int64_t>{static_cast<int64_t>(axis)});
 
@@ -218,7 +215,7 @@ protected:
             splitLengthOp = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{splitLength.size()}, splitLength);
         }
 
-        auto varSplit = std::make_shared<ngraph::opset3::VariadicSplit>(paramOuts[0], splitAxisOp, splitLengthOp);
+        auto varSplit = std::make_shared<ngraph::opset3::VariadicSplit>(dyn_params[0], splitAxisOp, splitLengthOp);
         ngraph::ResultVector results;
         for (size_t i = 0; i < splitLength.size(); i++) {
             results.push_back(std::make_shared<ngraph::opset1::Result>(varSplit->output(i)));
@@ -261,6 +258,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplitsCheck6D, VariadicSplitLayerGPUDynam
                                 ::testing::Values(std::vector<int32_t>{2, 3, 2, -1}),       // splitLength
                                 ::testing::Values(ElementType::i8),                         // netPrec
                                 ::testing::ValuesIn(inputShapes6d),                         // inShapes
+                                ::testing::ValuesIn(restInputTypes)),                       // input type of splitLength
+                        VariadicSplitLayerGPUDynamicTest::getTestCaseName);
+
+
+const std::vector<InputShape> inputShapes4d_static = {
+        {
+            {5, 16, 10, 8}, {{5, 16, 10, 8}, }
+        }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplitsCheck4D_static_input_dyn_output, VariadicSplitLayerGPUDynamicTest,
+                        ::testing::Combine(
+                                ::testing::Values(1),                                       // axes
+                                ::testing::Values(std::vector<int32_t>{2, 1, -1}),          // splitLength
+                                ::testing::Values(ElementType::f16),                        // netPrec
+                                ::testing::ValuesIn(inputShapes4d_static),                         // inShapes
                                 ::testing::ValuesIn(restInputTypes)),                       // input type of splitLength
                         VariadicSplitLayerGPUDynamicTest::getTestCaseName);
 

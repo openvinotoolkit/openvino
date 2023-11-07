@@ -1,5 +1,5 @@
-name: Build Issue Report
-description: This report is for the build/installation issue
+name: Build Issue report
+description: Report a build or installation issue.
 title: "[Build]: "
 labels: ["build", "support_request"]
 body:
@@ -89,7 +89,7 @@ body:
       label: Issue submission checklist
       description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/intel/intel-one-mono/blob/main/CODE_OF_CONDUCT.md)
       options:
-        - label: I report the issue. It's not a question
+        - label: I'm reporting an issue. It's not a question.
           required: true
-        - label: I checked the problem with the documentation, FAQ, open issues, Stack Overflow, etc., and have not found the solution
+        - label: I checked the problem with the documentation, FAQ, open issues, Stack Overflow, etc., and have not found a solution.
           required: true

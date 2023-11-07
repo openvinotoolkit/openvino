@@ -88,7 +88,7 @@ struct Config {
     // is reserved.
     bool DAZOn = false;
 
-    void readProperties(const std::map<std::string, std::string> &config, ModelType modelType = ModelType::Unknown);
+    void readProperties(const std::map<std::string, std::string> &config, const ModelType modelType = ModelType::Unknown);
     void updateProperties();
 
     std::map<std::string, std::string> _config;
@@ -96,6 +96,7 @@ struct Config {
     bool isLegacyApi = false;
 
     int modelPreferThreads = -1;
+    ModelType modelType = ModelType::Unknown;
 
 #ifdef CPU_DEBUG_CAPS
     DebugCapsConfig debugCaps;

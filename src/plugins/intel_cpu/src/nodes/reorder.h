@@ -9,6 +9,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include "nodes/executors/transpose.hpp"
 #include <utils/general_utils.h>
 
 namespace ov {
@@ -52,6 +53,10 @@ public:
         this->isOptimized = isOptimized;
     }
 
+    bool getOptimized() const {
+        return isOptimized;
+    }
+
     bool canBeInPlace() const override {
         return false;
     }
@@ -83,6 +88,10 @@ private:
     void optimizedNspc2Ncsp();
     void optimizedNcsp2Nspc();
     void createReorderPrimitive(const dnnl::memory::desc &srcDesc, void* srcPtr, const dnnl::memory::desc &dstDesc, void* dstPtr);
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+    void prepareReorderAsTranspose(MemoryDescPtr parentDesc, MemoryDescPtr childDesc);
+    TransposeExecutorPtr transposeExecutor;
+#endif
 };
 
 }   // namespace node

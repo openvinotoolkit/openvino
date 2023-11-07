@@ -1,8 +1,6 @@
 Text-to-Image Generation with Stable Diffusion and OpenVINO™
 ============================================================
 
-
-
 Stable Diffusion is a text-to-image latent diffusion model created by
 the researchers and engineers from
 `CompVis <https://github.com/CompVis>`__, `Stability
@@ -36,39 +34,39 @@ using OpenVINO.
 
 Notebook contains the following steps:
 
-1. Convert PyTorch models to ONNX format.
-2. Convert ONNX models to OpenVINO IR format, using model conversion
-   API.
+1. Create pipeline with PyTorch models.
+2. Convert models to OpenVINO IR format, using model conversion API.
 3. Run Stable Diffusion pipeline with OpenVINO.
 
-.. _top:
+**Table of contents:**
 
-**Table of contents**:
 
-- `Prerequisites <#prerequisites>`__
-- `Create PyTorch Models pipeline <#create-pytorch-models-pipeline>`__
-- `Convert models to OpenVINO Intermediate representation (IR) format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Create PyTorch Models
+   pipeline <#create-pytorch-models-pipeline>`__
+-  `Convert models to OpenVINO Intermediate representation (IR)
+   format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
 
-  - `Text Encoder <#text-encoder>`__
-  - `U-net <#u-net>`__
-  - `VAE <#vae>`__
+   -  `Text Encoder <#text-encoder>`__
+   -  `U-net <#u-net>`__
+   -  `VAE <#vae>`__
 
-- `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
-- `Configure Inference Pipeline <#configure-inference-pipeline>`__
+-  `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
+-  `Configure Inference
+   Pipeline <#configure-inference-pipeline>`__
 
-  - `Text-to-Image generation <#text-to-image-generation>`__
-  - `Image-to-Image generation <#image-to-image-generation>`__
+   -  `Text-to-Image generation <#text-to-image-generation>`__
+   -  `Image-to-Image generation <#image-to-image-generation>`__
 
-Prerequisites `⇑ <#top>`__
-###############################################################################################################################
+-  `Interactive demo <#interactive-demo>`__
 
+Prerequisites 
+-------------------------------------------------------
 
 **The following is needed only if you want to use the original model. If
 not, you do not have to do anything. Just run the notebook.**
 
-.. note::
-
-   The original model (for example, ``stable-diffusion-v1-4``)
+   **Note**: The original model (for example, ``stable-diffusion-v1-4``)
    requires you to accept the model license before downloading or using
    its weights. Visit the `stable-diffusion-v1-4
    card <https://huggingface.co/CompVis/stable-diffusion-v1-4>`__ to
@@ -79,7 +77,6 @@ not, you do not have to do anything. Just run the notebook.**
    documentation <https://huggingface.co/docs/hub/security-tokens>`__.
    You can login on Hugging Face Hub in notebook environment, using
    following code:
-
 
 .. code:: python
 
@@ -102,21 +99,24 @@ solutions based on Stable Diffusion.
 
 .. code:: ipython3
 
-    !pip install -q "diffusers[torch]>=0.9.0"
-    !pip install -q "huggingface-hub>=0.9.1"
+    %pip install -q "openvino>=2023.1.0"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "diffusers[torch]>=0.9.0"
+    %pip install -q "huggingface-hub>=0.9.1"
+    %pip install -q gradio
+    %pip install -q transformers
 
+Create PyTorch Models pipeline 
+------------------------------------------------------------------------
 
-Create PyTorch Models pipeline `⇑ <#top>`__
-###############################################################################################################################
-
-``StableDiffusionPipeline`` is an end-to-end inference pipeline that you can use to generate images
-from text with just a few lines of code.
+``StableDiffusionPipeline`` is an end-to-end inference pipeline that you
+can use to generate images from text with just a few lines of code.
 
 First, load the pre-trained weights of all components of the model.
 
 .. code:: ipython3
 
     from diffusers import StableDiffusionPipeline
+    import gc
     
     pipe = StableDiffusionPipeline.from_pretrained("prompthero/openjourney").to("cpu")
     text_encoder = pipe.text_encoder
@@ -127,31 +127,151 @@ First, load the pre-trained weights of all components of the model.
     vae.eval()
     
     del pipe
+    gc.collect()
+
+
+.. parsed-literal::
+
+    2023-08-29 12:35:30.891928: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-08-29 12:35:30.933110: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2023-08-29 12:35:31.755679: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
 .. parsed-literal::
 
-    Fetching 15 files:   0%|          | 0/15 [00:00<?, ?it/s]
+    Downloading (…)ain/model_index.json:   0%|          | 0.00/541 [00:00<?, ?B/s]
 
 
-Convert models to OpenVINO Intermediate representation (IR) format. `⇑ <#top>`__
-###############################################################################################################################
 
-OpenVINO supports PyTorch through export to the ONNX format. You will
-use ``torch.onnx.export`` function for obtaining ONNX model. You can
-learn more in the `PyTorch
-documentation <https://pytorch.org/docs/stable/onnx.html>`__. You need
-to provide a model object, input data for model tracing and a path for
-saving the model. Optionally, you can provide the target onnx opset for
-conversion and other parameters specified in documentation (for example,
-input and output names or dynamic shapes).
+.. parsed-literal::
 
-While ONNX models are directly supported by OpenVINO™ runtime, it can be
-useful to convert them to IR format to take advantage of advanced
-OpenVINO optimization tools and features. For converting the model to IR
-format and compressing weights to ``FP16`` format, you will use model
-conversion API.
+    Fetching 16 files:   0%|          | 0/16 [00:00<?, ?it/s]
+
+
+
+.. parsed-literal::
+
+    Downloading (…)cheduler_config.json:   0%|          | 0.00/308 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Downloading (…)tokenizer/merges.txt:   0%|          | 0.00/525k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Downloading (…)_checker/config.json:   0%|          | 0.00/4.84k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Downloading (…)rocessor_config.json:   0%|          | 0.00/342 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Downloading (…)_encoder/config.json:   0%|          | 0.00/612 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Downloading (…)cial_tokens_map.json:   0%|          | 0.00/472 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Downloading (…)okenizer_config.json:   0%|          | 0.00/806 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Downloading (…)e03/unet/config.json:   0%|          | 0.00/743 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Downloading (…)tokenizer/vocab.json:   0%|          | 0.00/1.06M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Downloading model.safetensors:   0%|          | 0.00/492M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Downloading model.safetensors:   0%|          | 0.00/492M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Downloading (…)fe03/vae/config.json:   0%|          | 0.00/547 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Downloading model.safetensors:   0%|          | 0.00/1.22G [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Downloading (…)ch_model.safetensors:   0%|          | 0.00/3.44G [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Downloading (…)ch_model.safetensors:   0%|          | 0.00/335M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Loading pipeline components...:   0%|          | 0/7 [00:00<?, ?it/s]
+
+
+.. parsed-literal::
+
+    `text_config_dict` is provided which will be used to initialize `CLIPTextConfig`. The value `text_config["id2label"]` will be overriden.
+    `text_config_dict` is provided which will be used to initialize `CLIPTextConfig`. The value `text_config["bos_token_id"]` will be overriden.
+    `text_config_dict` is provided which will be used to initialize `CLIPTextConfig`. The value `text_config["eos_token_id"]` will be overriden.
+
+
+
+
+.. parsed-literal::
+
+    33
+
+
+
+Convert models to OpenVINO Intermediate representation (IR) format 
+------------------------------------------------------------------------------------------------------------
+
+Staring from 2023.0 release, OpenVINO supports direct conversion PyTorch
+models to OpenVINO IR format. You need to provide a model object and
+input data for model tracing. Optionally, you can declare expected input
+format for model - shapes, data types. To take advantage of advanced
+OpenVINO optimization tools and features, model should be converted to
+IR format using ``ov.convert_model`` and saved on disk (by default in
+compressed to FP16 weights representation) for next deployment using
+``ov.save_model``.
 
 The model consists of three important parts:
 
@@ -163,9 +283,8 @@ The model consists of three important parts:
 
 Let us convert each part.
 
-Text Encoder `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Text Encoder 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -178,54 +297,50 @@ indexes of tokens from text processed by tokenizer and padded to maximum
 length accepted by model. Model outputs are two tensors:
 ``last_hidden_state`` - hidden state from the last MultiHeadAttention
 layer in the model and ``pooler_out`` - Pooled output for whole model
-hidden states. You will use ``opset_version=14``, because model contains
-``triu`` operation, supported in ONNX only starting from this opset.
+hidden states.
 
 .. code:: ipython3
 
-    import gc
     from pathlib import Path
     import torch
+    import openvino as ov
     
-    TEXT_ENCODER_ONNX_PATH = Path('text_encoder.onnx')
-    TEXT_ENCODER_OV_PATH = TEXT_ENCODER_ONNX_PATH.with_suffix('.xml')
+    TEXT_ENCODER_OV_PATH = Path("text_encoder.xml")
     
-    
-    def convert_encoder_onnx(xtext_encoder: StableDiffusionPipeline, onnx_path:Path):
+    def cleanup_torchscript_cache():
         """
-        Convert Text Encoder model to ONNX. 
-        Function accepts pipeline, prepares example inputs for ONNX conversion via torch.export, 
+        Helper for removing cached model representation
+        """
+        torch._C._jit_clear_class_registry()
+        torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
+        torch.jit._state._clear_class_state()
+    
+    def convert_encoder(text_encoder: torch.nn.Module, ir_path:Path):
+        """
+        Convert Text Encoder mode. 
+        Function accepts text encoder model, and prepares example inputs for conversion, 
         Parameters: 
-            pipe (StableDiffusionPipeline): Stable Diffusion pipeline
-            onnx_path (Path): File for storing onnx model
+            text_encoder (torch.nn.Module): text_encoder model from Stable Diffusion pipeline
+            ir_path (Path): File for storing model
         Returns:
             None
         """
-        if not onnx_path.exists():
-            input_ids = torch.ones((1, 77), dtype=torch.long)
-            # switch model to inference mode
-            text_encoder.eval()
+        input_ids = torch.ones((1, 77), dtype=torch.long)
+        # switch model to inference mode
+        text_encoder.eval()
     
-            # disable gradients calculation for reducing memory consumption
-            with torch.no_grad():
-                # infer model, just to make sure that it works
-                text_encoder(input_ids)
-                # export model to ONNX format
-                torch.onnx.export(
-                    text_encoder,  # model instance
-                    input_ids,  # inputs for model tracing
-                    onnx_path,  # output file for saving result
-                    input_names=['tokens'],  # model input name for onnx representation
-                    output_names=['last_hidden_state', 'pooler_out'],  # model output names for onnx representation
-                    opset_version=14  # onnx opset version for export
-                )
-            print('Text Encoder successfully converted to ONNX')
+        # disable gradients calculation for reducing memory consumption
+        with torch.no_grad():
+            # Export model to IR format
+            ov_model = ov.convert_model(text_encoder, example_input=input_ids, input=[(1,77),])
+        ov.save_model(ov_model, ir_path)
+        del ov_model
+        cleanup_torchscript_cache()
+        print(f'Text Encoder successfully converted to IR and saved to {ir_path}')
         
     
     if not TEXT_ENCODER_OV_PATH.exists():
-        convert_encoder_onnx(text_encoder, TEXT_ENCODER_ONNX_PATH)
-        !mo --input_model $TEXT_ENCODER_ONNX_PATH --compress_to_fp16
-        print('Text Encoder successfully converted to IR')
+        convert_encoder(text_encoder, TEXT_ENCODER_OV_PATH)
     else:
         print(f"Text encoder will be loaded from {TEXT_ENCODER_OV_PATH}")
     
@@ -235,27 +350,44 @@ hidden states. You will use ``opset_version=14``, because model contains
 
 .. parsed-literal::
 
-    Text encoder will be loaded from text_encoder.xml
+    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
+
+
+.. parsed-literal::
+
+    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
+    /home/ea/work/ov_venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:286: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if attn_weights.size() != (bsz * self.num_heads, tgt_len, src_len):
+    /home/ea/work/ov_venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:294: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if causal_attention_mask.size() != (bsz, 1, tgt_len, src_len):
+    /home/ea/work/ov_venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:326: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if attn_output.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
+    /home/ea/work/ov_venv/lib/python3.8/site-packages/torch/jit/annotations.py:310: UserWarning: TorchScript will treat type annotations of Tensor dtype-specific subtypes as if they are normal Tensors. dtype constraints are not enforced in compilation either.
+      warnings.warn("TorchScript will treat type annotations of Tensor "
+
+
+.. parsed-literal::
+
+    Text Encoder successfully converted to IR and saved to text_encoder.xml
 
 
 
 
 .. parsed-literal::
 
-    13
+    4202
 
 
 
-U-net `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+U-net 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Unet model has three inputs:
 
-- ``sample`` - latent image sample from previous step. Generation
+-  ``sample`` - latent image sample from previous step. Generation
    process has not been started yet, so you will use random noise.
-- ``timestep`` - current scheduler step.
-- ``encoder_hidden_state`` - hidden state of text encoder.
+-  ``timestep`` - current scheduler step.
+-  ``encoder_hidden_state`` - hidden state of text encoder.
 
 Model predicts the ``sample`` state for the next step.
 
@@ -263,56 +395,71 @@ Model predicts the ``sample`` state for the next step.
 
     import numpy as np
     
-    UNET_ONNX_PATH = Path('unet/unet.onnx')
-    UNET_OV_PATH = UNET_ONNX_PATH.parents[1] / 'unet.xml'
+    UNET_OV_PATH = Path('unet.xml')
+    
+    dtype_mapping = {
+        torch.float32: ov.Type.f32,
+        torch.float64: ov.Type.f64
+    }
     
     
-    def convert_unet_onnx(unet:StableDiffusionPipeline, onnx_path:Path):
+    def convert_unet(unet:torch.nn.Module, ir_path:Path):
         """
-        Convert Unet model to ONNX, then IR format. 
-        Function accepts pipeline, prepares example inputs for ONNX conversion via torch.export, 
+        Convert U-net model to IR format. 
+        Function accepts unet model, prepares example inputs for conversion, 
         Parameters: 
-            pipe (StableDiffusionPipeline): Stable Diffusion pipeline
-            onnx_path (Path): File for storing onnx model
+            unet (StableDiffusionPipeline): unet from Stable Diffusion pipeline
+            ir_path (Path): File for storing model
         Returns:
             None
         """
-        if not onnx_path.exists():
-            # prepare inputs
-            encoder_hidden_state = torch.ones((2, 77, 768))
-            latents_shape = (2, 4, 512 // 8, 512 // 8)
-            latents = torch.randn(latents_shape)
-            t = torch.from_numpy(np.array(1, dtype=float))
+        # prepare inputs
+        encoder_hidden_state = torch.ones((2, 77, 768))
+        latents_shape = (2, 4, 512 // 8, 512 // 8)
+        latents = torch.randn(latents_shape)
+        t = torch.from_numpy(np.array(1, dtype=float))
+        dummy_inputs = (latents, t, encoder_hidden_state)
+        input_info = []
+        for input_tensor in dummy_inputs:
+            shape = ov.PartialShape(tuple(input_tensor.shape))
+            element_type = dtype_mapping[input_tensor.dtype]
+            input_info.append((shape, element_type))
     
-            # model size > 2Gb, it will be represented as onnx with external data files, you will store it in separated directory for avoid a lot of files in current directory
-            onnx_path.parent.mkdir(exist_ok=True, parents=True)
-            unet.eval()
-    
-            with torch.no_grad():
-                torch.onnx.export(
-                    unet, 
-                    (latents, t, encoder_hidden_state), str(onnx_path),
-                    input_names=['latent_model_input', 't', 'encoder_hidden_states'],
-                    output_names=['out_sample']
-                )
-            print('Unet successfully converted to ONNX')
+        unet.eval()
+        with torch.no_grad():
+            ov_model = ov.convert_model(unet, example_input=dummy_inputs, input=input_info)
+        ov.save_model(ov_model, ir_path)
+        del ov_model
+        cleanup_torchscript_cache()
+        print(f'Unet successfully converted to IR and saved to {ir_path}')
     
     
     if not UNET_OV_PATH.exists():
-        convert_unet_onnx(unet, UNET_ONNX_PATH)
-        del unet
+        convert_unet(unet, UNET_OV_PATH)
         gc.collect()
-        !mo --input_model $UNET_ONNX_PATH --compress_to_fp16
-        print('Unet successfully converted to IR')
     else:
-        del unet
         print(f"Unet will be loaded from {UNET_OV_PATH}")
+    del unet
     gc.collect()
 
 
 .. parsed-literal::
 
-    Unet will be loaded from unet.xml
+    /home/ea/work/diffusers/src/diffusers/models/unet_2d_condition.py:752: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if any(s % default_overall_up_factor != 0 for s in sample.shape[-2:]):
+    /home/ea/work/diffusers/src/diffusers/models/resnet.py:214: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      assert hidden_states.shape[1] == self.channels
+    /home/ea/work/diffusers/src/diffusers/models/resnet.py:219: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      assert hidden_states.shape[1] == self.channels
+    /home/ea/work/diffusers/src/diffusers/models/resnet.py:138: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      assert hidden_states.shape[1] == self.channels
+    /home/ea/work/diffusers/src/diffusers/models/resnet.py:151: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if hidden_states.shape[0] >= 64:
+
+
+.. parsed-literal::
+
+    Unet successfully converted to IR and saved to unet.xml
 
 
 
@@ -323,9 +470,8 @@ Model predicts the ``sample`` state for the next step.
 
 
 
-VAE `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+VAE 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -346,18 +492,16 @@ of the pipeline, it will be better to convert them to separate models.
 
 .. code:: ipython3
 
-    VAE_ENCODER_ONNX_PATH = Path('vae_encoder.onnx')
-    VAE_ENCODER_OV_PATH = VAE_ENCODER_ONNX_PATH.with_suffix('.xml')
+    VAE_ENCODER_OV_PATH = Path("vae_encoder.xml")
     
-    
-    def convert_vae_encoder_onnx(vae: StableDiffusionPipeline, onnx_path: Path):
+    def convert_vae_encoder(vae: torch.nn.Module, ir_path: Path):
         """
-        Convert VAE model to ONNX, then IR format. 
-        Function accepts pipeline, creates wrapper class for export only necessary for inference part, 
-        prepares example inputs for ONNX conversion via torch.export, 
+        Convert VAE model for encoding to IR format. 
+        Function accepts vae model, creates wrapper class for export only necessary for inference part, 
+        prepares example inputs for conversion, 
         Parameters: 
-            pipe (StableDiffusionInstructPix2PixPipeline): InstrcutPix2Pix pipeline
-            onnx_path (Path): File for storing onnx model
+            vae (torch.nn.Module): VAE model from StableDiffusio pipeline 
+            ir_path (Path): File for storing model
         Returns:
             None
         """
@@ -367,39 +511,33 @@ of the pipeline, it will be better to convert them to separate models.
                 self.vae = vae
     
             def forward(self, image):
-                h = self.vae.encoder(image)
-                moments = self.vae.quant_conv(h)
-                return moments
-    
-        if not onnx_path.exists():
-            vae_encoder = VAEEncoderWrapper(vae)
-            vae_encoder.eval()
-            image = torch.zeros((1, 3, 512, 512))
-            with torch.no_grad():
-                torch.onnx.export(vae_encoder, image, onnx_path, input_names=[
-                                  'init_image'], output_names=['image_latent'])
-            print('VAE encoder successfully converted to ONNX')
+                return self.vae.encode(x=image)["latent_dist"].sample()
+        vae_encoder = VAEEncoderWrapper(vae)
+        vae_encoder.eval()
+        image = torch.zeros((1, 3, 512, 512))
+        with torch.no_grad():
+            ov_model = ov.convert_model(vae_encoder, example_input=image, input=[((1,3,512,512),)])
+        ov.save_model(ov_model, ir_path)
+        del ov_model
+        cleanup_torchscript_cache()
+        print(f'VAE encoder successfully converted to IR and saved to {ir_path}')
     
     
     if not VAE_ENCODER_OV_PATH.exists():
-        convert_vae_encoder_onnx(vae, VAE_ENCODER_ONNX_PATH)
-        !mo --input_model $VAE_ENCODER_ONNX_PATH --compress_to_fp16
-        print('VAE encoder successfully converted to IR')
+        convert_vae_encoder(vae, VAE_ENCODER_OV_PATH)
     else:
         print(f"VAE encoder will be loaded from {VAE_ENCODER_OV_PATH}")
     
-    VAE_DECODER_ONNX_PATH = Path('vae_decoder.onnx')
-    VAE_DECODER_OV_PATH = VAE_DECODER_ONNX_PATH.with_suffix('.xml')
+    VAE_DECODER_OV_PATH = Path('vae_decoder.xml')
     
-    
-    def convert_vae_decoder_onnx(vae: StableDiffusionPipeline, onnx_path: Path):
+    def convert_vae_decoder(vae: torch.nn.Module, ir_path: Path):
         """
-        Convert VAE model to ONNX, then IR format. 
-        Function accepts pipeline, creates wrapper class for export only necessary for inference part, 
-        prepares example inputs for ONNX conversion via torch.export, 
+        Convert VAE model for decoding to IR format. 
+        Function accepts vae model, creates wrapper class for export only necessary for inference part, 
+        prepares example inputs for conversion, 
         Parameters: 
-            pipe (StableDiffusionInstructPix2PixPipeline): InstrcutPix2Pix pipeline
-            onnx_path (Path): File for storing onnx model
+            vae (torch.nn.Module): VAE model frm StableDiffusion pipeline
+            ir_path (Path): File for storing model
         Returns:
             None
         """
@@ -409,44 +547,65 @@ of the pipeline, it will be better to convert them to separate models.
                 self.vae = vae
     
             def forward(self, latents):
-                latents = 1 / 0.18215 * latents 
                 return self.vae.decode(latents)
+        
+        vae_decoder = VAEDecoderWrapper(vae)
+        latents = torch.zeros((1, 4, 64, 64))
     
-        if not onnx_path.exists():
-            vae_decoder = VAEDecoderWrapper(vae)
-            latents = torch.zeros((1, 4, 64, 64))
-    
-            vae_decoder.eval()
-            with torch.no_grad():
-                torch.onnx.export(vae_decoder, latents, onnx_path, input_names=[
-                                  'latents'], output_names=['sample'])
-            print('VAE decoder successfully converted to ONNX')
+        vae_decoder.eval()
+        with torch.no_grad():
+            ov_model = ov.convert_model(vae_decoder, example_input=latents, input=[((1,4,64,64),)])
+        ov.save_model(ov_model, ir_path)
+        del ov_model
+        cleanup_torchscript_cache()
+        print(f'VAE decoder successfully converted to IR and saved to {ir_path}')
     
     
     if not VAE_DECODER_OV_PATH.exists():
-        convert_vae_decoder_onnx(vae, VAE_DECODER_ONNX_PATH)
-        !mo --input_model $VAE_DECODER_ONNX_PATH --compress_to_fp16
-        print('VAE decoder successfully converted to IR')
+        convert_vae_decoder(vae, VAE_DECODER_OV_PATH)
     else:
         print(f"VAE decoder will be loaded from {VAE_DECODER_OV_PATH}")
     
     del vae
+    gc.collect()
 
 
 .. parsed-literal::
 
-    VAE encoder will be loaded from vae_encoder.xml
-    VAE decoder will be loaded from vae_decoder.xml
+    /home/ea/work/ov_venv/lib/python3.8/site-packages/torch/jit/_trace.py:1084: TracerWarning: Trace had nondeterministic nodes. Did you forget call .eval() on your model? Nodes:
+    	%2493 : Float(1, 4, 64, 64, strides=[16384, 4096, 64, 1], requires_grad=0, device=cpu) = aten::randn(%2487, %2488, %2489, %2490, %2491, %2492) # /home/ea/work/diffusers/src/diffusers/utils/torch_utils.py:79:0
+    This may cause errors in trace checking. To disable trace checking, pass check_trace=False to torch.jit.trace()
+      _check_trace(
+    /home/ea/work/ov_venv/lib/python3.8/site-packages/torch/jit/_trace.py:1084: TracerWarning: Output nr 1. of the traced function does not match the corresponding output of the Python function. Detailed error:
+    Tensor-likes are not close!
+    
+    Mismatched elements: 10371 / 16384 (63.3%)
+    Greatest absolute difference: 0.0014181137084960938 at index (0, 2, 63, 63) (up to 1e-05 allowed)
+    Greatest relative difference: 0.006298586412390911 at index (0, 3, 63, 59) (up to 1e-05 allowed)
+      _check_trace(
 
 
-Prepare Inference Pipeline `⇑ <#top>`__
-###############################################################################################################################
+.. parsed-literal::
 
+    VAE encoder successfully converted to IR and saved to vae_encoder.xml
+    VAE decoder successfully converted to IR and saved to vae_decoder.xml
+
+
+
+
+.. parsed-literal::
+
+    7650
+
+
+
+Prepare Inference Pipeline 
+--------------------------------------------------------------------
 
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow.
 
-.. figure:: https://user-images.githubusercontent.com/29454499/216378932-7a9be39f-cc86-43e4-b072-66372a35d6bd.png
+.. figure:: https://user-images.githubusercontent.com/29454499/260981188-c112dd0a-5752-4515-adca-8b09bea5d14a.png
    :alt: sd-pipeline
 
    sd-pipeline
@@ -498,7 +657,7 @@ of the variational auto encoder.
     import cv2
     
     from transformers import CLIPTokenizer
-    from diffusers.pipeline_utils import DiffusionPipeline
+    from diffusers.pipelines.pipeline_utils import DiffusionPipeline
     from diffusers.schedulers import DDIMScheduler, LMSDiscreteScheduler, PNDMScheduler
     from openvino.runtime import Model
     
@@ -585,8 +744,8 @@ of the variational auto encoder.
             self._unet_output = unet.output(0)
             self._vae_d_output = vae_decoder.output(0)
             self._vae_e_output = vae_encoder.output(0) if vae_encoder is not None else None
-            self.height = self.unet.input(0).shape[2] * 8
-            self.width = self.unet.input(0).shape[3] * 8
+            self.height = 512
+            self.width = 512
             self.tokenizer = tokenizer
     
         def __call__(
@@ -594,6 +753,7 @@ of the variational auto encoder.
             prompt: Union[str, List[str]],
             image: PIL.Image.Image = None,
             num_inference_steps: Optional[int] = 50,
+            negative_prompt: Union[str, List[str]] = None,
             guidance_scale: Optional[float] = 7.5,
             eta: Optional[float] = 0.0,
             output_type: Optional[str] = "pil",
@@ -612,6 +772,8 @@ of the variational auto encoder.
                 num_inference_steps (int, *optional*, defaults to 50):
                     The number of denoising steps. More denoising steps usually lead to a higher quality image at the
                     expense of slower inference.
+                negative_prompt (str or List[str]):
+                    The negative prompt or prompts to guide the image generation.
                 guidance_scale (float, *optional*, defaults to 7.5):
                     Guidance scale as defined in Classifier-Free Diffusion Guidance(https://arxiv.org/abs/2207.12598).
                     guidance_scale is defined as `w` of equation 2.
@@ -635,39 +797,10 @@ of the variational auto encoder.
             if seed is not None:
                 np.random.seed(seed)
     
-            if isinstance(prompt, str):
-                batch_size = 1
-            elif isinstance(prompt, list):
-                batch_size = len(prompt)
-            else:
-                raise ValueError(f"`prompt` has to be of type `str` or `list` but is {type(prompt)}")
-    
             img_buffer = []
-            # get prompt text embeddings
-            text_input = self.tokenizer(
-                prompt,
-                padding="max_length",
-                max_length=self.tokenizer.model_max_length,
-                truncation=True,
-                return_tensors="np",
-            )
-            text_embeddings = self.text_encoder(text_input.input_ids)[self._text_encoder_output]
-            # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-            # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
-            # corresponds to doing no classifier free guidance.
             do_classifier_free_guidance = guidance_scale > 1.0
-            # get unconditional embeddings for classifier free guidance
-            if do_classifier_free_guidance:
-                max_length = text_input.input_ids.shape[-1]
-                uncond_input = self.tokenizer(
-                    [""] * batch_size, padding="max_length", max_length=max_length, return_tensors="np"
-                )
-                uncond_embeddings = self.text_encoder(uncond_input.input_ids)[self._text_encoder_output]
-    
-                # For classifier free guidance, you need to do two forward passes.
-                # Here you concatenate the unconditional and text embeddings into a single batch
-                # to avoid doing two forward passes
-                text_embeddings = np.concatenate([uncond_embeddings, text_embeddings])
+            # get prompt text embeddings
+            text_embeddings = self._encode_prompt(prompt, do_classifier_free_guidance=do_classifier_free_guidance, negative_prompt=negative_prompt)
             
             # set timesteps
             accepts_offset = "offset" in set(inspect.signature(self.scheduler.set_timesteps).parameters.keys())
@@ -706,15 +839,83 @@ of the variational auto encoder.
                 # compute the previous noisy sample x_t -> x_t-1
                 latents = self.scheduler.step(torch.from_numpy(noise_pred), t, torch.from_numpy(latents), **extra_step_kwargs)["prev_sample"].numpy()
                 if gif:
-                    image = self.vae_decoder(latents)[self._vae_d_output]
+                    image = self.vae_decoder(latents * (1 / 0.18215))[self._vae_d_output]
                     image = self.postprocess_image(image, meta, output_type)
                     img_buffer.extend(image)
     
             # scale and decode the image latents with vae
-            image = self.vae_decoder(latents)[self._vae_d_output]
+            image = self.vae_decoder(latents * (1 / 0.18215))[self._vae_d_output]
     
             image = self.postprocess_image(image, meta, output_type)
             return {"sample": image, 'iterations': img_buffer}
+        
+        def _encode_prompt(self, prompt:Union[str, List[str]], num_images_per_prompt:int = 1, do_classifier_free_guidance:bool = True, negative_prompt:Union[str, List[str]] = None):
+            """
+            Encodes the prompt into text encoder hidden states.
+    
+            Parameters:
+                prompt (str or list(str)): prompt to be encoded
+                num_images_per_prompt (int): number of images that should be generated per prompt
+                do_classifier_free_guidance (bool): whether to use classifier free guidance or not
+                negative_prompt (str or list(str)): negative prompt to be encoded
+            Returns:
+                text_embeddings (np.ndarray): text encoder hidden states
+            """
+            batch_size = len(prompt) if isinstance(prompt, list) else 1
+    
+            # tokenize input prompts
+            text_inputs = self.tokenizer(
+                prompt,
+                padding="max_length",
+                max_length=self.tokenizer.model_max_length,
+                truncation=True,
+                return_tensors="np",
+            )
+            text_input_ids = text_inputs.input_ids
+    
+            text_embeddings = self.text_encoder(
+                text_input_ids)[self._text_encoder_output]
+    
+            # duplicate text embeddings for each generation per prompt
+            if num_images_per_prompt != 1:
+                bs_embed, seq_len, _ = text_embeddings.shape
+                text_embeddings = np.tile(
+                    text_embeddings, (1, num_images_per_prompt, 1))
+                text_embeddings = np.reshape(
+                    text_embeddings, (bs_embed * num_images_per_prompt, seq_len, -1))
+    
+            # get unconditional embeddings for classifier free guidance
+            if do_classifier_free_guidance:
+                uncond_tokens: List[str]
+                max_length = text_input_ids.shape[-1]
+                if negative_prompt is None:
+                    uncond_tokens = [""] * batch_size
+                elif isinstance(negative_prompt, str):
+                    uncond_tokens = [negative_prompt]
+                else:
+                    uncond_tokens = negative_prompt
+                uncond_input = self.tokenizer(
+                    uncond_tokens,
+                    padding="max_length",
+                    max_length=max_length,
+                    truncation=True,
+                    return_tensors="np",
+                )
+    
+                uncond_embeddings = self.text_encoder(uncond_input.input_ids)[self._text_encoder_output]
+    
+                # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
+                seq_len = uncond_embeddings.shape[1]
+                uncond_embeddings = np.tile(uncond_embeddings, (1, num_images_per_prompt, 1))
+                uncond_embeddings = np.reshape(uncond_embeddings, (batch_size * num_images_per_prompt, seq_len, -1))
+    
+                # For classifier free guidance, we need to do two forward passes.
+                # Here we concatenate the unconditional and text embeddings into a single batch
+                # to avoid doing two forward passes
+                text_embeddings = np.concatenate([uncond_embeddings, text_embeddings])
+    
+            return text_embeddings
+    
     
         def prepare_latents(self, image:PIL.Image.Image = None, latent_timestep:torch.Tensor = None):
             """
@@ -737,10 +938,7 @@ of the variational auto encoder.
                     noise = noise * self.scheduler.sigmas[0].numpy()
                     return noise, {}
             input_image, meta = preprocess(image)
-            moments = self.vae_encoder(input_image)[self._vae_e_output]
-            mean, logvar = np.split(moments, 2, axis=1) 
-            std = np.exp(logvar * 0.5)
-            latents = (mean + std * np.random.randn(*mean.shape)) * 0.18215
+            latents = self.vae_encoder(input_image)[self._vae_e_output] * 0.18215
             latents = self.scheduler.add_noise(torch.from_numpy(latents), torch.from_numpy(noise), latent_timestep).numpy()
             return latents, meta
     
@@ -803,16 +1001,14 @@ of the variational auto encoder.
     
             return timesteps, num_inference_steps - t_start 
 
-Configure Inference Pipeline `⇑ <#top>`__
-###############################################################################################################################
-
+Configure Inference Pipeline 
+----------------------------------------------------------------------
 
 First, you should create instances of OpenVINO Model.
 
 .. code:: ipython3
 
-    from openvino.runtime import Core
-    core = Core()
+    core = ov.Core()
 
 Select device from dropdown list for running inference using OpenVINO.
 
@@ -822,12 +1018,21 @@ Select device from dropdown list for running inference using OpenVINO.
     
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
-        value='AUTO',
+        value='CPU',
         description='Device:',
         disabled=False,
     )
     
     device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', options=('CPU', 'GNA', 'AUTO'), value='CPU')
+
+
 
 .. code:: ipython3
 
@@ -840,8 +1045,10 @@ Select device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
-    vae_decoder = core.compile_model(VAE_DECODER_OV_PATH, device.value)
-    vae_encoder = core.compile_model(VAE_ENCODER_OV_PATH, device.value)
+    ov_config = {"INFERENCE_PRECISION_HINT": "f32"} if device.value != "CPU" else {}
+    
+    vae_decoder = core.compile_model(VAE_DECODER_OV_PATH, device.value, ov_config)
+    vae_encoder = core.compile_model(VAE_ENCODER_OV_PATH, device.value, ov_config)
 
 Model tokenizer and scheduler are also important parts of the pipeline.
 Let us define them and put all components together
@@ -867,25 +1074,26 @@ Let us define them and put all components together
         scheduler=lms
     )
 
-Text-to-Image generation `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Text-to-Image generation 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Now, you can define a text prompt for image generation and run inference
 pipeline. Optionally, you can also change the random generator seed for
 latent state initialization and number of steps.
 
-.. note::
-
-   Consider increasing ``steps`` to get more precise results.
+   **Note**: Consider increasing ``steps`` to get more precise results.
    A suggested value is ``50``, but it will take longer time to process.
-
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
-    text_prompt = widgets.Text(value='cyberpunk cityscape like Tokyo New York  with tall buildings at dusk golden hour cinematic lighting, epic composition. A golden daylight, hyper-realistic environment. Hyper and intricate detail, photo-realistic. Cinematic and volumetric light. Epic concept art. Octane render and Unreal Engine, trending on artstation', description='your text')
+    sample_text = ('cyberpunk cityscape like Tokyo New York  with tall buildings at dusk golden hour cinematic lighting, epic composition. '
+                   'A golden daylight, hyper-realistic environment. '
+                   'Hyper and intricate detail, photo-realistic. '
+                   'Cinematic and volumetric light. '
+                   'Epic concept art. '
+                   'Octane render and Unreal Engine, trending on artstation')
+    text_prompt = widgets.Text(value=sample_text, description='your text')
     num_steps = widgets.IntSlider(min=1, max=50, value=20, description='steps:')
     seed = widgets.IntSlider(min=0, max=10000000, description='seed: ', value=42)
     widgets.VBox([text_prompt, seed, num_steps])
@@ -968,9 +1176,8 @@ Now is show time!
 
 Nice. As you can see, the picture has quite a high definition 🔥.
 
-Image-to-Image generation `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Image-to-Image generation 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Image-to-Image generation, additionally to text prompt, requires
 providing initial image. Optionally, you can also change ``strength``
@@ -1003,11 +1210,26 @@ semantically consistent with the input.
 
 .. code:: ipython3
 
+    # Fetch `notebook_utils` module
+    import urllib.request
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
+        filename='notebook_utils.py'
+    )
+    
+    from notebook_utils import download_file
+
+.. code:: ipython3
+
     import io
     
-    default_image_path = "../data/image/coco.jpg"
+    default_image_path = download_file(
+        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg",
+        filename="coco.jpg"
+    )
+    
     # read uploaded image
-    image = PIL.Image.open(io.BytesIO(image_widget.value[-1]['content']) if image_widget.value else default_image_path)
+    image = PIL.Image.open(io.BytesIO(image_widget.value[-1]['content']) if image_widget.value else str(default_image_path))
     print('Pipeline settings')
     print(f'Input text: {text_prompt_i2i.value}')
     print(f'Seed: {seed_i2i.value}')
@@ -1029,7 +1251,7 @@ semantically consistent with the input.
 
 
 
-.. image:: 225-stable-diffusion-text-to-image-with-output_files/225-stable-diffusion-text-to-image-with-output_37_1.png
+.. image:: 225-stable-diffusion-text-to-image-with-output_files/225-stable-diffusion-text-to-image-with-output_38_1.png
 
 
 
@@ -1062,5 +1284,76 @@ semantically consistent with the input.
 
 
 
-.. image:: 225-stable-diffusion-text-to-image-with-output_files/225-stable-diffusion-text-to-image-with-output_39_1.png
+.. image:: 225-stable-diffusion-text-to-image-with-output_files/225-stable-diffusion-text-to-image-with-output_40_1.png
+
+
+Interactive demo 
+----------------------------------------------------------
+
+.. code:: ipython3
+
+    import gradio as gr
+    
+    def generate_from_text(text, seed, num_steps, _=gr.Progress(track_tqdm=True)):
+        result = ov_pipe(text, num_inference_steps=num_steps, seed=seed)
+        return result["sample"][0]
+    
+    
+    def generate_from_image(img, text, seed, num_steps, strength, _=gr.Progress(track_tqdm=True)):
+        result = ov_pipe(text, img, num_inference_steps=num_steps, seed=seed, strength=strength)
+        return result["sample"][0]
+    
+    
+    with gr.Blocks() as demo:
+        with gr.Tab("Text-to-Image generation"):
+            with gr.Row():
+                with gr.Column():
+                    text_input = gr.Textbox(lines=3, label="Text")
+                    seed_input = gr.Slider(0, 10000000, value=42, label="Seed")
+                    steps_input = gr.Slider(1, 50, value=20, step=1, label="Steps")
+                out = gr.Image(label="Result", type="pil")
+            btn = gr.Button()
+            btn.click(generate_from_text, [text_input, seed_input, steps_input], out)
+            gr.Examples([[sample_text, 42, 20]], [text_input, seed_input, steps_input])
+        with gr.Tab("Image-to-Image generation"):
+            with gr.Row():
+                with gr.Column():
+                    i2i_input = gr.Image(label="Image", type="pil")
+                    i2i_text_input = gr.Textbox(lines=3, label="Text")
+                    i2i_seed_input = gr.Slider(0, 1024, value=42, label="Seed")
+                    i2i_steps_input = gr.Slider(1, 50, value=10, step=1, label="Steps")
+                    strength_input = gr.Slider(0, 1, value=0.5, label="Strength")
+                i2i_out = gr.Image(label="Result")
+            i2i_btn = gr.Button()
+            sample_i2i_text = "amazing watercolor painting"
+            i2i_btn.click(
+                generate_from_image,
+                [i2i_input, i2i_text_input, i2i_seed_input, i2i_steps_input, strength_input],
+                i2i_out,
+            )
+            gr.Examples(
+                [[str(default_image_path), sample_i2i_text, 42, 10, 0.5]],
+                [i2i_input, i2i_text_input, i2i_seed_input, i2i_steps_input, strength_input],
+            )
+    
+    try:
+        demo.queue().launch(debug=False)
+    except Exception:
+        demo.queue().launch(share=True, debug=False)
+    # if you are launching remotely, specify server_name and server_port
+    # demo.launch(server_name='your server name', server_port='server port in int')
+    # Read more in the docs: https://gradio.app/docs/
+
+
+.. parsed-literal::
+
+    Running on local URL:  http://127.0.0.1:7860
+    
+    To create a public link, set `share=True` in `launch()`.
+
+
+
+.. .. raw:: html
+
+..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

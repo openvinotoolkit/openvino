@@ -37,7 +37,7 @@ class TestMul(PytorchLayerTest):
         self.input_type = np.float32
         self.other_array = other_array
         self.other_type = np.float32
-        self._test(*self.create_model(), ie_device, precision, ir_version)
+        self._test(*self.create_model(), ie_device, precision, ir_version, use_convert_model=True)
 
 
 class TestMulTypes(PytorchLayerTest):
@@ -87,6 +87,12 @@ class TestMulTypes(PytorchLayerTest):
                               [torch.float32, torch.int32],
                               [torch.float32, torch.int64],
                               [torch.float32, torch.float64],
+                              [torch.float16, torch.uint8],
+                              [torch.uint8, torch.float16],
+                              [torch.float16, torch.int32],
+                              [torch.int32, torch.float16],
+                              [torch.float16, torch.int64],
+                              [torch.int64, torch.float16]
                               ])
     @pytest.mark.parametrize(("lhs_shape", "rhs_shape"), [([2, 3], [2, 3]),
                                                           ([2, 3], []),

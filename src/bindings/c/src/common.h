@@ -14,13 +14,15 @@
 #include "openvino/core/except.hpp"
 #include "openvino/openvino.hpp"
 
-#define CATCH_IE_EXCEPTION(StatusCode, ExceptionType) \
-    catch (const InferenceEngine::ExceptionType&) {   \
-        return ov_status_e::StatusCode;               \
-    }                                                 \
+#define CATCH_IE_EXCEPTION(StatusCode, ExceptionType)  \
+    catch (const InferenceEngine::ExceptionType& ex) { \
+        dup_last_err_msg(ex.what());                   \
+        return ov_status_e::StatusCode;                \
+    }
 
 #define CATCH_OV_EXCEPTION(StatusCode, ExceptionType) \
-    catch (const ov::ExceptionType&) {                \
+    catch (const ov::ExceptionType& ex) {             \
+        dup_last_err_msg(ex.what());                  \
         return ov_status_e::StatusCode;               \
     }
 
@@ -41,8 +43,9 @@
     CATCH_IE_EXCEPTION(NETWORK_NOT_READ, NetworkNotRead)      \
     CATCH_IE_EXCEPTION(INFER_CANCELLED, InferCancelled)       \
     catch (...) {                                             \
+        dup_last_err_msg("An unknown exception occurred");    \
         return ov_status_e::UNKNOW_EXCEPTION;                 \
-    }                                                         \
+    }
 
 #define GET_PROPERTY_FROM_ARGS_LIST                     \
     std::string property_key = va_arg(args_ptr, char*); \
@@ -224,3 +227,4 @@ struct mem_istream : virtual mem_stringbuf, std::istream {
 
 char* str_to_char_array(const std::string& str);
 ov::element::Type get_element_type(ov_element_type_e type);
+void dup_last_err_msg(const char* msg);

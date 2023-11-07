@@ -116,7 +116,12 @@ public:
             out_layout.format = format::adjust_to_rank(out_layout.format, output_pshape.size());
         }
 
-        return primitive_impl::static_canonicalize_shapes(updated_impl_params);
+        for (auto& input_layout : updated_impl_params.input_layouts) {
+            input_layout.set_partial_shape(extend_shape_to_rank_from_end(input_layout.get_partial_shape()));
+        }
+        out_layout.set_partial_shape(extend_shape_to_rank_from_end(out_layout.get_partial_shape()));
+
+        return updated_impl_params;
     }
 
     kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {

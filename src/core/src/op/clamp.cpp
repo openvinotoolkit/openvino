@@ -2,119 +2,111 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/clamp.hpp"
-
-#include <ngraph/validation_util.hpp>
+#include "openvino/op/clamp.hpp"
 
 #include "bound_evaluate.hpp"
+#include "compare.hpp"
+#include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/util.hpp"
 #include "openvino/reference/clamp.hpp"
+#include "openvino/reference/utils/type_util.hpp"
 
-using namespace std;
-using namespace ngraph;
-
-OPENVINO_SUPPRESS_DEPRECATED_START
+namespace ov {
+namespace op {
 namespace clamp {
-namespace {
-template <element::Type_t ET, typename T>
-bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, T min, T max, size_t count) {
-    ov::reference::clamp<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), min, max, count);
-    return true;
-}
 
-bool evaluate_clamp(const HostTensorPtr& arg, const HostTensorPtr& out, double min, double max) {
-    size_t count = shape_size(arg->get_shape());
-    auto ceil_func = [](double x) {
-        return ceil(x);
-    };
-    auto floor_func = [](double x) {
-        return floor(x);
-    };
-
-    bool rc = true;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    switch (arg->get_element_type()) {
-        TYPE_CASE(i8)
-        (arg, out, double_to_int<int8_t>(min, ceil_func), double_to_int<int8_t>(max, floor_func), count);
-        break;
-        TYPE_CASE(i16)
-        (arg, out, double_to_int<int16_t>(min, ceil_func), double_to_int<int16_t>(max, floor_func), count);
-        break;
-        TYPE_CASE(i32)
-        (arg, out, double_to_int<int32_t>(min, ceil_func), double_to_int<int32_t>(max, floor_func), count);
-        break;
-        TYPE_CASE(i64)
-        (arg, out, double_to_int<int64_t>(min, ceil_func), double_to_int<int64_t>(max, floor_func), count);
-        break;
-        TYPE_CASE(u8)
-        (arg, out, double_to_int<uint8_t>(min, ceil_func), double_to_int<uint8_t>(max, floor_func), count);
-        break;
-        TYPE_CASE(u16)
-        (arg, out, double_to_int<uint16_t>(min, ceil_func), double_to_int<uint16_t>(max, floor_func), count);
-        break;
-        TYPE_CASE(u32)
-        (arg, out, double_to_int<uint32_t>(min, ceil_func), double_to_int<uint32_t>(max, floor_func), count);
-        break;
-        TYPE_CASE(u64)
-        (arg, out, double_to_int<uint64_t>(min, ceil_func), double_to_int<uint64_t>(max, floor_func), count);
-        break;
-        TYPE_CASE(f16)(arg, out, static_cast<float16>(min), static_cast<float16>(max), count);
-        break;
-        TYPE_CASE(bf16)
-        (arg, out, static_cast<bfloat16>(min), static_cast<bfloat16>(max), count);
-        break;
-        TYPE_CASE(f32)(arg, out, static_cast<float>(min), static_cast<float>(max), count);
-        break;
-    default:
-        rc = false;
-        break;
+// Make it part of reference/convert.hpp (requires to move compare.hpp to reference from shape inference)
+template <class TO, class FROM>
+TO convert(const FROM value) {
+    if (cmp::lt(value, std::numeric_limits<TO>::min())) {
+        return std::numeric_limits<TO>::lowest();
+    } else if (cmp::gt(value, std::numeric_limits<TO>::max())) {
+        return std::numeric_limits<TO>::max();
+    } else {
+        return static_cast<TO>(value);
     }
-    return rc;
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
-}  // namespace
+
+template <class T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
+T min_as(const double value) {
+    return convert<T, double>(std::ceil(value));
+}
+
+template <class T, typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
+T min_as(const double value) {
+    return static_cast<T>(value);
+}
+
+template <class T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
+T max_as(const double value) {
+    return convert<T, double>(std::floor(value));
+}
+
+template <class T, typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
+T max_as(const double value) {
+    return static_cast<T>(value);
+}
+
+struct Evaluate : element::NoAction<bool> {
+    using element::NoAction<bool>::visit;
+
+    template <element::Type_t ET, class T = fundamental_type_for<ET>>
+    static result_type visit(const Tensor& arg, Tensor& out, const double min, const double max, const size_t count) {
+        reference::clamp(arg.data<const T>(), out.data<T>(), min_as<T>(min), max_as<T>(max), count);
+        return true;
+    }
+};
 }  // namespace clamp
 
-bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+namespace v0 {
+bool Clamp::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v0_Clamp_evaluate);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    return clamp::evaluate_clamp(inputs[0], outputs[0], get_min(), get_max());
+    OPENVINO_ASSERT(outputs.size() == 1);
+    OPENVINO_ASSERT(inputs.size() == 1);
+
+    const auto& in_shape = inputs[0].get_shape();
+    outputs[0].set_shape(in_shape);
+
+    using namespace ov::element;
+    return IfTypeOf<bf16, f16, f32, i8, i16, i32, i64, u8, u16, u32, u64>::apply<clamp::Evaluate>(
+        inputs[0].get_element_type(),
+        inputs[0],
+        outputs[0],
+        get_min(),
+        get_max(),
+        shape_size(in_shape));
 }
 
-bool op::v0::Clamp::has_evaluate() const {
+bool Clamp::has_evaluate() const {
     OV_OP_SCOPE(v0_Clamp_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::i8:
-    case ngraph::element::i16:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u8:
-    case ngraph::element::u16:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::bf16:
-    case ngraph::element::f32:
+    case element::bf16:
+    case element::f16:
+    case element::f32:
+    case element::i8:
+    case element::i16:
+    case element::i32:
+    case element::i64:
+    case element::u8:
+    case element::u16:
+    case element::u32:
+    case element::u64:
         return true;
     default:
-        break;
+        return false;
     }
-    return false;
 }
 
-op::Clamp::Clamp(const Output<Node>& data, const double min, const double max)
+Clamp::Clamp(const Output<Node>& data, const double min, const double max)
     : util::UnaryElementwiseArithmetic(data),
       m_min{min},
       m_max{max} {
     constructor_validate_and_infer_types();
 }
 
-void op::Clamp::validate_and_infer_types() {
+void Clamp::validate_and_infer_types() {
     OV_OP_SCOPE(v0_Clamp_validate_and_infer_types);
-    const element::Type& input_et = get_input_element_type(0);
+    const auto& input_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
                           input_et.is_integral_number() || input_et.is_real(),
                           "Input element type must be numeric. Got: ",
@@ -128,27 +120,26 @@ void op::Clamp::validate_and_infer_types() {
     set_output_type(0, input_et, get_input_partial_shape(0));
 }
 
-shared_ptr<Node> op::Clamp::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> Clamp::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Clamp_clone_with_new_inputs);
-    NODE_VALIDATION_CHECK(this,
-                          new_args.size() == 1,
-                          "Expected 1 element in new_args for the Clamp op but got ",
-                          new_args.size());
-
-    return make_shared<Clamp>(new_args.at(0), m_min, m_max);
+    check_new_args_count(this, new_args);
+    return std::make_shared<Clamp>(new_args.at(0), get_min(), get_max());
 }
 
-bool op::Clamp::visit_attributes(AttributeVisitor& visitor) {
+bool Clamp::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v0_Clamp_visit_attributes);
     visitor.on_attribute("min", m_min);
     visitor.on_attribute("max", m_max);
     return true;
 }
 
-bool op::Clamp::evaluate_lower(ov::TensorVector& output_values) const {
+bool Clamp::evaluate_lower(ov::TensorVector& output_values) const {
     return ov::default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::Clamp::evaluate_upper(ov::TensorVector& output_values) const {
+bool Clamp::evaluate_upper(ov::TensorVector& output_values) const {
     return ov::default_upper_bound_evaluator(this, output_values);
 }
+}  // namespace v0
+}  // namespace op
+}  // namespace ov

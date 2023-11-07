@@ -21,6 +21,8 @@ namespace ov {
 namespace pass {
 namespace low_precision {
 
+namespace {
+
 std::shared_ptr<opset1::Constant> gatherDeqConstant(
     const std::shared_ptr<ov::Node> &gather,
     const std::shared_ptr<ov::Node> &dequantizationConstant) {
@@ -80,6 +82,8 @@ std::shared_ptr<opset1::Constant> gatherDeqConstant(
     }
     return constant;
 }
+
+}  // namespace
 
 GatherTransformation::GatherTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(GatherTransformation);

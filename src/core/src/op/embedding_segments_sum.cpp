@@ -2,18 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/embedding_segments_sum.hpp"
-
-#include <ngraph/validation_util.hpp>
+#include "openvino/op/embedding_segments_sum.hpp"
 
 #include "embedding_segments_sum_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/opsets/opset3.hpp"
 
-using namespace std;
-using namespace ngraph;
-
+namespace ov {
 op::v3::EmbeddingSegmentsSum::EmbeddingSegmentsSum(const Output<Node>& emb_table,
                                                    const Output<Node>& indices,
                                                    const Output<Node>& segment_ids,
@@ -110,28 +104,29 @@ void op::v3::EmbeddingSegmentsSum::validate_and_infer_types() {
     set_output_type(0, result_et, result_shapes[0]);
 }
 
-shared_ptr<Node> op::v3::EmbeddingSegmentsSum::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v3::EmbeddingSegmentsSum::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v3_EmbeddingSegmentsSum_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 4) {
-        return make_shared<op::v3::EmbeddingSegmentsSum>(new_args.at(0),
-                                                         new_args.at(1),
-                                                         new_args.at(2),
-                                                         new_args.at(3));
+        return std::make_shared<op::v3::EmbeddingSegmentsSum>(new_args.at(0),
+                                                              new_args.at(1),
+                                                              new_args.at(2),
+                                                              new_args.at(3));
     } else if (new_args.size() == 5) {
-        return make_shared<op::v3::EmbeddingSegmentsSum>(new_args.at(0),
-                                                         new_args.at(1),
-                                                         new_args.at(2),
-                                                         new_args.at(3),
-                                                         new_args.at(4));
+        return std::make_shared<op::v3::EmbeddingSegmentsSum>(new_args.at(0),
+                                                              new_args.at(1),
+                                                              new_args.at(2),
+                                                              new_args.at(3),
+                                                              new_args.at(4));
     } else if (new_args.size() == 6) {
-        return make_shared<op::v3::EmbeddingSegmentsSum>(new_args.at(0),
-                                                         new_args.at(1),
-                                                         new_args.at(2),
-                                                         new_args.at(3),
-                                                         new_args.at(4),
-                                                         new_args.at(5));
+        return std::make_shared<op::v3::EmbeddingSegmentsSum>(new_args.at(0),
+                                                              new_args.at(1),
+                                                              new_args.at(2),
+                                                              new_args.at(3),
+                                                              new_args.at(4),
+                                                              new_args.at(5));
     } else {
         OPENVINO_THROW("Incorrect number of arguments");
     }
 }
+}  // namespace ov

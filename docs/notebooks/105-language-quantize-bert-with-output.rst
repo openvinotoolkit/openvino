@@ -1,8 +1,6 @@
 Quantize NLP models with Post-Training Quantization ​in NNCF
 ============================================================
 
-
-
 This tutorial demonstrates how to apply ``INT8`` quantization to the
 Natural Language Processing model known as
 `BERT <https://en.wikipedia.org/wiki/BERT_(language_model)>`__, using
@@ -24,63 +22,75 @@ and datasets. It consists of the following steps:
 -  Compare the performance of the original, converted and quantized
    models.
 
+**Table of contents:**
 
 
-.. _top:
+-  `Imports <#imports>`__
+-  `Settings <#settings>`__
+-  `Prepare the Model <#prepare-the-model>`__
+-  `Prepare the Dataset <#prepare-the-dataset>`__
+-  `Optimize model using NNCF Post-training Quantization
+   API <#optimize-model-using-nncf-post-training-quantization-api>`__
+-  `Load and Test OpenVINO
+   Model <#load-and-test-openvino-model>`__
 
-**Table of contents**:
+   -  `Select inference device <#select-inference-device>`__
 
-- `Imports <#imports>`__
-- `Settings <#settings>`__
-- `Prepare the Model <#prepare-the-model>`__
-- `Prepare the Dataset <#prepare-the-dataset>`__
-- `Optimize model using NNCF Post-training Quantization API <#optimize-model-using-nncf-post-training-quantization-api>`__
-- `Load and Test OpenVINO Model <#load-and-test-openvino-model>`__
-
-  - `Select inference device <#select-inference-device>`__
-
-- `Compare F1-score of FP32 and INT8 models <#compare-f1-score-of-fp32-and-int8-models>`__
-- `Compare Performance of the Original, Converted and Quantized Models <#compare-performance-of-the-original,-converted-and-quantized-models>`__
+-  `Compare F1-score of FP32 and INT8
+   models <#compare-f-score-of-fp-and-int-models>`__
+-  `Compare Performance of the Original, Converted and Quantized
+   Models <#compare-performance-of-the-original-converted-and-quantized-models>`__
 
 .. code:: ipython3
 
-    !pip install -q "nncf>=2.5.0" datasets evaluate
+    %pip install -q "nncf>=2.5.0" 
+    %pip install -q "transformers" datasets evaluate
+    %pip install -q "openvino>=2023.1.0"
 
-Imports `⇑ <#top>`__
-###############################################################################################################################
 
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+
+
+Imports 
+-------------------------------------------------
 
 .. code:: ipython3
 
     import os
-    import sys
     import time
     from pathlib import Path
     from zipfile import ZipFile
     from typing import Iterable
     from typing import Any
     
-    import numpy as np
-    import torch
-    from openvino import runtime as ov
-    from openvino.runtime import serialize, Model, PartialShape
-    import nncf
-    from nncf.parameters import ModelType
-    from transformers import BertForSequenceClassification, BertTokenizer
-    from openvino.tools.mo import convert_model
     import datasets
     import evaluate
+    import numpy as np
+    import nncf
+    from nncf.parameters import ModelType
+    import openvino as ov
+    import torch
+    from transformers import BertForSequenceClassification, BertTokenizer
     
-    sys.path.append("../utils")
+    # Fetch `notebook_utils` module
+    import urllib.request
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
+        filename='notebook_utils.py'
+    )
     from notebook_utils import download_file
 
 
 .. parsed-literal::
 
-    2023-08-15 22:29:19.942802: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-08-15 22:29:19.975605: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-10-30 22:33:08.247649: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-10-30 22:33:08.281400: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-08-15 22:29:20.517786: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-10-30 22:33:08.912908: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -88,9 +98,8 @@ Imports `⇑ <#top>`__
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
-Settings `⇑ <#top>`__
-###############################################################################################################################
-
+Settings 
+--------------------------------------------------
 
 .. code:: ipython3
 
@@ -104,9 +113,8 @@ Settings `⇑ <#top>`__
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(MODEL_DIR, exist_ok=True)
 
-Prepare the Model `⇑ <#top>`__
-###############################################################################################################################
-
+Prepare the Model 
+-----------------------------------------------------------
 
 Perform the following:
 
@@ -141,7 +149,7 @@ PyTorch model formats are supported:
 .. code:: ipython3
 
     MAX_SEQ_LENGTH = 128
-    input_shape = PartialShape([1, -1])
+    input_shape = ov.PartialShape([1, -1])
     ir_model_xml = Path(MODEL_DIR) / "bert_mrpc.xml"
     core = ov.Core()
     
@@ -158,24 +166,41 @@ PyTorch model formats are supported:
     
     # Convert the PyTorch model to OpenVINO IR FP32.
     if not ir_model_xml.exists():
-        model = convert_model(torch_model, example_input=inputs, input=input_info)
-        serialize(model, str(ir_model_xml))
+        model = ov.convert_model(torch_model, example_input=inputs, input=input_info)
+        ov.save_model(model, str(ir_model_xml))
     else:
         model = core.read_model(ir_model_xml)
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/annotations.py:309: UserWarning: TorchScript will treat type annotations of Tensor dtype-specific subtypes as if they are normal Tensors. dtype constraints are not enforced in compilation either.
-      warnings.warn("TorchScript will treat type annotations of Tensor "
+    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
 
 
-Prepare the Dataset `⇑ <#top>`__
-###############################################################################################################################
+.. parsed-literal::
 
-We download the `General Language Understanding Evaluation (GLUE) <https://gluebenchmark.com/>`__ dataset
-for the MRPC task from HuggingFace datasets. Then, we tokenize the data
-with a pre-trained BERT tokenizer from HuggingFace.
+    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
+
+
+.. parsed-literal::
+
+    WARNING:nncf:NNCF provides best results with torch==2.0.1, while current torch version is 2.1.0+cpu. If you encounter issues, consider switching to torch==2.0.1
+
+
+.. parsed-literal::
+
+    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/annotations.py:386: UserWarning: TorchScript will treat type annotations of Tensor dtype-specific subtypes as if they are normal Tensors. dtype constraints are not enforced in compilation either.
+      warnings.warn(
+
+
+Prepare the Dataset 
+-------------------------------------------------------------
+
+We download the `General Language Understanding Evaluation
+(GLUE) <https://gluebenchmark.com/>`__ dataset for the MRPC task from
+HuggingFace datasets. Then, we tokenize the data with a pre-trained BERT
+tokenizer from HuggingFace.
 
 .. code:: ipython3
 
@@ -194,9 +219,15 @@ with a pre-trained BERT tokenizer from HuggingFace.
     
     data_source = create_data_source()
 
-Optimize model using NNCF Post-training Quantization API `⇑ <#top>`__
-###############################################################################################################################
 
+
+.. parsed-literal::
+
+    Map:   0%|          | 0/408 [00:00<?, ? examples/s]
+
+
+Optimize model using NNCF Post-training Quantization API 
+--------------------------------------------------------------------------------------------------
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -207,8 +238,7 @@ The optimization process contains the following steps:
 
 1. Create a Dataset for quantization
 2. Run ``nncf.quantize`` for getting an optimized model
-3. Serialize OpenVINO IR model using ``openvino.runtime.serialize``
-   function
+3. Serialize OpenVINO IR model using ``openvino.save_model`` function
 
 .. code:: ipython3
 
@@ -233,189 +263,28 @@ The optimization process contains the following steps:
 
 .. parsed-literal::
 
-    INFO:nncf:202 ignored nodes was found by types in the NNCFGraph
-    INFO:nncf:24 ignored nodes was found by name in the NNCFGraph
-    INFO:nncf:Not adding activation input quantizer for operation: 22 aten::rsub_16
-    INFO:nncf:Not adding activation input quantizer for operation: 25 aten::rsub_17
-    INFO:nncf:Not adding activation input quantizer for operation: 30 aten::mul_18
-    INFO:nncf:Not adding activation input quantizer for operation: 11 aten::add_40
-    INFO:nncf:Not adding activation input quantizer for operation: 14 aten::add__46
-    INFO:nncf:Not adding activation input quantizer for operation: 17 aten::layer_norm_48
-    20 aten::layer_norm_49
-    23 aten::layer_norm_50
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 36 aten::add_108
-    INFO:nncf:Not adding activation input quantizer for operation: 55 aten::softmax_109
-    INFO:nncf:Not adding activation input quantizer for operation: 74 aten::matmul_110
-    INFO:nncf:Not adding activation input quantizer for operation: 26 aten::add_126
-    INFO:nncf:Not adding activation input quantizer for operation: 31 aten::layer_norm_128
-    47 aten::layer_norm_129
-    66 aten::layer_norm_130
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 85 aten::add_140
-    INFO:nncf:Not adding activation input quantizer for operation: 103 aten::layer_norm_142
-    133 aten::layer_norm_143
-    171 aten::layer_norm_144
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 38 aten::add_202
-    INFO:nncf:Not adding activation input quantizer for operation: 57 aten::softmax_203
-    INFO:nncf:Not adding activation input quantizer for operation: 76 aten::matmul_204
-    INFO:nncf:Not adding activation input quantizer for operation: 209 aten::add_220
-    INFO:nncf:Not adding activation input quantizer for operation: 236 aten::layer_norm_222
-    250 aten::layer_norm_223
-    267 aten::layer_norm_224
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 287 aten::add_234
-    INFO:nncf:Not adding activation input quantizer for operation: 316 aten::layer_norm_236
-    342 aten::layer_norm_237
-    364 aten::layer_norm_238
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 39 aten::add_296
-    INFO:nncf:Not adding activation input quantizer for operation: 58 aten::softmax_297
-    INFO:nncf:Not adding activation input quantizer for operation: 77 aten::matmul_298
-    INFO:nncf:Not adding activation input quantizer for operation: 221 aten::add_314
-    INFO:nncf:Not adding activation input quantizer for operation: 242 aten::layer_norm_316
-    259 aten::layer_norm_317
-    279 aten::layer_norm_318
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 300 aten::add_328
-    INFO:nncf:Not adding activation input quantizer for operation: 326 aten::layer_norm_330
-    348 aten::layer_norm_331
-    370 aten::layer_norm_332
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 40 aten::add_390
-    INFO:nncf:Not adding activation input quantizer for operation: 59 aten::softmax_391
-    INFO:nncf:Not adding activation input quantizer for operation: 78 aten::matmul_392
-    INFO:nncf:Not adding activation input quantizer for operation: 223 aten::add_408
-    INFO:nncf:Not adding activation input quantizer for operation: 243 aten::layer_norm_410
-    260 aten::layer_norm_411
-    280 aten::layer_norm_412
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 302 aten::add_422
-    INFO:nncf:Not adding activation input quantizer for operation: 328 aten::layer_norm_424
-    350 aten::layer_norm_425
-    372 aten::layer_norm_426
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 41 aten::add_484
-    INFO:nncf:Not adding activation input quantizer for operation: 60 aten::softmax_485
-    INFO:nncf:Not adding activation input quantizer for operation: 79 aten::matmul_486
-    INFO:nncf:Not adding activation input quantizer for operation: 225 aten::add_502
-    INFO:nncf:Not adding activation input quantizer for operation: 244 aten::layer_norm_504
-    261 aten::layer_norm_505
-    281 aten::layer_norm_506
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 304 aten::add_516
-    INFO:nncf:Not adding activation input quantizer for operation: 330 aten::layer_norm_518
-    352 aten::layer_norm_519
-    374 aten::layer_norm_520
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 42 aten::add_578
-    INFO:nncf:Not adding activation input quantizer for operation: 61 aten::softmax_579
-    INFO:nncf:Not adding activation input quantizer for operation: 80 aten::matmul_580
-    INFO:nncf:Not adding activation input quantizer for operation: 227 aten::add_596
-    INFO:nncf:Not adding activation input quantizer for operation: 245 aten::layer_norm_598
-    262 aten::layer_norm_599
-    282 aten::layer_norm_600
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 306 aten::add_610
-    INFO:nncf:Not adding activation input quantizer for operation: 332 aten::layer_norm_612
-    354 aten::layer_norm_613
-    376 aten::layer_norm_614
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 43 aten::add_672
-    INFO:nncf:Not adding activation input quantizer for operation: 62 aten::softmax_673
-    INFO:nncf:Not adding activation input quantizer for operation: 81 aten::matmul_674
-    INFO:nncf:Not adding activation input quantizer for operation: 229 aten::add_690
-    INFO:nncf:Not adding activation input quantizer for operation: 246 aten::layer_norm_692
-    263 aten::layer_norm_693
-    283 aten::layer_norm_694
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 308 aten::add_704
-    INFO:nncf:Not adding activation input quantizer for operation: 334 aten::layer_norm_706
-    356 aten::layer_norm_707
-    378 aten::layer_norm_708
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 44 aten::add_766
-    INFO:nncf:Not adding activation input quantizer for operation: 63 aten::softmax_767
-    INFO:nncf:Not adding activation input quantizer for operation: 82 aten::matmul_768
-    INFO:nncf:Not adding activation input quantizer for operation: 231 aten::add_784
-    INFO:nncf:Not adding activation input quantizer for operation: 247 aten::layer_norm_786
-    264 aten::layer_norm_787
-    284 aten::layer_norm_788
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 310 aten::add_798
-    INFO:nncf:Not adding activation input quantizer for operation: 336 aten::layer_norm_800
-    358 aten::layer_norm_801
-    380 aten::layer_norm_802
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 45 aten::add_860
-    INFO:nncf:Not adding activation input quantizer for operation: 64 aten::softmax_861
-    INFO:nncf:Not adding activation input quantizer for operation: 83 aten::matmul_862
-    INFO:nncf:Not adding activation input quantizer for operation: 233 aten::add_878
-    INFO:nncf:Not adding activation input quantizer for operation: 248 aten::layer_norm_880
-    265 aten::layer_norm_881
-    285 aten::layer_norm_882
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 312 aten::add_892
-    INFO:nncf:Not adding activation input quantizer for operation: 338 aten::layer_norm_894
-    360 aten::layer_norm_895
-    382 aten::layer_norm_896
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 46 aten::add_954
-    INFO:nncf:Not adding activation input quantizer for operation: 65 aten::softmax_955
-    INFO:nncf:Not adding activation input quantizer for operation: 84 aten::matmul_956
-    INFO:nncf:Not adding activation input quantizer for operation: 235 aten::add_972
-    INFO:nncf:Not adding activation input quantizer for operation: 249 aten::layer_norm_974
-    266 aten::layer_norm_975
-    286 aten::layer_norm_976
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 314 aten::add_986
-    INFO:nncf:Not adding activation input quantizer for operation: 340 aten::layer_norm_988
-    362 aten::layer_norm_989
-    384 aten::layer_norm_990
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 35 aten::add_1048
-    INFO:nncf:Not adding activation input quantizer for operation: 54 aten::softmax_1049
-    INFO:nncf:Not adding activation input quantizer for operation: 73 aten::matmul_1050
-    INFO:nncf:Not adding activation input quantizer for operation: 215 aten::add_1066
-    INFO:nncf:Not adding activation input quantizer for operation: 240 aten::layer_norm_1068
-    257 aten::layer_norm_1069
-    277 aten::layer_norm_1070
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 296 aten::add_1080
-    INFO:nncf:Not adding activation input quantizer for operation: 322 aten::layer_norm_1082
-    344 aten::layer_norm_1083
-    366 aten::layer_norm_1084
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 37 aten::add_1142
-    INFO:nncf:Not adding activation input quantizer for operation: 56 aten::softmax_1143
-    INFO:nncf:Not adding activation input quantizer for operation: 75 aten::matmul_1144
-    INFO:nncf:Not adding activation input quantizer for operation: 218 aten::add_1160
-    INFO:nncf:Not adding activation input quantizer for operation: 241 aten::layer_norm_1162
-    258 aten::layer_norm_1163
-    278 aten::layer_norm_1164
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 298 aten::add_1174
-    INFO:nncf:Not adding activation input quantizer for operation: 324 aten::layer_norm_1176
-    346 aten::layer_norm_1177
-    368 aten::layer_norm_1178
-    
+    Statistics collection: 100%|██████████| 300/300 [00:07<00:00, 39.50it/s]
+    Applying Smooth Quant: 100%|██████████| 50/50 [00:00<00:00, 51.91it/s]
 
 
 .. parsed-literal::
 
-    Statistics collection: 100%|██████████| 300/300 [00:24<00:00, 12.04it/s]
-    Biases correction: 100%|██████████| 74/74 [00:25<00:00,  2.95it/s]
+    INFO:nncf:36 ignored nodes was found by name in the NNCFGraph
+
+
+.. parsed-literal::
+
+    Statistics collection: 100%|██████████| 300/300 [00:25<00:00, 11.96it/s]
+    Applying Fast Bias correction: 100%|██████████| 74/74 [00:25<00:00,  2.93it/s]
 
 
 .. code:: ipython3
 
     compressed_model_xml = Path(MODEL_DIR) / "quantized_bert_mrpc.xml"
-    ov.serialize(quantized_model, compressed_model_xml)
+    ov.save_model(quantized_model, compressed_model_xml)
 
-Load and Test OpenVINO Model `⇑ <#top>`__
-###############################################################################################################################
-
+Load and Test OpenVINO Model 
+----------------------------------------------------------------------
 
 To load and test converted model, perform the following:
 
@@ -424,11 +293,10 @@ To load and test converted model, perform the following:
 -  Run the inference.
 -  Get the answer from the model output.
 
-Select inference device `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Select inference device 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
-Select device from dropdown list for running inference using OpenVINO:
+select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
@@ -484,13 +352,12 @@ changing ``sample_idx`` to another value (from 0 to 407).
     The same meaning: yes
 
 
-Compare F1-score of FP32 and INT8 models `⇑ <#top>`__
-###############################################################################################################################
-
+Compare F1-score of FP32 and INT8 models 
+----------------------------------------------------------------------------------
 
 .. code:: ipython3
 
-    def validate(model: Model, dataset: Iterable[Any]) -> float:
+    def validate(model: ov.Model, dataset: Iterable[Any]) -> float:
         """
         Evaluate the model on GLUE dataset. 
         Returns F1 score metric.
@@ -526,11 +393,11 @@ Compare F1-score of FP32 and INT8 models `⇑ <#top>`__
     Checking the accuracy of the original model:
     F1 score: 0.9019
     Checking the accuracy of the quantized model:
-    F1 score: 0.8995
+    F1 score: 0.8985
 
 
-Compare Performance of the Original, Converted and Quantized Models. `⇑ <#top>`__
-###############################################################################################################################
+Compare Performance of the Original, Converted and Quantized Models 
+-------------------------------------------------------------------------------------------------------------
 
 Compare the original PyTorch model with OpenVINO converted and quantized
 models (``FP32``, ``INT8``) to see the difference in performance. It is
@@ -587,19 +454,17 @@ Frames Per Second (FPS) for images.
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.070 seconds per sentence, SPS: 14.22
-    IR FP32 model in OpenVINO Runtime/AUTO: 0.021 seconds per sentence, SPS: 48.42
-    OpenVINO IR INT8 model in OpenVINO Runtime/AUTO: 0.010 seconds per sentence, SPS: 98.01
+    PyTorch model on CPU: 0.073 seconds per sentence, SPS: 13.72
+    IR FP32 model in OpenVINO Runtime/AUTO: 0.022 seconds per sentence, SPS: 46.40
+    OpenVINO IR INT8 model in OpenVINO Runtime/AUTO: 0.010 seconds per sentence, SPS: 98.65
 
 
 Finally, measure the inference performance of OpenVINO ``FP32`` and
-``INT8`` models. For this purpose, use 
-`Benchmark Tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+``INT8`` models. For this purpose, use `Benchmark
+Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 in OpenVINO.
 
-.. note::
-
-   The ``benchmark_app`` tool is able to measure the
+   **Note**: The ``benchmark_app`` tool is able to measure the
    performance of the OpenVINO Intermediate Representation (OpenVINO IR)
    models only. For more accurate performance, run ``benchmark_app`` in
    a terminal/command prompt after closing other applications. Run
@@ -608,11 +473,10 @@ in OpenVINO.
    Run ``benchmark_app --help`` to see an overview of all command-line
    options.
 
-
 .. code:: ipython3
 
     # Inference FP32 model (OpenVINO IR)
-    ! benchmark_app -m $ir_model_xml -shape [1,128],[1,128],[1,128] -d device.value -api sync
+    !benchmark_app -m $ir_model_xml -shape [1,128],[1,128],[1,128] -d device.value -api sync
 
 
 .. parsed-literal::
@@ -622,18 +486,22 @@ in OpenVINO.
     [Step 2/11] Loading OpenVINO Runtime
     [ WARNING ] Default duration 120 seconds is used for unknown device device.value
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
+    [ INFO ] Build ................................. 2023.1.0-12185-9e6b00e51cd-releases/2023/1
     [ INFO ] 
     [ INFO ] Device info:
-    [ ERROR ] Check 'false' failed at src/inference/src/core.cpp:84:
+    [ ERROR ] Exception from src/inference/src/core.cpp:84:
+    Exception from src/inference/src/dev/core_impl.cpp:565:
     Device with "device" name is not registered in the OpenVINO Runtime
+    
     Traceback (most recent call last):
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 103, in main
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 102, in main
         benchmark.print_version_info()
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/benchmark.py", line 48, in print_version_info
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/benchmark.py", line 48, in print_version_info
         for device, version in self.core.get_versions(self.device).items():
-    RuntimeError: Check 'false' failed at src/inference/src/core.cpp:84:
+    RuntimeError: Exception from src/inference/src/core.cpp:84:
+    Exception from src/inference/src/dev/core_impl.cpp:565:
     Device with "device" name is not registered in the OpenVINO Runtime
+    
     
 
 
@@ -650,17 +518,21 @@ in OpenVINO.
     [Step 2/11] Loading OpenVINO Runtime
     [ WARNING ] Default duration 120 seconds is used for unknown device device.value
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
+    [ INFO ] Build ................................. 2023.1.0-12185-9e6b00e51cd-releases/2023/1
     [ INFO ] 
     [ INFO ] Device info:
-    [ ERROR ] Check 'false' failed at src/inference/src/core.cpp:84:
+    [ ERROR ] Exception from src/inference/src/core.cpp:84:
+    Exception from src/inference/src/dev/core_impl.cpp:565:
     Device with "device" name is not registered in the OpenVINO Runtime
+    
     Traceback (most recent call last):
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 103, in main
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 102, in main
         benchmark.print_version_info()
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/benchmark.py", line 48, in print_version_info
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/benchmark.py", line 48, in print_version_info
         for device, version in self.core.get_versions(self.device).items():
-    RuntimeError: Check 'false' failed at src/inference/src/core.cpp:84:
+    RuntimeError: Exception from src/inference/src/core.cpp:84:
+    Exception from src/inference/src/dev/core_impl.cpp:565:
     Device with "device" name is not registered in the OpenVINO Runtime
+    
     
 

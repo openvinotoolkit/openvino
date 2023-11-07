@@ -6,12 +6,15 @@ imagenet/mobilenet_v2_100_224/feature_vector,https://tfhub.dev/google/imagenet/m
 efficientnet/lite0/classification,https://tfhub.dev/tensorflow/efficientnet/lite0/classification/2?tf-hub-format=compressed
 movenet/multipose/lightning,https://tfhub.dev/google/movenet/multipose/lightning/1?tf-hub-format=compressed
 imagenet/efficientnet_v2_imagenet1k_b0/feature_vector,https://tfhub.dev/google/imagenet/efficientnet_v2_imagenet1k_b0/feature_vector/2?tf-hub-format=compressed
-imagenet/mobilenet_v1_100_224/classification,https://tfhub.dev/google/imagenet/mobilenet_v1_100_224/classification/5?tf-hub-format=compressed,skip,119718 - Accuracy issue
+imagenet/mobilenet_v1_100_224/classification,https://tfhub.dev/google/imagenet/mobilenet_v1_100_224/classification/5?tf-hub-format=compressed
 magenta/arbitrary-image-stylization-v1-256,https://tfhub.dev/google/magenta/arbitrary-image-stylization-v1-256/2?tf-hub-format=compressed
-small_bert/bert_en_uncased_L-4_H-256_A-4,https://tfhub.dev/tensorflow/small_bert/bert_en_uncased_L-4_H-256_A-4/2?tf-hub-format=compressed,skip,119718 - Accuracy issue
+small_bert/bert_en_uncased_L-4_H-256_A-4,https://tfhub.dev/tensorflow/small_bert/bert_en_uncased_L-4_H-256_A-4/2?tf-hub-format=compressed
+movinet/a5/base/kinetics-600/classification,https://tfhub.dev/tensorflow/movinet/a5/base/kinetics-600/classification/3?tf-hub-format=compressed
+# model with complex tensors and FFT ops
+yamnet,https://tfhub.dev/google/yamnet/1?tf-hub-format=compressed,skip,124451
 # secure notebook models
 unet/industrial/class_1,https://tfhub.dev/nvidia/unet/industrial/class_1/1?tf-hub-format=compressed
 movenet/singlepose/thunder,https://tfhub.dev/google/movenet/singlepose/thunder/4?tf-hub-format=compressed
 esrgan-tf2,https://tfhub.dev/captain-pool/esrgan-tf2/1?tf-hub-format=compressed
-film,https://tfhub.dev/google/film/1?tf-hub-format=compressed,skip,119718 - Accuracy issue
+film,https://tfhub.dev/google/film/1?tf-hub-format=compressed
 planet/vision/classifier/planet_v2,https://tfhub.dev/google/planet/vision/classifier/planet_v2/1?tf-hub-format=compressed

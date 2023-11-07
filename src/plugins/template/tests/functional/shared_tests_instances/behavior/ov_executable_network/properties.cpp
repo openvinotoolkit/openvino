@@ -34,7 +34,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
                          OVClassCompiledModelPropertiesIncorrectTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> default_properties = {
-    {ov::enable_profiling(true)},
+    {ov::enable_profiling(false)},
     {{ov::loaded_from_cache.name(), false}},
     {ov::device::id("0")},
 };
@@ -45,7 +45,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                                             ::testing::ValuesIn(default_properties)),
                          OVClassCompiledModelPropertiesDefaultTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompiledModelPropertiesDefaultSupportedTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVCompiledModelPropertiesDefaultSupportedTests,
                          ::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                          OVCompiledModelPropertiesDefaultSupportedTests::getTestCaseName);
 
@@ -96,15 +97,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
                                             ::testing::ValuesIn(auto_batch_properties)),
                          OVClassCompiledModelPropertiesTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassCompiledModelEmptyPropertiesTests, OVClassCompiledModelEmptyPropertiesTests,
-        ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelEmptyPropertiesTests,
+                         OVClassCompiledModelEmptyPropertiesTests,
+                         ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
 
 // OV Class Load network
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVCompiledModelIncorrectDevice, OVCompiledModelIncorrectDevice,
-        ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
+INSTANTIATE_TEST_SUITE_P(smoke_OVCompiledModelIncorrectDevice,
+                         OVCompiledModelIncorrectDevice,
+                         ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
 
 const std::vector<std::tuple<std::string, std::pair<ov::AnyMap, std::string>>> GetMetricTest_ExecutionDevice_TEMPLATE =
     {{ov::test::utils::DEVICE_TEMPLATE, std::make_pair(ov::AnyMap{}, "TEMPLATE.0")}};

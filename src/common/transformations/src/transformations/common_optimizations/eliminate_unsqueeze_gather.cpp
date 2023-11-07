@@ -64,7 +64,7 @@ ov::pass::EliminateUnsqueezeGather::EliminateUnsqueezeGather() {
     register_matcher(m, callback);
 }
 
-bool scalar_with_one_consumer(const Output<Node>& out) {
+inline bool scalar_with_one_consumer(const Output<Node>& out) {
     return rank_equals(0)(out) && consumers_count(1)(out);
 }
 

@@ -4,13 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include <shared_test_classes/base/layer_test_utils.hpp>
-
 #include "base_reference_test.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace reference_tests;
 using namespace ov;
-using namespace InferenceEngine;
 
 struct EmbeddingSegmentsSumParams {
     template <class IT>
@@ -79,14 +77,13 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(
-        const PartialShape& input_shape,
-        const element::Type& input_type,
-        const std::shared_ptr<ov::op::v0::Constant> indices,
-        const std::shared_ptr<ov::op::v0::Constant> segment_ids,
-        const std::shared_ptr<ov::op::v0::Constant> num_segments,
-        const std::shared_ptr<ov::op::v0::Constant> default_index,
-        const std::shared_ptr<ov::op::v0::Constant> per_sample_weights) {
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape,
+                                                 const element::Type& input_type,
+                                                 const std::shared_ptr<ov::op::v0::Constant> indices,
+                                                 const std::shared_ptr<ov::op::v0::Constant> segment_ids,
+                                                 const std::shared_ptr<ov::op::v0::Constant> num_segments,
+                                                 const std::shared_ptr<ov::op::v0::Constant> default_index,
+                                                 const std::shared_ptr<ov::op::v0::Constant> per_sample_weights) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
 
         if (default_index) {
@@ -133,8 +130,8 @@ INSTANTIATE_TEST_SUITE_P(
             std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape(), std::vector<int32_t>{3}),
             std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape(), std::vector<int32_t>{0}),
             std::make_shared<ov::op::v0::Constant>(element::f32,
-                                                       ov::Shape({4}),
-                                                       std::vector<float>{0.5, 0.5, 0.5, 0.5})),
+                                                   ov::Shape({4}),
+                                                   std::vector<float>{0.5, 0.5, 0.5, 0.5})),
         EmbeddingSegmentsSumParams(
             ov::PartialShape{5, 2},
             ov::element::f64,

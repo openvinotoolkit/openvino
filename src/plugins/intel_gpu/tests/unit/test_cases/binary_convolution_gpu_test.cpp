@@ -210,8 +210,8 @@ TEST_P(binary_convolution_test, conv) {
                             cldnn::feature(p.oc),
                             cldnn::spatial(p.ow, p.oh)};
 
-    auto input       = engine.allocate_memory({ cldnn::data_types::bin, cldnn::format::b_fs_yx_32fp, is_size });
-    auto weights     = engine.allocate_memory({ cldnn::data_types::bin, cldnn::format::bfyx, wei_size });
+    auto input       = engine.allocate_memory({ cldnn::data_types::u1, cldnn::format::b_fs_yx_32fp, is_size });
+    auto weights     = engine.allocate_memory({ cldnn::data_types::u1, cldnn::format::bfyx, wei_size });
     auto output_ref  = engine.allocate_memory({ cldnn::data_types::f32, cldnn::format::bfyx, os_size });
 
     fill(input);
@@ -329,8 +329,8 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel) {
     if(engine.get_device_info().supports_immad)
         return;
 
-    auto input = engine.allocate_memory({ data_types::bin, format::b_fs_yx_32fp, { 1, 16, 2, 2 } });
-    auto weights = engine.allocate_memory({ data_types::bin, format::bfyx, { 4, 16, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::u1, format::b_fs_yx_32fp, { 1, 16, 2, 2 } });
+    auto weights = engine.allocate_memory({ data_types::u1, format::bfyx, { 4, 16, 1, 1 } });
 
     // 0 0 1 0  0 1 0 0  1 0 1 0  1 0 1 0
     // 1 0 0 0  0 1 1 0  0 1 1 0  1 0 1 0
@@ -415,8 +415,8 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel_fp16) {
     if(engine.get_device_info().supports_immad)
         return;
 
-    auto input = engine.allocate_memory({ data_types::bin, format::b_fs_yx_32fp, { 1, 16, 2, 2 } });
-    auto weights = engine.allocate_memory({ data_types::bin, format::bfyx, { 4, 16, 1, 1 } });
+    auto input = engine.allocate_memory({ data_types::u1, format::b_fs_yx_32fp, { 1, 16, 2, 2 } });
+    auto weights = engine.allocate_memory({ data_types::u1, format::bfyx, { 4, 16, 1, 1 } });
 
     // 0 0 1 0  0 1 0 0  1 0 1 0  1 0 1 0
     // 1 0 0 0  0 1 1 0  0 1 1 0  1 0 1 0

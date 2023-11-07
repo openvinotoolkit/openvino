@@ -497,6 +497,7 @@ TEST_F(AnyTests, AnyRemovedRealObjectPointerWithDuplication) {
     ASSERT_EQ(1, DestructorTest::destructorCount);
 }
 
+void PrintTo(const Any& object, std::ostream* stream);
 void PrintTo(const Any& object, std::ostream* stream) {
     if (object.empty() || !stream) {
         return;

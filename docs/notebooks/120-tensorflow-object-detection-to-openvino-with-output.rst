@@ -1,8 +1,6 @@
 Convert a TensorFlow Object Detection Model to OpenVINO™
 ========================================================
 
-
-
 `TensorFlow <https://www.tensorflow.org/>`__, or TF for short, is an
 open-source framework for machine learning.
 
@@ -19,45 +17,54 @@ This tutorial shows how to convert a TensorFlow `Faster R-CNN with
 Resnet-50
 V1 <https://tfhub.dev/tensorflow/faster_rcnn/resnet50_v1_640x640/1>`__
 object detection model to OpenVINO `Intermediate
-Representation <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_IR_and_opsets.html>`__
-(OpenVINO IR) format, using `Model
-Optimizer <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
-After creating the OpenVINO IR, load the model in `OpenVINO
+Representation <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_IR_and_opsets.html>`__
+(OpenVINO IR) format, using Model Converter. After creating the OpenVINO
+IR, load the model in `OpenVINO
 Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
-and do inference with a sample image. 
+and do inference with a sample image.
 
-.. _top:
+**Table of contents:**
 
-**Table of contents**:
 
-- `Prerequisites <#prerequisites>`__
-- `Imports <#imports>`__
-- `Settings <#settings>`__
-- `Download Model from TensorFlow Hub <#download-model-from-tensorflow-hub>`__
-- `Convert Model to OpenVINO IR <#convert-model-to-openvino-ir>`__
-- `Test Inference on the Converted Model <#test-inference-on-the-converted-model>`__
-- `Select inference device <#select-inference-device>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Imports <#imports>`__
+-  `Settings <#settings>`__
+-  `Download Model from TensorFlow
+   Hub <#download-model-from-tensorflow-hub>`__
+-  `Convert Model to OpenVINO
+   IR <#convert-model-to-openvino-ir>`__
+-  `Test Inference on the Converted
+   Model <#test-inference-on-the-converted-model>`__
+-  `Select inference device <#select-inference-device>`__
 
-  - `Load the Model <#load-the-model>`__
-  - `Get Model Information <#get-model-information>`__
-  - `Get an Image for Test Inference <#get-an-image-for-test-inference>`__
-  - `Perform Inference <#perform-inference>`__
-  - `Inference Result Visualization <#inference-result-visualization>`__
+   -  `Load the Model <#load-the-model>`__
+   -  `Get Model Information <#get-model-information>`__
+   -  `Get an Image for Test
+      Inference <#get-an-image-for-test-inference>`__
+   -  `Perform Inference <#perform-inference>`__
+   -  `Inference Result
+      Visualization <#inference-result-visualization>`__
 
-- `Next Steps <#next-steps>`__
+-  `Next Steps <#next-steps>`__
 
-  - `Async inference pipeline <#async-inference-pipeline>`__
-  - `Integration preprocessing to model <#integration-preprocessing-to-model>`__
+   -  `Async inference pipeline <#async-inference-pipeline>`__
+   -  `Integration preprocessing to
+      model <#integration-preprocessing-to-model>`__
 
-Prerequisites `⇑ <#top>`__
-###############################################################################################################################
-
+Prerequisites 
+-------------------------------------------------------
 
 Install required packages:
 
 .. code:: ipython3
 
-    !pip install -q "openvino-dev>=2023.0.0" "numpy>=1.21.0" "opencv-python" "matplotlib>=3.4,<3.5.3"
+    %pip install -q "openvino>=2023.1.0" "numpy>=1.21.0" "opencv-python" "matplotlib>=3.4"
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
 
 The notebook uses utility functions. The cell below will download the
 ``notebook_utils`` Python module from GitHub.
@@ -72,9 +79,8 @@ The notebook uses utility functions. The cell below will download the
         filename="notebook_utils.py",
     );
 
-Imports `⇑ <#top>`__
-###############################################################################################################################
-
+Imports 
+-------------------------------------------------
 
 .. code:: ipython3
 
@@ -85,17 +91,14 @@ Imports `⇑ <#top>`__
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
+    # OpenVINO import
+    import openvino as ov
     
     # Notebook utils module
     from notebook_utils import download_file
-    
-    # OpenVINO modules
-    from openvino.runtime import Core, serialize
-    from openvino.tools import mo
 
-Settings `⇑ <#top>`__
-###############################################################################################################################
-
+Settings 
+--------------------------------------------------
 
 Define model related variables and create corresponding directories:
 
@@ -121,9 +124,8 @@ Define model related variables and create corresponding directories:
     
     tf_model_archive_filename = f"{model_name}.tar.gz"
 
-Download Model from TensorFlow Hub `⇑ <#top>`__
-###############################################################################################################################
-
+Download Model from TensorFlow Hub 
+----------------------------------------------------------------------------
 
 Download archive with TensorFlow Object Detection model
 (`faster_rcnn_resnet50_v1_640x640 <https://tfhub.dev/tensorflow/faster_rcnn/resnet50_v1_640x640/1>`__)
@@ -148,7 +150,7 @@ from TensorFlow Hub:
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/120-tensorflow-object-detection-to-openvino/model/tf/faster_rcnn_resnet50_v1_640x640.tar.gz')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/120-tensorflow-object-detection-to-openvino/model/tf/faster_rcnn_resnet50_v1_640x640.tar.gz')
 
 
 
@@ -161,56 +163,47 @@ Extract TensorFlow Object Detection model from the downloaded archive:
     with tarfile.open(tf_model_dir / tf_model_archive_filename) as file:
         file.extractall(path=tf_model_dir)
 
-Convert Model to OpenVINO IR `⇑ <#top>`__
-###############################################################################################################################
+Convert Model to OpenVINO IR 
+----------------------------------------------------------------------
 
-
-OpenVINO Model Optimizer Python API can be used to convert the
+OpenVINO Model Converter Python API can be used to convert the
 TensorFlow model to OpenVINO IR.
 
-``mo.convert_model`` function accept path to TensorFlow model and
+``ov.convert_model`` function accept path to TensorFlow model and
 returns OpenVINO Model class instance which represents this model. Also
 we need to provide model input shape (``input_shape``) that is described
 at `model overview page on TensorFlow
 Hub <https://tfhub.dev/tensorflow/faster_rcnn/resnet50_v1_640x640/1>`__.
-Optionally, we can apply compression to FP16 model weights using
-``compress_to_fp16=True`` option and integrate preprocessing using this
-approach.
 
 The converted model is ready to load on a device using ``compile_model``
-or saved on disk using the ``serialize`` function to reduce loading time
-when the model is run in the future.
+or saved on disk using the ``save_model`` function to reduce loading
+time when the model is run in the future.
 
-See the `Model Optimizer Developer
-Guide <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
-for more information about Model Optimizer and TensorFlow `models
-support <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html>`__.
+See the `Model Converter Developer
+Guide <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__
+for more information about Model Converter and TensorFlow `models
+support <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html>`__.
 
 .. code:: ipython3
 
-    ov_model = mo.convert_model(
-        saved_model_dir=tf_model_dir,
-        input_shape=[[1, 255, 255, 3]]
-    )
+    ov_model = ov.convert_model(tf_model_dir)
     
     # Save converted OpenVINO IR model to the corresponding directory
-    serialize(ov_model, openvino_ir_path)
+    ov.save_model(ov_model, openvino_ir_path)
 
-Test Inference on the Converted Model `⇑ <#top>`__
-###############################################################################################################################
+Test Inference on the Converted Model 
+-------------------------------------------------------------------------------
 
+Select inference device 
+-----------------------------------------------------------------
 
-Select inference device `⇑ <#top>`__
-###############################################################################################################################
-
-
-Select device from dropdown list for running inference using OpenVINO:
+select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
     import ipywidgets as widgets
     
-    core = Core()
+    core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
@@ -229,19 +222,17 @@ Select device from dropdown list for running inference using OpenVINO:
 
 
 
-Load the Model `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Load the Model 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
-    core = Core()
+    core = ov.Core()
     openvino_ir_model = core.read_model(openvino_ir_path)
     compiled_model = core.compile_model(model=openvino_ir_model, device_name=device.value)
 
-Get Model Information `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Get Model Information 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Faster R-CNN with Resnet-50 V1 object detection model has one input - a
 three-channel image of variable size. The input tensor shape is
@@ -295,7 +286,7 @@ for more information about model inputs, outputs and their formats.
 .. parsed-literal::
 
     Model inputs count: 1
-    Model input: <ConstOutput: names[input_tensor] shape[1,255,255,3] type: u8>
+    Model input: <ConstOutput: names[input_tensor] shape[1,?,?,3] type: u8>
     Model outputs count: 8
     Model outputs:
        <ConstOutput: names[detection_anchor_indices] shape[1,?] type: f32>
@@ -308,9 +299,8 @@ for more information about model inputs, outputs and their formats.
        <ConstOutput: names[raw_detection_scores] shape[1,300,91] type: f32>
 
 
-Get an Image for Test Inference `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Get an Image for Test Inference 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Load and save an image:
 
@@ -325,17 +315,16 @@ Load and save an image:
     )
 
 
+.. parsed-literal::
+
+    'data/coco_bike.jpg' already exists.
+
+
+
 
 .. parsed-literal::
 
-    data/coco_bike.jpg:   0%|          | 0.00/182k [00:00<?, ?B/s]
-
-
-
-
-.. parsed-literal::
-
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/120-tensorflow-object-detection-to-openvino/data/coco_bike.jpg')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/120-tensorflow-object-detection-to-openvino/data/coco_bike.jpg')
 
 
 
@@ -363,7 +352,7 @@ Read the image, resize and convert it to the input shape of the network:
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f9b48184ca0>
+    <matplotlib.image.AxesImage at 0x7f968815d0a0>
 
 
 
@@ -371,9 +360,8 @@ Read the image, resize and convert it to the input shape of the network:
 .. image:: 120-tensorflow-object-detection-to-openvino-with-output_files/120-tensorflow-object-detection-to-openvino-with-output_25_1.png
 
 
-Perform Inference `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Perform Inference 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -406,86 +394,85 @@ outputs will be used.
 
 .. parsed-literal::
 
-    image_detection_boxes: [[[0.16453631 0.54612625 0.89533776 0.85469896]
-      [0.6721994  0.01249559 0.98444635 0.53168815]
-      [0.4910983  0.01171527 0.98045075 0.88644964]
+    image_detection_boxes: [[[0.1645457  0.54601336 0.8953864  0.85500604]
+      [0.67189544 0.01240015 0.9843237  0.53085935]
+      [0.49188587 0.0117609  0.98050654 0.8866383 ]
       ...
-      [0.5012431  0.5489591  0.6030575  0.61094964]
-      [0.45808432 0.3619884  0.8841141  0.83722156]
-      [0.4652153  0.02054662 0.48204365 0.0438836 ]]]
-    image_detection_classes: [[18.  2.  2.  3.  2.  8.  2.  2.  3.  2.  4.  4.  2.  4. 16.  1.  1. 27.
-       2.  8. 62.  2.  2.  4.  4.  2. 41. 18.  4.  2.  4. 18.  2.  2.  4. 27.
-       2.  2. 27.  2.  1.  1. 16.  2.  2.  2. 16.  2.  2.  4.  2.  1. 33.  4.
-      15.  2.  3.  2.  2.  1.  2.  1.  4.  2.  3. 11.  4. 35. 40.  4.  1. 62.
-       2.  2.  4. 36.  4. 36.  1. 31. 77.  2. 36.  1. 51.  1. 34.  3. 90.  2.
-       3.  2.  1.  2.  2.  1.  1.  2.  1.  4. 18.  2.  2.  3. 31.  1. 41.  1.
-       2.  2. 33. 41.  3. 31.  1.  3. 36. 27. 27. 15.  4.  4. 15.  3.  2. 37.
-       1. 35. 27.  4. 36. 88.  4.  2.  3. 15.  2.  4.  2.  1.  3.  3. 27.  4.
-       4. 44. 16.  1.  1. 23.  4.  3.  1.  4.  4. 62. 15. 36. 77.  3. 28.  1.
-      35. 27.  2. 27. 75. 36.  8. 28.  3.  4. 36. 35. 44.  4.  3.  1.  2.  1.
-       1. 35. 87.  1. 84.  1.  1.  1. 15.  1.  3.  1. 35.  1.  1.  1.  1. 62.
-      15.  1. 44. 15.  1. 41. 62.  1.  4. 43. 15.  4.  3.  4. 16. 35.  2. 33.
-       3. 14. 62. 34. 41.  2. 35.  4. 18.  3. 15.  1. 27. 87.  1.  4. 19. 21.
-      27.  1.  3.  2.  1. 27. 15.  4.  3.  1. 38.  1.  2. 15. 38.  4. 15.  1.
-       3.  3. 62. 84. 20. 58.  2.  4. 41. 20. 88. 15.  1. 19. 31. 62. 31.  4.
-      14.  1.  8. 18. 15.  2.  4.  2.  2.  2. 31. 84.  2. 15. 28.  3. 27. 18.
-      15.  1. 31. 41.  1. 28.  3.  1.  8. 15.  1. 16.]]
-    image_detection_scores: [[0.9808771  0.9418091  0.9318733  0.8789291  0.8423196  0.5888979
-      0.5630133  0.53731316 0.4974923  0.48222807 0.4673298  0.4398691
-      0.39919445 0.33909947 0.3190495  0.27470118 0.24837914 0.23406433
-      0.23351488 0.22481255 0.22016802 0.20236589 0.19338816 0.14771679
-      0.14576106 0.14285511 0.12738948 0.12668392 0.12027147 0.10873836
-      0.10812037 0.09577218 0.09060974 0.08950701 0.08673717 0.08170561
-      0.08120535 0.0789713  0.06743153 0.06118729 0.06112184 0.05309067
-      0.05216556 0.05023476 0.04783678 0.04460874 0.04213375 0.04042179
-      0.04019568 0.03522961 0.03165065 0.0310733  0.03000823 0.02873152
-      0.02782036 0.02706797 0.0266978  0.02341437 0.02291683 0.02147149
-      0.02130841 0.02099001 0.02032206 0.01978395 0.01961209 0.01902091
-      0.01893682 0.01863261 0.01858075 0.01846547 0.01823624 0.0176264
-      0.01760109 0.01703349 0.01584588 0.01582033 0.01547665 0.01527787
-      0.01522782 0.01430391 0.01428877 0.01422195 0.0141238  0.01411421
-      0.0135575  0.01288707 0.01269312 0.01218521 0.01160688 0.01143213
-      0.01142005 0.01137567 0.0111644  0.01107758 0.0109348  0.01073039
-      0.0106188  0.01016685 0.01010454 0.00983268 0.00977985 0.00967134
-      0.00965687 0.00964259 0.00962718 0.00956944 0.00950549 0.00937742
-      0.00927729 0.00916896 0.00897371 0.00891221 0.00866699 0.00863667
-      0.00855941 0.00836656 0.00835135 0.00816708 0.00795946 0.00793826
-      0.00789131 0.00781442 0.00773429 0.00767627 0.00765273 0.00752015
-      0.00749519 0.00744095 0.00715925 0.00700314 0.00692652 0.00655058
-      0.00643994 0.00641626 0.00629459 0.00628646 0.00627907 0.00612065
-      0.00593393 0.00582955 0.00582755 0.00570769 0.00569362 0.00564996
-      0.00563695 0.00558055 0.00557034 0.00551842 0.00549368 0.00544169
-      0.00544044 0.00542281 0.00540061 0.00525593 0.00524985 0.00515946
-      0.00515553 0.00511156 0.00489827 0.00484957 0.00472266 0.00465891
-      0.00464309 0.00463513 0.00459531 0.00456809 0.0045585  0.00455432
-      0.00443505 0.00443078 0.00440637 0.00422725 0.00416438 0.0041492
-      0.00413432 0.00413151 0.00409415 0.00409274 0.00407757 0.00405691
-      0.00396555 0.00393284 0.00391471 0.00388586 0.00385833 0.00385633
-      0.00385035 0.00379386 0.00378297 0.00378109 0.00377772 0.00370916
-      0.00364531 0.00363934 0.00358231 0.00354156 0.0035037  0.00348796
-      0.00344136 0.00340937 0.00334414 0.00330951 0.00329006 0.00321436
-      0.00320603 0.00312488 0.00309948 0.00307925 0.00307775 0.00306451
-      0.00303381 0.00302188 0.00299367 0.00299316 0.00298596 0.00296609
-      0.00293693 0.00288884 0.0028709  0.00283928 0.00283312 0.00281894
-      0.00276538 0.00276278 0.00270719 0.00268026 0.00258883 0.00258464
-      0.00254383 0.00253249 0.00250638 0.00250605 0.00250558 0.0025017
-      0.00249729 0.00248757 0.00246982 0.00243592 0.0024358  0.00235382
-      0.0023404  0.00233721 0.00233374 0.00233181 0.0023271  0.00230558
-      0.00230428 0.00229607 0.00227586 0.00226048 0.00223509 0.00222384
-      0.00220214 0.00219295 0.00219229 0.00218538 0.00218472 0.00217254
-      0.00216129 0.00214788 0.00213485 0.00213233 0.00208789 0.00206768
-      0.00206485 0.00206409 0.00204371 0.00203812 0.00201267 0.00200125
-      0.00199629 0.00199346 0.00198402 0.00192943 0.00191091 0.0019036
-      0.0018943  0.00188735 0.00188038 0.00186264 0.00179476 0.00177307
-      0.00176998 0.00176099 0.0017542  0.00174639 0.00171193 0.0017064
-      0.00169167 0.00168484 0.00167157 0.00166569 0.00166213 0.00166009
-      0.00164244 0.00164076 0.00163557 0.00162898 0.00160348 0.00159898]]
+      [0.43604603 0.59332204 0.4692565  0.6341099 ]
+      [0.46022677 0.59246916 0.48732638 0.61871874]
+      [0.47092935 0.4351712  0.5583364  0.5072162 ]]]
+    image_detection_classes: [[18.  2.  2.  3.  2.  8.  2.  2.  3.  2.  4.  4.  2.  4. 16.  1.  1.  2.
+      27.  8. 62.  2.  2.  4.  4.  2. 18. 41.  4.  4.  2. 18.  2.  2.  4.  2.
+      27.  2. 27.  2.  1.  2. 16.  1. 16.  2.  2.  2.  2. 16.  2.  2.  4.  2.
+       1. 33.  4. 15.  3.  2.  2.  1.  2.  1.  4.  2.  3. 11.  4. 35.  4.  1.
+      40.  2. 62.  2.  4.  4. 36.  1. 36. 36. 31. 77.  2.  1. 51.  1. 34.  3.
+       2.  3. 90.  2.  1.  2.  1.  2.  1.  1.  2.  4. 18.  2.  3.  2. 31.  1.
+       1.  2.  2. 33. 41. 41. 31.  3.  1. 36.  3. 15. 27. 27.  4.  4.  2. 37.
+       3. 15.  1. 35. 27.  4. 36.  4. 88.  3.  2. 15.  2.  4.  2.  1.  3.  4.
+      27.  4.  3. 16. 44.  1.  1. 23.  4.  1.  4.  3.  4. 15. 62. 36. 77.  3.
+       1. 28. 27. 35.  2. 36. 75. 28. 27.  8.  3. 36.  4. 44.  2. 35.  4.  1.
+       3.  1.  1. 35. 87.  1.  1.  1. 15. 84.  1.  1.  1.  3.  1. 35.  1.  1.
+       1. 62. 15.  1. 15. 44.  1. 41.  1. 62.  4.  4.  3. 43. 16. 35. 15.  2.
+       4. 34. 14.  3. 62. 33.  4. 41.  2. 35. 18.  3. 15.  1. 27.  4. 87.  2.
+      19. 21.  1.  1. 27.  1.  3.  3.  2. 15. 38.  1.  1. 15. 27.  4.  4.  3.
+      84. 38.  1. 15.  3. 20. 62. 58. 41. 20.  2.  4. 88. 62. 15. 31.  1. 31.
+      14. 19.  4.  1.  2.  8. 18. 15.  4.  2.  2.  2. 31. 84. 15.  3. 28.  2.
+      27. 18. 15.  1. 31. 28.  1. 41.  8.  1.  3. 20.]]
+    image_detection_scores: [[0.9810079  0.9406672  0.9318088  0.877368   0.8406416  0.590001
+      0.55449295 0.53957206 0.49390146 0.48142543 0.46272704 0.44070077
+      0.40116653 0.34708446 0.31795666 0.27489546 0.24746332 0.23632598
+      0.23248206 0.22401379 0.21871354 0.20231584 0.19377239 0.14768413
+      0.1455532  0.14337878 0.12709719 0.12582931 0.11867398 0.11002147
+      0.10564942 0.09225623 0.08963215 0.08887199 0.08704525 0.08072542
+      0.08002211 0.07911447 0.0666113  0.06338121 0.06100726 0.06005874
+      0.05798694 0.05364129 0.0520498  0.05011013 0.04850959 0.04709018
+      0.04469205 0.04128502 0.04075819 0.03989548 0.03523409 0.03272378
+      0.03108071 0.02970156 0.028723   0.02845931 0.02585638 0.02348842
+      0.0233041  0.02148155 0.02133748 0.02086138 0.02035652 0.01959795
+      0.01931953 0.01926655 0.01872199 0.0185623  0.01853302 0.01838779
+      0.01818969 0.01780701 0.01727104 0.0166365  0.01586579 0.01579063
+      0.01573381 0.01528252 0.01502847 0.01451413 0.01439992 0.01428944
+      0.01419329 0.01380476 0.01360496 0.0129911  0.01249144 0.01198867
+      0.01148862 0.01145841 0.01144459 0.01139607 0.01113943 0.01108592
+      0.01089338 0.01082358 0.01051232 0.01027328 0.01006837 0.00979451
+      0.0097324  0.00960593 0.00957182 0.00953105 0.00949826 0.00942655
+      0.00942555 0.00931226 0.00907306 0.00887798 0.00884452 0.00881256
+      0.00864548 0.00854316 0.00849879 0.00849662 0.00846909 0.00820138
+      0.00816586 0.00791354 0.00790157 0.0076993  0.00768906 0.00766408
+      0.00766065 0.00764457 0.0074557  0.00721993 0.00706666 0.00700596
+      0.0067884  0.00648049 0.00646963 0.0063817  0.00635814 0.00625102
+      0.0062297  0.00599666 0.00591931 0.00585055 0.00578007 0.00576511
+      0.00572359 0.00560452 0.00558355 0.00556507 0.00553867 0.00548295
+      0.00547356 0.00543471 0.00543378 0.00540831 0.0053792  0.00535764
+      0.00523385 0.00518935 0.00505314 0.00505005 0.00492085 0.0048256
+      0.00471783 0.00470318 0.00464703 0.00461124 0.004583   0.00457273
+      0.00455803 0.00454314 0.00454088 0.00441311 0.00437612 0.00426319
+      0.00420744 0.00415996 0.00409997 0.00409557 0.00407971 0.00405195
+      0.00404085 0.00399853 0.00399512 0.00393439 0.00390283 0.00387302
+      0.0038489  0.00382758 0.00380028 0.00379529 0.00376791 0.00374193
+      0.00371191 0.0036963  0.00366445 0.00358808 0.00351783 0.00350439
+      0.00344527 0.00343266 0.00342918 0.0033823  0.00332239 0.00330844
+      0.00329753 0.00327267 0.00315135 0.0031098  0.00308979 0.00308362
+      0.00305496 0.00304868 0.00304044 0.00303659 0.00302582 0.00301237
+      0.00298851 0.00291267 0.00290264 0.00289242 0.00287722 0.00286563
+      0.0028257  0.00282502 0.00275258 0.00274531 0.0027204  0.00268617
+      0.00261917 0.00260795 0.00256594 0.00254094 0.00252856 0.00250768
+      0.00249793 0.00249551 0.00248255 0.00247911 0.00246619 0.00241695
+      0.00240165 0.00236032 0.00235902 0.00234437 0.00234337 0.0023379
+      0.00233535 0.00230773 0.00230558 0.00229113 0.00228888 0.0022631
+      0.00225214 0.00224186 0.00222553 0.00219966 0.00219677 0.00217865
+      0.00217775 0.00215921 0.0021541  0.00214997 0.00212954 0.00211928
+      0.0021005  0.00205066 0.0020487  0.00203887 0.00203537 0.00203026
+      0.00201357 0.00199936 0.00199386 0.00197951 0.00197287 0.00195502
+      0.00194848 0.00192128 0.00189951 0.00187285 0.0018519  0.0018299
+      0.00179158 0.00177908 0.00176328 0.00176319 0.00175034 0.00173788
+      0.00172983 0.00172819 0.00168272 0.0016768  0.00167543 0.00167397
+      0.0016395  0.00163637 0.00163319 0.00162886 0.00162824 0.00162028]]
     image_detections_num: [300.]
 
 
-Inference Result Visualization `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Inference Result Visualization 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Define utility functions to visualize the inference results
 
@@ -625,7 +612,7 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__:
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/120-tensorflow-object-detection-to-openvino/data/coco_91cl.txt')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/120-tensorflow-object-detection-to-openvino/data/coco_91cl.txt')
 
 
 
@@ -664,25 +651,24 @@ original test image:
 .. image:: 120-tensorflow-object-detection-to-openvino-with-output_files/120-tensorflow-object-detection-to-openvino-with-output_38_0.png
 
 
-Next Steps `⇑ <#top>`__
-###############################################################################################################################
-
+Next Steps 
+----------------------------------------------------
 
 This section contains suggestions on how to additionally improve the
 performance of your application using OpenVINO.
 
-Async inference pipeline `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Async inference pipeline 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The key advantage of the Async API is that when a device is busy with inference, 
-the application can perform other tasks in parallel (for example, populating inputs or 
-scheduling other requests) rather than wait for the current inference to 
-complete first. To understand how to perform async inference using 
-openvino, refer to the `Async API tutorial <115-async-api-with-output.html>`__.
+The key advantage of the Async API is that when a device is busy with
+inference, the application can perform other tasks in parallel (for
+example, populating inputs or scheduling other requests) rather than
+wait for the current inference to complete first. To understand how to
+perform async inference using openvino, refer to the `Async API
+tutorial <115-async-api-with-output.html>`__.
 
-Integration preprocessing to model `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+Integration preprocessing to model 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Preprocessing API enables making preprocessing a part of the model
 reducing application code and dependency on additional image processing
@@ -694,4 +680,5 @@ utilization.
 
 For more information, refer to the `Optimize Preprocessing
 tutorial <118-optimize-preprocessing-with-output.html>`__
-and to the overview of `Preprocessing API <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_Preprocessing_Overview.html>`__ .
+and to the overview of `Preprocessing
+API <https://docs.openvino.ai/2023.0/openvino_docs_OV_Runtime_UG_Preprocessing_Overview.html>`__.

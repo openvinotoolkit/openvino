@@ -1,18 +1,19 @@
-# Copyright (C) 2023 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #! [ov:execution_mode:part0]
 import openvino as ov
+import openvino.properties.hint as hints
 
 core = ov.Core()
 # in case of Accuracy
 core.set_property(
     "CPU",
-    {ov.properties.hint.execution_mode(): ov.properties.hint.ExecutionMode.ACCURACY},
+    {hints.execution_mode: hints.ExecutionMode.ACCURACY},
 )
 # in case of Performance
 core.set_property(
     "CPU",
-    {ov.properties.hint.execution_mode(): ov.properties.hint.ExecutionMode.PERFORMANCE},
+    {hints.execution_mode: hints.ExecutionMode.PERFORMANCE},
 )
 #! [ov:execution_mode:part0]
