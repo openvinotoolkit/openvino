@@ -71,6 +71,51 @@ public:
 
         return {params, optional_params};
     }
+
+    static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
+        auto updated_impl_params = canonicalize_fused_shapes(impl_params);
+
+        auto& input_layout = updated_impl_params.input_layouts[0];
+        auto& weights_layout = updated_impl_params.input_layouts[1];
+        auto& output_layout = updated_impl_params.output_layouts[0];
+
+        auto input_pshape = input_layout.get_partial_shape();
+        auto weights_pshape = weights_layout.get_partial_shape();
+        auto output_pshape = output_layout.get_partial_shape();
+
+        if (input_pshape.size() == 2) {
+            auto lstm_input_size = static_cast<cldnn::tensor::value_type>(input_pshape[1].get_length());
+            auto lstm_batch_size = static_cast<cldnn::tensor::value_type>(input_pshape[0].get_length());
+            auto lstm_hidden_size = static_cast<cldnn::tensor::value_type>(lstm_input_size / 4);
+
+            GPU_DEBUG_LOG << "lstm_input_size   : " << lstm_input_size << std::endl;
+            GPU_DEBUG_LOG << "lstm_batch_size   : " << lstm_batch_size << std::endl;
+            GPU_DEBUG_LOG << "lstm_hidden_size  : " << lstm_hidden_size << std::endl;
+
+            GPU_DEBUG_LOG << "origin input_pshape   : " << input_layout.to_short_string() << std::endl;
+            GPU_DEBUG_LOG << "origin weights_layout : " << weights_layout.to_short_string() << std::endl;
+
+            input_pshape = {lstm_batch_size, 1, 1, lstm_input_size};
+            input_layout.set_partial_shape(input_pshape);
+
+            weights_pshape = {lstm_batch_size, 1, 1, lstm_hidden_size}; // {batch, direction, 1, hidden_size}
+            weights_layout.format = format::adjust_to_rank(weights_layout.format, weights_pshape.size());
+            weights_layout.set_partial_shape(weights_pshape);
+
+            updated_impl_params.weights_layout = weights_layout;
+        }
+
+        GPU_DEBUG_LOG << "input_layout   : " << input_layout.to_short_string() << std::endl;
+        GPU_DEBUG_LOG << "weights_layout : " << weights_layout.to_short_string() << std::endl;
+        GPU_DEBUG_LOG << "output_layout  : " << output_layout.to_short_string() << std::endl;
+
+        OPENVINO_ASSERT(input_pshape.size() == 4 && weights_pshape.size() == 4, "input and weights shape should be rank 4");
+        return updated_impl_params;
+    }
+
+    kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {
+        return static_canonicalize_shapes(impl_params);
+    }
 };
 
 namespace detail {
