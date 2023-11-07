@@ -88,6 +88,7 @@ void GenerateProposalsLayerTest::SetUp() {
         roi_num_type);
     function = std::make_shared<ov::Model>(
         generate_proposals->outputs(),
+        params,
         "GenerateProposals");
 }
 } // namespace test
