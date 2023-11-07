@@ -414,6 +414,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 }
 
 bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node& node, format fmt_prev, format fmt_next) {
+    bool allow_new_shape_infer = node.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
     // Because mvn and concatenation kernel can work cross-layout, if reorder only performs type conversion,
     // fusing reorder to the previous node can be done even if it is a dynamic shape case
     if ((prev.is_type<mvn>() || prev.is_type<concatenation>()) &&
@@ -479,8 +480,8 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         if (fmt_prev.dimension() > 6 || fmt_next.dimension() > 6)
             return false;
 
-        // Skip reorder fusing to avoid CVS-123934 issue
-        if ((fmt_prev.dimension() == 4) && (fmt_next.dimension() == 5) && (!node.get_users().front()->is_output()))
+        // Skip reorder fusing to permute when original permute output has bfxy and fusing output has bfzyx
+        if (allow_new_shape_infer && (fmt_prev.dimension() == 4) && (fmt_next.dimension() == 5) && (!node.get_users().front()->is_output()))
             return false;
 
         return true;
