@@ -58,7 +58,6 @@ protected:
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
                                    std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[1]))};
         std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
-        auto in = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params));
         std::vector<float> weights_vals =
             ov::test::utils::generate_float_numbers(ngraph::shape_size(WRB[0]), -0.0001f, 0.0001f);
         std::vector<float> reccurrenceWeights_vals =
@@ -70,8 +69,8 @@ protected:
         auto reccurrenceWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, WRB[1], reccurrenceWeights_vals);
         auto biasNode = ngraph::builder::makeConstant<float>(ngPrc, WRB[2], bias_vals);
 
-        auto gru_cell = std::make_shared<ngraph::opset8::GRUCell>(in[0],
-                                                                  in[1],
+        auto gru_cell = std::make_shared<ngraph::opset8::GRUCell>(params[0],
+                                                                  params[1],
                                                                   weightsNode,
                                                                   reccurrenceWeightsNode,
                                                                   biasNode,
