@@ -59,8 +59,8 @@ async function main(modelPath, imagePath, deviceName) {
     .setElementType(ov.element.u8)
     .setLayout('NHWC');
 
-  // TODO: add output tensor element type setup
   _ppp.input().model().setLayout('NCHW');
+  _ppp.output().tensor().setElementType(ov.element.f32)
   _ppp.build();
 
   //----------------- Step 5. Loading model to the device ----------------------

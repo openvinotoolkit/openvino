@@ -73,9 +73,8 @@ async function main(modelPath, images, deviceName) {
   const _ppp = new ov.PrePostProcessor(model);
   _ppp.input().tensor().setLayout('NHWC').setElementType(ov.element.u8);
   _ppp.input().model().setLayout('NCHW');
+  _ppp.output().tensor().setElementType(ov.element.f32)
   _ppp.build();
-  // TODO: add output tensor element type setup
-
 
   //----------------- Step 5. Loading model to the device ----------------------
   console.log('Loading the model to the plugin');
