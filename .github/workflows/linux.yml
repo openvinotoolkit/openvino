@@ -1372,12 +1372,6 @@ jobs:
       - name: Check sudo
         run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
 
-      - name: Install dependencies
-        run: |
-          # install git (required to build pip deps from the sources)
-          # install 'g++' to build 'detectron2' and 'natten' wheels
-          sudo apt-get install --assume-yes --no-install-recommends g++ git ca-certificates
-
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
@@ -1413,6 +1407,11 @@ jobs:
           version: ${{ env.PYTHON_VERSION }}
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'true'
+
+      - name: Install dependencies
+        run: |
+          # install 'git', 'g++' to build 'detectron2' and 'natten' wheels
+          sudo apt-get install --assume-yes --no-install-recommends g++ git ca-certificates
 
       - name: Install OpenVINO Python wheels
         run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
