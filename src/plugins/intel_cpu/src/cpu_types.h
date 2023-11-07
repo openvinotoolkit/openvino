@@ -112,7 +112,8 @@ enum class Type {
     MHA,
     RandomUniform,
     Unique,
-    Ngram
+    Ngram,
+    RoPE
 };
 
 enum class Algorithm {

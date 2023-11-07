@@ -82,6 +82,7 @@
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/init_node_info.hpp"
 #include "utils/ngraph_transformation.hpp"
+#include "utils/print_model.hpp"
 
 // LPT transformations
 #include "low_precision/add.hpp"
@@ -107,6 +108,7 @@
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/move_eltwise_up_data_movement.hpp"
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
+#include "transformations/cpu_opset/common/pass/rope_fusion.hpp"
 
 // Snippets
 #include "snippets/pass/tokenization.hpp"
@@ -624,6 +626,10 @@ void Transformations::PostLpt() {
 
     // Execute before snippets. Otherwise FQ will be converted to Subgraph
     CPU_REGISTER_PASS_X64(postLPTPassManager, ConvertFqRnnToQuantizedRnn);
+
+    CPU_REGISTER_PASS_X64(postLPTPassManager, EliminateStridedSlice);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, RoPEFusion);
+
     postLPTPassManager.run_passes(model);
 }
 
