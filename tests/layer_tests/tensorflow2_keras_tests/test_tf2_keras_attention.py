@@ -61,7 +61,7 @@ class TestKerasAttention(CommonTF2LayerTest):
         dict(use_scale=False, causal=False, dropout=0.8,
              input_names=["input1_query", "input2_value", "input3_key"],
              input_shapes=[[5, 3, 3], [5, 3, 3], [5, 3, 3]],
-             input_type=tf.float32),
+             input_type=tf.float32)
     ]
 
     # TODO: Extend test with const inputs, ticket: 49295
