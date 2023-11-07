@@ -171,10 +171,17 @@ def main():
     if is_postcommit:
         logger.info(f"The run is a post-commit run, executing full validation scope for all components")
 
+    no_match_files_changed = 'no-match-files' in [label.name for label in pr.labels]
+    if no_match_files_changed:
+        logger.info(f"There are changed files that don't match any pattern in labeler config, "
+                    f"executing full validation scope for all components")
+
+    run_full_scope = is_postcommit or no_match_files_changed
+
     # In post-commits - validate all components regardless of changeset
     # In pre-commits - validate only changed components with their dependencies
     all_defined_components = components_config.keys()
-    changed_component_names = set(all_defined_components) if is_postcommit else \
+    changed_component_names = set(all_defined_components) if run_full_scope else \
         get_changed_component_names(pr, all_possible_components, args.pattern)
     logger.info(f"changed_component_names: {changed_component_names}")
 
