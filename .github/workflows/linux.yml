@@ -1329,6 +1329,7 @@ jobs:
           version: ${{ env.PYTHON_VERSION }}
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           self-hosted-runner: 'true'
+          should-setup-pip-paths: 'true'
 
       - name: Install OpenVINO Python wheels
         run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
@@ -1497,6 +1498,7 @@ jobs:
           version: ${{ env.PYTHON_VERSION }}
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           self-hosted-runner: 'true'
+          should-setup-pip-paths: 'true'
 
       - name: Install dependencies
         run: |
