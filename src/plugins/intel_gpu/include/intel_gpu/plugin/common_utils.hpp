@@ -43,10 +43,10 @@ inline cldnn::tensor tensor_from_dims(const ov::Shape& dims, int def = 1) {
 template<typename T, typename V>
 std::tuple<V, V, V> get_xyz(const T data, V def) {
     switch (data.size()) {
-        case 1:  return std::make_tuple(def,     data[0], def);
-        case 2:  return std::make_tuple(data[1], data[0], def);
-        case 3:  return std::make_tuple(data[2], data[1], data[0]);
-        default: return std::make_tuple(def,     def,     def);
+        case 1:  return std::make_tuple(def,                     static_cast<V>(data[0]), def);
+        case 2:  return std::make_tuple(static_cast<V>(data[1]), static_cast<V>(data[0]), def);
+        case 3:  return std::make_tuple(static_cast<V>(data[2]), static_cast<V>(data[1]), static_cast<V>(data[0]));
+        default: return std::make_tuple(def,                     def,                     def);
     }
 }
 

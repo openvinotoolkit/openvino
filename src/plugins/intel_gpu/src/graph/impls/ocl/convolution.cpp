@@ -115,19 +115,19 @@ public:
         conv_params.filterSize = { kx, ky, kz };
 
         uint32_t pad_begin_x, pad_begin_y, pad_begin_z;
-        std::tie(pad_begin_x, pad_begin_y, pad_begin_z) = ov::intel_gpu::get_xyz(pads_begin, 0);
+        std::tie(pad_begin_x, pad_begin_y, pad_begin_z) = ov::intel_gpu::get_xyz<ov::CoordinateDiff, uint32_t>(pads_begin, 0);
         conv_params.padding_begin = {pad_begin_x, pad_begin_y, pad_begin_z};
 
         uint32_t pad_end_x, pad_end_y, pad_end_z;
-        std::tie(pad_end_x, pad_end_y, pad_end_z) = ov::intel_gpu::get_xyz(pads_end, 0);
+        std::tie(pad_end_x, pad_end_y, pad_end_z) = ov::intel_gpu::get_xyz<ov::CoordinateDiff, uint32_t>(pads_end, 0);
         conv_params.padding_end = {pad_end_x, pad_end_y, pad_end_z};
 
         uint32_t stride_x, stride_y, stride_z;
-        std::tie(stride_x, stride_y, stride_z) = ov::intel_gpu::get_xyz(stride, 1);
+        std::tie(stride_x, stride_y, stride_z) = ov::intel_gpu::get_xyz<ov::Strides, uint32_t>(stride, 1);
         conv_params.stride = {stride_x, stride_y, stride_z};
 
         uint32_t dilation_x, dilation_y, dilation_z;
-        std::tie(dilation_x, dilation_y, dilation_z) = ov::intel_gpu::get_xyz(dilation, 1);
+        std::tie(dilation_x, dilation_y, dilation_z) = ov::intel_gpu::get_xyz<ov::Strides, uint32_t>(dilation, 1);
         conv_params.dilation = {dilation_x, dilation_y, dilation_z};
 
         if ((impl_param.input_layouts[0].data_type == data_types::u8 ||
