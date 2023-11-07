@@ -74,19 +74,5 @@ void ExperimentalDetectronGenerateProposalsSingleImageLayerTest::SetUp() {
         params,
         "ExperimentalDetectronGenerateProposalsSingleImage");
 }
-
-// void ExperimentalDetectronGenerateProposalsSingleImageLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
-//     auto inputTensors = std::get<5>(GetParam());
-
-//     inputs.clear();
-//     const auto& funcInputs = function->inputs();
-//     for (auto i = 0ul; i < funcInputs.size(); ++i) {
-//         if (targetInputStaticShapes[i] != inputTensors.second[i].get_shape()) {
-//             OPENVINO_THROW("input shape is different from tensor shape");
-//         }
-
-//         inputs.insert({funcInputs[i].get_node_shared_ptr(), inputTensors.second[i]});
-//     }
-// }
 } // namespace test
 } // namespace ov

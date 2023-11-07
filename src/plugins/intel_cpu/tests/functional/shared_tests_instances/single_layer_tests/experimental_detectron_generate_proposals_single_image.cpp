@@ -40,7 +40,6 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(nms_threshold),
         ::testing::ValuesIn(post_nms_count),
         ::testing::ValuesIn(pre_nms_count),
-        //::testing::ValuesIn(inputTensors),
         ::testing::Values(ov::element::f32),
         ::testing::Values(ov::test::utils::DEVICE_CPU)),
     ExperimentalDetectronGenerateProposalsSingleImageLayerTest::getTestCaseName);

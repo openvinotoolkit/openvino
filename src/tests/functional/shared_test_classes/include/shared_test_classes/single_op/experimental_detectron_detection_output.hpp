@@ -16,7 +16,7 @@ typedef std::tuple<
         size_t,                   // max_detections_per_image
         bool,                     // class_agnostic_box_regression
         std::vector<float>,       // deltas_weights
-        ElementType,              // Model type
+        ov::element::Type,        // Model type
         std::string               // Device name
 > ExperimentalDetectronDetectionOutputTestParams;
 
