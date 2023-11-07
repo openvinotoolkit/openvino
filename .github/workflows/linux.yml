@@ -1322,7 +1322,7 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
-          should-setup-pip-paths: 'false'
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           self-hosted-runner: 'true'
 
       - name: Install OpenVINO Python wheels
@@ -1405,7 +1405,7 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
-          should-setup-pip-paths: 'false'
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           self-hosted-runner: 'true'
 
       - name: Install dependencies
