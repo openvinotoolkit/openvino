@@ -159,6 +159,12 @@ enum class TensorIteratorBody {
     // CNN todo: implement
 };
 
+enum class MemoryTransformation {
+    NONE,
+    LOW_LATENCY_V2,
+    LOW_LATENCY_V2_ORIGINAL_INIT
+};
+
 // clang-format on
 
 std::ostream& operator<<(std::ostream& os, const ReductionType& m);
@@ -190,6 +196,8 @@ std::ostream& operator<<(std::ostream& os, ov::op::v8::MatrixNms::SortResultType
 std::ostream& operator<<(std::ostream& os, ov::op::v8::MatrixNms::DecayFunction type);
 
 std::ostream& operator<<(std::ostream& os, TensorIteratorBody type);
+
+std::ostream& operator<<(std::ostream& os, MemoryTransformation type);
 
 }  // namespace utils
 }  // namespace test
