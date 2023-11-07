@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_op/multiclass_nms.hpp"
+
 #include "common_test_utils/test_enums.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 
@@ -20,8 +21,8 @@ std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo
 
     std::tie(shapes, input_types, nmsTopK, inFloatVar, backgroundClass, keepTopK, outType, sortResultType, inboolVar, targetDevice) = obj.param;
 
-    ElementType paramsPrec, roisnumPrec, maxBoxPrec, thrPrec;
-    std::tie(paramsPrec, roisnumPrec, maxBoxPrec, thrPrec) = input_types;
+    ElementType paramsPrec, roisnumPrec;
+    std::tie(paramsPrec, roisnumPrec) = input_types;
 
     float iouThr, scoreThr, nmsEta;
     std::tie(iouThr, scoreThr, nmsEta) = inFloatVar;
@@ -42,7 +43,7 @@ std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo
     }
 
     using ov::test::utils::operator<<;
-    result << ")_paramsPrec=" << paramsPrec << "_roisnumPrec=" << roisnumPrec << "_maxBoxPrec=" << maxBoxPrec << "_thrPrec=" << thrPrec << "_";
+    result << ")_paramsPrec=" << paramsPrec << "_roisnumPrec=" << roisnumPrec << "_";
     result << "nmsTopK=" << nmsTopK << "_";
     result << "iouThr=" << iouThr << "_scoreThr=" << scoreThr << "_backgroundClass=" << backgroundClass << "_";
     result << "keepTopK=" << keepTopK << "_outType=" << outType << "_";
@@ -128,8 +129,8 @@ void MulticlassNmsLayerTest::SetUp() {
 
     init_input_shapes(shapes);
 
-    ElementType paramsPrec, roisnumPrec, maxBoxPrec, thrPrec;
-    std::tie(paramsPrec, roisnumPrec, maxBoxPrec, thrPrec) = input_types;
+    ElementType paramsPrec, roisnumPrec;
+    std::tie(paramsPrec, roisnumPrec) = input_types;
 
     float iouThr, scoreThr, nmsEta;
     std::tie(iouThr, scoreThr, nmsEta) = inFloatVar;
@@ -137,6 +138,7 @@ void MulticlassNmsLayerTest::SetUp() {
     bool sortResCB, normalized;
     std::tie(sortResCB, normalized) = inboolVar;
 
+    ASSERT_LE(inputDynamicShapes.size(), 3);
     ParameterVector params;
     if (inputDynamicShapes.size() > 2) {
         std::vector<ov::element::Type> types {paramsPrec, paramsPrec, roisnumPrec};

@@ -22,7 +22,7 @@ using InputTypes =
 
 using NmsParams = std::tuple<InputShapeParams,  // Params using to create 1st and 2nd inputs
                              InputTypes,   // Input precisions
-                             int32_t,           // Max output boxes per class
+                             int,           // Max output boxes per class
                              float,             // IOU threshold
                              float,             // Score threshold
                              float,             // Soft NMS sigma

@@ -88,9 +88,7 @@ const std::vector<bool> normalized = {true, false};
 const auto nmsParamsStatic_smoke1 = ::testing::Combine(
     ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inStaticShapeParams1)),
     ::testing::Combine(::testing::Values(ov::element::f32),
-                       ::testing::Values(ov::element::i32),
-                       ::testing::Values(ov::element::i32),
-                       ::testing::Values(ov::element::f32)),
+                       ::testing::Values(ov::element::i32)),
     ::testing::ValuesIn(nmsTopK),
     ::testing::Combine(::testing::ValuesIn(iouThreshold), ::testing::ValuesIn(scoreThreshold), ::testing::ValuesIn(nmsEta)),
     ::testing::ValuesIn(backgroundClass),
@@ -103,9 +101,7 @@ const auto nmsParamsStatic_smoke1 = ::testing::Combine(
 const auto nmsParamsDynamic_smoke1 = ::testing::Combine(
     ::testing::ValuesIn(inDynamicShapeParams1),
     ::testing::Combine(::testing::Values(ov::element::f32),
-                       ::testing::Values(ov::element::i32),
-                       ::testing::Values(ov::element::i32),
-                       ::testing::Values(ov::element::f32)),
+                       ::testing::Values(ov::element::i32)),
     ::testing::ValuesIn(nmsTopK),
     ::testing::Combine(::testing::ValuesIn(iouThreshold), ::testing::ValuesIn(scoreThreshold), ::testing::ValuesIn(nmsEta)),
     ::testing::ValuesIn(backgroundClass),
@@ -121,9 +117,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MulticlassNmsLayerTest_dynamic1, MulticlassNmsLay
 const auto nmsParamsStatic_smoke2 = ::testing::Combine(
     ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inStaticShapeParams2)),
     ::testing::Combine(::testing::Values(ov::element::f32),
-                       ::testing::Values(ov::element::i32),
-                       ::testing::Values(ov::element::i32),
-                       ::testing::Values(ov::element::f32)),
+                       ::testing::Values(ov::element::i32)),
     ::testing::ValuesIn(nmsTopK),
     ::testing::Combine(::testing::ValuesIn(iouThreshold), ::testing::ValuesIn(scoreThreshold), ::testing::ValuesIn(nmsEta)),
     ::testing::ValuesIn(backgroundClass),
@@ -136,9 +130,7 @@ const auto nmsParamsStatic_smoke2 = ::testing::Combine(
 const auto nmsParamsDynamic_smoke2 = ::testing::Combine(
     ::testing::ValuesIn(inDynamicShapeParams2),
     ::testing::Combine(::testing::Values(ov::element::f32),
-                       ::testing::Values(ov::element::i32),
-                       ::testing::Values(ov::element::i32),
-                       ::testing::Values(ov::element::f32)),
+                       ::testing::Values(ov::element::i32)),
     ::testing::ValuesIn(nmsTopK),
     ::testing::Combine(::testing::ValuesIn(iouThreshold), ::testing::ValuesIn(scoreThreshold), ::testing::ValuesIn(nmsEta)),
     ::testing::ValuesIn(backgroundClass),

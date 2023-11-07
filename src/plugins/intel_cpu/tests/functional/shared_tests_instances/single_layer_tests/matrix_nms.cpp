@@ -49,9 +49,7 @@ const std::vector<ov::op::v8::MatrixNms::DecayFunction> decayFunction = {ov::op:
                                                 ov::op::v8::MatrixNms::DecayFunction::LINEAR};
 
 const auto nmsParamsStatic = ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inStaticShapeParams)),
-                                                ::testing::Combine(::testing::Values(ov::element::f32),
-                                                                   ::testing::Values(ov::element::i32),
-                                                                   ::testing::Values(ov::element::f32)),
+                                                ::testing::Values(ov::element::f32),
                                                 ::testing::ValuesIn(sortResultType),
                                                 ::testing::ValuesIn(outType),
                                                 ::testing::ValuesIn(topKParams),
@@ -63,9 +61,7 @@ const auto nmsParamsStatic = ::testing::Combine(::testing::ValuesIn(ov::test::st
 );
 
 const auto nmsParamsDynamic = ::testing::Combine(::testing::ValuesIn(inDynamicShapeParams),
-                                                 ::testing::Combine(::testing::Values(ov::element::f32),
-                                                                    ::testing::Values(ov::element::i32),
-                                                                    ::testing::Values(ov::element::f32)),
+                                                 ::testing::Values(ov::element::f32),
                                                  ::testing::ValuesIn(sortResultType),
                                                  ::testing::ValuesIn(outType),
                                                  ::testing::ValuesIn(topKParams),

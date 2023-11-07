@@ -11,10 +11,6 @@
 
 namespace ov {
 namespace test {
-using InputTypes = std::tuple<ov::element::Type,   // boxes and scores precisions
-                              ov::element::Type,   // max_output_boxes_per_class
-                              ov::element::Type>;  // iou_threshold, score_threshold,
-
 using TopKParams = std::tuple<int,      // Maximum number of boxes to be selected per class
                               int>;     // Maximum number of boxes to be selected per batch element
 
@@ -23,7 +19,7 @@ using ThresholdParams = std::tuple<float,   // minimum score to consider box for
                                    float>;  // filter out boxes with low confidence score after decaying
 
 using NmsParams = std::tuple<std::vector<InputShape>,                            // Params using to create 1st and 2nd inputs
-                             InputTypes,                                         // Input types
+                             ov::element::Type,                                  // Model type
                              ov::op::v8::MatrixNms::SortResultType,              // Order of output elements
                              ov::element::Type,                                  // Output type
                              TopKParams,                                         // Maximum number of boxes topk params

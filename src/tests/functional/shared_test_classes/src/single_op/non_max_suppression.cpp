@@ -50,7 +50,7 @@ std::string NmsLayerTest::getTestCaseName(const testing::TestParamInfo<NmsParams
 void NmsLayerTest::SetUp() {
     InputTypes input_types;
     InputShapeParams input_shape_params;
-    size_t max_out_boxes_per_class;
+    int max_out_boxes_per_class;
     float iou_thr, score_thr, soft_nms_sigma;
     op::v5::NonMaxSuppression::BoxEncodingType box_encoding;
     bool sort_res_descend;
@@ -77,7 +77,7 @@ void NmsLayerTest::SetUp() {
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(params_type, ov::Shape(boxes_shape)),
                                 std::make_shared<ov::op::v0::Parameter>(params_type, ov::Shape(scores_shape))};
 
-    auto max_out_boxes_per_class_node = std::make_shared<ov::op::v0::Constant>(max_box_type, ov::Shape{}, std::vector<int32_t>{max_out_boxes_per_class});
+    auto max_out_boxes_per_class_node = std::make_shared<ov::op::v0::Constant>(max_box_type, ov::Shape{}, std::vector<int>{max_out_boxes_per_class});
     auto iou_thr_node = std::make_shared<ov::op::v0::Constant>(thr_type, ov::Shape{}, std::vector<float>{iou_thr});
     auto score_thr_node = std::make_shared<ov::op::v0::Constant>(thr_type, ov::Shape{}, std::vector<float>{score_thr});
     auto soft_nms_sigma_node = std::make_shared<ov::op::v0::Constant>(thr_type, ov::Shape{}, std::vector<float>{soft_nms_sigma});
@@ -92,28 +92,22 @@ void NmsLayerTest::SetUp() {
                                                                sort_res_descend,
                                                                out_type);
 
-
-
-    if (targetDevice == ov::test::utils::DEVICE_CPU) {
-        function = std::make_shared<ov::Model>(nms, params, "NMS");
-    } else {
-        auto nms_0_identity =
-            std::make_shared<ov::op::v1::Multiply>(nms->output(0), ov::op::v0::Constant::create(out_type, ov::Shape{1}, {1}));
-        auto nms_1_identity =
-            std::make_shared<ov::op::v1::Multiply>(nms->output(1), ov::op::v0::Constant::create(params_type, ov::Shape{1}, {1}));
-        auto nms_2_identity =
-            std::make_shared<ov::op::v1::Multiply>(nms->output(2), ov::op::v0::Constant::create(out_type, ov::Shape{1}, {1}));
-        nms_0_identity->set_friendly_name("Multiply_0");
-        nms_1_identity->set_friendly_name("Multiply_1");
-        nms_2_identity->set_friendly_name("Multiply_2");
-        function = std::make_shared<ov::Model>(OutputVector{nms_0_identity, nms_1_identity, nms_2_identity}, params, "NMS");
-    }
+    auto nms_0_identity =
+        std::make_shared<ov::op::v1::Multiply>(nms->output(0), ov::op::v0::Constant::create(out_type, ov::Shape{1}, {1}));
+    auto nms_1_identity =
+        std::make_shared<ov::op::v1::Multiply>(nms->output(1), ov::op::v0::Constant::create(params_type, ov::Shape{1}, {1}));
+    auto nms_2_identity =
+        std::make_shared<ov::op::v1::Multiply>(nms->output(2), ov::op::v0::Constant::create(out_type, ov::Shape{1}, {1}));
+    nms_0_identity->set_friendly_name("Multiply_0");
+    nms_1_identity->set_friendly_name("Multiply_1");
+    nms_2_identity->set_friendly_name("Multiply_2");
+    function = std::make_shared<ov::Model>(OutputVector{nms_0_identity, nms_1_identity, nms_2_identity}, params, "NMS");
 }
 
 void Nms9LayerTest::SetUp() {
     InputTypes input_types;
     InputShapeParams input_shape_params;
-    size_t max_out_boxes_per_class;
+    int max_out_boxes_per_class;
     float iou_thr, score_thr, soft_nms_sigma;
     op::v5::NonMaxSuppression::BoxEncodingType box_encoding;
     op::v9::NonMaxSuppression::BoxEncodingType box_encoding_v9;
@@ -145,7 +139,7 @@ void Nms9LayerTest::SetUp() {
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(params_type, ov::Shape(boxes_shape)),
                                 std::make_shared<ov::op::v0::Parameter>(params_type, ov::Shape(scores_shape))};
 
-    auto max_out_boxes_per_class_node = std::make_shared<ov::op::v0::Constant>(max_box_type, ov::Shape{}, std::vector<int32_t>{max_out_boxes_per_class});
+    auto max_out_boxes_per_class_node = std::make_shared<ov::op::v0::Constant>(max_box_type, ov::Shape{}, std::vector<int>{max_out_boxes_per_class});
     auto iou_thr_node = std::make_shared<ov::op::v0::Constant>(thr_type, ov::Shape{}, std::vector<float>{iou_thr});
     auto score_thr_node = std::make_shared<ov::op::v0::Constant>(thr_type, ov::Shape{}, std::vector<float>{score_thr});
     auto soft_nms_sigma_node = std::make_shared<ov::op::v0::Constant>(thr_type, ov::Shape{}, std::vector<float>{soft_nms_sigma});

@@ -12,8 +12,6 @@
 namespace ov {
 namespace test {
 using InputTypes = std::tuple<ov::element::Type,   // input 'boxes' and 'scores' types
-                              ov::element::Type,   // input 'roisnum' type
-                              ov::element::Type,   // max_output_boxes_per_class type
                               ov::element::Type>;  // iou_threshold, score_threshold, soft_nms_sigma precisions
 
 using InputfloatVar = std::tuple<float,   // iouThreshold
