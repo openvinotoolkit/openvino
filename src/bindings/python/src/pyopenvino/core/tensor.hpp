@@ -9,3 +9,4 @@
 namespace py = pybind11;
 
 void regclass_Tensor(py::module m);
+void regclass_RemoteTensor(py::module m);

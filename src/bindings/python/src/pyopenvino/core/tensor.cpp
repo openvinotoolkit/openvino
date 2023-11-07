@@ -12,6 +12,10 @@
 
 namespace py = pybind11;
 
+void regclass_RemoteTensor(py::module m) {
+    py::class_<ov::RemoteTensor, ov::Tensor, std::shared_ptr<ov::RemoteTensor>> cls(m, "RemoteTensor");
+}
+
 void regclass_Tensor(py::module m) {
     py::class_<ov::Tensor, std::shared_ptr<ov::Tensor>> cls(m, "Tensor");
     cls.doc() = "openvino.runtime.Tensor holding either copy of memory or shared host memory.";
@@ -138,7 +142,7 @@ void regclass_Tensor(py::module m) {
             R"(
                 Constructs Tensor using port from node.
                 Type and shape will be taken from the port.
-     
+
                 :param port: Output port from a node.
                 :type param: openvino.runtime.Output
              )");
@@ -167,7 +171,7 @@ void regclass_Tensor(py::module m) {
             R"(
             Constructs Tensor using port from node.
             Type and shape will be taken from the port.
-    
+
             :param port: Output port from a node.
             :type param: openvino.runtime.ConstOutput
             )");
@@ -314,7 +318,7 @@ void regclass_Tensor(py::module m) {
             &ov::Tensor::is_continuous,
             R"(
         Reports whether the tensor is continuous or not.
-        :return: True if the tensor is continuous, otherwise False. 
+        :return: True if the tensor is continuous, otherwise False.
         :rtype: bool
     )");
 

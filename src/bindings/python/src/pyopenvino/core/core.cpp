@@ -8,8 +8,10 @@
 
 #include <openvino/core/any.hpp>
 #include <openvino/runtime/core.hpp>
+#include <openvino/runtime/remote_context.hpp>
 #include <pyopenvino/core/tensor.hpp>
 
+#include "gpu/gpu_params.hpp"
 #include "common.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
@@ -158,6 +160,77 @@ void regclass_Core(py::module m) {
         "compile_model",
         [](ov::Core& self,
            const std::shared_ptr<const ov::Model>& model,
+           const ov::RemoteContext& context,
+           const std::map<std::string, py::object>& properties) {
+            auto _properties = Common::utils::properties_to_any_map(properties);
+            py::gil_scoped_release release;
+            return self.compile_model(model, context, _properties);
+        },
+        py::arg("model"),
+        py::arg("context"),
+        py::arg("properties"),
+        R"(
+            Creates a compiled model from a source model object and loads it to device associated with context.
+            Users can create as many compiled models as they need, and use them simultaneously
+            (up to the limitation of the hardware resources).
+
+            GIL is released while running this function.
+
+            :param model: Model acquired from read_model function.
+            :type model: openvino.runtime.Model
+            :param context: Context which created on target device.
+            :type context: openvino.runtime.RemoteContext
+            :param properties: Optional dict of pairs: (property name, property value) relevant only for this load
+    operation. :type properties: dict :return: A compiled model. :rtype: openvino.runtime.CompiledModel
+        )");
+
+    /*
+    cls.def(
+        "compile_model",
+        [](ov::Core& self,
+           const std::shared_ptr<const ov::Model>& model,
+           const std::string& device_name,
+           const InferenceEngine::gpu_handle_param va_display,
+           const std::map<std::string, py::object>& properties) {
+            auto _properties = Common::utils::properties_to_any_map(properties);
+
+            ov::AnyMap context_params = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)},
+                                         {GPU_PARAM_KEY(VA_DEVICE), va_display},
+                                         {GPU_PARAM_KEY(TILE_ID), -1}};
+
+            py::gil_scoped_release release;
+            auto context = self.create_context(device_name, context_params);
+
+            return self.compile_model(model, context, _properties);
+        },
+        py::arg("model"),
+        py::arg("device_name"),
+        py::arg("va_display"),
+        py::arg("properties"),
+        R"(
+            Creates a compiled model from a source model object and loads it to device associated with va_display.
+            Users can create as many compiled models as they need, and use them simultaneously
+            (up to the limitation of the hardware resources).
+
+            GIL is released while running this function.
+
+            :param model: Model acquired from read_model function.
+            :type model: openvino.runtime.Model
+            :param device_name: Name of the device to load the model to.
+            :type device_name: str
+            :param va_display: HW handle associated with target device.
+            :type va_display: gpu_handle_param
+            :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
+            :type properties: dict
+            :return: A compiled model.
+            :rtype: openvino.runtime.CompiledModel
+        )");
+        */
+
+    cls.def(
+        "compile_model",
+        [](ov::Core& self,
+           const std::shared_ptr<const ov::Model>& model,
            const std::map<std::string, py::object>& properties) {
             auto _properties = Common::utils::properties_to_any_map(properties);
             py::gil_scoped_release release;
@@ -234,6 +307,32 @@ void regclass_Core(py::module m) {
             :type properties: dict
             :return: A compiled model.
             :rtype: openvino.runtime.CompiledModel
+        )");
+
+    cls.def(
+        "create_context",
+        [](ov::Core& self, const std::string& device_name, const InferenceEngine::gpu_handle_param va_display) {
+
+            ov::AnyMap context_params = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)},
+                                         {GPU_PARAM_KEY(VA_DEVICE), va_display},
+                                         {GPU_PARAM_KEY(TILE_ID), -1}};
+
+            py::gil_scoped_release release;
+            return self.create_context(device_name, context_params);
+        },
+        py::arg("device_name"),
+        py::arg("va_display"),
+        R"(
+            Creates remote context using passed device and HW handle.
+
+            GIL is released while running this function.
+
+            :param device_name: Name of the device to load the model to.
+            :type device_name: str
+            :param va_display: HW handle associated with target device.
+            :type va_display: gpu_handle_param
+            :return: RemoteContext.
+            :rtype: openvino.runtime.RemoteContext
         )");
 
     cls.def("get_versions",
