@@ -4,7 +4,7 @@
 import numpy as np
 from save_model import saveModel
 import sys
-
+import os
 
 def paddle_rnn_lstm(input_size, hidden_size, layers, direction):
     import paddle
@@ -34,11 +34,33 @@ def paddle_rnn_lstm(input_size, hidden_size, layers, direction):
             feed={'x': np.ones([4, 3, input_size]).astype(np.float32)},
             fetch_list=[y, h, c],
             program=main_program)
-        saveModel("place_test_model", exe, feedkeys=[data],
-                  fetchlist=[y, h, c, relu_1, relu_2, relu_3],
+
+        feed_vars = [data]
+        fetch_vars = [y, h, c, relu_1, relu_2, relu_3]
+        saveModel("place_test_model", exe, feedkeys=feed_vars,
+                  fetchlist=fetch_vars,
                   inputs=[np.ones([4, 3, input_size]).astype(np.float32)],
                   outputs=[outs[0], outs[1], outs[2]], target_dir=sys.argv[1],
                   use_static_api=True)
+
+        path_prefix = os.path.join(sys.argv[1], "place_test_model", "place_test_model")
+        program, feed_target_names, fetch_targets = paddle.static.io.load_inference_model(path_prefix, exe)
+
+        from paddle.fluid import core
+        condition = lambda v : not v.persistable and v.name != "transpose_1.tmp_1" and v.name != "transpose_0.tmp_1"
+        vars_ = list(filter(condition, program.list_vars()))
+        vars_name = [v.name for v in vars_]
+        vars_name_file = os.path.join(sys.argv[1], "place_test_model", "vars_name.txt")
+        with open(vars_name_file, 'w') as f:
+            for name in vars_name:
+                f.writelines(f"{name}\n")
+
+        fetch_targets_name = [ft.name for ft in fetch_targets]
+        outputs_name_file = os.path.join(sys.argv[1], "place_test_model", "outputs_name.txt")
+        with open(outputs_name_file, 'w') as f:
+            for name in fetch_targets_name:
+                f.writelines(f"{name}\n")
+
     return outs[0]
 
 
