@@ -4,7 +4,7 @@ Hello Model Server
 Introduction to OpenVINO™ Model Server (OVMS).
 
 What is Model Serving?
-###############################################################################################################################
+----------------------
 
 A model server hosts models and makes them accessible to software
 components over standard network protocols. A client sends a request to
@@ -29,30 +29,37 @@ deployment:
 -  Efficient resource utilization with horizontal and vertical inference
    scaling.
 
-|ovms_diagram| 
+.. figure:: https://user-images.githubusercontent.com/91237924/215658773-4720df00-3b95-4a84-85a2-40f06138e914.png
+   :alt: ovms_diagram
+
+   ovms_diagram
 
 **Table of contents:**
 
-- `Serving with OpenVINO Model Server <#serving-with-openvino-model-server>`__ 
-- `Step 1: Prepare Docker <#step-1-prepare-docker>`__ 
-- `Step 2: Preparing a Model Repository <#step-2-preparing-a-model-repository>`__ 
-- `Step 3: Start the Model Server Container <#step-3-start-the-model-server-container>`__ 
-- `Step 4: Prepare the Example Client Components <#step-4-prepare-the-example-client-components>`__ 
 
-  - `Prerequisites <#prerequisites>`__ 
-  - `Imports <#imports>`__ 
-  - `Request Model Status <#request-model-status>`__ 
-  - `Request Model Metadata <#request-model-metadata>`__ 
-  - `Load input image <#load-input-image>`__ 
-  - `Request Prediction on a Numpy Array <#request-prediction-on-a-numpy-array>`__ 
-  - `Visualization <#visualization>`__ 
+-  `Serving with OpenVINO Model
+   Server <#serving-with-openvino-model-server>`__
+-  `Step 1: Prepare Docker <#step--prepare-docker>`__
+-  `Step 2: Preparing a Model
+   Repository <#step--preparing-a-model-repository>`__
+-  `Step 3: Start the Model Server
+   Container <#step--start-the-model-server-container>`__
+-  `Step 4: Prepare the Example Client
+   Components <#step--prepare-the-example-client-components>`__
 
-- `References <#references>`__
+   -  `Prerequisites <#prerequisites>`__
+   -  `Imports <#imports>`__
+   -  `Request Model Status <#request-model-status>`__
+   -  `Request Model Metadata <#request-model-metadata>`__
+   -  `Load input image <#load-input-image>`__
+   -  `Request Prediction on a Numpy
+      Array <#request-prediction-on-a-numpy-array>`__
+   -  `Visualization <#visualization>`__
 
-.. |ovms_diagram| image:: https://user-images.githubusercontent.com/91237924/215658773-4720df00-3b95-4a84-85a2-40f06138e914.png
+-  `References <#references>`__
 
-Serving with OpenVINO Model Server
-###############################################################################################################################
+Serving with OpenVINO Model Server 
+----------------------------------------------------------------------------
 
 OpenVINO Model Server (OVMS) is a high-performance system for serving
 models. Implemented in C++ for scalability and optimized for deployment
@@ -68,8 +75,8 @@ making deploying new algorithms and AI experiments easy.
 
 To quickly start using OpenVINO™ Model Server, follow these steps:
 
-Step 1: Prepare Docker
-###############################################################################################################################
+Step 1: Prepare Docker 
+----------------------------------------------------------------
 
 Install `Docker Engine <https://docs.docker.com/engine/install/>`__,
 including its
@@ -109,8 +116,8 @@ image and a message.
     
 
 
-Step 2: Preparing a Model Repository
-###############################################################################################################################
+Step 2: Preparing a Model Repository 
+------------------------------------------------------------------------------
 
 The models need to be placed and mounted in a particular directory
 structure and according to the following rules:
@@ -161,10 +168,18 @@ structure and according to the following rules:
 
 .. code:: ipython3
 
+    %pip install -q "openvino>=2023.1.0"
+
+.. code:: ipython3
+
     import os
-    import sys
     
-    sys.path.append("../utils")
+    # Fetch `notebook_utils` module
+    import urllib.request
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
+        filename='notebook_utils.py'
+    )
     from notebook_utils import download_file
     
     dedicated_dir = "models"
@@ -179,13 +194,7 @@ structure and according to the following rules:
     model_bin_url = "https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.3/models_bin/1/horizontal-text-detection-0001/FP32/horizontal-text-detection-0001.bin"
     
     download_file(model_xml_url, XML_PATH, MODEL_DIR)
-    download_file(model_bin_url, BIN_PATH_name, MODEL_DIR)
-    
-    model_xml_url = "https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.3/models_bin/1/horizontal-text-detection-0001/FP32/horizontal-text-detection-0001.xml"
-    model_bin_url = "https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.3/models_bin/1/horizontal-text-detection-0001/FP32/horizontal-text-detection-0001.bin"
-    
-    download_file(model_xml_url, model_xml_name, base_model_dir)
-    download_file(model_bin_url, model_bin_name, base_model_dir)
+    download_file(model_bin_url, BIN_PATH, MODEL_DIR)
 
 
 .. parsed-literal::
@@ -193,8 +202,8 @@ structure and according to the following rules:
     Model Copied to "./models/detection/1".
 
 
-Step 3: Start the Model Server Container
-###############################################################################################################################
+Step 3: Start the Model Server Container 
+----------------------------------------------------------------------------------
 
 Pull and start the container:
 
@@ -642,8 +651,8 @@ openvino/model_server:latest
 If the serving port ``9000`` is already in use, please switch it to
 another available port on your system. For example:\ ``-p 9020:9000``
 
-Step 4: Prepare the Example Client Components
-###############################################################################################################################
+Step 4: Prepare the Example Client Components 
+---------------------------------------------------------------------------------------
 
 OpenVINO Model Server exposes two sets of APIs: one compatible with
 ``TensorFlow Serving`` and another one, with ``KServe API``, for
@@ -653,14 +662,14 @@ into existing systems the already leverage one of these APIs for
 inference. This example will demonstrate how to write a TensorFlow
 Serving API client for object detection.
 
-Prerequisites
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Prerequisites 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Install necessary packages.
 
 .. code:: ipython3
 
-    !pip install -q ovmsclient
+    %pip install -q ovmsclient
 
 
 .. parsed-literal::
@@ -688,8 +697,8 @@ Install necessary packages.
     You should consider upgrading via the '/home/adrian/repos/openvino_notebooks_adrian/venv/bin/python -m pip install --upgrade pip' command.
     
 
-Imports
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Imports 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -698,8 +707,8 @@ Imports
     import matplotlib.pyplot as plt
     from ovmsclient import make_grpc_client
 
-Request Model Status
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Request Model Status 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -716,8 +725,8 @@ Request Model Status
     {1: {'state': 'AVAILABLE', 'error_code': 0, 'error_message': 'OK'}}
 
 
-Request Model Metadata
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Request Model Metadata 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -730,13 +739,19 @@ Request Model Metadata
     {'model_version': 1, 'inputs': {'image': {'shape': [1, 3, 704, 704], 'dtype': 'DT_FLOAT'}}, 'outputs': {'1469_1470.0': {'shape': [-1], 'dtype': 'DT_FLOAT'}, '1078_1079.0': {'shape': [1000], 'dtype': 'DT_FLOAT'}, '1330_1331.0': {'shape': [36], 'dtype': 'DT_FLOAT'}, 'labels': {'shape': [-1], 'dtype': 'DT_INT32'}, '1267_1268.0': {'shape': [121], 'dtype': 'DT_FLOAT'}, '1141_1142.0': {'shape': [1000], 'dtype': 'DT_FLOAT'}, '1204_1205.0': {'shape': [484], 'dtype': 'DT_FLOAT'}, 'boxes': {'shape': [-1, 5], 'dtype': 'DT_FLOAT'}}}
 
 
-Load input image
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Load input image 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
+    # Download the image from the openvino_notebooks storage
+    image_filename = download_file(
+        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/intel_rnb.jpg",
+        directory="data"
+    )
+    
     # Text detection models expect an image in BGR format.
-    image = cv2.imread("../data/image/intel_rnb.jpg")
+    image = cv2.imread(str(image_filename))
     fp_image = image.astype("float32")
     
     # Resize the image to meet network expected input sizes.
@@ -758,11 +773,11 @@ Load input image
 
 
 
-.. image:: 117-model-server-with-output_files/117-model-server-with-output_20_1.png
+.. image:: 117-model-server-with-output_files/117-model-server-with-output_21_1.png
 
 
-Request Prediction on a Numpy Array
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Request Prediction on a Numpy Array 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -786,8 +801,8 @@ Request Prediction on a Numpy Array
      [2.2261986e+01 4.5406548e+01 1.8868817e+02 1.0225631e+02 3.0407205e-01]]
 
 
-Visualization
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Visualization 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -853,7 +868,7 @@ Visualization
 
 
 
-.. image:: 117-model-server-with-output_files/117-model-server-with-output_25_1.png
+.. image:: 117-model-server-with-output_files/117-model-server-with-output_26_1.png
 
 
 To stop and remove the model server container, you can use the following
@@ -869,8 +884,8 @@ command:
     ovms
 
 
-References
-###############################################################################################################################
+References 
+----------------------------------------------------
 
 1. `OpenVINO™ Model Server
    documentation <https://docs.openvino.ai/2023.0/ovms_what_is_openvino_model_server.html>`__

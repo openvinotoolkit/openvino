@@ -89,6 +89,8 @@ InferenceEngine::Precision DnnlExtensionUtils::DataTypeToIEPrecision(memory::dat
             return InferenceEngine::Precision::BIN;
         case memory::data_type::f16:
             return InferenceEngine::Precision::FP16;
+        case memory::data_type::f64:
+            return InferenceEngine::Precision::FP64;
         case memory::data_type::nf4:
             return InferenceEngine::Precision::NF4;
         case memory::data_type::s4:
