@@ -36,7 +36,7 @@
 .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
    :width: 400
 
-Try out OpenVINO's capabilities with this `quick start example <notebooks/201-vision-monodepth-with-output.html>`__ that estimates depth in a scene using an OpenVINO monodepth model. `Run the example in a Jupyter Notebook inside your web browser <https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F201-vision-monodepth%2F201-vision-monodepth.ipynb>`__ to quickly see how to load a model, prepare an image, inference the image, and display the result.
+Try out OpenVINO's capabilities with this `quick start example <notebooks/201-vision-monodepth-with-output.html>`__ that estimates depth in a scene using an OpenVINO monodepth model to quickly see how to load a model, prepare an image, inference the image, and display the result.
 
 .. _install-openvino-gsg:
 
