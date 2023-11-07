@@ -182,7 +182,7 @@ class TestComplexIRFFT(CommonTFLayerTest):
         dict(input_shape=[1, 3, 20, 40], fft_length=[20, 10], irfft_op=tf.raw_ops.IRFFT2D),
         dict(input_shape=[1, 3, 20, 40], fft_length=[10, 40], irfft_op=tf.raw_ops.IRFFT2D),
         pytest.param(dict(input_shape=[1, 10, 20, 30, 5], fft_length=[2, 3, 4], irfft_op=tf.raw_ops.IRFFT3D),
-                     marks=pytest.mark.xfail(reason="accuracy-issue-TBD"))
+                     marks=pytest.mark.xfail(reason="accuracy-issue-124452"))
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
