@@ -256,7 +256,7 @@ void Input::cloneBlobIfRequired() {
     Shape shape(constOp->get_shape().empty() ? ngraph::Shape(1, 1) : constOp->get_shape());
     const auto prec = convertPrecision(constOp->get_element_type());
     const size_t size = shape.getElementsCount();
-    DnnlBlockedMemoryDesc memDesc(prec, shape);
+    CpuBlockedMemoryDesc memDesc(prec, shape);
 
     bool needFlushDenormalsToZero = true;
     if (context->getConfig().DAZOn) {
@@ -408,10 +408,6 @@ Input::Input(MemoryDescPtr memDesc, const std::string& name, const std::string& 
     extMemDesc = memDesc;
 }
 
-void Input::withMeanImage() {
-    isMeanImage = true;
-}
-
 MemoryCPtr Input::getMemoryPtr() const {
     return memoryPtr;
 }
@@ -470,9 +466,6 @@ void Input::initSupportedPdDefault() {
 
     if (getType() == Type::Input || getType() == Type::MemoryInput) {
         auto precision = getOriginalOutputPrecisionAtPort(0);
-        if (precision == Precision::U16 || isMeanImage) {
-            precision = Precision::FP32;
-        }
 
         outPortConfs.push_back({LayoutType::ncsp, precision});
         if (!getParentEdges().empty()) {
@@ -480,7 +473,6 @@ void Input::initSupportedPdDefault() {
         }
     } else if (getType() == Type::Output) {
         auto precision = getOriginalInputPrecisionAtPort(0);
-        if (precision == Precision::U16) precision = Precision::FP32;
 
         inPortConfs.push_back({LayoutType::ncsp, precision});
     }
