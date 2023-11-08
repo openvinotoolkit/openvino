@@ -12,6 +12,7 @@
 """
 import os
 import pytest
+import platform
 import sys
 import logging as log
 from common.samples_common_test_class import SamplesCommonTestClass
@@ -56,7 +57,8 @@ class TestSpeechSample(SamplesCommonTestClass):
         super().setup_class()
 
     @pytest.mark.parametrize("param", test_data)
-    @pytest.mark.skipif(sys.platform == 'darwin', reason="GNA is not available on macOS")
+    @pytest.mark.skipif(condition=platform.system() == 'Darwin' or platform.machine() == 'arm64',
+                        reason="GNA is not available on macOS or aarch64")
     def test_speech_sample_nthreads(self, param):
         stdout = self._test(param).split('\n')
 
@@ -65,7 +67,8 @@ class TestSpeechSample(SamplesCommonTestClass):
         assert avg_error <= self.threshold
 		
     @pytest.mark.parametrize("param", new_format_test_data)
-    @pytest.mark.skipif(sys.platform == 'darwin', reason="GNA is not available on macOS")
+    @pytest.mark.skipif(condition=platform.system() == 'Darwin' or platform.machine() == 'arm64',
+                        reason="GNA is not available on macOS or aarch64")
     def test_speech_sample_new_format(self, param):
         stdout = self._test(param, complete_path=False).split('\n')
 

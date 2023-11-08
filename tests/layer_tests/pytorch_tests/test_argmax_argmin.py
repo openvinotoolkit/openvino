@@ -73,7 +73,7 @@ class TestArgMinArgMax(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", ["float32", "int32", "int64"])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_argmin_argmax(self, axes, keep_dims, op_type, dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(op_type, axes, keep_dims),

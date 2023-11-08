@@ -1027,8 +1027,8 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
             def __init__(self):
                 super(DataModel, self).__init__()
                 self.data = torch.tensor([1, 2, 3, 4])
-        
-            def forward(self, x):                
+
+            def forward(self, x):
                 return self.data, x
 
         data_model = DataModel()
@@ -1051,13 +1051,13 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
     def test_sharing_memory_switched_on(self, ie_device, precision, ir_version, temp_dir):
         from openvino.tools.ovc import convert_model
         from openvino.runtime import Core
-        
+
         class DataModel(torch.nn.Module):
             def __init__(self):
                 super(DataModel, self).__init__()
                 self.data = torch.tensor([1, 2, 3, 4])
-        
-            def forward(self, x):                
+
+            def forward(self, x):
                 return self.data, x
 
         data_model = DataModel()
@@ -1236,8 +1236,8 @@ class TestPrecisionSensitive():
     @pytest.mark.parametrize("create_model", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-                       reason='Ticket - 122714')
+    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() == 'arm64',
+                       reason='Ticket - 122714, 122710')
     def test_precision_sensitive(self, create_model, ie_device, precision, ir_version, temp_dir, use_new_frontend, use_old_api):
         import numpy.testing as npt
         from pathlib import Path

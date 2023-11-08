@@ -166,3 +166,7 @@ xfail_issue_119919 = xfail_test(reason="While validating ONNX node '<Node(Pad): 
 xfail_issue_119922 = xfail_test(reason="ai.onnx.ml operators domain isn't supported")
 xfail_issue_119925 = xfail_test(reason="AveragePool AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
 xfail_issue_119926 = xfail_test(reason="ROIAlign AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
+xfail_issue_122776 = xfail_test(reason="test_mish_expanded_cpu - "
+                                       "Not equal to tolerance")
+xfail_issue_122775 = xfail_test(reason="test_resize_downsample_scales_linear_cpu - "
+                                       "Not equal to tolerance")

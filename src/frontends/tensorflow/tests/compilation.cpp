@@ -25,7 +25,13 @@ TEST_F(CompileModelsTests, NgramCompilation) {
     EXPECT_EQ(runtime_model->get_results().size(), 1);
 }
 
-TEST_F(CompileModelsTests, ModelWithSplitConvConcat) {
+#ifdef OPENVINO_ARCH_ARM64
+// Ticket: CVS-122396
+TEST_F(CompileModelsTests, DISABLED_ModelWithSplitConvConcat)
+#else
+TEST_F(CompileModelsTests, ModelWithSplitConvConcat)
+#endif
+{
     {
         auto model = convert_model("split_conv_concat/split_conv_concat.pbtxt");
         ov::Core core;

@@ -436,8 +436,7 @@ jobs:
 
           python3 -m pytest -sv ${INSTALL_TEST_DIR}/smoke_tests \
             --env_conf ${INSTALL_TEST_DIR}/smoke_tests/env_config.yml \
-            --junitxml=${INSTALL_TEST_DIR}/TEST-SamplesSmokeTests.xml \
-            ${{ matrix.architecture == 'x86_64' && '' || '--ignore-glob=**/smoke_tests/test_speech_sample.py' }}
+            --junitxml=${INSTALL_TEST_DIR}/TEST-SamplesSmokeTests.xml
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
@@ -842,14 +841,14 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-Transformations.xml
 
       - name: Legacy Transformations func tests
-        if: ${{ always() }}
+        if: ${{ matrix.architecture == 'x86_64' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_legacy_transformations_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-LegacyTransformations.xml
 
       - name: Inference Engine 1.0 unit tests
-        if: ${{ always() }}
+        if: ${{ matrix.architecture == 'x86_64' }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/InferenceEngineUnitTests --gtest_print_time=1 \

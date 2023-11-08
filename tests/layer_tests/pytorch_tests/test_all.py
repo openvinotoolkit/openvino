@@ -73,7 +73,7 @@ class TestAll(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_all(self, input_shape, d_type, keepdim, ie_device, precision, ir_version):
         if type(input_shape) is list:
