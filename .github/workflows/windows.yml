@@ -37,7 +37,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: windows-2019-16-core
+    runs-on: aks-win-16-cores-32gb
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
