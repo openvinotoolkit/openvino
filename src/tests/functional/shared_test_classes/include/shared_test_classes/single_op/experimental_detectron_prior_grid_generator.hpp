@@ -14,7 +14,7 @@ typedef std::tuple<
     std::vector<InputShape>,
     ov::op::v6::ExperimentalDetectronPriorGridGenerator::Attributes,
     ElementType,                // Model type
-    std::string                 // Device name>;
+    std::string                 // Device name
 > ExperimentalDetectronPriorGridGeneratorTestParams;
 
 class ExperimentalDetectronPriorGridGeneratorLayerTest :

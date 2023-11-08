@@ -13,7 +13,7 @@ typedef std::tuple<
         int64_t,                                // post_nms_count: number of top-n proposals after NMS
         int64_t,                                // pre_nms_count: number of top-n proposals after NMS
         ElementType,                            // Model type
-        std::string                             // Device name>;
+        std::string                             // Device name
 > ExperimentalDetectronGenerateProposalsSingleImageTestParams;
 
 class ExperimentalDetectronGenerateProposalsSingleImageLayerTest :
