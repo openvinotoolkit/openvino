@@ -217,15 +217,11 @@ ov::Tensor create_shared(py::array& array) {
     // Check if passed array has C-style contiguous memory layout.
     // If memory is going to be shared it needs to be contiguous before passing to the constructor.
     if (array_helpers::is_contiguous(array)) {
-        // If size of an array is equal to 0, the array is empty.
-        // Alternative could be `array.nbytes()`.
-        if (array.size() == 0) {
-            return ov::Tensor(array_helpers::get_ov_type(array), array_helpers::get_shape(array), array.mutable_data());
-        }
         // If ndim of py::array is 0, array is a numpy scalar.
+        // If size of an array is equal to 0, the array is empty.
         return ov::Tensor(array_helpers::get_ov_type(array),
                           array_helpers::get_shape(array),
-                          array.ndim() == 0 ? array.mutable_data() : array.mutable_data(0));
+                          (array.ndim() == 0 || array.size() == 0) ? array.mutable_data() : array.mutable_data(0));
     }
     // If passed array is not C-style, throw an error.
     OPENVINO_THROW("SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
