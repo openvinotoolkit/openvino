@@ -1305,7 +1305,7 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const 
     if (newNode == nullptr) {
         try {
             std::unique_ptr<Node> ol(createNodeIfRegistered(intel_cpu, TypeFromName(op->get_type_name()), op, context));
-            if (ol != nullptr)
+            if (ol != nullptr && ol->created())
                 newNode = ol.release();
         } catch (const InferenceEngine::Exception& ex) {
             if (dynamic_cast<const InferenceEngine::NotImplemented*>(&ex) != nullptr) {
@@ -1319,7 +1319,7 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const 
     if (newNode == nullptr) {
         try {
             std::unique_ptr<Node> ol(new Reference(op, context, errorMessage));
-            if (ol != nullptr)
+            if (ol != nullptr && ol->created())
                 newNode = ol.release();
         } catch (const InferenceEngine::Exception& ex) {
             if (dynamic_cast<const InferenceEngine::NotImplemented*>(&ex) != nullptr) {
