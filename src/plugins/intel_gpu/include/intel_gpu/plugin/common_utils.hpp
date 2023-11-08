@@ -69,6 +69,16 @@ inline ov::element::Type convert_to_supported_device_type(ov::element::Type et) 
     }
 }
 
+inline ov::Shape get_tensor_shape(const ov::PartialShape& pshape) {
+    ov::Shape res(pshape.size());
+    for (size_t i = 0; i < pshape.size(); i++) {
+        res[i] = pshape[i].is_dynamic() ? 0 : pshape[i].get_length();
+    }
+
+    return res;
+}
+
+
 /// WA: Force exit. Any opencl api call can be hang after CL_OUT_OF_RESOURCES.
 inline void ForceExit() {
     std::cerr << "[GPU] force exit.\n"

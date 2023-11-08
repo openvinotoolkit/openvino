@@ -264,6 +264,17 @@ void primitive_inst::update_shape() {
         }
     }
 
+    if (get_node().is_type<read_value>()) {
+        const auto& variable_id = get_node().as<read_value>().get_primitive()->variable_id;
+        auto new_layout = get_network().get_variable(variable_id).get_layout();
+        if (!_impl_params->state_layout.has_value() || _impl_params->state_layout.value() != new_layout) {
+            _impl_params->state_layout = new_layout;
+            input_shape_changed = true;
+        }
+
+        input_shape_changed = true;
+    }
+
     if (input_shape_changed)
         set_shape_change();
 
@@ -387,6 +398,26 @@ void primitive_inst::update_shape() {
     for (auto& fused_prim : _impl_params->fused_desc) {
         fused_prim.output_layout.set_partial_shape(_impl_params->get_output_layout().get_partial_shape());
     }
+
+    if (get_node().is_type<assign>()) {
+        auto desc = get_node().as<assign>().get_primitive();
+        get_network().get_variable(desc->variable_id).set_layout(_impl_params->get_output_layout());
+        _impl_params->state_layout = _impl_params->get_output_layout();
+    }
+
+    if (get_node().is_type<read_value>()) {
+        auto desc = get_node().as<read_value>().get_primitive();
+        if (_impl_params->output_layouts[0].is_dynamic()) {
+            auto pshape = _impl_params->output_layouts[0].get_partial_shape();
+            for (auto& d : pshape) {
+                if (d.is_dynamic()) {
+                    d = 0;
+                }
+            }
+            _impl_params->output_layouts[0].set_partial_shape(pshape);
+        }
+        get_network().get_variable(desc->variable_id).set_layout(_impl_params->get_output_layout());
+    }
 }
 
 event::ptr primitive_inst::realloc_if_needed() {
@@ -416,13 +447,10 @@ event::ptr primitive_inst::realloc_if_needed() {
     if (_node->is_type<input_layout>())
         return ev;
 
-    if (_node->is_type<assign>() || _node->is_type<read_value>()) {
-        std::string variable_id = "";
-        if (_node->is_type<assign>())
-            variable_id = _node->as<assign>().get_primitive()->variable_id;
-        else
-            variable_id = _node->as<read_value>().get_primitive()->variable_id;
-        get_network().update_variable_memory(variable_id, actual_layout);
+    if (auto stateful_prim = dynamic_cast<memory_state::variable*>(this)) {
+        std::string variable_id = stateful_prim->variable_id();
+        auto variable = get_network().get_variable(variable_id);
+        variable.set_layout(actual_layout);
         return ev;
     }
 

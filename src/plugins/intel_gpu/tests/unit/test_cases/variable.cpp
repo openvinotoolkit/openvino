@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/plugin/variable_state.hpp"
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -37,7 +38,9 @@ struct variable_test : public ::testing::TestWithParam<VariableParams<T>> {
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
-        network->assign_variables_memories({ { "v0", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) } });
+
+        auto variable = std::make_shared<ov::intel_gpu::VariableState>(ov::intel_gpu::VariableStateInfo{"v0", variable_layout}, engine);
+        network->set_variables({ { "v0", variable } });
         network->set_input_data("input", input_data);
 
         constexpr size_t number_of_inferences = 5;
@@ -125,7 +128,8 @@ void test_exception_on_wrong_layout(bool is_caching_test) {
 
     cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
-    network->assign_variables_memories({ { "v0", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) } });
+    auto variable = std::make_shared<ov::intel_gpu::VariableState>(ov::intel_gpu::VariableStateInfo{"v0", variable_layout}, engine);
+    network->set_variables({ { "v0", variable } });
     network->set_input_data("input", input_data);
     network->set_input_data("wrong_input", wrong_input_data);
 
@@ -162,7 +166,8 @@ void test_different_output_data_type(bool is_caching_test) {
     config.set_property(ov::intel_gpu::optimize_data(true));
     cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
-    network->assign_variables_memories({ { "v0", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) } });
+    auto variable = std::make_shared<ov::intel_gpu::VariableState>(ov::intel_gpu::VariableStateInfo{"v0", variable_layout}, engine);
+    network->set_variables({ { "v0", variable } });
     network->set_input_data("input", input_data);
 
     const auto outputs = network->execute();
@@ -216,11 +221,11 @@ void test_variables_are_preserved_across_inferences(bool is_caching_test) {
 
     cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
-    network->assign_variables_memories({
-        { "v1", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) },
-        { "v2", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) },
-        { "v_result", std::make_shared<network::VariableState>(engine.allocate_memory(variable_layout)) }
-    });
+
+    auto variable1 = std::make_shared<ov::intel_gpu::VariableState>(ov::intel_gpu::VariableStateInfo{"v1", variable_layout}, engine);
+    auto variable2 = std::make_shared<ov::intel_gpu::VariableState>(ov::intel_gpu::VariableStateInfo{"v2", variable_layout}, engine);
+    auto variable3 = std::make_shared<ov::intel_gpu::VariableState>(ov::intel_gpu::VariableStateInfo{"v_result", variable_layout}, engine);
+    network->set_variables({ { "v1", variable1 },  { "v2", variable2 },  { "v_result", variable3 } });
     network->set_input_data("input_1", input_1);
     network->set_input_data("input_2", input_2);
 

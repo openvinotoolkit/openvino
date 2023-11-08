@@ -23,7 +23,6 @@ std::string read_value_inst::to_string(const read_value_node& node) {
     auto node_info = node.desc_to_json();
 
     json_composite read_value_info;
-    read_value_info.add("input id", node.input().id());
     read_value_info.add("variable id", node.get_primitive()->variable_id);
     node_info->add("read_value info", read_value_info);
 
