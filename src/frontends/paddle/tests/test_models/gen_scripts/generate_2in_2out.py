@@ -28,12 +28,12 @@ if paddle.__version__ >= '2.0.0':
     conv2d2 = paddle.static.nn.conv2d(input=x2, num_filters=1, filter_size=(1, 1), stride=(1, 1), padding=(0, 0),
                                 dilation=(1, 1), groups=1, bias_attr=False, name="conv2dX2")
 
-    add1 = paddle.add(conv2d1, conv2d2, name="add1")
+    add1 = paddle.add(conv2d1, conv2d2, name="add1.tmp_0")
 
     relu2a = paddle.nn.functional.relu(add1, name="relu2a")
     relu2b = paddle.nn.functional.relu(add1, name="relu2b")
 
-    add2 = paddle.add(relu2a, relu2b, name="add2")
+    add2 = paddle.add(relu2a, relu2b, name="add2.tmp_0")
 
     relu3a = paddle.nn.functional.relu(add2, name="relu3a")
     relu3b = paddle.nn.functional.relu(add2, name="relu3b")

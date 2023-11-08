@@ -56,7 +56,7 @@ std::vector<ov::frontend::Place::Ptr> FrontEndCutModelTest::constructNewOutputs(
 
 ///////////////////////////////////////////////////////////////////
 
-TEST_P(FrontEndCutModelTest, DISABLED_testOverrideInputs) {
+TEST_P(FrontEndCutModelTest, testOverrideInputs) {
     ASSERT_NO_THROW(doLoadFromFile());
     std::vector<Place::Ptr> newPlaces;
     ASSERT_NO_THROW(newPlaces = constructNewInputs());
@@ -77,7 +77,7 @@ TEST_P(FrontEndCutModelTest, DISABLED_testOverrideInputs) {
     }
 }
 
-TEST_P(FrontEndCutModelTest, DISABLED_testOverrideOutputs) {
+TEST_P(FrontEndCutModelTest, testOverrideOutputs) {
     ASSERT_NO_THROW(doLoadFromFile());
     std::vector<Place::Ptr> newPlaces;
     ASSERT_NO_THROW(newPlaces = constructNewOutputs());
@@ -131,7 +131,7 @@ TEST_P(FrontEndCutModelTest, testOldOutputs) {
     }
 }
 
-TEST_P(FrontEndCutModelTest, DISABLED_testNewInputs_func) {
+TEST_P(FrontEndCutModelTest, testNewInputs_func) {
     ASSERT_NO_THROW(doLoadFromFile());
     std::vector<Place::Ptr> newPlaces;
     ASSERT_NO_THROW(newPlaces = constructNewInputs());
@@ -162,7 +162,7 @@ TEST_P(FrontEndCutModelTest, DISABLED_testNewInputs_func) {
     }
 }
 
-TEST_P(FrontEndCutModelTest, DISABLED_testNewOutputs_func) {
+TEST_P(FrontEndCutModelTest, testNewOutputs_func) {
     ASSERT_NO_THROW(doLoadFromFile());
     std::vector<Place::Ptr> newPlaces;
     ASSERT_NO_THROW(newPlaces = constructNewOutputs());
@@ -193,7 +193,7 @@ TEST_P(FrontEndCutModelTest, DISABLED_testNewOutputs_func) {
     }
 }
 
-TEST_P(FrontEndCutModelTest, DISABLED_testExtractSubgraph) {
+TEST_P(FrontEndCutModelTest, testExtractSubgraph) {
     ASSERT_NO_THROW(doLoadFromFile());
     std::vector<Place::Ptr> newInputs, newOutputs;
     ASSERT_NO_THROW(newInputs = constructNewInputs());
