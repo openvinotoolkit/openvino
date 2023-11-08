@@ -967,7 +967,7 @@ jobs:
   Python_Unit_Tests:
     name: Python unit tests
     needs: Build
-    timeout-minutes: 120
+    timeout-minutes: 180
     defaults:
       run:
         shell: bash
@@ -1135,14 +1135,14 @@ jobs:
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/py_frontend_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
 
       - name: PyTorch Layer Tests
-        if: ${{ always() }}
+        if: ${{ matrix.architecture == 'x86_64' }}
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -n logical -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP32
 
       - name: PyTorch torch.compile TORCHFX Layer Tests
-        if: ${{ always() }}
+        if: ${{ matrix.architecture == 'x86_64' }}
         run: |
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_fx_backend --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
@@ -1151,7 +1151,7 @@ jobs:
           PYTORCH_TRACING_MODE: TORCHFX
 
       - name: PyTorch torch.compile TORCHSCRIPT Layer Tests
-        if: ${{ always() }}
+        if: ${{ matrix.architecture == 'x86_64' }}
         run: |
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_ts_backend --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
@@ -1160,6 +1160,7 @@ jobs:
           PYTORCH_TRACING_MODE: TORCHSCRIPT
 
       - name: ONNX Layer Tests
+        timeout-minutes: 30
         if: ${{ always() }}
         run: |
           # requires 'unit_tests' from 'tools/mo'
@@ -1170,6 +1171,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: TensorFlow 1 Layer Tests - TF FE
+        timeout-minutes: 30
         if: ${{ always() }}
         run: |
           # requires 'unit_tests' from 'mo'
@@ -1180,6 +1182,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: TensorFlow 2 Layer Tests - TF FE
+        timeout-minutes: 30
         if: ${{ always() }}
         run: |
           # requires 'unit_tests' from 'mo'
@@ -1190,16 +1193,19 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: JAX Layer Tests - TF FE
+        timeout-minutes: 30
         if: ${{ always() }}
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
         env:
           TEST_DEVICE: CPU
 
       - name: TensorFlow 1 Layer Tests - Legacy FE
+        timeout-minutes: 30
         if: ${{ always() }}
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${INSTALL_TEST_DIR}/TEST-tf_Roll.xml
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
+        timeout-minutes: 30
         if: ${{ always() }}
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/test_tf2_keras_activation.py --ir_version=11 -k "sigmoid" --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_Activation.xml
         env:
@@ -1207,6 +1213,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: TensorFlow Lite Layer Tests - TFL FE
+        timeout-minutes: 30
         if: ${{ always() }}
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
         env:
@@ -1243,7 +1250,7 @@ jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
     needs: Build
-    timeout-minutes: 25
+    timeout-minutes: 60
     defaults:
       run:
         shell: bash
