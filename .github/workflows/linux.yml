@@ -646,7 +646,7 @@ jobs:
   CXX_Unit_Tests:
     name: C++ unit tests
     needs: Build
-    timeout-minutes: 15
+    timeout-minutes: 20
     defaults:
       run:
         shell: bash
