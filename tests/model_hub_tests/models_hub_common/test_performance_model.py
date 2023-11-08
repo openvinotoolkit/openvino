@@ -4,6 +4,7 @@
 
 import gc
 import os
+import time
 
 import numpy as np
 from models_hub_common.multiprocessing_utils import multiprocessing_run
@@ -29,6 +30,7 @@ type_map = {
 
 class TestPerformanceModel:
     infer_timeout = 600
+    max_diff = 0.1
 
     def load_model(self, model_name, model_link):
         raise "load_model is not implemented"
@@ -67,7 +69,21 @@ class TestPerformanceModel:
         raise "get_read_model is not implemented"
 
     def infer_model(self, ov_model, inputs):
-        ov_model(inputs)
+        # heat run
+        for _ in range(0, 10):
+            ov_model(inputs)
+        # measure
+        results = []
+        for _ in range(0, 100):
+            t0 = time.time()
+            ov_model(inputs)
+            t1 = time.time()
+            results.append(t1 - t0)
+        return np.mean(results)
+
+    def compare_results(self, time0, time1):
+        diff = abs((time1 - time0)/time0)
+        assert diff < TestPerformanceModel.max_diff, "time running diff is large {}".format(diff)
 
     def compile_model(self, model, ie_device):
         core = ov.Core()
@@ -85,9 +101,12 @@ class TestPerformanceModel:
         print("read the model into ov::Model")
         read_model = self.compile_model(self.get_read_model(model_path), ie_device)
         print("Infer the converted model")
-        self.infer_model(converted_model, inputs)
+        converted_model_time = self.infer_model(converted_model, inputs)
+        print('converted model time infer {}'.format(converted_model_time))
         print("Infer read model")
-        self.infer_model(read_model, inputs)
+        read_model_time = self.infer_model(read_model, inputs)
+        print('read model time infer {}'.format(read_model_time))
+        self.compare_results(read_model_time, converted_model_time)
 
     def run(self, model_name, model_link, ie_device):
         multiprocessing_run(self._run, [model_name, model_link, ie_device], model_name, self.infer_timeout)
