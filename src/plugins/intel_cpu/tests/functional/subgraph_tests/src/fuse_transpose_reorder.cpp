@@ -45,7 +45,7 @@ void FuseTransposeAndReorderTest::CheckTransposeCount(size_t expectedTransposeCo
 
 void FuseTransposeAndReorderTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
-
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     std::tie(inputShape, inPrec) = this->GetParam();
     CreateGraph();
 }
