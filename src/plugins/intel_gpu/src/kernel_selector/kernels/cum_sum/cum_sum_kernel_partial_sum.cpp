@@ -140,7 +140,13 @@ KernelsData CumSumKernelPartialSum::GetKernelsData(const Params& params, const o
     return GetMultiStageKernelsData(params, options);
 }
 
-KernelsPriority CumSumKernelPartialSum::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
-    return FORCE_PRIORITY_7;
+KernelsPriority CumSumKernelPartialSum::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const cum_sum_params&>(params);
+    const auto& o = p.outputs[0];
+    const std::vector<size_t> dims = {o.Batch().v, o.Feature().v, o.W().v, o.Z().v, o.Y().v, o.X().v};
+
+    // cum_sum_partial works slower than cum_sum_ref on small shapes.
+    // Value "3 * BLOCK_SIZE" determined experimentally - see cum_sum_partial.perf_test in unit tests.
+    return dims[GetRealAxisIndex(p)] >= 3 * BLOCK_SIZE ? FORCE_PRIORITY_7 : DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

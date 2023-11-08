@@ -730,4 +730,8 @@ inline cldnn::network::ptr get_network(cldnn::engine& engine,
     return network;
 }
 
+double get_profiling_exectime(const std::map<cldnn::primitive_id, cldnn::network_output>& outputs,
+                    const std::string& primitive_id);
+void print_profiling_all_exectimes(const std::map<cldnn::primitive_id, cldnn::network_output>& outputs);
+
 } // namespace tests

@@ -435,4 +435,41 @@ std::vector<int32_t> generic_test::test_batch_sizes = { 1, 2 };// 4, 8, 16};
 std::vector<int32_t> generic_test::test_feature_sizes = { 1, 2 };// , 3, 15};
 std::vector<tensor> generic_test::test_input_sizes = { { 1, 1, 100, 100 } ,{ 1, 1, 277, 277 } ,{ 1, 1, 400, 600 } };
 
+namespace {
+double get_exectime_from_profiling_info(const std::vector<instrumentation::profiling_interval>& intervals)
+{
+    using namespace std::chrono;
+    double time = 0.0;
+    for (const auto& i : intervals) {
+        if (i.stage != instrumentation::profiling_stage::executing) {
+            continue;
+        }
+        time = duration_cast<duration<double, microseconds::period>>(i.value->value()).count();
+        break;
+    }
+    return time;
+}
+}  // namespace
+
+double get_profiling_exectime(const std::map<cldnn::primitive_id, cldnn::network_output>& outputs,
+                    const std::string& primitive_id)
+{
+    const auto event = outputs.at(primitive_id).get_event();
+    event->wait(); // should ensure execution completion, if not segfault will occur
+    const auto intervals = event->get_profiling_info();
+    return get_exectime_from_profiling_info(intervals);
+}
+
+void print_profiling_all_exectimes(const std::map<cldnn::primitive_id, cldnn::network_output>& outputs)
+{
+    std::cout << "Print last run time" << std::endl;
+    for (const auto& o : outputs) {
+        const auto event = o.second.get_event();
+        const auto intervals = event->get_profiling_info();
+        const auto time = get_exectime_from_profiling_info(intervals);
+        std::cout << o.first << ":" << time << std::endl;
+    }
+    std::cout << std::endl;
+}
+
 }  // namespace tests
