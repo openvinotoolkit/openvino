@@ -330,6 +330,8 @@ void Engine::get_performance_streams(Config& config, const std::shared_ptr<ov::M
 
     if (!((0 == config.streamExecutorConfig._streams) && config.streamExecutorConfig._streams_changed)) {
         get_num_streams(streams, model, config);
+    } else {
+        set_config_streams_0(config);
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
