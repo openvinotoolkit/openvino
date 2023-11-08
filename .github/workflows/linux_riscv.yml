@@ -31,6 +31,7 @@ concurrency:
 
 jobs:
   Build:
+    timeout-minutes: 150
     defaults:
       run:
         shell: bash
@@ -60,11 +61,21 @@ jobs:
         with:
           path: 'openvino'
 
+      #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
       - name: Init submodules for non-Conan dependencies
         run: |
           pushd ${OPENVINO_REPO}
-            git submodule update --init -- ${OPENVINO_REPO}/src/plugins/intel_cpu
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/zlib
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/json
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gtest
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gflags
+            git submodule update --init -- ${OPENVINO_REPO}/src/plugins/intel_cpu
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/open_model_zoo
           popd
 
@@ -85,7 +96,6 @@ jobs:
 
           python3 -m venv ${OPENVINO_BUILD_DIR}/env
           source ${OPENVINO_BUILD_DIR}/env/bin/activate
-          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/requirements.txt
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
           python3 -m pip install conan
@@ -151,9 +161,7 @@ jobs:
             -DPYTHON_MODULE_EXTENSION=$(riscv64-linux-gnu-python3-config --extension-suffix) \
             -DPYBIND11_PYTHON_EXECUTABLE_LAST=${OPENVINO_BUILD_DIR}/env/bin/python3.10 \
             -DENABLE_TESTS=ON \
-            -DTHREADING=SEQ \
             -DENABLE_PYTHON_PACKAGING=ON \
-            -DENABLE_SYSTEM_TBB=ON \
             -DENABLE_SYSTEM_PROTOBUF=ON \
             -DENABLE_SYSTEM_SNAPPY=ON \
             -DENABLE_SYSTEM_PUGIXML=ON \

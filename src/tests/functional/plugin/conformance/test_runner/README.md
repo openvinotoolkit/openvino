@@ -50,7 +50,7 @@ Run the following commands in the build directory:
    make --jobs=$(nproc --all) lib_plugin_name
    ```
 
-## How to run using [simple conformance runner](./../../../../ie_test_utils/functional_test_utils/layer_tests_summary/run_conformance.py)
+## How to run using [simple conformance runner](./../../../../../tests/test_utils/functional_test_utils/layer_tests_summary/run_conformance.py)
 
 There is a simple python runner to complete the whole conformance pipeline locally. Some steps could be excluded from the pipeline by command-line parameter configuration.
 
@@ -89,7 +89,7 @@ The script has the following optional arguments:
 * `p PARALLEL_DEVICES, --parallel_devices PARALLEL_DEVICES`
                         Parallel over HW devices. For example run tests over `GPU.0` and `GPU.1` in case when device are the same
 * `f EXPECTED_FAILURES, --expected_failures EXPECTED_FAILURES`
-                        Excepted failures list file path as csv
+                        Excepted failures list file path as csv. See more in the [Working with expected failures](#working-with-expected-failures) section.
 * `u EXPECTED_FAILURES_UPDATE, --expected_failures_update EXPECTED_FAILURES_UPDATE`
                         Overwrite expected failures list in case same failures were fixed
 * `-cache_path CACHE_PATH`
@@ -155,7 +155,7 @@ The target is able to take the following command-line arguments:
 
 > **NOTE**:
 >
-> Using [`parallel_runner`](./../../../../ie_test_utils/functional_test_utils/layer_tests_summary/run_parallel.py) tool to run a conformance suite helps to report crashed tests and collect correct statistics after unexpected crashes.
+> Using [`parallel_runner`](./../../../../../tests/test_utils/functional_test_utils/layer_tests_summary/run_parallel.py) tool to run a conformance suite helps to report crashed tests and collect correct statistics after unexpected crashes.
 > The tool is able to work in two modes:
 > * one test is run in a separate thread (first run, as the output the cache will be saved as a custom file).
 > * similar load time per one worker based on test execution time. May contain different test count per worker.
@@ -169,16 +169,26 @@ The target is able to take the following command-line arguments:
 > All arguments after `--` symbol is forwarding to `conformanceTests` target.
 >
 >  If you use the `--report_unique_name` argument, run
-> [the merge xml script](./../../../../ie_test_utils/functional_test_utils/layer_tests_summary/merge_xmls.py)
+> [the merge xml script](./../../../../../tests/test_utils/functional_test_utils/layer_tests_summary/merge_xmls.py)
 > to aggregate the results to one *xml* file. Check command-line arguments with `--help` before running the command.
 > The example of usage is:
 > ```
 > python3 merge_xmls.py --input_folders=/path/to/temp_output_report_folder --output_folder=/path/to/output_report_folder --output_filename=report_aggregated
 > ```
 
+## Working with expected failures
+
+The `run_conformace.py` script has an optional `--expected_failures` argument which accepts a path to a csv file with a list of tests that should not be run. 
+
+You can find the files with the most up-to-date expected failures for different devices and conformance types [here](./../../../../../tests/test_utils/functional_test_utils/layer_tests_summary/skip_configs).
+
+These files are used in [the Linux GitHub workflow](./../../../../../../.github/workflows/linux.yml) for test skip. 
+
+You can update the file(s) you need with either new passing tests, i.e., when something is fixed, or with new failing tests to skip them. The changes will be reflected in the GitHub actions pipeline, in the `Conformance_Tests` job.
+
 ## How to create a conformance report
 
-Run [the summarize script](./../../../../ie_test_utils/functional_test_utils/layer_tests_summary/summarize.py) to generate `html` and `csv` report. Check command-line arguments with `--help` before running the command.
+Run [the summarize script](./../../../../../tests/test_utils/functional_test_utils/layer_tests_summary/summarize.py) to generate `html` and `csv` report. Check command-line arguments with `--help` before running the command.
 The example of using the script is:
 ```
 python3 summarize.py --xml /opt/repo/infrastructure-master/thirdparty/gtest-parallel/report_opset.xml --out /opt/repo/infrastructure-master/thirdparty/gtest-parallel/ -t OP
@@ -186,7 +196,7 @@ python3 summarize.py --xml /opt/repo/infrastructure-master/thirdparty/gtest-para
 ```
 python3 summarize.py --xml /opt/repo/infrastructure-master/thirdparty/gtest-parallel/report_api.xml --out /opt/repo/infrastructure-master/thirdparty/gtest-parallel/ -t API
 ```
-> **NOTE**: Remember to copy [styles folder](./../../../../ie_test_utils/functional_test_utils/layer_tests_summary/template) to the output directory. It helps to provide a report with filters and other useful features.
+> **NOTE**: Remember to copy [styles folder](./../../../../../tests/test_utils/functional_test_utils/layer_tests_summary/template) to the output directory. It helps to provide a report with filters and other useful features.
 
 The report contains statistics based on conformance results and filter fields at the top of the page.
 

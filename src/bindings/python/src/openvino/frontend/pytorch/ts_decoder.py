@@ -9,6 +9,7 @@ from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 from openvino.runtime import op, PartialShape, Type as OVType, OVAny
 from openvino.frontend.pytorch.utils import ivalue_to_constant, get_value_from_getattr, pt_to_ov_type_map, prepare_example_inputs_and_model, convert_quantized_tensor
 from openvino.runtime import opset11 as ops
+from openvino.frontend.pytorch import gptq
 
 import typing
 import torch
@@ -66,7 +67,7 @@ class TorchScriptPythonDecoder (Decoder):
         preserved_attributes = []
         for name, module in model.named_modules():
             if hasattr(module, "weight"):
-                if module.weight is not None and module.weight.dtype in [torch.int8, torch.uint8]:
+                if module.weight is not None and getattr(module.weight, "dtype", None) in [torch.int8, torch.uint8]:
                     preserved_attributes.append(name)
         return preserved_attributes
 
@@ -84,12 +85,32 @@ class TorchScriptPythonDecoder (Decoder):
             if example_inputs is None:
                 scripted = torch.jit.script(pt_module)
             else:
-                input_parameters, input_signature, pt_module, self._input_is_list = prepare_example_inputs_and_model(example_inputs, input_params, pt_module)
-                scripted = torch.jit.trace(pt_module, **input_parameters, strict=False)
+                input_parameters, input_signature, pt_module, self._input_is_list = prepare_example_inputs_and_model(
+                    example_inputs, input_params, pt_module)
+                gptq_patched = False
+
+                if gptq.detect_gptq_model(pt_module):
+                    try:
+                        gptq.patch_model(pt_module)
+                        gptq_patched = True
+                    except Exception as error:
+                        print('[ WARNING ] Failed patching of AutoGPTQ model. Error message:\n', error)
+                        print('[ WARNING ] Tracing of the model will likely be unsuccesfull or incorrect')
+                        gptq.unpatch_model(pt_module)
+                        gptq_patched = False
+
+                try:
+                    scripted = torch.jit.trace(
+                        pt_module, **input_parameters, strict=False)
+                finally:
+                    if gptq_patched:
+                        gptq.unpatch_model(pt_module)
+
             if not skip_freeze:
+                ops_kind_no_freeze = ["quantize", "aten::as_strided"]
                 for n in scripted.inlined_graph.nodes():
                     # TODO: switch off freezing for all traced models
-                    if "quantize" in n.kind():
+                    if any(kind in n.kind() for kind in ops_kind_no_freeze):
                         # do not freeze quantized models
                         skip_freeze = True
                         break
@@ -130,6 +151,16 @@ class TorchScriptPythonDecoder (Decoder):
         raw_input = self._raw_input(index)
         return self.get_shape_for_value(raw_input)
 
+    def get_input_strides(self, index: int) -> typing.List[int]:
+        raw_input = self._raw_input(index)
+        if isinstance(raw_input, torch.Value):
+            inp_type = raw_input.type()
+            if isinstance(inp_type, torch.TensorType):
+                strides = inp_type.strides()
+                if strides:
+                    return strides
+        return []
+
     def get_input_type(self, index: int):
         raw_input = self._raw_input(index)
         return self.get_type_for_value(raw_input)
@@ -169,7 +200,8 @@ class TorchScriptPythonDecoder (Decoder):
 
     def get_shape_for_value(self, value: torch.Value):
         if value.isCompleteTensor():
-            ps = PartialShape(value.type().sizes())
+            # We avoid static shapes, they don't generalize on other inputs
+            ps = PartialShape([-1] * len(value.type().sizes()))
             return ps
         else:
             # TODO: Recognize types that we can represent as a nested constructs with objects from DecoderType
@@ -340,8 +372,8 @@ class TorchScriptPythonDecoder (Decoder):
         return False
 
     def may_produce_alias(self, in_index: int, out_index: int) -> bool:
-        if self.get_op_type() in ["aten::conv1d", "aten::conv2d", "aten::conv3d"]:
-            # AliasDB::may_contain_alias sometimes return True for tensors produced by convnd, we have to workaround that
+        if self.get_op_type() in ["aten::conv1d", "aten::conv2d", "aten::conv3d", "aten::_convolution", "aten::matmul"]:
+            # AliasDB::may_contain_alias sometimes return True for tensors produced by convolution or matmul, we have to workaround that
             return False
         try:
             return self.alias_db.may_contain_alias(self._raw_input(in_index), self._raw_output(out_index))

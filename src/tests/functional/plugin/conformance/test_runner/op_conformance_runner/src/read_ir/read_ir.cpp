@@ -11,7 +11,7 @@
 
 #include "shared_test_classes/base/utils/ranges.hpp"
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -21,6 +21,7 @@
 #include "functional_test_utils/summary/op_info.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
+#include "dynamism.hpp"
 #include "input_info.hpp"
 #include "conformance.hpp"
 #include "read_ir_test/read_ir.hpp"
@@ -116,99 +117,6 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
     return result.str();
 }
 
-void ReadIRTest::query_model() {
-    // in case of crash jump will be made and work will be continued
-    auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
-    auto &s = ov::test::utils::OpSummary::getInstance();
-
-    // place to jump in case of a crash
-    int jmpRes = 0;
-#ifdef _WIN32
-    jmpRes = setjmp(ov::test::utils::env);
-#else
-    jmpRes = sigsetjmp(ov::test::utils::env, 1);
-#endif
-    if (jmpRes == ov::test::utils::JMP_STATUS::ok) {
-        crashHandler->StartTimer();
-        if (functionRefs == nullptr) {
-            functionRefs = ngraph::clone_function(*function);
-            functionRefs->set_friendly_name("refFunction");
-        }
-        s.setDeviceName(targetDevice);
-
-        if (ov::test::utils::current_test_is_disabled()) {
-            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::SKIPPED, rel_influence_coef);
-            GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
-        } else {
-            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::CRASHED, rel_influence_coef);
-        }
-        try {
-            SubgraphBaseTest::query_model();
-            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::PASSED, rel_influence_coef);
-        } catch (std::exception& err) {
-            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED, rel_influence_coef);
-            GTEST_FAIL() << err.what();
-        } catch (...) {
-            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED, rel_influence_coef);
-            GTEST_FAIL() << "Something is wrong in Query model! Please check";
-        }
-    } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
-        s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
-        IE_THROW() << "Crash happens";
-    } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
-        IE_THROW() << "Crash happens";
-    }
-}
-
-void ReadIRTest::import_export() {
-    // in case of crash jump will be made and work will be continued
-    auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
-    auto &summary = ov::test::utils::OpSummary::getInstance();
-
-    // place to jump in case of a crash
-    int jmpRes = 0;
-#ifdef _WIN32
-    jmpRes = setjmp(ov::test::utils::env);
-#else
-    jmpRes = sigsetjmp(ov::test::utils::env, 1);
-#endif
-    if (jmpRes == ov::test::utils::JMP_STATUS::ok) {
-        crashHandler->StartTimer();
-        summary.setDeviceName(targetDevice);
-        try {
-            ov::CompiledModel model = core->compile_model(function, targetDevice, configuration);
-
-            std::stringstream strm;
-            model.export_model(strm);
-
-            ov::CompiledModel importedModel = core->import_model(strm, targetDevice, configuration);
-
-            auto comparator = FunctionsComparator::with_default()
-                        .enable(FunctionsComparator::ATTRIBUTES)
-                        .enable(FunctionsComparator::NAMES)
-                        .enable(FunctionsComparator::CONST_VALUES);
-
-            auto importedFunction = importedModel.get_runtime_model()->clone();
-            auto res = comparator.compare(importedFunction, function);
-            EXPECT_TRUE(res.valid) << res.message;
-
-            summary.updateOPsImplStatus(function, true);
-        } catch (const std::exception &e) {
-            summary.updateOPsImplStatus(function, false);
-            GTEST_FAIL() << "Exception in the Core::compile_model() method call: " << e.what();
-        } catch (...) {
-            summary.updateOPsImplStatus(function, false);
-            GTEST_FAIL() << "Error in the Core::query_model() method call!";
-        }
-    } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
-        summary.updateOPsImplStatus(function, false);
-        GTEST_FAIL() << "Crash happens";
-    } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
-        summary.updateOPsImplStatus(function, false);
-        GTEST_FAIL() << "Hang happens";
-    }
-}
-
 uint64_t clip(uint64_t n, uint64_t lower, uint64_t upper) {
     return std::max(lower, std::min(n, upper));
 }
@@ -267,21 +175,7 @@ void ReadIRTest::SetUp() {
         }
     }
 
-    bool hasDynamic = false;
-    for (const auto& param : function->get_parameters()) {
-        if (param->get_partial_shape().is_dynamic()) {
-            hasDynamic = true;
-            break;
-        }
-    }
-    if (!hasDynamic) {
-        for (const auto& result : function->get_results()) {
-            if (result->get_output_partial_shape(0).is_dynamic()) {
-                hasDynamic = true;
-                break;
-            }
-        }
-    }
+    bool hasDynamic = tools::subgraph_dumper::is_dynamic_model(function);
 
 #ifdef ENABLE_CONFORMANCE_PGQL
     // Updating data in runtime. Should be set before possible call of a first GTEST status

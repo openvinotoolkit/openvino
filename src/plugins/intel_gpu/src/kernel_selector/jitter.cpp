@@ -115,8 +115,10 @@ std::string toCLType(WeightsType wType) {
     switch (wType) {
         case WeightsType::BINARY:
             return GetTypeName<uint32_t>();
+        case WeightsType::INT4:
         case WeightsType::INT8:
             return GetTypeName<int8_t>();
+        case WeightsType::UINT4:
         case WeightsType::UINT8:
             return GetTypeName<uint8_t>();
         case WeightsType::F16:
@@ -440,10 +442,12 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                        layout == DataLayout::b_fs_yx_fsv32 ||
                        layout == DataLayout::b_fs_yx_fsv2 ||
                        layout == DataLayout::b_fs_yx_fsv4 ||
+                       layout == DataLayout::b_fs_yx_fsv8 ||
                        layout == DataLayout::fs_b_yx_fsv32 ||
                        layout == DataLayout::bs_fs_yx_bsv16_fsv16 ||
                        layout == DataLayout::bs_fs_yx_bsv16_fsv32 ||
                        layout == DataLayout::bs_fs_yx_bsv4_fsv4 ||
+                       layout == DataLayout::bs_fs_yx_bsv16_fsv8 ||
                        layout == DataLayout::bs_fs_yx_bsv16_fsv4 ||
                        layout == DataLayout::bs_fs_yx_bsv16_fsv2 ||
                        layout == DataLayout::bs_fs_yx_bsv8_fsv4 ||
@@ -508,6 +512,10 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                 index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV16_INDEX(" + _name + ", b, f, z, y, x)";
                 raw_index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV16_INDEX(" + _name + ", b, f, z, y, x)";
                 safe_index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV16_INDEX_SAFE(" + _name + ", b, f, z, y, x)";
+            } else if (layout == DataLayout::bs_fs_zyx_bsv16_fsv8) {
+                index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV8_INDEX(" + _name + ", b, f, z, y, x)";
+                raw_index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV8_INDEX(" + _name + ", b, f, z, y, x)";
+                safe_index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV8_INDEX_SAFE(" + _name + ", b, f, z, y, x)";
             } else if (layout == DataLayout::b_fs_zyx_fsv32) {
                 index_func_val = "GET_DATA_B_FS_ZYX_FSV32_INDEX(" + _name + ", b, f, z, y, x)";
                 raw_index_func_val = "GET_DATA_B_FS_ZYX_FSV32_INDEX(" + _name + ", b, f, z, y, x)";
@@ -536,6 +544,10 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                 index_func_val = "GET_DATA_B_FS_ZYX_FSV4_INDEX(" + _name + ", b, f, z, y, x)";
                 raw_index_func_val = "GET_DATA_B_FS_ZYX_FSV4_INDEX(" + _name + ", b, f, z, y, x)";
                 safe_index_func_val = "GET_DATA_B_FS_ZYX_FSV4_INDEX_SAFE(" + _name + ", b, f, z, y, x)";
+            } else if (layout == DataLayout::b_fs_zyx_fsv8) {
+                index_func_val = "GET_DATA_B_FS_ZYX_FSV8_INDEX(" + _name + ", b, f, z, y, x)";
+                raw_index_func_val = "GET_DATA_B_FS_ZYX_FSV8_INDEX(" + _name + ", b, f, z, y, x)";
+                safe_index_func_val = "GET_DATA_B_FS_ZYX_FSV8_INDEX_SAFE(" + _name + ", b, f, z, y, x)";
             } else {
                 index_func_val = "GET_DATA_INDEX_5D_RAW(" + _name + ", b, f, z, y, x)";
                 safe_index_func_val = "GET_DATA_INDEX_5D_RAW(" + _name + ", b, f, z, y, x)";
@@ -1333,18 +1345,18 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
 }
 
 JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroName) {
-    std::string type;
-    std::string max_val;
-    std::string min_val;
-    std::string val_one;
-    std::string val_zero;
-    std::string to_type;
-    std::string to_type_sat;
-    std::string as_type;
-    std::string max_func;
-    std::string min_func;
-    std::string abs_func;
-    std::string type_size;
+    std::string type = "undefined";
+    std::string max_val = "undefined";
+    std::string min_val = "undefined";
+    std::string val_one = "undefined";
+    std::string val_zero = "undefined";
+    std::string to_type = "undefined";
+    std::string to_type_sat = "undefined";
+    std::string as_type = "undefined";
+    std::string max_func = "undefined";
+    std::string min_func = "undefined";
+    std::string abs_func = "undefined";
+    std::string type_size = "undefined";
     bool is_fp;
     switch (dataType) {
         case Datatype::INT8:
@@ -1468,6 +1480,16 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             type_size = "2";
             is_fp = true;
             break;
+        case Datatype::INT4:
+            type = "char";
+            type_size = "0.5f";
+            is_fp = false;
+            break;
+        case Datatype::UINT4:
+            type = "uchar";
+            type_size = "0.5f";
+            is_fp = false;
+            break;
         default:
             type = "float";
             max_val = "FLT_MAX";
@@ -1513,6 +1535,10 @@ JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& ma
             return MakeTypeJitConstants(Datatype::INT8, macroName);
         case WeightsType::UINT8:
             return MakeTypeJitConstants(Datatype::UINT8, macroName);
+        case WeightsType::INT4:
+            return MakeTypeJitConstants(Datatype::INT4, macroName);
+        case WeightsType::UINT4:
+            return MakeTypeJitConstants(Datatype::UINT4, macroName);
         case WeightsType::BINARY:
             return MakeTypeJitConstants(Datatype::UINT32, macroName);
         case WeightsType::INT32:
@@ -1521,6 +1547,17 @@ JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& ma
     assert(false || "Unreachable!");
     // FIXME: Is there some builtin_unreachable available?
     return MakeTypeJitConstants(Datatype::UNSUPPORTED, macroName);
+}
+
+JitConstants make_int4_packed_type_jit_constant(const std::string& macro_name, WeightsType wt, size_t pack_size) {
+    OPENVINO_ASSERT(pack_size % 2 == 0 && pack_size != 0 && pack_size <= 16);
+    std::string type_string = "";
+    switch (wt) {
+        case WeightsType::UINT4: type_string = "uint4x"; break;
+        case WeightsType::INT4: type_string = "int4x"; break;
+        default: OPENVINO_THROW("[GPU] Unsupported compressed type");
+    }
+    return { MakeJitConstant(macro_name, type_string + std::to_string(pack_size) + "_t") };
 }
 
 JitConstants MakeActivationJitConstants(const base_activation_params& params,

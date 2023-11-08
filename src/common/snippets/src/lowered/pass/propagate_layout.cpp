@@ -19,23 +19,25 @@ bool PropagateLayout::run(LinearIR& linear_ir) {
     if (linear_ir.empty())
         return false;
 
-    for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
-        const auto& expr = *expr_it;
+    for (const auto& expr : linear_ir) {
         const auto io_expr = std::dynamic_pointer_cast<IOExpression>(expr);
         if (!io_expr)
             continue;
 
         const bool is_input = io_expr->get_type() == IOExpression::io_type::INPUT;
         const auto& connectors = is_input ? expr->get_output_port_connectors() : expr->get_input_port_connectors();
-        if (connectors.size() != 1)
-            OPENVINO_THROW("Parameter/Results should have exactly one output/input");
+        OPENVINO_ASSERT(connectors.size() == 1, "Parameter/Results should have exactly one output/input");
 
         // If input - we should be looking downstream, if output - upstream
         const auto& target_connector = connectors.front();
         if (is_input) {
-            const auto consumer_inputs = target_connector->get_consumers();
             // Note that here we consider only the first child (which is usually load),
             // but often there is another child - LoopEnd
+            auto consumer_inputs = target_connector->get_consumers();
+            const auto& first_consumer = consumer_inputs.begin()->get_expr();
+            // If there is a RankNormalization op after a parameter - we should skip it
+            if (is_type<op::RankNormalization>(first_consumer->get_node()))
+                consumer_inputs = first_consumer->get_output_port_connector(0)->get_consumers();
             std::set<std::vector<size_t>> child_layouts;
             for (const auto& child_input : consumer_inputs) {
                 const auto& child = child_input.get_expr();

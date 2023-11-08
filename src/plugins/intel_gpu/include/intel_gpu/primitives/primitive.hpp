@@ -47,6 +47,11 @@ struct input_info {
         return *this;
     }
 
+    /// @brief Compare
+    bool operator==(const input_info& rhs) const {
+        return ((pid == rhs.pid) && (idx == rhs.idx));
+    }
+
     primitive_id pid;
     int32_t idx;
     struct cmp {
@@ -70,7 +75,18 @@ struct input_info {
         ib >> pid;
         ib >> idx;
     }
+
+    std::string to_string() const {
+        std::stringstream ss;
+        ss << "input_info(pid:" << pid << ",idx:" << idx << ")";
+        return ss.str();
+    }
 };
+
+static inline std::ostream& operator<< (std::ostream& os, input_info& info) {
+    os << info.to_string();
+    return os;
+}
 
 struct prim_map_storage {
     static prim_map_storage& instance() {
@@ -150,7 +166,7 @@ public:
             return false;
 
         for (size_t i = 0; i < output_data_types.size(); ++i) {
-            if (output_data_types[i].value_or(data_types::bin) != rhs.output_data_types[i].value_or(data_types::bin))
+            if (output_data_types[i].value_or(data_types::undefined) != rhs.output_data_types[i].value_or(data_types::undefined))
                 return false;
         }
 
@@ -246,6 +262,22 @@ public:
         }
         ib >> input;
         ib >> num_outputs;
+    }
+
+    virtual padding get_output_padding(size_t idx) const {
+        if (idx < output_paddings.size()) {
+            return output_paddings[idx];
+        } else {
+            return padding();
+        }
+    }
+
+    virtual optional_data_type get_output_data_type(size_t idx) const {
+        if (idx < output_data_types.size()) {
+            return output_data_types[idx];
+        } else {
+            return optional_data_type();
+        }
     }
 
 protected:

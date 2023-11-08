@@ -4,29 +4,29 @@
 
 #pragma once
 
-#include <tuple>
 #include <string>
-#include <vector>
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include <ngraph/shape.hpp>
-#include <ngraph/node.hpp>
+#include <tuple>
 
-namespace SubgraphTestsDefinitions {
+#include "ov_models/builders.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-typedef std::tuple<
-        ngraph::Shape,              // input shape
-        ngraph::op::PadType,
-        std::string                 // Device name
-        > ConvStridesOptParams;
+namespace ov {
+namespace test {
 
-class ConvStridesOpt
-        : public testing::WithParamInterface<ConvStridesOptParams>,
-          virtual public LayerTestsUtils::LayerTestsCommon {
+typedef std::tuple<ov::Shape,  // input shape
+                   ov::op::PadType,
+                   std::string  // Device name
+                   >
+    ConvStridesOptParams;
+
+class ConvStridesOpt : public testing::WithParamInterface<ConvStridesOptParams>,
+                       virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<ConvStridesOptParams> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ConvStridesOptParams>& obj);
 
 protected:
     void SetUp() override;
 };
-} // namespace SubgraphTestsDefinitions
+
+}  // namespace test
+}  // namespace ov

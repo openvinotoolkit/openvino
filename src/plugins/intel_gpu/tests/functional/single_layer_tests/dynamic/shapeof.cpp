@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/shape_of.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <string>
 
 using namespace ngraph;
@@ -54,11 +54,10 @@ protected:
         outType = ElementType::i32;
 
         ov::ParameterVector functionParams;
-        for (auto&& shape : inputDynamicShapes) {
+        for (auto&& shape : inputDynamicShapes)
             functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
-        }
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset3::Parameter>(functionParams));
-        auto shapeOfOp = std::make_shared<opset3::ShapeOf>(paramOuts[0], element::i32);
+
+        auto shapeOfOp = std::make_shared<opset3::ShapeOf>(functionParams[0], element::i32);
 
         auto makeFunction = [](ParameterVector &params, const std::shared_ptr<Node> &lastNode) {
             ResultVector results;

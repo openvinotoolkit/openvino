@@ -77,7 +77,7 @@ protected:
         auto& shape = get_shape();
         if (m_strides.empty() && !shape.empty()) {
             m_strides.resize(shape.size());
-            m_strides.back() = m_element_type.size();
+            m_strides.back() = shape.back() == 0 ? 0 : m_element_type.size();
             std::transform(shape.crbegin(),
                            shape.crend() - 1,
                            m_strides.rbegin(),
@@ -307,7 +307,7 @@ class BlobTensor : public ITensor {
     }
 
 public:
-    std::shared_ptr<ie::Blob> blob;
+    std::shared_ptr<InferenceEngine::Blob> blob;
 
     BlobTensor(const InferenceEngine::Blob::Ptr& blob) : blob{blob} {
         auto remote_impl = dynamic_cast<InferenceEngine::RemoteBlob*>(blob.get());
@@ -349,7 +349,7 @@ public:
 
     void* data(const element::Type& element_type) const override {
         OPENVINO_ASSERT(blob != nullptr, "Tensor was not initialized.");
-#define TYPE_CHECK(TYPE) (dynamic_cast<const ie::TBlob<TYPE>*>(blob.get()) != nullptr)
+#define TYPE_CHECK(TYPE) (dynamic_cast<const InferenceEngine::TBlob<TYPE>*>(blob.get()) != nullptr)
         auto host_accesable_implementation = TYPE_CHECK(bool) || TYPE_CHECK(int8_t) || TYPE_CHECK(uint8_t) ||
                                              TYPE_CHECK(int16_t) || TYPE_CHECK(uint16_t) || TYPE_CHECK(int32_t) ||
                                              TYPE_CHECK(uint32_t) || TYPE_CHECK(int64_t) || TYPE_CHECK(uint64_t) ||
@@ -379,10 +379,10 @@ public:
  * @tparam T Blob data type
  */
 template <typename T>
-class TensorMemoryBlob : public ie::TBlob<T> {
+class TensorMemoryBlob : public InferenceEngine::TBlob<T> {
 public:
     ~TensorMemoryBlob() override = default;
-    explicit TensorMemoryBlob(const ov::SoPtr<ITensor>& tensor_, ie::TensorDesc desc) try : ie
+    explicit TensorMemoryBlob(const ov::SoPtr<ITensor>& tensor_, InferenceEngine::TensorDesc desc) try : InferenceEngine
         ::TBlob<T>{desc, static_cast<T*>(tensor_->data()), tensor_->get_byte_size()}, tensor{tensor_} {
             OPENVINO_ASSERT(!std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr));
         }
@@ -390,24 +390,24 @@ public:
         OPENVINO_THROW(ex.what());
     }
 
-    void setShape(const ie::SizeVector& dims) override {
+    void setShape(const InferenceEngine::SizeVector& dims) override {
         tensor->set_shape(dims);
-        ie::TBlob<T>::getTensorDesc().setDims(dims);
+        InferenceEngine::TBlob<T>::getTensorDesc().setDims(dims);
         allocate();
     }
 
     void allocate() noexcept override {
-        if (ie::TBlob<T>::buffer() != tensor->data()) {
-            ie::TBlob<T>::_allocator =
-                ie::details::make_pre_allocator(static_cast<T*>(tensor->data()), tensor->get_byte_size());
-            ie::TBlob<T>::allocate();
+        if ((void*)InferenceEngine::TBlob<T>::buffer() != tensor->data()) {
+            InferenceEngine::TBlob<T>::_allocator =
+                InferenceEngine::details::make_pre_allocator(static_cast<T*>(tensor->data()), tensor->get_byte_size());
+            InferenceEngine::TBlob<T>::allocate();
         }
     }
 
     ov::SoPtr<ITensor> tensor;
 };
 
-ov::SoPtr<ITensor> make_tensor(const std::shared_ptr<ie::Blob>& blob, bool unwrap) {
+ov::SoPtr<ITensor> make_tensor(const std::shared_ptr<InferenceEngine::Blob>& blob, bool unwrap) {
 #define ELSE_IF(type)                                                                \
     else if (auto tblob = dynamic_cast<const TensorMemoryBlob<type>*>(blob.get())) { \
         return tblob->tensor;                                                        \
@@ -440,7 +440,7 @@ ov::SoPtr<ITensor> make_tensor(const std::shared_ptr<ie::Blob>& blob, bool unwra
 #undef IF
 }
 
-ie::Blob* get_hardware_blob(ie::Blob* blob) {
+InferenceEngine::Blob* get_hardware_blob(InferenceEngine::Blob* blob) {
 #ifdef PROXY_PLUGIN_ENABLED
     if (auto remote_blob = dynamic_cast<TensorRemoteBlob*>(blob)) {
         const auto& tensor = ov::proxy::get_hardware_tensor(remote_blob->get_tensor());
@@ -455,7 +455,7 @@ ie::Blob* get_hardware_blob(ie::Blob* blob) {
     return blob;
 }
 
-const ie::Blob* get_hardware_blob(const ie::Blob* blob) {
+const InferenceEngine::Blob* get_hardware_blob(const InferenceEngine::Blob* blob) {
 #ifdef PROXY_PLUGIN_ENABLED
     if (auto remote_blob = dynamic_cast<const TensorRemoteBlob*>(blob)) {
         const auto& tensor = ov::proxy::get_hardware_tensor(remote_blob->get_tensor());
@@ -470,7 +470,9 @@ const ie::Blob* get_hardware_blob(const ie::Blob* blob) {
     return blob;
 }
 
-ie::Blob::Ptr tensor_to_blob(const ov::SoPtr<ITensor>& orig_tensor, bool unwrap, InferenceEngine::TensorDesc desc) {
+InferenceEngine::Blob::Ptr tensor_to_blob(const ov::SoPtr<ITensor>& orig_tensor,
+                                          bool unwrap,
+                                          InferenceEngine::TensorDesc desc) {
     auto create_desc = [](const ov::SoPtr<ov::ITensor>& tensor,
                           const InferenceEngine::TensorDesc& desc) -> InferenceEngine::TensorDesc {
         if (desc.getLayout() != InferenceEngine::ANY ||
@@ -479,10 +481,10 @@ ie::Blob::Ptr tensor_to_blob(const ov::SoPtr<ITensor>& orig_tensor, bool unwrap,
         }
         auto element_type = tensor->get_element_type();
         auto shape = tensor->get_shape();
-        ie::SizeVector blk_order(shape.size());
+        InferenceEngine::SizeVector blk_order(shape.size());
         std::iota(blk_order.begin(), blk_order.end(), 0);
-        ie::SizeVector dim_offset(shape.size(), 0);
-        ie::SizeVector blk_strides;
+        InferenceEngine::SizeVector dim_offset(shape.size(), 0);
+        InferenceEngine::SizeVector blk_strides;
         auto byte_strides = element_type.bitwidth() >= 8 ? tensor->get_strides() : Strides{};
         if (byte_strides.empty()) {
             blk_strides = ov::row_major_strides(shape);
@@ -500,9 +502,9 @@ ie::Blob::Ptr tensor_to_blob(const ov::SoPtr<ITensor>& orig_tensor, bool unwrap,
                                return byte_stride / element_type.size();
                            });
         }
-        return ie::TensorDesc{ie::details::convertPrecision(element_type),
-                              shape,
-                              ie::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides}};
+        return InferenceEngine::TensorDesc{InferenceEngine::details::convertPrecision(element_type),
+                                           shape,
+                                           InferenceEngine::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides}};
     };
 #ifdef PROXY_PLUGIN_ENABLED
     const auto& tensor = unwrap ? ov::proxy::get_hardware_tensor(orig_tensor) : orig_tensor;

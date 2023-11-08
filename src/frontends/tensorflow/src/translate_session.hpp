@@ -42,11 +42,6 @@ public:
 
     void translate_graph(const ov::frontend::InputModel::Ptr& input_model, std::shared_ptr<ov::Model>& ov_model);
 
-    void inject_body_model(std::shared_ptr<ov::Model> body_model,
-                           const std::string& operation_type,
-                           const ov::OutputVector& ov_inputs,
-                           ov::OutputVector& ov_outputs);
-
     std::shared_ptr<ov::Model> get_body_ov_model(const std::string& body_graph_name,
                                                  const ov::OutputVector& ov_inputs,
                                                  bool clear_names = true);

@@ -32,7 +32,7 @@ else()
     set(MLAS_LIBRARY "mlas")
 endif()
 
-addIeTargetTest(
+ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
@@ -58,13 +58,13 @@ addIeTargetTest(
             openvino::shape_inference
             inference_engine_s
             unit_test_utils
-            ngraphFunctions
-            snippetsNgraphFunctions
+            ov_models
+            ov_snippets_models
             snippets_test_utils
             ${MLAS_LIBRARY}
         ADD_CPPLINT
         LABELS
-            CPU
+            OV UNIT CPU
 )
 
 # LTO

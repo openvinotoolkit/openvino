@@ -251,41 +251,58 @@ void DnnlPostOpsComposer::appendClip(const std::vector<float>& low, const std::v
     }
 }
 
-MemoryPtr DnnlPostOpsComposer::prepackDecompressionParams(const std::vector<float>& params, size_t icBlock) {
-    // Prepacking params from [oc] to [oc, icBlock] layout, where for each icBlock corresponding parameter is duplicated
-    DnnlBlockedMemoryDesc memoryDesc(InferenceEngine::Precision::FP32, Shape({icBlock * params.size()}));
-    auto mem = std::make_shared<Memory>(engine, memoryDesc);
-    size_t dstIdx = 0;
-    auto decomp_scales_buf = static_cast<float*>(mem->getData());
-    for (size_t oc = 0; oc < params.size(); oc++) {
-        for (size_t intIdx = 0; intIdx < icBlock; intIdx++) {
-            decomp_scales_buf[dstIdx] = params[oc];
+MemoryPtr DnnlPostOpsComposer::prepackDecompressionParams(const MemoryCPtr& params_ptr, bool needTranspose) {
+    const auto shape = params_ptr->getShape().getStaticDims();
+    MemoryPtr mem;
+
+    auto params_data = static_cast<float*>(params_ptr->getData());
+
+    if (needTranspose) {
+        VectorDims dnnlShape = {shape[0], shape[1]};
+        DnnlBlockedMemoryDesc memoryDesc(InferenceEngine::Precision::FP32, Shape(dnnlShape));
+        mem = std::make_shared<Memory>(engine, memoryDesc);
+        auto memory_buf = static_cast<float*>(mem->getData());
+
+        // oi -> io
+        for (size_t oc = 0; oc < dnnlShape[0]; oc++) {
+            for (size_t ic = 0; ic < dnnlShape[1]; ic++) {
+                memory_buf[ic * dnnlShape[0] + oc] = params_data[oc * dnnlShape[1] + ic];
+            }
+        }
+    } else {
+        VectorDims dnnlShape = {shape[shape.size() - 1], shape[0]};
+        DnnlBlockedMemoryDesc memoryDesc(InferenceEngine::Precision::FP32, Shape(dnnlShape));
+        mem = std::make_shared<Memory>(engine, memoryDesc);
+        auto memory_buf = static_cast<float*>(mem->getData());
+        const size_t elements_count = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
+
+        // io -> io
+        size_t dstIdx = 0;
+        for (size_t oc = 0; oc < elements_count; oc++) {
+            memory_buf[dstIdx] = params_data[oc];
             dstIdx++;
         }
     }
+
     return mem;
 }
 
-void DnnlPostOpsComposer::appendDecompressionScales(const std::vector<float>& scales, size_t icBlock) {
-    if (scales.empty())
+void DnnlPostOpsComposer::appendDecompressionScales(const MemoryCPtr& scales_ptr, bool needTranspose) {
+    if (scales_ptr == nullptr)
         return;
 
-    int mask = scales.size() > 1 ? weightScaleMaskPerChannel : 0;
-    DEBUG_LOG("Set weights scales mask ", "DNNL_ARG: ", DNNL_ARG_WEIGHTS, " mask: ", mask);
-    attr.set_scales_mask(DNNL_ARG_WEIGHTS, mask);
-
-    args[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] = prepackDecompressionParams(scales, icBlock);
+    auto scalesMem = prepackDecompressionParams(scales_ptr, needTranspose);
+    attr.set_scales_dims(DNNL_ARG_WEIGHTS, DnnlExtensionUtils::convertToDnnlDims(scalesMem->getStaticDims()));
+    args[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] = scalesMem;
 }
 
-void DnnlPostOpsComposer::appendDecompressionZeroPoints(const std::vector<float>& zero_points, size_t icBlock) {
-    if (zero_points.empty())
+void DnnlPostOpsComposer::appendDecompressionZeroPoints(const MemoryCPtr& zero_points_ptr, bool needTranspose) {
+    if (zero_points_ptr == nullptr)
         return;
 
-    int mask = zero_points.size() > 1 ? weightScaleMaskPerChannel : 0;
-    DEBUG_LOG("Set weights zero points mask ", "DNNL_ARG: ", DNNL_ARG_WEIGHTS, " mask: ", mask);
-    attr.set_zero_points_mask(DNNL_ARG_WEIGHTS, mask);
-
-    args[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] = prepackDecompressionParams(zero_points, icBlock);
+    auto zeroPointsMem = prepackDecompressionParams(zero_points_ptr, needTranspose);
+    attr.set_zero_points_dims(DNNL_ARG_WEIGHTS, DnnlExtensionUtils::convertToDnnlDims(zeroPointsMem->getStaticDims()));
+    args[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] = zeroPointsMem;
 }
 
 }  // namespace intel_cpu

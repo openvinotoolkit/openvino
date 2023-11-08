@@ -5,7 +5,8 @@
 set(TARGET_NAME openvino_c)
 
 # Suppress warnings due to catch macro with legacy exception types
-ov_deprecated_no_errors()
+ov_disable_deprecated_warnings()
+
 add_definitions(-DIN_OV_COMPONENT)
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.h ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
@@ -32,6 +33,10 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 ov_add_vs_version_file(NAME ${TARGET_NAME}
     FILEDESCRIPTION "OpenVINO C API Core Runtime library")
 
+ov_set_apple_rpath(${TARGET_NAME}
+                   # openvino_c installed in the same directory as openvino
+                   ${OV_CPACK_RUNTIMEDIR} ${OV_CPACK_RUNTIMEDIR})
+
 # export
 
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime::c)
@@ -42,6 +47,7 @@ export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 
 # install
+
 ov_cpack_add_component(${OV_CPACK_COMP_CORE_C} HIDDEN)
 ov_cpack_add_component(${OV_CPACK_COMP_CORE_C_DEV} HIDDEN)
 

@@ -35,7 +35,7 @@ Supported configurations:
 3. In the `build` directory, run `cmake` to fetch project dependencies and generate a Visual Studio solution:
 
     ```sh
-    cmake -G "Visual Studio 17 2022" <openvino>
+    cmake -G "Visual Studio 17 2022" <path/to/openvino>
     ```
     
    > **HINT**: **Generating PDB Files and Debugging Your Build** <br>
@@ -46,14 +46,14 @@ Supported configurations:
 
 4. Build generated solution in Visual Studio or run `cmake --build . --config Release --verbose -j8` to build from the command line. Be aware that this process may take some time.
 
-5. Before running the samples, add paths to the Threading Building Blocks (TBB) binaries used for the build to the `%PATH%` environment variable. By default, TBB binaries are downloaded by the CMake-based script to the `<openvino>/temp/tbb/bin` folder.
+5. Before running the samples, add paths to the Threading Building Blocks (TBB) binaries used for the build to the `%PATH%` environment variable. By default, TBB binaries are downloaded by the CMake-based script to the `<path/to/openvino>/temp/tbb/bin` folder.
 
 ### Additional Build Options
 
 - To build the OpenVINO Runtime Python API:
   1. First, install all additional packages (e.g., cython) listed in the file:
       ```sh
-      pip install -r <openvino>\src\bindings\python\src\compatibility\openvino\requirements-dev.txt
+      pip install -r <path\to\openvino>\src\bindings\python\src\compatibility\openvino\requirements-dev.txt
       ```
   2. Second, enable the `-DENABLE_PYTHON=ON` in the CMake (Step #4) option above. To specify an exact Python version, use the following options (requires cmake 3.16 and higher):
      ```sh
@@ -78,7 +78,7 @@ Supported configurations:
 ```sh
 call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\VC\Auxiliary\Build\vcvars64.bat"
 cmake -G Ninja -Wno-dev -DCMAKE_BUILD_TYPE=Release ..
-ninja .
+cmake --build . --parallel
 ```
 
 ## See also

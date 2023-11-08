@@ -7,7 +7,7 @@
 #include "test_utils/properties_test.hpp"
 #include <common_test_utils/test_assertions.hpp>
 #include "ie_system_conf.h"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -134,6 +134,27 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelStreamsHasHigherPrior
     ov::CompiledModel compiledModel = ie.compile_model(model, deviceName, config);
 
     ASSERT_NO_THROW(value = compiledModel.get_property(ov::num_streams));
+    ASSERT_EQ(streams, value);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelZeroStreams) {
+    ov::Core ie;
+    int32_t streams = 0;
+    int32_t value = -1;
+
+    ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
+
+    ov::AnyMap config;
+    config[ov::num_streams.name()] = streams;
+    ov::CompiledModel compiledModel = ie.compile_model(model, deviceName, config);
+
+    ASSERT_NO_THROW(value = compiledModel.get_property(ov::num_streams));
+
+#if defined(OPENVINO_ARCH_ARM) || \
+    defined(OPENVINO_ARCH_ARM64)  // Will be removed after multiple streams is supported on ARM
+    streams = 1;
+#endif
+
     ASSERT_EQ(streams, value);
 }
 

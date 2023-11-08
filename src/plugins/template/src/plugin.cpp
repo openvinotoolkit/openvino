@@ -237,7 +237,8 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
                                                     ov::hint::inference_precision,
                                                     ov::hint::execution_mode,
                                                     ov::num_streams,
-                                                    ov::template_plugin::disable_transformations};
+                                                    ov::template_plugin::disable_transformations,
+                                                    ov::log::level};
         return rw_properties;
     };
     if (ov::supported_properties == name) {

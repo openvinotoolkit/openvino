@@ -27,6 +27,7 @@ concurrency:
 
 jobs:
   Build:
+    timeout-minutes: 150
     defaults:
       run:
         shell: bash
@@ -35,22 +36,22 @@ jobs:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
         - /mount/caches:/mount/caches
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_GENERATOR: 'Ninja'
-      CMAKE_CXX_COMPILER_LAUNCHER: ccache
-      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_C_COMPILER_LAUNCHER: sccache
       OPENVINO_REPO: '/__w/openvino/openvino/openvino'
       VCPKG_ROOT: '/__w/openvino/openvino/vcpkg'
       BUILD_DIR: '/__w/openvino/openvino/build'
-      INSTALL_DIR: '/__w/openvino/openvino/install'
       ANDROID_TOOLS: '/__w/openvino/openvino/android_tools'
       ANDROID_NDK_HOME: '/__w/openvino/openvino/android_tools/ndk-bundle'
       ANDROID_SDK_VERSION: 29
       ANDROID_ABI_CONFIG: arm64-v8a
-      CCACHE_DIR: '/mount/caches/ccache/android_arm64'
-      CCACHE_TEMPDIR: '/__w/openvino/openvino/ccache_temp'
-      CCACHE_MAXSIZE: 50G
+      VCPKG_DEFAULT_BINARY_CACHE: '/mount/caches/ccache/android_arm64/vcpkg_cache'
+      VCPKG_FORCE_SYSTEM_BINARIES: '1'
+      SCCACHE_AZURE_KEY_PREFIX: android_arm64
     steps:
       - name: Install git
         run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates
@@ -64,6 +65,8 @@ jobs:
         run: |
           pushd ${OPENVINO_REPO}
             git submodule update --init -- ${OPENVINO_REPO}/src/plugins
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/zlib
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/json
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gtest
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gflags
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/open_model_zoo
@@ -75,6 +78,13 @@ jobs:
           repository: 'microsoft/vcpkg'
           path: 'vcpkg'
           fetch-depth: '0'
+
+      #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
 
       #
       # Dependencies
@@ -100,12 +110,18 @@ jobs:
           unzip commandlinetools-linux-7583922_latest.zip
           echo "yes" | ./cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_TOOLS} --install "ndk-bundle" "platform-tools" "platforms;android-${{ env.ANDROID_SDK_VERSION }}"
 
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@v0.0.3
+        with:
+          version: "v0.5.4"
+
       #
       # Build
       #
 
       - name: Build vcpkg
         run: |
+          mkdir -p ${VCPKG_DEFAULT_BINARY_CACHE}
           ${VCPKG_ROOT}/bootstrap-vcpkg.sh
           # patch vcpkg default toolchain to build only Release configuration
           echo "set(VCPKG_BUILD_TYPE release)" >> ${VCPKG_ROOT}/triplets/arm64-android.cmake
@@ -135,10 +151,10 @@ jobs:
             -B ${BUILD_DIR}
 
       - name: Clean ccache stats
-        run: ccache --zero-stats --show-config
+        run: sccache --zero-stats
 
       - name: Cmake - build
         run: cmake --build ${BUILD_DIR} --parallel
 
       - name: Show ccache stats
-        run: ccache --show-stats
+        run: ${SCCACHE_PATH} --show-stats

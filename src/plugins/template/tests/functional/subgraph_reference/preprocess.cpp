@@ -351,7 +351,6 @@ static RefPreprocessParams resize_to_network_width_height() {
         return f;
     };
 
-    auto result = std::make_shared<HostTensor>();
     // clang-format off
     std::vector<float> input = {0., 1., 2., 3., 4.,
                                 1., 2., 3., 4., 5.,
@@ -380,7 +379,6 @@ static RefPreprocessParams resize_to_specified_width_height() {
         return f;
     };
 
-    auto result = std::make_shared<HostTensor>();
     // clang-format off
     std::vector<float> input = {0., 1., 2., 3., 4.,
                                 1., 2., 3., 4., 5.,
@@ -747,7 +745,6 @@ static RefPreprocessParams resize_and_convert_layout() {
         return f;
     };
 
-    auto result = std::make_shared<HostTensor>();
     // clang-format off
     std::vector<float> input = {
             1., 1., 1., 1., // channel 1
@@ -857,7 +854,6 @@ static RefPreprocessParams convert_color_nv12_layout_resize() {
         return f;
     };
 
-    auto result = std::make_shared<HostTensor>();
     // clang-format off
     auto input = std::vector<uint8_t> {81, 81, 145, 145,      // RRGG
                                        81, 81, 145, 145,      // RRGG

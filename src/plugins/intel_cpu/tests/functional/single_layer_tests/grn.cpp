@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
@@ -68,11 +68,10 @@ protected:
         init_input_shapes({inputShape});
 
         ov::ParameterVector paramsIn;
-        for (auto&& shape : inputDynamicShapes) {
+        for (auto&& shape : inputDynamicShapes)
             paramsIn.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
-        }
-        const auto paramsOut = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
-        const auto grn = std::make_shared<ngraph::opset1::GRN>(paramsOut[0], bias);
+
+        const auto grn = std::make_shared<ngraph::opset1::GRN>(paramsIn[0], bias);
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(grn)};
         function = std::make_shared<ngraph::Function>(results, paramsIn, "Grn");
     }

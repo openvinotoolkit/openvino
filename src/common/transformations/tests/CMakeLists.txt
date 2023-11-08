@@ -15,14 +15,14 @@ ov_add_test_target(
     LINK_LIBRARIES
         gmock
         func_test_utils
-        offline_transformations
+        openvino::offline_transformations
         sharedTestClasses
-        lptNgraphFunctions
+        ov_lpt_models
     ADD_CLANG_FORMAT
     INCLUDES
         $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
     LABELS
-        TRANSFORMATIONS
+        OV UNIT TRANSFORMATIONS
 )
 
 if(WIN32)

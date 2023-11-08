@@ -93,7 +93,6 @@ void QuantizeWeights<int8_t>(const QuantizationData& data,
     auto output_low = 0.0f;
     auto output_high = 0.0f;
     uint32_t levels = 1;
-    float valueAcc = 0.0f;
     const auto min_values_size = data.weights_quant_params.GetMinValues().size();
 
     if (min_values_size > 0) {
@@ -121,7 +120,6 @@ void QuantizeWeights<int8_t>(const QuantizationData& data,
                 float scaled_row_max = 0;
                 for (size_t col = 0; col < data.num_columns; col++) {
                     float value = ptr_float_weights[row * data.num_columns + col] * data.scale_factor;
-                    valueAcc += value;
                     if (fabs(value) > scaled_row_max) {
                         scaled_row_max = fabs(value);
                     }

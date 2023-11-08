@@ -9,7 +9,7 @@ import io
 import threading
 import numpy as np
 
-from openvino.runtime import Core, Model, AsyncInferQueue, PartialShape, Layout, opset12 as ops, serialize
+from openvino.runtime import Core, Model, AsyncInferQueue, PartialShape, Layout, opset13 as ops, serialize
 from openvino.preprocess import PrePostProcessor
 
 from tests import skip_devtest
