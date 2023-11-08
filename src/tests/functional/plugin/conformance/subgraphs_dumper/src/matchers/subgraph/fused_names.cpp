@@ -18,8 +18,7 @@ void FusedNamesExtractor::set_target_device(const std::string& _device) {
     auto available_devices = ov::util::core->get_available_devices();
     if (_device == std::string("TEMPLATE") &&
         std::find(available_devices.begin(), available_devices.end(), _device) == available_devices.end()) {
-        auto plugin_path = ov::util::make_plugin_library_name(std::string(""),
-                                                              std::string("openvino_template_plugin") + OV_BUILD_POSTFIX);
+        auto plugin_path = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), std::string("openvino_template_plugin") + OV_BUILD_POSTFIX);
         ov::util::core->register_plugin(plugin_path, _device);
         available_devices = ov::util::core->get_available_devices();
     }

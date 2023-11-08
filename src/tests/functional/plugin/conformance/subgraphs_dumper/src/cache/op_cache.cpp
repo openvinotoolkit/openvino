@@ -58,6 +58,8 @@ void OpCache::update_cache(const std::shared_ptr<ov::Node>& node,
     std::shared_ptr<ov::Node> find_op_in_cache = nullptr;
     // Clone node to get node with Parameter/Constants input only
     auto cloned_node = ov::util::clone_node(node, true);
+    auto cloned_node_in_info = ov::util::get_input_info_by_node(cloned_node);
+    bool in_info_is_matched = true;
     if (cloned_node == nullptr)
         return;
     // cloned_node->set_friendly_name(ov::test::functional::get_node_version(cloned_node));
@@ -65,8 +67,20 @@ void OpCache::update_cache(const std::shared_ptr<ov::Node>& node,
         if (m_manager.match(it.first, cloned_node)) {
             // std::cout << "Match " << cloned_node->get_type_info().name <<  " " << cloned_node->get_friendly_name() <<
             //        " with " << it.first->get_friendly_name() << std::endl;
-            find_op_in_cache = it.first;
-            break;
+            for (const auto& in_info_item : it.second.get_input_info()) {
+                if (!cloned_node_in_info.count(in_info_item.first)) {
+                    in_info_is_matched = false;
+                    break;
+                }
+                if (cloned_node_in_info[in_info_item.first].is_const != in_info_item.second.is_const) {
+                    in_info_is_matched = false;
+                    break;
+                }
+            }
+            if (in_info_is_matched) {
+                find_op_in_cache = it.first;
+                break;
+            }
         }
     }
 
@@ -81,30 +95,23 @@ void OpCache::update_cache(const std::shared_ptr<ov::Node>& node,
         }
     }
 
-    ov::conformance::MetaInfo meta;
-    if (from_cache) {
-        auto meta_path = ov::util::replace_extension(model_path, "meta");
-        meta = ov::conformance::MetaInfo::read_meta_from_file(meta_path);
-    } else {
-        size_t priority = ov::util::get_node_priority_by_version(cloned_node);
-        meta = ov::conformance::MetaInfo(model_path, ov::util::get_input_info_by_node(cloned_node),
-                                         model_op_cnt, 1,  "", priority);
-    }
+    auto meta_path = ov::util::replace_extension(model_path, "meta");
+    size_t priority = ov::util::get_node_priority_by_version(cloned_node);
+    ov::conformance::MetaInfo meta = from_cache ? \
+                                     ov::conformance::MetaInfo::read_meta_from_file(meta_path) : \
+                                     ov::conformance::MetaInfo(model_path, cloned_node_in_info, model_op_cnt, 1,  "", priority);
 
     if (find_op_in_cache != nullptr) {
         // std::cout << "[ INFO ][ OP CACHE ] Update cache node: " << cloned_node->get_type_info().name << cloned_node->get_friendly_name() <<
         //     " " << find_op_in_cache->get_friendly_name() << std::endl;
-        m_ops_cache[find_op_in_cache].update(
-            model_path, ov::util::get_input_info_by_node(cloned_node), model_op_cnt, 1, "", ignored_input_names);
-    }
+        m_ops_cache[find_op_in_cache].update(model_path, cloned_node_in_info, model_op_cnt, 1, "", ignored_input_names);
 
-    if (find_op_in_cache > cloned_node) {
-        meta = m_ops_cache[find_op_in_cache];
-        m_ops_cache.erase(find_op_in_cache);
-        find_op_in_cache = nullptr;
-    }
-
-    if (find_op_in_cache == nullptr) {
+        if (find_op_in_cache > cloned_node && in_info_is_matched) {
+            auto old_meta = m_ops_cache[find_op_in_cache];
+            m_ops_cache.erase(find_op_in_cache);
+            m_ops_cache.insert({ cloned_node, old_meta });
+        }
+    } else {
         // std::cout << "[ INFO ][ OP CACHE ] Insert node: " << cloned_node->get_type_info().name <<
         //     " " << cloned_node->get_friendly_name() << " to Cache" << std::endl;
         m_ops_cache.insert({ cloned_node, meta });

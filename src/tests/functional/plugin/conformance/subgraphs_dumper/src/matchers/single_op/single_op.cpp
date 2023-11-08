@@ -6,6 +6,7 @@
 #include "openvino/op/group_conv.hpp"
 #include "matchers/single_op/single_op.hpp"
 #include "utils/node.hpp"
+#include "utils/attribute_visitor.hpp"
 
 using namespace ov::tools::subgraph_dumper;
 
@@ -82,9 +83,10 @@ SingleOpMatcher::match_outputs(const std::shared_ptr<ov::Node> &node,
 
 bool SingleOpMatcher::match_attrs(const std::shared_ptr<ov::Node> &node,
                                   const std::shared_ptr<ov::Node> &ref) const {
-    // todo: iefode: to provide correct with ingored attributes
-    // return attributes::compare(node.get(), ref.get(), Comparator::CmpValues::ATTRIBUTES).valid;
-    return true;
+    util::ReadAttributes visitor_node, visitor_ref;
+    node->visit_attributes(visitor_node);
+    ref->visit_attributes(visitor_ref);
+    return visitor_node.get_attributes_map() == visitor_ref.get_attributes_map();
 }
 
 bool SingleOpMatcher::match(const std::shared_ptr<ov::Node> &node,
