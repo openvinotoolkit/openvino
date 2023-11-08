@@ -206,59 +206,60 @@ void Transformations::CpuSpecificOpSet(void) {
 void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecisions, const bool isLegacyApi) {
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, PreLpt);
 
+    // Decompression handling related transformations must be run separately from common preLPT pipeline
+    // since there is used the same transformations as in LPT related transformations, but with the specific settings.
+    // This must be done in order to keep compressed MatMul weights with decompression operations as is
+    ov::pass::Manager decompression_handling_manager;
+    decompression_handling_manager.set_per_pass_validation(false);
+    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::InitNodeInfo);
+    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::MarkShapeOfSubgraphs);
+    // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
+    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::TransposeMatMul);
+    ov::element::TypeVector decompression_precisions{ov::element::u8};
+    // We don't have BF16/FP16 FullyConnected kernels to work with 4bits compressed weights
+    // Convert node doesn't support 4bit precisions -> fallback on constant folding
+    if (inferencePrecision == ov::element::f32) {
+        decompression_precisions.push_back(ov::element::u4);
+        decompression_precisions.push_back(ov::element::i4);
+        decompression_precisions.push_back(ov::element::nf4);
+    }
+    CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::MarkDequantizationSubgraph, decompression_precisions, true);
+    CPU_SET_CALLBACK_X64(decompression_handling_manager, [](const_node_ptr &node) -> bool {
+        auto get_single_consumer = [](const_node_ptr &node) -> std::shared_ptr<ov::Node> {
+            const auto consumers = node->get_output_target_inputs(0);
+            if (consumers.size() != 1)
+                return nullptr;
+            return consumers.begin()->get_node()->shared_from_this();
+        };
+
+        auto consumer = get_single_consumer(node);
+        if (!consumer)
+            return true;
+
+        if (ov::is_type<ov::opset1::MatMul>(consumer)) {
+            return false;
+        } else if (ov::is_type<ov::opset1::Reshape>(consumer)) {
+            consumer = get_single_consumer(consumer);
+            if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
+                return false;
+            }
+        }
+        if (consumer != nullptr && ov::is_type<ov::opset1::Convert>(consumer)) {
+            consumer = get_single_consumer(consumer);
+            if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
+                return false;
+            }
+        }
+        return true;
+    }, ov::pass::MarkDequantizationSubgraph);
+    decompression_handling_manager.register_pass<ov::pass::VisualizeTree>("/home/vgolubev/models/after_decompression.svg");
+    decompression_handling_manager.run_passes(model);
+
     ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::InitNodeInfo);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkShapeOfSubgraphs);
-
     const bool useLpt = !defaultPrecisions.empty();
-    if (useLpt) {
+    if (useLpt)
         CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkDequantizationSubgraph, defaultPrecisions);
-    } else {
-        // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
-        CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeMatMul);
-        ov::element::TypeVector decompression_precisions{
-            ov::element::u8
-        };
-        // We don't have BF16/FP16 FullyConnected kernels to work with 4bits compressed weights
-        // Convert node doesn't support 4bit precisions -> fallback on constant folding
-        if (inferencePrecision == ov::element::f32) {
-            decompression_precisions.push_back(ov::element::u4);
-            decompression_precisions.push_back(ov::element::i4);
-            decompression_precisions.push_back(ov::element::nf4);
-        }
-        // MarkDequantizationSubgraph is used even in non-LPT pipeline on X64 platforms
-        // in order to keep compressed MatMul weights with decompression operations as is
-        CPU_REGISTER_PASS_X64(manager, ov::pass::MarkDequantizationSubgraph, decompression_precisions, true);
-        CPU_SET_CALLBACK_X64(manager, [](const_node_ptr &node) -> bool {
-            auto get_single_consumer = [](const_node_ptr &node) -> std::shared_ptr<ov::Node> {
-                const auto consumers = node->get_output_target_inputs(0);
-                if (consumers.size() != 1)
-                    return nullptr;
-                return consumers.begin()->get_node()->shared_from_this();
-            };
-
-            auto consumer = get_single_consumer(node);
-            if (!consumer)
-                return true;
-
-            if (ov::is_type<ov::opset1::MatMul>(consumer)) {
-                return false;
-            } else if (ov::is_type<ov::opset1::Reshape>(consumer)) {
-                consumer = get_single_consumer(consumer);
-                if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
-                    return false;
-                }
-            }
-            if (consumer != nullptr && ov::is_type<ov::opset1::Convert>(consumer)) {
-                consumer = get_single_consumer(consumer);
-                if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
-                    return false;
-                }
-            }
-            return true;
-        }, ov::pass::MarkDequantizationSubgraph);
-    }
 
     auto get_convert_precisions = [&]() {
         precisions_map map = {
