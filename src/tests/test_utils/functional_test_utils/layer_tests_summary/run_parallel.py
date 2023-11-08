@@ -332,14 +332,12 @@ class TestParallelRunner:
         self._gtest_filter = ""
         self._command = self.__init_basic_command_line_for_exec_file(test_command_line)
         self._worker_num = worker_num
-        if not os.path.exists(self._working_dir):
-            os.mkdir(self._working_dir)
-        if cache_path == "":
+        os.makedirs(self._working_dir, exist_ok=True)
+        if cache_path == "" or not os.path.exists(cache_path):
             cache_path = os.path.join(self._working_dir, "test_cache.lst")
         self._cache_path = os.path.join(cache_path)
         head, _ = os.path.split(self._cache_path)
-        if not os.path.exists(head):
-            os.mkdir(head)
+        os.makedirs(head, exist_ok=True)
         self._is_save_cache = True
         if split_unit in constants.UNIT_NAMES:
             self._split_unit = split_unit
@@ -875,7 +873,7 @@ class TestParallelRunner:
             )
             if os.path.isfile(interapted_log_path):
                 test_cnt_real_saved_now += 1
-        if self._is_save_cache:
+        if self._is_save_cache and os.path.isfile(self._cache_path):
             test_times.sort(reverse=True)
             with open(self._cache_path, "w", encoding=constants.ENCODING) as cache_file:
                 cache_file.writelines(
