@@ -15,6 +15,7 @@ from torch.fx import GraphModule
 from openvino.frontend import FrontEndManager
 from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 from openvino.runtime import Core, Type, PartialShape, serialize
+from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device
 
 from typing import Callable, Optional
 
@@ -32,33 +33,17 @@ def cached_model_name(model_hash_str, device, args, cache_root, reversed = False
         return None
 
     inputs_str = ""
-    for idx, input_data in enumerate(args):  
+    for idx, input_data in enumerate(args):
         if reversed:
             inputs_str = "_" + str(input_data.type()) + str(input_data.size())[11:-1].replace(" ", "") + inputs_str
         else:
             inputs_str += "_" + str(input_data.type()) + str(input_data.size())[11:-1].replace(" ", "")
     inputs_str = sha256(inputs_str.encode('utf-8')).hexdigest()
     file_name += inputs_str
-    
+
     return file_name
 
-def cache_root_path():
-    cache_root = "./cache/"
-    if os.getenv("OPENVINO_TORCH_CACHE_DIR") is not None:
-        cache_root = os.getenv("OPENVINO_TORCH_CACHE_DIR")
-    return cache_root
-
-def get_device():
-    core = Core()
-    device = "CPU"
-
-    if os.getenv("OPENVINO_TORCH_BACKEND_DEVICE") is not None:
-        device = os.getenv("OPENVINO_TORCH_BACKEND_DEVICE")
-        assert device in core.available_devices, "Specified device " + device + " is not in the list of OpenVINO Available Devices"
-
-    return device
-
-def openvino_compile_cached_model(cached_model_path, *example_inputs):
+def openvino_compile_cached_model(cached_model_path, *example_inputs, options):
     core = Core()
     om = core.read_model(cached_model_path + ".xml")
 
@@ -78,17 +63,17 @@ def openvino_compile_cached_model(cached_model_path, *example_inputs):
         om.inputs[idx].get_node().set_partial_shape(PartialShape(list(input_data.shape)))
     om.validate_nodes_and_infer_types()
 
-    core.set_property({'CACHE_DIR': cache_root_path() + '/blob'})
+    core.set_property({'CACHE_DIR': _get_cache_dir(options) + '/blob'})
 
-    compiled_model = core.compile_model(om, get_device())
+    compiled_model = core.compile_model(om, _get_device(options))
 
     return compiled_model
 
-def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None):
+def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options=None):
     core = Core()
 
-    device = get_device()
-    cache_root = cache_root_path()
+    device = _get_device(options)
+    cache_root = _get_cache_dir(options)
     file_name = cached_model_name(model_hash_str, device, args, cache_root)
 
     if file_name is not None and os.path.isfile(file_name + ".xml") and os.path.isfile(file_name + ".bin"):
@@ -99,7 +84,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None):
 
         input_shapes = []
         input_types = []
-        for idx, input_data in enumerate(args):  
+        for idx, input_data in enumerate(args):
             input_types.append(input_data.type())
             input_shapes.append(input_data.size())
 

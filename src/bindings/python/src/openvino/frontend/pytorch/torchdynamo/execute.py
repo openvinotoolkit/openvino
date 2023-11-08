@@ -21,8 +21,9 @@ from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 from openvino.frontend.pytorch.torchdynamo.partition import Partitioner
 from openvino.frontend.pytorch.torchdynamo.compile import openvino_compile
 from openvino.runtime import Core, Type, PartialShape
+from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device
 
-from typing import Callable, Optional
+from typing import Callable, Optional, Any
 
 from torch.fx.experimental.proxy_tensor import make_fx, wrapper_and_args_for_make_fx
 
@@ -44,9 +45,10 @@ def execute(
     *args,
     executor: str = "openvino",
     executor_parameters: Optional[dict] = None,
+    options: Optional[Any] = None
 ):
     if executor == "openvino":
-        return openvino_execute_partitioned(gm, *args, executor_parameters=executor_parameters)
+        return openvino_execute_partitioned(gm, *args, executor_parameters=executor_parameters, options=options)
     elif executor == "strictly_openvino":
         return openvino_execute(gm, *args, executor_parameters=executor_parameters)
 
@@ -65,7 +67,7 @@ def execute_cached(compiled_model, *args):
     return result
 
 
-def openvino_execute(gm: GraphModule, *args, executor_parameters=None, partition_id):
+def openvino_execute(gm: GraphModule, *args, executor_parameters=None, partition_id, options):
 
     executor_parameters = executor_parameters or DEFAULT_OPENVINO_PYTHON_CONFIG
 
@@ -86,7 +88,7 @@ def openvino_execute(gm: GraphModule, *args, executor_parameters=None, partition
     if use_cache and (partition_id in compiled_cache):
         compiled = compiled_cache[partition_id]
     else:
-        compiled = openvino_compile(gm, *args, model_hash_str=model_hash_str)
+        compiled = openvino_compile(gm, *args, model_hash_str=model_hash_str, options=options)
         compiled_cache[partition_id] = compiled
 
     flat_args, _ = tree_flatten(args)
@@ -101,20 +103,21 @@ def openvino_execute(gm: GraphModule, *args, executor_parameters=None, partition
 
 
 class OpenVINOGraphModule(torch.nn.Module):
-    def __init__(self, gm, partition_id, use_python_fusion_cache, model_hash_str: str = None):
+    def __init__(self, gm, partition_id, use_python_fusion_cache, model_hash_str: str = None, options=None):
         super().__init__()
         self.gm = gm
         self.partition_id = partition_id
         self.executor_parameters = {"use_python_fusion_cache": use_python_fusion_cache,
                                     "model_hash_str": model_hash_str}
         self.perm_fallback = False
+        self.options = options
 
     def __call__(self, *args):
         if self.perm_fallback:
             return self.gm(*args)
 
         try:
-            result = openvino_execute(self.gm, *args, executor_parameters=self.executor_parameters, partition_id=self.partition_id)
+            result = openvino_execute(self.gm, *args, executor_parameters=self.executor_parameters, partition_id=self.partition_id, options=self.options)
         except Exception:
             self.perm_fallback = True
             return self.gm(*args)
@@ -122,7 +125,7 @@ class OpenVINOGraphModule(torch.nn.Module):
         return result
 
 
-def partition_graph(gm: GraphModule, use_python_fusion_cache: bool, model_hash_str: str = None):
+def partition_graph(gm: GraphModule, use_python_fusion_cache: bool, model_hash_str: str = None, options=None):
     global max_openvino_partitions
     partition_id = max_openvino_partitions
     for node in gm.graph.nodes:
@@ -133,7 +136,7 @@ def partition_graph(gm: GraphModule, use_python_fusion_cache: bool, model_hash_s
             gm.add_submodule(
                 node.target,
                 OpenVINOGraphModule(openvino_submodule, partition_id, use_python_fusion_cache,
-                                    model_hash_str=model_hash_str),
+                                    model_hash_str=model_hash_str, options=options),
             )
             partition_id = partition_id + 1
 
@@ -142,7 +145,7 @@ def partition_graph(gm: GraphModule, use_python_fusion_cache: bool, model_hash_s
     return gm
 
 
-def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=None):
+def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=None, options=None):
     executor_parameters = executor_parameters or DEFAULT_OPENVINO_PYTHON_CONFIG
 
     global partitioned_modules
@@ -162,7 +165,7 @@ def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=Non
 
     if signature not in partitioned_modules:
         partitioned_modules[signature] = partition_graph(gm, use_python_fusion_cache=use_python_fusion_cache,
-                                                         model_hash_str=model_hash_str)
+                                                         model_hash_str=model_hash_str, options=options)
     return partitioned_modules[signature](*args)
 
 
