@@ -4,6 +4,7 @@
 
 #include "openvino/op/fake_convert.hpp"
 
+#include "element_visitor.hpp"
 #include "itt.hpp"
 
 namespace ov {
@@ -14,6 +15,11 @@ static const std::vector<std::string>& get_valid_types() {
     static const std::vector<std::string> valid_types{"f8e4m3", "f8e5m2"};
     return valid_types;
 }
+
+struct Evaluate : element::NoAction<bool> {
+    using element::NoAction<bool>::visit;
+};
+
 }  // namespace fake_convert
 FakeConvert::FakeConvert(const ov::Output<ov::Node>& arg,
                          const ov::Output<ov::Node>& scale,
@@ -65,8 +71,26 @@ void FakeConvert::validate_type() const {
                     "Bad format for f8 conversion type: " + m_destination_type);
 }
 
+bool FakeConvert::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
+    OV_OP_SCOPE(v13_FakeConvert_evaluate);
+    OPENVINO_ASSERT(outputs.size() == 1);
+    OPENVINO_ASSERT(inputs.size() == 3);
+
+    const auto& data_shape = inputs[0].get_shape();
+    outputs[0].set_shape(data_shape);
+
+    return true;
+}
+
 bool FakeConvert::has_evaluate() const {
-    return false;
+    OV_OP_SCOPE(v13_FakeConvert_has_evaluate);
+    switch (get_input_element_type(0)) {
+    case element::f16:
+    case element::f32:
+        return true;
+    default:
+        return false;
+    }
 }
 
 }  // namespace v13

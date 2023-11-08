@@ -24,6 +24,7 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
     bool get_apply_scale() const;
