@@ -4,7 +4,7 @@ on:
   schedule:
     # at 00:00 on workdays
     - cron: '0 0 * * 1,2,3,4,5'
- pull_request:
+  pull_request:
    paths-ignore:
      - '**/docs/**'
      - 'docs/**'
