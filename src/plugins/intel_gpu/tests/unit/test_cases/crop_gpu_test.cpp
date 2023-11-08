@@ -3,6 +3,7 @@
 //
 #include "test_utils.h"
 #include "random_generator.hpp"
+#include "fusions/fusion_test_common.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/crop.hpp>
@@ -13,7 +14,6 @@
 
 using namespace cldnn;
 using namespace ::tests;
-
 
 TEST(crop_gpu, basic_in2x3x2x2_crop_all) {
     //  Reference  : 1x2x2x2
@@ -1622,3 +1622,139 @@ TEST(crop_single_axis, simple_Baxis) {
     auto crop_prim = network.get_primitive("crop");
     ASSERT_EQ(crop_prim->can_be_optimized(), true);
 }
+
+
+struct crop_input_test_params {
+    data_types  input_type;
+    tensor      input_size;
+    tensor      output_size;
+
+    format::type input_format;
+};
+
+// Use BaseFusingTest simplifying testing logic
+class CropBaseTest : public ::BaseFusingTest<crop_input_test_params> {
+public:
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
+    template <typename T>
+    void fill_random_typed(memory::ptr mem, int min, int max, int k) {
+        auto l = mem->get_layout();
+        size_t b = l.batch();
+        size_t f = l.feature();
+        size_t x = l.spatial(0);
+        size_t y = l.spatial(1);
+
+        auto data = rg.generate_random_4d<T>(b, f, y, x, min, max, k);
+        mem_lock<T> ptr{mem, get_test_stream()};
+        for (size_t bi = 0; bi < b; ++bi) {
+            for (size_t fi = 0; fi < f; ++fi) {
+                for (size_t yi = 0; yi < y; ++yi) {
+                    for (size_t xi = 0; xi < x; ++xi) {
+                        auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        auto offset = mem->get_layout().get_linear_offset(coords);
+                        ptr[offset] = data[bi][fi][yi][xi];
+                    }
+                }
+            }
+        }
+    }
+
+    void fill_random(memory::ptr mem) {
+        auto dt = mem->get_layout().data_type;
+        switch (dt) {
+        case data_types::f32:
+            fill_random_typed<float>(mem, -127, 127, 2);
+            break;
+        case data_types::f16:
+            fill_random_typed<ov::float16>(mem, -127, 127, 2);
+            break;
+        case data_types::i8:
+            fill_random_typed<int8_t>(mem, -127, 127, 1);
+            break;
+        case data_types::u8:
+            fill_random_typed<uint8_t>(mem, 0, 255, 1);
+            break;
+        default:
+            break;
+        }
+    }
+};
+
+class crop_batching_input_test : public CropBaseTest {
+public:
+    // Comapre Crop result of a given 'params.input_format' with its default formats' result
+    void execute(crop_input_test_params& params, bool is_checking) {
+        auto& engine = get_test_engine();
+
+        auto dims = format::dimension(params.input_format);
+        auto in_layout = layout(params.input_type, format::get_default_format(dims), params.input_size);
+        auto in_mem = engine.allocate_memory(in_layout);
+        fill_random(in_mem);
+
+        const int before_pad = 1;
+        tensor offset(feature(0), spatial(0,0,0,0), batch(before_pad));
+
+        cldnn::topology topo;
+        topo.add(input_layout("input", in_layout));
+        topo.add(crop("crop1", input_info("input"), params.output_size, offset));
+        topo.add(reorder("out_reorder", input_info("crop1"), format::get_default_format(dims), data_types::f32));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"out_reorder"}));
+        config.set_property(ov::intel_gpu::optimize_data(false));
+
+        cldnn::network net(engine, topo, config);
+        net.set_input_data("input", in_mem);
+        auto result = net.execute();
+        auto output = result.at("out_reorder").get_memory();
+        cldnn::mem_lock<float_t> output_ptr(output, get_test_stream());
+
+        // blocked format
+        cldnn::topology topo_blocked;
+        topo_blocked.add(input_layout("input_blk", in_layout));
+        topo_blocked.add(reorder("input_blk_reorder", input_info("input_blk"), params.input_format, params.input_type));
+        topo_blocked.add(crop("crop2", input_info("input_blk_reorder"), params.output_size, offset));
+        topo_blocked.add(reorder("out_blk_reorder", input_info("crop2"), format::get_default_format(dims), data_types::f32));
+
+        ExecutionConfig config_blk = get_test_default_config(engine);
+        config_blk.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"out_blk_reorder"}));
+
+        cldnn::network net_blk(engine, topo_blocked, config_blk);
+        net_blk.set_input_data("input_blk", in_mem);
+        auto result_blk = net_blk.execute();
+        auto output_blk = result_blk.at("out_blk_reorder").get_memory();
+        cldnn::mem_lock<float_t> output_blk_ptr(output_blk, get_test_stream());
+        if (is_checking) {
+            for (size_t i = 0; i < output_ptr.size(); ++i) {
+                ASSERT_EQ(output_ptr[i], output_blk_ptr[i]);
+            }
+        }
+    }
+};
+
+TEST_P(crop_batching_input_test, blocked_formats) {
+    // To test accuracy issue of batching operation of blocked formats
+    auto param = GetParam();
+    execute(param, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(batching_test,
+                        crop_batching_input_test,
+                        ::testing::ValuesIn(std::vector<crop_input_test_params>{
+                            crop_input_test_params{ data_types::f16, {3, 4, 2, 2},     {1, 4, 2, 2},     format::b_fs_yx_fsv4 },
+                            crop_input_test_params{ data_types::f16, {3, 16, 2, 2},    {1, 16, 2, 2},    format::b_fs_yx_fsv16 },
+                            crop_input_test_params{ data_types::f16, {3, 20, 2, 2},    {1, 20, 2, 2},    format::b_fs_yx_fsv16 },
+                            crop_input_test_params{ data_types::i8,  {3, 8, 2, 2},     {1, 8, 2, 2},     format::b_fs_yx_fsv32 },
+                            crop_input_test_params{ data_types::f16, {3, 4, 2, 3, 2},  {1, 4, 2, 3, 2},  format::b_fs_zyx_fsv4 },
+                            crop_input_test_params{ data_types::f16, {3, 16, 3, 2, 2}, {1, 16, 3, 2, 2}, format::b_fs_zyx_fsv16 },
+                            crop_input_test_params{ data_types::u8,  {3, 32, 1, 2, 2}, {1, 32, 1, 2, 2}, format::b_fs_zyx_fsv32 },
+                            crop_input_test_params{ data_types::f16, {3, 20, 3, 2, 2}, {1, 16, 3, 2, 2}, format::b_fs_zyx_fsv16 },
+                            crop_input_test_params{ data_types::f16, {3, 4, 4, 2, 2},  {1, 4, 4, 2, 2},  format::b_fs_zyx_fsv32 },
+                            crop_input_test_params{ data_types::f16, {3, 16, 3, 2, 2}, {1, 16, 3, 2, 2}, format::bs_fs_zyx_bsv32_fsv16 },
+                            crop_input_test_params{ data_types::i8,  {3, 32, 1, 2, 2}, {1, 32, 1, 2, 2}, format::bs_fs_zyx_bsv16_fsv32 },
+                        }));
