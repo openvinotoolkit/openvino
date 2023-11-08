@@ -13,6 +13,7 @@
 #include "preprocess/pre_post_process_wrap.hpp"
 #include "resize_algorithm.hpp"
 #include "tensor.hpp"
+#include "partial_shape_wrap.hpp"
 
 /** @brief Initialize native add-on */
 Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
@@ -28,6 +29,7 @@ Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
     exports.DefineProperty(element);
     Napi::PropertyDescriptor preprocess = Napi::PropertyDescriptor::Accessor<enumResizeAlgorithm>("resizeAlgorithm");
     exports.DefineProperty(preprocess);
+    PartialShapeWrap::Init(env, exports);
 
     return exports;
 }
