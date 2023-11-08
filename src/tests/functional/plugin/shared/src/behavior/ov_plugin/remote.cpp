@@ -5,7 +5,7 @@
 #include "behavior/ov_plugin/remote.hpp"
 #include "transformations/utils/utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 
 namespace ov {
 namespace test {

@@ -9,7 +9,7 @@
 #                      [MESSAGE_MODE <WARNING | FATAL_ERROR | TRACE>])
 #
 function(ov_check_pip_package)
-    find_host_package(PythonInterp 3 QUIET)
+    find_host_package(Python3 QUIET COMPONENTS Interpreter)
 
     set(oneValueOptionalArgs
         MESSAGE_MODE            # Set the type of message: { FATAL_ERROR | WARNING | ... }
@@ -42,19 +42,21 @@ function(ov_check_pip_package)
     # quote '3.x' with \'3.x\'
     string(REPLACE "'" "\\'" REQ "${ARG_REQUIREMENT}")
 
-    if(PYTHONINTERP_FOUND)
+    if(Python3_Interpreter_FOUND)
         execute_process(
-            COMMAND ${PYTHON_EXECUTABLE} -c "import pkg_resources ; pkg_resources.require('${REQ}')"
+            COMMAND ${Python3_EXECUTABLE} -c "import pkg_resources ; pkg_resources.require('${REQ}')"
             RESULT_VARIABLE EXIT_CODE
             OUTPUT_VARIABLE OUTPUT_TEXT
             ERROR_VARIABLE ERROR_TEXT)
+    else()
+        set(EXIT_CODE 1)
     endif()
 
-    if(NOT EXIT_CODE EQUAL 0)
+    if(EXIT_CODE EQUAL 0)
+        set(${ARG_RESULT_VAR} ON PARENT_SCOPE)
+    else()
         set(${ARG_RESULT_VAR} OFF PARENT_SCOPE)
         message(${ARG_MESSAGE_MODE} "Python module '${REQ}' is missed, ${ARG_WARNING_MESSAGE}")
-    else()
-        set(${ARG_RESULT_VAR} ON PARENT_SCOPE)
     endif()
 endfunction()
 
@@ -65,7 +67,7 @@ endfunction()
 #                      [MESSAGE_MODE <WARNING | FATAL_ERROR | TRACE>])
 #
 function(ov_check_pip_packages)
-    find_host_package(PythonInterp 3 QUIET)
+    find_host_package(Python3 QUIET COMPONENTS Interpreter)
 
     set(oneValueOptionalArgs
         MESSAGE_MODE            # Set the type of message: { FATAL_ERROR | WARNING | ... }
@@ -95,22 +97,24 @@ function(ov_check_pip_packages)
         message(SEND_ERROR "Unexpected parameters have passed to the function: ${ARG_UNPARSED_ARGUMENTS}")
     endif()
 
-    if(PYTHONINTERP_FOUND)
+    if(Python3_Interpreter_FOUND)
         execute_process(
-            COMMAND ${PYTHON_EXECUTABLE} -c "
+            COMMAND ${Python3_EXECUTABLE} -c "
 from check_python_requirements import check_python_requirements ;
 check_python_requirements('${ARG_REQUIREMENTS_FILE}') ;
             "
-            WORKING_DIRECTORY "${IEDevScripts_DIR}"
+            WORKING_DIRECTORY "${OpenVINODeveloperScripts_DIR}"
             RESULT_VARIABLE EXIT_CODE
             OUTPUT_VARIABLE OUTPUT_TEXT
             ERROR_VARIABLE ERROR_TEXT)
+    else()
+        set(EXIT_CODE 1)
     endif()
 
-    if(NOT EXIT_CODE EQUAL 0)
+    if(EXIT_CODE EQUAL 0)
+        set(${ARG_RESULT_VAR} ON PARENT_SCOPE)
+    else()
         set(${ARG_RESULT_VAR} OFF PARENT_SCOPE)
         message(${ARG_MESSAGE_MODE} "Python requirement file ${ARG_REQUIREMENTS_FILE} is not installed, ${ARG_WARNING_MESSAGE}")
-    else()
-        set(${ARG_RESULT_VAR} ON PARENT_SCOPE)
     endif()
 endfunction()

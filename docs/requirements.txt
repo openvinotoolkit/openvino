@@ -26,6 +26,7 @@ pytest-html==3.1.1
 pytest-metadata==1.11.0
 py>=1.9.0
 pytz==2022.7
+pyyaml==6.0.1
 requests==2.31.0
 six==1.15.0
 snowballstemmer==2.1.0
@@ -43,6 +44,6 @@ sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-serializinghtml==1.1.5
 toml==0.10.2
-urllib3==1.26.5
+urllib3==1.26.18
 zipp==3.4.1
 docs/openvino_custom_sphinx_sitemap

@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "low_precision/layer_transformation.hpp"
+#include "low_precision/cleanup_transformation.hpp"
 
 namespace ov {
 namespace pass {
@@ -20,7 +20,7 @@ namespace low_precision {
  * [EliminateFakeQuantizeTransformation](@ref openvino_docs_OV_UG_lpt_EliminateFakeQuantizeTransformation) page
  * in the Inference Engine Developer Guide.
  */
-class LP_TRANSFORMATIONS_API EliminateFakeQuantizeTransformation : public LayerTransformation {
+class LP_TRANSFORMATIONS_API EliminateFakeQuantizeTransformation : public CleanupTransformation {
 public:
     OPENVINO_RTTI("EliminateFakeQuantizeTransformation", "0");
     EliminateFakeQuantizeTransformation(const Params& params = Params());

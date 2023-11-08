@@ -4,19 +4,67 @@
 
 #include "openvino/op/grid_sample.hpp"
 
+#include "element_visitor.hpp"
 #include "grid_sample_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/validation_util.hpp"
 #include "openvino/reference/grid_sample.hpp"
+#include "validation_util.hpp"
 
 namespace ov {
-op::v9::GridSample::GridSample(const Output<Node>& data, const Output<Node>& grid, const Attributes& attributes)
+namespace op {
+namespace v9 {
+
+struct Evaluate : element::NoAction<bool> {
+    using element::NoAction<bool>::visit;
+
+    template <element::Type_t ET, class T = fundamental_type_for<ET>>
+    static result_type visit(Tensor& output,
+                             const Tensor& data,
+                             const Tensor& grid,
+                             const Shape& data_shape,
+                             const Shape& grid_shape,
+                             const GridSample::Attributes& attributes) {
+        using namespace ov::element;
+        return IfTypeOf<f32>::apply<EvalByGridType>(grid.get_element_type(),
+                                                    output.data<T>(),
+                                                    data.data<const T>(),
+                                                    grid,
+                                                    data_shape,
+                                                    grid_shape,
+                                                    attributes);
+    }
+
+private:
+    struct EvalByGridType : public element::NoAction<bool> {
+        using element::NoAction<bool>::visit;
+
+        template <element::Type_t ET, class T, class G = fundamental_type_for<ET>>
+        static result_type visit(T* output,
+                                 const T* data,
+                                 const Tensor& grid,
+                                 const Shape& data_shape,
+                                 const Shape& grid_shape,
+                                 const GridSample::Attributes& attributes) {
+            reference::grid_sample(output,
+                                   data,
+                                   grid.data<const G>(),
+                                   data_shape,
+                                   grid_shape,
+                                   attributes.align_corners,
+                                   attributes.mode,
+                                   attributes.padding_mode);
+            return true;
+        }
+    };
+};
+
+GridSample::GridSample(const Output<Node>& data, const Output<Node>& grid, const Attributes& attributes)
     : op::Op{{data, grid}},
       m_attributes{attributes} {
     constructor_validate_and_infer_types();
 }
 
-bool op::v9::GridSample::visit_attributes(AttributeVisitor& visitor) {
+bool GridSample::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v9_GridSample_visit_attributes);
     visitor.on_attribute("align_corners", m_attributes.align_corners);
     visitor.on_attribute("mode", m_attributes.mode);
@@ -24,7 +72,7 @@ bool op::v9::GridSample::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-void op::v9::GridSample::validate_and_infer_types() {
+void GridSample::validate_and_infer_types() {
     OV_OP_SCOPE(v9_GridSample_validate_and_infer_types);
     if (!get_input_element_type(1).is_dynamic()) {
         NODE_VALIDATION_CHECK(this,
@@ -39,11 +87,35 @@ void op::v9::GridSample::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), out_shapes[0]);
 }
 
-std::shared_ptr<Node> op::v9::GridSample::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> GridSample::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v9_GridSample_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<op::v9::GridSample>(new_args.at(0), new_args.at(1), this->get_attributes());
+    return std::make_shared<GridSample>(new_args.at(0), new_args.at(1), get_attributes());
 }
+
+bool GridSample::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
+    OV_OP_SCOPE(v9_GridSample_evaluate);
+
+    OPENVINO_ASSERT(outputs.size() == 1);
+
+    const auto& out_shape = shape_infer(this, ov::util::get_tensors_partial_shapes(inputs)).front().to_shape();
+    outputs[0].set_shape(out_shape);
+
+    using namespace ov::element;
+    return IfTypeOf<f32>::apply<Evaluate>(inputs[0].get_element_type(),
+                                          outputs[0],
+                                          inputs[0],
+                                          inputs[1],
+                                          inputs[0].get_shape(),
+                                          inputs[1].get_shape(),
+                                          m_attributes);
+}
+
+bool GridSample::has_evaluate() const {
+    return get_input_element_type(0) == element::f32 && get_input_element_type(1) == element::f32;
+}
+}  // namespace v9
+}  // namespace op
 
 std::ostream& operator<<(std::ostream& s, const op::v9::GridSample::InterpolationMode& mode) {
     return s << as_string(mode);
@@ -54,7 +126,7 @@ std::ostream& operator<<(std::ostream& s, const op::v9::GridSample::PaddingMode&
 }
 
 template <>
-NGRAPH_API EnumNames<op::v9::GridSample::InterpolationMode>& EnumNames<op::v9::GridSample::InterpolationMode>::get() {
+OPENVINO_API EnumNames<op::v9::GridSample::InterpolationMode>& EnumNames<op::v9::GridSample::InterpolationMode>::get() {
     static auto enum_names =
         EnumNames<op::v9::GridSample::InterpolationMode>("op::v9::GridSample::InterpolationMode",
                                                          {{"bilinear", op::v9::GridSample::InterpolationMode::BILINEAR},
@@ -64,81 +136,12 @@ NGRAPH_API EnumNames<op::v9::GridSample::InterpolationMode>& EnumNames<op::v9::G
 }
 
 template <>
-NGRAPH_API EnumNames<op::v9::GridSample::PaddingMode>& EnumNames<op::v9::GridSample::PaddingMode>::get() {
+OPENVINO_API EnumNames<op::v9::GridSample::PaddingMode>& EnumNames<op::v9::GridSample::PaddingMode>::get() {
     static auto enum_names =
         EnumNames<op::v9::GridSample::PaddingMode>("op::v9::GridSample::PaddingMode",
                                                    {{"zeros", op::v9::GridSample::PaddingMode::ZEROS},
                                                     {"border", op::v9::GridSample::PaddingMode::BORDER},
                                                     {"reflection", op::v9::GridSample::PaddingMode::REFLECTION}});
     return enum_names;
-}
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace {
-
-template <element::Type_t DATA_ET, element::Type_t GRID_ET>
-bool evaluate_exec(const HostTensorPtr& output,
-                   const HostTensorPtr& data,
-                   const HostTensorPtr& grid,
-                   const op::v9::GridSample::Attributes& attributes) {
-    ov::reference::grid_sample(output->get_data_ptr<DATA_ET>(),
-                               data->get_data_ptr<DATA_ET>(),
-                               grid->get_data_ptr<GRID_ET>(),
-                               data->get_shape(),
-                               grid->get_shape(),
-                               attributes.align_corners,
-                               attributes.mode,
-                               attributes.padding_mode);
-    return true;
-}
-
-#define GRID_SAMPLE_TYPE_CASE(a, ...)                                 \
-    case element::Type_t::a: {                                        \
-        OV_OP_SCOPE(OV_PP_CAT3(evaluate_exec_grid_sample, _, a));     \
-        rc = evaluate_exec<DATA_ET, element::Type_t::a>(__VA_ARGS__); \
-    } break
-
-template <element::Type_t DATA_ET>
-bool evaluate(const HostTensorPtr& output,
-              const HostTensorPtr& data,
-              const HostTensorPtr& grid,
-              const op::v9::GridSample::Attributes& attributes) {
-    auto rc = true;
-    switch (grid->get_element_type()) {
-        GRID_SAMPLE_TYPE_CASE(f32, output, data, grid, attributes);
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
-}
-
-bool evaluate_grid_sample(const HostTensorPtr& output,
-                          const HostTensorPtr& data,
-                          const HostTensorPtr& grid,
-                          const op::v9::GridSample::Attributes& attributes) {
-    auto rc = true;
-    switch (output->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_grid_sample, f32, output, data, grid, attributes);
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
-}
-}  // namespace
-
-bool op::v9::GridSample::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    OV_OP_SCOPE(v9_GridSample_evaluate);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(inputs, 2), "Invalid GridSample input TensorVector.");
-    OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(outputs, 1), "Invalid GridSample output TensorVector.");
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
-    return evaluate_grid_sample(outputs[0], inputs[0], inputs[1], m_attributes);
-}
-
-bool op::v9::GridSample::has_evaluate() const {
-    return get_input_element_type(0) == element::f32 && get_input_element_type(1) == element::f32;
 }
 }  // namespace ov

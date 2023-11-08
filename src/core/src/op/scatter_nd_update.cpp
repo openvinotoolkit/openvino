@@ -64,13 +64,13 @@ bool evaluate_scatter(const HostTensorPtr& arg0,
     bool rc = true;
 
     switch (out->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_scatter, i32, arg0, arg1, arg2, out);
-        NGRAPH_TYPE_CASE(evaluate_scatter, i64, arg0, arg1, arg2, out);
-        NGRAPH_TYPE_CASE(evaluate_scatter, u32, arg0, arg1, arg2, out);
-        NGRAPH_TYPE_CASE(evaluate_scatter, u64, arg0, arg1, arg2, out);
-        NGRAPH_TYPE_CASE(evaluate_scatter, f16, arg0, arg1, arg2, out);
-        NGRAPH_TYPE_CASE(evaluate_scatter, f32, arg0, arg1, arg2, out);
-        NGRAPH_TYPE_CASE(evaluate_scatter, boolean, arg0, arg1, arg2, out);
+        OPENVINO_TYPE_CASE(evaluate_scatter, i32, arg0, arg1, arg2, out);
+        OPENVINO_TYPE_CASE(evaluate_scatter, i64, arg0, arg1, arg2, out);
+        OPENVINO_TYPE_CASE(evaluate_scatter, u32, arg0, arg1, arg2, out);
+        OPENVINO_TYPE_CASE(evaluate_scatter, u64, arg0, arg1, arg2, out);
+        OPENVINO_TYPE_CASE(evaluate_scatter, f16, arg0, arg1, arg2, out);
+        OPENVINO_TYPE_CASE(evaluate_scatter, f32, arg0, arg1, arg2, out);
+        OPENVINO_TYPE_CASE(evaluate_scatter, boolean, arg0, arg1, arg2, out);
     default:
         rc = false;
         break;

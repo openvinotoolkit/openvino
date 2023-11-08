@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "ngraph/coordinate_diff.hpp"
-#include "ngraph/op/util/attr_types.hpp"  // for op::PadMode
-#include "ngraph/shape.hpp"
+#include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/op/util/attr_types.hpp"  // for op::PadMode
 
 namespace ov {
 namespace reference {

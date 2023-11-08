@@ -7,8 +7,8 @@
 #include "ngraph/op/util/variable_context.hpp"
 #include "ngraph/pass/low_latency.hpp"
 
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 #include "shared_test_classes/subgraph/multiple_LSTMCell.hpp"
 

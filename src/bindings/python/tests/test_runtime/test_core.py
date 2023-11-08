@@ -65,7 +65,8 @@ def test_core_class(device):
 
     input_tensor = Tensor(input_data)
     results = request.infer({"data": input_tensor})
-    assert np.allclose(results[list(results)[0]], expected_output)
+    # convert node may be introduced by API 2.0, which brings some deviation
+    assert np.allclose(results[list(results)[0]], expected_output, 1e-4, 1e-4)
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
@@ -344,6 +345,7 @@ def test_unload_plugin(device):
 
 
 @pytest.mark.template_extension()
+@pytest.mark.dynamic_library()
 def test_add_extension_template_extension(device):
     core, model = get_model_with_template_extension()
     assert isinstance(model, Model)

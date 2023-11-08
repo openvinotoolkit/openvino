@@ -367,6 +367,10 @@ TEST_P(OVCheckChangePropComplieModleGetPropTests_DEVICE_ID, ChangeCorrectDeviceP
 
     auto device_ids = core->get_available_devices();
     for (auto&& device_name_with_id : device_ids) {
+        if (device_name_with_id.find(target_device) == std::string::npos) {
+            continue;
+        }
+
         std::string device_name = device_name_with_id;
         std::string device_id = "";
         auto pos = device_name_with_id.find('.');

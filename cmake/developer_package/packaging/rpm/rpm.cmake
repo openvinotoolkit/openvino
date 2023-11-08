@@ -36,11 +36,6 @@ macro(ov_rpm_cpack_set_dirs)
 
     # skipped during rpm packaging
     set(OV_CPACK_WHEELSDIR "tools")
-
-    # for BW compatibility
-    set(IE_CPACK_LIBRARY_PATH ${OV_CPACK_LIBRARYDIR})
-    set(IE_CPACK_RUNTIME_PATH ${OV_CPACK_RUNTIMEDIR})
-    set(IE_CPACK_ARCHIVE_PATH ${OV_CPACK_ARCHIVEDIR})
 endmacro()
 
 ov_rpm_cpack_set_dirs()
@@ -125,10 +120,9 @@ macro(ov_rpm_specific_settings)
     # group
     set(CPACK_RPM_PACKAGE_GROUP "Development/Libraries")
     # changelog file
-    # TODO: fix "error: bad date in %changelog"
-    # set(CPACK_RPM_CHANGELOG_FILE "${OpenVINO_SOURCE_DIR}/cmake/developer_package/packaging/rpm/changelog")
+    set(CPACK_RPM_CHANGELOG_FILE "${OpenVINO_SOURCE_DIR}/cmake/developer_package/packaging/rpm/changelog")
     # use rpmlint to check packages in post-build step
-    set(CPACK_POST_BUILD_SCRIPTS "${IEDevScripts_DIR}/packaging/rpm/post_build.cmake")
+    set(CPACK_POST_BUILD_SCRIPTS "${OpenVINODeveloperScripts_DIR}/packaging/rpm/post_build.cmake")
     # enable for debug cpack run
     ov_set_if_not_defined(CPACK_RPM_PACKAGE_DEBUG OFF)
 

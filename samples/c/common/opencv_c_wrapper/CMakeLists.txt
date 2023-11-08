@@ -28,6 +28,6 @@ target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/in
 
 set_target_properties(${TARGET_NAME} PROPERTIES FOLDER c_samples)
 
-if(COMMAND ov_add_clang_format_target AND NOT IE_SAMPLE_EXCLUDE_CLANG_FORMAT)
+if(COMMAND ov_add_clang_format_target)
     ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 endif()

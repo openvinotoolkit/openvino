@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_layer/shape_of.hpp"
 #include "shared_test_classes/single_layer/strided_slice.hpp"
@@ -84,15 +84,13 @@ protected:
         const auto inShapeShapeOf = inputDynamicShapes[0];
         const auto inShapeElt = inputDynamicShapes[1];
         ov::ParameterVector params;
-        for (auto&& shape : inputDynamicShapes) {
+        for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
-        }
-        auto paramOuts = helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
 
-        auto addOp = ngraph::builder::makeEltwise(paramOuts[1], paramOuts[1], ngraph::helpers::EltwiseTypes::ADD);
+        auto addOp = ngraph::builder::makeEltwise(params[1], params[1], ngraph::helpers::EltwiseTypes::ADD);
         addOp->set_friendly_name("add");
 
-        auto shapeOfOp1 = std::make_shared<ngraph::opset3::ShapeOf>(paramOuts[0], ElementType::i64);
+        auto shapeOfOp1 = std::make_shared<ngraph::opset3::ShapeOf>(params[0], ElementType::i64);
         shapeOfOp1->set_friendly_name("shapeof1");
         std::vector<int> reduce_axes = {0};
         auto reduceAxesNode = std::dynamic_pointer_cast<ngraph::Node>(

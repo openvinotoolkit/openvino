@@ -119,6 +119,7 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
                                         reordered_inputs[0],
                                         reordered_inputs[1],
                                         axis,
+                                        input_rank,
                                         out_shape,
                                         batch_dim,
                                         support_neg_ind);

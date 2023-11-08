@@ -47,9 +47,9 @@ macro(ov_cpack_settings)
         string(TOUPPER ${item} UPPER_COMP)
         # filter out some components, which are not needed to be wrapped to .deb package
         if(NOT OV_CPACK_COMP_${UPPER_COMP}_EXCLUDE_ALL AND
-           # skip OpenVINO Python API (pattern in form of "pyopenvino_python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}")
+           # skip OpenVINO Python API (pattern in form of "pyopenvino_python${Python3_VERSION_MAJOR}${Python3_VERSION_MINOR}")
            NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO}_python.*" AND
-           # because in case of .deb package, pyopenvino_package_python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR} is installed
+           # because in case of .deb package, pyopenvino_package_python${Python3_VERSION_MAJOR}${Python3_VERSION_MINOR} is installed
            (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
            # see ticket # 82605
            NOT item STREQUAL "gna" AND
@@ -347,18 +347,12 @@ macro(ov_cpack_settings)
     set(samples_build_deps "cmake, g++, gcc, libc6-dev, make, pkg-config")
     set(samples_build_deps_suggest "libopencv-core-dev, libopencv-imgproc-dev, libopencv-imgcodecs-dev")
     set(samples_opencl_suggest "ocl-icd-opencl-dev, opencl-headers")
-    # Ubuntu 18.04, Debian 9 cases have nlohmann-json-dev
-    # newer systems have nlohmann-json3-dev
-    # according to https://www.debian.org/doc/debian-policy/ch-relationships.html#syntax-of-relationship-fields
-    # we can use | (pipe) to provide alternative package names
-    set(json_library "nlohmann-json3-dev | nlohmann-json-dev")
 
     # c_samples / cpp_samples
     set(CPACK_COMPONENT_SAMPLES_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit C / C++ Samples")
     set(CPACK_COMPONENT_SAMPLES_DEPENDS "${OV_CPACK_COMP_CORE_DEV}")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_NAME "openvino-samples-${cpack_name_ver}")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_SUGGESTS "${samples_build_deps_suggest}, ${samples_opencl_suggest}, ${all_plugins_suggest}")
-    set(CPACK_DEBIAN_SAMPLES_PACKAGE_DEPENDS "libgflags-dev, zlib1g-dev, ${json_library}")
     # can be skipped with --no-install-recommends
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_RECOMMENDS "${samples_build_deps}")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_ARCHITECTURE "all")

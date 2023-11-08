@@ -79,6 +79,8 @@ public:
     /// Checks whether two memory objects represents the same physical memory
     virtual bool is_the_same_buffer(const memory& mem1, const memory& mem2) = 0;
 
+    virtual bool check_allocatable(const layout& layout, allocation_type type) = 0;
+
     /// Returns basic allocation type which will be used as a fallback when allocation type is not specified or device doesn't support some features.
     virtual allocation_type get_default_allocation_type() const = 0;
 
@@ -124,6 +126,9 @@ public:
 
     /// Returns the size of the larger of the GPU memory and CPU memory.
     uint64_t get_max_memory_size() const;
+
+    /// Returns the size of CPU memory.
+    uint64_t get_host_memory_size() const;
 
     /// Create stream object for current engine
     virtual stream_ptr create_stream(const ExecutionConfig& config) const = 0;

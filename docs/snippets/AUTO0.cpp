@@ -1,4 +1,6 @@
+//! [py_ov_property_import_header]
 #include <openvino/openvino.hpp>
+//! [py_ov_property_import_header]
 
 int main() {
 {

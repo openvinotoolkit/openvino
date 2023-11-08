@@ -14,22 +14,13 @@ from openvino.runtime import PartialShape, Dimension, Shape, Type  # pylint: dis
 import openvino
 from openvino.tools.ovc.error import Error
 from openvino.tools.ovc.help import get_convert_model_help_specifics
+from openvino.tools.ovc.moc_frontend.shape_utils import to_partial_shape, is_shape_type
+from openvino.tools.ovc.moc_frontend.type_utils import to_ov_type, is_type
 from openvino.tools.ovc.utils import get_mo_root_dir
 
 # Helper class for storing input cut information
 _InputCutInfo = namedtuple("InputCutInfo", ["name", "shape", "type", "value"], defaults=[None, None, None, None])
 
-def is_shape_type(value):
-    if isinstance(value, PartialShape):
-        return True
-    if isinstance(value, Shape):
-        return True
-    if isinstance(value, list) or isinstance(value, tuple):
-        for dim in value:
-            if not (isinstance(dim, Dimension) or isinstance(dim, int)):
-                return False
-        return True
-    return False
 
 def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type, type]):
     """
@@ -43,7 +34,7 @@ def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type,
     if isinstance(input, (tuple, list)) or is_shape_type(input):
         # If input represents list with shape, wrap it to list. Single PartialShape also goes to this condition.
         # Check of all dimensions will be in is_shape_type(val) method below
-        if len(input) > 0 and isinstance(input[0], (int, Dimension)) or isinstance(input, PartialShape):
+        if is_shape_type(input):
             input = [input]
 
         # Check values of tuple or list and collect to InputCutInfo
@@ -55,14 +46,14 @@ def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type,
                 if name is not None:
                     raise Exception("More than one input name provided: {}".format(input))
                 name = val
-            elif isinstance(val, (type, Type)):
+            elif is_type(val):
                 if inp_type is not None:
                     raise Exception("More than one input type provided: {}".format(input))
-                inp_type = val
+                inp_type = to_ov_type(val)
             elif is_shape_type(val) or val is None:
                 if shape is not None:
                     raise Exception("More than one input shape provided: {}".format(input))
-                shape = PartialShape(val) if val is not None else None
+                shape = to_partial_shape(val) if val is not None else None
             else:
                 raise Exception("Incorrect input parameters provided. Expected tuple with input name, "
                                 "input type or input shape. Got unknown object: {}".format(val))
@@ -72,13 +63,15 @@ def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type,
                              inp_type,
                              None)
     # Case when only type is set
-    if isinstance(input, (type, Type)):
-        return _InputCutInfo(None, None, input, None) # pylint: disable=no-member
+    if is_type(input):
+        return _InputCutInfo(None, None, to_ov_type(input), None) # pylint: disable=no-member
 
     # We don't expect here single unnamed value. If list of int is set it is considered as shape.
     # Setting of value is expected only using InputCutInfo or string analog.
 
     raise Exception("Unexpected object provided for input. Expected tuple, Shape, PartialShape, Type or str. Got {}".format(type(input)))
+
+
 
 def is_single_input(input: [tuple, list]):
     """
@@ -94,14 +87,14 @@ def is_single_input(input: [tuple, list]):
             if name is not None:
                 return False
             name = val
-        elif isinstance(val, (type, Type)):
+        elif is_type(val):
             if inp_type is not None:
                 return False
-            inp_type = val
+            inp_type = to_ov_type(val)
         elif is_shape_type(val):
             if shape is not None:
                 return False
-            shape = PartialShape(val)
+            shape = to_partial_shape(val)
         else:
             return False
     return True
@@ -427,7 +420,6 @@ def get_common_cli_options(argv, is_python_api_used):
     if not is_python_api_used:
         model_name = get_model_name_from_args(argv)
         d['output_model'] = ['- IR output name', lambda _: model_name]
-    d['log_level'] = '- Log level'
     d['input'] = ['- Input layers', lambda x: x if x else 'Not specified, inherited from the model']
     d['output'] = ['- Output layers', lambda x: x if x else 'Not specified, inherited from the model']
     return d

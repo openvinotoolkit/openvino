@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/quantized_mat_mul.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -73,8 +73,6 @@ void QuantMatMulTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape0)),
                                 std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape1))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     auto makeFakeQuantizeNode = [ngPrc](size_t quantLevels, QuantRange inputRange, QuantRange outputRange,
             QuantizationGranularity quantGranularity, const ngraph::Output<ngraph::Node> &in, std::vector<size_t> inputShape,
@@ -93,8 +91,8 @@ void QuantMatMulTest::SetUp() {
         return ngraph::builder::makeFakeQuantize(in, ngPrc, quantLevels, dataFqConstShapes, inputLowData, inputHighData, outputLowData, outputHighData);
     };
 
-    auto dataFq0 = makeFakeQuantizeNode(quantLevels0, inputRange0, outputRange0, quantGranularity0, paramOuts[0], inputShape0, fqPrec0);
-    auto dataFq1 = makeFakeQuantizeNode(quantLevels1, inputRange1, outputRange1, quantGranularity1, paramOuts[1], inputShape1, fqPrec1);
+    auto dataFq0 = makeFakeQuantizeNode(quantLevels0, inputRange0, outputRange0, quantGranularity0, params[0], inputShape0, fqPrec0);
+    auto dataFq1 = makeFakeQuantizeNode(quantLevels1, inputRange1, outputRange1, quantGranularity1, params[1], inputShape1, fqPrec1);
 
     auto MatMul = std::dynamic_pointer_cast<ngraph::opset3::MatMul>(
             ngraph::builder::makeMatMul(dataFq0, dataFq1));

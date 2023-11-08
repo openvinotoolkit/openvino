@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_layer_tests/convolution.hpp"
+#include "single_op_tests/convolution.hpp"
 
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using ov::test::ConvolutionLayerTest;
 
 namespace {
 
 // ! [test_convolution:declare_parameters]
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::FP16,
+const std::vector<ov::element::Type> model_types = {
+    ov::element::f32,
+    ov::element::f16,
 };
 
 /* ============= 2D Convolution ============= */
@@ -46,30 +46,24 @@ const auto conv2DParams_AutoPadValid = ::testing::Combine(::testing::ValuesIn(ke
                                                           ::testing::Values(ov::op::PadType::VALID));
 
 // ! [test_convolution:instantiate]
-INSTANTIATE_TEST_SUITE_P(Convolution2D_ExplicitPadding,
-                         ConvolutionLayerTest,
-                         ::testing::Combine(conv2DParams_ExplicitPadding,
-                                            ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(std::vector<size_t>({1, 3, 30, 30})),
-                                            ::testing::Values(ov::test::utils::DEVICE_TEMPLATE)),
-                         ConvolutionLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    Convolution2D_ExplicitPadding,
+    ConvolutionLayerTest,
+    ::testing::Combine(conv2DParams_ExplicitPadding,
+                       ::testing::ValuesIn(model_types),
+                       ::testing::Values(ov::test::static_shapes_to_test_representation({{1, 3, 30, 30}})),
+                       ::testing::Values(ov::test::utils::DEVICE_TEMPLATE)),
+    ConvolutionLayerTest::getTestCaseName);
 // ! [test_convolution:instantiate]
 
-INSTANTIATE_TEST_SUITE_P(Convolution2D_AutoPadValid,
-                         ConvolutionLayerTest,
-                         ::testing::Combine(conv2DParams_AutoPadValid,
-                                            ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(std::vector<size_t>({1, 3, 30, 30})),
-                                            ::testing::Values(ov::test::utils::DEVICE_TEMPLATE)),
-                         ConvolutionLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    Convolution2D_AutoPadValid,
+    ConvolutionLayerTest,
+    ::testing::Combine(conv2DParams_AutoPadValid,
+                       ::testing::ValuesIn(model_types),
+                       ::testing::Values(ov::test::static_shapes_to_test_representation({{1, 3, 30, 30}})),
+                       ::testing::Values(ov::test::utils::DEVICE_TEMPLATE)),
+    ConvolutionLayerTest::getTestCaseName);
 
 /* ============= 3D Convolution ============= */
 
@@ -95,28 +89,22 @@ const auto conv3DParams_AutoPadValid = ::testing::Combine(::testing::ValuesIn(ke
                                                           ::testing::Values(5),
                                                           ::testing::Values(ov::op::PadType::VALID));
 
-INSTANTIATE_TEST_SUITE_P(smoke_Convolution3D_ExplicitPadding,
-                         ConvolutionLayerTest,
-                         ::testing::Combine(conv3DParams_ExplicitPadding,
-                                            ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(std::vector<size_t>({1, 3, 10, 10, 10})),
-                                            ::testing::Values(ov::test::utils::DEVICE_TEMPLATE)),
-                         ConvolutionLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_Convolution3D_ExplicitPadding,
+    ConvolutionLayerTest,
+    ::testing::Combine(conv3DParams_ExplicitPadding,
+                       ::testing::ValuesIn(model_types),
+                       ::testing::Values(ov::test::static_shapes_to_test_representation({{1, 3, 10, 10, 10}})),
+                       ::testing::Values(ov::test::utils::DEVICE_TEMPLATE)),
+    ConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(nightly_Convolution3D_AutoPadValid,
-                         ConvolutionLayerTest,
-                         ::testing::Combine(conv3DParams_AutoPadValid,
-                                            ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(std::vector<size_t>({1, 3, 10, 10, 10})),
-                                            ::testing::Values(ov::test::utils::DEVICE_TEMPLATE)),
-                         ConvolutionLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    nightly_Convolution3D_AutoPadValid,
+    ConvolutionLayerTest,
+    ::testing::Combine(conv3DParams_AutoPadValid,
+                       ::testing::ValuesIn(model_types),
+                       ::testing::Values(ov::test::static_shapes_to_test_representation({{1, 3, 10, 10, 10}})),
+                       ::testing::Values(ov::test::utils::DEVICE_TEMPLATE)),
+    ConvolutionLayerTest::getTestCaseName);
 
 }  // namespace

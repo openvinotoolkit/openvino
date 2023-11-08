@@ -6,8 +6,8 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_layer/tile.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -93,13 +93,12 @@ protected:
         }
         functionParams.front()->set_friendly_name("data");
 
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(functionParams));
         std::shared_ptr<ov::Node> tileNode;
         if (isRepeatsConst) {
-            tileNode = std::make_shared<ov::op::v0::Tile>(paramOuts[0],
+            tileNode = std::make_shared<ov::op::v0::Tile>(functionParams[0],
                     ov::op::v0::Constant::create(ov::element::i64, { repeatsData.size() }, repeatsData));
         } else {
-            tileNode = std::make_shared<ov::op::v0::Tile>(paramOuts[0], paramOuts[1]);
+            tileNode = std::make_shared<ov::op::v0::Tile>(functionParams[0], functionParams[1]);
         }
 
         ngraph::ResultVector results;

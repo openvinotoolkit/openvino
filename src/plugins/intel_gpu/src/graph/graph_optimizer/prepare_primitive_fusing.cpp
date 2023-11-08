@@ -60,6 +60,7 @@ void prepare_primitive_fusing::run(program& p) {
     fuse_sigmoid_mul_to_swish(p);
     fuse_bias(p);
     fuse_simple_primitives(p);
+    fuse_constant_transposes(p);
     optimize_fused_ops(p);
 }
 
@@ -353,14 +354,13 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 }
                 case data_types::f16: {
                     cldnn::memory_ptr new_mem = p.get_engine().allocate_memory(original_mem->get_layout());
-                    mem_lock<uint16_t, mem_lock_type::write> new_bias_mem(new_mem, p.get_stream());
-                    mem_lock<uint16_t, mem_lock_type::read> original_bias_mem(original_mem, p.get_stream());
-                    mem_lock<uint16_t, mem_lock_type::read> second_bias_mem(second_mem, p.get_stream());
-                    uint16_t* original_data = original_bias_mem.data();
-                    uint16_t* new_data = second_bias_mem.data();
+                    mem_lock<ov::float16, mem_lock_type::write> new_bias_mem(new_mem, p.get_stream());
+                    mem_lock<ov::float16, mem_lock_type::read> original_bias_mem(original_mem, p.get_stream());
+                    mem_lock<ov::float16, mem_lock_type::read> second_bias_mem(second_mem, p.get_stream());
+                    ov::float16* original_data = original_bias_mem.data();
+                    ov::float16* new_data = second_bias_mem.data();
                     for (size_t i = 0; i < original_bias_mem.size(); i++) {
-                        float new_val = half_to_float(original_data[i]) + half_to_float(new_data[i]);
-                        new_bias_mem[i] = float_to_half(new_val);
+                        new_bias_mem[i] = original_data[i] + new_data[i];
                     }
 
                     original_node.attach_memory(new_mem);
@@ -852,7 +852,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto& input_lo = quantize_node.get_dependency(1);
             auto& input_hi = quantize_node.get_dependency(2);
             bool should_fuse = input_data.is_type<binary_convolution>() &&
-                               ((out_dt == data_types::bin &&
+                               ((out_dt == data_types::u1 &&
                                quantize_node.get_dependencies().size() == 5 &&
                                ((in_layout.feature() == input_lo.get_output_layout().feature() &&
                                  in_layout.feature() == input_hi.get_output_layout().feature()) ||
@@ -1184,6 +1184,143 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
     // than fused node one
     if (recalc_processing_order)
         p.get_processing_order().calc_processing_order(p);
+}
+
+void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
+    std::function<const program_node*(const program_node*)> get_weightable_node =
+        [&get_weightable_node](const program_node* node) -> const program_node* {
+        if (node->get_users().empty())
+            return nullptr;
+
+        const auto* next_node = node->get_users().front();
+
+        if (next_node->is_type<fully_connected>() ||
+            next_node->is_type<deconvolution>() ||
+            next_node->is_type<convolution>() ||
+            next_node->is_type<binary_convolution>() ||
+            next_node->is_type<deformable_conv>()) {
+            size_t weights_offset = next_node->get_primitive()->input_size();
+            std::vector<size_t> valid_weights_indices = {next_node->get_primitive()->input_size()};
+            if (next_node->is_type<fully_connected>()) {
+                auto& fc = next_node->as<fully_connected>();
+                auto desc = fc.get_primitive();
+                if (desc->compressed_weights) {
+                    size_t scale_idx = weights_offset + (fc.bias_term() ? 2 : 1);
+                    valid_weights_indices.push_back(scale_idx);
+                    if (!desc->decompression_zero_point.empty()) {
+                        valid_weights_indices.push_back(scale_idx + 1);
+                    }
+                }
+            }
+
+            for (auto& widx : valid_weights_indices) {
+                if (&next_node->get_dependency(widx) == node) {
+                    return next_node;
+                }
+            }
+            return nullptr;
+        }
+
+        if (node->is_constant() && node->get_users().size() == 1)
+            return get_weightable_node(next_node);
+
+        return nullptr;
+    };
+
+    auto convert_data_format_by_order = [](format fmt, const std::vector<uint16_t>& order) -> format {
+        const auto& old_order = fmt.dims_order();
+        auto new_order = old_order;
+
+        for (size_t i = 0; i < order.size(); ++i) {
+            new_order[i] = old_order[order[i]];
+        }
+
+        return format::find_format(new_order, fmt.block_sizes());
+    };
+
+    std::vector<std::pair<program_node*, program_node*>> to_replace_nodes;
+
+    auto& proc_order = p.get_processing_order();
+    auto itr = proc_order.begin();
+    while (itr != proc_order.end()) {
+        auto& node = *itr++;
+
+        if (!node->is_type<permute>())
+            continue;
+
+        auto& permute_node = node->as<permute>();
+
+        auto weightable_node = get_weightable_node(&permute_node);
+
+        if (weightable_node == nullptr || !permute_node.get_dependency(0).is_type<data>())
+            continue;
+
+        auto& prev_const = permute_node.get_dependency(0).as<data>();
+
+        if (prev_const.get_users().size() != 1)
+            continue;
+
+        auto permute_order = permute_node.get_primitive()->permute_order;
+        // Assumption that fc weights will be reshaped to 2d
+        if (permute_order.size() != 2 && weightable_node->is_type<fully_connected>()) {
+            if (permute_order == std::vector<uint16_t>{0, 2, 1} ||
+                permute_order == std::vector<uint16_t>{0, 1, 3, 2}) {
+                permute_order = {1, 0};
+            } else {
+                continue;
+            }
+        }
+
+        format new_fmt = format::any;
+        try {
+            new_fmt = convert_data_format_by_order(prev_const.get_output_layout().format, permute_order);
+        } catch(ov::Exception&) {
+            continue;
+        }
+
+        layout updated_const_layout = prev_const.get_output_layout();
+        updated_const_layout.format = new_fmt;
+        updated_const_layout.set_partial_shape(permute_node.get_output_pshape());
+
+        p.extract_and_remove(permute_node);
+
+        const auto& new_mem = p.get_engine().reinterpret_buffer(prev_const.get_attached_memory(), updated_const_layout);
+
+        auto new_const_prim = std::make_shared<data>(prev_const.id() + "_fused_with_transpose", new_mem);
+        auto& new_const_node = p.get_or_create(new_const_prim);
+
+        p.replace(prev_const, new_const_node);
+        new_const_node.recalc_output_layout(false);
+
+        // Add format reorder in case of onednn to avoid overhead during execution on weights memory allocation
+        if (_lo.get_preferred_impl_type(const_cast<program_node&>(*weightable_node), format::any /*dummy*/) == impl_types::onednn) {
+            auto next_node = new_const_node.get_users().front();
+            bool can_be_fused = next_node->is_type<reorder>() &&
+                                next_node->as<reorder>().is_simple_reorder() &&
+                                next_node->get_users().size() == 1;
+            if (can_be_fused) {
+                layout reorder_layout = next_node->get_output_layout();
+                reorder_layout.format = format::bfyx;
+
+                auto new_reorder = std::make_shared<reorder>(next_node->id() + "_reorder_fmt", new_const_node.id(), reorder_layout);
+                auto& new_reorder_node = p.get_or_create(new_reorder);
+                to_replace_nodes.emplace_back(std::make_pair(next_node, &new_reorder_node));
+            } else {
+                layout reorder_layout = new_const_node.get_output_layout();
+                reorder_layout.format = format::bfyx;
+
+                auto new_reorder = std::make_shared<reorder>(new_const_node.id() + "_reorder_fmt", new_const_node.id(), reorder_layout);
+                auto& new_reorder_node = p.get_or_create(std::move(new_reorder));
+                p.add_intermediate(new_reorder_node, *new_const_node.get_users().front(), new_const_node);
+                new_reorder_node.recalc_output_layout(false);
+            }
+        }
+    }
+
+    for (auto& nodes : to_replace_nodes) {
+        p.replace(*nodes.first, *nodes.second);
+        nodes.second->recalc_output_layout(false);
+    }
 }
 
 void prepare_primitive_fusing::optimize_fused_ops(program& p) {

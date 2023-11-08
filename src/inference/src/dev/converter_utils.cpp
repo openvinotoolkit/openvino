@@ -346,7 +346,7 @@ public:
                                                      const std::map<std::string, std::string>& config) const override {
         auto res = m_plugin->query_model(ov::legacy_convert::convert_model(network, m_plugin->is_new_api()),
                                          ov::any_copy(config));
-        ie::QueryNetworkResult ret;
+        InferenceEngine::QueryNetworkResult ret;
         if (!network.getFunction() || res.empty()) {
             ret.rc = InferenceEngine::GENERAL_ERROR;
             return ret;
@@ -495,7 +495,7 @@ class IInferRequestInternalWrapper : public InferenceEngine::IInferRequestIntern
             if (get_legacy_name_from_port(port) == legacy_name)
                 return port;
         }
-        OPENVINO_ASSERT(false, "Cannot find port with name: ", legacy_name);
+        OPENVINO_THROW("Failed to find input or output with name: \'", legacy_name, "\'");
     }
 
 public:

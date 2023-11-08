@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/mat_mul.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <string>
 
 using namespace ngraph;
@@ -122,8 +122,7 @@ protected:
         if (secondaryInputType == helpers::InputLayerType::PARAMETER) {
             params.push_back(std::dynamic_pointer_cast<opset1::Parameter>(matrixB));
         }
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
-        auto matMul = builder::makeMatMul(paramOuts[0], matrixB, transpA, transpB);
+        auto matMul = builder::makeMatMul(params[0], matrixB, transpA, transpB);
         auto makeFunction = [](const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) {
             ngraph::ResultVector results;
 

@@ -281,8 +281,8 @@ def create_pytorch_jit_script_function(tmp_dir):
         return torch.sigmoid(torch.relu(x * y))
 
     inp_shape = PartialShape([Dimension(1, -1), Dimension(-1, 5), 10])
-    ref_model = make_ref_pt_model_two_inputs(inp_shape, dtype=Type.dynamic)
-    return scripted_fn, ref_model, {'input': [(inp_shape), (inp_shape)]}
+    ref_model = make_ref_pt_model_two_inputs(inp_shape)
+    return scripted_fn, ref_model, {'input': [(inp_shape, Type.f32), (inp_shape, Type.f32)]}
 
 
 def create_pytorch_nn_module_layout_list(tmp_dir):
@@ -469,9 +469,9 @@ def create_pytorch_nn_module_scale_list_compression_enabled(tmp_dir):
 
 def create_pytorch_nn_module_shapes_list_static(tmp_dir):
     pt_model = make_pt_model_two_inputs()
-    ref_model = make_ref_pt_model_two_inputs([1, 3, 20, 20], dtype=Type.dynamic)
+    ref_model = make_ref_pt_model_two_inputs([1, 3, 20, 20])
 
-    return pt_model, ref_model, {'input': [[1, 3, 20, 20], [1, 3, 20, 20]]}
+    return pt_model, ref_model, {'input': [([1, 3, 20, 20], Type.f32), ([1, 3, 20, 20], Type.f32)]}
 
 
 def create_pytorch_nn_module_shapes_list_static_via_input(tmp_dir):
@@ -487,17 +487,16 @@ def create_pytorch_nn_module_shapes_list_dynamic(tmp_dir):
                   [-1, 3, 20, Dimension(-1, 20)]]
 
     param1 = ov.opset8.parameter(PartialShape(
-        inp_shapes[0]), name="x", dtype=Type.dynamic)
+        inp_shapes[0]), name="x", dtype=Type.f32)
     param2 = ov.opset8.parameter(PartialShape(
-        inp_shapes[1]), name="y", dtype=Type.dynamic)
-    cl = ov.opset8.convert_like(param2, param1)
-    mul = ov.opset8.multiply(param1, cl)
+        inp_shapes[1]), name="y", dtype=Type.f32)
+    mul = ov.opset8.multiply(param1, param2)
     relu = ov.opset8.relu(mul)
     sigm = ov.opset8.sigmoid(relu)
 
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
-    return pt_model, ref_model, {'input': inp_shapes}
+    return pt_model, ref_model, {'input': [(inp_shapes[0], Type.f32), (inp_shapes[1], Type.f32)]}
 
 
 def create_pytorch_nn_module_shapes_list_dynamic_via_input(tmp_dir):
@@ -520,8 +519,8 @@ def create_pytorch_nn_module_shapes_list_dynamic_via_input(tmp_dir):
 
 def create_pytorch_nn_module_shapes_list_dynamic_single_input(tmp_dir):
     pt_model = make_pt_model_one_input()
-    inp_shapes = [[Dimension(-1), 3, 20, Dimension(20, -1)]]
-    ref_model = make_ref_pt_model_one_input(inp_shapes[0], dtype=Type.dynamic)
+    inp_shapes = [[Dimension(-1), 3, 20, Dimension(20, -1)], Type.f32]
+    ref_model = make_ref_pt_model_one_input(inp_shapes[0])
     return pt_model, ref_model, {'input': inp_shapes}
 
 
@@ -534,8 +533,8 @@ def create_pytorch_nn_module_shapes_list_dynamic_single_input_via_input(tmp_dir)
 
 def create_pytorch_nn_module_shapes_list_static_single_input(tmp_dir):
     pt_model = make_pt_model_one_input()
-    inp_shapes = [[1, 3, 20, 20]]
-    ref_model = make_ref_pt_model_one_input(inp_shapes[0], dtype=Type.dynamic)
+    inp_shapes = [[1, 3, 20, 20], Type.f32]
+    ref_model = make_ref_pt_model_one_input(inp_shapes[0])
     return pt_model, ref_model, {'input': inp_shapes}
 
 
@@ -1145,3 +1144,75 @@ class ConvertRaises(unittest.TestCase):
         with self.assertRaisesRegex(Exception, ".*Cannot recognize input model.*"):
             with tempfile.NamedTemporaryFile() as tmpfile:
                 convert_model(tmpfile.name)
+
+
+def create_model_three_inputs():
+    from torch import nn
+
+    class NeuralNetwork(nn.Module):
+        def __init__(self):
+            super(NeuralNetwork, self).__init__()
+            self.linear_relu_stack = nn.Sequential(
+                nn.ReLU(),
+                nn.Sigmoid(),
+            )
+
+        def forward(self, x, y, z):
+            out = self.linear_relu_stack(x + y + z),
+            return out
+    return NeuralNetwork()
+
+
+def make_ref_model_three_inputs(shape, dtype=np.float32):
+    x = ov.opset8.parameter(PartialShape(
+        shape), name="x", dtype=dtype)
+    y = ov.opset8.parameter(PartialShape(
+        shape), name="y", dtype=dtype)
+    z = ov.opset8.parameter(PartialShape(
+        shape), name="z", dtype=dtype)
+    add1 = ov.opset8.add(x, y)
+    add2 = ov.opset8.add(add1, z)
+
+    relu = ov.opset8.relu(add2)
+
+    if dtype not in [np.float32, Type.dynamic]:
+        relu = ov.opset8.convert(relu, np.float32)
+
+    sigm = ov.opset8.sigmoid(relu)
+
+    parameter_list = [x, y, z]
+    model = Model([sigm], parameter_list, "test")
+    return model
+
+
+class TestPytorchConversionParams(CommonMOConvertTest):
+
+    test_data = [
+        {'params_test': {'input': [(torch.Size([2, 3, 4]), torch.float32),
+                                   (torch.empty(2, 3, 4).size(), torch.float32),
+                                   (torch.empty(2, 3, 4).shape, torch.float32)]},
+         'fw_model': create_model_three_inputs(),
+         'ref_model': make_ref_model_three_inputs([2,3,4], np.float32)},
+        {'params_test': {'input': [(torch.Size([5, 2]), torch.int32),
+                                   (torch.empty(5, 2).size(), torch.int32),
+                                   (torch.empty(5, 2).shape, torch.int32)]},
+         'fw_model': create_model_three_inputs(),
+         'ref_model': make_ref_model_three_inputs([5, 2], np.int32)},
+        {'params_test': {'input': [(torch.Size([1, 3, 5]), torch.float32)]},
+         'fw_model': make_pt_model_one_input(),
+         'ref_model': make_ref_pt_model_one_input([1, 3, 5], np.float32)},
+        {'params_test': {'input': [(torch.empty(7, 3).size(), torch.int32)]},
+         'fw_model': make_pt_model_one_input(),
+         'ref_model': make_ref_pt_model_one_input([7, 3], np.int32)},
+    ]
+
+    @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.nightly
+    def test_conversion_params(self, params, ie_device, precision, ir_version,
+                                 temp_dir, use_new_frontend, use_old_api):
+        fw_model = params['fw_model']
+        test_params = params['params_test']
+        ref_model = params['ref_model']
+
+        test_params.update({'input_model': fw_model})
+        self._test_by_ref_graph(temp_dir, test_params, ref_model, compare_tensor_names=False)

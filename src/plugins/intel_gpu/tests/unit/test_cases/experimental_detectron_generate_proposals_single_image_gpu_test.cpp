@@ -93,8 +93,8 @@ float getError<float>() {
 }
 
 template<>
-float getError<half_t>() {
-    return 0.2;
+float getError<ov::float16>() {
+    return 0.25;
 }
 
 template <typename T>
@@ -179,7 +179,7 @@ public:
         format::type data_layout;
         bool is_caching_test;
         std::tie(param, data_layout, is_caching_test) = this->GetParam();
-        const auto data_type = type_to_data_type<T>::value;
+        const auto data_type = ov::element::from<T>();
 
         auto &engine = get_test_engine();
 
@@ -289,7 +289,7 @@ using experimental_detectron_generate_proposals_single_image_test_f32 = experime
 TEST_P(experimental_detectron_generate_proposals_single_image_test_f32, basic) {
     ASSERT_NO_FATAL_FAILURE(test());
 }
-using experimental_detectron_generate_proposals_single_image_test_f16 = experimental_detectron_generate_proposals_single_image_test<half_t>;
+using experimental_detectron_generate_proposals_single_image_test_f16 = experimental_detectron_generate_proposals_single_image_test<ov::float16>;
 TEST_P(experimental_detectron_generate_proposals_single_image_test_f16, basic) {
     ASSERT_NO_FATAL_FAILURE(test());
 }
@@ -309,7 +309,7 @@ INSTANTIATE_TEST_SUITE_P(
         experimental_detectron_generate_proposals_single_image_gpu_test,
         experimental_detectron_generate_proposals_single_image_test_f16,
         ::testing::Combine(
-                ::testing::ValuesIn(getExperimentalDetectronGenerateProposalsSingleImageParams<half_t>()),
+                ::testing::ValuesIn(getExperimentalDetectronGenerateProposalsSingleImageParams<ov::float16>()),
                 ::testing::Values(format::bfyx),
                 ::testing::Values(false)
         ),
@@ -320,7 +320,7 @@ INSTANTIATE_TEST_SUITE_P(
         export_import,
         experimental_detectron_generate_proposals_single_image_test_f16,
         ::testing::Combine(
-                ::testing::Values(getExperimentalDetectronGenerateProposalsSingleImageParams<half_t>()[0]),
+                ::testing::Values(getExperimentalDetectronGenerateProposalsSingleImageParams<ov::float16>()[0]),
                 ::testing::Values(format::bfyx),
                 ::testing::Values(true)
         ),

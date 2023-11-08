@@ -12,7 +12,7 @@
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
@@ -113,11 +113,8 @@ protected:
         std::shared_ptr<Node> H;
 
         ov::ParameterVector inputParams;
-        for (auto&& shape : inputDynamicShapes) {
+        for (auto&& shape : inputDynamicShapes)
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrec, shape));
-        }
-
-        const auto outputNodes = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(inputParams));
 
         auto makeDataFQ = [](const ngraph::Output<Node>& input) {
             const auto fqLevels = 256;
@@ -126,10 +123,10 @@ protected:
                                                       {-128.f/127}, {1.f});
         };
 
-        auto X_FQ = makeDataFQ(outputNodes[0]);
+        auto X_FQ = makeDataFQ(inputParams[0]);
 
         if (quantizedHiddenState) {
-            H = makeDataFQ(outputNodes[1]);
+            H = makeDataFQ(inputParams[1]);
         } else {
             H = ngraph::builder::makeConstant(ngraph::element::f32, inputDynamicShapes[1].get_shape(),  {}, true, 1.f, -1.f);
         }
@@ -159,7 +156,7 @@ protected:
 
         if (rnnType == "LSTMSequence") {
             hasCell = true;
-            auto C = outputNodes[cellIdx];
+            auto C = inputParams[cellIdx];
             rnnCellOp = std::make_shared<ov::op::v5::LSTMSequence>(
                 X_FQ, H, C, seq_lengths, W_FQ, R_FQ, B,
                 hiddenSize, op::RecurrentSequenceDirection::FORWARD);
