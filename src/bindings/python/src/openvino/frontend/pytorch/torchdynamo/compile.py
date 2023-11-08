@@ -15,7 +15,7 @@ from torch.fx import GraphModule
 from openvino.frontend import FrontEndManager
 from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 from openvino.runtime import Core, Type, PartialShape, serialize
-from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device
+from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_config
 
 from typing import Callable, Optional
 
@@ -64,6 +64,12 @@ def openvino_compile_cached_model(cached_model_path, *example_inputs, options):
     om.validate_nodes_and_infer_types()
 
     core.set_property({'CACHE_DIR': _get_cache_dir(options) + '/blob'})
+
+    config = _get_config(options)
+
+    if config:
+        for config_name, value in config.items():
+            core.set_property({config_name: value})
 
     compiled_model = core.compile_model(om, _get_device(options))
 

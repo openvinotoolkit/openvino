@@ -44,3 +44,7 @@ def _get_model_caching(options) -> Optional[Any]:
         return options["model_caching"]
     else:
         return os.getenv("OPENVINO_TORCH_MODEL_CACHING")
+
+def _get_config(options) -> Optional[Any]:
+    if options is not None and "config" in options:
+        return options["config"]
