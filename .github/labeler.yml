@@ -55,8 +55,12 @@
         '!thirdparty/**/CMakeLists.txt']
 
 'category: docs':
-- 'docs/**/*'
 - '**/*.md'
+- any: ['docs/**/*',
+        '!docs/snippets/**/*']
+
+'category: docs_snippets':
+- 'docs/snippets/**/*'
 
 'category: extensions':
 - 'src/core/include/openvino/core/extension.hpp'
