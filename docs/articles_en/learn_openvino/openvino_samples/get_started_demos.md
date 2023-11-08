@@ -21,7 +21,7 @@ If you install OpenVINO Runtime via archive files, sample applications are creat
 * ``<INSTALL_DIR>/samples/c``
 
 .. note::
-   If you install OpenVINO via PyPI, you can still download `the OpenVINO repository <https://github.com/openvinotoolkit/openvino/>`__ and use samples from ``samples/python``.
+   If you install OpenVINO without samples, you can still get them directly from `the OpenVINO repository <https://github.com/openvinotoolkit/openvino/>`__.
 
 Once the prerequisites have been installed, perform the following steps:
 
