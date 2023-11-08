@@ -31,6 +31,7 @@
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 #include "paddle_fw_node.hpp"
 #include "paddle_utils.hpp"
@@ -139,8 +140,8 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 std::istream* variant_to_stream_ptr(const ov::Any& variant, std::fstream& fs, std::stringstream& ss) {
     if (variant.is<std::istream*>()) {
         return variant.as<std::istream*>();
-    } else if (variant.is<std::shared_ptr<ngraph::runtime::AlignedBuffer>>()) {
-        auto& aligned_weights_buffer = variant.as<std::shared_ptr<ngraph::runtime::AlignedBuffer>>();
+    } else if (variant.is<std::shared_ptr<ov::AlignedBuffer>>()) {
+        auto& aligned_weights_buffer = variant.as<std::shared_ptr<ov::AlignedBuffer>>();
         ss.write(aligned_weights_buffer->get_ptr<char>(), aligned_weights_buffer->size());
         FRONT_END_INITIALIZATION_CHECK(ss && ss.good(), "Cannot open ov::tensor.");
         return &ss;
