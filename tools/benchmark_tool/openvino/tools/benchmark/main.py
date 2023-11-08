@@ -26,7 +26,8 @@ def parse_and_check_command_line():
     def arg_not_empty(arg_value,empty_value):
         return not arg_value is None and not arg_value == empty_value
 
-    args, parser = parse_args()
+    parser = parse_args()
+    args = parser.parse_args()
 
     if args.latency_percentile < 1 or args.latency_percentile > 100:
         parser.print_help()
