@@ -76,7 +76,7 @@ Quantization is the process of converting the weights and activation values in a
 
 Quantization-aware training inserts nodes into the neural network during training that simulate the effect of lower precision. This allows the training algorithm to consider quantization errors as part of the overall training loss that gets minimized during training. The network is then able to achieve enhanced accuracy when quantized.
 
-The officially supported method of quantization in NNCF is uniform 8-bit quantization. This means all the weights and activation functions in the neural network are converted to 8-bit values. See the :doc:`Quantization-ware Training guide <qat_introduction>` to learn more.
+The officially supported method of quantization in NNCF is uniform 8-bit quantization. This means all the weights and activation functions in the neural network are converted to 8-bit values. See the :doc:`Quantization-aware Training guide <qat_introduction>` to learn more.
 
 Filter pruning
 --------------------
