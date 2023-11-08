@@ -14,7 +14,7 @@ To use OpenVINO samples, you need to install OpenVINO using one of the distribut
 * :doc:`Docker image <openvino_docs_install_guides_installing_openvino_docker>`
 * `Build from source <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md>`__
 
-If you installed OpenVINO Runtime via archive files, sample applications for Python, C++ and C are created in the following directories:
+If you install OpenVINO Runtime via archive files, sample applications are created in the following directories:
 
 * ``<INSTALL_DIR>/samples/python``
 * ``<INSTALL_DIR>/samples/cpp``
