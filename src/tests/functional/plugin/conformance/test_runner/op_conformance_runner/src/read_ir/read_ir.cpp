@@ -199,16 +199,16 @@ void ReadIRTest::SetUp() {
             if (pos != std::string::npos) {
                 op_name = splittedFilename[2].substr(0, pos);
                 op_version += splittedFilename[2].substr(pos + 1);
-                if (ov::test::conformance::unique_ops.find(op_name) != ov::test::conformance::unique_ops.end() &&
-                    std::find(ov::test::conformance::unique_ops[op_name].begin(),
-                              ov::test::conformance::unique_ops[op_name].end(),
-                              op_version) != ov::test::conformance::unique_ops[op_name].end()) {
+                if (ov::test::op_conformance::unique_ops.find(op_name) != ov::test::op_conformance::unique_ops.end() &&
+                    std::find(ov::test::op_conformance::unique_ops[op_name].begin(),
+                              ov::test::op_conformance::unique_ops[op_name].end(),
+                              op_version) != ov::test::op_conformance::unique_ops[op_name].end()) {
                     pgLink->set_custom_field("opName", op_name, true);
                     pgLink->set_custom_field("opSet", op_version, true);
                 }
             } else {
                 for (const auto& path_part : splittedFilename) {
-                    if (ov::test::conformance::unique_ops.find(path_part) != ov::test::conformance::unique_ops.end()) {
+                    if (ov::test::op_conformance::unique_ops.find(path_part) != ov::test::op_conformance::unique_ops.end()) {
                         op_name = path_part;
                         break;
                     }
@@ -242,17 +242,16 @@ void ReadIRTest::SetUp() {
                                                     param->get_partial_shape().get_min_shape(),
                                                     param->get_partial_shape().get_max_shape() };
             ov::Shape midShape;
-            for (const auto& dimension : param->get_partial_shape()) {
+            for (const auto s : param->get_partial_shape()) {
                 int dimValue = 1;
-                if (dimension.is_dynamic()) {
-                    size_t range = dimension.get_max_length() - dimension.get_min_length();
+                if (s.is_dynamic()) {
+                    size_t range = s.get_max_length() - s.get_min_length();
                     if (range > std::numeric_limits<char>::max()) {
-                        ov::test::utils::fill_data_random(&range, 1, std::numeric_limits<char>::max(), dimension.get_min_length(), 1);
-                    } else {
-                        ov::test::utils::fill_data_random(&dimValue, 1, range, dimension.get_min_length(), 1);
+                        ov::test::utils::fill_data_random(&range, 1, std::numeric_limits<char>::max(), s.get_min_length(), 1);
                     }
+                    ov::test::utils::fill_data_random(&dimValue, 1, range, s.get_min_length(), 1);
                 } else {
-                    dimValue = dimension.get_length();
+                    dimValue = s.get_length();
                 }
                 midShape.push_back(dimValue);
             }
