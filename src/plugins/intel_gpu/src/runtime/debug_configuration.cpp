@@ -121,6 +121,8 @@ static void print_help_messages() {
                                " Support case-insensitive and regular expression. For example .*conv.*");
     message_list.emplace_back("OV_GPU_DumpLayersResult", "Dump output buffers of result layers only");
     message_list.emplace_back("OV_GPU_DumpLayersInput",  "Dump intermediate buffers of input layers only");
+    message_list.emplace_back("OV_GPU_PrintLayersInput",  "Print data_shape of input layers for benchmark_app."
+                              " This option is related to OV_GPU_DumpIteration.");
     message_list.emplace_back("OV_GPU_DumpLayersDstOnly", "Dump only output of layers");
     message_list.emplace_back("OV_GPU_DumpLayersLimitBatch", "Limit the size of batch to dump");
     message_list.emplace_back("OV_GPU_DumpLayersRaw", "If true, dump data is stored in raw memory format.");
@@ -185,6 +187,7 @@ debug_configuration::debug_configuration()
         , dump_layers_dst_only(0)
         , dump_layers_result(0)
         , dump_layers_input(0)
+        , print_layers_input(0)
         , dump_layers_limit_batch(std::numeric_limits<int>::max())
         , dump_layers_raw(0)
         , dump_layers_binary(0)
@@ -216,6 +219,7 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DumpLayersDstOnly", dump_layers_dst_only);
     get_gpu_debug_env_var("DumpLayersResult", dump_layers_result);
     get_gpu_debug_env_var("DumpLayersInput", dump_layers_input);
+    get_gpu_debug_env_var("PrintLayersInput", print_layers_input);
     get_gpu_debug_env_var("DisableOnednn", disable_onednn);
     get_gpu_debug_env_var("DisableOnednnOptPostOps", disable_onednn_opt_post_ops);
     get_gpu_debug_env_var("DumpProfilingData", dump_profiling_data);

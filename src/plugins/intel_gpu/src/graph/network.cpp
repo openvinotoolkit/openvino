@@ -1415,6 +1415,28 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         }
     }
 
+    // print '-data_shape' option for benchmark_app
+    GPU_DEBUG_IF(debug_config->print_layers_input == 1 && debug_config->is_target_iteration(curr_iter)) {
+        std::stringstream data_shape_str;
+        auto add_string = [&data_shape_str](std::string str) {
+            data_shape_str << ((data_shape_str.rdbuf()->in_avail() == 0) ? " -data_shape " : ",") << str;
+        };
+
+        for (auto& inst : _exec_order) {
+            auto name = inst->id();
+            auto pos = name.find(':');
+            auto type = name.substr(0, pos);
+            name.erase(0, pos + 1);
+            if (inst->is_input() && type == "parameter") {
+                add_string(name + inst->get_output_layout().get_partial_shape().to_string());
+            }
+        }
+
+        GPU_DEBUG_COUT << "[Bprogram:" << std::setw(2) << ((get_program() != nullptr) ? get_program()->get_id() : 0)
+                       << "|network:" << std::setw(2) << get_id() << "|iter:" << std::setw(4) << curr_iter <<  "] benchmark_app cmd: "
+                       << data_shape_str.str() << std::endl;
+    }
+
     // Store events only in case of OOO queue or enabled Profiling
     auto store_events = is_out_of_order_queue || _enable_profiling;
     if (store_events) {
