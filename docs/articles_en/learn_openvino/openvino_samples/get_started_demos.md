@@ -305,7 +305,7 @@ You need a model that is specific for your inference task. You can get it from o
 Convert the Model
 ================================
 
-If Your model requires conversion, check the :doc:`article <https://docs.openvino.ai/2023.1/openvino_docs_get_started_get_started_demos.html>` for information how to do it.
+If Your model requires conversion, check the `article <https://docs.openvino.ai/2023.1/openvino_docs_get_started_get_started_demos.html>` for information how to do it.
 
 
 Download a Media to use
