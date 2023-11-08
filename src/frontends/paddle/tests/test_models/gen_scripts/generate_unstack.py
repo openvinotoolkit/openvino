@@ -15,7 +15,7 @@ def unstack(name: str, x, axis):
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         x_node = paddle.static.data(name="x", shape=x.shape, dtype=x.dtype)
-        out = paddle.unstack(x_node, axis)
+        out = paddle.unstack(x_node, axis) if axis is not None else paddle.unstack(x_node)
         place = paddle.CPUPlace()
         exe = paddle.static.Executor(place)
         exe.run(paddle.static.default_startup_program())
@@ -37,6 +37,10 @@ def main():
     dtype = np.int64
     x = np.random.randn(3, 4).astype(dtype)
     unstack(name='unstack_3', x=x, axis=-1)
+    unstack(name='unstack_4', x=x, axis=None)
+
+    x = np.random.randn(2, 1, 4).astype(dtype)
+    unstack(name='unstack_5', x=x, axis=0)
 
 if __name__ == "__main__":
     main()

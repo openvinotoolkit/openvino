@@ -568,6 +568,8 @@ static const std::vector<std::string> models{
     std::string("unstack_1"),
     std::string("unstack_2"),
     std::string("unstack_3"),
+    std::string("unstack_4"),
+    std::string("unstack_5"),
     std::string("where_1"),
     std::string("where_2"),
     std::string("where_3"),
