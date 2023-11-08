@@ -300,6 +300,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // It cannot be static data, because it may be difference for different inferencePrecision
     const auto precisions = get_convert_precisions();
     if (inferencePrecision == ov::element::f16) {
+        CPU_REGISTER_PASS_ARM(manager, ov::pass::KeepConstFP32Unfolded);
         precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
         type_to_fuse_map empty_fuse_map = {};
         const bool keep_precision_sensitive_in_fp32 = true;

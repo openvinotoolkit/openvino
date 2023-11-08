@@ -18,3 +18,18 @@ bool ov::is_decompression(const std::shared_ptr<Node>& node) {
     const auto& rt_info = node->get_rt_info();
     return rt_info.count(Decompression::get_type_info_static());
 }
+
+void ov::mark_as_compression(const std::shared_ptr<Node>& node) {
+    auto& rt_info = node->get_rt_info();
+    rt_info[Compression::get_type_info_static()] = Compression();
+}
+
+void ov::unmark_as_compression(const std::shared_ptr<Node>& node) {
+    auto& rt_info = node->get_rt_info();
+    rt_info.erase(Compression::get_type_info_static());
+}
+
+bool ov::is_compression(const std::shared_ptr<Node>& node) {
+    const auto& rt_info = node->get_rt_info();
+    return rt_info.count(Compression::get_type_info_static());
+}

@@ -77,6 +77,32 @@ pass::KeepConstAndDecompression::KeepConstAndDecompression() {
     register_matcher(m, callback);
 }
 
+pass::KeepConstFP32Unfolded::KeepConstFP32Unfolded() {
+    MATCHER_SCOPE(KeepConstFP16Unfolded);
+
+    auto node_pattern = pattern::wrap_type<ov::op::v0::MatMul>();
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        auto node = m.get_match_root();
+
+        if (transformation_callback(node)) {
+            return false;
+        }
+
+        auto constNode = node->get_input_node_shared_ptr(1);
+        if (!is_type<ov::op::v0::Constant>(constNode) || constNode->get_output_element_type(0) != element::f32)
+            return false;
+
+        disable_constant_folding(constNode);
+        enable_keep_const_precision(constNode);
+        disable_fp16_compression(constNode);
+
+        return false;
+    };
+    auto m = std::make_shared<pattern::Matcher>(node_pattern, matcher_name);
+    register_matcher(m, callback);
+}
+
 pass::KeepConstantsPrecisionAndAddConverts::KeepConstantsPrecisionAndAddConverts() {
     MATCHER_SCOPE(KeepConstantsPrecisionAndAddConverts);
     auto const_pattern = pattern::wrap_type<ov::op::v0::Constant>();

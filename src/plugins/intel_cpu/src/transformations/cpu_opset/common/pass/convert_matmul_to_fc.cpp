@@ -37,7 +37,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         auto fc_input_b = pattern_map.at(weights_m);
         bool is_convert = false;
         if (auto convert_node = std::dynamic_pointer_cast<ov::op::v0::Convert>(fc_input_b.get_node_shared_ptr())) {
-            if (is_decompression(convert_node)) {
+            if (is_decompression(convert_node) || fp16_compression_is_disabled(convert_node) || is_compression(convert_node)) {
                 is_convert = true;
                 fc_input_b = convert_node->get_input_node_shared_ptr(0);
             } else {

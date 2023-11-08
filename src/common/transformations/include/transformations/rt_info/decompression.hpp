@@ -23,6 +23,12 @@ TRANSFORMATIONS_API void unmark_as_decompression(const std::shared_ptr<Node>& no
 
 TRANSFORMATIONS_API bool is_decompression(const std::shared_ptr<Node>& node);
 
+TRANSFORMATIONS_API void mark_as_compression(const std::shared_ptr<Node>& node);
+
+TRANSFORMATIONS_API void unmark_as_compression(const std::shared_ptr<Node>& node);
+
+TRANSFORMATIONS_API bool is_compression(const std::shared_ptr<Node>& node);
+
 /**
  * @ingroup ie_runtime_attr_api
  * @brief Decompression class represents runtime info attribute that marks operation
@@ -33,6 +39,21 @@ public:
     OPENVINO_RTTI("decompression", "0");
 
     Decompression() = default;
+
+    bool visit_attributes(AttributeVisitor& visitor) override {
+        return true;
+    }
+
+    bool is_copyable() const override {
+        return false;
+    }
+};
+
+class TRANSFORMATIONS_API Compression : public RuntimeAttribute {
+public:
+    OPENVINO_RTTI("Compression", "0");
+
+    Compression() = default;
 
     bool visit_attributes(AttributeVisitor& visitor) override {
         return true;

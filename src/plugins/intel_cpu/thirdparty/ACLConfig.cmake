@@ -166,10 +166,10 @@ elseif(NOT TARGET arm_compute::arm_compute)
         list(APPEND ARM_COMPUTE_OPTIONS --jobs=${ARM_COMPUTE_SCONS_JOBS})
     endif()
 
-    set(ARM_COMPUTE_DEBUG_OPTIONS
-        debug=1
-        asserts=1
-        logging=1)
+    # set(ARM_COMPUTE_DEBUG_OPTIONS
+    #     debug=1
+    #     asserts=1
+    #     logging=1)
 
     # cmake older 3.20 does not support generator expressions in add_custom_command
     # https://cmake.org/cmake/help/latest/command/add_custom_command.html#examples-generating-files

@@ -949,8 +949,8 @@ void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
                         && parent->getChildEdges().size() == 1
                         && parent->getChildEdgeAt(0)->getOutputNum() == 1
                         && parent->getChildEdgeAt(0)->getChild()->getType() == Type::FullyConnected
-                        && one_of(parent->getOriginalInputPrecisionAtPort(0), ov::element::f16)
-                        && one_of(parent->getOriginalOutputPrecisionAtPort(0), ov::element::f32, ov::element::bf16)
+                        && one_of(parent->getOriginalInputPrecisionAtPort(0), ov::element::f32, ov::element::bf16, ov::element::f16)
+                        && one_of(parent->getOriginalOutputPrecisionAtPort(0), ov::element::f32, ov::element::bf16, ov::element::f16)
                         && parent->isConstant();
         return res;
     };

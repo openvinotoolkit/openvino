@@ -14,6 +14,7 @@ namespace pass {
 class TRANSFORMATIONS_API EnableDecompressionConvertConstantFolding;
 class TRANSFORMATIONS_API DisableDecompressionConvertConstantFolding;
 class TRANSFORMATIONS_API KeepConstAndDecompression;
+class TRANSFORMATIONS_API KeepConstFP32Unfolded;
 class TRANSFORMATIONS_API KeepConstantsPrecisionAndAddConverts;
 
 }  // namespace pass
@@ -47,6 +48,12 @@ class ov::pass::KeepConstAndDecompression : public MatcherPass {
 public:
     OPENVINO_RTTI("KeepConstAndDecompression", "0");
     KeepConstAndDecompression();
+};
+
+class ov::pass::KeepConstFP32Unfolded : public MatcherPass {
+public:
+    OPENVINO_RTTI("KeepConstFP32Unfolded", "0");
+    KeepConstFP32Unfolded();
 };
 
 /**

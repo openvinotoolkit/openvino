@@ -10,6 +10,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 
 using namespace ov;
@@ -48,6 +49,7 @@ bool ov::pass::AlignMixedFP32FP16Types::run_on_model(const std::shared_ptr<ov::M
                 copy_runtime_info(incoming_node, convert);
                 input.replace_source_output(convert);
                 disable_fp16_compression(convert);
+                mark_as_compression(convert);
                 pass::disable_constant_folding(convert);
                 is_changed = true;
             }
@@ -76,6 +78,7 @@ bool ov::pass::AlignMixedFP32FP16Types::run_on_model(const std::shared_ptr<ov::M
                     auto init_name = node->get_friendly_name() + "_compressed_to_f16";
                     convert->set_friendly_name(generate_uniq_name(init_name));
                     out_inputs.replace_source_output(convert);
+                    mark_as_compression(convert);
                     pass::disable_constant_folding(convert);
                     is_changed = true;
                 }
