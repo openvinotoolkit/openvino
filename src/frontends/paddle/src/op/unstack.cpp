@@ -13,7 +13,7 @@ NamedOutputs unstack(const NodeContext& node) {
     auto data = node.get_input("X");
     auto dim = node.get_attribute<int32_t>("axis");
     if (dim < 0) {
-        dim = dim + data.get_partial_shape().rank().get_length();
+        dim = dim + static_cast<int32_t>(data.get_partial_shape().rank().get_length());
     }
     auto axis = default_opset::Constant::create(element::i32, {}, {dim});
     auto shape = data.get_shape();
