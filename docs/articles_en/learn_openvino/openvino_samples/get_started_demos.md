@@ -64,7 +64,7 @@ Instructions below show how to build sample applications with CMake. If you are 
             <Python instruction placeholder> 
    
          .. tab-item:: C and C++
-            :sync: c-cpp
+            :sync: cpp
    
             To build the C or C++ sample applications for Linux, go to the ``<INSTALL_DIR>/samples/c`` or ``<INSTALL_DIR>/samples/cpp`` directory, respectively, and run the ``build_samples.sh`` script:
       
