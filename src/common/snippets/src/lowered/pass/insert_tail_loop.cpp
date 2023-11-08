@@ -300,7 +300,7 @@ void InsertTailLoop::tail_transformations(LinearIR& linear_ir,
                     fill_expr->set_loop_ids(expr->get_loop_ids());
                 }
             }
-        } else if (const auto memory_access = std::dynamic_pointer_cast<ov::snippets::op::MemoryAccess>(op)) {
+        } else if (const auto memory_access = std::dynamic_pointer_cast<ov::snippets::modifier::MemoryAccess>(op)) {
             for (const auto p : memory_access->get_memory_access_input_ports()) {
                 const auto port = p.first;
                 if (memory_access->get_input_count(port) > 1) {

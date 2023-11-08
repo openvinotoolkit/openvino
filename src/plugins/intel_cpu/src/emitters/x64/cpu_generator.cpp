@@ -10,6 +10,7 @@
 
 #include "cpu_generator.hpp"
 #include "jit_snippets_emitters.hpp"
+#include "jit_snippets_tpp_emitters.hpp"
 #include "jit_eltwise_emitters.hpp"
 #include "jit_dnnl_emitters.hpp"
 #include "jit_dnnl_ext_emitters.hpp"
@@ -27,6 +28,9 @@
 #include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
 
 #include <openvino/opsets/opset5.hpp>
+
+#include "transformations/snippets/tpp/op/brgemm.hpp"
+#include "transformations/snippets/tpp/op/eltwise.hpp"
 
 namespace ov {
 
@@ -177,6 +181,12 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[ov::intel_cpu::PerfCountRdtscEnd::get_type_info_static()] = CREATE_CPU_EMITTER(ov::intel_cpu::jit_perf_count_rdtsc_end_emitter);
     jitters[snippets::op::ReduceMax::get_type_info_static()] = CREATE_UNDEFINED_EMITTER(snippets::op::ReduceMax);
     jitters[snippets::op::ReduceSum::get_type_info_static()] = CREATE_UNDEFINED_EMITTER(snippets::op::ReduceSum);
+    // TPP
+    jitters[intel_cpu::tpp::op::BrgemmTPP::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BrgemmTppEmitter);
+    jitters[intel_cpu::tpp::op::Add::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BinaryEltwiseTppEmitter);
+    jitters[intel_cpu::tpp::op::Subtract::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BinaryEltwiseTppEmitter);
+    jitters[intel_cpu::tpp::op::Multiply::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BinaryEltwiseTppEmitter);
+    jitters[intel_cpu::tpp::op::Divide::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BinaryEltwiseTppEmitter);
 }
 
 size_t intel_cpu::CPUTargetMachine::get_lanes() const {

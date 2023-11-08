@@ -35,7 +35,7 @@ void InsertLoops::filter_ports(std::vector<LoopPort>& loop_entries, std::vector<
 
     for (const auto& loop_entry_point : loop_entries) {
         const auto& expr = loop_entry_point.expr_port->get_expr();
-        const auto ma = ov::as_type_ptr<op::MemoryAccess>(expr->get_node());
+        const auto ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(expr->get_node());
         if (ma && ma->is_memory_access_input_port(loop_entry_point.expr_port->get_index())) {
             new_loop_entries.push_back(loop_entry_point);
         }
@@ -43,7 +43,7 @@ void InsertLoops::filter_ports(std::vector<LoopPort>& loop_entries, std::vector<
 
     for (const auto& loop_exit_point : loop_exits) {
         const auto& expr = loop_exit_point.expr_port->get_expr();
-        const auto ma = ov::as_type_ptr<op::MemoryAccess>(expr->get_node());
+        const auto ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(expr->get_node());
         if (ma && ma->is_memory_access_output_port(loop_exit_point.expr_port->get_index())) {
             new_loop_exits.push_back(loop_exit_point);
         }

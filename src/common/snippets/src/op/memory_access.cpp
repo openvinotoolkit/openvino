@@ -7,9 +7,9 @@
 
 namespace ov {
 namespace snippets {
-namespace op {
+namespace modifier {
 
-MemoryAccess::MemoryAccess(const OutputVector& arguments, size_t input_count, size_t output_count) : Op(arguments) {
+MemoryAccess::MemoryAccess(size_t input_count, size_t output_count) {
     auto init_iota_set = [](size_t num) {
         if (num == 0)
             return std::set<size_t>{};
@@ -20,12 +20,12 @@ MemoryAccess::MemoryAccess(const OutputVector& arguments, size_t input_count, si
     ctor_initialize(init_iota_set(input_count), init_iota_set(output_count));
 }
 
-MemoryAccess::MemoryAccess(const OutputVector& arguments, const std::set<size_t>& input_ports, const std::set<size_t>& output_ports) : Op(arguments) {
+MemoryAccess::MemoryAccess(const std::set<size_t>& input_ports, const std::set<size_t>& output_ports) {
     ctor_initialize(input_ports, output_ports);
 }
 
-MemoryAccess::MemoryAccess(const OutputVector& arguments, const PortMap& input_ports, const PortMap& output_ports)
-    : Op(arguments), m_input_ports(input_ports), m_output_ports(output_ports) {}
+MemoryAccess::MemoryAccess(const PortMap& input_ports, const PortMap& output_ports)
+    : m_input_ports(input_ports), m_output_ports(output_ports) {}
 
 void MemoryAccess::ctor_initialize(const std::set<size_t>& input_ports, const std::set<size_t>& output_ports) {
     for (auto port : input_ports) {
@@ -36,12 +36,12 @@ void MemoryAccess::ctor_initialize(const std::set<size_t>& input_ports, const st
     }
 }
 
-bool MemoryAccess::is_full_memory_access_op() const {
-    for (size_t i = 0; i < get_input_size(); ++i) {
+bool MemoryAccess::is_full_memory_access_op(const std::shared_ptr<ov::Node>& op) const {
+    for (size_t i = 0; i < op->get_input_size(); ++i) {
         if (!is_memory_access_input_port(i))
             return false;
     }
-    for (size_t i = 0; i < get_output_size(); ++i) {
+    for (size_t i = 0; i < op->get_output_size(); ++i) {
         if (!is_memory_access_output_port(i))
             return false;
     }
@@ -120,6 +120,6 @@ size_t MemoryAccess::get_output_offset(size_t idx) const {
     return get_output_port_descriptor(idx).offset;
 }
 
-} // namespace op
+} // namespace modifier
 } // namespace snippets
 } // namespace ov

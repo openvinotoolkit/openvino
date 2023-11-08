@@ -162,8 +162,8 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
             continue;
 
         // Each MemoryAccess op needs Buffer
-        const auto parent_ma = ov::as_type_ptr<op::MemoryAccess>(parent);
-        const auto node_ma = ov::as_type_ptr<op::MemoryAccess>(node);
+        const auto parent_ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(parent);
+        const auto node_ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(node);
         bool is_buffer_needed = (parent_ma && parent_ma->is_memory_access_output_port(parent_port)) ||
                                 (node_ma && node_ma->is_memory_access_input_port(port_idx));
         const auto current_loops = expr->get_loop_ids();
@@ -222,8 +222,8 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
                 continue;
             }
             // Each MemoryAccess op needs Buffer
-            const auto child_ma = ov::as_type_ptr<op::MemoryAccess>(child);
-            const auto node_ma = ov::as_type_ptr<op::MemoryAccess>(node);
+            const auto child_ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(child);
+            const auto node_ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(node);
             bool is_buffer_needed = (child_ma && child_ma->is_memory_access_input_port(child_port)) ||
                                     (node_ma && node_ma->is_memory_access_output_port(port_idx));
             const auto local_buffer_loop_ids = get_buffer_loop_ids(current_loops, child_expr->get_loop_ids(), is_buffer_needed);
@@ -310,7 +310,7 @@ bool InsertBuffers::run(LinearIR& linear_ir) {
     for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); expr_it++) {
         const auto expr = *expr_it;
         const auto node = (*expr_it)->get_node();
-        const auto ma = ov::as_type_ptr<op::MemoryAccess>(node);
+        const auto ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(node);
         if (!ma)
             continue;
 

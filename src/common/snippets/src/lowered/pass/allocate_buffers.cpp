@@ -37,7 +37,7 @@ void AllocateBuffers::set_buffer_offset(const ExpressionPtr& buffer_expr, const 
         const auto& parent_expr = parent_output.get_expr();
         const auto port = parent_output.get_index();
         const auto& parent_node = parent_expr->get_node();
-        auto memory_access = ov::as_type_ptr<ov::snippets::op::MemoryAccess>(parent_node);
+        auto memory_access = std::dynamic_pointer_cast<modifier::MemoryAccess>(parent_node);
         if (memory_access && memory_access->is_memory_access_output_port(port)) {
             memory_access->set_output_offset(offset, port);
         } else {
@@ -51,7 +51,7 @@ void AllocateBuffers::set_buffer_offset(const ExpressionPtr& buffer_expr, const 
         const auto& child_expr = child_expr_input.get_expr();
         const auto port = child_expr_input.get_index();
         const auto& child_node = child_expr->get_node();
-        auto memory_access = ov::as_type_ptr<ov::snippets::op::MemoryAccess>(child_node);
+        auto memory_access = std::dynamic_pointer_cast<modifier::MemoryAccess>(child_node);
         if (memory_access && memory_access->is_memory_access_input_port(port)) {
             memory_access->set_input_offset(offset, port);
         } else if (ov::is_type<op::LoopEnd>(child_node)) {

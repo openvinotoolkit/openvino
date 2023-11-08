@@ -33,7 +33,7 @@ std::vector<size_t> get_output_layout(const std::shared_ptr<const ov::Node>& n) 
 Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B,
                const size_t offset_a, const size_t offset_b, const size_t offset_c,
                std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c)
-    : MemoryAccess({A, B}, std::set<size_t>{0, 1}, std::set<size_t>{0}) {
+    : MemoryAccess(std::set<size_t>{0, 1}, std::set<size_t>{0}), Op({A, B}) {
     set_output_size(1);
     set_input_offset(offset_a, 0);
     set_input_offset(offset_b, 1);
@@ -44,7 +44,7 @@ Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B,
 Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B,
                const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_c,
                std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c)
-    : MemoryAccess({A, B}, PortMap{{0, desc_a}, {1, desc_b}}, PortMap{{0, desc_c}}) {
+    : MemoryAccess(PortMap{{0, desc_a}, {1, desc_b}}, PortMap{{0, desc_c}}), Op({A, B}) {
     set_output_size(1);
     custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
 }
@@ -85,6 +85,10 @@ std::shared_ptr<Node> Brgemm::clone_with_new_inputs(const OutputVector& new_args
                                     lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
                                     lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
                                     lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
+}
+
+bool Brgemm::visit_attributes(AttributeVisitor& visitor) {
+    return MemoryAccess::visit_attributes(visitor);
 }
 
 ov::element::Type Brgemm::get_output_type(const ov::element::Type& in_type0, const ov::element::Type& in_type1) {

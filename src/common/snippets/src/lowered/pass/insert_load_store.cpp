@@ -45,7 +45,7 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
         const auto& consumer_expr = consumer_input.get_expr();
         const auto port = consumer_input.get_index();
         const auto& consumer = consumer_expr->get_node();
-        const auto ma = ov::as_type_ptr<op::MemoryAccess>(consumer);
+        const auto ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(consumer);
         if (ma && ma->is_memory_access_input_port(port))
             return false;
 
@@ -76,7 +76,7 @@ bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExp
     const auto& parent_expr = parent_output.get_expr();
     const auto port = parent_output.get_index();
     const auto& parent = parent_expr->get_node();
-    const auto ma = ov::as_type_ptr<op::MemoryAccess>(parent);
+    const auto ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(parent);
     if (ma && ma->is_memory_access_output_port(port))
         return false;
 

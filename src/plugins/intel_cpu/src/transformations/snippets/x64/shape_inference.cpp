@@ -11,6 +11,7 @@
 #include "op/store_convert.hpp"
 #include "op/perf_count_rdtsc.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
+#include "transformations/snippets/tpp/op/brgemm.hpp"
 
 namespace ov {
 namespace snippets {
@@ -44,6 +45,8 @@ const CPUShapeInferSnippetsFactory::TRegistry CPUShapeInferSnippetsFactory::spec
         SHAPE_INFER_OP_SPECIFIC_EXTERNAL(ov::intel_cpu::BrgemmCPU, BrgemmShapeInfer),
         //
         SHAPE_INFER_OP_SPECIFIC(ov::intel_cpu::BrgemmCopyB),
+        //
+        SHAPE_INFER_OP_SPECIFIC_EXTERNAL(ov::intel_cpu::tpp::op::BrgemmTPP, BrgemmShapeInfer),
 };
 #undef SHAPE_INFER_OP_SPECIFIC
 #undef SHAPE_INFER_PREDEFINED

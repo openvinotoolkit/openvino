@@ -486,8 +486,10 @@ snippets::Schedule Subgraph::generate_from_linear_ir(const std::vector<PassPipel
     // Note: some transformations performed in the generator, e.g. tail insertion, can break shape propagation
     //  until we fix this behavior, we have to make a copy of LIR before giving it to the generator.
     OPENVINO_ASSERT(m_linear_ir, "Attempt to call generate, when linear IR was not initialized");
+
     auto linear_ir {*m_linear_ir->clone()};
     LoweringResult lowering_result;
+
     control_flow_transformations(linear_ir, lowering_result, control_flow_passes);
     if (linear_ir.get_config().perf_count_mode == lowered::PerfCountMode::Chrono) {
         lowered::pass::InsertPerfCount perf_count_pass;
