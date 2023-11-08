@@ -15,6 +15,7 @@
 #include "openvino/op/if.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "tf_utils.hpp"
 
 using namespace ov;
@@ -151,6 +152,16 @@ void insert_result_before_merge(const shared_ptr<Merge>& merge_node,
 }  // namespace
 
 bool pass::SwitchMergeResolver::run_on_model(const shared_ptr<Model>& m) {
+    // run this transformation recursively since this is a model pass
+    for (const auto& op : m->get_ordered_ops()) {
+        auto multisubgraph_op = as_type_ptr<ov::op::util::MultiSubGraphOp>(op);
+        if (multisubgraph_op) {
+            for (size_t i = 0; i < multisubgraph_op->get_internal_subgraphs_size(); ++i) {
+                run_on_model(multisubgraph_op->get_function(static_cast<int>(i)));
+            }
+        }
+    }
+
     // split set of Switch and Merge nodes to clusters
     // where each cluster of Switch and Merge nodes will represent
     // the single If operation for fusing
