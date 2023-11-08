@@ -65,7 +65,7 @@ bool FakeConvert::has_evaluate() const {
 }
 
 const std::vector<std::string>& FakeConvert::get_valid_types() const {
-    static const std::vector<std::string> valid_types{"F8E4M3", "F8E5M2"};
+    static const std::vector<std::string> valid_types{"f8e4m3", "f8e5m2"};
     return valid_types;
 }
 

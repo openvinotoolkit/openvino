@@ -18,8 +18,8 @@ public:
     FakeConvert(const ov::Output<ov::Node>& arg,
                 const ov::Output<ov::Node>& scale,
                 const ov::Output<ov::Node>& shift,
-                std::string destination_type = "F8E4M3",
-                bool apply_scale = true);
+                std::string destination_type = "f8e4m3",
+                bool apply_scale = false);
 
     void validate_and_infer_types() override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
@@ -33,7 +33,7 @@ private:
     void validate_type() const;
     const std::vector<std::string>& get_valid_types() const;
 
-    std::string m_destination_type = "F8E4M3";
+    std::string m_destination_type = "f8e4m3";
     bool m_apply_scale = false;
 };
 }  // namespace v13

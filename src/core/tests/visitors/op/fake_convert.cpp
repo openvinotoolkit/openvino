@@ -37,7 +37,7 @@ TEST(attributes, fake_convert_v13_attributes_custom) {
     const auto scale = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{});
     const auto shift = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{});
 
-    const auto op = std::make_shared<FakeConvert>(data, scale, shift, "F8E5M2", false);
+    const auto op = std::make_shared<FakeConvert>(data, scale, shift, "f8e5m2", true);
 
     NodeBuilder builder(op, {data, scale, shift});
     auto g_op = ov::as_type_ptr<FakeConvert>(builder.create());
