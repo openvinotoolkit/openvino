@@ -23,4 +23,4 @@ pytest-html==3.2.0
 pytest-timeout==2.1.0
 jax<=0.4.14
 jaxlib<=0.4.14
-torch<2.1.0,>=1.13
+torch>=1.13

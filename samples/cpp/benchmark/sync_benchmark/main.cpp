@@ -20,8 +20,12 @@ int main(int argc, char* argv[]) {
     try {
         slog::info << "OpenVINO:" << slog::endl;
         slog::info << ov::get_openvino_version();
-        if (argc != 2) {
-            slog::info << "Usage : " << argv[0] << " <path_to_model>" << slog::endl;
+
+        std::string device_name = "CPU";
+        if (argc == 3) {
+            device_name = argv[2];
+        } else if (argc != 2) {
+            slog::info << "Usage : " << argv[0] << " <path_to_model> <device_name>(default: CPU)" << slog::endl;
             return EXIT_FAILURE;
         }
         // Optimize for latency. Most of the devices are configured for latency by default,
@@ -29,11 +33,11 @@ int main(int argc, char* argv[]) {
         ov::AnyMap latency{{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::LATENCY}};
 
         // Create ov::Core and use it to compile a model.
-        // Pick a device by replacing CPU, for example AUTO:GPU,CPU.
+        // Select the device by providing the name as the second parameter to CLI.
         // Using MULTI device is pointless in sync scenario
         // because only one instance of ov::InferRequest is used
         ov::Core core;
-        ov::CompiledModel compiled_model = core.compile_model(argv[1], "CPU", latency);
+        ov::CompiledModel compiled_model = core.compile_model(argv[1], device_name, latency);
         ov::InferRequest ireq = compiled_model.create_infer_request();
         // Fill input data for the ireq
         for (const ov::Output<const ov::Node>& model_input : compiled_model.inputs()) {

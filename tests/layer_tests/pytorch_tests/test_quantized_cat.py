@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 import torch
@@ -73,6 +75,8 @@ class TestQuantizedCat(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", [torch.quint8, torch.qint8])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_quantized_cat(self, scale, zero_point, dtype, ie_device, precision, ir_version):
         self._test(
             aten_quantized_cat(scale, zero_point, dtype),
@@ -91,6 +95,8 @@ class TestQuantizedCat(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", [torch.quint8, torch.qint8])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_append_quantized_cat(self, scale, zero_point, dtype, ie_device, precision, ir_version):
         self._test(
             aten_append_quantized_cat(scale, zero_point, dtype),
@@ -130,6 +136,8 @@ class TestQuantizedCat(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", [torch.quint8, torch.qint8])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
     def test_add_quantized_cat(self, scale, zero_point, dtype, ie_device, precision, ir_version):
         self._test(
             aten_add_quantized_cat(scale, zero_point, dtype),

@@ -17,8 +17,6 @@
     "builtin-baseline": "db0473513e5dc73ec6b6f431ff05d2f398eea042",
     "dependencies": [
         "ade",
-        "gflags",
-        "nlohmann-json",
         {
             "name": "pkgconf",
             "host": true

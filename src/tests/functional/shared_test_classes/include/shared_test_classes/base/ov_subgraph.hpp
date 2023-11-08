@@ -31,18 +31,18 @@ public:
     virtual void run();
     virtual void serialize();
     virtual void query_model();
+    virtual void import_export();
 
 protected:
     virtual void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual);
-
-    virtual void configure_model();
     virtual void compile_model();
-    virtual void init_ref_function(std::shared_ptr<ov::Model>& funcRef,
-                                   const std::vector<ov::Shape>& targetInputStaticShapes);
-    virtual void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes);
     virtual void infer();
     virtual void validate();
+    virtual void configure_model();;
+    virtual void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes);
 
+    void update_ref_model();
+    void match_parameters();
     void init_input_shapes(const std::vector<InputShape>& shapes);
 
     void TearDown() override {
@@ -65,6 +65,10 @@ protected:
     ov::CompiledModel compiledModel;
     ov::InferRequest inferRequest;
 
+    // to provide correct inputs for reference function
+    std::map<std::shared_ptr<ov::op::v0::Parameter>, std::shared_ptr<ov::op::v0::Parameter>> matched_parameters;
+    precisions_map convert_precisions;
+
     constexpr static const double disable_threshold = std::numeric_limits<double>::max();
     double abs_threshold = disable_threshold, rel_threshold = disable_threshold;
 
@@ -75,7 +79,6 @@ protected:
 
     virtual std::vector<ov::Tensor> calculate_refs();
     virtual std::vector<ov::Tensor> get_plugin_outputs();
-    virtual precisions_map get_ref_precisions_convert_map();
 
     friend void core_configuration(SubgraphBaseTest* test);
 };
