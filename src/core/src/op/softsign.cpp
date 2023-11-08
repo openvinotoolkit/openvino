@@ -3,6 +3,7 @@
 //
 #include "openvino/op/softsign.hpp"
 
+#include "element_visitor.hpp"
 #include "itt.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -11,32 +12,19 @@
 
 namespace ov {
 namespace op {
-namespace v9 {
-namespace {
-template <ov::element::Type_t ET>
-inline bool evaluate(const ov::Tensor& arg, const ov::Tensor& out, const size_t count) {
-    using T = typename ov::element_type_traits<ET>::value_type;
-    ov::reference::softsign<T>(arg.data<T>(), out.data<T>(), count);
-    return true;
-}
+namespace softsign {
+struct Evaluate : element::NoAction<bool> {
+    using element::NoAction<bool>::visit;
 
-bool evaluate_softsign(const ov::Tensor& arg, const ov::Tensor& out) {
-    bool rc = true;
-    size_t count = arg.get_size();
-
-    switch (arg.get_element_type()) {
-        OPENVINO_TYPE_CASE(evaluate_softsign, bf16, arg, out, count);
-        OPENVINO_TYPE_CASE(evaluate_softsign, f16, arg, out, count);
-        OPENVINO_TYPE_CASE(evaluate_softsign, f32, arg, out, count);
-        OPENVINO_TYPE_CASE(evaluate_softsign, f64, arg, out, count);
-    default:
-        rc = false;
-        break;
+    template <element::Type_t ET, class T = fundamental_type_for<ET>>
+    static result_type visit(const Tensor& in, Tensor& out, const size_t count) {
+        reference::softsign(in.data<const T>(), out.data<T>(), count);
+        return true;
     }
-    return rc;
-}
-}  // namespace
+};
 
+}  // namespace softsign
+namespace v9 {
 SoftSign::SoftSign(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
@@ -84,11 +72,13 @@ bool SoftSign::evaluate(TensorVector& outputs,
                     outputs.size(),
                     " output(s).");
 
-    const auto& in = inputs[0];
-    auto& out = outputs[0];
-
-    out.set_shape(in.get_shape());
-    return evaluate_softsign(in, out);
+    const auto& input_shape = inputs[0].get_shape();
+    outputs[0].set_shape(input_shape);
+    using namespace ov::element;
+    return IfTypeOf<bf16, f16, f32, f64>::apply<softsign::Evaluate>(inputs[0].get_element_type(),
+                                                                    inputs[0],
+                                                                    outputs[0],
+                                                                    shape_size(input_shape));
 }
 }  // namespace v9
 }  // namespace op
