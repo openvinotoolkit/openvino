@@ -558,6 +558,24 @@ void get_num_streams(const int streams, const std::shared_ptr<ov::Model>& model,
     executor_config._threadsPerStream = executor_config._streams_info_table[0][THREADS_PER_STREAM];
 }
 
+void set_config_streams_0(Config& config) {
+    InferenceEngine::IStreamsExecutor::Config& executor_config = config.streamExecutorConfig;
+    std::vector<std::vector<int>> proc_type_table = get_proc_type_table();
+    int core_type = MAIN_CORE_PROC;
+    int numa_id = 0;
+    int socket_id = 0;
+
+    if (proc_type_table.size() > 0) {
+        core_type = proc_type_table[0][MAIN_CORE_PROC] > 0
+                        ? MAIN_CORE_PROC
+                        : (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 ? EFFICIENT_CORE_PROC : HYPER_THREADING_PROC);
+        numa_id = std::max(0, proc_type_table[0][PROC_NUMA_NODE_ID]);
+        socket_id = std::max(0, proc_type_table[0][PROC_SOCKET_ID]);
+    }
+    executor_config._streams_info_table.push_back({1, core_type, 1, numa_id, socket_id});
+    executor_config._cpu_reservation = false;
+}
+
 int get_default_latency_streams(Config::LatencyThreadingMode latency_threading_mode) {
     if (latency_threading_mode == Config::LatencyThreadingMode::PER_NUMA_NODE) {
         return get_num_sockets();

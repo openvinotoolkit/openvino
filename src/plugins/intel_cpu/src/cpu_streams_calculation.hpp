@@ -104,6 +104,12 @@ void get_num_streams(const int streams,
                      Config& config);
 
 /**
+ * @brief      Set cpu streams executor config when nstreams = 0
+ * @param[in,out]  config intel cpu configuration
+ */
+void set_config_streams_0(Config& config);
+
+/**
  * @brief      Get default number of streams in certain latency threading mode
  * @param[in]  latency_threading_mode is the scope of candidate processors per stream for latency hint
  * @return     number of streams
