@@ -4,24 +4,24 @@ on:
   schedule:
     # at 00:00 on workdays
     - cron: '0 0 * * 1,2,3,4,5'
-#  pull_request:
-#    paths-ignore:
-#      - '**/docs/**'
-#      - 'docs/**'
-#      - '**/**.md'
-#      - '**.md'
-#      - '**/layer_tests_summary/**'
-#      - '**/conformance/**'
-# push:
-#   paths-ignore:
-#     - '**/docs/**'
-#     - 'docs/**'
-#     - '**/**.md'
-#     - '**.md'
-#     - '**/layer_tests_summary/**'
-#     - '**/conformance/**'
-#  branches:
-#    - master
+ pull_request:
+   paths-ignore:
+     - '**/docs/**'
+     - 'docs/**'
+     - '**/**.md'
+     - '**.md'
+     - '**/layer_tests_summary/**'
+     - '**/conformance/**'
+push:
+  paths-ignore:
+    - '**/docs/**'
+    - 'docs/**'
+    - '**/**.md'
+    - '**.md'
+    - '**/layer_tests_summary/**'
+    - '**/conformance/**'
+ branches:
+   - master
 
 concurrency:
   # github.ref is not unique in post-commit
