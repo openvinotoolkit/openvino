@@ -27,7 +27,6 @@ std::shared_ptr<Node> PerfCountRdtscEnd::clone_with_new_inputs(const OutputVecto
 
 std::shared_ptr<PerfCountRdtscBegin> PerfCountRdtscEnd::get_pc_begin() {
     const auto& pc_begin = ov::as_type_ptr<PerfCountRdtscBegin>(get_input_source_output(get_input_size() - 1).get_node_shared_ptr());
-    if (!pc_begin)
-        throw std::invalid_argument("PerfCountRdtscEnd last input is not connected to PerfCountRdtscBegin");
+    OPENVINO_ASSERT(pc_begin != nullptr, "PerfCountRdtscEnd last input is not connected to PerfCountRdtscBegin");
     return  pc_begin;
 }

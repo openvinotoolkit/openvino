@@ -117,37 +117,6 @@ ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<op::Loop
     return expr;
 }
 
-ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<op::PerfCountBegin>& n,
-                                                  const std::vector<PortConnectorPtr>& inputs,
-                                                  const LinearIR& linear_ir) {
-    OPENVINO_ASSERT(inputs.empty(), "PerfCountBegin cannot have inputs");
-    auto expr = std::make_shared<Expression>(Expression(n, linear_ir.m_shape_infer_factory));
-    init_expression_inputs(expr, inputs);
-    create_expression_outputs(expr);
-    expr->validate();
-    return expr;
-}
-
-ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<op::PerfCountEnd>& n,
-                                                  const std::vector<PortConnectorPtr>& inputs,
-                                                  const LinearIR& linear_ir) {
-    auto expr = std::shared_ptr<Expression>(new Expression(n, linear_ir.m_shape_infer_factory));
-    expr->m_input_port_descriptors.resize(inputs.size(), nullptr);
-    for (size_t i = 0; i < inputs.size() - 1; ++i) {
-        expr->m_input_port_descriptors[i] = std::make_shared<PortDescriptor>();
-    }
-    const auto& last_input = inputs.back()->get_source();
-    OPENVINO_ASSERT(ov::is_type<op::PerfCountBegin>(last_input.get_expr()->get_node()),
-        "PerfCountEnd expression expects PerfCountBegin on last input");
-    expr->m_input_port_descriptors[inputs.size() - 1] = last_input.get_descriptor_ptr()->clone();
-    init_expression_inputs(expr, inputs);
-    // The PerfCountEnd node don't need output port (because of sense of the node). But each node in ngraph must have one output at least.
-    // The port descriptors are automatically created in constructor. We manually clean output ports.
-    expr->m_output_port_descriptors.clear();
-    expr->validate();
-    return expr;
-}
-
 ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ov::Node>& n,
                                                   const std::vector<PortConnectorPtr>& inputs,
                                                   const LinearIR& linear_ir) {
@@ -160,7 +129,9 @@ ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ov::Node
     expr->validate();
     // todo: here we blindly synchronize input shapes from parent and child. Remove this when shapes will be stored in
     //  port connector itself
-    if (linear_ir.m_shape_infer_factory)
+    if (linear_ir.m_shape_infer_factory &&
+        !ov::is_type<op::PerfCountBeginBase>(n) &&
+        !ov::is_type<op::PerfCountEndBase>(n))
         expr->updateShapes();
     return expr;
 }

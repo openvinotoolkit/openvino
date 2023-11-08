@@ -19,7 +19,7 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const override;
-    mutable uint64_t* m_current_count = nullptr;
+    std::shared_ptr<ov::intel_cpu::PerfCountRdtscBegin> m_start_node = nullptr;
 };
 
 class jit_perf_count_rdtsc_end_emitter : public jit_emitter {
@@ -30,9 +30,7 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const override;
-    mutable uint64_t* m_start_count = nullptr;
-    mutable uint64_t* m_accumulation = nullptr;
-    mutable uint32_t* m_iteration = nullptr;
+    std::shared_ptr<ov::intel_cpu::PerfCountRdtscEnd> m_end_node = nullptr;
 };
 
 }   // namespace intel_cpu

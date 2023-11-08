@@ -25,7 +25,7 @@ bool PerfCountBeginBase::visit_attributes(AttributeVisitor &visitor) {
 }
 
 void PerfCountBeginBase::validate_and_infer_types_except_PerfCountEnd() {
-    NODE_VALIDATION_CHECK(this, get_input_size() == 0, "PerfCountBegin dosen't expect any inputs");
+    NODE_VALIDATION_CHECK(this, get_input_size() == 0, "PerfCountBegin doesn't expect any inputs");
     set_output_type(0, element::f32, {});
 }
 
@@ -34,7 +34,7 @@ PerfCountEndBase::PerfCountEndBase(const std::vector<Output<Node>> &args) : Op(a
 
 void PerfCountEndBase::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, get_input_size() == 1, "PerfCountEndBase must have one input");
-    const auto pc_begin = ov::as_type_ptr<PerfCountBeginBase>(get_input_node_shared_ptr(0));
+    const auto& pc_begin = ov::as_type_ptr<PerfCountBeginBase>(get_input_node_shared_ptr(0));
     NODE_VALIDATION_CHECK(this, pc_begin != nullptr, "PerfCountEndBase must have PerfCountBeginBase as the last argument");
     set_output_type(0, element::f32, {});
 }
@@ -87,14 +87,14 @@ void PerfCountEnd::output_perf_count() {
     auto iterator_iter = iteration.begin();
     auto iterator_acc = accumulation.begin();
     int t_num = 0;
-    std::vector<uint64_t> avg_list;
-    std::string friendly_name = get_friendly_name();
+    uint64_t avg_max = 0;
     std::cout << "Perf count data in perfCountEnd node with name " << get_friendly_name() << " is:"<< std::endl;
     for (; iterator_iter != iteration.end(); ++iterator_iter, ++iterator_acc) {
         const auto iter = *iterator_iter;
         const auto acc = *iterator_acc;
         uint64_t avg = iter == 0 ? 0 : acc / iter;
-        avg_list.push_back(avg);
+        if (avg > avg_max)
+            avg_max = avg;
         std::cout << "accumulated time:" << acc << "ns, iteration:" << iter << " avg time:" << avg << "ns"<< " on thread:" << t_num << std::endl;
         t_num++;
     }
@@ -107,8 +107,7 @@ void PerfCountEnd::output_perf_count() {
     uint64_t acc_max = accumulation.combine(BinaryFunc);
     std::cout << "max accumulated time:" << acc_max << "ns" << std::endl;
     // max avg
-    auto avg_max = std::max_element(avg_list.begin(), avg_list.end(), BinaryFunc);
-    std::cout << "max avg time:" << *avg_max << "ns" << std::endl;
+    std::cout << "max avg time:" << avg_max << "ns" << std::endl;
 }
 
 } // namespace op

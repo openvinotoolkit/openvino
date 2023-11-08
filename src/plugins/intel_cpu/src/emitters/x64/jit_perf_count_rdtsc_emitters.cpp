@@ -18,8 +18,7 @@ namespace intel_cpu {
 
 jit_perf_count_rdtsc_start_emitter::jit_perf_count_rdtsc_start_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                             const std::shared_ptr<ov::Node>& n) : jit_emitter(host, host_isa) {
-    auto start_op = ov::as_type_ptr<ov::intel_cpu::PerfCountRdtscBegin>(n);
-    m_current_count = &(start_op->start_count);
+    m_start_node = ov::as_type_ptr<ov::intel_cpu::PerfCountRdtscBegin>(n);
 }
 
 size_t jit_perf_count_rdtsc_start_emitter::get_inputs_num() const {
@@ -37,7 +36,7 @@ void jit_perf_count_rdtsc_start_emitter::emit_impl(const std::vector<size_t> &in
     h->shl(h->rdx, 0x20);     // shift to higher half of rdx 0x20(32)
     h->or_(h->rdx, h->rax);   // rdx has current tsc
 
-    h->mov(h->rax, reinterpret_cast<size_t>(m_current_count));
+    h->mov(h->rax, reinterpret_cast<size_t>(&m_start_node->start_count));
     h->mov(qword[h->rax], h->rdx);
 
     h->pop(h->rdx);
@@ -47,10 +46,7 @@ void jit_perf_count_rdtsc_start_emitter::emit_impl(const std::vector<size_t> &in
 ///////////////////jit_perf_count_rdtsc_end_emitter////////////////////////////////////
 jit_perf_count_rdtsc_end_emitter::jit_perf_count_rdtsc_end_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
     const std::shared_ptr<ov::Node>& n) : jit_emitter(host, host_isa) {
-        auto end_op = ov::as_type_ptr<ov::intel_cpu::PerfCountRdtscEnd>(n);
-        m_accumulation = &(end_op->accumulation);
-        m_iteration = &(end_op->iteration);
-        m_start_count = &(end_op->get_pc_begin()->start_count);
+        m_end_node = ov::as_type_ptr<ov::intel_cpu::PerfCountRdtscEnd>(n);
 }
 
 size_t jit_perf_count_rdtsc_end_emitter::get_inputs_num() const {
@@ -68,16 +64,16 @@ void jit_perf_count_rdtsc_end_emitter::emit_impl(const std::vector<size_t> &in_i
     h->or_(h->rdx, h->rax);  // rdx has current tsc
 
     // tsc duration
-    h->mov(h->rax, reinterpret_cast<size_t>(m_start_count));
+    h->mov(h->rax, reinterpret_cast<size_t>(&m_end_node->get_pc_begin()->start_count));
     h->sub(h->rdx, qword[h->rax]);  // rdx has tsc duration
 
-    // m_accumulation = m_accumulation + tsc duration
-    h->mov(h->rax, reinterpret_cast<size_t>(m_accumulation));
+    // accumulation = accumulation + tsc duration
+    h->mov(h->rax, reinterpret_cast<size_t>(&m_end_node->accumulation));
     h->add(h->rdx, qword[h->rax]);
     h->mov(qword[h->rax], h->rdx);
 
     // iteration++
-    h->mov(h->rax, reinterpret_cast<size_t>(m_iteration));
+    h->mov(h->rax, reinterpret_cast<size_t>(&m_end_node->iteration));
     h->mov(h->rdx, qword[h->rax]);
     h->add(h->rdx, 0x01);
     h->mov(qword[h->rax], h->rdx);

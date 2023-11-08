@@ -15,7 +15,7 @@ namespace pass {
 
 /**
  * @interface InsertPerfCount
- * @brief Insert PerfCountBegin node after last paramter and insert PerfCountEnd node before first result.
+ * @brief Insert PerfCountBegin node after last parameter and insert PerfCountEnd node before first result.
  *  This is a illustration transformation to enable perf count in snippets.
  *  Developers could modify this to insert perf count pairs around interested sequence of nodes.
  * @ingroup snippets

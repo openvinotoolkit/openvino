@@ -350,7 +350,8 @@ VectorDims Subgraph::infer_master_shape() {
 std::shared_ptr<lowered::LinearIR>
 Subgraph::convert_body_to_linear_ir(const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
     lowered::Config lowering_config;
-    lowering_config.m_save_expressions = config.m_has_domain_sensitive_ops;
+    lowering_config.m_save_expressions = config.m_has_domain_sensitive_ops ||
+        (lowering_config.perf_count_mode != lowered::PerfCountMode::Disabled);
     lowering_config.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
     lowering_config.m_loop_depth = tileRank;
     lowering_config.m_enable_domain_optimization = !config.m_has_domain_sensitive_ops;
@@ -461,15 +462,6 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
     final_pipeline.run(linear_ir);
 }
 
-void Subgraph::perf_count_transformations(lowered::LinearIR& linear_ir) const {
-    INTERNAL_OP_SCOPE(Subgraph);
-    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::perf_count_transformations")
-
-    lowered::pass::PassPipeline perf_count_pipeline;
-    perf_count_pipeline.register_pass<lowered::pass::InsertPerfCount>();
-    perf_count_pipeline.run(linear_ir);
-}
-
 snippets::Schedule Subgraph::generate(const BlockedShapeVector& blocked_input_shapes,
                                       const std::vector<ov::element::Type>& input_precisions,
                                       const std::vector<ov::element::Type>& output_precisions,
@@ -498,7 +490,8 @@ snippets::Schedule Subgraph::generate_from_linear_ir(const lowered::pass::PassPi
     LoweringResult lowering_result;
     control_flow_transformations(linear_ir, lowering_result, backend_passes_pre_common, backend_passes_post_common);
     if (linear_ir.get_config().perf_count_mode == lowered::PerfCountMode::Chrono) {
-        perf_count_transformations(linear_ir);
+        lowered::pass::InsertPerfCount perf_count_pass;
+        perf_count_pass.run(linear_ir);
     }
     m_generator->generate(linear_ir, lowering_result, compile_params);
 

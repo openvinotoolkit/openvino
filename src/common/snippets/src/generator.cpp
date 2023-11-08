@@ -44,21 +44,13 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
     }
     OV_ITT_TASK_NEXT(GENERATE, "::GetSnippet")
 
-    // Note: some emitters use precompiled kernels. They need to be saved, so the kernels are accessible at runtime.
+    // 1. some emitters use precompiled kernels. They need to be saved, so the kernels are accessible at runtime.
+    // 2. perf count node as field of emitter should be alive at runtime.
     if (linear_ir.get_config().m_save_expressions) {
         for (const auto& expr : linear_ir) {
             const auto& emitter = expr->get_emitter();
             if (uses_precompiled_kernel(emitter))
                 result.m_saved_emitters.emplace_back(emitter);
-        }
-    }
-    // perf count node should be alive in execution.
-    if (linear_ir.get_config().perf_count_mode != lowered::PerfCountMode::Disabled) {
-        for (const auto& expr : linear_ir) {
-            const auto& node = expr->get_node();
-            if (should_node_alive_in_execution(node)) {
-                result.m_saved_nodes.emplace_back(node);
-            }
         }
     }
     result.compiled_snippet = target->get_snippet();

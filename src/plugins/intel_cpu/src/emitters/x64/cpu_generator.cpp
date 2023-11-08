@@ -232,6 +232,10 @@ snippets::Generator::opRegType intel_cpu::CPUGenerator::get_specific_op_reg_type
 }
 bool intel_cpu::CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& e) const {
     return std::dynamic_pointer_cast<intel_cpu::BrgemmEmitter>(e) ||
-           std::dynamic_pointer_cast<intel_cpu::BrgemmCopyBEmitter>(e);
+           std::dynamic_pointer_cast<intel_cpu::BrgemmCopyBEmitter>(e) ||
+           std::dynamic_pointer_cast<intel_cpu::jit_perf_count_chrono_start_emitter>(e) ||
+           std::dynamic_pointer_cast<intel_cpu::jit_perf_count_chrono_end_emitter>(e) ||
+           std::dynamic_pointer_cast<intel_cpu::jit_perf_count_rdtsc_start_emitter>(e) ||
+           std::dynamic_pointer_cast<intel_cpu::jit_perf_count_rdtsc_end_emitter>(e);
 }
 } // namespace ov

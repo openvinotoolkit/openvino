@@ -29,10 +29,8 @@ class Generator;
 class LoweringResult {
     friend class Generator;
     // Some emitters rely on other precompiled kernels.
-    // We need to keep the pointers to such emitters alive, so the kernels would still be accessible at runtime.
+    // We need to keep the pointers to such emitters alive, so the kernels or nodes would still be accessible at runtime.
     std::vector<std::shared_ptr<Emitter>> m_saved_emitters{};
-    // For perf count nodes, kernel will read/write these nodes, so should be alive in execution.
-    std::vector<std::shared_ptr<ov::Node>> m_saved_nodes{};
 
 public:
     std::shared_ptr<CompiledSnippet> compiled_snippet = nullptr;
