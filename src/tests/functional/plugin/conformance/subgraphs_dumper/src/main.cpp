@@ -25,7 +25,11 @@ int main(int argc, char *argv[]) {
 
     if (!FLAGS_device.empty() && !FLAGS_plugin_lib_name.empty()) {
         try {
-            ov::util::core->register_plugin(FLAGS_plugin_lib_name + OV_BUILD_POSTFIX, FLAGS_device);
+            auto plugin_path = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), std::string(FLAGS_plugin_lib_name) + OV_BUILD_POSTFIX);
+            if (!ov::util::file_exists(plugin_path)) {
+                throw std::runtime_error("[ WARNING ][ GRAPH CACHE ] Plugin: " + plugin_path + " does not exists!");
+            }
+            ov::util::core->register_plugin(plugin_path, FLAGS_device);
             std::cout << "[ INFO ] Device: " << FLAGS_device << " is registred in OV core with " << FLAGS_plugin_lib_name << " lib" << std::endl;
         } catch (const std::exception& e) {
             std::cout << "[ ERROR ] Impossible to register device " << FLAGS_device << " with lib " << FLAGS_plugin_lib_name <<
