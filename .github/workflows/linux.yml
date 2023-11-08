@@ -1348,6 +1348,18 @@ jobs:
           TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
 
+      - name: Install Hub Performance tests requirements
+        run: |
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/perfomance_tests/requirements.txt
+
+      - name: Performance Hub Tests
+        run: |
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/performance_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_performance.html --self-contained-html -v
+        env:
+          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
+          TEST_DEVICE: CPU
+
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
         if: ${{ !cancelled() }}
