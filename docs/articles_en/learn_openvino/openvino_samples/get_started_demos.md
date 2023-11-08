@@ -26,12 +26,11 @@ If you installed OpenVINO Runtime via archive files, sample applications for Pyt
 Once the prerequisites have been installed, perform the following steps:
 
 1. :ref:`Build Samples <build-samples>`.
-2. Select a Sample.
-3. Download a suitable model.
-4. Download media files used as input, if necessary. 
+2. :ref:`Select a Sample <select-sample>`.
+3. :ref:`Download a suitable model <download-model>`.
+4. :ref:`Download media files used as input, if necessary <download-media>`.
 
-Run inference with the chosen sample application to see the results. 
-Convert the model... 
+Once you perform all the steps, you can :ref:`run inference with the chosen sample application <run-inference>` to see the results. 
 
 .. _build-samples:
 
@@ -44,7 +43,7 @@ Select a sample you want to use from the :doc:`OpenVINO Samples <openvino_docs_O
 
    Some samples may also require `OpenCV <https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO>`__ to run properly. Make sure to install it for use with vision-oriented samples. 
 
-Instructions below show how to build sample applications with CMake. If you are interested in building them from source, check the `build instructions on GitHub <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md>`.
+Instructions below show how to build sample applications with CMake. If you are interested in building them from source, check the `build instructions on GitHub <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md>`__ .
 
 .. tab-set::
 
@@ -245,6 +244,7 @@ Instructions below show how to build sample applications with CMake. If you are 
             For the release configuration, the sample application binaries are in ``<path_to_build_directory>/<architecture>/Release/``; for the debug configuration — in ``<path_to_build_directory>/<architecture>/Debug/``.
       
 
+.. _select-sample:
 
 Sample Application Setup
 ================================
@@ -295,6 +295,7 @@ Before running compiled binary files, run the ``setupvars`` script to set all ne
 
 You are ready to run sample applications. To learn how to run a particular sample, read the sample documentation, by selecting the sample from the :doc:`Sample Overview <openvino_docs_OV_UG_Samples_Overview>`.
 
+.. _download-model:
 
 Download the Models
 ================================
@@ -303,10 +304,11 @@ You need a model that is specific for your inference task. You can get it from o
 
 
 Convert the Model
-================================
+------------------------
 
-If Your model requires conversion, check the `article <https://docs.openvino.ai/2023.1/openvino_docs_get_started_get_started_demos.html>` for information how to do it.
+If Your model requires conversion, check the `article <https://docs.openvino.ai/2023.1/openvino_docs_get_started_get_started_demos.html>`__ for information how to do it.
 
+.. _download-media:
 
 Download a Media to use
 ================================
@@ -318,6 +320,7 @@ Most of the samples require you to provide an image or a video as input for the 
 
 To run the sample applications, you can use images and videos from the media files collection available `here <https://storage.openvinotoolkit.org/data/test_data>`__ . As an alternative, you can get them from sites like `Pexels <https://pexels.com>`__ or `Google Images <https://images.google.com>`__ .
 
+.. _run-inference:
 
 Run Inference on a Sample
 ================================
@@ -333,13 +336,6 @@ To run the code sample with an input image using the IR model:
       
          .. tab-set::
       
-            .. tab-item:: Windows
-               :sync: windows
-      
-               .. code-block:: bat
-      
-                  <Python code placeholder> 
-      
             .. tab-item:: Linux
                :sync: linux
       
@@ -347,6 +343,13 @@ To run the code sample with an input image using the IR model:
       
                   <Python code placeholder> 
       
+            .. tab-item:: Windows
+               :sync: windows
+      
+               .. code-block:: bat
+      
+                  <Python code placeholder> 
+
             .. tab-item:: macOS
                :sync: macos
       
@@ -358,20 +361,20 @@ To run the code sample with an input image using the IR model:
       
          .. tab-set::
       
-            .. tab-item:: Windows
-               :sync: windows
-      
-               .. code-block:: bat
-      
-                  <Python code placeholder> 
-      
             .. tab-item:: Linux
                :sync: linux
       
                .. code-block:: sh
       
                   <Python code placeholder> 
+
+            .. tab-item:: Windows
+               :sync: windows
       
+               .. code-block:: bat
+      
+                  <Python code placeholder> 
+
             .. tab-item:: macOS
                :sync: macos
       
@@ -383,20 +386,20 @@ To run the code sample with an input image using the IR model:
       
          .. tab-set::
       
-            .. tab-item:: Windows
-               :sync: windows
-      
-               .. code-block:: bat
-      
-                  <Python code placeholder> 
-      
             .. tab-item:: Linux
                :sync: linux
       
                .. code-block:: sh
       
                   <Python code placeholder> 
+
+            .. tab-item:: Windows
+               :sync: windows
       
+               .. code-block:: bat
+      
+                  <Python code placeholder> 
+
             .. tab-item:: macOS
                :sync: macos
       
@@ -411,20 +414,20 @@ To run the code sample with an input image using the IR model:
       
          .. tab-set::
       
-            .. tab-item:: Windows
-               :sync: windows
-      
-               .. code-block:: bat
-      
-                  <INSTALL_DIR>\setupvars.bat
-      
             .. tab-item:: Linux
                :sync: linux
       
                .. code-block:: sh
       
                   source  <INSTALL_DIR>/setupvars.sh
+
+            .. tab-item:: Windows
+               :sync: windows
       
+               .. code-block:: bat
+      
+                  <INSTALL_DIR>\setupvars.bat
+
             .. tab-item:: macOS
                :sync: macos
       
@@ -436,20 +439,20 @@ To run the code sample with an input image using the IR model:
       
          .. tab-set::
       
-            .. tab-item:: Windows
-               :sync: windows
-      
-               .. code-block:: bat
-      
-                  cd  %USERPROFILE%\Documents\Intel\OpenVINO\openvino_samples_build\intel64\Release
-      
             .. tab-item:: Linux
                :sync: linux
       
                .. code-block:: sh
       
                   cd ~/openvino_cpp_samples_build/intel64/Release
+
+            .. tab-item:: Windows
+               :sync: windows
       
+               .. code-block:: bat
+      
+                  cd  %USERPROFILE%\Documents\Intel\OpenVINO\openvino_samples_build\intel64\Release
+
             .. tab-item:: macOS
                :sync: macos
       
@@ -461,20 +464,20 @@ To run the code sample with an input image using the IR model:
       
          .. tab-set::
       
-            .. tab-item:: Windows
-               :sync: windows
-      
-               .. code-block:: bat
-      
-                  <sample.exe file> -i <path_to_media> -m <path_to_model> -d <target_device>
-      
             .. tab-item:: Linux
                :sync: linux
       
                .. code-block:: sh
       
                   <sample.exe file> -i <path_to_media> -m <path_to_model> -d <target_device>
+
+            .. tab-item:: Windows
+               :sync: windows
       
+               .. code-block:: bat
+      
+                  <sample.exe file> -i <path_to_media> -m <path_to_model> -d <target_device>
+
             .. tab-item:: macOS
                :sync: macos
       
@@ -503,20 +506,20 @@ The following command shows how to run the Image Classification Code Sample usin
 
       .. tab-set::
       
-         .. tab-item:: Windows
-            :sync: windows
-      
-            .. code-block:: bat
-      
-               <Python code placeholder> 
-      
          .. tab-item:: Linux
             :sync: linux
       
             .. code-block:: sh
       
                <Python code placeholder> 
+
+         .. tab-item:: Windows
+            :sync: windows
       
+            .. code-block:: bat
+      
+               <Python code placeholder> 
+
          .. tab-item:: macOS
             :sync: macos
       
@@ -529,20 +532,20 @@ The following command shows how to run the Image Classification Code Sample usin
 
       .. tab-set::
       
-         .. tab-item:: Windows
-            :sync: windows
-      
-            .. code-block:: bat
-      
-               .\classification_sample_async.exe -i %USERPROFILE%\Downloads\dog.bmp -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -d CPU
-      
          .. tab-item:: Linux
             :sync: linux
       
             .. code-block:: sh
       
                ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d CPU
+
+         .. tab-item:: Windows
+            :sync: windows
       
+            .. code-block:: bat
+      
+               .\classification_sample_async.exe -i %USERPROFILE%\Downloads\dog.bmp -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -d CPU
+
          .. tab-item:: macOS
             :sync: macos
       
