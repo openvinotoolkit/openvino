@@ -42,11 +42,11 @@ class TestPerformanceModel:
         if input_type in [ov.Type.f32, ov.Type.f64]:
             return 2.0 * rng.random(size=input_shape, dtype=type_map[input_type])
         elif input_type in [ov.Type.u8, ov.Type.u16, ov.Type.i8, ov.Type.i16, ov.Type.i32, ov.Type.i64]:
-            return rng.integers(0, 5, size=input_shape).astype(input_type)
+            return rng.integers(0, 5, size=input_shape).astype(type_map[input_type])
         elif input_type in [str]:
             return np.broadcast_to("Some string", input_shape)
         elif input_type in [bool]:
-            return rng.integers(0, 2, size=input_shape).astype(input_type)
+            return rng.integers(0, 2, size=input_shape).astype(type_map[input_type])
         else:
             assert False, "Unsupported type {}".format(input_type)
 
