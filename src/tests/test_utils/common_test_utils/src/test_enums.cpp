@@ -351,6 +351,26 @@ std::ostream& operator<<(std::ostream& os, TensorIteratorBody type) {
     return os;
 }
 
+std::ostream& operator<<(std::ostream& os, MemoryTransformation type) {
+    switch (type) {
+    case MemoryTransformation::NONE:
+        os << "NONE";
+        break;
+    case MemoryTransformation::LOW_LATENCY_V2:
+        os << "LOW_LATENCY_V2";
+        break;
+    case MemoryTransformation::LOW_LATENCY_V2_REGULAR_API:
+        os << "LOW_LATENCY_V2_REGULAR_API";
+        break;
+    case MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT:
+        os << "LOW_LATENCY_V2_ORIGINAL_INIT";
+        break;
+    default:
+        throw std::runtime_error("NOT_SUPPORTED_TYPE");
+    }
+    return os;
+}
+
 }  // namespace utils
 }  // namespace test
 }  // namespace ov
