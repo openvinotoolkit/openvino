@@ -13,10 +13,10 @@ namespace v13 {
 FakeConvert::FakeConvert(const ov::Output<ov::Node>& arg,
                          const ov::Output<ov::Node>& scale,
                          const ov::Output<ov::Node>& shift,
-                         const std::string& destination_type,
+                         std::string destination_type,
                          bool apply_scale)
     : Op({arg, scale, shift}),
-      m_destination_type(destination_type),
+      m_destination_type(std::move(destination_type)),
       m_apply_scale(apply_scale) {
     constructor_validate_and_infer_types();
 }
@@ -29,11 +29,9 @@ const std::string& FakeConvert::get_destination_type() const {
     return m_destination_type;
 }
 
-const std::vector<std::string> FakeConvert::m_valid_types({"F8E4M3", "F8E5M2"});
-
 void FakeConvert::validate_and_infer_types() {
     OV_OP_SCOPE(v13_FakeConvert_validate_and_infer_types);
-    validate();
+    validate_type();
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
@@ -56,13 +54,19 @@ bool FakeConvert::visit_attributes(ov::AttributeVisitor& visitor) {
     return true;
 }
 
-void FakeConvert::validate() const {
-    OPENVINO_ASSERT(std::find(m_valid_types.begin(), m_valid_types.end(), m_destination_type) != m_valid_types.end(),
+void FakeConvert::validate_type() const {
+    const auto& valid_types = this->get_valid_types();
+    OPENVINO_ASSERT(std::find(valid_types.begin(), valid_types.end(), m_destination_type) != valid_types.end(),
                     "Bad format for f8 conversion type: " + m_destination_type);
 }
 
 bool FakeConvert::has_evaluate() const {
     return false;
+}
+
+const std::vector<std::string>& FakeConvert::get_valid_types() const {
+    static const std::vector<std::string> valid_types{"F8E4M3", "F8E5M2"};
+    return valid_types;
 }
 
 }  // namespace v13

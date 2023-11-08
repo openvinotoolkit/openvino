@@ -18,7 +18,7 @@ public:
     FakeConvert(const ov::Output<ov::Node>& arg,
                 const ov::Output<ov::Node>& scale,
                 const ov::Output<ov::Node>& shift,
-                const std::string& destination_type = "F8E4M3",
+                std::string destination_type = "F8E4M3",
                 bool apply_scale = true);
 
     void validate_and_infer_types() override;
@@ -30,10 +30,11 @@ public:
     const std::string& get_destination_type() const;
 
 private:
-    void validate() const;
+    void validate_type() const;
+    const std::vector<std::string>& get_valid_types() const;
+
     std::string m_destination_type = "F8E4M3";
     bool m_apply_scale = false;
-    static const std::vector<std::string> m_valid_types;
 };
 }  // namespace v13
 }  // namespace op
