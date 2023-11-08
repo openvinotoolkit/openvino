@@ -12,23 +12,21 @@ import sys
 
 from save_model import saveModel
 
-
-def ngraph_embedding(ids, vocab_embeddings, vocab_size, embedding_dim, padding_idx, sparse):
+def ov_embedding(ids, vocab_embeddings, vocab_size, embedding_dim, padding_idx, sparse):
     """
     decomposing embedding with OpenVINO ops.
     """
-    import ngraph as ng
-    from ngraph import opset8 as opset
-    from openvino.inference_engine import IECore
+    import openvino as ov
+    from openvino.runtime import opset8
+    from openvino import Core
 
     if vocab_embeddings is None:
         #
         vocab_embeddings = np.zeros(
             (vocab_size, embedding_dim)).astype("float32")
 
-    node_ids = ng.parameter(shape=ids.shape, name='ids', dtype=ids.dtype)
-    node_w = ng.parameter(shape=vocab_embeddings.shape,
-                          name='w', dtype=vocab_embeddings.dtype)
+    node_ids = opset8.parameter(shape=ids.shape, name='ids', dtype=ids.dtype)
+    node_w = opset8.parameter(shape=vocab_embeddings.shape, name='w', dtype=vocab_embeddings.dtype)
 
     if padding_idx == -1:
         padding_idx += vocab_size
@@ -40,26 +38,22 @@ def ngraph_embedding(ids, vocab_embeddings, vocab_size, embedding_dim, padding_i
         masked_embeddings = np.ones(vocab_embeddings.shape, dtype='int64')
         masked_embeddings[padding_idx, :] = 0  # mask
 
-        node_mask = ng.constant(
-            masked_embeddings, name='mask', dtype=vocab_embeddings.dtype)
-        node_masked_w = ng.multiply(node_w, node_mask)
+        node_mask = opset8.constant(masked_embeddings, name='mask', dtype=vocab_embeddings.dtype)
+        node_masked_w = opset8.multiply(node_w, node_mask)
 
-    node_axis = ng.constant([0], name='const0', dtype=np.int64)
-    node_gather = opset.gather(data=node_masked_w if padding_idx else node_w,
-                               indices=node_ids, axis=node_axis, batch_dims=0)
+    node_axis = opset8.constant([0], name='const0', dtype=np.int64)
+    node_gather = opset8.gather(data=node_masked_w if padding_idx else node_w, indices=node_ids, axis=node_axis, batch_dims=0)
 
-    graph = ng.result(node_gather, name='y')
+    graph = opset8.result(node_gather, name='y')
 
     parameters = [node_ids, node_w]
     inputs_dict = {'ids': ids, "w": vocab_embeddings}
 
-    #
-    function = ng.Function(graph, parameters, "embedding")
-
-    ie_network = ng.function_to_cnn(function)
-    ie = IECore()
-    executable_network = ie.load_network(ie_network, 'CPU')
-    output = executable_network.infer(inputs_dict)
+    # 
+    ov_model = ov.Model(graph, parameters, "embedding")
+    core = Core()
+    compiled_model = core.compile_model(ov_model, 'CPU')
+    output = compiled_model(inputs_dict)
 
     return output
 
@@ -107,9 +101,7 @@ def embedding(name: str, ids, vocab_size, embedding_dim, padding_idx=None, spars
 
     #
     if compare:
-        ng_result = ngraph_embedding(
-            ids, vocab_embeddings, vocab_size, embedding_dim, padding_idx, sparse)
-
+        ng_result = ov_embedding(ids, vocab_embeddings, vocab_size, embedding_dim, padding_idx, sparse)
         ng_result = list(ng_result.values())[0]
         paddle_result = list(outputs.values())[0]
 

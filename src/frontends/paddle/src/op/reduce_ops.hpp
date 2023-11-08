@@ -23,7 +23,7 @@ NamedOutputs reduce_ops(const NodeContext& node) {
     } else {
         dims = node.get_attribute<std::vector<int32_t>>("dim");
     }
-    auto axesNode = default_opset::Constant::create(ngraph::element::i32, {dims.size()}, dims);
+    auto axesNode = default_opset::Constant::create(ov::element::i32, {dims.size()}, dims);
     bool scalar_output = !keep_dim;
     if (scalar_output) {
         for (int32_t i = 0; i < input_rank; i++) {
