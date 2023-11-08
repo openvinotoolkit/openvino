@@ -338,7 +338,7 @@ MemoryOutput& MemoryInput::getOutputNode() {
 }
 
 void MemoryInput::assignState(MemStatePtr newState) {
-    assignedMem = newState->InputMem();
+    assignedMem = newState->input_mem();
 
     OPENVINO_ASSERT(assignedMem,
         "MemoryInput ",
@@ -387,7 +387,7 @@ void MemoryInput::assignState(MemStatePtr newState) {
         outMem->load(*assignedMem);
     }
 
-    getOutputNode().assignExtMemory(newState->OutputMem(), newState->InternalDesc());
+    getOutputNode().assignExtMemory(newState->output_mem(), newState->internal_desc());
 }
 
 MemStatePtr MemoryInput::makeState() const {

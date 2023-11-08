@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <ie_ngraph_utils.hpp>
 #include "cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include <cpu_memory.h>
@@ -61,6 +62,47 @@ CpuBlockedMemoryDesc MemoryDescUtils::convertToCpuBlockedMemoryDesc(const Infere
 
     return CpuBlockedMemoryDesc(desc.getPrecision(), Shape(dims), blkDesc.getBlockDims(), blkDesc.getOrder(), blkDesc.getOffsetPadding(),
                                 blkDesc.getOffsetPaddingToData(), strides);
+}
+
+CpuBlockedMemoryDescPtr MemoryDescUtils::generateCpuBlockedMemoryDesc(const ov::SoPtr<ov::ITensor>& tensor) {
+    using InferenceEngine::details::convertPrecision;
+
+    const auto& shape = tensor->get_shape().empty() ?  ov::Shape{tensor->get_size()} : tensor->get_shape();
+
+    VectorDims blk_order(shape.size());
+    std::iota(blk_order.begin(), blk_order.end(), 0);
+
+    auto element_type = tensor->get_element_type();
+    const auto& byte_strides = element_type.bitwidth() >= 8 ? tensor->get_strides() : Strides{};
+
+    VectorDims blk_strides;
+
+    if (byte_strides.empty()) {
+        blk_strides = ov::row_major_strides(shape);
+    } else {
+        // ROI tensor need figure out correct blk_strides
+        blk_strides.resize(byte_strides.size());
+        std::transform(byte_strides.begin(),
+                       byte_strides.end(),
+                       blk_strides.begin(),
+                       [&element_type](size_t byte_stride) {
+                           OPENVINO_ASSERT(byte_stride % element_type.size() == 0,
+                                           "Limitation: Stride in bytes ",
+                                           byte_stride,
+                                           " must be divisible by size of element ",
+                                           element_type.size());
+                           return byte_stride / element_type.size();
+                       });
+    }
+
+    return std::make_shared<CpuBlockedMemoryDesc>(
+        convertPrecision(element_type),
+        Shape{shape},
+        shape,
+        blk_order,
+        0UL,
+        VectorDims{},
+        blk_strides);
 }
 
 DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const InferenceEngine::TensorDesc& desc) {
