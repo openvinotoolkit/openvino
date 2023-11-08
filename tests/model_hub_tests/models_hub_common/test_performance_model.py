@@ -31,6 +31,8 @@ type_map = {
 class TestPerformanceModel:
     infer_timeout = 600
     max_diff = 0.1
+    num_heat_runs = 10
+    num_measure_runs = 100
 
     def load_model(self, model_name, model_link):
         raise "load_model is not implemented"
@@ -70,11 +72,11 @@ class TestPerformanceModel:
 
     def infer_model(self, ov_model, inputs):
         # heat run
-        for _ in range(0, 10):
+        for _ in range(0, TestPerformanceModel.num_heat_runs):
             ov_model(inputs)
         # measure
         results = []
-        for _ in range(0, 100):
+        for _ in range(0, TestPerformanceModel.num_measure_runs):
             t0 = time.time()
             ov_model(inputs)
             t1 = time.time()
