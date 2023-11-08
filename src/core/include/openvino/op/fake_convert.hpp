@@ -31,7 +31,6 @@ public:
 
 private:
     void validate_type() const;
-    const std::vector<std::string>& get_valid_types() const;
 
     std::string m_destination_type = "f8e4m3";
     bool m_apply_scale = false;

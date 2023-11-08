@@ -9,7 +9,12 @@
 namespace ov {
 namespace op {
 namespace v13 {
-
+namespace fake_convert {
+static const std::vector<std::string>& get_valid_types() {
+    static const std::vector<std::string> valid_types{"f8e4m3", "f8e5m2"};
+    return valid_types;
+}
+}  // namespace fake_convert
 FakeConvert::FakeConvert(const ov::Output<ov::Node>& arg,
                          const ov::Output<ov::Node>& scale,
                          const ov::Output<ov::Node>& shift,
@@ -55,18 +60,13 @@ bool FakeConvert::visit_attributes(ov::AttributeVisitor& visitor) {
 }
 
 void FakeConvert::validate_type() const {
-    const auto& valid_types = this->get_valid_types();
+    const auto& valid_types = fake_convert::get_valid_types();
     OPENVINO_ASSERT(std::find(valid_types.begin(), valid_types.end(), m_destination_type) != valid_types.end(),
                     "Bad format for f8 conversion type: " + m_destination_type);
 }
 
 bool FakeConvert::has_evaluate() const {
     return false;
-}
-
-const std::vector<std::string>& FakeConvert::get_valid_types() const {
-    static const std::vector<std::string> valid_types{"f8e4m3", "f8e5m2"};
-    return valid_types;
 }
 
 }  // namespace v13
