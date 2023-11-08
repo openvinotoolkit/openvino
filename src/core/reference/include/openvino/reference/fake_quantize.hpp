@@ -318,19 +318,15 @@ std::tuple<size_t, size_t> get_inner_stride(size_t num_output_elements,
         return (last == 1 && dim > 1) || (last > 1 && dim == 1);
     });
     if (it == shape.rend()) {
-        const size_t num_elements = shape_size(shape);
-        return std::tuple<size_t, size_t>{
-            num_elements,
-            last == 1 ? current_output_inner_stride : std::min(current_output_inner_stride, num_elements)};
+        const auto num_elements = shape_size(shape);
+        return {num_elements,
+                last == 1 ? current_output_inner_stride : std::min(current_output_inner_stride, num_elements)};
     }
-    const size_t idx = std::distance(it, shape.rbegin()) + static_cast<int64_t>(shape.size());
-    const size_t inner_stride =
-        std::accumulate(shape.begin() + idx, shape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
-    const size_t output_inner_stride = std::accumulate(output_shape.begin() + output_shape.size() - shape.size() + idx,
-                                                       output_shape.end(),
-                                                       static_cast<size_t>(1),
-                                                       std::multiplies<size_t>());
-    return std::tuple<size_t, size_t>{inner_stride, std::min(current_output_inner_stride, output_inner_stride)};
+    const auto idx = std::distance(it, shape.rbegin()) + static_cast<std::ptrdiff_t>(shape.size());
+    const auto inner_stride = shape_size(shape.begin() + idx, shape.end());
+    const auto output_inner_stride =
+        shape_size(output_shape.begin() + (output_shape.size() - shape.size() + idx), output_shape.end());
+    return {inner_stride, std::min(current_output_inner_stride, output_inner_stride)};
 }
 
 template <typename T, typename F>
