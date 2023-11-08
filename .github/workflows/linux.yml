@@ -967,7 +967,7 @@ jobs:
   Python_Unit_Tests:
     name: Python unit tests
     needs: Build
-    timeout-minutes: 40
+    timeout-minutes: 120
     defaults:
       run:
         shell: bash
@@ -1034,7 +1034,7 @@ jobs:
 
       - name: Install Dependencies
         if: ${{ matrix.architecture == 'arm64' }}
-        run: apt-get update && apt-get install -y gcc python3-dev # Needed to build `psutil`
+        run: apt-get update && apt-get install -y gcc python3-dev # Needed for building `psutil`
 
       - name: Install OpenVINO Python wheels
         run: |
