@@ -5,6 +5,7 @@
 import os
 import shutil
 
+import gc
 import wget
 import tarfile
 import tempfile
@@ -14,12 +15,11 @@ import openvino as ov
 import tensorflow_hub as hub
 # noinspection PyUnresolvedReferences
 import tensorflow_text  # do not delete, needed for text models
+import numpy as np
 
 from models_hub_common.test_performance_model import TestPerformanceModel
 from models_hub_common.utils import get_models_list
-from performance_tests.utils import type_map
 from models_hub_common.constants import wget_cache_dir
-
 
 def unpack_tar_gz(path: str) -> str:
     parent_dir = os.path.dirname(path)
@@ -52,55 +52,26 @@ class TestTFPerformanceModel(TestPerformanceModel):
         for param in model.inputs:
             input_shape = []
             param_shape = param.get_node().get_output_partial_shape(0)
-            if param_shape == ov.PartialShape([ov.Dimension(), ov.Dimension('299'), ov.Dimension('299'), ov.Dimension('3')]) and \
-                    param.get_element_type() == ov.Type('float32'):
+            shape_special_dims = [ov.Dimension(), ov.Dimension(), ov.Dimension(), ov.Dimension(3)]
+            if param_shape == ov.PartialShape(shape_special_dims) and param.get_element_type() == ov.Type.f32:
                 # image classification case, let us imitate an image
                 # that helps to avoid compute output size issue
                 input_shape = [1, 200, 200, 3]
             else:
                 for dim in param_shape:
-                    if dim.is_dynamic():
+                    if dim.is_dynamic:
                         input_shape.append(1)
                     else:
-                        input_shape.append(dim)
-        '''
-        TODO
-        assert len(model_obj.structured_input_signature) > 1, "incorrect model or test issue"
-        for input_name, input_info in model_obj.structured_input_signature[1].items():
-            input_shape = []
-            try:
-                if input_info.shape.as_list() == [None, None, None, 3] and input_info.dtype == tf.float32:
-                    # image classification case, let us imitate an image
-                    # that helps to avoid compute output size issue
-                    input_shape = [1, 200, 200, 3]
-                else:
-                    for dim in input_info.shape.as_list():
-                        if dim is None:
-                            input_shape.append(1)
-                        else:
-                            input_shape.append(dim)
-            except ValueError:
-                # unknown rank case
-                pass
-            if input_info.dtype == tf.resource:
-                # skip inputs corresponding to variables
-                continue
-            assert input_info.dtype in type_map, "Unsupported input type: {}".format(input_info.dtype)
-            inputs_info.append((input_name, input_shape, type_map[input_info.dtype]))
-        '''
+                        input_shape.append(dim.get_length())
+            inputs_info.append((param.get_node().get_friendly_name(), input_shape, param.get_element_type()))
         return inputs_info
 
-    def infer_fw_model(self, model_obj, inputs):
-        # repack input dictionary to tensorflow constants
-        tf_inputs = {}
-        for input_name, input_value in inputs.items():
-            tf_inputs[input_name] = tf.constant(input_value)
+    def get_converted_model(self, model_path: str):
+        return ov.convert_model(model_path)
 
-        output_dict = {}
-        for out_name, out_value in model_obj(**tf_inputs).items():
-            output_dict[out_name] = out_value.numpy()
-
-        return output_dict
+    def get_read_model(self, model_path: str):
+        core = ov.Core()
+        return core.read_model(model=model_path)
 
     def teardown_method(self):
         # remove all downloaded files for TF Hub models
