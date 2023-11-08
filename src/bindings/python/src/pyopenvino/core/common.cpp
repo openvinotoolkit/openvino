@@ -220,9 +220,7 @@ ov::Tensor create_shared(py::array& array) {
         // If size of an array is equal to 0, the array is empty.
         // Alternative could be `array.nbytes()`.
         if (array.size() == 0) {
-            return ov::Tensor(array_helpers::get_ov_type(array),
-                              array_helpers::get_shape(array),
-                              array.mutable_data());
+            return ov::Tensor(array_helpers::get_ov_type(array), array_helpers::get_shape(array), array.mutable_data());
         }
         // If ndim of py::array is 0, array is a numpy scalar.
         return ov::Tensor(array_helpers::get_ov_type(array),
