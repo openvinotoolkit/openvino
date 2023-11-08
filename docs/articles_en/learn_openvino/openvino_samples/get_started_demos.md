@@ -7,7 +7,7 @@
                  toolkit, and how to run inference, using provided code samples.
 
 
-To use OpenVINO samples, you need to install OpenVINO using one of the distributions containing them. Follow one of the installation guides: 
+To use OpenVINO samples, install OpenVINO using one of the following distributions: 
 
 * Archive files (recommended) - :doc:`Linux <openvino_docs_install_guides_installing_openvino_from_archive_linux>` | :doc:`Windows <openvino_docs_install_guides_installing_openvino_from_archive_windows>` | :doc:`macOS <openvino_docs_install_guides_installing_openvino_from_archive_macos>`
 * :doc:`APT <openvino_docs_install_guides_installing_openvino_apt>` or :doc:`YUM <openvino_docs_install_guides_installing_openvino_yum>` for Linux
