@@ -14,6 +14,8 @@ from openvino.tools.ovc import ovc
 from common.mo_convert_test_class import CommonMOConvertTest
 from common.tf_layer_test_class import save_to_pb
 from common.utils.common_utils import shell
+from unittest.mock import patch
+import unittest
 
 
 def generate_ir_ovc(coverage=False, **kwargs):
@@ -153,5 +155,18 @@ class TestOVCTool(CommonMOConvertTest):
         assert not exit_code
 
         ov_model = core.read_model(os.path.join(temp_dir, "test_model.xml"))
+        flag, msg = compare_functions(ov_model, ref_model, False)
+        assert flag, msg
+
+    def test_ovc_tool_non_existng_output_dir(self, ie_device, precision, ir_version, temp_dir, use_new_frontend, use_old_api):
+        from openvino.runtime import Core
+        core = Core()
+
+        model_dir, ref_model = self.create_tf_saved_model_dir(temp_dir)
+
+        exit_code, stderr = generate_ir_ovc(coverage=False, **{"input_model": model_dir + os.sep, "output_model": temp_dir + os.sep + "dir" + os.sep})
+        assert not exit_code
+
+        ov_model = core.read_model(os.path.join(temp_dir, "dir", "test_model.xml"))
         flag, msg = compare_functions(ov_model, ref_model, False)
         assert flag, msg

@@ -559,16 +559,21 @@ def get_model_name_from_args(argv: argparse.Namespace):
     if hasattr(argv, 'output_model') and argv.output_model:
         model_name = argv.output_model
 
-        if not os.path.isdir(argv.output_model):
+        if not os.path.isdir(argv.output_model) and not argv.output_model.endswith(os.sep):
+            # In this branch we assume that model name is set in 'output_model'.
             if not model_name.endswith('.xml'):
                 model_name += '.xml'
+            # Logic of creating and checking directory is covered in save_model() method.
             return model_name
         else:
-            if not os.access(argv.output_model, os.W_OK):
+            # In this branch 'output_model' has directory without name of model.
+            # The directory may not exist.
+            if os.path.isdir(argv.output_model) and not os.access(argv.output_model, os.W_OK):
+                # If the provided path is existing directory, but not writable, then raise error
                 raise Error('The directory "{}" is not writable'.format(argv.output_model))
             output_dir = argv.output_model
 
-    input_model = argv.input_model
+    input_model = os.path.abspath(argv.input_model)
     if isinstance(input_model, (tuple, list)) and len(input_model) > 0:
         input_model = input_model[0]
 
@@ -583,8 +588,8 @@ def get_model_name_from_args(argv: argparse.Namespace):
     input_model_name = os.path.splitext(input_model_name)[0]
 
     # if no valid name exists in input path set name to 'model'
-    if input_model_name == '' or input_model_name == '.':
-        input_model_name = "model"
+    if input_model_name == '':
+        raise Exception("Could not derive model name from input model. Please provide 'output_model' parameter.")
 
     # add .xml extension
     return os.path.join(output_dir, input_model_name + ".xml")
