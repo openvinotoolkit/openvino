@@ -3,12 +3,11 @@
 
 #pragma once
 
-// #include <napi.h>
+#include <napi.h>
 #include <openvino/core/partial_shape.hpp>
 
 #include "errors.hpp"
 #include "helper.hpp"
-#include "napi.h"
 
 class PartialShapeWrap : public Napi::ObjectWrap<PartialShapeWrap> {
 public:
