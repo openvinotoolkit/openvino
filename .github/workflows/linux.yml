@@ -1271,7 +1271,7 @@ jobs:
       run:
         shell: bash
     timeout-minutes: ${{ github.event_name == 'schedule' && 400 || 10 }}
-    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-4-cores-32gb' || 'aks-linux-4-cores-16gb'}}
+    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-8-cores-32gb' || 'aks-linux-8-cores-16gb'}}
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
@@ -1357,7 +1357,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-4-cores-32gb' || 'aks-linux-4-cores-16gb'}}
+    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-8-cores-32gb' || 'aks-linux-8-cores-16gb'}}
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
