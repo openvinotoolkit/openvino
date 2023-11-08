@@ -73,6 +73,8 @@ std::vector<std::string> disabledTestPatterns() {
             // TODO: range input with one element should NOT be regarded as dynamic batch model in Program::IsDynBatchModel().
             R"(.*smoke_select_CompareWithRefsNumpy_dynamic_range.*)",
             R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*CompareWithRefImpl.*)",
+            // Issue: 124060
+            R"(.*smoke_GridSample/GridSampleLayerTest.Inference/.*model_type=f16.*)",
 #if defined(_WIN32)
             R"(.*KernelCachingSupportCase.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)",
 #endif
