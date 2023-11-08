@@ -7,8 +7,6 @@
 #include "plugin.h"
 
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
-#include "extension.h"
-#include "extension_mngr.h"
 
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
@@ -173,7 +171,6 @@ Engine::Engine() :
     deviceFullName(getDeviceFullName()),
     specialSetup(new CPUSpecialSetup) {
     set_device_name("CPU");
-    extensionManager->AddExtension(std::make_shared<Extension>());
 #if defined(OV_CPU_WITH_ACL)
     scheduler_guard = SchedulerGuard::instance();
 #endif
@@ -601,7 +598,7 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
             denormals_as_zero(false);
         }
     }
-    return std::make_shared<CompiledModel>(cloned_model, shared_from_this(), conf, extensionManager);
+    return std::make_shared<CompiledModel>(cloned_model, shared_from_this(), conf);
 }
 
 void Engine::set_property(const ov::AnyMap &config) {
@@ -839,7 +836,7 @@ ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& 
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, conf);
 
     auto context =
-        std::make_shared<GraphContext>(conf, nullptr, fake_w_cache, false);
+        std::make_shared<GraphContext>(conf, fake_w_cache, false);
 
     auto supported = ov::get_supported_nodes(
         model,
@@ -892,7 +889,7 @@ std::shared_ptr<ov::ICompiledModel> Engine::import_model(std::istream& networkMo
     // import config props from caching model
     calculate_streams(conf, model, true);
 
-    auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), conf, extensionManager, true);
+    auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), conf, true);
     return compiled_model;
 }
 }   // namespace intel_cpu

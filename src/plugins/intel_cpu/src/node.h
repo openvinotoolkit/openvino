@@ -17,7 +17,6 @@
 #include "selective_build.h"
 #include "onednn/dnnl.h"
 #include "onednn/iml_type_mapper.h"
-#include "extension_mngr.h"
 #include "weights_cache.hpp"
 #include "dnnl_scratch_pad.h"
 #include <openvino/itt.hpp>
@@ -389,9 +388,6 @@ public:
                                   const std::vector<MemoryDescPtr>& outputDesc) {}
     virtual void initDescriptor(const NodeConfig& config);
     virtual bool created() const = 0;
-    virtual bool created(const ExtensionManager::Ptr& extMgr) {
-        return created();
-    }
 
     /**
      * @brief Performs Node initialization based on graph context.

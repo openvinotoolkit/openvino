@@ -26,7 +26,6 @@ public:
     void createPrimitive() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
-    bool created(const ExtensionManager::Ptr& extMgr) override;
     bool canBeInPlace() const override {
         return false;
     }

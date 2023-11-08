@@ -127,7 +127,7 @@ protected:
         //
         Config conf;
         conf.rtCacheCapacity = 100;
-        auto context = std::make_shared<GraphContext>(conf, nullptr, nullptr, false);
+        auto context = std::make_shared<GraphContext>(conf, nullptr, false);
         const dnnl::engine cpuEngine = context->getEngine();
 
         m_graph = std::unique_ptr<Graph>(new Graph());

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <extension_mngr.h>
 #include <dnnl_extension_utils.h>
 #include "generic.h"
 #include <vector>
@@ -121,22 +120,6 @@ void Generic::execute(dnnl::stream strm) {
 
 bool Generic::created() const {
     return Type::Generic == getType();
-}
-
-bool Generic::created(const ExtensionManager::Ptr &extMgr) {
-    if (ngraphOp && extMgr) {
-        // We should save extension manager in order to avoid situation when
-        // it will destroyed before extensibility primitives
-        auto impl = extMgr->CreateImplementation(ngraphOp);
-        if (auto execImpl = std::dynamic_pointer_cast<InferenceEngine::ILayerExecImpl>(impl))
-            impls.emplace_back(execImpl);
-
-        if (impls.empty())
-            return false;
-
-        setType(Type::Generic);
-    }
-    return created();
 }
 
 void Generic::cleanup() {
