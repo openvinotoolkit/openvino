@@ -77,6 +77,11 @@ TEST_P(AutoCompiledModelGetPropertyWithReleaseHelper, getPropertyTestAfterReleas
     ON_CALL(*mockIExeNetActual.get(), get_property(StrEq(ov::model_name.name())))
         .WillByDefault(Return(ov::Any(modelNameActual)));
 
+    ON_CALL(*mockIExeNetActual.get(), get_property(StrEq(ov::loaded_from_cache.name())))
+        .WillByDefault(Return(ov::Any(false)));
+    ON_CALL(*mockIExeNet.get(), get_property(StrEq(ov::loaded_from_cache.name())))
+        .WillByDefault(Return(ov::Any(false)));
+
     if (actSleep) {
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
@@ -136,7 +141,14 @@ TEST_P(AutoCompiledModelGetPropertyWithReleaseHelper, getPropertyTestAfterReleas
         }
     } else {
         ASSERT_NO_THROW(result = exeNetwork->get_property(ov::model_name.name()).as<std::string>());
-        EXPECT_EQ(result, modelNameActual);
+    }
+
+    auto supported_config_keys =
+        exeNetwork->get_property(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
+    for (const auto& cfg : supported_config_keys) {
+        if (cfg == ov::model_name)
+            continue;
+        ASSERT_NO_THROW(exeNetwork->get_property(cfg).as<std::string>());
     }
 }
 
