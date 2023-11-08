@@ -559,3 +559,4 @@ def test_init_from_empty_array(shared_flag, init_value):
     assert tuple(tensor.shape) == init_value.shape
     assert tensor.element_type.to_dtype() == init_value.dtype
     assert tensor.byte_size == init_value.nbytes
+    assert np.array_equal(tensor.data, init_value)
