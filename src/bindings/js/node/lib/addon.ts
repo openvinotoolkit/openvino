@@ -122,6 +122,13 @@ interface PrePostProcessorConstructor {
   new(model: Model): PrePostProcessor;
 }
 
+interface PartialShape {
+  isStatic(): boolean;
+}
+interface PartialShapeConstructor {
+  new(shape: string): PartialShape;
+}
+
 declare enum element {
   u8,
   u32,
@@ -145,6 +152,7 @@ export interface NodeAddon {
   Core: CoreConstructor,
   Tensor: TensorConstructor,
   PrePostProcessor: PrePostProcessorConstructor,
+  PartialShape: PartialShapeConstructor,
 
   element: typeof element,
   resizeAlgorithm: typeof resizeAlgorithm,
