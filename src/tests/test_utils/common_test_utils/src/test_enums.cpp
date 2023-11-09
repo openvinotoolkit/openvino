@@ -351,6 +351,20 @@ std::ostream& operator<<(std::ostream& os, TensorIteratorBody type) {
     return os;
 }
 
+std::ostream& operator<<(std::ostream& os, QuantizationGranularity type) {
+    switch (type) {
+    case QuantizationGranularity::Pertensor:
+        os << "Pertensor";
+        break;
+    case QuantizationGranularity::Perchannel:
+        os << "Perchannel";
+        break;
+    default:
+        throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
 std::ostream& operator<<(std::ostream& os, MemoryTransformation type) {
     switch (type) {
     case MemoryTransformation::NONE:
