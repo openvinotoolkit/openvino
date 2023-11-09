@@ -757,7 +757,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ONNXFrontend.xml
 
       - name: TensorFlow Common frontend tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test || 
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
             fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
@@ -1281,7 +1281,7 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
-    if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test || 
+    if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
         fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
 
     steps:
@@ -1414,7 +1414,6 @@ jobs:
         run: |
           # install 'git', 'g++' to build 'detectron2' and 'natten' wheels
           # install 'libgl1'and 'libglib2.0-0' as opencv-python deps
-          # install 'python3-dev' as torch dep
           sudo apt-get install --assume-yes --no-install-recommends g++ git ca-certificates libgl1 libglib2.0-0
 
       - name: Install OpenVINO Python wheels
@@ -1436,6 +1435,7 @@ jobs:
         env:
           TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
+          CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python${{ env.PYTHON_VERSION }}
           USE_SYSTEM_CACHE: False
 
       - name: Available storage after tests
