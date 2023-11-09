@@ -1077,6 +1077,16 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
         auto pos = deviceName.find_first_of(":");
         if (pos == std::string::npos)
             return model;  // BATCH device is already configured via the config
+
+        if (deviceName.find("(") == std::string::npos) {
+            auto supported_properties =
+                ICore::get_property(deviceName.substr(pos + 1, deviceName.find("(")), ov::supported_properties, {});
+            if (std::find(supported_properties.begin(), supported_properties.end(), ov::optimal_batch_size) ==
+                supported_properties.end())
+                return model;
+        } else {
+            deviceNameWithBatchSize = deviceName.substr(pos + 1);
+        }
         deviceNameWithBatchSize = deviceName.substr(pos + 1);
         deviceNameWithoutBatch = ov::DeviceIDParser::get_batch_device(deviceNameWithBatchSize);
         // when user sets the BATCH device explicitly, we may check the dims less strictly
