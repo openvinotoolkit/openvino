@@ -1276,7 +1276,7 @@ jobs:
       run:
         shell: bash
     timeout-minutes: ${{ github.event_name == 'schedule' && 400 || 25 }}
-    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-8-cores-32gb' || 'aks-linux-8-cores-16gb'}}
+    runs-on: aks-linux-16-cores-32gb
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
@@ -1343,7 +1343,7 @@ jobs:
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v
         env:
-          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
+          TYPE: nightly
           TEST_DEVICE: CPU
 
       - name: Upload Test Results
@@ -1443,11 +1443,11 @@ jobs:
   PyTorch_Models_Tests:
     name: PyTorch Models tests
     needs: [Build, Smart_CI]
-    timeout-minutes: ${{ github.event_name == 'schedule' && 400 || 30 }}
+    timeout-minutes: 400
     defaults:
       run:
         shell: bash
-    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-8-cores-32gb' || 'aks-linux-8-cores-16gb'}}
+    runs-on: aks-linux-16-cores-32gb
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
@@ -1523,7 +1523,7 @@ jobs:
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v
         env:
-          TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
+          TYPE: nightly
           TEST_DEVICE: CPU
           USE_SYSTEM_CACHE: False
 
