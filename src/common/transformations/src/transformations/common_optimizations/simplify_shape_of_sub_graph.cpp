@@ -47,10 +47,11 @@ pass::GroupedGatherElimination::GroupedGatherElimination() {
                 continue;
             }
 
-            // Scalar inputs are not supported by Concat and we don't want to throw an exception here.
+            // Scalar or not same type inputs are not supported by Concat and we don't want to throw an exception here.
             // The transformation should not be applied instead.
             if (curr->input_value(1).get_partial_shape().same_scheme(Shape{}) ||
-                next->input_value(1).get_partial_shape().same_scheme(Shape{})) {
+                next->input_value(1).get_partial_shape().same_scheme(Shape{}) ||
+                !curr->input_value(1).get_element_type().compatible(next->input_value(1).get_element_type())) {
                 return false;
             }
 

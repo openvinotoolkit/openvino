@@ -196,3 +196,22 @@ TEST_F(TransformationTestsF, GroupedGatherEliminationNegative) {
         manager.register_pass<ov::pass::GroupedGatherElimination>();
     }
 }
+
+TEST_F(TransformationTestsF, GroupedGatherEliminationIndiciesNotSameType) {
+    PartialShape data_shape{2, 128};
+    {
+        auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
+        auto shape_op = std::make_shared<opset7::ShapeOf>(data);
+
+        auto indices_1 = opset7::Constant::create(element::i32, {1}, {1});
+        auto indices_2 = opset7::Constant::create(element::i64, {1}, {1});
+        auto axis = opset7::Constant::create(element::i64, {}, {0});
+        auto gather_1 = std::make_shared<opset8::Gather>(shape_op, indices_1, axis);
+        auto gather_2 = std::make_shared<opset8::Gather>(shape_op, indices_2, axis);
+
+        auto concat = std::make_shared<opset7::Concat>(OutputVector{gather_1, gather_2}, 0);
+
+        model = std::make_shared<Model>(NodeVector{concat}, ParameterVector{data});
+        manager.register_pass<pass::GroupedGatherElimination>();
+    }
+}
