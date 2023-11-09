@@ -341,7 +341,7 @@ void MatMul::getSupportedDescriptors() {
         oDims[oDims.size() - 1] = nDim;
     }
     staticOutputShape = Shape(oDims);
-    staticOutputShape = makeDummyOutputShape(staticOutputShape);
+    // staticOutputShape = makeDummyOutputShape(staticOutputShape);
 
     const VectorDims inStrides0 = getStridesAndModifyShape(staticInputShapes[0], transposeIn[0]);
     const VectorDims inStrides1 = getStridesAndModifyShape(staticInputShapes[1], transposeIn[1]);
