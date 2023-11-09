@@ -7,7 +7,7 @@
 #include <openvino/core/preprocess/output_info.hpp>
 
 class OutputInfo : public Napi::ObjectWrap<OutputInfo> {
-    public:
+public:
     OutputInfo(const Napi::CallbackInfo& info);
 
     static Napi::Function GetClassConstructor(Napi::Env env);
