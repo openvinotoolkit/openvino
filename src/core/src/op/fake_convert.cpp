@@ -171,7 +171,7 @@ void convertfp16_bf8(const T* const arg, T* out, size_t count, int exp_bits = 5,
 }
 
 /// <summary>
-/// emulation of convertation fp16 value to hf8 1s-4e-3m format, Hybrid Float
+/// emulation of convertation fp16 value to f8e4m3 1s-4e-3m format, Hybrid Float
 /// </summary>
 /// <typeparam name="T">Every possible type with 16 bit size</typeparam>
 /// <param name="arg"></param>
@@ -181,7 +181,7 @@ void convertfp16_bf8(const T* const arg, T* out, size_t count, int exp_bits = 5,
 // Exponent normal values 1..14 -10..3 (11 - exponent)
 // Exponent NaN values 15 4
 template <typename T>
-void convertfp16_hf8(const T* arg, T* out, size_t count, int exp_bits = 5, int mbits = 9, bool use_clamp = true) {
+void convertfp16_f8e4m3(const T* arg, T* out, size_t count, int exp_bits = 5, int mbits = 9, bool use_clamp = true) {
     typedef union half_t {
         unsigned short u;
         T f;
@@ -228,9 +228,9 @@ void convertfp16_hf8(const T* arg, T* out, size_t count, int exp_bits = 5, int m
             exp_h = -15;
             mantissa_h = 0;
         }
-        /* nearest rounding masks, & 0 00000 000 111 1111 - mantissa bits below hf8 (grs) */
+        /* nearest rounding masks, & 0 00000 000 111 1111 - mantissa bits below f8e4m3 (grs) */
         unsigned short rnmask = (mantissa_h & grs_bitmask);
-        /* & 0 00000 0011000000 - edge between hf8 and fp16 mantissa */
+        /* & 0 00000 0011000000 - edge between f8e4m3 and fp16 mantissa */
         unsigned short rnmask_tie = (mantissa_h & rne_tie);
         if (!is_naninf && can_round && rne_mask) {
             /* round to nearest even, if rne_mask is enabled */
@@ -251,7 +251,7 @@ void convertfp16_hf8(const T* arg, T* out, size_t count, int exp_bits = 5, int m
 }
 
 /// <summary>
-/// emulation of convertation fp16 value to hf8 1s-4e-3m format, Extended Hybrid Float
+/// emulation of convertation fp16 value to f8e4m3 1s-4e-3m format, Extended Hybrid Float
 /// </summary>
 /// <typeparam name="T">Every possible type with 16 bit size</typeparam>
 /// <param name="arg"></param>
@@ -261,7 +261,7 @@ void convertfp16_hf8(const T* arg, T* out, size_t count, int exp_bits = 5, int m
 // Exponent normal values 1..14 -10..3 (11 - exponent)
 // Exponent NaN values 15 4
 template <typename T>
-void convertfp16_hf8_ext(const T* arg, T* out, size_t count, int exp_bits = 5, int mbits = 9, bool use_clamp = true) {
+void convertfp16_f8e4m3_ext(const T* arg, T* out, size_t count, int exp_bits = 5, int mbits = 9, bool use_clamp = true) {
     typedef union half_t {
         unsigned short u;
         T f;
@@ -312,9 +312,9 @@ void convertfp16_hf8_ext(const T* arg, T* out, size_t count, int exp_bits = 5, i
         if (exp_h == 4 && mantissa_h > 0b0000001100000000) {
             mantissa_h = 0b0000001100000000;
         }
-        /* nearest rounding masks, & 0 00000 000 111 1111 - mantissa bits below hf8 (grs) */
+        /* nearest rounding masks, & 0 00000 000 111 1111 - mantissa bits below f8e4m3 (grs) */
         unsigned short rnmask = (mantissa_h & grs_bitmask);
-        /* & 0 00000 0011000000 - edge between hf8 and fp16 mantissa */
+        /* & 0 00000 0011000000 - edge between f8e4m3 and fp16 mantissa */
         unsigned short rnmask_tie = (mantissa_h & rne_tie);
         if (!is_naninf && can_round && rne_mask) {
             /* round to nearest even, if rne_mask is enabled */
@@ -335,7 +335,7 @@ void convertfp16_hf8_ext(const T* arg, T* out, size_t count, int exp_bits = 5, i
 }
 
 /// <summary>
-/// emulation of convertation fp16 value to hf8 1s-4e-3m format, Extended Hybrid Float
+/// emulation of convertation fp16 value to f8e4m3 1s-4e-3m format, Extended Hybrid Float
 /// </summary>
 /// <typeparam name="T">Every possible type with 16 bit size</typeparam>
 /// <param name="arg"></param>
@@ -345,7 +345,7 @@ void convertfp16_hf8_ext(const T* arg, T* out, size_t count, int exp_bits = 5, i
 // Exponent normal values 1..15 -6..8 (7 - exponent)
 // Exponent NaN values 15 8
 template <typename T>
-void convertfp16_hf8_bias7(const T* arg, T* out, size_t count, int exp_bits = 5, int mbits = 9, bool use_clamp = true) {
+void convertfp16_f8e4m3_bias7(const T* arg, T* out, size_t count, int exp_bits = 5, int mbits = 9, bool use_clamp = true) {
     typedef union half_t {
         unsigned short u;
         T f;
@@ -394,9 +394,9 @@ void convertfp16_hf8_bias7(const T* arg, T* out, size_t count, int exp_bits = 5,
         if (exp_h == 8 && mantissa_h >= 0b0000001100000000) {
             mantissa_h = 0b0000001100000000;
         }
-        /* nearest rounding masks, & 0 00000 000 111 1111 - mantissa bits below hf8 (grs) */
+        /* nearest rounding masks, & 0 00000 000 111 1111 - mantissa bits below f8e4m3 (grs) */
         unsigned short rnmask = (mantissa_h & grs_bitmask);
-        /* & 0 00000 0011000000 - edge between hf8 and fp16 mantissa */
+        /* & 0 00000 0011000000 - edge between f8e4m3 and fp16 mantissa */
         unsigned short rnmask_tie = (mantissa_h & rne_tie);
         if (!is_naninf && can_round && rne_mask) {
             /* round to nearest even, if rne_mask is enabled */
@@ -429,10 +429,10 @@ bool evaluate(ov::Tensor& arg, ov::Tensor& out, const std::string& destination_t
     auto inPtr = static_cast<ET*>(arg.data());
     auto outPtr = static_cast<ET*>(out.data());
 
-    if (destination_type == "BH8") {
+    if (destination_type == "f8e5m2") {
         convertfp16_bf8(inPtr, outPtr, element_count);
-    } else if (destination_type == "HF8") {
-        convertfp16_hf8_bias7(inPtr, outPtr, element_count);
+    } else if (destination_type == "f8e4m3") {
+        convertfp16_f8e4m3_bias7(inPtr, outPtr, element_count);
     } else {
         std::cout << "Bad destination_type: " << destination_type << std::endl;
     }
