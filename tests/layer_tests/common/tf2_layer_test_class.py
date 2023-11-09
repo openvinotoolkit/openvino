@@ -72,3 +72,9 @@ class CommonTF2LayerTest(CommonLayerTest):
                 result[output] = tf_res
 
         return result
+
+    def _get_input_names(self, framework_model):
+        return framework_model.input_names
+
+    def _get_output_names(self, framework_model):
+        return framework_model.output_names
