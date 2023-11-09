@@ -18,6 +18,7 @@ from consts import (
     repo_name,
     repo_branch,
     repo_owner,
+    github_api_link,
 )
 from notebook import Notebook
 from section import Section
@@ -25,9 +26,11 @@ from glob import glob
 from lxml import html
 from jinja2 import Template
 from urllib.request import urlretrieve
-from requests import get
+import requests
 import os
+import re
 import sys
+import json
 
 
 class NbTravisDownloader:
@@ -59,7 +62,7 @@ class NbTravisDownloader:
             :type link: str
             """
             path.mkdir(exist_ok=True)
-            page = get(link, verify=False).content
+            page = requests.get(link, verify=False).content
             tree = html.fromstring(page)
             # retrieve all links on page returning their content
             tree = tree.xpath('//a[@*]/@href')
@@ -146,16 +149,36 @@ class NbProcessor:
             if not add_content_below(button_text, f"{self.nb_path}/{notebook}"):
                 raise FileNotFoundError("Unable to modify file")
 
+
+def create_nb_json_file(request_link):
+    """Function that creates a json file with a list of notebooks on openvino_notebooks repo.
+       The function is used for automatic generation of github, binder and colab badges in articles.
+    """
+    try:
+        result = requests.get(request_link)
+    except requests.exceptions.RequestException as e:
+        raise SystemExit(e)
+    result.raise_for_status()
+    response_to_json = result.json()
+    paths_list = response_to_json
+    file = Path(__file__).parent.parent.joinpath('notebooks').joinpath('openvino_notebooks.json')
+    with open(file, "w") as f:
+        f.write(json.dumps(paths_list))
+
+
 def add_glob_directive(tutorials_file):
-        with open(tutorials_file, 'r+', encoding='cp437') as mainfile:
-            readfile = mainfile.read()
-            if ':glob:' not in readfile:
-                add_glob = readfile\
-                    .replace(":hidden:\n", ":hidden:\n   :glob:\n")\
-                    .replace("notebooks_installation\n", "notebooks_installation\n   notebooks/*\n")
-                mainfile.seek(0)
-                mainfile.write(add_glob)
-                mainfile.truncate()
+    """This function modifies toctrees of the five node articles in tutorials 
+       section. It adds the notebooks found in docs/notebooks directory to the menu.
+    """
+    with open(tutorials_file, 'r+', encoding='cp437') as mainfile:
+        section_number = ''.join(c for c in str(tutorials_file) if c.isdigit())
+        readfile = mainfile.read()
+        if ':glob:' not in readfile:
+            add_glob = readfile\
+                .replace(":hidden:\n", ":hidden:\n   :glob:\n   :reversed:\n\n   notebooks/" + section_number +"*\n")
+            mainfile.seek(0)
+            mainfile.write(add_glob)
+            mainfile.truncate()
 
 def main():
     parser = argparse.ArgumentParser()
@@ -166,8 +189,19 @@ def main():
     sourcedir = args.sourcedir
     outdir = args.outdir
 
-    main_tutorials_file = Path('../../docs/articles_en/learn_openvino/tutorials.md').resolve(strict=True)
-    add_glob_directive(main_tutorials_file)
+    create_nb_json_file(github_api_link)
+
+    section_0_tutorials_file = Path('../../docs/articles_en/learn_openvino/tutorials/notebooks_section_0.md').resolve(strict=True)
+    section_1_tutorials_file = Path('../../docs/articles_en/learn_openvino/tutorials/notebooks_section_1.md').resolve(strict=True)
+    section_2_tutorials_file = Path('../../docs/articles_en/learn_openvino/tutorials/notebooks_section_2.md').resolve(strict=True)
+    section_3_tutorials_file = Path('../../docs/articles_en/learn_openvino/tutorials/notebooks_section_3.md').resolve(strict=True)
+    section_4_tutorials_file = Path('../../docs/articles_en/learn_openvino/tutorials/notebooks_section_4.md').resolve(strict=True)
+
+    add_glob_directive(section_0_tutorials_file)
+    add_glob_directive(section_1_tutorials_file)
+    add_glob_directive(section_2_tutorials_file)
+    add_glob_directive(section_3_tutorials_file)
+    add_glob_directive(section_4_tutorials_file)
 
     if args.download:
         outdir.mkdir(parents=True, exist_ok=True)
@@ -184,3 +218,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

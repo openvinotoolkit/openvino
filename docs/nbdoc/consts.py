@@ -10,6 +10,8 @@ repo_branch = "tree/main"
 
 artifacts_link = "http://repository.toolbox.iotg.sclab.intel.com/projects/ov-notebook/0.1.0-latest/20231030220807/dist/rst_files/"
 
+github_api_link = "https://api.github.com/repos/{}/{}/git/trees/main?recursive=1".format(repo_owner, repo_name)
+
 blacklisted_extensions = ['.xml', '.bin']
 
 # Templates
