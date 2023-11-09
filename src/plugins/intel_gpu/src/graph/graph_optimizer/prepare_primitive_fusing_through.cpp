@@ -131,6 +131,14 @@ void prepare_primitive_fusing_through::run(program& p) {
         auto new_prev = fuse_through_order[fuse_through_order.size() - 1];
         auto new_next = fuse_through_order[fuse_through_order.size() - 2];
 
+        // Check broadcastable for fused eltwise's output
+        if (node->is_type<eltwise>()) {
+            auto out_shape = new_prev->get_output_layout().get_partial_shape();  // new_prev's layout became node's new layout after fusing
+            auto in_shape = node->get_dependency(1).get_output_layout().get_partial_shape();
+            if (!broadcastable(in_shape, out_shape, true, true))
+                continue;
+        }
+
         if (new_prev->is_type<input_layout>() ||
             new_prev->is_type<mutable_data>() ||
             new_prev->is_type<quantize>())
