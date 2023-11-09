@@ -42,7 +42,7 @@ private:
         template <element::Type_t ET,
                   class T,
                   class T_ET,
-                  class U = fundamental_type_for<ET>,
+                  class U = ov::fundamental_type_for<ET>,
                   typename std::enable_if<is_lp_type(ET) || IS_ARG_ET_LP>::type* = nullptr>
         static result_type visit(const T* arg, Tensor& out, const size_t count, T_ET&& arg_et) {
             reference::detail::lp_convert(arg, reinterpret_cast<U*>(out.data()), count, arg_et, ET);
@@ -52,7 +52,7 @@ private:
         template <element::Type_t ET,
                   class T,
                   class T_ET,
-                  class U = fundamental_type_for<ET>,
+                  class U = ov::fundamental_type_for<ET>,
                   typename std::enable_if<!is_lp_type(ET) && !IS_ARG_ET_LP>::type* = nullptr>
         static result_type visit(const T* arg, Tensor& out, const size_t count, T_ET&&) {
             reference::convert(arg, out.data<U>(), count);
@@ -131,13 +131,19 @@ bool Convert::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
     OPENVINO_ASSERT(outputs.size() == 1);
     OPENVINO_ASSERT(inputs.size() == 1);
 
-    const auto& in_shape = inputs[0].get_shape();
-    outputs[0].set_shape(in_shape);
-    using namespace ov::element;
-    return IfTypeOf<CONVERT_ET_LIST>::apply<convert::Evaluate>(inputs[0].get_element_type(),
-                                                               inputs[0],
-                                                               outputs[0],
-                                                               shape_size(in_shape));
+    if (auto& out = outputs[0]) {
+        const auto& in = inputs[0];
+        const auto& in_shape = in.get_shape();
+        out.set_shape(in_shape);
+
+        using namespace ov::element;
+        return IfTypeOf<CONVERT_ET_LIST>::apply<convert::Evaluate>(in.get_element_type(),
+                                                                   in,
+                                                                   out,
+                                                                   shape_size(in_shape));
+    } else {
+        return false;
+    }
 }
 
 bool Convert::has_evaluate() const {
