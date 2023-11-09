@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#include "transformations/cpu_opset/x64/op/sdp.hpp"
+#include "transformations/cpu_opset/common/op/sdp.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -23,6 +23,10 @@ public:
     void getSupportedDescriptors() override {}
     bool created() const override {
         return getType() == Type::ScaledDotProductAttention;
+    }
+    // pastkv may have zero dimension
+    bool isExecutable() const override {
+        return true;
     }
     bool needPrepareParams() const override {
         return false;
