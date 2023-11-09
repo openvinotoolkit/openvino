@@ -5,6 +5,7 @@
 #include "openvino/op/read_value.hpp"
 
 #include "common_test_utils/type_prop.hpp"
+#include "dimension_util.hpp"
 
 using namespace std;
 using namespace ov;
@@ -105,4 +106,13 @@ TEST(type_prop, read_value_v6_no_init) {
     ASSERT_EQ(read_value->get_element_type(), element::f32);
     ASSERT_EQ(read_value->get_output_partial_shape(0), (PartialShape{1, 2, 64, 64}));
     ASSERT_EQ(read_value->get_variable_id(), "variable_id");
+}
+
+TEST(type_prop, DISABLED_read_value_labels_propagation) {
+    auto variable_pshape = PartialShape{1, 2, 64, 64};
+    auto variable_info = op::util::VariableInfo{variable_pshape, element::f32, "variable_id"};
+    auto variable = std::make_shared<op::util::Variable>(variable_info);
+    set_shape_labels(variable_pshape, 10);
+    std::shared_ptr<ov::op::v6::ReadValue> read_value = std::make_shared<ov::op::v6::ReadValue>(variable);
+    EXPECT_THAT(get_shape_labels(read_value->get_output_partial_shape(0)), testing::ElementsAre(10, 11, 12, 13));
 }
