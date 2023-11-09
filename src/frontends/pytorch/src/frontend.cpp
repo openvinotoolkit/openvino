@@ -38,12 +38,12 @@
 #include "transforms/prim_list_unpack_replacer.hpp"
 #include "transforms/prim_tuple_unpack_parameter_replacer.hpp"
 #include "transforms/quantized_node_remover.hpp"
+#include "transforms/reverseprop_resolver.hpp"
 #include "transforms/rfftn_complex_replacer.hpp"
 #include "transforms/softmax_reshape_elimination.hpp"
 #include "transforms/string_equality_replacer.hpp"
 #include "transforms/tuple_unpack_replacer.hpp"
 #include "transforms/u4_block_repack.hpp"
-#include "transforms/reverseprop_resolver.hpp"
 #include "translate_session.hpp"
 
 namespace ov {

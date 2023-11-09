@@ -15,7 +15,7 @@ namespace pytorch {
 
 class GatherAssign : public InternalReverseOperation {
 public:
-    OPENVINO_OP("GatherAssign", "internal");
+    OPENVINO_OP("GatherAssign", "internal", InternalReverseOperation);
 
     GatherAssign(const Output<Node>& data,
                  const Output<Node>& updates,

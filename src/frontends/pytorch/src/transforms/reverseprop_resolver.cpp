@@ -33,82 +33,77 @@ using namespace ov::pass;
 using namespace ov::op;
 
 ReversepropResolver::ReversepropResolver() {
-    auto slice_assign_pattern = pattern::wrap_type<SliceAssign>();
-    auto gather_assign_pattern = pattern::wrap_type<GatherAssign>();
-    auto reverse_op = std::make_shared<pattern::op::Or>(OutputVector{slice_assign_pattern, gather_assign_pattern});
+    auto reverse_op = pattern::wrap_type<InternalReverseOperation>();
 
     ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto base_op = m.get_match_root();
         // Apply this transformation only to starting reverse operation
-        if (std::dynamic_pointer_cast<InternalReverseOperation>(base_op->get_input_node_shared_ptr(1)))
+        if (ov::as_type_ptr<InternalReverseOperation>(base_op->get_input_node_shared_ptr(1)))
             return false;
 
         auto curr_op = base_op;
         std::vector<std::shared_ptr<Node>> rev_ops;
-        while (std::dynamic_pointer_cast<InternalReverseOperation>(curr_op)) {
+        while (ov::as_type_ptr<InternalReverseOperation>(curr_op)) {
             rev_ops.push_back(curr_op);
             auto target_inputs = curr_op->get_output_target_inputs(0);
-            if (target_inputs.size() != 1) {
+            if (target_inputs.size() != 1)
                 break;
-            }
-            // std::cout << "debug2" << std::endl;
             curr_op = target_inputs.begin()->get_node()->shared_from_this();
         }
-        if (rev_ops.size() < 1) {
-            std::cout << "debug rev_ops size" << std::endl;
+        if (rev_ops.size() < 1)
             return false;
-        }
 
+        ov::pass::NodeRegistry rg;
         auto zero = v0::Constant::create(element::i64, Shape{}, {0});
         auto one = v0::Constant::create(element::i64, Shape{}, {1});
         auto neg_one_1d = v0::Constant::create(element::i64, Shape{1}, {-1});
         auto scattering_shape = v0::Constant::create(element::i64, Shape{2}, {-1, 1});
 
-        // Get 1d indices [0..numel)
+        // Get 1d indices [0..numel) for whole input tensor
         auto start_op = rev_ops.back();
         auto data_to_insert_into = start_op->input_value(0);
-        auto input_shape = std::make_shared<v3::ShapeOf>(data_to_insert_into, element::i64);
-        auto numel = std::make_shared<v1::ReduceProd>(input_shape, zero, false);
-        auto full_data_indices_1d = std::make_shared<v4::Range>(zero, numel, one, element::i64);
-        auto full_data_indices = std::make_shared<v1::Reshape>(full_data_indices_1d, input_shape, false);
+        auto input_shape = rg.make<v3::ShapeOf>(data_to_insert_into, element::i64);
+        auto numel = rg.make<v1::ReduceProd>(input_shape, zero, false);
+        auto full_data_indices_1d = rg.make<v4::Range>(zero, numel, one, element::i64);
+        auto full_data_indices = rg.make<v1::Reshape>(full_data_indices_1d, input_shape, false);
 
+        // cut indices in accordance with operations
         Output<Node> data_indices = full_data_indices;
         for (auto it = rev_ops.rbegin(); it != rev_ops.rend(); ++it) {
             curr_op = *it;
-            if (std::dynamic_pointer_cast<SliceAssign>(curr_op)) {
+            if (ov::as_type_ptr<SliceAssign>(curr_op)) {
                 if (curr_op->get_input_size() == 6) {
-                    data_indices = std::make_shared<v8::Slice>(data_indices,
-                                                               curr_op->input_value(2),
-                                                               curr_op->input_value(3),
-                                                               curr_op->input_value(4),
-                                                               curr_op->input_value(5));
+                    data_indices = rg.make<v8::Slice>(data_indices,
+                                                      curr_op->input_value(2),
+                                                      curr_op->input_value(3),
+                                                      curr_op->input_value(4),
+                                                      curr_op->input_value(5));
                 } else if (curr_op->get_input_size() == 5) {
-                    data_indices = std::make_shared<v8::Slice>(data_indices,
-                                                               curr_op->input_value(2),
-                                                               curr_op->input_value(3),
-                                                               curr_op->input_value(4));
+                    data_indices = rg.make<v8::Slice>(data_indices,
+                                                      curr_op->input_value(2),
+                                                      curr_op->input_value(3),
+                                                      curr_op->input_value(4));
                 } else {
                     return false;
                 }
-            } else if (std::dynamic_pointer_cast<GatherAssign>(curr_op)) {
-                data_indices =
-                    std::make_shared<v8::Gather>(data_indices, curr_op->input_value(2), curr_op->input_value(3));
+            } else if (ov::as_type_ptr<GatherAssign>(curr_op)) {
+                data_indices = rg.make<v8::Gather>(data_indices, curr_op->input_value(2), curr_op->input_value(3));
             } else {
                 return false;
             }
         }
 
         // Scatter in flattened tensor with indices and flattened data to be inserted
-        auto data_to_insert_into_1d = std::make_shared<v1::Reshape>(data_to_insert_into, neg_one_1d, false);
-        auto data_indices_1d = std::make_shared<v1::Reshape>(data_indices, scattering_shape, false);
-        auto to_be_inserted_data_1d = std::make_shared<v1::Reshape>(base_op->input_value(1), neg_one_1d, false);
+        auto data_to_insert_into_1d = rg.make<v1::Reshape>(data_to_insert_into, neg_one_1d, false);
+        auto data_indices_1d = rg.make<v1::Reshape>(data_indices, scattering_shape, false);
+        auto to_be_inserted_data_1d = rg.make<v1::Reshape>(base_op->input_value(1), neg_one_1d, false);
         auto updated_data_1d =
-            std::make_shared<v3::ScatterNDUpdate>(data_to_insert_into_1d, data_indices_1d, to_be_inserted_data_1d);
+            rg.make<v3::ScatterNDUpdate>(data_to_insert_into_1d, data_indices_1d, to_be_inserted_data_1d);
 
         // Reshape to initial shape
-        auto res_node = std::make_shared<v1::Reshape>(updated_data_1d, input_shape, false);
+        auto res_node = rg.make<v1::Reshape>(updated_data_1d, input_shape, false);
+        copy_runtime_info_and_name(base_op, rg.get());
         start_op->output(0).replace(res_node);
-        std::cout << "debug replaced" << std::endl;
 
         return true;
     };

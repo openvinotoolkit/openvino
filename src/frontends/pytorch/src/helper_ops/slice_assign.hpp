@@ -15,7 +15,7 @@ namespace pytorch {
 
 class SliceAssign : public InternalReverseOperation {
 public:
-    OPENVINO_OP("SliceAssign", "internal");
+    OPENVINO_OP("SliceAssign", "internal", InternalReverseOperation);
 
     SliceAssign(const Output<Node>& data,
                 const Output<Node>& updates,

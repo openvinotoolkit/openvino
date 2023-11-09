@@ -56,7 +56,7 @@ protected:
 class InternalReverseOperation : public ov::op::Op {
 public:
     OPENVINO_OP("InternalReverseOperation", "internal");
-    InternalReverseOperation(const OutputVector& inputs) : ov::op::Op(inputs) {}    
+    InternalReverseOperation(const OutputVector& inputs) : ov::op::Op(inputs) {}
 };
 }  // namespace pytorch
 }  // namespace frontend

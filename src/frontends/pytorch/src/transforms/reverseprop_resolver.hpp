@@ -13,7 +13,7 @@ namespace pytorch {
 namespace pass {
 
 /**
- * Resolve reverseprop operations.
+ * Replace sequence of reverseprop operations with ScatterNdUpdate.
  */
 class ReversepropResolver : public ov::pass::MatcherPass {
 public:
