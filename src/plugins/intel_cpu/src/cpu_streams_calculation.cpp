@@ -559,7 +559,7 @@ void get_num_streams(const int streams, const std::shared_ptr<ov::Model>& model,
 }
 
 void set_config_streams_0(Config& config) {
-    InferenceEngine::IStreamsExecutor::Config& executor_config = config.streamExecutorConfig;
+    IStreamsExecutor::Config& executor_config = config.streamExecutorConfig;
     std::vector<std::vector<int>> proc_type_table = get_proc_type_table();
     int core_type = MAIN_CORE_PROC;
     int numa_id = 0;
