@@ -23,7 +23,10 @@ def loop():
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype=x.dtype)
         node_i = paddle.full(shape=[1], fill_value=0, dtype='int64', name='i')
-        node_i = paddle.add(node_i, node_x)
+        if paddle.__version__ >= '2.0.0':
+            node_i = paddle.add(node_i, node_x)
+        else:
+            node_i = paddle.fluid.layers.nn.elementwise_add(node_i, node_x)
         node_ten = paddle.full(shape=[1], fill_value=10, dtype='int64', name='ten')
 
         out, dummy = paddle.static.nn.while_loop(cond, body, [node_i, node_ten], name='while_loop')
@@ -49,7 +52,10 @@ def loop_x():
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype=x.dtype)
         node_i = paddle.full(shape=[1], fill_value=0, dtype='int64', name='i')
-        node_i = paddle.add(node_i, node_x)
+        if paddle.__version__ >= '2.0.0':
+            node_i = paddle.add(node_i, node_x)
+        else:
+            node_i = paddle.fluid.layers.nn.elementwise_add(node_i, node_x)
         node_ten = paddle.full(shape=[1], fill_value=10, dtype='int64', name='ten')
 
         out, dummy = paddle.static.nn.while_loop(cond, body, [node_i, node_ten], name='while_loop')
@@ -76,7 +82,10 @@ def loop_t():
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype=x.dtype)
         node_i = paddle.full(shape=[1], fill_value=0, dtype='int64', name='i')
-        node_i = paddle.add(node_i, node_x)
+        if paddle.__version__ >= '2.0.0':
+            node_i = paddle.add(node_i, node_x)
+        else:
+            paddle.fluid.layers.nn.elementwise_add(node_i, node_x)
         node_ten = paddle.full(shape=[1], fill_value=10, dtype='int64', name='ten')
 
         out_i,out_t = paddle.static.nn.while_loop(cond, body, [node_i, node_ten], name='while_loop')

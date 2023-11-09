@@ -15,8 +15,11 @@ def split(name : str, x, attrs : dict):
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype=x.dtype)
-        out = paddle.split(node_x, num_or_sections=attrs['num_or_sections'], axis=attrs['axis'])
-
+        
+        if paddle.__version__ >= '2.0.0':
+            out = paddle.split(node_x, num_or_sections=attrs['num_or_sections'], axis=attrs['axis'])
+        else:
+            out = paddle.fluid.layers.split(node_x, num_or_sections=attrs['num_or_sections'], dim=attrs['axis'])
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
         # startup program will call initializer to initialize the parameters.
@@ -40,7 +43,10 @@ def split_dim_tensor(name : str, x, attrs : dict, dim):
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype=x.dtype)
         dim_node = paddle.assign(dim)
-        out = paddle.split(node_x, num_or_sections=attrs['num_or_sections'], axis=dim_node)
+        if paddle.__version__ >= '2.0.0':
+            out = paddle.split(node_x, num_or_sections=attrs['num_or_sections'], axis=dim_node)
+        else:
+            out = paddle.fluid.layers.split(node_x, num_or_sections=attrs['num_or_sections'], dim=dim_node)
 
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
@@ -66,8 +72,10 @@ def split_test_list_tensor(name : str, x, attrs : dict):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype=x.dtype)
         section = attrs['num_or_sections']
         section[0] = paddle.assign(np.array((section[0],)).astype('int32'))
-        out = paddle.split(node_x, num_or_sections=section, axis=attrs['axis'])
-
+        if paddle.__version__ >= '2.0.0':
+            out = paddle.split(node_x, num_or_sections=section, axis=attrs['axis'])
+        else:
+            out = paddle.fluid.layers.split(node_x, num_or_sections=section, dim=attrs['axis'])
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
         # startup program will call initializer to initialize the parameters.

@@ -15,7 +15,10 @@ def hard_swish(name: str, x, threshold=6.0, scale=6.0, offset=3.0, data_type='fl
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype=data_type)
-        out = paddle.nn.functional.hardswish(node_x, name='hard_swish')
+        if paddle.__version__ >= '2.0.0':
+            out = paddle.nn.functional.hardswish(node_x, name='hard_swish')
+        else:
+            out = paddle.fluid.layers.hard_swish(node_x, threshold=threshold, scale=scale, offset=offset, name='hard_swish')
 
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])

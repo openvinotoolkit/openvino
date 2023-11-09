@@ -15,7 +15,10 @@ def sigmoid(name: str, x, data_type):
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype=data_type)
-        out = paddle.nn.functional.sigmoid(node_x, name='sigmoid')
+        if paddle.__version__ >= '2.0.0':
+            out = paddle.nn.functional.sigmoid(node_x, name='sigmoid')
+        else:
+            out = paddle.fluid.layers.sigmoid(node_x, name='sigmoid')
 
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])

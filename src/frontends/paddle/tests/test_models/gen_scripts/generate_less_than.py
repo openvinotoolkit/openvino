@@ -15,7 +15,10 @@ def less_than(name: str, x, y, data_type, cast_to_fp32=False):
             name='input_x', shape=x.shape, dtype=data_type)
         node_y = paddle.static.data(
             name='input_y', shape=y.shape, dtype=data_type)
-        out = paddle.less_than(x=node_x, y=node_y, name='less_than')
+        if paddle.__version__ >= '2.0.0':
+            out = paddle.less_than(x=node_x, y=node_y, name='less_than')
+        else:
+            out = paddle.fluid.layers.less_than(x=node_x, y=node_y, name='less_than')
         # FuzzyTest framework doesn't support boolean so cast to fp32/int32
 
         if cast_to_fp32:

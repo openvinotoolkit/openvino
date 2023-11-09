@@ -19,13 +19,19 @@ def strided_slice(name: str, input_data, attrs: dict):
             name="x", shape=input_data.shape, dtype=input_data.dtype
         )
 
-        out = paddle.strided_slice(
-            Input,
-            axes=attrs["axes"],
-            starts=attrs["starts"],
-            ends=attrs["ends"],
-            strides=attrs["strides"],
-        )
+        if paddle.__version__ >= '2.0.0':
+            out = paddle.strided_slice(
+                Input,
+                axes=attrs["axes"],
+                starts=attrs["starts"],
+                ends=attrs["ends"],
+                strides=attrs["strides"],
+            )
+        else:
+            out = paddle.fluid.layers.strided_slice(Input, axes=attrs['axes'],
+                                                    starts=attrs['starts'],
+                                                    ends=attrs['ends'],
+                                                    strides=attrs['strides'])
 
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])

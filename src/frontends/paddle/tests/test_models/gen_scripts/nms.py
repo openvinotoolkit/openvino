@@ -15,26 +15,26 @@ from paddle.fluid import data_feeder
 # bboxes shape (N, M, 4) if shared else (M, C, 4)
 # scores shape (N, C, M) if shared else (M, C)
 def NMS(name: str, bboxes, scores, attrs: dict, rois_num=None, verbose=False):
-    import paddle as pdpd
+    import paddle
     from ops import multiclass_nms as multiclass_nms
     from ops import matrix_nms as matrix_nms
-    pdpd.enable_static()
+    paddle.enable_static()
 
-    with pdpd.static.program_guard(pdpd.static.Program(),
-                                   pdpd.static.Program()):
+    with paddle.static.program_guard(paddle.static.Program(),
+                                   paddle.static.Program()):
         # make model with inputs of dynamic shape
-        node_boxes = pdpd.static.data(name='bboxes',
+        node_boxes = paddle.static.data(name='bboxes',
                                       shape=[-1, -1, 4],
                                       dtype=bboxes.dtype,
                                       lod_level=1)
-        node_scores = pdpd.static.data(name='scores',
+        node_scores = paddle.static.data(name='scores',
                                        shape=[-1] * len(scores.shape),
                                        dtype=scores.dtype,
                                        lod_level=1)
 
         node_rois_num = None
         if rois_num is not None:
-            node_rois_num = pdpd.static.data(name='rois_num',
+            node_rois_num = paddle.static.data(name='rois_num',
                                         shape=rois_num.shape,
                                         dtype=rois_num.dtype,
                                         lod_level=1)
@@ -69,14 +69,14 @@ def NMS(name: str, bboxes, scores, attrs: dict, rois_num=None, verbose=False):
         output = []
         for x in nms_outputs:
             if x is not None:
-                if x.dtype==pdpd.int32 or x.dtype==pdpd.int64:
-                    x = pdpd.cast(x, "float32")
+                if x.dtype==paddle.int32 or x.dtype==paddle.int64:
+                    x = paddle.cast(x, "float32")
             output.append(x)
 
-        cpu = pdpd.static.cpu_places(1)
-        exe = pdpd.static.Executor(cpu[0])
+        cpu = paddle.static.cpu_places(1)
+        exe = paddle.static.Executor(cpu[0])
         # startup program will call initializer to initialize the parameters.
-        exe.run(pdpd.static.default_startup_program())
+        exe.run(paddle.static.default_startup_program())
 
         fetch_vars = [x for x in output if x is not None]
         feed_dict = {'bboxes': bboxes, 'scores': scores}
@@ -94,9 +94,12 @@ def NMS(name: str, bboxes, scores, attrs: dict, rois_num=None, verbose=False):
         out = np.array(output_lod.pop(0))
         nms_rois_num = np.array(
             output_lod.pop(0)) if output[1] is not None else None
-        index = np.array(output_lod.pop(0)).astype(data_feeder.convert_dtype(
-            output[2].dtype)) if output[2] is not None else None
-
+        if paddle.__version__ >= '2.0.0':
+            index = np.array(output_lod.pop(0)).astype(data_feeder.convert_dtype(
+                output[2].dtype)) if output[2] is not None else None
+        else:
+            index = np.array(output_lod.pop(0)).astype(paddle.fluid.data_feeder.convert_dtype(
+                output[2].dtype)) if output[2] is not None else None
         # Save inputs in order of OpenVINO model, to facilite Fuzzy test,
         # which accepts inputs and outputs in this order as well.
         output_np = [out, nms_rois_num, index]

@@ -22,7 +22,10 @@ def where(name, test_x, test_y, test_cond):
         Cond_Node = paddle.static.data(
             name='cond', shape=test_cond.shape, dtype=test_cond.dtype)
 
-        Cond_Node_bl = paddle.cast(Cond_Node, "bool")
+        if paddle.__version__ >= '2.0.0':
+            Cond_Node_bl = paddle.cast(Cond_Node, "bool")
+        else:
+            Cond_Node_bl = paddle.fluid.layers.cast(Cond_Node, "bool")
 
         out = paddle.where(Cond_Node_bl, X_Node, Y_Node)
         cpu = paddle.static.cpu_places(1)

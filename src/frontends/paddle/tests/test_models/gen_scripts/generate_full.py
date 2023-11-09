@@ -13,8 +13,12 @@ import sys
 def full(name : str, shape : list, dtype, value):
     paddle.enable_static()
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
-        x1 = paddle.full(shape=shape, fill_value=value, dtype=dtype, name='fill')
-        x2 = paddle.full(shape=shape, fill_value=value, dtype=dtype, name='fill')
+        if paddle.__version__ >= '2.0.0':
+            x1 = paddle.full(shape=shape, fill_value=value, dtype=dtype, name='fill')
+            x2 = paddle.full(shape=shape, fill_value=value, dtype=dtype, name='fill')
+        else:
+            x1 = paddle.fluid.layers.fill_constant(shape=shape, value=value, dtype=dtype, name='fill_constant')
+            x2 = paddle.fluid.layers.fill_constant(shape=shape, value=value, dtype=dtype, name='fill_constant')
         out = paddle.add(paddle.cast(x1, np.float32), paddle.cast(x2, np.float32))
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
@@ -32,8 +36,12 @@ def full(name : str, shape : list, dtype, value):
 def full_tensor(name : str, shape : list, dtype, value):
     paddle.enable_static()
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
-        node_value = paddle.static.data(name='value', shape=[], dtype=dtype)
-        x1 = paddle.full(shape=shape, fill_value=node_value, dtype=dtype, name='full1')
+        if paddle.__version__ >= '2.0.0':
+            node_value = paddle.static.data(name='value', shape=[], dtype=dtype)
+            x1 = paddle.full(shape=shape, fill_value=node_value, dtype=dtype, name='full1')
+        else:
+            node_value = paddle.static.data(name='value', shape=[1], dtype=dtype)
+            x1 = paddle.fluid.layers.fill_constant(shape=shape, value=node_value, dtype=dtype, name='fill_constant1')
         out = paddle.cast(x1, np.float32)
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
@@ -44,7 +52,10 @@ def full_tensor(name : str, shape : list, dtype, value):
             feed={"value": value},
             fetch_list=[out])
 
-        saveModel(name, exe, feedkeys=["value"], fetchlist=[out], inputs=[np.array(value).astype(dtype)], outputs=[outs[0]], target_dir=sys.argv[1])
+        if paddle.__version__ >= '2.0.0':
+            saveModel(name, exe, feedkeys=["value"], fetchlist=[out], inputs=[np.array(value).astype(dtype)], outputs=[outs[0]], target_dir=sys.argv[1])
+        else:
+            saveModel(name, exe, feedkeys=["value"], fetchlist=[out], inputs=[np.array([value]).astype(dtype)], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
 
@@ -52,8 +63,12 @@ def full_tensor(name : str, shape : list, dtype, value):
 def full_shape_tensor(name : str, shape, dtype, value):
     paddle.enable_static()
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
-        node_shape = paddle.full(shape=[2], fill_value=shape, dtype='int32', name='shape')
-        x1 = paddle.full(shape=node_shape, fill_value=value, dtype=dtype, name='full')
+        if paddle.__version__ >= '2.0.0':
+            node_shape = paddle.full(shape=[2], fill_value=shape, dtype='int32', name='shape')
+            x1 = paddle.full(shape=node_shape, fill_value=value, dtype=dtype, name='full')
+        else:
+            node_shape = paddle.fluid.layers.fill_constant(shape=[1], value=shape, dtype='int32', name='shape')
+            x1 = paddle.fluid.layers.fill_constant(shape=[2, node_shape], value=value, dtype=dtype, name='fill_constant')
         out = paddle.cast(x1, np.float32)
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])

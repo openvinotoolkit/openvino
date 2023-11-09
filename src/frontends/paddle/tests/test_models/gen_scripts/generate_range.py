@@ -16,7 +16,10 @@ def paddle_range(name : str, x, start, end, step, out_type):
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype='float32')
         # Range op only support fill_constant input, since dynamic op is not supported in ov
-        out = paddle.arange(start, end, step, out_type)
+        if paddle.__version__ >= '2.0.0':
+            out = paddle.arange(start, end, step, out_type)
+        else:
+            out = paddle.fluid.layers.range(start, end, step, out_type)
         out = paddle.cast(out, np.float32)
         out = paddle.add(node_x, out)
         #out = paddle.cast(out, np.float32)

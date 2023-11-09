@@ -36,8 +36,12 @@ def layer_norm(name:str, x, begin_norm_axis, scale=True, shift=True, param_attr=
 def main():
     x = np.random.rand(8, 24, 32).astype(data_type)
     random_data = np.random.rand(24 * 32).astype(data_type)
-    attr = paddle.ParamAttr(
-              initializer=paddle.nn.initializer.Assign(random_data))
+    if paddle.__version__ >= '2.0.0':
+        attr = paddle.ParamAttr(
+                initializer=paddle.nn.initializer.Assign(random_data))
+    else:
+        attr = paddle.ParamAttr(
+                initializer=paddle.fluid.initializer.NumpyArrayInitializer(random_data))
     layer_norm("layer_norm", x, begin_norm_axis=1, param_attr=attr, bias_attr=attr)
     layer_norm("layer_norm_noscale", x, scale=False, begin_norm_axis=2)
     layer_norm("layer_norm_noshift", x, shift=False, begin_norm_axis=1)

@@ -4,6 +4,8 @@
 #
 # prior_box paddle model generator
 #
+
+import paddle
 import numpy as np
 from save_model import saveModel
 import sys
@@ -19,18 +21,32 @@ def prior_box(name: str, input_data, image_data, attrs: dict):
         Image = paddle.static.data(
             name='Image', shape=image_data.shape, dtype=image_data.dtype)
 
-        box, var = paddle.vision.ops.prior_box(Input,
-                                               Image,
-                                               min_sizes=attrs['min_sizes'],
-                                               max_sizes=attrs['max_sizes'],
-                                               aspect_ratios=attrs['aspect_ratios'],
-                                               variance=attrs['variance'],
-                                               flip=attrs['flip'],
-                                               clip=attrs['clip'],
-                                               steps=attrs['steps'],
-                                               offset=attrs['offset'],
-                                               name=None,
-                                               min_max_aspect_ratios_order=attrs['min_max_aspect_ratios_order'])
+        if paddle.__version__ >= '2.0.0':
+            box, var = paddle.vision.ops.prior_box(Input,
+                                                   Image,
+                                                   min_sizes=attrs['min_sizes'],
+                                                   max_sizes=attrs['max_sizes'],
+                                                   aspect_ratios=attrs['aspect_ratios'],
+                                                   variance=attrs['variance'],
+                                                   flip=attrs['flip'],
+                                                   clip=attrs['clip'],
+                                                   steps=attrs['steps'],
+                                                   offset=attrs['offset'],
+                                                   name=None,
+                                                   min_max_aspect_ratios_order=attrs['min_max_aspect_ratios_order'])
+        else:
+            box, var = paddle.fluid.layers.prior_box(Input,
+                                                     Image,
+                                                     min_sizes=attrs['min_sizes'],
+                                                     max_sizes=attrs['max_sizes'],
+                                                     aspect_ratios=attrs['aspect_ratios'],
+                                                     variance=attrs['variance'],
+                                                     flip=attrs['flip'],
+                                                     clip=attrs['clip'],
+                                                     steps=attrs['steps'],
+                                                     offset=attrs['offset'],
+                                                     name=None,
+                                                     min_max_aspect_ratios_order=attrs['min_max_aspect_ratios_order'])
 
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])

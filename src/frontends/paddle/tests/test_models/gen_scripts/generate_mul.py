@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import paddle
 import numpy as np
 from save_model import saveModel
 import sys
@@ -12,7 +13,10 @@ def paddle_matmul(name, x1, x2, x_transpose=False, y_transpose=False):
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x1 = paddle.static.data(name='x1', shape=x1.shape, dtype=x1.dtype)
         node_x2 = paddle.static.data(name='x2', shape=x2.shape, dtype=x2.dtype)
-        mul_node = paddle.matmul(node_x1, node_x2, x_transpose, y_transpose)
+        if paddle.__version__ >= '2.0.0':
+            mul_node = paddle.matmul(node_x1, node_x2, x_transpose, y_transpose)
+        else:
+            mul_node = paddle.fluid.layers.matmul(node_x1, node_x2, x_transpose, y_transpose)
         result = paddle.static.nn.batch_norm(mul_node, use_global_stats=True)
 
         cpu = paddle.static.cpu_places(1)

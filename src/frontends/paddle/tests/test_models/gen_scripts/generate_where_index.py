@@ -16,7 +16,10 @@ def where_index(name: str, x, force_boolean=False):
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype=x.dtype)
         if force_boolean:
-            node_x_bl = paddle.cast(node_x, "bool")
+            if paddle.__version__ >= '2.0.0':
+                node_x_bl = paddle.cast(node_x, "bool")
+            else:
+                node_x_bl = paddle.fluid.layers.cast(node_x, "bool")
             out = paddle.nonzero(node_x_bl)
         else:
             out = paddle.nonzero(node_x)

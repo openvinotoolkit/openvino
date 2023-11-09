@@ -16,8 +16,10 @@ def squeeze(name : str, x, axes : list):
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype = data_type)
-        out = paddle.squeeze(node_x, axis=axes, name='squeeze')
-
+        if paddle.__version__ >= '2.0.0':
+            out = paddle.squeeze(node_x, axis=axes, name='squeeze')
+        else:
+            out = paddle.fluid.layers.squeeze(node_x, axes=axes, name='squeeze')
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
         # startup program will call initializer to initialize the parameters.

@@ -4,6 +4,8 @@
 #
 # pow paddle model generator
 #
+
+import paddle
 import numpy as np
 from save_model import saveModel
 import paddle
@@ -15,8 +17,11 @@ def paddle_pow(name : str, x, y, data_type):
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype=data_type)
-        y = paddle.to_tensor(y, dtype=data_type)
-        out = paddle.pow(node_x, y, name='pow')
+        if paddle.__version__ >= '2.0.0':
+            y = paddle.to_tensor(y, dtype=data_type)
+            out = paddle.pow(node_x, y, name='pow')
+        else:
+            out = paddle.fluid.layers.pow(node_x, y, name='pow')
         #FuzzyTest supports int32 & float32
         if data_type == "int64":
             out = paddle.cast(out, "float32")
@@ -41,7 +46,10 @@ def paddle_pow_tensor(name : str, x, y, data_type):
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype=data_type)
         node_y = paddle.static.data(name='y', shape=y.shape, dtype=data_type)
-        out = paddle.pow(node_x, node_y, name='pow')
+        if paddle.__version__ >= '2.0.0':
+            out = paddle.pow(node_x, node_y, name='pow')
+        else:
+            out = paddle.fluid.layers.pow(node_x, node_y, name='pow')
         out = paddle.cast(out, "float32")
 
         cpu = paddle.static.cpu_places(1)

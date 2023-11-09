@@ -3,22 +3,25 @@
 #
 import numpy as np
 from save_model import saveModel
-import paddle as pdpd
+import paddle
 import sys
 
 
 def swish(name: str, x, data_type):
-    pdpd.enable_static()
+    paddle.enable_static()
 
-    with pdpd.static.program_guard(pdpd.static.Program(), pdpd.static.Program()):
-        node_x = pdpd.static.data(
+    with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
+        node_x = paddle.static.data(
             name='input_x', shape=x.shape, dtype=data_type)
-        out = pdpd.nn.functional.swish(x=node_x, name='swish')
+        if paddle.__version__ >= '2.0.0':
+            out = paddle.nn.functional.swish(x=node_x, name='swish')
+        else:
+            out = paddle.fluid.layers.swish(x=node_x, name='swish')
 
-        cpu = pdpd.static.cpu_places(1)
-        exe = pdpd.static.Executor(cpu[0])
+        cpu = paddle.static.cpu_places(1)
+        exe = paddle.static.Executor(cpu[0])
         # startup program will call initializer to initialize the parameters.
-        exe.run(pdpd.static.default_startup_program())
+        exe.run(paddle.static.default_startup_program())
 
         outs = exe.run(
             feed={'input_x': x},

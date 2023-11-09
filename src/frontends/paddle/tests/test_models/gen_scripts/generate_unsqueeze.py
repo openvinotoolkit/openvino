@@ -16,7 +16,10 @@ def unsqueeze(name : str, x, axes : list):
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype = data_type)
-        out = paddle.unsqueeze(node_x, axis=axes, name='unsqueeze')
+        if paddle.__version__ >= '2.0.0':
+            out = paddle.unsqueeze(node_x, axis=axes, name='unsqueeze')
+        else:
+            out = paddle.fluid.layers.unsqueeze(node_x, axes=axes, name='unsqueeze')
 
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
