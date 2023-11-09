@@ -48,6 +48,7 @@ async function main(modelPath, imagePath, deviceName) {
   _ppp.input().tensor().setShape(shape).setLayout('NHWC');
   _ppp.input().preprocess().resize(ov.resizeAlgorithm.RESIZE_LINEAR);
   _ppp.input().model().setLayout('NCHW');
+  _ppp.output().tensor().setElementType(ov.element.f32)
   _ppp.build();
 
   //----------------- Step 5. Loading model to the device ----------------------

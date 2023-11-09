@@ -17,10 +17,11 @@ PrePostProcessorWrap::PrePostProcessorWrap(const Napi::CallbackInfo& info)
 }
 
 Napi::Function PrePostProcessorWrap::GetClassConstructor(Napi::Env env) {
-    return DefineClass(
-        env,
-        "PrePostProcessorWrap",
-        {InstanceMethod("input", &PrePostProcessorWrap::input), InstanceMethod("build", &PrePostProcessorWrap::build)});
+    return DefineClass(env,
+                       "PrePostProcessorWrap",
+                       {InstanceMethod("input", &PrePostProcessorWrap::input),
+                        InstanceMethod("output", &PrePostProcessorWrap::output),
+                        InstanceMethod("build", &PrePostProcessorWrap::build)});
 }
 
 Napi::Object PrePostProcessorWrap::Init(Napi::Env env, Napi::Object exports) {
@@ -47,6 +48,26 @@ Napi::Value PrePostProcessorWrap::input(const Napi::CallbackInfo& info) {
         input_info->set_input_info(_ppp->input(info[0].ToNumber().Int32Value()));
     } else if (info[0].IsString()) {
         input_info->set_input_info(_ppp->input(info[0].ToString().Utf8Value()));
+    } else {
+        reportError(info.Env(), "Invalid parameter.");
+        return info.Env().Undefined();
+    }
+    return obj;
+}
+
+Napi::Value PrePostProcessorWrap::output(const Napi::CallbackInfo& info) {
+    if (info.Length() != 0 && info.Length() != 1) {
+        reportError(info.Env(), "Wrong number of parameters.");
+        return info.Env().Undefined();
+    }
+    Napi::Object obj = OutputInfo::GetClassConstructor(info.Env()).New({});
+    auto output_info = Napi::ObjectWrap<OutputInfo>::Unwrap(obj);
+    if (info.Length() == 0) {
+        output_info->set_output_info(_ppp->output());
+    } else if (info[0].IsNumber()) {
+        output_info->set_output_info(_ppp->output(info[0].ToNumber().Int32Value()));
+    } else if (info[0].IsString()) {
+        output_info->set_output_info(_ppp->output(info[0].ToString().Utf8Value()));
     } else {
         reportError(info.Env(), "Invalid parameter.");
         return info.Env().Undefined();

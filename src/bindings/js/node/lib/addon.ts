@@ -100,6 +100,11 @@ interface InputTensorInfo {
     setLayout(layout: string): InputTensorInfo;
     setShape(shape: number[]): InputTensorInfo;
 }
+
+interface OutputTensorInfo {
+    setElementType(elementType: element | elementTypeString ): InputTensorInfo;
+    setLayout(layout: string): InputTensorInfo;
+}
 interface PreProcessSteps {
     resize(algorithm: resizeAlgorithm | string): PreProcessSteps;
 }
@@ -114,9 +119,14 @@ interface InputInfo {
     model(): InputModelInfo;
 }
 
+interface OutputInfo {
+    tensor(): OutputTensorInfo;
+}
+
 interface PrePostProcessor {
   build(): PrePostProcessor;
   input(idxOrTensorName?: number | string): InputInfo;
+  output(idxOrTensorName?: number | string): OutputInfo;
 }
 interface PrePostProcessorConstructor {
   new(model: Model): PrePostProcessor;

@@ -13,6 +13,7 @@
 #include "helper.hpp"
 #include "model_wrap.hpp"
 #include "preprocess/input_info.hpp"
+#include "preprocess/output_info.hpp"
 
 class PrePostProcessorWrap : public Napi::ObjectWrap<PrePostProcessorWrap> {
 public:
@@ -33,6 +34,8 @@ public:
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
 
     Napi::Value input(const Napi::CallbackInfo& info);
+
+    Napi::Value output(const Napi::CallbackInfo& info);
 
     void build(const Napi::CallbackInfo& info);
 
