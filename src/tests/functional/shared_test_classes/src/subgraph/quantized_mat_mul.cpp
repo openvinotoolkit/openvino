@@ -78,7 +78,7 @@ void QuantMatMulTest::SetUp() {
             QuantizationGranularity quantGranularity, const ngraph::Output<ngraph::Node> &in, std::vector<size_t> inputShape,
             InferenceEngine::Precision prec) -> std::shared_ptr<ngraph::Node> {
         std::vector<size_t> dataFqConstShapes(inputShape.size(), 1);
-        if (quantGranularity == ngraph::helpers::Perchannel)
+        if (quantGranularity == QuantizationGranularity::Perchannel)
             dataFqConstShapes[1] = inputShape[1];
         size_t constDataSize = ngraph::shape_size(dataFqConstShapes);
         std::vector<float> inputLowData(constDataSize), inputHighData(constDataSize), outputLowData(constDataSize), outputHighData(constDataSize);

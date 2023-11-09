@@ -37,8 +37,7 @@ void RollLayerTest::SetUp() {
     auto shiftNode = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{shift.size()}, shift)->output(0);
     auto axesNode = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{axes.size()}, axes)->output(0);
 
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramVector));
-    auto roll = std::dynamic_pointer_cast<ngraph::op::v7::Roll>(ngraph::builder::makeRoll(paramOuts[0], shiftNode, axesNode));
+    auto roll = std::make_shared<ngraph::op::v7::Roll>(paramVector[0], shiftNode, axesNode);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(roll)};
     function = std::make_shared<ngraph::Function>(results, paramVector, "roll");

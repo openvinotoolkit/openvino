@@ -156,6 +156,11 @@ enum class DFTOpType {
     INVERSE
 };
 
+enum class QuantizationGranularity {
+    Pertensor,
+    Perchannel
+};
+
 enum class TensorIteratorBody {
     RNN,
     GRU,
@@ -169,6 +174,7 @@ enum class MemoryTransformation {
     LOW_LATENCY_V2_REGULAR_API,
     LOW_LATENCY_V2_ORIGINAL_INIT
 };
+// clang-format on
 
 std::ostream& operator<<(std::ostream& os, const ReductionType& m);
 
