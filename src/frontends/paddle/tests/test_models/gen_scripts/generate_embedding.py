@@ -9,6 +9,7 @@
 #
 import numpy as np
 import sys
+import paddle
 
 from save_model import saveModel
 
