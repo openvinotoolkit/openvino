@@ -11,6 +11,7 @@
 #include <ov_ops/type_relaxed.hpp>
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 #include "cpu/cpu_config.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -130,7 +131,8 @@ protected:
                                             const std::vector<int8_t>& weiData) {
         using namespace ngraph;
         auto inputParamsFP32 = std::make_shared<ov::op::v0::Parameter>(element::f32, A.get_partial_shape());
-        auto matrixBFP32 = builder::makeDynamicInputLayer(element::f32, helpers::InputLayerType::CONSTANT, inShapeB);
+        auto tensor = ov::test::utils::create_and_fill_tensor(element::f32, inShapeB.to_shape());
+        auto matrixBFP32 = std::make_shared<ov::op::v0::Constant>(tensor);
 
         auto matMulRelaxed = std::make_shared<ov::op::TypeRelaxed<opset3::MatMul>>(
             *std::make_shared<ov::op::v0::MatMul>(inputParamsFP32, matrixBFP32, transpose_a, transpose_b),
@@ -191,7 +193,8 @@ protected:
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inShapeA)};
 
-        auto matrixB = builder::makeDynamicInputLayer(element::f32, helpers::InputLayerType::CONSTANT, inShapeB);
+        auto tensor = ov::test::utils::create_and_fill_tensor(element::f32, inShapeB.to_shape());
+        auto matrixB = std::make_shared<ov::op::v0::Constant>(tensor);
 
         auto weiData = generateSparseVector(ngraph::shape_size(inShapeB.get_shape()), weiSparseRate);
         auto matMul = makeMatMulRelaxed(params[0], inShapeB, weiType, transpA, transpB, weiData);
