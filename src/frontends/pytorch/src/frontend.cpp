@@ -43,6 +43,7 @@
 #include "transforms/string_equality_replacer.hpp"
 #include "transforms/tuple_unpack_replacer.hpp"
 #include "transforms/u4_block_repack.hpp"
+#include "transforms/reverseprop_resolver.hpp"
 #include "translate_session.hpp"
 
 namespace ov {
@@ -204,6 +205,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::QuantizedNodeRemover>();
     manager.register_pass<ov::frontend::pytorch::pass::SoftmaxReshapeElimination>();
     manager.register_pass<ov::frontend::pytorch::pass::U4BlockRepack>();
+    manager.register_pass<ov::frontend::pytorch::pass::ReversepropResolver>();
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
     // Second pass of AlignTypesRemoval after all converting transformations
