@@ -1359,6 +1359,7 @@ jobs:
         env:
           TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
+          PERFORMANCE_RESULTS_FILE: ${INSTALL_TEST_DIR}/TEST-tf_hub_performance.log
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
