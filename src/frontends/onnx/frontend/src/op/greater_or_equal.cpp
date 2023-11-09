@@ -5,11 +5,9 @@
 #include "op/greater_or_equal.hpp"
 
 #include <memory>
+#include <vector>
 
 #include "default_opset.hpp"
-#include "utils/common.hpp"
-#define _USE_MATH_DEFINES
-#include <math.h>
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
