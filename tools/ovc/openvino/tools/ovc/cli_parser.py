@@ -395,7 +395,9 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
 
     # Command line tool specific params
     parser.add_argument('--output_model',
-                              help='This parameter is used to name output .xml/.bin files with converted model.')
+                              help='This parameter is used to name output .xml/.bin files of converted model. '
+                                   'Model name or output directory can be passed. If output directory is passed, '
+                                   'the resulting .xml/.bin files are named by original model name.')
     parser.add_argument('--compress_to_fp16', type=check_bool, default=True, nargs='?',
                               help='Compress weights in output OpenVINO model to FP16. '
                                    'To turn off compression use "--compress_to_fp16=False" command line parameter. '
