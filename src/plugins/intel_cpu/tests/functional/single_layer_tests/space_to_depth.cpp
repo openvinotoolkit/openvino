@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/single_layer/space_to_depth.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "test_utils/filter_cpu_info.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 
