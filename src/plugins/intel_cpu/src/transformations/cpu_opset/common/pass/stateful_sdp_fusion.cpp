@@ -17,7 +17,7 @@
 
 #include "itt.hpp"
 #include "ov_ops/type_relaxed.hpp"
-#include "transformations/cpu_opset/x64/op/sdp.hpp"
+#include "transformations/cpu_opset/common/op/sdp.hpp"
 
 #define CALLBACK_LOG(m) std::cout << matcher_name << " " << m.get_match_root()->get_friendly_name() << std::endl;
 
@@ -27,10 +27,6 @@ namespace intel_cpu {
 StatefulSDPFusion::StatefulSDPFusion() {
     MATCHER_SCOPE(StatefulSDPFusion);
     using namespace ov::pass::pattern;
-    // Skip StatefulSDPFusion unless explicitly required
-    // if (!std::getenv("FUSE_SDP") || (atoi(std::getenv("FUSE_SDP")) == 0)) {
-    //     return;
-    // }
 
     auto past_k = wrap_type<opset6::ReadValue>();
     auto past_v = wrap_type<opset6::ReadValue>();
@@ -99,8 +95,6 @@ StatefulSDPFusion::StatefulSDPFusion() {
         assign_k_node->set_arguments({new_node->output(1)});
         assign_v_node->set_arguments({new_node->output(2)});
 
-        // this new node may match following additional matchers
-        // register_new_node(new_node);
         return true;
     };
 

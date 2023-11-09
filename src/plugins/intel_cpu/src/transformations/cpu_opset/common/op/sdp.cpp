@@ -31,13 +31,15 @@ void ov::intel_cpu::ScaledDotProductAttentionNode::validate_and_infer_types() {
 
     NODE_VALIDATION_CHECK(this, m_config.output_BLHxS == false);
     NODE_VALIDATION_CHECK(this, q_ps.size() >= 3);
-    NODE_VALIDATION_CHECK(this, q_ps.size() == past_kv_ps.size());
-    for (size_t i = 0; i < q_ps.size(); i++) {
-        if (i == q_ps.size() - 2)
-            continue;
-        NODE_VALIDATION_CHECK(this, q_ps[i].compatible(past_kv_ps[i]));
+    if (past_kv_ps.rank().is_static()) {
+        NODE_VALIDATION_CHECK(this, q_ps.size() == past_kv_ps.size());
+        for (size_t i = 0; i < q_ps.size(); i++) {
+            if (i == q_ps.size() - 2)
+                continue;
+            NODE_VALIDATION_CHECK(this, q_ps[i].compatible(past_kv_ps[i]));
+        }
+        past_kv_ps[q_ps.size() - 2] += q_ps[q_ps.size() - 2];
     }
-    past_kv_ps[q_ps.size() - 2] += q_ps[q_ps.size() - 2];
     set_output_type(0, get_input_element_type(0), q_ps);
     set_output_type(1, get_input_element_type(input_num - 1), past_kv_ps);
     set_output_type(2, get_input_element_type(input_num - 1), past_kv_ps);

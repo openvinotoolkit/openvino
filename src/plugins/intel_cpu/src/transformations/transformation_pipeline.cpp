@@ -101,7 +101,6 @@
 #include "transformations/cpu_opset/convert_to_cpu_specific_opset.hpp"
 #include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
 #include "transformations/cpu_opset/x64/pass/convert_to_interaction.hpp"
-#include "transformations/cpu_opset/x64/pass/stateful_sdp_fusion.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
@@ -111,6 +110,7 @@
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/move_eltwise_up_data_movement.hpp"
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
+#include "transformations/cpu_opset/common/pass/stateful_sdp_fusion.hpp"
 
 // Snippets
 #include "snippets/pass/tokenization.hpp"
@@ -434,7 +434,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertNMS9ToNMSIEInternal);
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMulticlassNmsToMulticlassNmsIE);
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMatrixNmsToMatrixNmsIE);
-    CPU_SET_CALLBACK_COMMON(manager,
+    CPU_SET_CALLBACK_X64(manager,
         [](const_node_ptr &node) -> bool {
             std::string errorMsg;
             return node::ScaledDotProductAttention::isSupportedOperation(node, errorMsg);
@@ -656,7 +656,7 @@ void Transformations::PostLpt() {
 
     // Execute before snippets. Otherwise FQ will be converted to Subgraph
     CPU_REGISTER_PASS_X64(postLPTPassManager, ConvertFqRnnToQuantizedRnn);
-    CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPFusion);
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, StatefulSDPFusion);
     postLPTPassManager.run_passes(model);
 }
 

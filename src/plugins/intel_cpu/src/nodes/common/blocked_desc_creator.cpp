@@ -72,7 +72,7 @@ private:
 
 class CABDCreator : public BlockedDescCreator {
 public:
-    CpuBlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const Shape& srcShape) const override {
+    CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision, const Shape& srcShape) const override {
         SizeVector order(srcShape.getRank());
         std::iota(order.begin(), order.end(), 0);
         SizeVector blkDims = srcShape.getDims();

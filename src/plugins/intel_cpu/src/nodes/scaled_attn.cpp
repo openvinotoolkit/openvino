@@ -602,16 +602,14 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
     }
 
     void prepare_output(const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr>& outputs, PlainTensor<T>& k_input, PlainTensor<T>& v_input) {
-        const bool has_out_transpose = config.output_BLHxS;
-        const bool fuse_concat = config.fuse_concat;
-        auto input_num = inputs.size() - (fuse_concat ? 2 : 0);
-        if (fuse_concat) {
+        if (config.fuse_concat) {
+            auto past_k_idx = inputs.size() - 2;
             PlainTensor<T> past_k_input, past_v_input, past_k_output, past_v_output;
-            auto past_k_mem = inputs[input_num + 0];
+            auto past_k_mem = inputs[past_k_idx + 0];
             L0 = past_k_mem->getStaticDims()[2];
             // [S, B, L0, S]
             past_k_input.resize({L0, B, H, S}, static_cast<T*>(past_k_mem->getData()));
-            past_v_input.resize({L0, B, H, S}, static_cast<T*>(inputs[input_num + 1]->getData()));
+            past_v_input.resize({L0, B, H, S}, static_cast<T*>(inputs[past_k_idx + 1]->getData()));
             past_k_output.resize({L0 + L1, B, H, S}, static_cast<T*>(outputs[1]->getData()));
             past_v_output.resize({L0 + L1, B, H, S}, static_cast<T*>(outputs[2]->getData()));
             past_k_input = past_k_input.permute({1, 2, 0, 3});
@@ -637,6 +635,14 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             });
             k_input = past_k_output;
             v_input = past_v_output;
+            std::cout << "\npast K:\n";
+            std::cout << past_k_input;
+            std::cout << "\npast V:\n";
+            std::cout << past_v_input;
+            std::cout << "\ncur K:\n";
+            std::cout << k_input;
+            std::cout << "\ncur V:\n";
+            std::cout << v_input;
         }
     }
 
@@ -671,6 +677,8 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         S = q_input.size(-1);
 
         prepare_output(inputs, outputs, k_input, v_input);
+        std::cout << "\ncur Q:\n";
+        std::cout << q_input;
 
         L0 = k_input.size(2) - L1;
 
@@ -799,10 +807,12 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     if (m_config.fuse_concat) {
         config.outConfs[1].setMemDesc(creatorsMap.at(LayoutType::cabd)->createSharedDesc(
             rtPrecision, getOutputShapeAtPort(1)));
+        //config.outConfs[1].inPlace(orginSDPInputNumber + 0);
         config.outConfs[2].setMemDesc(creatorsMap.at(LayoutType::cabd)->createSharedDesc(
             rtPrecision, getOutputShapeAtPort(2)));
+        //config.outConfs[2].inPlace(orginSDPInputNumber + 1);
     }
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
 
 void ScaledDotProductAttention::execute(dnnl::stream strm) {
@@ -817,7 +827,6 @@ void ScaledDotProductAttention::execute(dnnl::stream strm) {
 }
 
 bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
-#if defined(OPENVINO_ARCH_X86_64)
     try {
         const auto node = std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op);
         if (!std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op) &&
@@ -840,10 +849,6 @@ bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const
         return false;
     }
     return true;
-#else
-    // current optimization is not suitable for ARM
-    return false;
-#endif
 }
 
 }  // namespace node
