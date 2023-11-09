@@ -326,7 +326,9 @@ std::string ov::op::v0::Constant::convert_value_to_string(size_t index) const {
 }
 
 size_t ov::op::v0::Constant::get_byte_size() const {
-    return m_data->size();
+    // Returns 0 when shape is "empty" (equals 0).
+    // TODO: refactor shape_size(m_shape) calculations and store it as a member.
+    return shape_size(m_shape) ? m_data->size() : 0;
 }
 
 const void* ov::op::v0::Constant::get_data_ptr() const {
