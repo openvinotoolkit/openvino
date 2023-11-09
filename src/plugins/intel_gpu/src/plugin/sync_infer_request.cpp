@@ -168,18 +168,6 @@ bool same_host_mem(cldnn::memory::cptr memory, const uint8_t* host_ptr) {
     return device_ptr == host_ptr;
 }
 
-ov::Shape predict_shape(const std::string& name, const ov::Shape current_shape, ov::element::Type element_type, cldnn::ShapePredictor& shape_predictor) {
-    auto prealloc_info = shape_predictor.predict_preallocation_shape(name, current_shape, element_type.bitwidth(), false);
-    const auto& preallocation_shape = prealloc_info.second;
-    auto can_preallocate_buffer = prealloc_info.first &&
-                                    shape_predictor.can_preallocate(cldnn::ceil_div(ov::shape_size(preallocation_shape) * element_type.bitwidth(), 8));
-    if (can_preallocate_buffer) {
-        return preallocation_shape;
-    }
-
-    return current_shape;
-}
-
 inline bool all_remote_buffers(const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
     return std::all_of(tensors.begin(), tensors.end(), [](const ov::SoPtr<ov::ITensor>& tensor) {
         if (auto remote_ptr = std::dynamic_pointer_cast<ov::intel_gpu::RemoteTensorImpl>(tensor._ptr)) {
@@ -682,7 +670,7 @@ void SyncInferRequest::allocate_states() {
     const auto& network = m_graph->get_network();
     const auto& variables_info = network->get_variables_info();
     for (auto& vi : variables_info) {
-        m_variables.emplace(vi.first, std::make_shared<VariableState>(vi.second, network->get_engine()));
+        m_variables.emplace(vi.first, std::make_shared<VariableState>(vi.second, network->get_engine(), network->get_shape_predictor()));
     }
 }
 

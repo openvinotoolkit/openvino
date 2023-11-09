@@ -14,10 +14,11 @@
 namespace ov {
 namespace intel_gpu {
 
-VariableState::VariableState(const VariableStateInfo& info, cldnn::engine& engine)
+VariableState::VariableState(const VariableStateInfo& info, cldnn::engine& engine, cldnn::ShapePredictor& shape_predictor)
     : ov::IVariableState {info.m_id}
     , m_layout(info.m_layout)
-    , m_engine(engine) {
+    , m_engine(engine)
+    , m_shape_predictor(shape_predictor) {
     m_state = ov::make_tensor(m_layout.data_type, get_tensor_shape(m_layout.get_partial_shape()));
     update_device_buffer();
 }
@@ -69,11 +70,13 @@ void VariableState::update_device_buffer() {
 
     if (actual_size < m_layout.bytes_count()) {
         const auto alloc_type = m_engine.use_unified_shared_memory() ? cldnn::allocation_type::usm_device : cldnn::allocation_type::cl_mem;
-        m_memory = m_engine.allocate_memory(m_layout, alloc_type, false);
-        actual_size = std::max(actual_size, m_memory->size());
-    } else {
-        m_memory = m_engine.reinterpret_buffer(*m_memory, m_layout);
+        const auto current_shape = get_tensor_shape(m_layout.get_partial_shape());
+        const auto alloc_shape = predict_shape(m_name, current_shape, m_layout.data_type, m_shape_predictor);
+        const auto alloc_layout = cldnn::layout(alloc_shape, m_layout.data_type, m_layout.format);
+        m_memory = m_engine.allocate_memory(alloc_layout, alloc_type, false);
+        actual_size = std::max(actual_size, alloc_layout.bytes_count());
     }
+    m_memory = m_engine.reinterpret_buffer(*m_memory, m_layout);
 }
 
 ov::SoPtr<ov::ITensor> VariableState::get_state() const {

@@ -4,6 +4,7 @@
 #pragma once
 
 #include "intel_gpu/runtime/layout.hpp"
+#include "intel_gpu/runtime/shape_predictor.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include <functional>
@@ -21,7 +22,7 @@ struct VariableStateInfo {
 
 class VariableState : public ov::IVariableState {
 public:
-    VariableState(const VariableStateInfo& info, cldnn::engine& engine);
+    VariableState(const VariableStateInfo& info, cldnn::engine& engine, cldnn::ShapePredictor& shape_predictor);
     using Ptr = std::shared_ptr<VariableState>;
 
     void reset() override;
@@ -37,6 +38,7 @@ public:
 private:
     cldnn::layout m_layout;
     cldnn::engine& m_engine;
+    cldnn::ShapePredictor& m_shape_predictor;
     bool m_is_set = false;
     cldnn::memory::ptr m_memory = nullptr;
     size_t actual_size = 0;
