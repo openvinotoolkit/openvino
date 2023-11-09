@@ -99,7 +99,9 @@ struct StreamCfg {
  * @param[in]  ngraphFunc graph handle
  * @param[in]  config intel cpu configuration
  */
-void get_num_streams(const int streams, const std::shared_ptr<ngraph::Function>& ngraphFunc, Config& config);
+void get_num_streams(const int streams,
+                     const std::shared_ptr<ngraph::Function>& ngraphFunc,
+                     Config& config);
 
 /**
  * @brief      Get default number of streams in certain latency threading mode
