@@ -23,13 +23,28 @@ namespace {
     std::vector<ov::element::Type> model_types = {ov::element::f32,
                                                   ov::element::f16};
 
-    INSTANTIATE_TEST_SUITE_P(smoke_RNNCellCommon, RNNCellTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_RNNCellCommon1, RNNCellTest,
             ::testing::Combine(
             ::testing::ValuesIn(should_decompose),
             ::testing::ValuesIn(batch),
             ::testing::ValuesIn(hidden_size),
             ::testing::ValuesIn(input_size),
             ::testing::ValuesIn(activations),
+            ::testing::Values(clip[0]),
+            ::testing::Values(layer_types[0]),
+            ::testing::Values(layer_types[0]),
+            ::testing::Values(layer_types[0]),
+            ::testing::Values(model_types[0]),
+            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+            RNNCellTest::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_RNNCellCommon2, RNNCellTest,
+            ::testing::Combine(
+            ::testing::Values(should_decompose[0]),
+            ::testing::Values(batch[0]),
+            ::testing::Values(hidden_size[0]),
+            ::testing::Values(input_size[0]),
+            ::testing::Values(activations[0]),
             ::testing::ValuesIn(clip),
             ::testing::ValuesIn(layer_types),
             ::testing::ValuesIn(layer_types),

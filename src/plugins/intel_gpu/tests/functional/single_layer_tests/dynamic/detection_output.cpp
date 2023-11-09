@@ -272,7 +272,7 @@ const std::vector<bool> decreaseLabelId = {true, false};
 const float objectnessScore = 0.4f;
 const std::vector<size_t> numberBatch = {1, 2};
 
-const auto commonAttributes = ::testing::Combine(
+const auto commonAttributes1 = ::testing::Combine(
     ::testing::Values(numClasses[0]),
     ::testing::Values(backgroundLabelId),
     ::testing::ValuesIn(topK),
@@ -284,7 +284,18 @@ const auto commonAttributes = ::testing::Combine(
     ::testing::ValuesIn(clipBeforeNms),
     ::testing::ValuesIn(decreaseLabelId)
 );
-
+const auto commonAttributes2 = ::testing::Combine(
+    ::testing::Values(numClasses[0]),
+    ::testing::Values(backgroundLabelId),
+    ::testing::Values(topK[0]),
+    ::testing::Values(keepTopK[0]),
+    ::testing::Values(codeType[0]),
+    ::testing::Values(nmsThreshold),
+    ::testing::Values(confidenceThreshold),
+    ::testing::Values(clipAfterNms[0]),
+    ::testing::Values(clipBeforeNms[0]),
+    ::testing::Values(decreaseLabelId[0])
+);
 const auto commonAttributes_v8 = ::testing::Combine(
     ::testing::Values(numClasses[1]),
     ::testing::Values(backgroundLabelId),
@@ -382,8 +393,17 @@ const std::vector<ParamsWhichSizeDependsDynamic> specificParams3InDynamic = {
     },
 };
 
-const auto params3InputsDynamic = ::testing::Combine(
-        commonAttributes,
+const auto params3InputsDynamic1 = ::testing::Combine(
+        commonAttributes1,
+        ::testing::Values(specificParams3InDynamic[0]),
+        ::testing::ValuesIn(numberBatch),
+        ::testing::Values(objectnessScore),
+        ::testing::Values(false, true),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)
+);
+
+const auto params3InputsDynamic2 = ::testing::Combine(
+        commonAttributes2,
         ::testing::ValuesIn(specificParams3InDynamic),
         ::testing::ValuesIn(numberBatch),
         ::testing::Values(objectnessScore),
@@ -400,8 +420,12 @@ const auto params3InputsDynamic_v8 = ::testing::Combine(
         ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_GPUDetectionOutputDynamic3In, DetectionOutputLayerGPUTest,
-                         params3InputsDynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_GPUDetectionOutputDynamic3In1, DetectionOutputLayerGPUTest,
+                         params3InputsDynamic1,
+                         DetectionOutputLayerGPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GPUDetectionOutputDynamic3In2, DetectionOutputLayerGPUTest,
+                         params3InputsDynamic2,
                          DetectionOutputLayerGPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GPUDetectionOutputV8Dynamic3In, DetectionOutputLayerGPUTest,
