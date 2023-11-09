@@ -33,6 +33,7 @@
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
+#include "transformations/op_conversions/convert_bitwise_to_logical_bool.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
@@ -129,32 +130,46 @@ namespace intel_cpu {
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
-bool Transformations::fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions) {
+bool Transformations::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
+    auto convert = ov::as_type_ptr<ov::opset10::Convert>(node);
+    if (!convert)
+        return false;
     const auto& from = node->get_output_element_type(0);
     auto it = precisions.find(from);
     if (it == precisions.end())
         return false;
     const auto& to = it->second;
-    if (auto convert = ov::as_type_ptr<ov::opset10::Convert>(node)) {
-        // For Convert node, converting precision from floating point to boolean will lead to mathematical
-        // error, because here the output precision boolean is replaced by u8. E.g. floating point value 0.01
-        // is converted to be 1 for boolean, but 0 for u8. Thus an Abs and Ceil node should be added before the
-        // Convert node for this scenario.
-        if (convert->input(0).get_element_type().is_real() &&
-            convert->get_convert_element_type() == ngraph::element::boolean && to.is_integral_number()) {
+
+    // For Convert node, converting precision from floating point to boolean will lead to mathematical
+    // error, because here the output precision boolean is replaced by u8. E.g. floating point value 0.01
+    // is converted to be 1 for boolean, but 0 for u8. Thus an Abs and Ceil node should be added before the
+    // Convert node for this scenario.
+    if (convert->input(0).get_element_type().is_real() &&
+        convert->get_convert_element_type() == ov::element::boolean && to.is_integral_number()) {
+        const auto& in_prec = node->get_input_element_type(0);
+        auto item = precisions.find(in_prec);
+        if (item != precisions.end()) {
+            // Add convert node for unsupported precision, such as FP64
+            auto pre_convert =
+                std::make_shared<ov::opset10::Convert>(convert->input_value(0).get_node_shared_ptr(), item->second);
+            auto abs = std::make_shared<ov::opset10::Abs>(pre_convert);
+            auto ceil = std::make_shared<ov::opset10::Ceiling>(abs);
+            auto new_convert = std::make_shared<ov::opset10::Convert>(ceil, to);
+            new_convert->set_friendly_name(convert->get_friendly_name());
+            ov::copy_runtime_info(convert, {pre_convert, abs, ceil, new_convert});
+            ov::replace_node(convert, new_convert);
+        } else {
             auto abs = std::make_shared<ov::opset10::Abs>(convert->input_value(0).get_node_shared_ptr());
             auto ceil = std::make_shared<ov::opset10::Ceiling>(abs);
             auto new_convert = std::make_shared<ov::opset10::Convert>(ceil, to);
             new_convert->set_friendly_name(convert->get_friendly_name());
             ov::copy_runtime_info(convert, {abs, ceil, new_convert});
             ov::replace_node(convert, new_convert);
-            return true;
-        } else {
-            convert->set_convert_element_type(to);
-            return true;
         }
+    } else {
+        convert->set_convert_element_type(to);
     }
-    return false;
+    return true;
 }
 
 void Transformations::UpToLpt() {
@@ -257,6 +272,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             {ov::element::i4,      ov::element::i8},
             {ov::element::u4,      ov::element::u8}
         };
+
         // @todo should we always convert to f32 regardless of hardware support, as it is done for f16?
         if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
             map.insert({ov::element::bf16, ov::element::f32});
@@ -268,20 +284,25 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 #endif
         return map;
     };
-    static const auto precisions = get_convert_precisions();
+
     type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
 
 #if defined(OV_CPU_ARM_ENABLE_FP16)
+    // It cannot be static data, because it may be difference for different inferencePrecision
+    const auto precisions = get_convert_precisions();
     if (inferencePrecision == ov::element::f16) {
-        precisions_map fp_convert_precision_map = {
-                {ov::element::f32, ov::element::f16}
-        };
+        precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
         type_to_fuse_map empty_fuse_map = {};
         const bool keep_precision_sensitive_in_fp32 = true;
-        CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, fp_convert_precision_map,
-                                                                      empty_fuse_map,
-                                                                      keep_precision_sensitive_in_fp32);
+        CPU_REGISTER_PASS_COMMON(manager,
+                                 ov::pass::ConvertPrecision,
+                                 fp_convert_precision_map,
+                                 empty_fuse_map,
+                                 keep_precision_sensitive_in_fp32,
+                                 false);
     }
+#else
+    static const auto precisions = get_convert_precisions();
 #endif
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
     CPU_SET_CALLBACK_COMMON(manager,
@@ -323,7 +344,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // However, if the extension operation produces an output precision that is not natively supported, this may lead to inconsistency during
     // element type propagation. This transformation is called before the ConvertPrecision pass to align the actual precisions with the list of supported ones.
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::InsertConvertAfterExtension);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse);
+    // Precision convert is disabled.
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse, false, false);
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);
     CPU_REGISTER_PASS_COMMON(manager, SwapConvertTranspose);
@@ -443,6 +465,11 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_ENABLE_PASS_COMMON(manager, ov::pass::ConvertGather1ToGather7);
     CPU_ENABLE_PASS_COMMON(manager, ov::pass::ConvertDetectionOutput1ToDetectionOutput8);
     CPU_ENABLE_PASS_COMMON(manager, ov::pass::ConvertROIAlign3To9);
+
+    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertBitwiseAndToLogicalAnd);
+    CPU_ENABLE_PASS_COMMON(manager, ov::pass::ConvertBitwiseNotToLogicalNot);
+    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertBitwiseOrToLogicalOr);
+    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertBitwiseXorToLogicalXor);
 
     if (useLpt) {
         CPU_LPT_SCOPE(LowPrecisionTransformations_Part3);
@@ -622,7 +649,7 @@ void Transformations::MainSnippets(void) {
     // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
     tokenization_config.mha_supported_transpose_ranks = { 4 };
 
-    ngraph::pass::Manager snippetsManager;
+    ov::pass::Manager snippetsManager;
     snippetsManager.set_per_pass_validation(false);
     if (snippetsMode != Config::SnippetsMode::IgnoreCallback)
         CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, inferencePrecision != ov::element::f32);
