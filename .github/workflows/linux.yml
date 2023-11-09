@@ -1002,7 +1002,7 @@ jobs:
       #
 
       - name: Python API 1.0 Tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
+        #if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
         run: |
           python3 -m pytest -s ${INSTALL_TEST_DIR}/pyngraph \
             --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
@@ -1010,7 +1010,7 @@ jobs:
             --ignore=${INSTALL_TEST_DIR}/pyngraph/tests_compatibility/test_onnx/test_backend.py
 
       - name: Python API 2.0 Tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
+        #if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
         run: |
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
