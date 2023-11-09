@@ -38,7 +38,13 @@ public:
     }
 
     ov::Any get_property(const std::string& name) const override {
-        auto property = m_compiled_model->get_property(name);
+        ov::Any property;
+        if (name == "EXECUTION_DEVICES") {
+            auto device_number = m_compiled_model->get_property("DEVICE_ID");
+            property = get_plugin()->get_device_name() + "." + device_number.as<std::string>();
+        } else {
+            property = m_compiled_model->get_property(name);
+        }
         if (!property._so)
             property._so = m_compiled_model._so;
         return property;
