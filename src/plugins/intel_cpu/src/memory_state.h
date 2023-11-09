@@ -37,7 +37,7 @@ public:
                               const MemBuilder& mem_build,
                               MemoryDescPtr external_desc,
                               MemoryCPtr init_val);
-    //InferenceEngine::IVariableStateInternal
+    //ov::IVariableState
     void reset() override;
     void set_state(const ov::SoPtr<ov::ITensor>& state) override;
     const ov::SoPtr<ov::ITensor>& get_state() const override;
@@ -50,7 +50,7 @@ public:
     MemoryDescPtr internal_desc() const override;
 
 private:
-    static MemoryDescPtr ToStatic(const MemoryDescPtr& desc);
+    static MemoryDescPtr to_static(const MemoryDescPtr& desc);
 
     void reset_prime_mem(const MemoryPtr& mem) {
         m_internal_mem[buffer_num] = mem;

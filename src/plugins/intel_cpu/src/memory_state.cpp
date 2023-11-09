@@ -33,7 +33,7 @@ VariableStateDoubleBuffer::VariableStateDoubleBuffer(std::string name,
         }
     } else {
         //in the case of the original desc has dynamic shape we create an empty tensor
-        auto new_desc = ToStatic(m_internal_desc);
+        auto new_desc = to_static(m_internal_desc);
         prime_mem()->redefineDesc(new_desc);
     }
 }
@@ -94,7 +94,7 @@ const ov::SoPtr<ov::ITensor>& VariableStateDoubleBuffer::get_state() const {
 }
 
 void VariableStateDoubleBuffer::reset() {
-    auto new_desc = ToStatic(m_internal_desc);
+    auto new_desc = to_static(m_internal_desc);
     for (auto&& mem : m_internal_mem) {
         if (mem) {
             mem->redefineDesc(new_desc);
@@ -103,7 +103,7 @@ void VariableStateDoubleBuffer::reset() {
     }
 }
 
-MemoryDescPtr VariableStateDoubleBuffer::ToStatic(const MemoryDescPtr& desc) {
+MemoryDescPtr VariableStateDoubleBuffer::to_static(const MemoryDescPtr& desc) {
     if (!desc->isDefined()) {
         auto&& current_dims = desc->getShape().getDims();
         VectorDims new_dims(current_dims.size());
