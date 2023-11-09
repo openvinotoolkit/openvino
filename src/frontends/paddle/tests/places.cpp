@@ -44,7 +44,6 @@ protected:
     std::vector<std::string> output_names;
 };
 
-
 TEST_F(Paddle_Places, check_tensor_names) {
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
