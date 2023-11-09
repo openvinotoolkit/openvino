@@ -5,20 +5,17 @@
 #include "cpu_streams_calculation.hpp"
 
 #include <algorithm>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstdio>
 #include <numeric>
 #include <transformations/utils/utils.hpp>
 #include <unordered_set>
 
-#include "cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp"
 #include "cpu_map_scheduling.hpp"
 #include "graph.h"
 #include "ie_system_conf.h"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "performance_heuristics.hpp"
-#include "threading/ie_executor_manager.hpp"
 
 using namespace ov;
 using namespace threading;
@@ -413,30 +410,6 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
     return streams_info_table;
 }
 
-unsigned get_L2_cache_size_for_current_core() {
-    auto cpu_ = Xbyak::util::Cpu();
-    int level = 2;
-    auto guess = [](int level) {
-        switch (level) {
-            case 1: return 32U * 1024;
-            case 2: return 512U * 1024;
-            case 3: return 1024U * 1024;
-            default: return 0U;
-        }
-    };
-
-    // this function can return stub values in case of unknown CPU type
-    if (cpu_.getDataCacheLevels() == 0)
-        return guess(level);
-
-    if (level > 0 && (unsigned)level <= cpu_.getDataCacheLevels()) {
-        unsigned l = level - 1;
-        return cpu_.getDataCacheSize(l) / cpu_.getCoresSharingDataCache(l);
-    } else {
-        return 0U;
-    }
-}
-
 int get_model_prefer_threads(const int num_streams,
                              const std::vector<std::vector<int>> proc_type_table,
                              const std::shared_ptr<ngraph::Function>& ngraphFunc,
@@ -466,7 +439,7 @@ int get_model_prefer_threads(const int num_streams,
         }
         // the more "capable" the CPU in general, the more streams we may want to keep to keep it utilized
         const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED / isaSpecificThreshold;
-        const float L2_cache_size = get_L2_cache_size_for_current_core();
+        const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
         ov::MemBandwidthPressure networkToleranceForLowCache =
             ov::MemBandwidthPressureTolerance(ngraphFunc, L2_cache_size, memThresholdAssumeLimitedForISA);
         config.modelPreferThreads = ov::threading::IStreamsExecutor::Config::StreamMode::DEFAULT;
@@ -546,33 +519,11 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
     return proc_type_table;
 }
 
-void get_num_streams(const int streams,
-                     const std::shared_ptr<ngraph::Function>& ngraphFunc,
-                     Config& config,
-                     const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin) {
+void get_num_streams(const int streams, const std::shared_ptr<ngraph::Function>& ngraphFunc, Config& config) {
     InferenceEngine::IStreamsExecutor::Config& executor_config = config.streamExecutorConfig;
     std::vector<std::vector<int>> proc_type_table = get_proc_type_table();
 
-    ov::threading::IStreamsExecutor::Config streamsConfig;
-    streamsConfig._name = "CPUStreamsExecutor";
-    streamsConfig._streams = 1;
-    streamsConfig._threads = 1;
-    if (proc_type_table[0][MAIN_CORE_PROC] > 0 && proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
-        streamsConfig._streams_info_table.push_back({1, MAIN_CORE_PROC, 1, 0, 0});
-    }
-
-    if (streamsConfig._streams_info_table.empty()) {
-        generate_stream_info(streams, ngraphFunc, config, proc_type_table);
-    } else {
-        InferenceEngine::ITaskExecutor::Ptr taskExecutor =
-            plugin->executorManager()->getIdleCPUStreamsExecutor(streamsConfig);
-        std::vector<Task> tasks;
-        tasks.emplace_back([&] {
-            generate_stream_info(streams, ngraphFunc, config, proc_type_table);
-        });
-        taskExecutor->runAndWait(tasks);
-        plugin->executorManager()->clear("CPUStreamsExecutor");
-    }
+    generate_stream_info(streams, ngraphFunc, config, proc_type_table);
 
     executor_config = InferenceEngine::IStreamsExecutor::Config::reserve_cpu_threads(executor_config);
     executor_config._threadsPerStream = executor_config._streams_info_table[0][THREADS_PER_STREAM];

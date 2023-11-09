@@ -15,7 +15,6 @@
 #include "config.h"
 #include "graph.h"
 #include "openvino/runtime/properties.hpp"
-#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -99,12 +98,8 @@ struct StreamCfg {
  * @param[in]  streams number of streams
  * @param[in]  ngraphFunc graph handle
  * @param[in]  config intel cpu configuration
- * @param[in]  plugin plugin handle
  */
-void get_num_streams(const int streams,
-                     const std::shared_ptr<ngraph::Function>& ngraphFunc,
-                     Config& config,
-                     const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin);
+void get_num_streams(const int streams, const std::shared_ptr<ngraph::Function>& ngraphFunc, Config& config);
 
 /**
  * @brief      Get default number of streams in certain latency threading mode
@@ -112,12 +107,6 @@ void get_num_streams(const int streams,
  * @return     number of streams
  */
 int get_default_latency_streams(Config::LatencyThreadingMode latency_threading_mode);
-
-/**
- * @brief      Get L2 cache size of the cpu core where the current thread is located
- * @return     cache size
- */
-unsigned get_L2_cache_size_for_current_core();
 
 }  // namespace intel_cpu
 }  // namespace ov

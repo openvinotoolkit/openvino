@@ -55,6 +55,9 @@ private:
                             int stream_mode,
                             const bool enable_hyper_thread = true) const;
 
+    //Initialize Xbyak::util::Cpu object on the specified core type
+    void InitCpuInfo(const std::map<std::string, std::string> &config, Config::ModelType modelType);
+
     Config engConfig;
     ExtensionManager::Ptr extensionManager = std::make_shared<ExtensionManager>();
     /* Explicily configured streams have higher priority than performance hints.

@@ -28,6 +28,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "weights_cache.hpp"
 #include "utils/denormals.hpp"
+#include "cpu_map_scheduling.hpp"
 
 #if defined(__linux__)
 # include <sys/auxv.h>
@@ -326,7 +327,7 @@ void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph:
     }
 
     if (!((0 == config.streamExecutorConfig._streams) && config.streamExecutorConfig._streams_changed)) {
-        get_num_streams(streams, ngraphFunc, config, shared_from_this());
+        get_num_streams(streams, ngraphFunc, config);
     }
 
     config._config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(config.streamExecutorConfig._streams);
@@ -503,6 +504,36 @@ static Config::SnippetsMode getSnippetsMode(const std::map<std::string, std::str
         IE_THROW() << "Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
 }
 
+void Engine::InitCpuInfo(const std::map<std::string, std::string>& config, Config::ModelType modelType) {
+    Config tempConf = engConfig;
+    tempConf.readProperties(config, modelType);
+    auto proc_type_table = get_proc_type_table();
+    // update proc_type_table according config
+    proc_type_table = apply_scheduling_core_type(tempConf.schedulingCoreType, proc_type_table);
+
+    ov::threading::IStreamsExecutor::Config streamsConfig;
+    streamsConfig._name = "CPUStreamsExecutor";
+    streamsConfig._streams = 1;
+    streamsConfig._threads = 1;
+    if (tempConf.schedulingCoreType == ov::hint::SchedulingCoreType::ECORE_ONLY &&
+        proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
+        streamsConfig._streams_info_table.push_back({1, EFFICIENT_CORE_PROC, 1, 0, 0});
+    } else if (proc_type_table[0][MAIN_CORE_PROC] > 0 && proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
+        streamsConfig._streams_info_table.push_back({1, MAIN_CORE_PROC, 1, 0, 0});
+    }
+    if (!streamsConfig._streams_info_table.empty()) {
+        std::shared_ptr<ov::threading::ITaskExecutor> taskExecutor =
+            std::make_shared<ov::threading::CPUStreamsExecutor>(streamsConfig);
+        std::vector<Task> tasks;
+        tasks.emplace_back([&] {
+            dnnl::impl::cpu::x64::cpu();
+        });
+        taskExecutor->run_and_wait(tasks);
+    } else {
+        dnnl::impl::cpu::x64::cpu();
+    }
+}
+
 InferenceEngine::IExecutableNetworkInternal::Ptr
 Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Engine::LoadExeNetworkImpl");
@@ -540,6 +571,8 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, engConfig); 
 
     DEBUG_LOG(PrintableModel(*nGraphFunc, "org_"));
+
+    InitCpuInfo(config, modelType);
 
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
