@@ -3,9 +3,9 @@
 //
 
 #include <frontend/shared/include/utils.hpp>
-#include <openvino/frontend/manager.hpp>
-#include <iostream>
 #include <fstream>
+#include <iostream>
+#include <openvino/frontend/manager.hpp>
 
 #include "gtest/gtest.h"
 #include "paddle_utils.hpp"
@@ -17,24 +17,23 @@ const std::string vars_name_file = std::string(TEST_PADDLE_MODELS_DIRNAME) + "pl
 const std::string outputs_name_file = std::string(TEST_PADDLE_MODELS_DIRNAME) + "place_test_model/outputs_name.txt";
 
 class Paddle_Places : public ::testing::Test {
-
 protected:
     void SetUp() override {
         std::fstream name_file;
-        name_file.open(vars_name_file ,std::ios::in);
-        if (name_file.is_open()){
+        name_file.open(vars_name_file, std::ios::in);
+        if (name_file.is_open()) {
             std::string name;
-            while(std::getline(name_file, name))
+            while (std::getline(name_file, name))
                 tensor_names.push_back(name);
             name_file.close();
         } else
             FRONT_END_THROW("Can not open " + vars_name_file);
 
         std::fstream output_file;
-        output_file.open(outputs_name_file ,std::ios::in);
-        if (output_file.is_open()){
+        output_file.open(outputs_name_file, std::ios::in);
+        if (output_file.is_open()) {
             std::string name;
-            while(std::getline(output_file, name))
+            while (std::getline(output_file, name))
                 output_names.push_back(name);
             output_file.close();
         } else
