@@ -588,9 +588,9 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         in1.get_output_layout().data_type != data_types::i8)
         return;
 
-    if (asymmetric_data && in0.is_dynamic() &&
-        in0.get_output_layout().get_partial_shape()[1].get_interval().size() != 1)
-        return;
+    const size_t feature_idx = 1;
+    if (asymmetric_data && in0.get_output_layout().get_partial_shape()[feature_idx].is_dynamic())
+        OPENVINO_ASSERT(false, "[GPU] Can't support prepare_quantization when feature is dynamic.");
 
     auto old_conv_prim = convolution_node.get_primitive();
 
@@ -608,7 +608,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         wl = wl.convert_to_weights_layout(convolution_node.typed_desc()->grouped_weights_shape);
     }
     int ofm = wl.group() * wl.ofm();
-    int ifm = in0.is_dynamic() ? in0.get_output_layout().get_partial_shape()[1].get_max_length() : in0.get_output_layout().feature();
+    int ifm = in0.get_output_layout().get_partial_shape()[feature_idx].get_length();
     int ofm_aligned = align_to(ofm, 32);
     int ifm_aligned = align_to(ifm, 32);
 
