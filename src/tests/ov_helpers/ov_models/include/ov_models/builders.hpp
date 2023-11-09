@@ -85,11 +85,6 @@ std::shared_ptr<ov::Node> makeInputLayer(const element::Type& type,
                                          ov::test::utils::InputLayerType inputType,
                                          const std::vector<size_t>& shape);
 
-std::shared_ptr<ov::Node> makeBroadcast(const ov::Output<Node>& in,
-                                        const ov::Output<Node>& target_shape,
-                                        const ov::op::BroadcastType& mode,
-                                        const ov::AxisSet& axis_set = {});
-
 std::shared_ptr<ov::Node> makeConvolution(const ov::Output<Node>& in,
                                           const element::Type& type,
                                           const std::vector<size_t>& filterSize,

@@ -376,8 +376,7 @@ std::shared_ptr<ov::Model> MHASelectFunction::initOriginal() const {
     if (add->get_output_partial_shape(0) != input_shapes[3]) {
         const auto broadcast_shape = ngraph::builder::makeConstant(ngraph::element::i64, constantShapes[5],
                                                                    add->get_output_shape(0));
-        const auto broadcast = ngraph::builder::makeBroadcast(selectCond, broadcast_shape,
-                                                              ngraph::op::BroadcastType::NUMPY);
+        const auto broadcast = std::make_shared<ov::op::v3::Broadcast>(selectCond, broadcast_shape, mode);
         selectCond = broadcast;
     }
     const auto select = std::make_shared<ngraph::opset1::Select>(selectCond, selectConst, add,
