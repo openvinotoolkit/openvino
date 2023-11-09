@@ -262,6 +262,7 @@ def test_constant_from_empty_array(shared_flag, init_value):
     const = ov.op.Constant(init_value, shared_memory=shared_flag)
     assert tuple(const.shape) == init_value.shape
     assert const.get_element_type().to_dtype() == init_value.dtype
+    assert const.get_byte_size() == init_value.nbytes
     assert np.allclose(const.data, init_value)
 
 

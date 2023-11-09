@@ -155,6 +155,10 @@ py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
 
 template <>
 ov::op::v0::Constant create_copied(py::array& array) {
+    // Do not copy data from the array, only return empty tensor based on type.
+    if (array.size() == 0) {
+        return ov::op::v0::Constant(array_helpers::get_ov_type(array), array_helpers::get_shape(array));
+    }
     // Convert to contiguous array if not already in C-style.
     if (!array_helpers::is_contiguous(array)) {
         array = array_helpers::as_contiguous(array, array_helpers::get_ov_type(array));
@@ -164,7 +168,7 @@ ov::op::v0::Constant create_copied(py::array& array) {
     // If size is equal to 0, creates empty Constant.
     return ov::op::v0::Constant(array_helpers::get_ov_type(array),
                                 array_helpers::get_shape(array),
-                                (array.ndim() == 0 || array.size() == 0) ? array.data() : array.data(0));
+                                array.ndim() == 0 ? array.data() : array.data(0));
 }
 
 template <>
