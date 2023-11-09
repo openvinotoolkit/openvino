@@ -49,7 +49,7 @@ jobs:
         uses: ./.github/actions/smart-ci
         with:
           repository: ${{ github.repository }}
-          pr: ${{ github.event.pull_request.number }}
+          pr: ${{ github.event.number }}
           commit_sha: ${{ github.sha }}
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
