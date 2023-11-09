@@ -14,5 +14,6 @@ Starting from OpenVINO 2020.2 release all the quantized models are represented i
 ![quantized_model_example]
 <div align="center">Figure 2. Example of compressed quantized model.</div>  
 
+
 [quantized_convolution]: images/quantized_convolution.png
 [quantized_model_example]: images/quantized_model_example.png
