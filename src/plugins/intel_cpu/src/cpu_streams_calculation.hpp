@@ -104,7 +104,8 @@ void get_num_streams(const int streams,
                      Config& config);
 
 /**
- * @brief      Set cpu streams executor config when nstreams = 0
+ * @brief      Set _streams_info_table and _cpu_reservation in cpu streams executor config when nstreams = 0,
+ *             that is, only create one thread with TBB
  * @param[in,out]  config intel cpu configuration
  */
 void set_config_streams_0(Config& config);
