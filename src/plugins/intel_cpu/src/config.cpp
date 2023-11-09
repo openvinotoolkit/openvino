@@ -102,7 +102,10 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         } else if (key == ov::hint::num_requests.name()) {
             try {
                 ov::Any value = val.as<std::string>();
-                hintNumRequests = value.as<uint32_t>();
+                int val_i = value.as<int>();
+                if (val_i < 0)
+                    throw("invalid value.");
+                hintNumRequests = static_cast<uint32_t>(val_i);
             } catch (const std::exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
