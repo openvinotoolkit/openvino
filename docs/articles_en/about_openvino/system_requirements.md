@@ -9,86 +9,143 @@ which is not part of OpenVINO installation. Refer to your hardware's documentati
 for updating instructions.
 
 
-Hardware
+CPU
 ##########
 
 .. tab-set::
 
-   .. tab-item:: CPU
+   .. tab-item:: Supported Processors
 
-      * 6th to 13th generation Intel® Core™ processors
-      * 1st to 4th generation Intel® Xeon® Scalable processors
-      * ARM and ARM64 CPUs
+      * Intel Atom® processor with Intel® SSE4.2 support
+      * Intel® Pentium® processor N4200/5, N3350/5, N3450/5 with Intel® HD Graphics
+      * 6th - 13th generation Intel® Core™ processors
+      * Intel® Core™ Ultra (codename Meteor Lake)
+      * Intel® Xeon® Scalable Processors (code name Skylake) 
+      * 2nd Generation Intel® Xeon® Scalable Processors (code name Cascade Lake)
+      * 3rd Generation Intel® Xeon® Scalable Processors (code name Cooper Lake and Ice Lake)
+      * 4th Generation Intel® Xeon® Scalable Processors (code name Sapphire Rapids)
+      * ARM and ARM64 CPUs 
 
-   .. tab-item:: integrated GPU
+   .. tab-item:: Operating Systems for CPU
 
-      * Intel® HD Graphics 
-      * Intel® UHD Graphics 
-      * Intel® Iris® Pro Graphics 
-      * Intel® Iris® Xe Graphics 
-      * Intel® Iris® Xe MAX Graphics
+      * Ubuntu 22.04 long-term support (LTS), 64-bit (Kernel 5.15+)
+      * Ubuntu 20.04 long-term support (LTS), 64-bit (Kernel 5.15+)
+      * Ubuntu 18.04 long-term support (LTS) with limitations, 64-bit (Kernel 5.4+)
+      * Windows* 10
+      * Windows* 11
+      * macOS* 10.15 and above, 64-bit
+      * macOS 11 and above, ARM64
+      * Red Hat Enterprise Linux* 8, 64-bit
+      * Debian 9 ARM64 and ARM
+      * CentOS 7 64-bit 
 
-      Not all Intel CPUs include the integrated graphics processor. 
-      See `Product Specifications <https://ark.intel.com/>`__
-      for information about your processor. 
+GPU
+##########
 
-      Ubuntu 20.04 is not recommended for inference with discrete graphics cards.
-      Although this OpenVINO release does support it, the support is limited
-      due to driver issues. 
+.. tab-set::
 
-   .. tab-item:: discreet GPU
+   .. tab-item:: Supported Processors
 
+      * Intel® HD Graphics
+      * Intel® UHD Graphics
+      * Intel® Iris® Pro Graphics
+      * Intel® Iris® Xe Graphics
+      * Intel® Iris® Xe Max Graphics
+      * Intel® Arc ™ GPU Series
+      * Intel® Data Center GPU Flex Series
       * Intel® Data Center GPU Max Series
-      * Intel® Data GPU Flex Series Center
-      * Intel® Arc ™ GPU
 
-   .. tab-item:: Low-power processing units
+   .. tab-item:: Operating Systems for GPU
+
+      * Ubuntu* 22.04 long-term support (LTS), 64-bit
+      * Ubuntu* 20.04 long-term support (LTS), 64-bit
+      * Windows* 10, 64-bit
+      * Windows* 11, 64-bit
+      * Centos 7
+      * Red Hat Enterprise Linux* 8, 64-bit
+
+
+
+   .. tab-item:: 
 
       * Intel® NPU
       * Intel® Gaussian & Neural Accelerator
 
 
-Software 
-################
+NPU and GNA 
+#############################
 
 .. tab-set::
 
-   .. tab-item:: Operating System
+   .. tab-item:: Operating Systems for NPU
 
-      * Ubuntu 22.04 long-term support (LTS), 64 bit (Kernel 5.15+)
-      * Ubuntu 20.04 LTS, 64 bit (Kernel 5.15+)
-      * Ubuntu 18.04 LTS with limitations, 64 bit (Kernel 5.4+)
-      * Debian 9 ARM64 and ARM
-      * Centos7 64 bit
-      * Windows® 10 and 11
-      * macOS 10.15+ (x84_64) and 11.0+ (arm64), 64 bit
-      * Red Hat Enterprise Linux 8, 64 bit
+      * Ubuntu* 22.04 long-term support (LTS), 64-bit
+      * Windows* 11, 64-bit  
 
-      Newer versions of the Ubuntu operating system kernel may be required for 10th and 11th 
-      generation Intel Core processors, 11th generation Intel Core processors S-Series, 12th
-      and 13th generation Intel Core processors, or 4th generation Intel Xeon Scalable 
-      processors to support a CPU, GPU, Intel GNA, or hybrid-core with CPU capabilities.
+   .. tab-item:: Operating Systems for GNA
 
-   .. tab-item:: Additional system requirements
+      * Ubuntu* 22.04 long-term support (LTS), 64-bit
+      * Ubuntu* 20.04 long-term support (LTS), 64-bit
+      * Windows* 10, 64-bit
+      * Windows* 11, 64-bit  
 
+
+Operating systems and developer environment
+#######################################################
+
+.. tab-set::
+
+   .. tab-item:: Linux
+
+      * Ubuntu 22.04 with Linux kernel 5.15+  
+      * Ubuntu 20.04 with Linux kernel 5.15+  
+      * RHEL 8 with Linux kernel 5.4  
+
+      Build environment components:
+
+      * Python* 3.8-3.11
+      * Intel® HD Graphics Driver. Required for inference on GPU.
+      * GNU Compiler Collection and CMake are needed for building from source:
+
+        * GNU Compiler Collection (GCC)*  7.5 and above
+        * CMake* 3.10 or higher  
+
+      Higher versions of kernel might be required for 10th Gen Intel® Core™ Processors,
+      11th Gen Intel® Core™ Processors, 11th Gen Intel® Core™ Processors S-Series Processors,
+      12th Gen Intel® Core™ Processors, 13th Gen Intel® Core™ Processors,  Intel® Core™ Ultra
+      Processors, or 4th Gen Intel® Xeon® Scalable Processors to support CPU, GPU, GNA or
+      hybrid-cores CPU capabilities.
+
+   .. tab-item:: Windows
+
+      * Windows 10
+      * Windows 11
+
+      Build environment components:
+
+      * Microsoft Visual Studio* 2019
+      * CMake 3.10 or higher
+      * Python* 3.8-3.11
+      * Intel® HD Graphics Driver (Required only for GPU). 
+
+   .. tab-item:: macOS
+
+      * macOS 10.15 and above
+
+      Build environment components:
+
+      * Xcode* 10.3
       * Python 3.8-3.11
-      * GCC 7.5+
-      * Cmake 64 bit - 3.10 (Linux),
+      * CMake 3.10 or higher 
 
-      Recommended versions for OpenCL™ Drivers:
+   .. tab-item:: DL frameworks versions:
 
-      * 22.43 for Ubuntu 22.04
-      * 22.41 for Ubuntu 20.04
-      * 22.28 for Red Hat Enterprise Linux 8 
-
-   .. tab-item:: Supported Framework Versions
-
-      * Apache MxNet 1.9.0
-      * ONNX* (Open Neural Network Exchange) 1.14.1 (NEW in 2023.2)
+      * TensorFlow* 1.15, 2.12
+      * MxNet* 1.9.0 
+      * ONNX* 1.14.1 
       * PaddlePaddle* 2.4
 
-      remaining :doc:`supported frameworks <openvino_docs_model_processing_introduction>` 
-      should work properly regardless of their versions.
+
 
 
 .. note::
