@@ -50,7 +50,8 @@ protected:
         ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrec, ov::Shape(splitShape))};
 
         const auto splitAxis = rank == 3 ? 1 : 0;
-        const auto split = builder::makeSplit(params[0], ngPrec, 2 /* splits */, splitAxis);
+        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{splitAxis});
+        auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, 2);
 
         SizeVector fcWeightsShape{16, 8};
         if (rank == 3) bcastTo3D(fcWeightsShape);

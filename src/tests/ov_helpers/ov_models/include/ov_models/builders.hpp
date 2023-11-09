@@ -259,6 +259,7 @@ std::shared_ptr<ov::Node> makeBinaryConvolution(const ov::Output<Node>& in,
                                                 float padValue,
                                                 const std::vector<int8_t>& filterWeihgts = {});
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeSplit(const ov::Output<Node>& in,
                                     const element::Type& type,
                                     size_t numSplits,
