@@ -128,7 +128,7 @@ def mvn(
 @nameable_op
 def read_value(init_value: NodeInput,
                variable_id: str,
-               variable_type: Union[NumericType, str] = None,
+               variable_type: Optional[NumericType] = None,
                variable_shape: Optional[TensorShape] = None,
                name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.
@@ -158,8 +158,8 @@ def read_value(init_value: NodeInput,
 
 @read_value.register
 def _(variable_id: str,
-      variable_type: Union[NumericType, str] = None,
-      variable_shape: TensorShape = None,
+      variable_type: Optional[NumericType] = None,
+      variable_shape: Optional[TensorShape] = None,
       name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.
 
