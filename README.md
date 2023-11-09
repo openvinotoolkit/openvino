@@ -56,7 +56,7 @@ OpenVINO includes several components: [OpenVINO Model Converter (OVC)], [OpenVIN
 ### Getting Started  
 
 #### Documentation
-Read detailed information on OpenVINO's features, components, and usage in the [OpenVINO Documentation](https://docs.openvino.ai).
+Read detailed information on OpenVINO's features, components, and usage in the [OpenVINO Documentation](https://docs.openvino.ai/2023.1/get_started.html).
 
 #### Tutorials
 Explore a variety of tutorials in the [OpenVINO Notebooks Repository](https://github.com/openvinotoolkit/openvino_notebooks)📚.
@@ -212,13 +212,12 @@ OpenVINO™ Toolkit is licensed under [Apache License Version 2.0](LICENSE).
 By contributing to the project, you agree to the license and copyright terms therein and release your contribution under these terms.
 
 ### Telemetry
-OpenVINO™ collects software performance and usage data to improve OpenVINO™ tools. This data is collected directly by OpenVINO™ or through the use of Google Analytics 4.
+OpenVINO™ collects software performance and usage data to improve OpenVINO™ tools. This data is collected directly by OpenVINO™ or through the use of Google Analytics 4. [Learn more](https://docs.openvino.ai/nightly/openvino_docs_telemetry_information.html).
 You can opt-out at any time by running the command:
 
 ``` bash
 opt_in_out --opt_out
 ```
-More Information is available at https://docs.openvino.ai/nightly/openvino_docs_telemetry_information.html.
 
 ---
 \* Other names and brands may be claimed as the property of others.
