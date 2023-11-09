@@ -28,7 +28,6 @@
 #include "softmax_inst.h"
 #include "permute_inst.h"
 #include "custom_gpu_primitive_inst.h"
-#include "binary_convolution_inst.h"
 #include "resample_inst.h"
 #include "reshape_inst.h"
 #include "quantize_inst.h"
@@ -299,28 +298,7 @@ bool program::analyze_output_size_handling_need() {
 
     // Calculate output size and compare with specified.
     for (const auto& node : processing_order) {
-        if (node->is_type<binary_convolution>()) {
-            auto& prim_node = node->as<binary_convolution>();
-            const auto& prim = prim_node.get_primitive();
-
-            tensor specified_output_range(
-                {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
-                1);
-
-            auto filter_size = prim_node.weights().get_output_layout().get_tensor();
-
-            auto primInputSize = prim_node.input().get_output_layout().get_tensor();
-            auto calc_output_range =
-                calc_sliding_window_output_range<swor_mode::all>(primInputSize,
-                                                                 filter_size,
-                                                                 prim->pad,
-                                                                 prim->stride,
-                                                                 prim->dilation,
-                                                                 true,
-                                                                 1);
-            if (specified_output_range != calc_output_range)
-                handling_needed = true;
-        } else if (node->is_type<deconvolution>()) {
+        if (node->is_type<deconvolution>()) {
             auto& prim_node = node->as<deconvolution>();
             const auto& prim = prim_node.get_primitive();
 
@@ -1439,7 +1417,6 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::permute::type_id() &&
             prim.type() != cldnn::reshape::type_id() &&
             prim.type() != cldnn::detection_output::type_id() &&
-            prim.type() != cldnn::binary_convolution::type_id() &&
             prim.type() != cldnn::quantize::type_id() &&
             prim.type() != cldnn::custom_gpu_primitive::type_id() &&
             prim.type() != cldnn::concatenation::type_id() &&

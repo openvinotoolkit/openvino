@@ -94,7 +94,7 @@ REGISTER_FACTORY(v0, Unsqueeze);
 REGISTER_FACTORY(v1, Add);
 REGISTER_FACTORY(v1, AvgPool);
 REGISTER_FACTORY(v1, BatchToSpace);
-REGISTER_FACTORY(v1, BinaryConvolution);
+// REGISTER_FACTORY(v1, BinaryConvolution); Supported via BinaryConvolution->Convolution conversion
 REGISTER_FACTORY(v1, Broadcast);
 REGISTER_FACTORY(v1, ConvertLike);
 REGISTER_FACTORY(v1, Convolution);

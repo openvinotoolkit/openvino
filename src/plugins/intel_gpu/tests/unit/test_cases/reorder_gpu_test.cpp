@@ -2067,101 +2067,6 @@ TEST(reorder_gpu_i64, basic)
         ASSERT_EQ(*(a_ptr++), val);
 }
 
-TEST(reorder_gpu_binary, binary_output)
-{
-    auto& engine = get_test_engine();
-
-    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::optimize_data(true));
-
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
-    layout output_layout(data_types::u1, format::b_fs_yx_32fp, { 2, 2, 2, 2 });
-
-    // Data is supposed to be quantized to {0,1} values
-    set_values(input, {
-        1.f, 0.f, 1.f, 1.f,
-        0.f, 1.f, 1.f, 0.f,
-
-        1.f, 1.f, 0.f, 1.f,
-        0.f, 0.f, 0.f, 1.f
-    });
-
-    topology topology(
-        input_layout("input", input->get_layout()),
-        reorder("reorder", input_info("input"), output_layout));
-
-    network network(engine, topology, get_test_default_config(engine));
-    network.set_input_data("input", input);
-
-    auto outputs = network.execute();
-    ASSERT_EQ(outputs.size(), size_t(1));
-    ASSERT_EQ(outputs.begin()->first, "reorder");
-
-    auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<uint32_t> output_ptr(output, get_test_stream());
-
-    std::vector<uint32_t > answers = { 1, 2, 3, 1,
-                                       1, 1, 0, 3 };
-
-    // Check that layout and memory contains logical size of tensor
-    ASSERT_EQ(output->count(), input->get_layout().count());
-    ASSERT_EQ(output->get_layout().count(), input->get_layout().count());
-
-    // Check that memory physical size consider binary pack
-    ASSERT_EQ(output->size(), answers.size() * sizeof(uint32_t));
-
-    for (size_t i = 0; i < answers.size(); ++i) {
-        ASSERT_EQ(answers[i], output_ptr[i]) << "index: " << i;
-    }
-}
-
-TEST(reorder_gpu_binary, binary_input)
-{
-    auto& engine = get_test_engine();
-
-    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::optimize_data(true));
-
-    auto input = engine.allocate_memory({ data_types::u1, format::b_fs_yx_32fp,{ 2, 2, 2, 2 } });
-    layout output_layout(data_types::f32, format::bfyx, { 2, 2, 2, 2 });
-
-    // Data is supposed to be quantized to {0,1} values
-    std::vector<float> answers = {
-            1.f, -1.f, 1.f, 1.f,
-            -1.f, 1.f, 1.f, -1.f,
-
-            1.f, 1.f, -1.f, 1.f,
-            -1.f, -1.f, -1.f, 1.f
-    };
-
-    set_values<int32_t>(input, { 1, 2, 3, 1,
-                                 1, 1, 0, 3 });
-
-    topology topology(
-        input_layout("input", input->get_layout()),
-        reorder("reorder", input_info("input"), output_layout));
-
-    network network(engine, topology, get_test_default_config(engine));
-    network.set_input_data("input", input);
-
-    auto outputs = network.execute();
-    ASSERT_EQ(outputs.size(), size_t(1));
-    ASSERT_EQ(outputs.begin()->first, "reorder");
-
-    auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-
-    // Check that layout and memory contains logical size of tensor
-    ASSERT_EQ(output->count(), input->get_layout().count());
-    ASSERT_EQ(output->get_layout().count(), input->get_layout().count());
-
-    ASSERT_EQ(output->size(), answers.size() * sizeof(float));
-
-    for (size_t i = 0; i < answers.size(); ++i) {
-        ASSERT_EQ(answers[i], output_ptr[i]) << "index: " << i;
-    }
-}
-
 TEST(reorder_gpu_f32, bfwzyx_bfyx_chain)
 {
     // Topology:
@@ -2859,10 +2764,7 @@ public:
     cldnn::memory::ptr get_mem(cldnn::layout l) {
         auto prim = engine.allocate_memory(l);
         tensor s = l.get_tensor();
-        if (l.data_type == data_types::u1) {
-            VF<int32_t> rnd_vec = rg.generate_random_1d<int32_t>(s.count() / 32, min_random, max_random);
-            set_values(prim, rnd_vec);
-        } else if (l.data_type == data_types::i8 || l.data_type == data_types::u8) {
+        if (l.data_type == data_types::i8 || l.data_type == data_types::u8) {
             VF<uint8_t> rnd_vec = rg.generate_random_1d<uint8_t>(s.count(), min_random, max_random);
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f16) {

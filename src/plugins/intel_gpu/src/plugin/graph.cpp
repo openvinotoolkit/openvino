@@ -158,7 +158,6 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "activation", "Activation" },
                 { "arg_max_min", "ArgMax" },
                 { "batch_norm", "BatchNormalization" },
-                { "binary_convolution", "BinaryConvolution" },
                 { "border", "Pad" },
                 { "concatenation", "Concat" },
                 { "convolution", "Convolution" },

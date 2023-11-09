@@ -49,12 +49,6 @@ struct data_type_traits {
     }
 
     static ov::element::Type max_type(ov::element::Type t1, ov::element::Type t2) {
-        if (t1 == ov::element::u1)
-            return t2;
-
-        if (t2 == ov::element::u1)
-            return t1;
-
         if (t1.bitwidth() < t2.bitwidth())
             return t2;
 

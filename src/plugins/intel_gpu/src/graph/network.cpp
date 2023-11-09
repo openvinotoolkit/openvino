@@ -212,41 +212,6 @@ void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump
     file_stream << buffer.str();
 }
 
-template <>
-void dump<uint32_t>(memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump_raw) {
-    auto&& l = mem->get_layout();
-
-    file_stream << "shape: ";
-    file_stream << l.batch() << " ";
-    file_stream << l.feature() << " ";
-    file_stream << l.spatial(1) << " ";
-    file_stream << l.spatial(0) << " ";
-    file_stream << "(" << l.batch() * l.feature() * l.spatial(1) * l.spatial(0) << ")" << std::endl;
-
-    mem_lock<uint32_t, mem_lock_type::read> lock(mem, stream);
-    auto mem_ptr = lock.data();
-
-    if (!dump_raw) {
-        for (cldnn::tensor::value_type b = 0; b < l.batch(); ++b) {
-            for (cldnn::tensor::value_type f = 0; f < (cldnn::tensor::value_type)ceil_div(l.feature(), 32); ++f) {
-                for (cldnn::tensor::value_type z = 0; z < l.spatial(2); ++z) {
-                    for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
-                        for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
-                            cldnn::tensor t(cldnn::batch(b), cldnn::feature(f), cldnn::spatial(x, y, z, 0));
-                            size_t input_it = mem->get_layout().get_linear_offset(t);
-                            file_stream << mem_ptr[input_it] << std::endl;
-                        }
-                    }
-                }
-            }
-        }
-    } else {
-        for (size_t i = 0; i < lock.size(); ++i) {
-            file_stream << std::fixed << std::setprecision(6) << mem_ptr[i] << std::endl;
-        }
-    }
-}
-
 void log_memory_to_file(memory::ptr mem, layout data_layout, stream& stream, std::string layerName, bool dump_raw) {
     std::cout << "Dump " << (dump_raw ? "raw " : "") << layerName << std::endl;
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -266,8 +231,6 @@ void log_memory_to_file(memory::ptr mem, layout data_layout, stream& stream, std
         dump<float>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::f16)
         dump<ov::float16>(actual_mem, stream, file_stream, dump_raw);
-    else if (mem_dt == cldnn::data_types::u1)
-        dump<uint32_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::i64)
         dump<int64_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::i32)

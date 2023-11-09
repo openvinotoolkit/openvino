@@ -23,7 +23,6 @@ inline uint32_t BytesPerElement(Datatype dt) {
         case Datatype::F32:
         case Datatype::INT32:
         case Datatype::UINT32:
-        case Datatype::BINARY:
             return 4;
         case Datatype::INT64:
             return 8;
@@ -40,7 +39,6 @@ inline uint32_t BytesPerElement(WeightsType wt) {
         case WeightsType::F16:
             return 2;
         case WeightsType::F32:
-        case WeightsType::BINARY:
         case WeightsType::INT32:
             return 4;
         default:
