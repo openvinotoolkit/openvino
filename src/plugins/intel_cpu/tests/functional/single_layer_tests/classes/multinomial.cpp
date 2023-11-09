@@ -137,6 +137,18 @@ void MultinomialLayerTestCPU::generate_inputs(const std::vector<ov::Shape>& targ
     inputs.insert({num_samples.get_node_shared_ptr(), m_num_samples});
 };
 
+void MultinomialLayerTestCPU::compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) {
+    for(size_t i = 0; i < expected.size(); i++) {
+        for(size_t j = 0; j < expected[i].get_size(); j++) {
+            std::cout << ((int*)expected[i].data())[j] << " ";
+        } std::cout << "\n";
+        for(size_t j = 0; j < actual[i].get_size(); j++) {
+            std::cout << ((int*)actual[i].data())[j] << " ";
+        } std::cout << "\n";
+    }
+    SubgraphBaseTest::compare(expected, actual);
+};
+
 TEST_P(MultinomialLayerTestCPU, CompareWithRefs) {
     run();
     CheckPluginRelatedResults(compiledModel, "Multinomial");
