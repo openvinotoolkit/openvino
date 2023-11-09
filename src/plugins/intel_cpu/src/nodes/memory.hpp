@@ -22,7 +22,7 @@ namespace node {
 class MemoryOutput;
 class MemoryInput;
 
-class MemoryNode {
+class MemoryNode { //TODO , segregate interfaces
     std::string _id;
  public:
     explicit MemoryNode(std::string id) : _id(id) {}
@@ -34,6 +34,7 @@ class MemoryNode {
     virtual void registerInputNode(MemoryInput*) = 0;
     virtual void registerOutputNode(MemoryOutput*) = 0;
     virtual void deregisterSibling(MemoryNode*) = 0;
+    virtual void assignState(MemStatePtr newState) = 0;
 };
 
 /**
@@ -93,6 +94,9 @@ public:
 
 private:
     MemoryInput& getInputNode();
+    void assignState(MemStatePtr newState) override {
+        OPENVINO_THROW("Unexpected MemoryOutput::assignState call"); //TODO , segregate interfaces
+    }
 
 private:
     /**
@@ -132,7 +136,7 @@ public:
     void registerOutputNode(MemoryOutput* node) override;
     void deregisterSibling(MemoryNode* node) override;
 
-    void assignState(MemStatePtr newState);
+    void assignState(MemStatePtr newState) override;
     MemStatePtr makeState() const;
 
 private:

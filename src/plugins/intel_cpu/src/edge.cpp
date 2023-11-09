@@ -528,7 +528,7 @@ bool Edge::inPlace(LOOK look) const {
 
 NodePtr Edge::modifiedInPlace() const {
     auto childNode = getChild();
-    if (!childNode || !childNode->isInPlace()) {
+    if (!childNode || !childNode->isInPlace() || childNode->getChildEdges().empty()) {
         return nullptr;
     }
     // check if the children nodes are able to modify the memory

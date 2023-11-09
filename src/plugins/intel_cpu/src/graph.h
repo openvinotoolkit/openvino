@@ -27,6 +27,9 @@ namespace ov {
 namespace intel_cpu {
 
 class SyncInferRequest;
+namespace node {
+class MemoryNode;
+} // namespace node
 
 class Graph {
 public:
@@ -194,6 +197,10 @@ public:
     }
 
     Status getStatus() const {return status;}
+    const std::unordered_map<std::string, std::shared_ptr<node::MemoryNode>>&
+    getInternalStateNodes() const {
+        return internalStateNodes;
+    }
 
 protected:
     void VisitNode(NodePtr node, std::vector<NodePtr>& sortedNodes);
@@ -237,6 +244,7 @@ protected:
     void Allocate();
     void AllocateWithReuse();
     void ExtractExecutableNodes();
+    void SearchInternalStateNodes();
     void ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const;
     void CreatePrimitivesAndExecConstants() const;
     void InferStatic(SyncInferRequest* request);
@@ -251,6 +259,7 @@ private:
     std::map<std::string, NodePtr> outputNodesMap;
 
     std::unordered_map<std::string, ProxyMemoryMngrPtr> outputNodesMemMngrMap;
+    std::unordered_map<std::string, std::shared_ptr<node::MemoryNode>> internalStateNodes;
 
     // these node pointers (from graphNodes) are to avoid regular checking for
     // constantness of nodes in Infer methods and calls of

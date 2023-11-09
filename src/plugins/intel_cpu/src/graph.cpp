@@ -36,6 +36,7 @@
 #include "nodes/input.h"
 #include "nodes/reorder.h"
 #include "nodes/subgraph.h"
+#include "nodes/memory.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/ops.hpp"
@@ -262,6 +263,7 @@ void Graph::InitGraph() {
 #endif
 
     ExtractExecutableNodes();
+    SearchInternalStateNodes();
 
     status = hasDynNodes ? Status::ReadyDynamic : Status::ReadyStatic;
 }
@@ -1865,6 +1867,18 @@ void Graph::resolveInPlaceDirection(const NodePtr& node) const {
                     OPENVINO_THROW("A node without an inPlace memory cyclic dependency has not been found");
                 }
             }
+        }
+    }
+}
+
+void Graph::SearchInternalStateNodes() {
+    for (auto&& node : graphNodes) {
+        if (node->getType() == Type::MemoryInput) {
+            auto cur_node = std::dynamic_pointer_cast<node::MemoryInput>(node);
+            if (!cur_node) {
+                OPENVINO_THROW("Cannot cast ", node->getName(), " to MemoryInput");
+            }
+            internalStateNodes.insert({cur_node->getId(), cur_node});
         }
     }
 }

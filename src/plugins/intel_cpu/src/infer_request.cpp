@@ -82,18 +82,11 @@ SyncInferRequest::~SyncInferRequest() {
 
 // state -> storage
 void SyncInferRequest::assign_states() {
-    for (auto &node : m_graph->GetNodes()) {
-        if (node->getType() == Type::MemoryInput) {
-            auto cur_node = std::dynamic_pointer_cast<node::MemoryInput>(node);
-            if (!cur_node) {
-                OPENVINO_THROW("Cannot cast ", node->getName(), " to MemoryInput");
-            }
-            auto cur_id = cur_node->getId();
-            for (const auto& state : m_memory_states) {
-                if (state->get_name() == cur_id) {
-                    cur_node->assignState(state);
-                }
-            }
+    auto&& graph_internal_state_nodes = m_graph->getInternalStateNodes();
+    for (const auto& state : m_memory_states) {
+        auto itr = graph_internal_state_nodes.find(state->get_name());
+        if (itr != graph_internal_state_nodes.end()) {
+            itr->second->assignState(state);
         }
     }
 }
