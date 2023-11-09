@@ -418,7 +418,7 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
     __m512 v_a;
     auto v_max = _mm512_set1_ps(max);
     auto v_sum = _mm512_set1_ps(0.0f);
-    while (i + 16 < size) {
+    while (i + 16 <= size) {
         v_a = _mm512_loadu_ps(a + i);
         v_a = _mm512_sub_ps(v_a, v_max);
         exp_ps_avx512(v_a);
@@ -474,7 +474,7 @@ inline void multiply_scalar(float* a, float* a_dst, const float val, const size_
     auto v_scale = _mm512_set1_ps(val);
     __m512 v_a = {0};
     size_t i = 0;
-    while (i + 16 < size) {
+    while (i + 16 <= size) {
         v_a = _mm512_loadu_ps(a + i);
         v_a = _mm512_mul_ps(v_a, v_scale);
         _mm512_storeu_ps(a_dst + i, v_a);
@@ -514,7 +514,7 @@ inline void multiply_scalar(float* a, ov::bfloat16* a_dst, const float val, cons
     auto v_scale = _mm512_set1_ps(val);
     __m512 v_a = {0};
     size_t i = 0;
-    while (i + 16 < size) {
+    while (i + 16 <= size) {
         v_a = _mm512_loadu_ps(a + i);
         v_a = _mm512_mul_ps(v_a, v_scale);
         mm512_uni_storeu_ps(a_dst + i, v_a);

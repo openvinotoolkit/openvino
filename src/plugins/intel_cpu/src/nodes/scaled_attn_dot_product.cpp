@@ -29,7 +29,7 @@ float dot_product_inner(T* a, T* b, size_t n) {
     float sum = 0.0f;
 #if defined(HAVE_AVX512F)
     auto vsum = _mm512_setzero_ps();
-    for (; i <= n - 16; i += 16) {
+    for (; i + 16 <= n; i += 16) {
         auto va = mm512_uni_loadu_ps(a + i);
         auto vb = mm512_uni_loadu_ps(b + i);
         vsum = _mm512_fmadd_ps(va, vb, vsum);
@@ -37,7 +37,7 @@ float dot_product_inner(T* a, T* b, size_t n) {
     sum = _mm512_reduce_add_ps(vsum);
 #elif defined(HAVE_AVX2)
     auto vsum = _mm256_set1_ps(0.0f);
-    for (; i <= n - 8; i += 8) {
+    for (; i + 8 <= n; i += 8) {
         auto va = mm256_uni_loadu_ps(a + i);
         auto vb = mm256_uni_loadu_ps(b + i);
         vsum = _mm256_fmadd_ps(va, vb, vsum);
@@ -51,16 +51,21 @@ float dot_product_inner(T* a, T* b, size_t n) {
     return sum;
 }
 
-float attn_dot_product(void* a, void* b, size_t len, Precision input_precision) {
+void attn_dot_products(void** a, void** b, void**c, size_t vec_num, size_t vec_len, Precision input_precision) {
     if (input_precision == Precision::FP32) {
-        auto a_ptr = static_cast<float*>(a);
-        auto b_ptr = static_cast<float*>(b);
-        return dot_product_inner(a_ptr, b_ptr, len);
+        for (size_t i = 0; i < vec_num; i++) {
+            auto a_ptr = static_cast<float*>(a[i]);
+            auto b_ptr = static_cast<float*>(b[i]);
+            auto c_ptr = static_cast<float*>(c[i]);
+            c_ptr[0] = dot_product_inner(a_ptr, b_ptr, vec_len);
+        }
     } else {
-        assert(input_precision == Precision::BF16);
-        auto a_ptr = static_cast<ov::bfloat16*>(a);
-        auto b_ptr = static_cast<ov::bfloat16*>(b);
-        return dot_product_inner(a_ptr, b_ptr, len);
+        for (size_t i = 0; i < vec_num; i++) {
+            auto a_ptr = static_cast<ov::bfloat16*>(a[i]);
+            auto b_ptr = static_cast<ov::bfloat16*>(b[i]);
+            auto c_ptr = static_cast<float*>(c[i]);
+            c_ptr[0] = dot_product_inner(a_ptr, b_ptr, vec_len);
+        }
     }
 }
 

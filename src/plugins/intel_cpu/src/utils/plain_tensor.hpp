@@ -7,6 +7,7 @@
 #include <dnnl_extension_utils.h>
 #include <node.h>
 
+#include <stdlib.h>
 #include <cassert>
 #include <climits>
 #include <cstdint>

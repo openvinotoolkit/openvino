@@ -485,11 +485,6 @@ struct MHA_1Token {
         auto q_len = query.size(2);
         auto S = query.size(3);
         auto kv_len = present_key.size(2);
-        auto h_group_num = present_key.size(1);
-        size_t h_each_group_len = 0;
-        if (h_group_num != H) {
-            h_each_group_len = H / h_group_num;
-        }
 
         if (d_scale == 0.0f)
             d_scale = 1.0f / sqrt(S);
@@ -498,33 +493,23 @@ struct MHA_1Token {
         //  attn mask is a matrix of q_len(kv_len)
         m_attn_w.resize({B, H, q_len, kv_len});
 
-        if (h_each_group_len) {
-            parallel_for3d(B, H / h_each_group_len, kv_len, [&](size_t b, size_t h_group, size_t pk) {
-                // which batch item should be used at postion pk?
-                auto b_kv = beams ? beams.at({b, pk}) : b;
-                for (size_t pq = 0; pq < q_len; pq++) {
-                    for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
-                        auto sum = attn_dot_product(&query.at({b, h, pq, 0}),
-                                                          &present_key.at({b_kv, h_group, pk, 0}),
-                                                        S,
-                                            precision_of<RT>::value);
-                        m_attn_w.at({b, h, pq, pk}) = sum;
-                    }
-                }
-            });
-        } else {
-            parallel_for3d(B, H, kv_len, [&](size_t b, size_t h, size_t pk) {
-                // which batch item should be used at postion pk?
-                auto b_kv = beams ? beams.at({b, pk}) : b;
-                for (size_t pq = 0; pq < q_len; pq++) {
-                    auto sum = attn_dot_product(&query.at({b, h, pq, 0}),
-                                                      &present_key.at({b_kv, h, pk, 0}),
-                                                      S,
-                                                      precision_of<RT>::value);
-                    m_attn_w.at({b, h, pq, pk}) = sum;
-                }
-            });
-        }
+        parallel_for3d(B, H, kv_len, [&](size_t b, size_t h, size_t pk) {
+            // which batch item should be used at postion pk?
+            auto b_kv = beams ? beams.at({b, pk}) : b;
+            std::vector<RT*> as(q_len), bs(q_len);
+            std::vector<float*> cs(q_len);
+            for (size_t pq = 0; pq < q_len; pq++) {
+                as[pq] = &query.at({b, h, pq, 0});
+                bs[pq] = &present_key.at({b_kv, h, pk, 0});
+                cs[pq] = &m_attn_w.at({b, h, pq, pk});
+            }
+            attn_dot_products(reinterpret_cast<void**>(as.data()),
+                              reinterpret_cast<void**>(bs.data()),
+                              reinterpret_cast<void**>(cs.data()),
+                              q_len,
+                              S,
+                              precision_of<RT>::value);
+        });
 
         parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
             // apply attention mask & sofmax
@@ -548,49 +533,37 @@ struct MHA_1Token {
         auto nthr = parallel_get_max_threads();
         m_temp.resize({static_cast<size_t>(nthr), B, q_len, H, S});
         // m_attn_w {B, H, q_len, kv_len}
-        if (h_each_group_len == 0) {
-            parallel_nt_static(nthr, [&](const size_t ithr, const size_t nthr) {
-                size_t start{0}, end{0};
-                splitter(B * H * kv_len, nthr, ithr, start, end);
+        parallel_nt_static(nthr, [&](const size_t ithr, const size_t nthr) {
+            size_t start{0}, end{0};
+            splitter(B * H * kv_len, nthr, ithr, start, end);
 
-                memset(&m_temp.at({ithr, 0, 0, 0, 0}), 0, m_temp.stride(0) * sizeof(float));
+            memset(&m_temp.at({ithr, 0, 0, 0, 0}), 0, m_temp.stride(0) * sizeof(float));
 
-                size_t b, h, pv;
+            size_t b, h, pv;
+            if (start < end) {
                 parallel_it_init(start, b, B, h, H, pv, kv_len);
+                std::vector<RT*> vs(q_len * (end - start));
+                std::vector<float> weights(q_len * (end - start));
+                std::vector<float*> outs(q_len * (end - start));
+                size_t idx = 0;
                 for (size_t iwork = start; iwork < end; ++iwork) {
                     auto b_kv = beams ? beams.at({b, pv}) : b;
                     auto* v = &present_value.at({b_kv, h, pv, 0});
                     for (size_t pq = 0; pq < q_len; pq++) {
-                        auto* out = &m_temp.at({ithr, b, pq, h, 0});
-                        auto weight = m_attn_w.at({b, h, pq, pv});
-                        attn_acc_value(out, weight, v, S, precision_of<RT>::value);
+                        outs[idx] = &m_temp.at({ithr, b, pq, h, 0});
+                        weights[idx] = m_attn_w.at({b, h, pq, pv});
+                        vs[idx] = v;
                     }
                     parallel_it_step(b, B, h, H, pv, kv_len);
                 }
-            });
-        } else {
-            parallel_nt_static(nthr, [&](const size_t ithr, const size_t nthr) {
-                size_t start{0}, end{0};
-                splitter(B * h_group_num * kv_len, nthr, ithr, start, end);
-
-                memset(&m_temp.at({ithr, 0, 0, 0, 0}), 0, m_temp.stride(0) * sizeof(float));
-
-                size_t b, h_group, pv;
-                parallel_it_init(start, b, B, h_group, h_group_num, pv, kv_len);
-                for (size_t iwork = start; iwork < end; ++iwork) {
-                    auto b_kv = beams ? beams.at({b, pv}) : b;
-                    auto* v = &present_value.at({b_kv, h_group, pv, 0});
-                    for (size_t pq = 0; pq < q_len; pq++) {
-                        for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
-                            auto* out = &m_temp.at({ithr, b, pq, h, 0});
-                            auto weight = m_attn_w.at({b, h, pq, pv});
-                            attn_acc_value(out, weight, v, S, precision_of<RT>::value);
-                        }
-                    }
-                    parallel_it_step(b, B, h_group, h_group_num, pv, kv_len);
-                }
-            });
-        }
+                attn_acc_values(outs.data(),
+                                weights.data(),
+                                reinterpret_cast<void**>(vs.data()),
+                                q_len * (end - start),
+                                S,
+                                precision_of<RT>::value);
+            }
+        });
 
         parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
             auto* temp = &m_temp.at({0, b, pq, h, 0});
@@ -678,18 +651,6 @@ struct AttentionExecutor : public ScaledDotProductAttention::Executor {
         present_key = k_input;
         present_value = v_input;
 
-        // if fuse_causal_attn == true:
-        //   attn_mask will not be nullptr
-        //   attn_mask will be [B, 1, L1, L0 + L1]
-        //   causal_mask will be got automatically
-        // else:
-        //   if is_causal:
-        //      attn_mask should be nullptr
-        //      causal_mask will be got automatically
-        //   else:
-        //      attn_mask will not be nullptr
-        //      attn_mask will be [B, 1, 1, L0 + L1]
-        //      causal_mask will be nullptr
         bool auto_causal;
         bool use_attn_mask;
         if (fuse_causal_attn) {
@@ -723,6 +684,10 @@ struct AttentionExecutor : public ScaledDotProductAttention::Executor {
                    output_emb, has_out_transpose, auto_causal, scale_input);
         } else {
             // 1-token version
+            // for second token, using a special AVX2/AVX512 float path:
+            //  1, in matrix mutiply, using AMX is not efficency because the M dimension of A will alway be 1
+            //  2, using float will save the repack cost which typically is required for bf16/int8 opt
+            //  3, using dot product can leverage the SIMD while easily adapt to indirect kv cache
             kernel_1tok(m_query_emb, present_key, present_value, {}, use_attn_mask ? attn_mask : PlainTensor<float>(),
                         output_emb, beam_table, has_out_transpose, auto_causal, scale_input);
         }

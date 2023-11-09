@@ -163,14 +163,14 @@ cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
                     src/nodes/scaled_attn_dot_product.cpp
         API         src/nodes/scaled_attn_dot_product.hpp
-        NAME        attn_dot_product
+        NAME        attn_dot_products
         NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
                     src/nodes/scaled_attn_acc_value.cpp
         API         src/nodes/scaled_attn_acc_value.hpp
-        NAME        attn_acc_value
+        NAME        attn_acc_values
         NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}

@@ -13,7 +13,7 @@ namespace Extensions {
 namespace Cpu {
 namespace XARCH {
 
-float attn_dot_product(void* a, void* b, size_t len, Precision input_precision);
+void attn_dot_products(void** a, void** b, void**c, size_t vec_num, size_t vec_len, Precision input_precision);
 
 }  // namespace XARCH
 }  // namespace Cpu

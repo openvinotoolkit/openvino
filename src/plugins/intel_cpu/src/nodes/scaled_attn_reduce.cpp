@@ -27,7 +27,7 @@ template<typename T>
 void attn_reduce_inner(T* dst, float* temp, size_t M, size_t S, size_t temp_stride) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)
-    for (; i <= S - 16; i+= 16) {
+    for (; i + 16 <= S; i+= 16) {
         auto* src = temp + i;
         auto result_vec_fp32 = _mm512_setzero_ps();
         for (size_t m = 0; m < M; m++) {
@@ -40,7 +40,7 @@ void attn_reduce_inner(T* dst, float* temp, size_t M, size_t S, size_t temp_stri
         mm512_uni_storeu_ps(dst + i, result_vec_fp32);
     }
 #elif defined(HAVE_AVX2)
-    for (; i <= S - 8; i += 8) {
+    for (; i + 8 <= S; i += 8) {
         auto* src = temp + i;
         auto result_vec_fp32 = _mm256_set1_ps(0.0f);
         for (size_t m = 0; m < M; m++) {
@@ -51,7 +51,7 @@ void attn_reduce_inner(T* dst, float* temp, size_t M, size_t S, size_t temp_stri
         mm256_uni_storeu_ps(dst + i, result_vec_fp32);
     }
 #endif
-    for (; i <S; i++) {
+    for (; i < S; i++) {
         auto* src = temp + i;
         float sum = 0.0f;
         // sum result from all threads partition
