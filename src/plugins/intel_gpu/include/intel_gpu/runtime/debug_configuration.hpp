@@ -100,6 +100,7 @@ public:
     int verbose_color;                                          // Print verbose color
     int list_layers;                                            // Print list layers
     int print_multi_kernel_perf;                                // Print execution time of each kernel in multi-kernel primitimive
+    int print_input_datashape;                                  // Print the input data_shape for benchmark_app.
     int disable_usm;                                            // Disable usm usage
     int disable_onednn;                                         // Disable onednn for discrete GPU (no effect for integrated GPU)
     int disable_onednn_opt_post_ops;                            // Disable onednn optimize post operators
@@ -113,7 +114,6 @@ public:
     int dump_layers_dst_only;                                   // Dump only output of layers
     int dump_layers_result;                                     // Dump result layers
     int dump_layers_input;                                      // Dump input layers
-    int print_layers_input;                                     // Print the input data_shape for benchmark_app. This option is related to dump_iteration.
     int dump_layers_limit_batch;                                // Limit the size of batch to dump
     int dump_layers_raw;                                        // Dump raw data.
     int dump_layers_binary;                                     // Dump binary data.

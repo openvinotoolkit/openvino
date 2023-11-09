@@ -108,6 +108,7 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_VerboseColor", "Print verbose color");
     message_list.emplace_back("OV_GPU_ListLayers", "Print layers names");
     message_list.emplace_back("OV_GPU_PrintMultiKernelPerf", "Print execution time of each kernel in multi-kernel primitimive");
+    message_list.emplace_back("OV_GPU_PrintInputDataShape",  "Print data_shape of input layers for benchmark_app.");
     message_list.emplace_back("OV_GPU_DisableUsm", "Disable usm usage");
     message_list.emplace_back("OV_GPU_DisableOnednn", "Disable onednn for discrete GPU (no effect for integrated GPU)");
     message_list.emplace_back("OV_GPU_DisableOnednnOptPostOps", "Disable onednn optimize post operators");
@@ -121,8 +122,6 @@ static void print_help_messages() {
                                " Support case-insensitive and regular expression. For example .*conv.*");
     message_list.emplace_back("OV_GPU_DumpLayersResult", "Dump output buffers of result layers only");
     message_list.emplace_back("OV_GPU_DumpLayersInput",  "Dump intermediate buffers of input layers only");
-    message_list.emplace_back("OV_GPU_PrintLayersInput",  "Print data_shape of input layers for benchmark_app."
-                              " This option is related to OV_GPU_DumpIteration.");
     message_list.emplace_back("OV_GPU_DumpLayersDstOnly", "Dump only output of layers");
     message_list.emplace_back("OV_GPU_DumpLayersLimitBatch", "Limit the size of batch to dump");
     message_list.emplace_back("OV_GPU_DumpLayersRaw", "If true, dump data is stored in raw memory format.");
@@ -209,6 +208,7 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("VerboseColor", verbose_color);
     get_gpu_debug_env_var("ListLayers", list_layers);
     get_gpu_debug_env_var("PrintMultiKernelPerf", print_multi_kernel_perf);
+    get_gpu_debug_env_var("PrintInputDataShape", print_input_datashape);
     get_gpu_debug_env_var("DisableUsm", disable_usm);
     get_gpu_debug_env_var("DumpGraphs", dump_graphs);
     get_gpu_debug_env_var("DumpSources", dump_sources);
@@ -219,7 +219,6 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DumpLayersDstOnly", dump_layers_dst_only);
     get_gpu_debug_env_var("DumpLayersResult", dump_layers_result);
     get_gpu_debug_env_var("DumpLayersInput", dump_layers_input);
-    get_gpu_debug_env_var("PrintLayersInput", print_layers_input);
     get_gpu_debug_env_var("DisableOnednn", disable_onednn);
     get_gpu_debug_env_var("DisableOnednnOptPostOps", disable_onednn_opt_post_ops);
     get_gpu_debug_env_var("DumpProfilingData", dump_profiling_data);
