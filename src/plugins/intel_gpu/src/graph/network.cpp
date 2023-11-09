@@ -1416,7 +1416,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     }
 
     // print '-data_shape' option for benchmark_app
-    GPU_DEBUG_IF(debug_config->print_layers_input == 1) {
+    GPU_DEBUG_IF(debug_config->print_input_data_shapes == 1) {
         std::stringstream data_shape_str;
         auto add_string = [&data_shape_str](std::string str) {
             data_shape_str << ((data_shape_str.rdbuf()->in_avail() == 0) ? " -data_shape " : ",") << str;
