@@ -5,6 +5,7 @@
 #include "single_layer_tests/classes/pooling.hpp"
 #include "shared_test_classes/single_layer/pooling.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "test_utils/filter_cpu_info.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 #include <ov_models/builders.hpp>
 #include <common_test_utils/ov_tensor_utils.hpp>
