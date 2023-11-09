@@ -28,8 +28,7 @@ Local Deployment Options
   - using PIP package manager on PyPI - the default approach for Python-based applications;
   - using Docker images - if the application should be deployed as a Docker image, use a pre-built OpenVINO™ Runtime Docker image as a base image in the Dockerfile for the application container image. For more information about OpenVINO Docker images, refer to :doc:`Installing OpenVINO from Docker <openvino_docs_install_guides_installing_openvino_docker>`
 
-Furthermore, to customize your OpenVINO Docker image, use the `Docker CI Framework <https://github.com/openvinotoolkit/docker_ci>`__ to generate a Dockerfile and built the image.
-
+    - Furthermore, to customize your OpenVINO Docker image, use the `Docker CI Framework <https://github.com/openvinotoolkit/docker_ci>`__ to generate a Dockerfile and build the image.
 - Grab a necessary functionality of OpenVINO together with your application, also called "local distribution":
 
   - using :doc:`OpenVINO Deployment Manager <openvino_docs_install_guides_deployment_manager_tool>` - providing a convenient way for creating a distribution package;
@@ -45,7 +44,7 @@ The table below shows which distribution type can be used for what target operat
      - Operating systems
    * - Debian packages
      - Ubuntu 18.04 long-term support (LTS), 64-bit; Ubuntu 20.04 long-term support (LTS), 64-bit
-   * - RMP packages
+   * - RPM packages
      - Red Hat Enterprise Linux 8, 64-bit
    * - Docker images
      - Ubuntu 22.04 long-term support (LTS), 64-bit; Ubuntu 20.04 long-term support (LTS), 64-bit; Red Hat Enterprise Linux 8, 64-bit

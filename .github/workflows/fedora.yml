@@ -179,7 +179,7 @@ jobs:
 
   RPM_Packages:
     needs: Build
-    timeout-minutes: 5
+    timeout-minutes: 10
     defaults:
       run:
         shell: bash
