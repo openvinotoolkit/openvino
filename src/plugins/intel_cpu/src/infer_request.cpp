@@ -61,18 +61,9 @@ void SyncInferRequest::create_infer_request() {
         init_tensor(it.first);
     }
 
-    // Save all MemoryLayer data tensors. Will use insight about mechanics
-    // of MemoryLayer implementation. It uses output edge of MemoryLayer
-    // producer as storage for tensor to keep it between infer calls.
-    for (auto& node : m_graph->GetNodes()) {
-        if (node->getType() == Type::MemoryInput) {
-            auto memoryNode = std::dynamic_pointer_cast<node::MemoryInput>(node);
-            if (!memoryNode) {
-                OPENVINO_THROW("Cannot cast ", node->getName(), " to MemoryInput");
-            }
-
-            m_memory_states.emplace_back(memoryNode->makeState());
-        }
+    //create states according to the list of the MemoryNodes
+    for (auto&& node : m_graph->getInternalStateNodes()) {
+        m_memory_states.emplace_back(node.second->makeState());
     }
 }
 

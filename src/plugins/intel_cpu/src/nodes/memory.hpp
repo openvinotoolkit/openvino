@@ -35,6 +35,7 @@ class MemoryNode { //TODO , segregate interfaces
     virtual void registerOutputNode(MemoryOutput*) = 0;
     virtual void deregisterSibling(MemoryNode*) = 0;
     virtual void assignState(MemStatePtr newState) = 0;
+    virtual MemStatePtr makeState() const = 0;
 };
 
 /**
@@ -97,6 +98,9 @@ private:
     void assignState(MemStatePtr newState) override {
         OPENVINO_THROW("Unexpected MemoryOutput::assignState call"); //TODO , segregate interfaces
     }
+    MemStatePtr makeState() const override {
+        OPENVINO_THROW("Unexpected MemoryOutput::makeState call"); //TODO , segregate interfaces
+    }
 
 private:
     /**
@@ -137,7 +141,7 @@ public:
     void deregisterSibling(MemoryNode* node) override;
 
     void assignState(MemStatePtr newState) override;
-    MemStatePtr makeState() const;
+    MemStatePtr makeState() const override;
 
 private:
     MemoryOutput& getOutputNode();
