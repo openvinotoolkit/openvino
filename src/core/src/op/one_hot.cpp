@@ -2,32 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/one_hot.hpp"
-
-#include <one_hot_shape_inference.hpp>
+#include "openvino/op/one_hot.hpp"
 
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/validation_util.hpp"
+#include "ngraph/validation_util.hpp"  // tbr
+#include "one_hot_shape_inference.hpp"
+#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/reference/one_hot.hpp"
 
-using namespace std;
-using namespace ngraph;
+using namespace ngraph;  // tbr
 
-op::v1::OneHot::OneHot(const Output<Node>& indices,
-                       const Output<Node>& depth,
-                       const Output<Node>& on_value,
-                       const Output<Node>& off_value,
-                       int64_t axis)
+namespace ov {
+namespace op {
+namespace v1 {
+OneHot::OneHot(const Output<Node>& indices,
+               const Output<Node>& depth,
+               const Output<Node>& on_value,
+               const Output<Node>& off_value,
+               int64_t axis)
     : Op({indices, depth, on_value, off_value}),
       m_axis(axis) {
-    ov::mark_as_precision_sensitive(input(1));
+    mark_as_precision_sensitive(input(1));
     constructor_validate_and_infer_types();
 }
 
-void op::v1::OneHot::validate_and_infer_types() {
+void OneHot::validate_and_infer_types() {
     OV_OP_SCOPE(v1_OneHot_validate_and_infer_types);
     const auto& indices_et = get_input_element_type(0);
     const auto& depth_et = get_input_element_type(1);
@@ -58,19 +58,18 @@ void op::v1::OneHot::validate_and_infer_types() {
     set_output_type(0, on_value_et, output_shapes[0]);
 }
 
-bool ngraph::op::v1::OneHot::visit_attributes(AttributeVisitor& visitor) {
+bool OneHot::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v1_OneHot_visit_attributes);
     visitor.on_attribute("axis", m_axis);
     return true;
 }
 
-shared_ptr<Node> op::v1::OneHot::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> OneHot::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_OneHot_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v1::OneHot>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_axis);
+    return std::make_shared<v1::OneHot>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_axis);
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace one_hot {
 namespace {
 template <element::Type_t T>
@@ -80,14 +79,14 @@ bool evaluate(const HostTensorVector& output_values, const HostTensorVector& inp
     const auto& on_value = input_values[2];
     const auto& off_value = input_values[3];
     const auto& out = output_values[0];
-    ov::reference::one_hot<INPUT_TYPE>(indices->get_data_ptr<INPUT_TYPE>(),
-                                       indices->get_shape(),
-                                       out->get_data_ptr<char>(),
-                                       out->get_element_type().size(),
-                                       out->get_shape()[axis],
-                                       axis,
-                                       on_value->get_data_ptr<char>(),
-                                       off_value->get_data_ptr<char>());
+    reference::one_hot<INPUT_TYPE>(indices->get_data_ptr<INPUT_TYPE>(),
+                                   indices->get_shape(),
+                                   out->get_data_ptr<char>(),
+                                   out->get_element_type().size(),
+                                   out->get_shape()[axis],
+                                   axis,
+                                   on_value->get_data_ptr<char>(),
+                                   off_value->get_data_ptr<char>());
     return true;
 }
 bool evaluate_onehot(const HostTensorVector& output_values, const HostTensorVector& input_values, const int64_t axis) {
@@ -104,7 +103,7 @@ bool evaluate_onehot(const HostTensorVector& output_values, const HostTensorVect
 }  // namespace
 }  // namespace one_hot
 
-bool op::v1::OneHot::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
+bool OneHot::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     OV_OP_SCOPE(v1_OneHot_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
     OPENVINO_ASSERT(validate_host_tensor_vector(input_values, 4));
@@ -125,19 +124,21 @@ bool op::v1::OneHot::evaluate(const HostTensorVector& output_values, const HostT
     return one_hot::evaluate_onehot(output_values, input_values, axis);
 }
 
-bool op::v1::OneHot::has_evaluate() const {
+bool OneHot::has_evaluate() const {
     OV_OP_SCOPE(v1_OneHot_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
+    case element::i32:
+    case element::i64:
         return true;
     default:
-        break;
+        return false;
     }
-    return false;
 }
 
-void op::v1::OneHot::set_axis(int64_t axis) {
+void OneHot::set_axis(int64_t axis) {
     m_axis = axis;
     resolve_axis(this);
 }
+}  // namespace v1
+}  // namespace op
+}  // namespace ov
