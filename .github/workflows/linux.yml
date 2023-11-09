@@ -110,6 +110,7 @@ jobs:
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
+          show-cache-info: 'true'
 
       - name: Install python dependencies
         run: |
@@ -646,7 +647,7 @@ jobs:
   CXX_Unit_Tests:
     name: C++ unit tests
     needs: Build
-    timeout-minutes: 15
+    timeout-minutes: 20
     defaults:
       run:
         shell: bash
