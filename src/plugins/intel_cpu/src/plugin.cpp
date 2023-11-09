@@ -244,7 +244,8 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
         if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
             int val = -1;
             try {
-                val = static_cast<int>(num_requests->second.as<uint32_t>());
+                ov::Any value = num_requests->second.as<std::string>();
+                val = value.as<int>();
             } catch (const std::exception&) {
                 OPENVINO_THROW("Wrong value of ",
                                num_requests->second.as<std::string>(),
@@ -462,7 +463,7 @@ StreamCfg Engine::get_streams_num(ov::threading::IStreamsExecutor::ThreadBinding
 }
 
 static bool shouldEnableLPT(const ov::AnyMap& modelConfig, const Config& engineConfig) {
-    const auto& enableLPT = modelConfig.find(ov::internal::lp_transforms_mode.name());
+    const auto& enableLPT = modelConfig.find(ov::intel_cpu::lp_transforms_mode.name());
     if (enableLPT == modelConfig.end()) // model config has higher priority
         return engineConfig.lpTransformsMode == Config::LPTransformsMode::On;
 
@@ -830,7 +831,7 @@ ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& 
     Config::ModelType modelType = getModelType(model);
     conf.readProperties(config, modelType);
 
-    const auto& lptProp = config.find(ov::internal::lp_transforms_mode.name());
+    const auto& lptProp = config.find(ov::intel_cpu::lp_transforms_mode.name());
     const bool enableLPT =
         (lptProp != config.end() && lptProp->second.as<bool>() == true) /* enabled in the orig_config*/
         || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;

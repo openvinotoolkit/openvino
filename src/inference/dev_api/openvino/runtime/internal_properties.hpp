@@ -44,12 +44,6 @@ static constexpr Property<bool, PropertyMutability::RW> exclusive_async_requests
 static constexpr Property<std::string, PropertyMutability::WO> config_device_id{"CONFIG_DEVICE_ID"};
 
 /**
- * @brief Allow low precision transform
- * @ingroup ov_dev_api_plugin_api
- */
-static constexpr Property<bool, PropertyMutability::RW> lp_transforms_mode{"LP_TRANSFORMS_MODE"};
-
-/**
  * @brief The name for setting CPU affinity per thread option.
  *
  * It is passed to Core::get_property()

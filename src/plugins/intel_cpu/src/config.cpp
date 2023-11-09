@@ -73,16 +73,14 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         const auto& val = kvp.second;
         if (streamExecutorConfigKeys.end() !=
             std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
-            streamExecutorConfig.set_property(key, val);
+            streamExecutorConfig.set_property(key, val.as<std::string>());
             if (key == ov::affinity.name()) {
                 changedCpuPinning = true;
                 try {
                     const auto affinity_val = val.as<ov::Affinity>();
-                    if (affinity_val == ov::Affinity::CORE || affinity_val == ov::Affinity::HYBRID_AWARE) {
-                        enableCpuPinning = true;
-                    } else if (affinity_val == ov::Affinity::NUMA) {
-                        enableCpuPinning = false;
-                    }
+                    enableCpuPinning =
+                        (affinity_val == ov::Affinity::CORE || affinity_val == ov::Affinity::HYBRID_AWARE) ? true
+                                                                                                           : false;
                 } catch (const std::exception&) {
                     OPENVINO_THROW("Wrong value ",
                                    val.as<std::string>(),
@@ -103,7 +101,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::hint::num_requests.name()) {
             try {
-                hintNumRequests = val.as<uint32_t>();
+                ov::Any value = val.as<std::string>();
+                hintNumRequests = value.as<uint32_t>();
             } catch (const std::exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
@@ -184,14 +183,14 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             // empty string means that dumping is switched off
             dumpToDot = val.as<std::string>();
             OPENVINO_SUPPRESS_DEPRECATED_END
-        } else if (key == ov::internal::lp_transforms_mode.name()) {
+        } else if (key == ov::intel_cpu::lp_transforms_mode.name()) {
             try {
                 lpTransformsMode = val.as<bool>() ? LPTransformsMode::On : LPTransformsMode::Off;
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
                                " for property key ",
-                               ov::internal::lp_transforms_mode.name(),
+                               key,
                                ". Expected value only On/Off");
             }
         } else if (key == ov::device::id.name()) {
@@ -254,7 +253,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         } else if (ov::intel_cpu::cpu_runtime_cache_capacity.name() == key) {
             int val_i = -1;
             try {
-                val_i = val.as<int>();
+                ov::Any value = val.as<std::string>();
+                val_i = value.as<int>();
             } catch (const std::exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
@@ -267,11 +267,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             rtCacheCapacity = std::max(val_i, 0);
         } else if (ov::intel_cpu::denormals_optimization.name() == key) {
             try {
-                if (val.as<bool>()) {
-                    denormalsOptMode = DenormalsOptMode::DO_On;
-                } else {
-                    denormalsOptMode = DenormalsOptMode::DO_Off;
-                }
+                denormalsOptMode = val.as<bool>() ? DenormalsOptMode::DO_On : DenormalsOptMode::DO_Off;
             } catch (ov::Exception&) {
                 denormalsOptMode = DenormalsOptMode::DO_Keep;
                 OPENVINO_THROW("Wrong value ",
