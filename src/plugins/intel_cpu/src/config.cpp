@@ -73,27 +73,37 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         const auto& val = kvp.second;
         if (streamExecutorConfigKeys.end() !=
             std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
-            streamExecutorConfig.set_property(key, val.as<std::string>());
+            streamExecutorConfig.set_property(key, val);
             if (key == ov::affinity.name()) {
-                const auto affinity_val = ov::util::from_string(val.as<std::string>(), ov::affinity);
-                if (affinity_val == ov::Affinity::CORE || affinity_val == ov::Affinity::HYBRID_AWARE) {
-                    enableCpuPinning = true;
-                    changedCpuPinning = true;
-                } else if (affinity_val == ov::Affinity::NUMA) {
-                    enableCpuPinning = false;
-                    changedCpuPinning = true;
+                changedCpuPinning = true;
+                try {
+                    const auto affinity_val = val.as<ov::Affinity>();
+                    if (affinity_val == ov::Affinity::CORE || affinity_val == ov::Affinity::HYBRID_AWARE) {
+                        enableCpuPinning = true;
+                    } else if (affinity_val == ov::Affinity::NUMA) {
+                        enableCpuPinning = false;
+                    }
+                } catch (const std::exception&) {
+                    OPENVINO_THROW("Wrong value ",
+                                   val.as<std::string>(),
+                                   "for property key ",
+                                   key,
+                                   ". Expected only CORE/NUMA/HYBRID_AWARE.");
                 }
             }
         } else if (key == ov::hint::performance_mode.name()) {
-            hintPerfMode = ov::util::from_string(val.as<std::string>(), ov::hint::performance_mode);
-        } else if (key == ov::hint::num_requests.name()) {
-            int val_i = -1;
             try {
-                val_i = std::stoi(val.as<std::string>().c_str());
-                if (val_i < 0) {
-                    throw std::logic_error("wrong val");
-                }
-                hintNumRequests = static_cast<uint32_t>(val_i);
+                hintPerfMode = val.as<ov::hint::PerformanceMode>();
+            } catch (const std::exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               "for property key ",
+                               key,
+                               ". Expected only LATENCY/THROUGHPUT/CUMULATIVE_THROUGHPUT.");
+            }
+        } else if (key == ov::hint::num_requests.name()) {
+            try {
+                hintNumRequests = val.as<uint32_t>();
             } catch (const std::exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
@@ -103,13 +113,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::hint::enable_cpu_pinning.name()) {
             try {
-                if (val.as<bool>()) {
-                    enableCpuPinning = true;
-                    changedCpuPinning = true;
-                } else {
-                    enableCpuPinning = false;
-                    changedCpuPinning = true;
-                }
+                enableCpuPinning = val.as<bool>();
+                changedCpuPinning = true;
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
@@ -118,32 +123,19 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ". Expected only true/false.");
             }
         } else if (key == ov::hint::scheduling_core_type.name()) {
-            const auto core_type = ov::util::from_string(val.as<std::string>(), ov::hint::scheduling_core_type);
-            if (core_type == ov::hint::SchedulingCoreType::ANY_CORE ||
-                core_type == ov::hint::SchedulingCoreType::PCORE_ONLY ||
-                core_type == ov::hint::SchedulingCoreType::ECORE_ONLY) {
-                schedulingCoreType = core_type;
-            } else {
+            try {
+                schedulingCoreType = val.as<ov::hint::SchedulingCoreType>();
+            } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
                                "for property key ",
                                ov::hint::scheduling_core_type.name(),
-                               ". Expected only ",
-                               ov::hint::SchedulingCoreType::ANY_CORE,
-                               "/",
-                               ov::hint::SchedulingCoreType::PCORE_ONLY,
-                               "/",
-                               ov::hint::SchedulingCoreType::ECORE_ONLY);
+                               ". Expected only ANY_CORE/PCORE_ONLY/ECORE_ONLY");
             }
         } else if (key == ov::hint::enable_hyper_threading.name()) {
             try {
-                if (val.as<bool>()) {
-                    enableHyperThreading = true;
-                    changedHyperThreading = true;
-                } else {
-                    enableHyperThreading = false;
-                    changedHyperThreading = true;
-                }
+                enableHyperThreading = val.as<bool>();
+                changedHyperThreading = true;
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
@@ -154,7 +146,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         } else if (key == ov::intel_cpu::sparse_weights_decompression_rate.name()) {
             float val_f = 0.0f;
             try {
-                val_f = std::stof(val.as<std::string>());
+                val_f = val.as<float>();
             } catch (const std::exception&) {
                 OPENVINO_THROW("Wrong value for property key ",
                                ov::intel_cpu::sparse_weights_decompression_rate.name(),
@@ -175,7 +167,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                " for property key ",
                                ov::enable_profiling.name(),
-                               ". Expected only YES/NO");
+                               ". Expected only true/false");
             }
         } else if (key == ov::internal::exclusive_async_requests.name()) {
             try {
@@ -185,32 +177,30 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                " for property key ",
                                ov::internal::exclusive_async_requests.name(),
-                               ". Expected only YES/NO");
+                               ". Expected only true/false");
             }
             OPENVINO_SUPPRESS_DEPRECATED_START
         } else if (key.compare(InferenceEngine::PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT) == 0) {
             // empty string means that dumping is switched off
             dumpToDot = val.as<std::string>();
             OPENVINO_SUPPRESS_DEPRECATED_END
-        } else if (key.compare(ov::internal::lp_transforms_mode.name()) == 0) {
+        } else if (key == ov::internal::lp_transforms_mode.name()) {
             try {
-                if (val.as<bool>()) {
-                    lpTransformsMode = LPTransformsMode::On;
-                } else {
-                    lpTransformsMode = LPTransformsMode::Off;
-                }
+                lpTransformsMode = val.as<bool>() ? LPTransformsMode::On : LPTransformsMode::Off;
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
                                " for property key ",
-                               ov::internal::lp_transforms_mode.name());
+                               ov::internal::lp_transforms_mode.name(),
+                               ". Expected value only On/Off");
             }
         } else if (key == ov::device::id.name()) {
             device_id = val.as<std::string>();
             if (!device_id.empty()) {
                 OPENVINO_THROW("CPU plugin supports only '' as device id");
             }
-        } else if (key == ov::enforce_bf16.name()) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
+        } else if (key == InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16) {
             bool enable;
             try {
                 enable = val.as<bool>();
@@ -218,8 +208,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
                                " for property key ",
-                               ov::enforce_bf16.name(),
-                               ". Expected only YES/NO");
+                               key,
+                               ". Expected only true/false");
             }
             if (enable) {
                 if (mayiuse(avx512_core)) {
@@ -231,30 +221,32 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 inferencePrecision = ov::element::f32;
             }
             inferencePrecisionSetExplicitly = true;
+            OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key == ov::hint::inference_precision.name()) {
-            auto prec = val.as<std::string>();
-            if (prec == "bf16") {
-                if (mayiuse(avx512_core)) {
-                    inferencePrecision = ov::element::bf16;
-                    inferencePrecisionSetExplicitly = true;
-                }
-            } else if (prec == "f16") {
+            try {
+                auto const prec = val.as<ov::element::Type>();
+                inferencePrecisionSetExplicitly = true;
+                if (prec == ov::element::bf16) {
+                    if (mayiuse(avx512_core)) {
+                        inferencePrecision = ov::element::bf16;
+                    }
+                } else if (prec == ov::element::f16) {
 #if defined(OPENVINO_ARCH_X86_64)
-                if (mayiuse(avx512_core_fp16) || mayiuse(avx512_core_amx_fp16)) {
-                    inferencePrecision = ov::element::f16;
-                    inferencePrecisionSetExplicitly = true;
-                }
+                    if (mayiuse(avx512_core_fp16) || mayiuse(avx512_core_amx_fp16)) {
+                        inferencePrecision = ov::element::f16;
+                    }
 #elif defined(OV_CPU_ARM_ENABLE_FP16)
-                // TODO: add runtime FP16 feature support check for ARM
-                inferencePrecision = ov::element::f16;
-                inferencePrecisionSetExplicitly = true;
+                    // TODO: add runtime FP16 feature support check for ARM
+                    inferencePrecision = ov::element::f16;
 #endif
-            } else if (prec == "f32") {
-                inferencePrecision = ov::element::f32;
-                inferencePrecisionSetExplicitly = true;
-            } else {
+                } else if (prec == ov::element::f32) {
+                    inferencePrecision = ov::element::f32;
+                } else {
+                    throw std::logic_error("wrong val");
+                }
+            } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
-                               prec,
+                               val.as<std::string>(),
                                " for property key ",
                                ov::hint::inference_precision.name(),
                                ". Supported values: bf16, f16, f32");
@@ -262,7 +254,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         } else if (ov::intel_cpu::cpu_runtime_cache_capacity.name() == key) {
             int val_i = -1;
             try {
-                val_i = std::stoi(val.as<std::string>());
+                val_i = val.as<int>();
             } catch (const std::exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
@@ -286,31 +278,32 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                " for property key ",
                                ov::intel_cpu::denormals_optimization.name(),
-                               ". Expected only YES/NO");
+                               ". Expected only true/false");
             }
-        } else if (key == ov::snippets_mode.name()) {
-            auto mode = val.as<std::string>();
-            if (mode == ov::util::to_string(ov::SnippetsMode::ENABLE))
-                snippetsMode = SnippetsMode::Enable;
-            else if (mode == ov::util::to_string(ov::SnippetsMode::IGNORE_CALLBACK))
-                snippetsMode = SnippetsMode::IgnoreCallback;
-            else if (mode == ov::util::to_string(ov::SnippetsMode::DISABLE))
-                snippetsMode = SnippetsMode::Disable;
-            else
+        } else if (key == ov::intel_cpu::snippets_mode.name()) {
+            try {
+                auto const mode = val.as<ov::intel_cpu::SnippetsMode>();
+                if (mode == ov::intel_cpu::SnippetsMode::ENABLE)
+                    snippetsMode = SnippetsMode::Enable;
+                else if (mode == ov::intel_cpu::SnippetsMode::IGNORE_CALLBACK)
+                    snippetsMode = SnippetsMode::IgnoreCallback;
+                else if (mode == ov::intel_cpu::SnippetsMode::DISABLE)
+                    snippetsMode = SnippetsMode::Disable;
+                else
+                    throw std::logic_error("wrong val");
+            } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
                                " for property key ",
-                               ov::snippets_mode.name(),
+                               ov::intel_cpu::snippets_mode.name(),
                                ". Expected values: ENABLE/DISABLE/IGNORE_CALLBACK");
+            }
         } else if (key == ov::hint::execution_mode.name()) {
-            auto mode = val.as<std::string>();
-            if (mode == "PERFORMANCE") {
-                executionMode = ov::hint::ExecutionMode::PERFORMANCE;
-            } else if (mode == "ACCURACY") {
-                executionMode = ov::hint::ExecutionMode::ACCURACY;
-            } else {
+            try {
+                executionMode = val.as<ov::hint::ExecutionMode>();
+            } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
-                               mode,
+                               val.as<std::string>(),
                                "for property key ",
                                ov::hint::execution_mode.name(),
                                ". Supported values: PERFORMANCE, ACCURACY");
@@ -361,7 +354,6 @@ void Config::updateProperties() {
     if (!_config.empty())
         return;
 
-    using namespace InferenceEngine;
     switch (streamExecutorConfig._threadBindingType) {
     case IStreamsExecutor::ThreadBindingType::NONE:
         _config.insert({ov::internal::cpu_bind_thread.name(), "NO"});
@@ -392,13 +384,14 @@ void Config::updateProperties() {
     _config.insert({ov::hint::performance_mode.name(), ov::util::to_string(hintPerfMode)});
     _config.insert({ov::hint::num_requests.name(), std::to_string(hintNumRequests)});
 
-    if (inferencePrecision == ov::element::bf16) {
-        _config.insert({ov::enforce_bf16.name(), "YES"});
-    } else {
-        _config.insert({ov::enforce_bf16.name(), "NO"});
-    }
-
     OPENVINO_SUPPRESS_DEPRECATED_START
+    if (inferencePrecision == ov::element::bf16) {
+        _config.insert(
+            {InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES});
+    } else {
+        _config.insert(
+            {InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
+    }
     _config.insert({InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS,
                     std::to_string(streamExecutorConfig._streams)});
     _config.insert(

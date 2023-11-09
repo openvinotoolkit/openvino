@@ -1110,67 +1110,6 @@ inline std::istream& operator>>(std::istream& is, Affinity& affinity) {
 static constexpr Property<Affinity> affinity{"AFFINITY"};
 
 /**
- * @brief The name for setting to execute in bfloat16 precision whenever it is possible
- * @ingroup ov_runtime_cpp_prop_api
- *
- * This option let plugin know to downscale the precision where it see performance benefits from
- * bfloat16 execution
- * Such option do not guarantee accuracy of the network, the accuracy in this mode should be
- * verified separately by the user and basing on performance and accuracy results it should be
- * user's decision to use this option or not to use
- */
-static constexpr Property<bool> enforce_bf16{"ENFORCE_BF16"};
-
-/**
- * @brief Enum to define possible snippets mode hints
- * @ingroup ov_runtime_cpp_prop_api
- */
-enum class SnippetsMode {
-    ENABLE = 0,           //!<  Enable
-    IGNORE_CALLBACK = 1,  //!<  Ignore callback
-    DISABLE = 2,          //!<  Disable
-};
-
-/** @cond INTERNAL */
-inline std::ostream& operator<<(std::ostream& os, const SnippetsMode& mode) {
-    switch (mode) {
-    case SnippetsMode::ENABLE:
-        return os << "ENABLE";
-    case SnippetsMode::IGNORE_CALLBACK:
-        return os << "IGNORE_CALLBACK";
-    case SnippetsMode::DISABLE:
-        return os << "DISABLE";
-    default:
-        OPENVINO_THROW("Unsupported snippets mode value");
-    }
-}
-
-inline std::istream& operator>>(std::istream& is, SnippetsMode& mode) {
-    std::string str;
-    is >> str;
-    if (str == "ENABLE") {
-        mode = SnippetsMode::ENABLE;
-    } else if (str == "IGNORE_CALLBACK") {
-        mode = SnippetsMode::IGNORE_CALLBACK;
-    } else if (str == "DISABLE") {
-        mode = SnippetsMode::DISABLE;
-    } else {
-        OPENVINO_THROW("Unsupported snippets mode: ", str);
-    }
-    return is;
-}
-/** @endcond */
-
-/**
- * @brief Defines Snippets tokenization mode
- *      @param ENABLE - default pipeline
- *      @param IGNORE_CALLBACK - disable the Snippets markup transformation and tokenization callback
- *      @param DISABLE - turn off the Snippets
- * @ingroup ie_dev_api_plugin_api
- */
-static constexpr Property<size_t, PropertyMutability::RW> snippets_mode{"SNIPPETS_MODE"};
-
-/**
  * @brief The devices that the inference task been executed.
  * @ingroup ov_runtime_cpp_prop_api
  */

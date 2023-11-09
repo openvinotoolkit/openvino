@@ -63,11 +63,5 @@ static constexpr Property<bool> denormals_optimization{"CPU_DENORMALS_OPTIMIZATI
  */
 static constexpr Property<float> sparse_weights_decompression_rate{"CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE"};
 
-/**
- * @brief Defines how many records can be stored in the CPU runtime parameters cache per CPU runtime parameter type per
- * stream.
- */
-static constexpr Property<int32_t, PropertyMutability::RW> cpu_runtime_cache_capacity{"CPU_RUNTIME_CACHE_CAPACITY"};
-
 }  // namespace intel_cpu
 }  // namespace ov

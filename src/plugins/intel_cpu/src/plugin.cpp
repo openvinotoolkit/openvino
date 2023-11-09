@@ -7,6 +7,7 @@
 #include "extension.h"
 #include "extension_mngr.h"
 #include "itt.h"
+#include "internal_properties.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 
@@ -243,13 +244,10 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
         if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
             int val = -1;
             try {
-                val = std::stoi(num_requests->second.as<std::string>());
-                if (val < 0) {
-                    throw std::logic_error("wrong val");
-                }
+                val = static_cast<int>(num_requests->second.as<uint32_t>());
             } catch (const std::exception&) {
                 OPENVINO_THROW("Wrong value of ",
-                               val,
+                               num_requests->second.as<std::string>(),
                                " for property key ",
                                ov::hint::num_requests.name(),
                                ". Expected only positive integer numbers");
@@ -262,7 +260,6 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
         return std::pair<std::string, StreamCfg>(std::to_string(streams_info.num_streams), streams_info);
     };
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
     auto getPerfHintName = [&]() {
         const bool streamsExplicitlySetForModel = streamsSet(config);
         // checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via
@@ -311,7 +308,6 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
             std::to_string(tput_hints.second.threads_per_stream_small);
         config[ov::internal::small_core_offset.name()] = std::to_string(tput_hints.second.small_core_offset);
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void Engine::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const{
@@ -494,16 +490,16 @@ static Config::ModelType getModelType(const std::shared_ptr<const Model>& model)
 }
 
 static Config::SnippetsMode getSnippetsMode(const ov::AnyMap& modelConfig, const Config& engineConfig) {
-    const auto& snippetsMode = modelConfig.find(ov::snippets_mode.name());
+    const auto& snippetsMode = modelConfig.find(ov::intel_cpu::snippets_mode.name());
     if (snippetsMode == modelConfig.end())    // not set explicitly
         return Config::SnippetsMode::Enable;  // enable by default
 
     const auto& val = snippetsMode->second.as<std::string>();
-    if (val == ov::util::to_string(ov::SnippetsMode::IGNORE_CALLBACK))
+    if (val == ov::util::to_string(ov::intel_cpu::SnippetsMode::IGNORE_CALLBACK))
         return Config::SnippetsMode::IgnoreCallback;
-    else if (val == ov::util::to_string(ov::SnippetsMode::DISABLE))
+    else if (val == ov::util::to_string(ov::intel_cpu::SnippetsMode::DISABLE))
         return Config::SnippetsMode::Disable;
-    else if (val == ov::util::to_string(ov::SnippetsMode::ENABLE))
+    else if (val == ov::util::to_string(ov::intel_cpu::SnippetsMode::ENABLE))
         return Config::SnippetsMode::Enable;
     else
         OPENVINO_THROW("Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK");

@@ -49,40 +49,6 @@ static constexpr Property<std::string, PropertyMutability::WO> config_device_id{
  */
 static constexpr Property<bool, PropertyMutability::RW> lp_transforms_mode{"LP_TRANSFORMS_MODE"};
 
-/** @cond INTERNAL */
-inline std::ostream& operator<<(std::ostream& os, const ov::threading::IStreamsExecutor::ThreadBindingType& type) {
-    switch (type) {
-    case ov::threading::IStreamsExecutor::NONE:
-        return os << "NONE";
-    case ov::threading::IStreamsExecutor::CORES:
-        return os << "CORES";
-    case ov::threading::IStreamsExecutor::NUMA:
-        return os << "NUMA";
-    case ov::threading::IStreamsExecutor::HYBRID_AWARE:
-        return os << "HYBRID_AWARE";
-    default:
-        OPENVINO_THROW("Unsupported thread binding type value");
-    }
-}
-
-inline std::istream& operator>>(std::istream& is, ov::threading::IStreamsExecutor::ThreadBindingType& type) {
-    std::string str;
-    is >> str;
-    if (str == "NONE") {
-        type = ov::threading::IStreamsExecutor::NONE;
-    } else if (str == "CORES") {
-        type = ov::threading::IStreamsExecutor::CORES;
-    } else if (str == "NUMA") {
-        type = ov::threading::IStreamsExecutor::NUMA;
-    } else if (str == "HYBRID_AWARE") {
-        type = ov::threading::IStreamsExecutor::HYBRID_AWARE;
-    } else {
-        OPENVINO_THROW("Unsupported thread binding type: ", str);
-    }
-    return is;
-}
-/** @endcond */
-
 /**
  * @brief The name for setting CPU affinity per thread option.
  *
@@ -130,12 +96,6 @@ static constexpr Property<size_t, PropertyMutability::RW> threads_per_stream_sma
  * @ingroup ov_dev_api_plugin_api
  */
 static constexpr Property<size_t, PropertyMutability::RW> small_core_offset{"SMALL_CORE_OFFSET"};
-
-/**
- * @brief Enable hyper thread
- * @ingroup ov_dev_api_plugin_api
- */
-static constexpr Property<bool, PropertyMutability::RW> enable_hyper_thread{"ENABLE_HYPER_THREAD"};
 
 /**
  * @brief Limit \#threads that are used by IStreamsExecutor to execute `parallel_for` calls
