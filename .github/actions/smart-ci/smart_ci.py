@@ -166,6 +166,7 @@ def main():
         component_name = component_name_from_label(label, args.pattern)
         all_possible_components.add(component_name if component_name else label)
 
+    no_match_files_changed = False
     # For now, we don't want to apply smart ci rules for post-commits
     is_postcommit = not pr
     if is_postcommit:
