@@ -6,13 +6,11 @@
 #include "pooling_inst.h"
 #include "quantize_inst.h"
 #include "reorder_inst.h"
-#include "binary_convolution_inst.h"
 #include "eltwise_inst.h"
 #include "data_inst.h"
 #include "pass_manager.h"
 #include "program_helpers.h"
 #include "to_string_utils.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 
 #include <algorithm>
 #include <string>
@@ -22,24 +20,6 @@
 using namespace cldnn;
 
 namespace {
-
-template<typename T>
-bool check_binarization(memory::ptr mem_input_low, memory::ptr mem_input_high, program& p) {
-    bool is_binarization = true;
-    const auto& stream = p.get_stream();
-    mem_lock<T, mem_lock_type::read> data_input_low_lock{mem_input_low, stream};
-    mem_lock<T, mem_lock_type::read> data_input_high_lock{mem_input_high, stream};
-    auto data_input_low = data_input_low_lock.data();
-    auto data_input_high = data_input_high_lock.data();
-    const size_t number_mem_layout_elements = mem_input_high->get_layout().count();
-    for (size_t i = 0; i < number_mem_layout_elements; i++) {
-        if (data_input_high[i] != data_input_low[i]) {
-            is_binarization = false;
-            break;
-        }
-    }
-    return is_binarization;
-}
 
 inline float clamp(float val) {
     return std::max(std::numeric_limits<float>::lowest(), std::min(std::numeric_limits<float>::max(), val));
@@ -322,48 +302,10 @@ void prepare_quantization::handle_quantize_node(program& p, quantize_node& quant
     if (optimize_quantize(p, quantize_node))
         return;
 
-    if (quantize_node.get_primitive()->levels == 2) {
-        prepare_packed_quantize(p, quantize_node);
-    } else if (quantize_node.get_primitive()->levels <= 256 && !quantize_node.get_scale_shift_opt() && !quantize_node.is_constant()) {
+    auto l = quantize_node.get_primitive()->levels;
+    if (l > 2 && l <= 256 && !quantize_node.get_scale_shift_opt() && !quantize_node.is_constant()) {
         prepare_scale_shift_opt(p, quantize_node);
     }
-}
-
-void prepare_quantization::prepare_packed_quantize(program& p, quantize_node& quantize_node) {
-    program_node &input_low_node = quantize_node.get_dependency(1);
-    program_node &input_high_node = quantize_node.get_dependency(2);
-
-    if (quantize_node.is_output() || !input_low_node.is_type<data>() || !input_high_node.is_type<data>()) {
-        return;
-    }
-
-    auto &input_low = input_low_node.as<data>();
-    auto &input_high = input_high_node.as<data>();
-
-    auto mem_input_low = input_low.get_attached_memory_ptr();
-    auto mem_input_high = input_high.get_attached_memory_ptr();
-
-    bool is_binarization = true;
-    switch (mem_input_high->get_layout().data_type) {
-        case data_types::f32: {
-            is_binarization = check_binarization<float>(mem_input_low, mem_input_high, p);
-            break;
-        }
-        case data_types::f16: {
-            is_binarization = check_binarization<uint16_t>(mem_input_low, mem_input_high, p);
-            break;
-        }
-        default:
-            CLDNN_ERROR_MESSAGE(quantize_node.id(), "prepare_quantization: Unsupported precision of quantize inputs");
-    }
-
-    auto output_dt = quantize_node.get_output_layout().data_type;
-    if (is_binarization) {
-        output_dt = data_types::u1;
-    }
-
-    quantize_node.typed_desc()->output_data_types = {optional_data_type{output_dt}};
-    quantize_node.recalc_output_layout();
 }
 
 void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& eltwise_node) {
