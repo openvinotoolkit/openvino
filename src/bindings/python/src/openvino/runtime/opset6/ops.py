@@ -128,7 +128,7 @@ def mvn(
 @nameable_op
 def read_value(init_value: NodeInput,
                variable_id: str,
-               variable_type: Optional[NumericType] = None,
+               variable_type: Optional[Union[NumericType, Type]] = None,
                variable_shape: Optional[TensorShape] = None,
                name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.
@@ -143,8 +143,7 @@ def read_value(init_value: NodeInput,
     attr_map: Dict[str, Any] = {"variable_id": variable_id}
 
     if variable_type is not None:
-        type_str = get_element_type_str(variable_type)
-        attr_map["variable_type"] = type_str if not isinstance(variable_type, str) else variable_type
+        attr_map["variable_type"] = get_element_type_str(variable_type) if not isinstance(variable_type, Type) else variable_type
 
     if variable_shape is not None:
         attr_map["variable_shape"] = PartialShape(variable_shape)
@@ -158,7 +157,7 @@ def read_value(init_value: NodeInput,
 
 @read_value.register
 def _(variable_id: str,
-      variable_type: Optional[NumericType] = None,
+      variable_type: Optional[Union[NumericType, Type]] = None,
       variable_shape: Optional[TensorShape] = None,
       name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.
@@ -172,8 +171,7 @@ def _(variable_id: str,
     attr_map: Dict[str, Any] = {"variable_id": variable_id}
 
     if variable_type is not None:
-        type_str = get_element_type_str(variable_type)
-        attr_map["variable_type"] = type_str if not isinstance(variable_type, str) else variable_type
+        attr_map["variable_type"] = get_element_type_str(variable_type) if not isinstance(variable_type, Type) else variable_type
 
     if variable_shape is not None:
         attr_map["variable_shape"] = PartialShape(variable_shape)

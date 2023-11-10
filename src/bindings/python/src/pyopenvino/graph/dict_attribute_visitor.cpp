@@ -127,7 +127,12 @@ void util::DictAttributeDeserializer::on_adapter(const std::string& name, ov::Va
 }
 void util::DictAttributeDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<std::string>& adapter) {
     if (m_attributes.contains(name)) {
-        adapter.set(m_attributes[name.c_str()].cast<std::string>());
+        const auto& attribute = m_attributes[name.c_str()];
+        if (py::isinstance<ov::element::Type>(attribute)) {
+            adapter.set(attribute.cast<ov::element::Type>().get_type_name());
+        } else {
+            adapter.set(attribute.cast<std::string>());
+        }
     }
 }
 void util::DictAttributeDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<int8_t>& adapter) {
