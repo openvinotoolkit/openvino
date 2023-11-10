@@ -354,7 +354,8 @@ struct PlainTensor : public PlainTensorBase {
                 #ifdef _WIN32
                     m_ptr = _aligned_malloc(capacity_new, 64);
                 #else
-                    m_ptr = aligned_alloc(64, capacity_new);
+                    int rc = ::posix_memalign(&m_ptr, 64, capacity_new);
+                    if (rc) m_ptr = nullptr;
                 #endif
                 m_capacity = capacity_new;
             }
