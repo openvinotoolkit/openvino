@@ -371,17 +371,9 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
             continue;
 
         // Precision limitations
-        if (multiplyConstNode->getOriginalOutputPrecisionAtPort(0) != Precision::FP32)
-            continue;
-        if (withPowerStatic && powerStaticNode->getOriginalOutputPrecisionAtPort(0) != Precision::FP32)
-            continue;
         if (supportedDataPrecisions.find(fcNode->getOriginalInputPrecisionAtPort(0)) == supportedDataPrecisions.end())
             continue;
         if (supportedWeightsPrecisions.find(weightsNode->getOriginalOutputPrecisionAtPort(0)) == supportedWeightsPrecisions.end())
-            continue;
-        // Subtract constant can have both FP32 precision or weights precision
-        if (withSubtract && subtractConstNode->getOriginalOutputPrecisionAtPort(0) != Precision::FP32 &&
-            subtractConstNode->getOriginalOutputPrecisionAtPort(0) != weightsNode->getOriginalOutputPrecisionAtPort(0))
             continue;
 
         // Shape limitations

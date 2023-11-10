@@ -245,7 +245,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::InitNodeInfo);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::MarkShapeOfSubgraphs);
     // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
-    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::TransposeMatMul);
+    CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::TransposeMatMul);
     ov::element::TypeVector decompression_precisions{ov::element::u8};
     // We don't have BF16/FP16 FullyConnected kernels to work with 4bits compressed weights
     // Convert node doesn't support 4bit precisions -> fallback on constant folding
@@ -254,6 +254,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         decompression_precisions.push_back(ov::element::i4);
         decompression_precisions.push_back(ov::element::nf4);
     }
+    // Ticket 124834: set fold_subtract_const to false when cpu_convert supports i4/u4/nf4 precisions
     CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::MarkDequantizationSubgraph, decompression_precisions, true);
     CPU_SET_CALLBACK_X64(decompression_handling_manager, [&](const_node_ptr &node) -> bool {
         return !is_decompression_multiply(node);
