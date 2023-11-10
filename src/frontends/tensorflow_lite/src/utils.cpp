@@ -48,10 +48,8 @@ std::shared_ptr<ov::frontend::tensorflow_lite::SparsityInfo> ov::frontend::tenso
         data_desc.reserve(tf_sparsity->dim_metadata()->size());
         for (auto it = tf_sparsity->dim_metadata()->begin(); it != tf_sparsity->dim_metadata()->end(); ++it) {
             dim_format.push_back(it->format());
-            data_desc.push_back({it->array_segments_type(),
-                                 it->array_segments(),
-                                 it->array_indices_type(),
-                                 it->array_indices()});
+            data_desc.push_back(
+                {it->array_segments_type(), it->array_segments(), it->array_indices_type(), it->array_indices()});
         }
         sparsity->set_dim_format(dim_format);
         sparsity->set_data_desc(data_desc);
