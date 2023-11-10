@@ -196,3 +196,7 @@ docs:
 licensing:
   revalidate: []
   build: []
+
+md_files_only:
+  revalidate: []
+  build: []
