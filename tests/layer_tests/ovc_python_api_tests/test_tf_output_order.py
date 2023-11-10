@@ -12,8 +12,10 @@ from common import constants
 
 
 def create_net_list(input_names, input_shapes):
-    # create TensorFlow 2 model with multiple outputs
-    tf.keras.backend.clear_session()  # For easy reset of notebook state
+    tf.keras.backend.clear_session()
+
+    # Create TensorFlow 2 model with multiple outputs.
+    # Outputs are list.
 
     inputs = []
     outputs = []
@@ -26,8 +28,10 @@ def create_net_list(input_names, input_shapes):
 
 
 def create_net_dict(input_names, input_shapes):
-    # create TensorFlow 2 model with multiple outputs
-    tf.keras.backend.clear_session()  # For easy reset of notebook state
+    tf.keras.backend.clear_session()
+
+    # Create TensorFlow 2 model with multiple outputs.
+    # Outputs are dictionary.
 
     inputs = []
     outputs = {}
@@ -40,6 +44,7 @@ def create_net_dict(input_names, input_shapes):
 
 
 def check_outputs_by_order(fw_output, ov_output, eps):
+    # Compare outputs by indices
     for idx, output in enumerate(fw_output):
         fw_out = output.numpy()
         ov_out = ov_output[idx]
@@ -49,6 +54,7 @@ def check_outputs_by_order(fw_output, ov_output, eps):
 
 
 def check_outputs_by_names(fw_output, ov_output, eps):
+    # Compare outputs by names
     for name, output in fw_output.items():
         fw_out = output.numpy()
         ov_out = ov_output[name]
