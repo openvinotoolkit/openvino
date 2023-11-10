@@ -21,6 +21,16 @@ struct TensorInfo {
     const tflite::Buffer* buffer;
 };
 
+template <typename T>
+std::basic_string<T> get_model_extension() {}
+template <>
+std::basic_string<char> get_model_extension<char>();
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+template <>
+std::basic_string<wchar_t> get_model_extension<wchar_t>();
+#endif
+
+
 class GraphIteratorFlatBuffer {
     size_t node_index = 0;
     std::vector<uint8_t> m_data;
@@ -97,22 +107,6 @@ public:
     /// If there is no query for specific sub-graph iterator shouldn't be created
     /// idx should be in range 0..get_subgraph_size()-1
     std::shared_ptr<GraphIteratorFlatBuffer> get_subgraph(const size_t& idx) const;
-
-private:
-    template <typename T>
-    static std::basic_string<T> get_model_extension();
-
-    template <>
-    static std::basic_string<char> get_model_extension<char>() {
-        return ::tflite::ModelExtension();
-    }
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    template <>
-    static std::basic_string<wchar_t> get_model_extension<wchar_t>() {
-        return util::string_to_wstring(::tflite::ModelExtension());
-    }
-#endif
 };
 
 }  // namespace tensorflow_lite
