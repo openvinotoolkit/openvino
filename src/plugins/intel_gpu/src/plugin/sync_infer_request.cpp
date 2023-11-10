@@ -40,6 +40,7 @@ inline bool can_use_usm_host(const cldnn::engine& engine) {
     if (std::find(supported_simd_sizes.begin(), supported_simd_sizes.end(), 8) == supported_simd_sizes.end())
         can_use_usm = false;
 
+    can_use_usm = false;
     return can_use_usm;
 }
 
@@ -746,7 +747,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
 
     if (is_remote) {
         m_plugin_inputs[name] = user_tensor_wrapper;
-    } else if (is_usm_host_tensor && !convert_needed) {
+    } else if (is_usm_host_tensor && !convert_needed && can_use_usm_host(m_context->get_engine())) {
         m_plugin_inputs[name] = {usm_host_ptr->get_impl(), user_tensor_wrapper.owner};
         is_remote = true;
     }
