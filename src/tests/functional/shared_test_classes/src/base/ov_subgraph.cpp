@@ -129,20 +129,122 @@ void SubgraphBaseTest::serialize() {
 }
 
 void SubgraphBaseTest::query_model() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    bool isCurrentTestDisabled = ov::test::utils::current_test_is_disabled();
 
-    auto queryNetworkResult = core->query_model(function, targetDevice);
-    std::set<std::string> expected;
-    for (auto&& node : function->get_ops()) {
-        expected.insert(node->get_friendly_name());
-    }
+    ov::test::utils::PassRate::Statuses status = isCurrentTestDisabled ?
+         ov::test::utils::PassRate::Statuses::SKIPPED :
+         ov::test::utils::PassRate::Statuses::CRASHED;
+    summary.setDeviceName(targetDevice);
+    summary.updateOPsStats(function, status, rel_influence_coef);
 
-    std::set<std::string> actual;
-    for (auto&& res : queryNetworkResult) {
-        actual.insert(res.first);
+    if (isCurrentTestDisabled)
+        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+
+    // in case of crash jump will be made and work will be continued
+    auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
+
+    // place to jump in case of a crash
+    int jmpRes = 0;
+#ifdef _WIN32
+    jmpRes = setjmp(ov::test::utils::env);
+#else
+    jmpRes = sigsetjmp(ov::test::utils::env, 1);
+#endif
+    if (jmpRes == ov::test::utils::JMP_STATUS::ok) {
+        crashHandler->StartTimer();
+        std::string errorMessage;
+        try {
+            auto queryNetworkResult = core->query_model(function, targetDevice);
+            std::set<std::string> expected;
+            for (auto&& node : function->get_ops()) {
+                expected.insert(node->get_friendly_name());
+            }
+
+            std::set<std::string> actual;
+            for (auto&& res : queryNetworkResult) {
+                actual.insert(res.first);
+            }
+            if (expected != actual) {
+                IE_THROW() << "Expected and actual are different";
+            }
+            status = ov::test::utils::PassRate::Statuses::PASSED;
+        } catch (const std::exception& ex) {
+            status = ov::test::utils::PassRate::Statuses::FAILED;
+            errorMessage = ex.what();
+        } catch (...) {
+            status = ov::test::utils::PassRate::Statuses::FAILED;
+            errorMessage = "Unknown failure occurred.";
+        }
+        summary.updateOPsStats(function, status, rel_influence_coef);
+        if (status != ov::test::utils::PassRate::Statuses::PASSED) {
+            GTEST_FATAL_FAILURE_(errorMessage.c_str());
+        }
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
+        IE_THROW() << "Crash happens";
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
+        summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
+        IE_THROW() << "Crash happens";
     }
-    if (expected != actual) {
-        IE_THROW() << "Expected and actual are different";
+}
+
+void SubgraphBaseTest::import_export() {
+    bool isCurrentTestDisabled = ov::test::utils::current_test_is_disabled();
+
+    ov::test::utils::PassRate::Statuses status = isCurrentTestDisabled ?
+         ov::test::utils::PassRate::Statuses::SKIPPED :
+         ov::test::utils::PassRate::Statuses::CRASHED;
+    summary.setDeviceName(targetDevice);
+    summary.updateOPsStats(function, status, rel_influence_coef);
+
+    if (isCurrentTestDisabled)
+        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+
+    // in case of crash jump will be made and work will be continued
+    auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
+
+    // place to jump in case of a crash
+    int jmpRes = 0;
+#ifdef _WIN32
+    jmpRes = setjmp(ov::test::utils::env);
+#else
+    jmpRes = sigsetjmp(ov::test::utils::env, 1);
+#endif
+    if (jmpRes == ov::test::utils::JMP_STATUS::ok) {
+        crashHandler->StartTimer();
+        std::string errorMessage;
+        try {
+            compile_model();
+
+            std::stringstream strm;
+            compiledModel.export_model(strm);
+            ov::CompiledModel importedModel = core->import_model(strm, targetDevice, configuration);
+            auto importedFunction = importedModel.get_runtime_model()->clone();
+
+            auto comparator = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::ATTRIBUTES)
+                        .enable(FunctionsComparator::NAMES)
+                        .enable(FunctionsComparator::CONST_VALUES);
+            auto res = comparator.compare(importedFunction, function);
+            if (!res.valid) {
+                throw std::runtime_error(res.message);
+            }
+            status = ov::test::utils::PassRate::Statuses::PASSED;
+        } catch (const std::exception& ex) {
+            status = ov::test::utils::PassRate::Statuses::FAILED;
+            errorMessage = ex.what();
+        } catch (...) {
+            status = ov::test::utils::PassRate::Statuses::FAILED;
+            errorMessage = "Unknown failure occurred.";
+        }
+        summary.updateOPsStats(function, status, rel_influence_coef);
+        if (status != ov::test::utils::PassRate::Statuses::PASSED) {
+            GTEST_FATAL_FAILURE_(errorMessage.c_str());
+        }
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
+        IE_THROW() << "Crash happens";
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
+        summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
+        IE_THROW() << "Crash happens";
     }
 }
 

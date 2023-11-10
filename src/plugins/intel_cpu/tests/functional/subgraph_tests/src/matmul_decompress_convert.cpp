@@ -6,6 +6,7 @@
 #include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "transformations/rt_info/decompression.hpp"
+#include "test_utils/filter_cpu_info.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -214,7 +215,6 @@ protected:
         selectedType = makeSelectedTypeStr(selectedType, outType);
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inShapeA)};
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
         std::shared_ptr<Node> inputB = builder::makeConstant<float>(weiConstElemType, inShapeB.get_shape(), {}, true);
         if (weiConstElemType == ElementType::f16 && weiConstElemType != convertOutType) {
             inputB = std::make_shared<opset1::Convert>(inputB, convertOutType);
@@ -222,7 +222,7 @@ protected:
         }
         expectedWeiConstElemType = weiConstElemType;
 
-        auto matMul = builder::makeMatMul(paramOuts[0], inputB, transpA, transpB);
+        auto matMul = builder::makeMatMul(params[0], inputB, transpA, transpB);
 
         function = CPUTestsBase::makeNgraphFunction(netType, params, matMul, cpuNodeType);
     }
@@ -338,7 +338,7 @@ std::vector<CPUSpecificParams> filterSpecificParams_FP16() {
     std::vector<CPUSpecificParams> specificParams;
     specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512"}, "brgemm_avx512"});
     specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512_amx"}, "brgemm_avx512_amx"});
-    return filterCPUInfoForDeviceWithFP16(specificParams);
+    return CPUTestUtils::filterCPUInfoForDeviceWithFP16(specificParams);
 }
 
 const auto testParams2D_FP32_smoke = ::testing::Combine(
@@ -549,7 +549,6 @@ protected:
         for (auto&& shape : {inShapeFC0, inShapeFC1}) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
         }
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
         std::shared_ptr<Node> inputWeights = builder::makeConstant<float>(weiConstElemType, inShapeWeights.get_shape(), {}, true);
         if (weiConstElemType == ElementType::f16 && weiConstElemType != convertOutType) {
             inputWeights = std::make_shared<opset1::Convert>(inputWeights, convertOutType);
@@ -558,8 +557,8 @@ protected:
         // In this test, convert must be folded on the ngraph side, so the constant with fp32 precision is expected
         expectedWeiConstElemType = ElementType::f32;
 
-        auto matMul0 = builder::makeMatMul(paramOuts[0], inputWeights, transpA, transpB);
-        auto matMul1 = builder::makeMatMul(paramOuts[1], inputWeights, transpA, transpB);
+        auto matMul0 = builder::makeMatMul(params[0], inputWeights, transpA, transpB);
+        auto matMul1 = builder::makeMatMul(params[1], inputWeights, transpA, transpB);
 
         auto concat = builder::makeConcat({matMul0, matMul1}, 0);
 

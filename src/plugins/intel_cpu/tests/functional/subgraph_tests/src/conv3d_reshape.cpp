@@ -42,7 +42,6 @@ protected:
         cpuNodeType = nodeType2PluginType(convType);
 
         ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1024, 64})};
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(inputParams));
 
         std::shared_ptr<Node> conv;
         const std::vector<size_t> kernelSize = {1};
@@ -55,11 +54,11 @@ protected:
         const op::PadType paddingType = op::PadType::EXPLICIT;
         switch (convType) {
             case nodeType::convolution : {
-                conv = builder::makeConvolution(paramOuts[0], element::f32, kernelSize, strides, padBegin, padEnd, dilation, paddingType, numOutChannels);
+                conv = builder::makeConvolution(inputParams[0], element::f32, kernelSize, strides, padBegin, padEnd, dilation, paddingType, numOutChannels);
                 break;
             }
             case nodeType::groupConvolution : {
-                conv = builder::makeGroupConvolution(paramOuts[0], element::f32, kernelSize, strides, padBegin, padEnd, dilation, paddingType, numOutChannels,
+                conv = builder::makeGroupConvolution(inputParams[0], element::f32, kernelSize, strides, padBegin, padEnd, dilation, paddingType, numOutChannels,
                                                      numOfGroups);
                 break;
             }

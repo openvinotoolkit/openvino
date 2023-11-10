@@ -107,10 +107,9 @@ protected:
         const auto& inShapeB = inputDynamicShapes[1];
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ElementType::f32, inShapeA)};
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
         std::shared_ptr<Node> inputB = builder::makeConstant<float>(ElementType::f32, inShapeB.get_shape(), {}, true);
 
-        auto split = builder::makeVariadicSplit(paramOuts[0], {1, 1}, 0);
+        auto split = builder::makeVariadicSplit(params[0], {1, 1}, 0);
 
         auto matMul = builder::makeMatMul(split->output(0), inputB, transpA, transpB);
 

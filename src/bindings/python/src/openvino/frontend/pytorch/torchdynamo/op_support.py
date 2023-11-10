@@ -82,6 +82,8 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.mul.Scalar": None,
             "torch.ops.aten.mul.Tensor": None,
             "torch.ops.aten.native_batch_norm.default": None,
+            "torch.ops.aten._native_batch_norm_legit.default": None,
+            "torch.ops.aten._native_batch_norm_legit_no_training.default": None,
             "torch.ops.aten.native_group_norm.default": None,
             "torch.ops.aten.native_layer_norm.default": None,
             "torch.ops.aten.neg.default": None,
