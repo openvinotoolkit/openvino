@@ -180,19 +180,18 @@ def main():
 
     run_full_scope = is_postcommit or no_match_files_changed
 
-    component_names = label_names.intersection(all_possible_components)
-    # We don't need to run workflow if changes were only in documentation
-    # This is the case when we have no product labels set except "docs" or only md files were matched
-    only_docs_changes = 'md_files_only' in component_names or component_names - {'docs'} == set()
-    run_workflow = not only_docs_changes or run_full_scope
-    set_github_output("run_workflow", str(run_workflow))
-
     # In post-commits - validate all components regardless of changeset
     # In pre-commits - validate only changed components with their dependencies
     all_defined_components = components_config.keys()
     changed_component_names = set(all_defined_components) if run_full_scope else \
         get_changed_component_names(pr, all_possible_components, args.pattern)
     logger.info(f"changed_component_names: {changed_component_names}")
+
+    # We don't need to run workflow if changes were only in documentation
+    # This is the case when we have no product labels set except "docs" or only md files were matched
+    only_docs_changes = 'md_files_only' in changed_component_names or changed_component_names - {'docs'} == set()
+    run_workflow = not only_docs_changes or run_full_scope
+    set_github_output("run_workflow", str(run_workflow))
 
     cfg = ComponentConfig(components_config, schema, all_possible_components)
     affected_components = cfg.get_affected_components(changed_component_names)
