@@ -553,6 +553,7 @@ struct MHA_1Token {
                         outs[idx] = &m_temp.at({ithr, b, pq, h, 0});
                         weights[idx] = m_attn_w.at({b, h, pq, pv});
                         vs[idx] = v;
+                        idx++;
                     }
                     parallel_it_step(b, B, h, H, pv, kv_len);
                 }
@@ -712,13 +713,13 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ngrap
 void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
-    auto srcPrecision = getOriginalInputPrecisionAtPort(0);
-
-    auto rtPrecision = srcPrecision;
+    auto rtPrecision = getOriginalInputPrecisionAtPort(0);
 
     if (rtPrecision == Precision::BF16) {
         m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>();
     } else {
+        // only support bf16/f32
+        rtPrecision = Precision::FP32;
 #ifdef OV_CPU_WITH_MLAS
         m_executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>();
 #else
@@ -758,6 +759,12 @@ bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const
     try {
         if (!std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op)) {
             errorMessage = "Only ScaledDotProductAttention operation are supported";
+            return false;
+        }
+        // expect shape: [B, H, L, S]
+        const auto inRank = op->get_input_partial_shape(0).size();
+        if (inRank != 4u) {
+            errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(inRank);
             return false;
         }
     } catch (...) {
