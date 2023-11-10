@@ -5,21 +5,7 @@ on:
     - cron: '0 0 * * 3,6'
   workflow_dispatch:
   pull_request:
-    paths:
-      - '**'
-      - '!**/docs/**'
-      - '!docs/**'
-      - 'docs/snippets/**'
-      - '!**/**.md'
-      - '!**.md'
   push:
-    paths:
-      - '**'
-      - '!docs/**'
-      - '!**/docs/**'
-      - 'docs/snippets/**'
-      - '!**/**.md'
-      - '!**.md'
     branches:
       - master
       - 'releases/**'
