@@ -126,7 +126,19 @@ void Convert::initSupportedPrimitiveDescriptors() {
         config.outConfs.push_back(dataConfigOut);
 
         auto creators = BlockedDescCreator::getCommonCreators();
-        auto range = BlockedDescCreator::makeFilteredRange(creators, insShape.getRank());
+
+        // As long as convert is placed right before the output, only planar layout makes sense since the output tensor
+        // is always in a planar layout (ngraph limitation), so there is no reason to convert in any other layout.
+        bool hasOutputChild = false;
+        for (auto& childEdge : getChildEdgesAtPort(0)) {
+            if (Type::Output == childEdge->getChild()->getType()) {
+                hasOutputChild = true;
+                break;
+            }
+        }
+        auto range = hasOutputChild
+                         ? BlockedDescCreator::makeFilteredRange(creators, insShape.getRank(), {LayoutType::ncsp})
+                         : BlockedDescCreator::makeFilteredRange(creators, insShape.getRank());
 
         for (auto itr = range.first; itr != range.second; ++itr) {
             config.inConfs[0].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(insPrecision, insShape)));
