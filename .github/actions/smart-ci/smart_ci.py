@@ -186,14 +186,18 @@ def main():
         get_changed_component_names(pr, all_possible_components, args.pattern)
     logger.info(f"changed_component_names: {changed_component_names}")
 
-    # We don't need to run workflow if changes were only in documentation
-    # This is the case when we have no product labels set except "docs" or only md files were matched
-    only_docs_changes = 'md_files_only' in changed_component_names or changed_component_names - {'docs'} == set()
-    run_workflow = not only_docs_changes or run_full_scope
-    set_github_output("run_workflow", str(run_workflow))
-
     cfg = ComponentConfig(components_config, schema, all_possible_components)
     affected_components = cfg.get_affected_components(changed_component_names)
+
+    # We don't need to run workflow if changes were only in documentation
+    # This is the case when we have no product labels set except "docs"
+    # or only if md files were matched (the latter covers cases where *.md is outside docs directory)
+    only_docs_changes = 'md_files_only' in changed_component_names or \
+                        changed_component_names - {'docs'} == set()
+
+    if only_docs_changes and not run_full_scope:
+        logger.info(f"Changes are documentation only, workflow may be skipped")
+        affected_components['docs_only'] = ComponentConfig.FullScope
 
     # Syntactic sugar for easier use in GHA pipeline
     affected_components_output = {name: {s: True for s in scope} for name, scope in affected_components.items()}

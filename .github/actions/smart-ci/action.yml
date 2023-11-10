@@ -40,9 +40,6 @@ outputs:
   affected_components:
     description: "Affected components to run validation for and their validation scope"
     value: ${{ steps.smart_ci.outputs.affected_components }}
-  run_workflow:
-    description: "False if we don't need to run any workflow for the given changes, True otherwise"
-    value: ${{ steps.smart_ci.outputs.run_workflow }}
 
 runs:
   using: "composite"
