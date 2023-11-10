@@ -144,7 +144,7 @@ std::mutex Engine::SchedulerGuard::mutex;
 std::weak_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::ptr;
 
 Engine::SchedulerGuard::SchedulerGuard() {
-#if IE_THREAD == IE_THREAD_SEQ
+#if OV_THREAD == OV_THREAD_SEQ
     // To save state for ACL cores in single-thread mode
     arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
 #else

@@ -36,7 +36,7 @@ Config::Config() {
 #endif
 
 // for the TBB code-path, additional configuration depending on the OS and CPU types
-#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #    if defined(__APPLE__) || defined(_WIN32)
     // 'CORES' is not implemented for Win/MacOS; so the 'NONE' or 'NUMA' is default
     auto numaNodes = get_available_numa_nodes();

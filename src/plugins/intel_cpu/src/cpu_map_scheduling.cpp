@@ -87,7 +87,7 @@ bool get_cpu_pinning(bool& input_value,
             result_value = latency ? false : true;
         }
     }
-#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #    if defined(_WIN32)
     if (proc_type_table.size() > 1) {
         result_value = false;
