@@ -39,12 +39,10 @@ void TopKLayerTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramIn = ngraph::helpers::convert2OutputVector(
-                        ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     auto k = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, &keepK);
     auto topk = std::dynamic_pointer_cast<ngraph::opset4::TopK>(
-            std::make_shared<ngraph::opset4::TopK>(paramIn[0], k, axis, mode, sort));
+            std::make_shared<ngraph::opset4::TopK>(params[0], k, axis, mode, sort));
 
     ngraph::ResultVector results;
     for (size_t i = 0; i < topk->get_output_size(); i++) {
