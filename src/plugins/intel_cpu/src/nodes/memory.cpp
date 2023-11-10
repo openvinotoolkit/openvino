@@ -119,7 +119,8 @@ void MemoryOutput::initOptimalPrimitiveDescriptor() {
     //disable inPlace to avoid inPlace conflict and handle memory copy internally (to get room for optimizations)
     if (parentInplaceConflict) { config.inConfs.front().inPlace(-1); }
     config.inConfs.front().setMemDesc(mem_desc);
-    initDescriptor(config);
+    //bypass any checks, we enforce the parent descriptor
+    selected_pd->setConfig(config);
 }
 
 void MemoryOutput::resolveInPlaceEdges(Edge::LOOK look) {
@@ -300,7 +301,8 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
 
     auto config = selectedPd->getConfig();
     config.outConfs.front().setMemDesc(mem_desc);
-    initDescriptor(config);
+    //bypass any checks, we enforce the child descriptor
+    selectedPd->setConfig(config);
 }
 
 void MemoryInput::resolveInPlaceEdges(Edge::LOOK look) {
