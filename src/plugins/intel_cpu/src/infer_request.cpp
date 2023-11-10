@@ -139,12 +139,12 @@ void SyncInferRequest::infer() {
 
     throw_if_canceled();
 
-    push_input_data();
-
     // state -> node
     if (!m_memory_states.empty()) {
         assign_states();
     }
+
+    push_input_data();
 
     m_graph->Infer(this);
 
@@ -157,11 +157,11 @@ void SyncInferRequest::infer() {
         }
     }
 
+    m_graph->PullOutputData(m_outputs);
+
     if (!m_memory_states.empty()) {
         commit_states();
     }
-
-    m_graph->PullOutputData(m_outputs);
 }
 
 std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
