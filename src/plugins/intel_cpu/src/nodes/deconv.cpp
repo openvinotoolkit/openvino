@@ -4,24 +4,25 @@
 
 #include "deconv.h"
 
-#include "eltwise.h"
-#include "fake_quantize.h"
-#include "input.h"
 #include <dnnl_extension_utils.h>
-#include "ie_parallel.hpp"
-#include "utils/general_utils.h"
-#include <cpu/x64/cpu_isa_traits.hpp>
-#include <nodes/common/cpu_memcpy.h>
 #include <memory_desc/cpu_memory_desc_utils.h>
-#include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "utils/cpu_utils.hpp"
+#include <nodes/common/cpu_memcpy.h>
 
-#include <ngraph/opsets/opset1.hpp>
-#include <ie_ngraph_utils.hpp>
 #include <common/primitive_hashing_utils.hpp>
 #include <common/primitive_desc.hpp>
 #include <common/primitive_desc_iface.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
 #include <shape_inference/shape_inference_ngraph.hpp>
+
+#include "eltwise.h"
+#include "fake_quantize.h"
+#include "input.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "openvino/core/parallel.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/runtime/make_tensor.hpp"
+#include "utils/general_utils.h"
+#include "utils/cpu_utils.hpp"
 
 #if defined(OV_CPU_WITH_ACL)
 #include "executors/acl/acl_utils.hpp"
@@ -139,8 +140,8 @@ private:
 
 bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (std::dynamic_pointer_cast<const ov::opset1::ConvolutionBackpropData>(op) == nullptr &&
-                std::dynamic_pointer_cast<const ov::opset1::GroupConvolutionBackpropData>(op) == nullptr) {
+        if (std::dynamic_pointer_cast<const ov::op::v1::ConvolutionBackpropData>(op) == nullptr &&
+                std::dynamic_pointer_cast<const ov::op::v1::GroupConvolutionBackpropData>(op) == nullptr) {
             errorMessage = "Only opset1 ConvolutionBackpropData and GroupConvolutionBackpropData operations are supported";
             return false;
         }
@@ -168,7 +169,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op,
 
     const auto& weightDims = getWeightDims();
 
-    if (auto convBackprop = std::dynamic_pointer_cast<const ov::opset1::ConvolutionBackpropData>(op)) {
+    if (auto convBackprop = std::dynamic_pointer_cast<const ov::op::v1::ConvolutionBackpropData>(op)) {
         algorithm = Algorithm::DeconvolutionCommon;
 
         IC = weightDims[0];
@@ -190,7 +191,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op,
         deconvAttrs.outputPadding = convBackprop->get_output_padding();
 
         autoPad = one_of(convBackprop->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER);
-    } else if (auto groupConvBackprop = std::dynamic_pointer_cast<const ov::opset1::GroupConvolutionBackpropData>(op)) {
+    } else if (auto groupConvBackprop = std::dynamic_pointer_cast<const ov::op::v1::GroupConvolutionBackpropData>(op)) {
         algorithm = Algorithm::DeconvolutionGrouped;
 
         groupNum = weightDims[0];
