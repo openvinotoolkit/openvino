@@ -12,7 +12,9 @@ using TFLiteConvertModelTest = FrontEndConvertModelTest;
 
 static const std::vector<std::string> models{
     std::string("2in_2out/2in_2out.tflite"),
-    std::string("zerolen/zerolen.tflite"),
+    std::string("bad_header/zerolen.tflite"),
+    std::string("bad_header/wrong_len_3.tflite"),
+    std::string("bad_header/wrong_pos.tflite"),
 };
 
 INSTANTIATE_TEST_SUITE_P(TFLiteConvertModelTest,
