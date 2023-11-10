@@ -447,6 +447,7 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::g_os_zyx_is_osv32_isv32:                     return "G_OS_ZYX_IS_OSV32_ISV32";
         case WeightsLayout::os_y_is_x_osv8_isv2:                         return "OS_Y_IS_X_OSV8_ISV2";
         case WeightsLayout::os_y_is_x_osv8_isv4:                         return "OS_Y_IS_X_OSV8_ISV4";
+        case WeightsLayout::os_y_is_x_osv16_isv4:                        return "OS_Y_IS_X_OSV16_ISV4";
         case WeightsLayout::os_yx_is_osv8_isv2:                          return "OS_YX_IS_OSV8_ISV2";
         case WeightsLayout::os_yx_is_osv8_isv4:                          return "OS_YX_IS_OSV8_ISV4";
         case WeightsLayout::os_yx_is_osv16_isv2:                         return "OS_YX_IS_OSV16_ISV2";
@@ -458,6 +459,7 @@ std::string toString(WeightsLayout layout) {
 
         case WeightsLayout::g_os_yx_is_osv8_isv2:                        return "G_OS_YX_IS_OSV8_ISV2";
         case WeightsLayout::g_os_yx_is_osv8_isv4:                        return "G_OS_YX_IS_OSV8_ISV4";
+        case WeightsLayout::g_os_yx_is_osv16_isv2:                        return "G_OS_YX_IS_OSV16_ISV2";
         case WeightsLayout::g_os_y_is_x_osv8_isv2:                       return "G_OS_Y_IS_X_OSV8_ISV2";
         case WeightsLayout::g_os_y_is_x_osv8_isv4:                       return "G_OS_Y_IS_X_OSV8_ISV4";
         default: throw std::invalid_argument("Failed to convert WeightsLayout " + std::to_string(layout) + " to string");

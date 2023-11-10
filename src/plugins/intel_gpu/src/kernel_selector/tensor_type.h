@@ -194,6 +194,7 @@ enum WeightsLayout {
     os_i_yxs_osv4_yxsv4,                 // for weights for depthwise IMAD convolution
     os_y_is_x_osv8_isv2,
     os_y_is_x_osv8_isv4,
+    os_y_is_x_osv16_isv4,
     os_yx_is_osv8_isv2,
     os_yx_is_osv8_isv4,
     os_yx_is_osv16_isv2,
@@ -248,6 +249,7 @@ enum WeightsLayout {
 
     g_os_yx_is_osv8_isv2,
     g_os_yx_is_osv8_isv4,
+    g_os_yx_is_osv16_isv2,
     g_os_y_is_x_osv8_isv2,
     g_os_y_is_x_osv8_isv4,
 
