@@ -19,28 +19,6 @@ and hardware solutions it supports.
 
 OpenVINO (Open Visual Inference and Neural network Optimization) is an open-source software toolkit designed to optimize, accelerate, and deploy deep learning models for user applications. OpenVINO was developed by Intel to work efficiently on a wide range of Intel hardware platforms, including CPUs (x86 and Arm), GPUs, and NPUs.
 
-OpenVINO Development History
-##############################################################
-
-OpenVINO was initially released as Computer Vision SDK. In 2018, the toolkit was rebranded as OpenVINO to reflect its broader scope and optimization features.
-
-**Key milestones**: 
-
-1. Launch of Intel® Distribution of OpenVINO Toolkit (2018), providing a framework for optimizing and deploying models for different hardware platforms.
-
-2. Model Zoo (2019): OpenVINO introduced a Model Zoo, which includes a repository of pre-trained models for common deep learning computer vision tasks.
-
-3. Open Source Contributions (2019): OpenVINO toolkit is open-sourced, promoting community collaboration and the development of additional features and improvements.
-
-4. Edge and IoT Focus (2020): OpenVINO emphasized its capabilities for edge and IoT applications, enabling developers to create efficient, low-latency AI solutions for resource-constrained devices.
-
-5. Introduction of OpenVINO Python notebooks (2021): OpenVINO provided interactive resources to assist users in understanding and implementing OpenVINO's capabilities.
-
-6. API 2.0 (2022): OpenVINO has introduced new API 2.0 to align the workflow for working with models in OpenVINO with the conventions used in the original frameworks.
-
-7. Integration with popular deep learning frameworks (Ongoing): OpenVINO continues to enhance its compatibility with popular deep learning frameworks like TensorFlow, PyTorch, and ONNX, simplifying model conversion and deployment.
-
-8. Hardware Enhancements (Ongoing): As new hardware technologies emerge, OpenVINO adapts to leverage the latest advancements, ensuring optimal performance for AI workloads.
 
 Features
 ##############################################################
