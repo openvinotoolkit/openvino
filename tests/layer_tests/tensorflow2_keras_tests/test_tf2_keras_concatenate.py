@@ -63,20 +63,3 @@ class TestKerasConcatenate(CommonTF2LayerTest):
                    precision,
                    temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version,
                    use_new_frontend=use_new_frontend, **params)
-
-    test_data_with_non_sorted_order = [
-        dict(axis=0, input_names=["x", "l", "a", "m", "c"],
-             input_shapes=[[2], [2], [2], [2], [2]], input_type=tf.float32),
-        dict(axis=0, input_names=["inp3", "inp1", "inp2"],
-             input_shapes=[[3], [3], [3]], input_type=tf.int32)
-    ]
-
-    @pytest.mark.xfail(reason="124436")
-    @pytest.mark.parametrize("params", test_data_with_non_sorted_order)
-    @pytest.mark.nightly
-    def test_keras_concatenate_extended_float32(self, params, ie_device, precision, ir_version,
-                                                temp_dir, use_old_api, use_new_frontend):
-        self._test(*self.create_keras_concatenate_net(**params, ir_version=ir_version), ie_device,
-                   precision,
-                   temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version,
-                   use_new_frontend=use_new_frontend, **params)

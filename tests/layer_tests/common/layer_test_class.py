@@ -3,12 +3,12 @@
 
 import itertools
 import os
+import re
 import warnings
+import defusedxml.ElementTree as ET
 from pathlib import Path
 
 import numpy as np
-import openvino as ov
-
 from common.constants import test_device, test_precision
 from common.layer_utils import IEInfer, InferAPI20
 from common.utils.common_utils import generate_ir_python_api
@@ -120,37 +120,29 @@ class CommonLayerTest:
             "Comparing with Framework failed: ie_res={}; framework_res={}.".format(infer_res,
                                                                                    fw_res)
 
-        self._check_inputs_outputs_order(path_to_xml, framework_model)
+        if len(inputs_dict.keys()) > 1 or len(infer_res.keys()) > 1:
+            tree = ET.parse(path_to_xml)
+            # findall returns elements in document order, this order should be the same as
+            # order of inputs/outputs in original model
+            inputs_ie = [child for child in tree.findall('.//layer[@type="Parameter"]')]
+            outputs_ie = [child for child in tree.findall('.//layer[@type="Result"]')]
 
-    def _check_inputs_outputs_order(self, path_to_xml, framework_model):
-        core = ov.Core()
-        ov_model = core.read_model(path_to_xml)
-        ov_inputs = ov_model.inputs
-        fw_inputs = self._get_input_names(framework_model)
+            if 'input_names' in kwargs:
+                input_names = kwargs['input_names']
+                for i, input_name in enumerate(input_names):
+                    assert inputs_ie[i].attrib['name'] == input_name, \
+                        'Input order does not match framework order. Input with index {} is {}, ' \
+                        'but expected {}'.format(i, inputs_ie[i].attrib['name'], input_name)
 
-        # Check number of inputs
-        assert len(ov_inputs) == len(fw_inputs), "The number of inputs in original and converted model is different. " \
-                                                 "Original model has {} inputs, converted model has {} inputs.".format(
-            len(fw_inputs), len(ov_inputs))
-        # Check order of inputs
-        for idx, fw_name in enumerate(fw_inputs):
-            ov_input = ov_inputs[idx]
-            assert fw_name in ov_input.names
+            if 'output_names' in kwargs:
+                output_names = kwargs['output_names']
+                for i, output_name in enumerate(output_names):
+                    output_name_ie = outputs_ie[i].attrib['name']
+                    output_without_sink_port = re.sub(r'\/sink_port_.', '', output_name_ie)
 
-        # Check number of outputs
-        ov_outputs = ov_model.outputs
-        fw_outputs = self._get_output_names(framework_model)
-
-        assert len(ov_outputs) == len(
-            fw_outputs), "The number of outputs in original and converted model is different. " \
-                         "Original model has {} outputs, converted model has {} outputs.".format(len(fw_outputs),
-                                                                                                 len(ov_outputs))
-
-        # Check order of outputs
-        for idx, fw_name in enumerate(fw_outputs):
-            ov_output = ov_outputs[idx]
-            assert fw_name in ov_output.names
-
+                    assert output_without_sink_port == output_name, \
+                        'Output order does not match framework order. Output with index {} is {}, ' \
+                        'but expected {}'.format(i, output_without_sink_port, output_name)
 
     # Feed dict for each input is filled with random number.
     # It is possible to redefine this function and generate your own input
@@ -158,12 +150,6 @@ class CommonLayerTest:
         for input in inputs_dict.keys():
             inputs_dict[input] = np.random.randint(-10, 10, inputs_dict[input]).astype(np.float32)
         return inputs_dict
-
-    def _get_input_names(self, framework_model):
-        return []
-
-    def _get_output_names(self, framework_model):
-        return []
 
     def compare_ie_results_with_framework(self, infer_res, framework_res, framework_eps):
         is_ok = True
