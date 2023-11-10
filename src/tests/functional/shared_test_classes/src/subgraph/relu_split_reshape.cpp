@@ -36,7 +36,8 @@ void ReluSplitReshape::SetUp() {
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto relu = std::make_shared<ngraph::opset1::Relu>(params[0]);
-    auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{splitAxis});
+    auto split_axis_op =
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{static_cast<int64_t>(splitAxis)});
     auto split = std::make_shared<ov::op::v1::Split>(relu, split_axis_op, splitNum);
 
     auto shape = split->get_output_shape(0);
