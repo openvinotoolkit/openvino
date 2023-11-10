@@ -3,6 +3,7 @@
 //
 
 #include "intel_gpu/plugin/variable_state.hpp"
+#include "intel_gpu/runtime/memory.hpp"
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -39,16 +40,15 @@ struct variable_test : public ::testing::TestWithParam<VariableParams<T>> {
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
-
         auto variable = std::make_shared<VariableState>(VariableStateInfo{"v0", variable_layout}, engine, network->get_shape_predictor());
-        network->set_variables({ { "v0", variable } });
+        network->set_variable("v0", variable);
         network->set_input_data("input", input_data);
 
         constexpr size_t number_of_inferences = 5;
         for (size_t inference = 1; inference <= number_of_inferences; ++inference) {
             const auto outputs = network->execute();
             const auto output = outputs.at("assign").get_memory();
-            const cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+            const cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
             const auto output_count = output_ptr.size();
             ASSERT_EQ(output_count, param.values.size()) << "inference " << inference;
 
@@ -130,7 +130,7 @@ void test_exception_on_wrong_layout(bool is_caching_test) {
     cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     auto variable = std::make_shared<VariableState>(VariableStateInfo{"v0", variable_layout}, engine, network->get_shape_predictor());
-    network->set_variables({ { "v0", variable } });
+    network->set_variable("v0", variable);
     network->set_input_data("input", input_data);
     network->set_input_data("wrong_input", wrong_input_data);
 
@@ -168,12 +168,12 @@ void test_different_output_data_type(bool is_caching_test) {
     cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
     auto variable = std::make_shared<VariableState>(VariableStateInfo{"v0", variable_layout}, engine, network->get_shape_predictor());
-    network->set_variables({ { "v0", variable } });
+    network->set_variable("v0", variable);
     network->set_input_data("input", input_data);
 
     const auto outputs = network->execute();
     const auto output = outputs.at("assign").get_memory();
-    const cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    const cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < output_ptr.size(); ++i) {
          ASSERT_EQ(half_to_float(output_ptr[i]), inputs[i]);
@@ -226,7 +226,9 @@ void test_variables_are_preserved_across_inferences(bool is_caching_test) {
     auto variable1 = std::make_shared<VariableState>(VariableStateInfo{"v1", variable_layout}, engine, network->get_shape_predictor());
     auto variable2 = std::make_shared<VariableState>(VariableStateInfo{"v2", variable_layout}, engine, network->get_shape_predictor());
     auto variable3 = std::make_shared<VariableState>(VariableStateInfo{"v_result", variable_layout}, engine, network->get_shape_predictor());
-    network->set_variables({ { "v1", variable1 },  { "v2", variable2 },  { "v_result", variable3 } });
+    network->set_variable("v1", variable1);
+    network->set_variable("v2", variable2);
+    network->set_variable("v_result", variable3);
     network->set_input_data("input_1", input_1);
     network->set_input_data("input_2", input_2);
 
@@ -234,7 +236,7 @@ void test_variables_are_preserved_across_inferences(bool is_caching_test) {
     // network->execute();
     const auto outputs = network->execute();
     const auto output = outputs.at("read_result").get_memory();
-    const cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    const cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
     ASSERT_EQ(output_ptr[0], value_1 + value_2);
 }
 

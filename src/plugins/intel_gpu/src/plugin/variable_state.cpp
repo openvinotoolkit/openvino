@@ -28,7 +28,6 @@ void VariableState::reset() {
 }
 
 cldnn::memory::ptr VariableState::get_memory() const {
-    OPENVINO_ASSERT(m_memory != nullptr);
     return m_memory;
 }
 
@@ -61,7 +60,7 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
         auto data = state->data();
         m_memory->copy_from(m_engine.get_service_stream(), data, blocking);
     }
-    m_is_set = true;
+    set();
 }
 
 void VariableState::update_device_buffer() {

@@ -670,7 +670,8 @@ void SyncInferRequest::allocate_states() {
     const auto& network = m_graph->get_network();
     const auto& variables_info = network->get_variables_info();
     for (auto& vi : variables_info) {
-        m_variables.emplace(vi.first, std::make_shared<VariableState>(vi.second, network->get_engine(), network->get_shape_predictor()));
+        auto variable = std::make_shared<VariableState>(vi.second, network->get_engine(), network->get_shape_predictor());
+        m_variables.emplace(vi.first, variable);
     }
 }
 

@@ -3,9 +3,9 @@
 //
 #pragma once
 
+#include "openvino/runtime/ivariable_state.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/shape_predictor.hpp"
-#include "openvino/runtime/ivariable_state.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include <functional>
 #include <unordered_map>
