@@ -177,6 +177,7 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::os_i_yxs_osv4_yxsv4,                         {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_y_is_x_osv8_isv2,                         {  0,  2, -1,   1,   3, -1 } },
     { WeightsLayout::os_y_is_x_osv8_isv4,                         {  0,  2, -1,   1,   3, -1 } },
+    { WeightsLayout::os_y_is_x_osv16_isv4,                        {  0,  2, -1,   1,   3, -1 } },
     { WeightsLayout::os_yx_is_osv8_isv2,                          {  1,  2, -1,   0,   3, -1 } },
     { WeightsLayout::os_yx_is_osv8_isv4,                          {  1,  2, -1,   0,   3, -1 } },
     { WeightsLayout::os_yx_is_osv16_isv2,                         {  1,  2, -1,   0,   3, -1 } },
@@ -227,6 +228,7 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::g_os_zyx_is_osv32_isv32,                     {  1,  2,  3,   0,   4,  5 } },
     { WeightsLayout::g_os_yx_is_osv8_isv2,                        {  1,  2, -1,   0,   3,  4 } },
     { WeightsLayout::g_os_yx_is_osv8_isv4,                        {  1,  2, -1,   0,   3,  4 } },
+    { WeightsLayout::g_os_yx_is_osv16_isv2,                       {  1,  2, -1,   0,   3,  4 } },
     { WeightsLayout::g_os_y_is_x_osv8_isv2,                       {  0,  2, -1,   1,   3,  4 } },
     { WeightsLayout::g_os_y_is_x_osv8_isv4,                       {  0,  2, -1,   1,   3,  4 } },
 }};

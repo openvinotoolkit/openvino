@@ -234,6 +234,7 @@ struct format {
         os_i_osv8__ai8,                               ///< format used only for fully connected weights
         os_y_is_x_osv8_isv2,
         os_y_is_x_osv8_isv4,
+        os_y_is_x_osv16_isv4,
         os_yx_is_osv8_isv2,
         os_yx_is_osv8_isv4,
         os_yx_is_osv16_isv2,
@@ -297,6 +298,7 @@ struct format {
         g_os_is_zyx_isa8_osv8_isv4,
         g_os_yx_is_osv8_isv2,
         g_os_yx_is_osv8_isv4,
+        g_os_yx_is_osv16_isv2,
         g_os_y_is_x_osv8_isv2,
         g_os_y_is_x_osv8_isv4,
 
