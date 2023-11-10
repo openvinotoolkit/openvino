@@ -116,6 +116,18 @@ bool op::v6::ReadValue::visit_attributes(AttributeVisitor& visitor) {
     auto variable_info = m_variable->get_info();
     visitor.on_attribute("variable_type", variable_info.data_type);
     visitor.on_attribute("variable_shape", variable_info.data_shape);
+
+    // workaround:
+    // dynamic rank/type can be derived from the IRs generated via the prev versions of OV,
+    // but dynamic rank/type are not supported in plugins,
+    // so we are trying to fix them here using the rank/type of ReadValue 1st input, if it exists
+    if (get_input_size() > 0 && variable_info.data_shape.rank().is_dynamic() && variable_info.data_type.is_dynamic()) {
+        const auto& in_val = input_value(0);
+        // = PartialShape::dynamic(input_value(0).get_partial_shape().rank()); // fails on CPU?
+        const auto pshape = in_val.get_partial_shape();
+        variable_info.data_shape = pshape;
+        variable_info.data_type = in_val.get_element_type();
+    }
     m_variable->update(variable_info);
     return true;
 }
