@@ -62,6 +62,9 @@
 'category: docs_snippets':
 - 'docs/snippets/**/*'
 
+'md_files_only':
+- all: ['**/*.md']
+
 'category: extensions':
 - 'src/core/include/openvino/core/extension.hpp'
 - 'src/frontends/common/include/openvino/frontend/extension.hpp'

@@ -166,18 +166,26 @@ def main():
         component_name = component_name_from_label(label, args.pattern)
         all_possible_components.add(component_name if component_name else label)
 
+    label_names = set([label.name for label in pr.labels])
     no_match_files_changed = False
     # For now, we don't want to apply smart ci rules for post-commits
     is_postcommit = not pr
     if is_postcommit:
         logger.info(f"The run is a post-commit run, executing full validation scope for all components")
     else:
-        no_match_files_changed = 'no-match-files' in [label.name for label in pr.labels]
+        no_match_files_changed = 'no-match-files' in label_names
         if no_match_files_changed:
             logger.info(f"There are changed files that don't match any pattern in labeler config, "
                         f"executing full validation scope for all components")
 
     run_full_scope = is_postcommit or no_match_files_changed
+
+    component_names = label_names.intersection(all_possible_components)
+    # We don't need to run workflow if changes were only in documentation
+    # This is the case when we have no product labels set except "docs" or only md files were matched
+    only_docs_changes = 'md_files_only' in component_names or component_names - {'docs'} == set()
+    run_workflow = not only_docs_changes or run_full_scope
+    set_github_output("run_workflow", str(run_workflow))
 
     # In post-commits - validate all components regardless of changeset
     # In pre-commits - validate only changed components with their dependencies
