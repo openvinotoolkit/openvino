@@ -268,26 +268,6 @@ TEST_P(InterpolateLayerCPUTest, CompareWithRefs) {
 }
 
 namespace {
-
-/* CPU PARAMS */
-std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
-    std::vector<CPUSpecificParams> resCPUParams;
-    if (InferenceEngine::with_cpu_x86_avx512f()) {
-        resCPUParams.push_back(CPUSpecificParams{{nChw16c, x, x, x}, {nChw16c}, {"jit_avx512"}, "jit_avx512"});
-        resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x, x}, {nhwc}, {"jit_avx512"}, "jit_avx512"});
-    } else if (InferenceEngine::with_cpu_x86_avx2()) {
-        resCPUParams.push_back(CPUSpecificParams{{nChw8c, x, x, x}, {nChw8c}, {"jit_avx2"}, "jit_avx2"});
-        resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x, x}, {nhwc}, {"jit_avx2"}, "jit_avx2"});
-        resCPUParams.push_back(CPUSpecificParams{{nchw, x, x, x}, {nchw}, {"jit_avx2"}, "jit_avx2"});
-    } else if (InferenceEngine::with_cpu_x86_sse42()) {
-        resCPUParams.push_back(CPUSpecificParams{{nChw8c, x, x, x}, {nChw8c}, {"jit_sse42"}, "jit_sse42"});
-        resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x, x}, {nhwc}, {"jit_sse42"}, "jit_sse42"});
-    } else {
-        resCPUParams.push_back(CPUSpecificParams{{nchw, x, x, x}, {nchw}, {"ref"}, "ref"});
-    }
-    return resCPUParams;
-}
-/* ========== */
 const std::vector<ov::op::v11::Interpolate::CoordinateTransformMode> coordinateTransformModes_Smoke = {
         ov::op::v11::Interpolate::CoordinateTransformMode::HALF_PIXEL,
         ov::op::v11::Interpolate::CoordinateTransformMode::ASYMMETRIC,
@@ -347,6 +327,244 @@ std::vector<std::map<std::string, std::string>> filterAdditionalConfig() {
             {{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::NO}}
         };
     }
+}
+
+// 3D
+std::vector<CPUSpecificParams> filterCPUInfoForDevice3D() {
+    std::vector<CPUSpecificParams> resCPUParams;
+    if (InferenceEngine::with_cpu_x86_avx2()) {
+        resCPUParams.push_back(CPUSpecificParams{{ncw, x, x, x}, {ncw}, {"jit_avx2"}, "jit_avx2"});
+    } else {
+        resCPUParams.push_back(CPUSpecificParams{{ncw, x, x, x}, {ncw}, {"ref"}, "ref"});
+    }
+    return resCPUParams;
+}
+
+std::vector<std::map<std::string, std::string>> filterAdditionalConfig3D() {
+    return {
+        // default config as an stub
+        {{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::NO}}
+    };
+}
+
+const std::vector<std::vector<size_t>> pads3D = {
+    {0, 0, 0},
+    {0, 0, 1},
+};
+
+const std::vector<std::vector<int64_t>> defaultAxes3D = {
+    {0, 1, 2}
+};
+
+const std::vector<ShapeParams> shapeParams3D = {
+    ShapeParams{
+        ov::op::v11::Interpolate::ShapeCalcMode::SCALES,
+        InputShape{{}, {{1, 3, 4}}},
+        ngraph::helpers::InputLayerType::CONSTANT,
+        {{1.f, 1.f, 1.25f}},
+        defaultAxes3D.front()
+    },
+    ShapeParams{
+        ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
+        InputShape{{}, {{1, 3, 4}}},
+        ngraph::helpers::InputLayerType::CONSTANT,
+        {{1, 3, 5}},
+        defaultAxes3D.front()
+    },
+    ShapeParams{
+        ov::op::v11::Interpolate::ShapeCalcMode::SCALES,
+        InputShape{{-1, {2, 20}, -1}, {{1, 3, 4}, {2, 4, 6}, {1, 3, 4}}},
+        ngraph::helpers::InputLayerType::PARAMETER,
+        {{1.f, 1.f, 1.25f}, {1.f, 1.f, 1.25f}, {1.f, 1.f, 1.5f}},
+        defaultAxes3D.front()
+    },
+    ShapeParams{
+        ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
+        InputShape{{-1, {2, 20}, -1}, {{1, 3, 4}, {2, 4, 6}, {1, 3, 4}}},
+        ngraph::helpers::InputLayerType::PARAMETER,
+        {{1, 3, 6}, {2, 4, 8}, {1, 3, 6}},
+        defaultAxes3D.front()
+    }
+};
+
+const auto interpolateCasesNN_Smoke_3D = ::testing::Combine(
+        ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::NEAREST),
+        ::testing::ValuesIn(coordinateTransformModes_Smoke),
+        ::testing::ValuesIn(nearestModes_Smoke),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads3D),
+        ::testing::ValuesIn(pads3D),
+        ::testing::ValuesIn(cubeCoefs));
+INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN_Layout_Test_3D, InterpolateLayerCPUTest,
+        ::testing::Combine(
+             interpolateCasesNN_Smoke_3D,
+            ::testing::ValuesIn(shapeParams3D),
+            ::testing::Values(ElementType::f32),
+            ::testing::ValuesIn(filterCPUInfoForDevice3D()),
+            ::testing::ValuesIn(interpolateFusingParamsSet),
+            ::testing::ValuesIn(filterAdditionalConfig3D())),
+    InterpolateLayerCPUTest::getTestCaseName);
+
+const auto interpolateCasesNN_Full_3D = ::testing::Combine(
+        ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::NEAREST),
+        ::testing::ValuesIn(coordinateTransformModes_Full),
+        ::testing::ValuesIn(nearestModes_Full),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads3D),
+        ::testing::ValuesIn(pads3D),
+        ::testing::ValuesIn(cubeCoefs));
+INSTANTIATE_TEST_SUITE_P(InterpolateNN_Layout_Test_3D, InterpolateLayerCPUTest,
+         ::testing::Combine(
+             interpolateCasesNN_Full_3D,
+             ::testing::ValuesIn(shapeParams3D),
+             ::testing::Values(ElementType::f32),
+             ::testing::ValuesIn(filterCPUInfoForDevice3D()),
+             ::testing::ValuesIn(interpolateFusingParamsSet),
+             ::testing::ValuesIn(filterAdditionalConfig3D())),
+     InterpolateLayerCPUTest::getTestCaseName);
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+const std::vector<fusingSpecificParams> interpolateFusingParamsSet3D_fixed_C() {
+    std::vector<fusingSpecificParams> fuseParams;
+    if (InferenceEngine::with_cpu_x86_avx2()) {
+        fuseParams.push_back(fusingFakeQuantizePerChannelRelu);
+        fuseParams.push_back(fusingMultiplyPerChannel);
+    }
+    fuseParams.push_back(emptyFusingSpec);
+    return fuseParams;
+}
+
+const std::vector<ShapeParams> shapeParams3D_fixed_C = {
+    ShapeParams{
+        ov::op::v11::Interpolate::ShapeCalcMode::SCALES,
+        InputShape{{}, {{1, 3, 4}}},
+        ngraph::helpers::InputLayerType::CONSTANT,
+        {{1.f, 1.f, 1.25f}},
+        defaultAxes3D.front()
+    },
+    ShapeParams{
+        ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
+        InputShape{{-1, 3, -1}, {{1, 3, 4}, {1, 3, 6}}},
+        ngraph::helpers::InputLayerType::CONSTANT,
+        {{1, 3, 8}},
+        defaultAxes3D.front()
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN_Layout_PerChannelFuse3D_Test, InterpolateLayerCPUTest,
+        ::testing::Combine(
+            interpolateCasesNN_Smoke_3D,
+            ::testing::ValuesIn(shapeParams3D_fixed_C),
+            ::testing::Values(ElementType::f32),
+            ::testing::ValuesIn(filterCPUInfoForDevice3D()),
+            ::testing::ValuesIn(interpolateFusingParamsSet3D_fixed_C()),
+            ::testing::ValuesIn(filterAdditionalConfig3D())),
+    InterpolateLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(InterpolateNN_Layout_PerChannelFuse3D_Test, InterpolateLayerCPUTest,
+        ::testing::Combine(
+            interpolateCasesNN_Smoke_3D,
+            ::testing::ValuesIn(shapeParams3D_fixed_C),
+            ::testing::Values(ElementType::f32),
+            ::testing::ValuesIn(filterCPUInfoForDevice3D()),
+            ::testing::ValuesIn(interpolateFusingParamsSet3D_fixed_C()),
+            ::testing::ValuesIn(filterAdditionalConfig3D())),
+    InterpolateLayerCPUTest::getTestCaseName);
+#endif
+
+const auto interpolateCasesLinear3D_Smoke = ::testing::Combine(
+        ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::LINEAR),
+        ::testing::ValuesIn(coordinateTransformModes_Smoke),
+        ::testing::ValuesIn(defNearestModes),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads3D),
+        ::testing::ValuesIn(pads3D),
+        ::testing::ValuesIn(cubeCoefs));
+
+const auto interpolateCasesLinear3D_Full = ::testing::Combine(
+        ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::LINEAR),
+        ::testing::ValuesIn(coordinateTransformModes_Full),
+        ::testing::ValuesIn(defNearestModes),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads3D),
+        ::testing::ValuesIn(pads3D),
+        ::testing::ValuesIn(cubeCoefs));
+
+INSTANTIATE_TEST_SUITE_P(smoke_InterpolateLinear_Layout3D_Test, InterpolateLayerCPUTest,
+        ::testing::Combine(
+            interpolateCasesLinear3D_Smoke,
+            ::testing::ValuesIn(shapeParams3D),
+            ::testing::Values(ElementType::f32),
+            ::testing::ValuesIn(filterCPUInfoForDevice3D()),
+            ::testing::ValuesIn(interpolateFusingParamsSet),
+            ::testing::ValuesIn(filterAdditionalConfig3D())),
+    InterpolateLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(InterpolateLinear_Layout3D_Test, InterpolateLayerCPUTest,
+        ::testing::Combine(
+            interpolateCasesLinear3D_Full,
+            ::testing::ValuesIn(shapeParams3D),
+            ::testing::Values(ElementType::f32),
+            ::testing::ValuesIn(filterCPUInfoForDevice3D()),
+            ::testing::ValuesIn(interpolateFusingParamsSet),
+            ::testing::ValuesIn(filterAdditionalConfig3D())),
+    InterpolateLayerCPUTest::getTestCaseName);
+
+const auto interpolateCasesCubic3D_Smoke = ::testing::Combine(
+        ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::CUBIC),
+        ::testing::ValuesIn(coordinateTransformModes_Smoke),
+        ::testing::ValuesIn(defNearestModes),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads3D),
+        ::testing::ValuesIn(pads3D),
+        ::testing::ValuesIn(cubeCoefs));
+
+const auto interpolateCasesCubic3D_Full = ::testing::Combine(
+        ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::CUBIC),
+        ::testing::ValuesIn(coordinateTransformModes_Full),
+        ::testing::ValuesIn(defNearestModes),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads3D),
+        ::testing::ValuesIn(pads3D),
+        ::testing::ValuesIn(cubeCoefs));
+
+INSTANTIATE_TEST_SUITE_P(smoke_InterpolateCubic_Layout3D_Test, InterpolateLayerCPUTest,
+        ::testing::Combine(
+            interpolateCasesCubic3D_Smoke,
+            ::testing::ValuesIn(shapeParams3D),
+            ::testing::Values(ElementType::f32),
+            ::testing::ValuesIn(filterCPUInfoForDevice3D()),
+            ::testing::ValuesIn(interpolateFusingParamsSet),
+            ::testing::ValuesIn(filterAdditionalConfig3D())),
+    InterpolateLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(InterpolateCubic_Layout3D_Test, InterpolateLayerCPUTest,
+        ::testing::Combine(
+            interpolateCasesCubic3D_Full,
+            ::testing::ValuesIn(shapeParams3D),
+            ::testing::Values(ElementType::f32),
+            ::testing::ValuesIn(filterCPUInfoForDevice3D()),
+            ::testing::ValuesIn(interpolateFusingParamsSet),
+            ::testing::ValuesIn(filterAdditionalConfig3D())),
+    InterpolateLayerCPUTest::getTestCaseName);
+
+// 4D
+std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
+    std::vector<CPUSpecificParams> resCPUParams;
+    if (InferenceEngine::with_cpu_x86_avx512f()) {
+        resCPUParams.push_back(CPUSpecificParams{{nChw16c, x, x, x}, {nChw16c}, {"jit_avx512"}, "jit_avx512"});
+        resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x, x}, {nhwc}, {"jit_avx512"}, "jit_avx512"});
+    } else if (InferenceEngine::with_cpu_x86_avx2()) {
+        resCPUParams.push_back(CPUSpecificParams{{nChw8c, x, x, x}, {nChw8c}, {"jit_avx2"}, "jit_avx2"});
+        resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x, x}, {nhwc}, {"jit_avx2"}, "jit_avx2"});
+        resCPUParams.push_back(CPUSpecificParams{{nchw, x, x, x}, {nchw}, {"jit_avx2"}, "jit_avx2"});
+    } else if (InferenceEngine::with_cpu_x86_sse42()) {
+        resCPUParams.push_back(CPUSpecificParams{{nChw8c, x, x, x}, {nChw8c}, {"jit_sse42"}, "jit_sse42"});
+        resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x, x}, {nhwc}, {"jit_sse42"}, "jit_sse42"});
+    } else {
+        resCPUParams.push_back(CPUSpecificParams{{nchw, x, x, x}, {nchw}, {"ref"}, "ref"});
+    }
+    return resCPUParams;
 }
 
 const std::vector<std::vector<size_t>> pads4D = {
@@ -444,6 +662,12 @@ INSTANTIATE_TEST_SUITE_P(InterpolateNN_Layout_Test, InterpolateLayerCPUTest,
              ::testing::ValuesIn(filterAdditionalConfig())),
      InterpolateLayerCPUTest::getTestCaseName);
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+const std::vector<fusingSpecificParams> interpolateFusingParamsSet_fixed_C{
+        fusingFakeQuantizePerChannelRelu,
+        fusingMultiplyPerChannel,
+};
+
 const std::vector<ShapeParams> shapeParams4D_fixed_C = {
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SCALES,
@@ -459,12 +683,6 @@ const std::vector<ShapeParams> shapeParams4D_fixed_C = {
         {{1, 16, 6, 7}},
         defaultAxes4D.front()
     }
-};
-
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-const std::vector<fusingSpecificParams> interpolateFusingParamsSet_fixed_C{
-        fusingFakeQuantizePerChannelRelu,
-        fusingMultiplyPerChannel,
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN_Layout_PerChannelFuse_Test, InterpolateLayerCPUTest,

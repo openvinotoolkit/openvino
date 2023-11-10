@@ -2025,16 +2025,15 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
     if ((inputPrecision != ov::element::i8) && (inputPrecision != ov::element::u8) && (inputPrecision != ov::element::bf16)) {
         inputPrecision = ov::element::f32;
     }
+
+    if ((inputPrecision == ov::element::bf16) && !mayiuse(avx512_core)) {
+        inputPrecision = ov::element::f32;
+    }
+
     // support input with rank<=3 only with float precision and planar layout.
     // Jit for avx2(gather is available) and ref for no-avx2 machine.
     if (!one_of(dataRank, 4u, 5u)) {
         inputPrecision = ov::element::f32;
-    }
-    if ((inputPrecision == ov::element::bf16) && !mayiuse(avx512_core)) {
-        inputPrecision = ov::element::f32;
-    if (!one_of(dataRank, 4u, 5u)) {
-        inputPrecision = Precision::FP32;
-    }
     }
     ov::element::Type outputPrecision = inputPrecision;
 
