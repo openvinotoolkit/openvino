@@ -72,7 +72,7 @@ jobs:
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/.ci/azure/ci_utils/onnxruntime
-    if: "!needs.smart_ci.outputs.affected_components.docs_only"
+    if: "!fromJSON(needs.smart_ci.outputs.affected_components).docs_only"
 
     steps:
       - name: Install git
