@@ -166,14 +166,13 @@ def main():
         component_name = component_name_from_label(label, args.pattern)
         all_possible_components.add(component_name if component_name else label)
 
-    label_names = set([label.name for label in pr.labels])
     no_match_files_changed = False
     # For now, we don't want to apply smart ci rules for post-commits
     is_postcommit = not pr
     if is_postcommit:
         logger.info(f"The run is a post-commit run, executing full validation scope for all components")
     else:
-        no_match_files_changed = 'no-match-files' in label_names
+        no_match_files_changed = 'no-match-files' in [label.name for label in pr.labels]
         if no_match_files_changed:
             logger.info(f"There are changed files that don't match any pattern in labeler config, "
                         f"executing full validation scope for all components")
