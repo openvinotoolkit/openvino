@@ -4,12 +4,12 @@
 
 #include "decoder_proto.hpp"
 
-#include "attr_value.pb.h"
-#include "node_def.pb.h"
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/frontend/tensorflow/special_types.hpp"
+#include "ov_tensorflow/attr_value.pb.h"
+#include "ov_tensorflow/node_def.pb.h"
+#include "ov_tensorflow/types.pb.h"
 #include "tf_utils.hpp"
-#include "types.pb.h"
 
 namespace ov {
 namespace frontend {
@@ -113,10 +113,14 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
 
     case ::tensorflow::AttrValue::ValueCase::kType: {
         auto atype = attrs[0].type();
-        if (atype != ::tensorflow::DT_STRING) {
-            return get_ov_type(attrs[0].type());
-        } else {
+        if (atype == ::tensorflow::DT_STRING) {
             return ov::Any("DT_STRING");
+        } else if (atype == ::tensorflow::DT_COMPLEX64) {
+            return ov::Any("DT_COMPLEX64");
+        } else if (atype == ::tensorflow::DT_COMPLEX128) {
+            return ov::Any("DT_COMPLEX128");
+        } else {
+            return get_ov_type(atype);
         }
     }
 

@@ -72,7 +72,6 @@ enum DataLayout {
     bfzyx,                  // batch+feature+3D spatial
     bzyxf,
     fs_b_yx_fsv32,          // for FP16 kernels, 32 features to avoid partial writes
-    b_fs_yx_32fp,           // bfyx with blocks of 16 packed binary input channels
     bfwzyx,                 // batch, feature, 4D spatial
     bfuwzyx,                // batch, feature, 5D spatial
     bfvuwzyx,               // batch, feature, 6D spatial
@@ -94,6 +93,7 @@ enum WeightsLayout {
     oxiy,
     iyxo,
     yxio,
+    o_is_yx_isv2,
     o_is_yx_isv4,
     o_is_yx_isv16,
     o_is_zyx_isv16,
@@ -190,7 +190,6 @@ enum WeightsLayout {
     os_is_yx_osv4_isv16,
     oizyx,
     iozyx,
-    os_is_yx_osv32_isv32p,  // 2 blocks: 32 packed binary in channels and 32 output channels
     os_is_osv32_isv32_swizzled_by_4,     // for weights for 1x1 IMAD convolution
     os_i_yxs_osv4_yxsv4,                 // for weights for depthwise IMAD convolution
     os_y_is_x_osv8_isv2,
@@ -622,6 +621,10 @@ public:
         }
 
         return same;
+    }
+
+    bool operator!=(const TensorBaseT& t) const {
+        return !(*this == t);
     }
 
     bool SameDims(const TensorBaseT& t) const {

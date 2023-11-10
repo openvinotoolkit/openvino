@@ -928,11 +928,13 @@ openvino/tools/mo/ops/MatMul.py
 openvino/tools/mo/ops/memory.py
 openvino/tools/mo/ops/memoryoffset.py
 openvino/tools/mo/ops/merge.py
+openvino/tools/mo/ops/multinomial.py
 openvino/tools/mo/ops/mvn.py
 openvino/tools/mo/ops/mxfft.py
 openvino/tools/mo/ops/mxrepeat.py
 openvino/tools/mo/ops/mxreshape.py
 openvino/tools/mo/ops/NextIteration.py
+openvino/tools/mo/ops/nms_rotated.py
 openvino/tools/mo/ops/non_max_suppression.py
 openvino/tools/mo/ops/non_zero.py
 openvino/tools/mo/ops/normalize.py

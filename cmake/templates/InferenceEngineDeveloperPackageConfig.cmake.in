@@ -88,9 +88,7 @@ endif()
 
 _ov_find_tbb()
 
-foreach(component @openvino_export_components@)
-    include("${CMAKE_CURRENT_LIST_DIR}/${component}_dev_targets.cmake")
-endforeach()
+include("${CMAKE_CURRENT_LIST_DIR}/inference_engine_developer_package_targets.cmake")
 
 if(TARGET IE::ov_core_dev AND NOT TARGET openvino::core::dev)
     add_library(openvino::core::dev INTERFACE IMPORTED)

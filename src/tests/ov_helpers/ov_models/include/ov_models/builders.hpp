@@ -70,6 +70,9 @@ std::shared_ptr<ov::Node> makeConstant(const ov::element::Type& type,
         makeNode(ov::element::Type_t::u32);
         makeNode(ov::element::Type_t::u64);
         makeNode(ov::element::Type_t::boolean);
+        makeNode(ov::element::Type_t::nf4);
+        makeNode(ov::element::Type_t::u4);
+        makeNode(ov::element::Type_t::i4);
 #undef makeNode
     default:
         throw std::runtime_error("Unhandled precision");
@@ -424,10 +427,6 @@ std::shared_ptr<ov::Node> makeEmbeddingSegmentsSum(const element::Type& dataType
                                                    bool with_weights,
                                                    bool with_default_index);
 
-std::shared_ptr<ov::Node> makeDepthToSpace(const ov::Output<Node>& in,
-                                           ov::op::v0::DepthToSpace::DepthToSpaceMode mode,
-                                           size_t blockSize);
-
 std::shared_ptr<ov::Node> makeSpaceToDepth(const ov::Output<Node>& in,
                                            ov::op::v0::SpaceToDepth::SpaceToDepthMode mode,
                                            size_t blockSize);
@@ -624,10 +623,6 @@ std::shared_ptr<ov::Node> makeOneHot(const ov::Output<Node>& indices,
                                      const float& on_val,
                                      const float& off_val,
                                      const int64_t& axis);
-
-std::shared_ptr<ov::Node> makeRoll(const ov::Output<Node>& dataNode,
-                                   const ov::Output<Node>& shiftNode,
-                                   const ov::Output<Node>& axesNode);
 
 std::shared_ptr<ov::Node> makeDFT(const ov::Output<Node>& dataNode,
                                   const std::vector<int64_t>& axes,

@@ -121,8 +121,10 @@ namespace cldnn {
 
 kernel_selector::data_type to_data_type(data_types dt) {
     switch (dt) {
-        case cldnn::data_types::u1:
-            return kernel_selector::data_type::BINARY;
+        case cldnn::data_types::i4:
+            return kernel_selector::data_type::INT4;
+        case cldnn::data_types::u4:
+            return kernel_selector::data_type::UINT4;
         case cldnn::data_types::i8:
             return kernel_selector::data_type::INT8;
         case cldnn::data_types::u8:
@@ -142,8 +144,10 @@ kernel_selector::data_type to_data_type(data_types dt) {
 
 data_types from_data_type(kernel_selector::data_type dt) {
     switch (dt) {
-        case kernel_selector::data_type::BINARY:
-            return cldnn::data_types::u1;
+        case kernel_selector::data_type::INT4:
+            return cldnn::data_types::i4;
+        case kernel_selector::data_type::UINT4:
+            return cldnn::data_types::u4;
         case kernel_selector::data_type::INT8:
             return cldnn::data_types::i8;
         case kernel_selector::data_type::UINT8:
@@ -163,8 +167,10 @@ data_types from_data_type(kernel_selector::data_type dt) {
 
 kernel_selector::weights_type to_weights_type(data_types dt) {
     switch (dt) {
-        case cldnn::data_types::u1:
-            return kernel_selector::weights_type::BINARY;
+        case cldnn::data_types::u4:
+            return kernel_selector::weights_type::UINT4;
+        case cldnn::data_types::i4:
+            return kernel_selector::weights_type::INT4;
         case cldnn::data_types::i8:
             return kernel_selector::weights_type::INT8;
         case cldnn::data_types::u8:
@@ -182,8 +188,10 @@ kernel_selector::weights_type to_weights_type(data_types dt) {
 
 data_types from_weights_type(kernel_selector::weights_type dt) {
     switch (dt) {
-        case kernel_selector::weights_type::BINARY:
-            return data_types::u1;
+        case kernel_selector::weights_type::INT4:
+            return data_types::i4;
+        case kernel_selector::weights_type::UINT4:
+            return data_types::u4;
         case kernel_selector::weights_type::INT8:
             return data_types::i8;
         case kernel_selector::weights_type::UINT8:
@@ -239,8 +247,6 @@ kernel_selector::data_layout to_data_layout(format f) {
             return kernel_selector::data_layout::bs_f_bsv8__af8;
         case format::winograd_2x3_s1_data:
             return kernel_selector::data_layout::winograd_2x3_s1_data;
-        case format::b_fs_yx_32fp:
-            return kernel_selector::data_layout::b_fs_yx_32fp;
         case format::bfzyx:
             return kernel_selector::data_layout::bfzyx;
         case format::bzyxf:
@@ -344,8 +350,6 @@ cldnn::format from_data_layout(kernel_selector::data_layout l) {
             return cldnn::format::bs_f_bsv16;
         case kernel_selector::data_layout::winograd_2x3_s1_data:
             return cldnn::format::winograd_2x3_s1_data;
-        case kernel_selector::data_layout::b_fs_yx_32fp:
-            return cldnn::format::b_fs_yx_32fp;
         case kernel_selector::data_layout::bfzyx:
             return cldnn::format::bfzyx;
         case kernel_selector::data_layout::fs_b_yx_fsv32:
@@ -422,6 +426,8 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::yxio;
         case format::os_yxi_osv16:
             return kernel_selector::weights_layout::os_yxi_osv16;
+        case format::o_is_yx_isv2:
+            return kernel_selector::weights_layout::o_is_yx_isv2;
         case format::o_is_yx_isv4:
             return kernel_selector::weights_layout::o_is_yx_isv4;
         case format::o_is_yx_isv16:
@@ -520,9 +526,6 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::os_is_yx_osv32_isv4;
         case format::os_is_zyx_osv32_isv4:
             return kernel_selector::weights_layout::os_is_zyx_osv32_isv4;
-        case format::b_fs_yx_32fp:
-        case format::os_is_yx_osv32_isv32p:
-            return kernel_selector::weights_layout::os_is_yx_osv32_isv32p;
         case format::os_is_yx_isv16_osv16:
             return kernel_selector::weights_layout::os_is_yx_isv16_osv16;
         case format::os_is_y_x8_osv8_isv4_swizzled_by_4:
@@ -747,6 +750,8 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::yxio;
         case kernel_selector::weights_layout::os_yxi_osv16:
             return cldnn::format::os_yxi_osv16;
+        case kernel_selector::weights_layout::o_is_yx_isv2:
+            return cldnn::format::o_is_yx_isv2;
         case kernel_selector::weights_layout::o_is_yx_isv4:
             return cldnn::format::o_is_yx_isv4;
         case kernel_selector::weights_layout::o_is_yx_isv16:
@@ -851,8 +856,6 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return format::os_is_zyx_osv32_isv4;
         case kernel_selector::weights_layout::os_is_y_x8_osv8_isv4_swizzled_by_4:
             return cldnn::format::os_is_y_x8_osv8_isv4_swizzled_by_4;
-        case kernel_selector::weights_layout::os_is_yx_osv32_isv32p:
-            return cldnn::format::os_is_yx_osv32_isv32p;
         case kernel_selector::weights_layout::oizyx:
             return cldnn::format::oizyx;
         case kernel_selector::weights_layout::iozyx:

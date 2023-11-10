@@ -21,6 +21,7 @@
 #include "transformations/common_optimizations/conv_to_binary_conv.hpp"
 #include "transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/convert_u4_weights_zero_point_to_scalar.hpp"
 #include "transformations/common_optimizations/convolution_to_group_convolution_fusion.hpp"
 #include "transformations/common_optimizations/depth_to_space_fusion.hpp"
 #include "transformations/common_optimizations/dilated_convolution_converter.hpp"
@@ -86,6 +87,7 @@
 #include "transformations/op_conversions/convert_ti_to_sequences.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "transformations/smart_reshape/lstm_states_broadcast.hpp"
+#include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/smart_reshape/reshape_sinking.hpp"
 
 bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>& f) {
@@ -165,11 +167,13 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
 
     auto transpose_sinking = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(transpose_sinking, TransposeSinking)
-
     // SplitSqueezeConcatFusion should work in same GraphRewrite as TransposesSinking,
     // because it replaces pattern that may contain Transposes which must be optimized before
     // the transformation and it also inserts Transpose that can be optimized by TransposeSinking
-    ADD_MATCHER(transpose_sinking, SplitSqueezeConcatFusion)
+    ADD_MATCHER(transpose_sinking, SplitSqueezeConcatFusion, m_use_shapes)
+
+    REGISTER_PASS(manager, TransposeMatMul)
+
     auto eliminations = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(eliminations, EliminateUnsqueezeGather)
     ADD_MATCHER(eliminations, NopElimination, m_use_shapes)
@@ -212,6 +216,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(common_fusions, ShuffleChannelsFusion, !m_use_shapes)
     ADD_MATCHER(common_fusions, NonZeroHorizontalFusion)
     ADD_MATCHER(common_fusions, AdaptivePoolToReduce)
+    ADD_MATCHER(common_fusions, ConvertU4WeightsZeroPointToScalar)
     common_fusions->set_name("ov::pass::CommonFusions");
 
     REGISTER_PASS(manager, BinarizeWeights)

@@ -19,6 +19,7 @@ class TestUnaryOps(CommonTFLayerTest):
         from_one = ['Acosh']
 
         logical_type = ['LogicalNot']
+        bitwise_type = ["BitwiseNot"]
 
         # usual function domain
         lower = -256
@@ -39,6 +40,8 @@ class TestUnaryOps(CommonTFLayerTest):
         for input in inputs_dict.keys():
             if self.current_op_type in logical_type:
                 inputs_dict[input] = np.random.randint(0, 1, inputs_dict[input]).astype(bool)
+            elif self.current_op_type in bitwise_type:
+                inputs_dict[input] = np.random.randint(lower, upper, inputs_dict[input]).astype(np.int32)
             else:
                 inputs_dict[input] = np.random.uniform(lower, upper, inputs_dict[input]).astype(
                     np.float32)
@@ -77,6 +80,7 @@ class TestUnaryOps(CommonTFLayerTest):
             'Asinh': tf.math.asinh,
             'Atan': tf.math.atan,
             'Atanh': tf.math.atanh,
+            'BitwiseNot': tf.bitwise.invert,
             'Ceiling': tf.math.ceil,
             'Cos': tf.math.cos,
             'Cosh': tf.math.cosh,
@@ -105,6 +109,8 @@ class TestUnaryOps(CommonTFLayerTest):
         type = tf.float32
         if op_type == "LogicalNot":
             type = tf.bool
+        elif op_type == "BitwiseNot":
+            type = tf.int32
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
             tf_x_shape = shape.copy()
@@ -152,10 +158,13 @@ class TestUnaryOps(CommonTFLayerTest):
                                          'LogicalNot',
                                          'Square',
                                          'Erf',
+                                         'BitwiseNot'
                                          ])
     @pytest.mark.precommit
     def test_unary_op_precommit(self, params, ie_device, precision, ir_version, temp_dir, op_type,
                                 use_new_frontend, use_old_api):
+        if not use_new_frontend and op_type in ['BitwiseNot']:
+            pytest.skip("Bitwise ops are supported only by new TF FE.")
         if ie_device == 'GPU':
             pytest.skip("5D tensors is not supported on GPU")
         self._test(*self.create_net_with_unary_op(**params, ir_version=ir_version, op_type=op_type,
@@ -211,11 +220,15 @@ class TestUnaryOps(CommonTFLayerTest):
                                          'Asinh',
                                          'Square',
                                          'Erf',
-                                         'Selu'
+                                         'Selu',
+                                         'BitwiseNot'
                                          ])
     @pytest.mark.nightly
+    @pytest.mark.skipif(sys.platform == 'darwin', reason="Ticket - 122182")
     def test_unary_op(self, params, ie_device, precision, ir_version, temp_dir, op_type,
                       use_new_frontend, use_old_api):
+        if not use_new_frontend and op_type in ['BitwiseNot']:
+            pytest.skip("Bitwise ops are supported only by new TF FE.")
         if ie_device == 'GPU':
             pytest.skip("5D tensors is not supported on GPU")
         self._test(*self.create_net_with_unary_op(**params, ir_version=ir_version, op_type=op_type,
