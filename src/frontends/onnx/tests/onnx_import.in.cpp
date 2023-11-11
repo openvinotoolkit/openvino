@@ -6978,10 +6978,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mm_nms_rotated) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_greater_or_equal_int) {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(), 
-                             SERIALIZED_ZOO, 
-                             "onnx/greater_or_equal_int.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/greater_or_equal_int.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
 
@@ -6993,10 +6992,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_greater_or_equal_int) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_greater_or_equal_float) {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(ov::test::utils::getExecutableDirectory(), 
-                             SERIALIZED_ZOO, 
-                             "onnx/greater_or_equal_float.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/greater_or_equal_float.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
 

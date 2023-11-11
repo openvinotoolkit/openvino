@@ -18,13 +18,16 @@ OutputVector greater_or_equal(const Node& node) {
     const auto A = node.get_ng_inputs().at(0);
     const auto B = node.get_ng_inputs().at(1);
 
+    NGRAPH_CHECK(A.get_element_type() != ov::element::bf16 && B.get_element_type() != ov::element::bf16,
+                 "The input data bfloat16 isn't supported in opset 12");
+
     const auto C = std::make_shared<default_opset::GreaterEqual>(A, B);
 
     return {C};
 }
 }  // namespace set_1
 
-namespace set_12 {
+namespace set_16 {
 OutputVector greater_or_equal(const Node& node) {
     const auto A = node.get_ng_inputs().at(0);
     const auto B = node.get_ng_inputs().at(1);
@@ -33,7 +36,7 @@ OutputVector greater_or_equal(const Node& node) {
 
     return {C};
 }
-}  // namespace set_12
+}  // namespace set_16
 }  // namespace op
 }  // namespace onnx_import
 }  // namespace ngraph

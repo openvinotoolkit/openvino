@@ -18,10 +18,10 @@ OutputVector greater_or_equal(const Node& node);
 
 }  // namespace set_1
 
-namespace set_12 {
+namespace set_16 {
 OutputVector greater_or_equal(const Node& node);
 
-}  // namespace set_12
+}  // namespace set_16
 }  // namespace op
 }  // namespace onnx_import
 }  // namespace ngraph
