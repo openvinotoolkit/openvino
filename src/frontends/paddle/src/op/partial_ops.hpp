@@ -14,7 +14,7 @@ NamedOutputs partial_ops(const NodeContext& node, const std::string type) {
     auto x = node.get_ng_inputs("X");
     const auto start_index = node.get_attribute<int>("start_index");
     const auto length = node.get_attribute<int>("length");
-    // PADDLE_OP_CHECK(node, x[0].get_shape.size() == 2, "partial ops only support 2-D Tensor");
+    PADDLE_OP_CHECK(node, x[0].get_partial_shape().rank().get_length() == 2, "partial ops only support 2-D Tensor");
 
     int end_index;
     if (length < 0) {

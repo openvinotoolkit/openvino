@@ -79,7 +79,6 @@ OP_CONVERTER(p_norm);
 OP_CONVERTER(pad3d);
 OP_CONVERTER(partial_concat);
 OP_CONVERTER(partial_sum);
-OP_CONVERTER(pad3d);
 OP_CONVERTER(pow);
 OP_CONVERTER(pool2d);
 OP_CONVERTER(prior_box);
