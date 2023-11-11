@@ -27,6 +27,25 @@ layout lstm_elt_inst::calc_output_layout(lstm_elt_node const& node, kernel_impl_
     return result;
 }
 
+template<typename ShapeType>
+std::vector<layout> lstm_elt_inst::calc_output_layouts(lstm_elt_node const& node, kernel_impl_params const& impl_param) {
+    std::vector<layout> output_layouts;
+
+    // input partial shape [batch, input_size (= hidden_size * 4)]
+    auto input_layout = impl_param.get_input_layout();
+    auto input_pshape = input_layout.get_partial_shape();
+    OPENVINO_ASSERT(static_cast<bool>(impl_param.desc->output_data_types[0]) == false, "Output data type forcing is not supported for lstm_elt_node!");
+    OPENVINO_ASSERT(input_pshape.rank().get_length() == 2, "input_layout rank should be 2 on dynamic shape.");
+
+    auto lstm_input_size = static_cast<cldnn::tensor::value_type>(input_pshape[1].get_length());
+    auto lstm_batch_size = static_cast<cldnn::tensor::value_type>(input_pshape[0].get_length());
+    auto lstm_hidden_size = static_cast<cldnn::tensor::value_type>(lstm_input_size / 4);
+
+    return {cldnn::layout{ov::PartialShape{lstm_batch_size, 2, 1, lstm_hidden_size}, input_layout.data_type, input_layout.format}};
+}
+
+template std::vector<layout> lstm_elt_inst::calc_output_layouts<ov::PartialShape>(lstm_elt_node const& node, const kernel_impl_params& impl_param);
+
 std::string lstm_elt_inst::to_string(lstm_elt_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
