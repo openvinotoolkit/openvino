@@ -5,6 +5,7 @@ import inspect
 import os.path
 import shutil
 import pytest
+from py.xml import html
 
 from models_hub_common.constants import performance_results_path
 from models_hub_common.constants import wget_cache_dir
@@ -33,3 +34,32 @@ def pytest_sessionstart(session):
         except Exception as e:
             print(e)
             pass
+
+
+@pytest.mark.hookwrapper
+def pytest_runtest_makereport(item, call):
+    outcome = yield
+    report = outcome.get_result()
+    if call.when == 'teardown':
+        results = item.obj.__self__.result
+        report._results = results
+
+
+@pytest.mark.optionalhook
+def pytest_html_results_table_header(cells):
+    cells.insert(2, html.th('status', class_="sortable"))
+    cells.insert(3, html.th('converted model infer time'))
+    cells.insert(4, html.th('converted model infer time variance'))
+    cells.insert(5, html.th('read model infer time'))
+    cells.insert(6, html.th('read model infer time variance'))
+    cells.insert(7, html.th('model infer time ratio converted_model_time/read_model_time'))
+
+
+@pytest.mark.optionalhook
+def pytest_html_results_table_row(report, cells):
+    cells.insert(2, html.td(report._results.status))
+    cells.insert(3, html.td(report._results.converted_infer_time))
+    cells.insert(4, html.td(report._results.converted_model_time_variance))
+    cells.insert(5, html.td(report._results.read_model_infer_time))
+    cells.insert(6, html.td(report._results.read_model_infer_time_variance))
+    cells.insert(7, html.td(report._results.infer_time_ratio))

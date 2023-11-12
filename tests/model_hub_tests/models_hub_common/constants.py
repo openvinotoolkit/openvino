@@ -8,8 +8,6 @@ import tempfile
 wget_cache_dir = os.environ.get('WGET_CACHE_DIR', os.path.join(tempfile.gettempdir(), "wget_cache"))
 os.environ['WGET_CACHE_DIR'] = wget_cache_dir
 
-performance_results_path = os.environ.get('PERFORMANCE_RESULTS_FILE', '')
-
 tf_hub_cache_dir = os.environ.get('TFHUB_CACHE_DIR',
                                   os.path.join(tempfile.gettempdir(), "tfhub_modules"))
 os.environ['TFHUB_CACHE_DIR'] = tf_hub_cache_dir
