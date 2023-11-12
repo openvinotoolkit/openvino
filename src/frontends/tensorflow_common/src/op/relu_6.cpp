@@ -13,7 +13,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 OutputVector translate_relu_6_op(const NodeContext& node) {
-    default_op_checks(node, 1, {"Relu6", "RELU6"});
+    default_op_checks(node, 1, {});
 
     auto data = node.get_input(0);
     auto res = make_shared<v0::Clamp>(data, 0.0, 6.0f);
