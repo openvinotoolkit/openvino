@@ -11,7 +11,6 @@ import traceback
 
 import numpy as np
 from models_hub_common.multiprocessing_utils import multiprocessing_run
-from models_hub_common.constants import performance_results_path
 import openvino as ov
 
 import tensorflow_text  # do not delete, needed for text models

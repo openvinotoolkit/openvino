@@ -38,6 +38,8 @@ def pytest_html_results_table_header(cells):
 
 @pytest.mark.optionalhook
 def pytest_html_results_table_row(report, cells):
+    if not getattr(report, '_results', None):
+        return
     cells.insert(2, html.td(report._results.status))
     cells.insert(3, html.td(report._results.converted_infer_time))
     cells.insert(4, html.td(report._results.converted_model_time_variance))
