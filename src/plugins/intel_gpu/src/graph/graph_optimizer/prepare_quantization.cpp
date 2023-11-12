@@ -590,7 +590,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
 
     const size_t feature_idx = 1;
     if (asymmetric_data && in0.get_output_layout().get_partial_shape()[feature_idx].is_dynamic())
-        OPENVINO_ASSERT(false, "[GPU] Can't support prepare_quantization when feature is dynamic.");
+        return;
 
     auto old_conv_prim = convolution_node.get_primitive();
 
