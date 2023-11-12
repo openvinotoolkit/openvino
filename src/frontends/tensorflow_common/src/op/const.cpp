@@ -30,7 +30,7 @@ OutputVector translate_const_op(const NodeContext& node) {
         }
     } else {
         auto tensor = node.get_attribute<Tensor>("value");
-        const_node = std::make_shared<v0::Constant>(tensor.get_element_type(), tensor.get_shape(), tensor.data());
+        const_node = std::make_shared<v0::Constant>(tensor);
     }
     set_node_name(node.get_name(), const_node);
     return {const_node};
