@@ -297,6 +297,7 @@ std::shared_ptr<ov::Node> makeSpaceToBatch(const ov::Output<Node>& in,
                                            const std::vector<int64_t>& padsBegin,
                                            const std::vector<int64_t>& padsEnd);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeSlice(const ov::Output<Node>& in,
                                     const std::vector<int64_t>& begin,
                                     const std::vector<int64_t>& end,
@@ -304,12 +305,14 @@ std::shared_ptr<ov::Node> makeSlice(const ov::Output<Node>& in,
                                     const std::vector<int64_t>& axes,
                                     const element::Type& type);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeSlice(const ov::Output<Node>& in,
                                     const ov::Output<Node>& begin,
                                     const ov::Output<Node>& end,
                                     const ov::Output<Node>& stride,
                                     const ov::Output<Node>& axes);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeSlice(const ov::Output<Node>& in,
                                     const ov::Output<Node>& begin,
                                     const ov::Output<Node>& end,
