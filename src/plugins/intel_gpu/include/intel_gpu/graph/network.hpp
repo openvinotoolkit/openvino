@@ -247,7 +247,8 @@ public:
     const variables_state_info_map& get_variables_state_info() const;
     const ExecutionConfig& get_config() const { return _config; }
 
-    ShapePredictor& get_shape_predictor() { return *_shape_predictor; }
+    std::shared_ptr<ShapePredictor> get_shape_predictor() { return _shape_predictor; }
+    void set_shape_predictor(std::shared_ptr<ShapePredictor> shape_predictor) { _shape_predictor = shape_predictor; }
 
 #ifdef GPU_DEBUG_CONFIG
     int64_t get_current_iteration_num() { return iteration; }
@@ -287,7 +288,7 @@ private:
     std::unordered_map<primitive_id, event::ptr> _old_events;
     output_chains_map _output_chains;
 
-    std::unique_ptr<ShapePredictor> _shape_predictor;
+    std::shared_ptr<ShapePredictor> _shape_predictor;
 
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);
