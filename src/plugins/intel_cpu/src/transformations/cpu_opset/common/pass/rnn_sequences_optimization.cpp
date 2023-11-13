@@ -32,7 +32,6 @@ namespace {
             if (transpose_after && transpose_before) {
                 auto order_before = ov::as_type_ptr<ov::opset1::Constant>(transpose_before->get_input_node_shared_ptr(1));
                 auto order_after = ov::as_type_ptr<ov::opset1::Constant>(transpose_after->get_input_node_shared_ptr(1));
-
                 if (order_before && order_after) {
                     auto order_before_values = order_before->cast_vector<int64_t>();
                     auto order_after_values = order_after->cast_vector<int64_t>();

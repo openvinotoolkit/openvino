@@ -89,6 +89,7 @@ ov::intel_cpu::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
         if (is_binary_op && current->get_output_partial_shape(0).rank().get_length() != eltwise->get_input_partial_shape(1).rank().get_length()) {
             auto old_eltwise_const = std::dynamic_pointer_cast<ov::opset8::Constant>(eltwise->get_input_node_shared_ptr(1));
             auto new_constant = std::make_shared<ov::opset8::Constant>(*old_eltwise_const.get(), ov::Shape{});
+
             ov::copy_runtime_info(old_eltwise_const, new_constant);
             ov::replace_node(old_eltwise_const, new_constant);
         }

@@ -16,7 +16,6 @@ ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
 
     ov::matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
         auto broadcast = std::dynamic_pointer_cast<ov::opset1::Broadcast>(m.get_match_root());
-
         if (!broadcast) {
             return false;
         }

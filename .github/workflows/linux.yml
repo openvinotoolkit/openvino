@@ -432,7 +432,7 @@ jobs:
           if-no-files-found: 'warn'
 
   Conformance:
-    needs: Build
+    needs: [Build, Smart_CI]
     timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 5 || 15 }}
     defaults:
       run:

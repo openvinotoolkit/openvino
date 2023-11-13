@@ -316,7 +316,6 @@ ov::intel_cpu::MHAQuantFusion::MHAQuantFusion() {
         std::vector<float> mul_scales;
         if (auto mul_node = ov::as_type_ptr<ov::opset3::Multiply>(pattern_to_output.at(mul).get_node_shared_ptr())) {
             mul_scales = ov::as_type_ptr<ov::opset4::Constant>(mul_node->get_input_node_shared_ptr(1))->cast_vector<float>();
-
             auto expected_shape = ov::Shape({1, transpose0_in.get_shape()[2], 1, 1});
             if (mul_scales.size() != 1 && mul_node->get_input_shape(1) != expected_shape) {
                 return false;
