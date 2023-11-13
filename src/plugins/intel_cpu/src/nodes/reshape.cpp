@@ -20,7 +20,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool Reshape::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Reshape::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!std::dynamic_pointer_cast<const ov::opset1::Reshape>(op) &&
             !std::dynamic_pointer_cast<const ov::opset1::Squeeze>(op) &&
@@ -34,7 +34,7 @@ bool Reshape::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-Reshape::Reshape(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
         Node(op, context, ReshapeShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -44,7 +44,7 @@ Reshape::Reshape(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CP
     errorPrefix = std::string(op->get_type_name()) + " node with name '" + getName() + "'";
 
     if (isDynamicNode()) {
-        auto checkSecondInput = [](const std::shared_ptr<ngraph::Node>& op, const std::string opType) {
+        auto checkSecondInput = [](const std::shared_ptr<ov::Node>& op, const std::string opType) {
             if (op->get_input_partial_shape(1).is_dynamic()) {
                 OPENVINO_THROW("CPU plug-in doesn't support ", opType, " node with non static second input");
             }

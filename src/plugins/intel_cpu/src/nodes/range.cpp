@@ -15,7 +15,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool Range::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Range::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(), ngraph::op::v0::Range::get_type_info_static(), ngraph::op::v4::Range::get_type_info_static())) {
             errorMessage = "Only opset1 and opset4 Range operation is supported";
@@ -27,7 +27,7 @@ bool Range::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, 
     return true;
 }
 
-Range::Range(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+Range::Range(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -40,15 +40,15 @@ Range::Range(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr c
         OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
 
     SizeVector start_dims = op->get_input_shape(RANGE_START);
-    if (ngraph::shape_size(start_dims) != 1)
+    if (ov::shape_size(start_dims) != 1)
         OPENVINO_THROW(errorPrefix, " has start scalar with more than 1 value");
 
     SizeVector limit_dims = op->get_input_shape(RANGE_LIMIT);
-    if (ngraph::shape_size(limit_dims) != 1)
+    if (ov::shape_size(limit_dims) != 1)
         OPENVINO_THROW(errorPrefix, " has limit scalar with more than 1 value");
 
     SizeVector delta_dims = op->get_input_shape(RANGE_DELTA);
-    if (ngraph::shape_size(delta_dims) != 1)
+    if (ov::shape_size(delta_dims) != 1)
         OPENVINO_THROW(errorPrefix, " has delta scalar with more than 1 value");
 
     size_t dstRank = op->get_output_partial_shape(0).size();

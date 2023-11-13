@@ -335,7 +335,7 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
     return true;
 }
 
-bool RNN::isCell(const std::shared_ptr<const ngraph::Node>& op) {
+bool RNN::isCell(const std::shared_ptr<const ov::Node>& op) {
     return one_of(op->get_type_info(),
             ov::op::v0::RNNCell::get_type_info_static(),
             ov::op::v3::GRUCell::get_type_info_static(),
@@ -344,7 +344,7 @@ bool RNN::isCell(const std::shared_ptr<const ngraph::Node>& op) {
             ov::op::v4::LSTMCell::get_type_info_static());
 }
 
-bool RNN::testNativeOrder(const std::shared_ptr<const ngraph::Node>& op) {
+bool RNN::testNativeOrder(const std::shared_ptr<const ov::Node>& op) {
     if (isCell(op)) {
         return true;
     }

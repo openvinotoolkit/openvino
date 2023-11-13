@@ -878,7 +878,7 @@ private:
     }
 };
 #endif
-bool BinaryConvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool BinaryConvolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -891,7 +891,7 @@ bool BinaryConvolution::isSupportedOperation(const std::shared_ptr<const ngraph:
             return false;
         }
         if (binConv->get_mode() != ngraph::op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT) {
-            errorMessage = "Doesn't support mode: " + ngraph::as_string(binConv->get_mode());
+            errorMessage = "Doesn't support mode: " + ov::as_string(binConv->get_mode());
             return false;
         }
     } catch (...) {
@@ -900,7 +900,7 @@ bool BinaryConvolution::isSupportedOperation(const std::shared_ptr<const ngraph:
     return true;
 }
 
-BinaryConvolution::BinaryConvolution(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+BinaryConvolution::BinaryConvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {

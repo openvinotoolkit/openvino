@@ -20,7 +20,7 @@ namespace node {
 static constexpr int blockSize = dnnl::impl::cpu::platform::get_cache_line_size() * 2;
 static constexpr int elementsStride = blockSize / sizeof(int);
 
-bool NonZero::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool NonZero::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (op->get_type_info() != ngraph::op::v3::NonZero::get_type_info_static()) {
             errorMessage = "Node is not an instance of NonZero from the operation set v3.";
@@ -32,7 +32,7 @@ bool NonZero::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-NonZero::NonZero(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+NonZero::NonZero(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -40,7 +40,7 @@ NonZero::NonZero(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CP
     } else {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    if (op->get_output_element_type(0) != ngraph::element::i32) {
+    if (op->get_output_element_type(0) != ov::element::i32) {
         OPENVINO_THROW(errorPrefix, "doesn't support demanded output precision");
     }
 }

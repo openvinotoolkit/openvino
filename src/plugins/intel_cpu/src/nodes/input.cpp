@@ -233,7 +233,7 @@ jit_has_subnormals_base::fn_t jit_has_subnormals_function() {
 }   // namespace
 #endif
 
-Input::Input(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, PassThroughShapeInferFactory()) {
     if (!one_of(op->get_type_info(),
             v0::Parameter::get_type_info_static(),
@@ -248,7 +248,7 @@ Input::Input(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr c
 
     constant = ConstantType::NoConst;
 
-    constOp = ngraph::as_type_ptr<ngraph::op::Constant>(op);
+    constOp = ov::as_type_ptr<ngraph::op::Constant>(op);
     if (constOp) {
         constant = ConstantType::Const;
         cloneBlobIfRequired();
@@ -256,7 +256,7 @@ Input::Input(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr c
 }
 
 void Input::cloneBlobIfRequired() {
-    Shape shape(constOp->get_shape().empty() ? ngraph::Shape(1, 1) : constOp->get_shape());
+    Shape shape(constOp->get_shape().empty() ? ov::Shape(1, 1) : constOp->get_shape());
     const auto prec = convertPrecision(constOp->get_element_type());
     const size_t size = shape.getElementsCount();
     CpuBlockedMemoryDesc memDesc(prec, shape);

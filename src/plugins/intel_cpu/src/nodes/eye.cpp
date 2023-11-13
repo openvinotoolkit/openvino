@@ -55,8 +55,8 @@ Eye::Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) 
     }
     outType = op->get_output_element_type(0);
     withBatchShape = (op->get_input_size() == 4);
-    if (!one_of(outType, ngraph::element::f32, ngraph::element::bf16,
-        ngraph::element::i32, ngraph::element::i8, ngraph::element::u8)) {
+    if (!one_of(outType, ov::element::f32, ov::element::bf16,
+        ov::element::i32, ov::element::i8, ov::element::u8)) {
         THROW_ERROR(errorPrefix, "doesn't support demanded output precision");
     }
 }

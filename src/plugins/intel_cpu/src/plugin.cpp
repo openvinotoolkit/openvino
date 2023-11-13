@@ -829,6 +829,12 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
     OPENVINO_THROW("Cannot get unsupport property: ", name);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+void Engine::add_extension(const InferenceEngine::IExtensionPtr& extension) {
+    extensionManager->AddExtension(extension);
+}
+OPENVINO_SUPPRESS_DEPRECATED_END
+
 ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& config) const {
     WeightsSharing::Ptr fake_w_cache;
 
@@ -848,7 +854,7 @@ ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& 
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, conf);
 
     auto context =
-        std::make_shared<GraphContext>(conf, nullptr, fake_w_cache, false);
+        std::make_shared<GraphContext>(conf, extensionManager, fake_w_cache, false);
 
     auto supported = ov::get_supported_nodes(
         model,

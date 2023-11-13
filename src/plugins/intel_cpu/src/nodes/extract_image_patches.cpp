@@ -277,16 +277,16 @@ private:
 };
 #endif // OPENVINO_ARCH_X86_64
 
-bool ExtractImagePatches::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool ExtractImagePatches::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto extImgPatcher = ngraph::as_type_ptr<const ngraph::opset3::ExtractImagePatches>(op);
+        auto extImgPatcher = ov::as_type_ptr<const ngraph::opset3::ExtractImagePatches>(op);
         if (!extImgPatcher) {
             errorMessage = "Only opset3 ExtractImagePatches operation is supported";
             return false;
         }
         const auto padValue = extImgPatcher->get_auto_pad();
         if (!one_of(padValue, ngraph::op::PadType::VALID, ngraph::op::PadType::SAME_LOWER, ngraph::op::PadType::SAME_UPPER)) {
-            errorMessage = "Does not support pad type: " + ngraph::as_string(padValue);
+            errorMessage = "Does not support pad type: " + ov::as_string(padValue);
             return false;
         }
         if (!everyone_is(2u, extImgPatcher->get_sizes().size(), extImgPatcher->get_strides().size(), extImgPatcher->get_rates().size())) {
@@ -333,7 +333,7 @@ bool ExtractImagePatchesKey::operator==(const ExtractImagePatchesKey& rhs) const
 }
 }  // namespace
 
-ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -341,7 +341,7 @@ ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ngraph::Node>& op
     }
 
     errorPrefix = "ExtractImagePatches layer with name '" + op->get_friendly_name() + "' ";
-    auto extImgPatcher = ngraph::as_type_ptr<const ngraph::opset3::ExtractImagePatches>(op);
+    auto extImgPatcher = ov::as_type_ptr<const ngraph::opset3::ExtractImagePatches>(op);
 
     if (inputShapes.size() != 1 || outputShapes.size() != 1)
         OPENVINO_THROW(errorPrefix,

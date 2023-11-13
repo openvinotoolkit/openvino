@@ -14,7 +14,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool ExperimentalDetectronPriorGridGenerator::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+bool ExperimentalDetectronPriorGridGenerator::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                                              std::string& errorMessage) noexcept {
     try {
         const auto priorGridGen = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronPriorGridGenerator>(op);
@@ -29,7 +29,7 @@ bool ExperimentalDetectronPriorGridGenerator::isSupportedOperation(const std::sh
 }
 
 ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator(
-    const std::shared_ptr<ngraph::Node>& op,
+    const std::shared_ptr<ov::Node>& op,
     const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;

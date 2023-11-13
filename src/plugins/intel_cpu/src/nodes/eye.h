@@ -22,7 +22,7 @@ public:
     static constexpr size_t BATCH_SHAPE = 3lu;
 
 public:
-    Eye(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -32,7 +32,7 @@ public:
     bool needShapeInfer() const override {return true;};
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     std::string errorPrefix = "";

@@ -14,9 +14,9 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool CTCLoss::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool CTCLoss::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto ctcLossOp = ngraph::as_type_ptr<const ngraph::op::v4::CTCLoss>(op);
+        const auto ctcLossOp = ov::as_type_ptr<const ngraph::op::v4::CTCLoss>(op);
         if (!ctcLossOp) {
             errorMessage = "Node is not an instance of the CTCLoss operation from operation set v4.";
             return false;
@@ -27,7 +27,7 @@ bool CTCLoss::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-CTCLoss::CTCLoss(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+CTCLoss::CTCLoss(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -39,7 +39,7 @@ CTCLoss::CTCLoss(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CP
     if (getOriginalInputsNumber() != 4 && getOriginalInputsNumber() != 5)
         OPENVINO_THROW(errorPrefix, " has invalid inputs number.");
 
-    auto ctcLossOp = ngraph::as_type_ptr<const ngraph::op::v4::CTCLoss>(op);
+    auto ctcLossOp = ov::as_type_ptr<const ngraph::op::v4::CTCLoss>(op);
     ctcMergeRepeated = ctcLossOp->get_ctc_merge_repeated();
     preprocessCollapseRepeated = ctcLossOp->get_preprocess_collapse_repeated();
     unique = ctcLossOp->get_unique();

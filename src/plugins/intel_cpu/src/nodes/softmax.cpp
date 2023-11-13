@@ -55,7 +55,7 @@ bool SoftmaxKey::operator==(const SoftmaxKey& rhs) const {
 
 }  // namespace
 
-bool SoftMax::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool SoftMax::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!std::dynamic_pointer_cast<const ngraph::opset1::Softmax>(op)) {
             errorMessage = "Only opset1 Softmax operation is supported";
@@ -67,13 +67,13 @@ bool SoftMax::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-SoftMax::SoftMax(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+SoftMax::SoftMax(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
         Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    axis = ngraph::as_type_ptr<ngraph::op::v1::Softmax>(op)->get_axis();
+    axis = ov::as_type_ptr<ngraph::op::v1::Softmax>(op)->get_axis();
 }
 
 void SoftMax::getSupportedDescriptors() {

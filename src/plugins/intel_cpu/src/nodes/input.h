@@ -15,7 +15,7 @@ namespace node {
 
 class Input : public Node {
 public:
-    Input(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
     Input(const Shape& shape,
           const InferenceEngine::Precision& prc,
           const std::string& name,

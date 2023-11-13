@@ -1663,20 +1663,20 @@ using ngInterpCoordTransf = ngraph::opset4::Interpolate::CoordinateTransformMode
 using ngInterpNearMode = ngraph::opset4::Interpolate::NearestMode;
 using ngInterpShapeCalcMode = ngraph::opset4::Interpolate::ShapeCalcMode;
 
-bool Interpolate::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Interpolate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (const auto interp = std::dynamic_pointer_cast<const ngraph::opset4::Interpolate>(op)) {
             const auto &interpAttr = interp->get_attrs();
             const auto &interpMode = interpAttr.mode;
             if (!one_of(interpMode, ngInterpMode::NEAREST, ngInterpMode::LINEAR, ngInterpMode::LINEAR_ONNX, ngInterpMode::CUBIC)) {
-                errorMessage = "Interpolate-4 does not support interpolate mode: " + ngraph::as_string(interpMode);
+                errorMessage = "Interpolate-4 does not support interpolate mode: " + ov::as_string(interpMode);
                 return false;
             }
 
             const auto &interpCoordTransMode = interpAttr.coordinate_transformation_mode;
             if (!one_of(interpCoordTransMode, ngInterpCoordTransf::HALF_PIXEL, ngInterpCoordTransf::PYTORCH_HALF_PIXEL, ngInterpCoordTransf::ASYMMETRIC,
                                               ngInterpCoordTransf::TF_HALF_PIXEL_FOR_NN, ngInterpCoordTransf::ALIGN_CORNERS)) {
-                errorMessage = "Interpolate-4 does not support coordinate transformation mode: " + ngraph::as_string(interpCoordTransMode);
+                errorMessage = "Interpolate-4 does not support coordinate transformation mode: " + ov::as_string(interpCoordTransMode);
                 return false;
             }
 
@@ -1684,14 +1684,14 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
                 const auto &interpNearestMode = interpAttr.nearest_mode;
                 if (!one_of(interpNearestMode, ngInterpNearMode::ROUND_PREFER_FLOOR, ngInterpNearMode::ROUND_PREFER_CEIL, ngInterpNearMode::FLOOR,
                                                ngInterpNearMode::CEIL, ngInterpNearMode::SIMPLE)) {
-                    errorMessage = "Interpolate-4 does not support nearest round mode: " + ngraph::as_string(interpNearestMode);
+                    errorMessage = "Interpolate-4 does not support nearest round mode: " + ov::as_string(interpNearestMode);
                     return false;
                 }
             }
 
             const auto &interpShapeCalcMode = interpAttr.shape_calculation_mode;
             if (!one_of(interpShapeCalcMode, ngInterpShapeCalcMode::SCALES, ngInterpShapeCalcMode::SIZES)) {
-                errorMessage = "Interpolate-4 does not support shape_calculation_mode: " + ngraph::as_string(interpShapeCalcMode);
+                errorMessage = "Interpolate-4 does not support shape_calculation_mode: " + ov::as_string(interpShapeCalcMode);
                 return false;
             }
 
@@ -1707,7 +1707,7 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
             }
 
             if (!isDynamicNgraphNode(op) && interpShapeCalcMode == ngInterpShapeCalcMode::SCALES &&
-                    !ngraph::is_type<ngraph::opset1::Constant>(op->get_input_node_ptr(SCALES_ID))) {
+                    !ov::is_type<ngraph::opset1::Constant>(op->get_input_node_ptr(SCALES_ID))) {
                 errorMessage = "Only const 'scales' input is supported for static shapes in Interpolate-4";
                 return false;
             }
@@ -1721,12 +1721,12 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
             const auto &interpAttr = interp->get_attrs();
             const auto &interpMode = interpAttr.mode;
             if (!one_of(interpMode, ngInterpMode::BILINEAR_PILLOW, ngInterpMode::BICUBIC_PILLOW)) {
-                errorMessage = "Interpolate-11 does not support interpolate mode: " + ngraph::as_string(interpMode);
+                errorMessage = "Interpolate-11 does not support interpolate mode: " + ov::as_string(interpMode);
                 return false;
             }
             const auto &interpShapeCalcMode = interpAttr.shape_calculation_mode;
             if (!one_of(interpShapeCalcMode, ngInterpShapeCalcMode::SCALES, ngInterpShapeCalcMode::SIZES)) {
-                errorMessage = "Interpolate-11 does not support shape_calculation_mode: " + ngraph::as_string(interpShapeCalcMode);
+                errorMessage = "Interpolate-11 does not support shape_calculation_mode: " + ov::as_string(interpShapeCalcMode);
                 return false;
             }
             const size_t dataRank = interp->get_input_partial_shape(DATA_ID).rank().get_length();
@@ -1736,7 +1736,7 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
                 return false;
             }
             if (!isDynamicNgraphNode(op) &&
-                    !ngraph::is_type<ngraph::opset1::Constant>(op->get_input_node_ptr(SIZE_OR_SCALE_ID_V11))) {
+                    !ov::is_type<ngraph::opset1::Constant>(op->get_input_node_ptr(SIZE_OR_SCALE_ID_V11))) {
                 errorMessage = "Only const 'scales_or_sizes' input is supported for static shapes in Interpolate-11";
                 return false;
             }
@@ -1762,7 +1762,7 @@ namespace {
  */
 class InterpolateShapeInferFactory : public ShapeInferFactory {
 public:
-    InterpolateShapeInferFactory(std::shared_ptr<ngraph::Node> op) : m_op(op) {}
+    InterpolateShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
     ShapeInferPtr makeShapeInfer() const override {
         IShapeInfer::port_mask_t port_mask = 0x00;
         if (auto interp4 = ov::as_type_ptr<ngraph::opset4::Interpolate>(m_op)) {
@@ -1788,11 +1788,11 @@ public:
     }
 
 private:
-    std::shared_ptr<ngraph::Node> m_op;
+    std::shared_ptr<ov::Node> m_op;
 };
 } // namespace
 
-Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, InterpolateShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
