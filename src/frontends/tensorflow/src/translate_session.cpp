@@ -119,6 +119,11 @@ void adjust_saved_model_names(ov::Output<ov::Node>& ov_output,
     // 3. set cleanup names to the tensor only if it is found in the signature
     // otherwise, the tensor corresponds to unused Parameter or Result nodes
     if (cleanup_names.size() > 0) {
+        std::cout << "cleanup_names:" << std::endl;
+        for (auto name: cleanup_names) {
+            std::cout << name << " ";
+        }
+        std::cout << std::endl;
         ov_output.set_names(cleanup_names);
     } else if (signature_passed) {
         // this is unused tensor that should be removed
@@ -554,6 +559,8 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                                                       operation_name,
                                                                       port_index,
                                                                       port_type);
+            auto tensor_names = model_output->get_names();
+            std::unordered_set<std::string> output_names(tensor_names.begin(),tensor_names.end());
 
             if (port_type == "none") {
                 for (const auto& node_output : indexed_from_named(ng_op_map[operation_name])) {
@@ -561,6 +568,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                     // to be aligned with Legacy Frontend we set a name along with output port index
                     // though, the Result name is not used in the OV API 2.0 but it is checked in MO args tests
                     result_node->set_friendly_name(model_output_name + ":0");
+                    result_node->get_output_tensor(0).set_names(output_names);
                     results.push_back(result_node);
                 }
             } else if (port_type == "out") {
@@ -570,6 +578,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                             operation_name + "node specified as custom output does not exist");
                 auto result_node = std::make_shared<ov::opset8::Result>(node_outputs[port_index]);
                 result_node->set_friendly_name(model_output_name);
+                result_node->get_output_tensor(0).set_names(output_names);
                 results.push_back(result_node);
             } else if (port_type == "in") {
                 // TODO: avoid this traversing by having a map for OpPlace objects, for example
@@ -611,6 +620,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 // of the producer to the Result node
                 // though, the Result name is not used in the OV API 2.0 but it is checked in MO args tests
                 result_node->set_friendly_name(producer_name + ":" + std::to_string(producer_port_idx));
+                result_node->get_output_tensor(0).set_names(output_names);
                 results.push_back(result_node);
             }
         }

@@ -10,6 +10,7 @@
 
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
+#include "graph_iterator_saved_model.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "openvino/util/log.hpp"
@@ -291,12 +292,17 @@ void InputModel::InputModelTFImpl::load_places() {
                             op_names_with_consumers.begin(),
                             op_names_with_consumers.end(),
                             std::inserter(op_names_without_consumers, op_names_without_consumers.begin()));
+
+        bool tf2_format = false;
+        if (std::dynamic_pointer_cast<GraphIteratorSavedModel>(m_graph_iterator)) {
+            tf2_format = true;
+        }
         for (const auto& output_name : op_names_without_consumers) {
             auto output_place = std::make_shared<TensorPlace>(m_input_model,
                                                               ov::PartialShape({}),
                                                               ov::element::dynamic,
-                                                              std::vector<std::string>{output_name});
-            m_tensor_places[output_name] = output_place;
+                                                              std::vector<std::string>{tf2_format ? output_name : output_name + ":0"});
+            m_tensor_places[tf2_format ? output_name : output_name + ":0"] = output_place;
             m_outputs.push_back(output_place);
         }
         return;
