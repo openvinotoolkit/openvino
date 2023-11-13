@@ -1447,6 +1447,7 @@ jobs:
         env:
           TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
+          USE_SYSTEM_CACHE: False
 
       - name: Available storage after tests
         run: |

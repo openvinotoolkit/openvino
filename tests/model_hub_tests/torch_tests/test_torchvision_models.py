@@ -9,6 +9,10 @@ import torchvision.transforms.functional as F
 from openvino import convert_model
 from models_hub_common.test_convert_model import TestConvertModel
 from models_hub_common.utils import get_models_list
+from torch.export import export
+from torch.fx.experimental.proxy_tensor import make_fx
+from openvino.frontend import FrontEndManager
+from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
 
 def get_all_models() -> list:
@@ -56,7 +60,8 @@ class TestTorchHubConvertModel(TestConvertModel):
     def setup_class(self):
         self.cache_dir = tempfile.TemporaryDirectory()
         # set temp dir for torch cache
-        torch.hub.set_dir(str(self.cache_dir.name))
+        if os.environ.get('USE_SYSTEM_CACHE', 'True') == 'False':
+            torch.hub.set_dir(str(self.cache_dir.name))
 
     def load_model(self, model_name, model_link):
         m = torch.hub.load("pytorch/vision", model_name,
@@ -89,7 +94,29 @@ class TestTorchHubConvertModel(TestConvertModel):
         return [i.numpy() for i in self.inputs]
 
     def convert_model(self, model_obj):
-        ov_model = convert_model(model_obj, example_input=self.example)
+        #ov_model = convert_model(model_obj, example_input=self.example)
+        em = export(model_obj, self.example)
+        mfx = make_fx(em)(*self.example)
+        mfx.eval()
+        gm = mfx
+        
+        input_shapes = []
+        input_types = []
+        for input_data in self.example:
+            input_types.append(input_data.type())
+            input_shapes.append(input_data.size())
+            
+        decoder = TorchFXPythonDecoder(gm, gm, input_shapes=input_shapes, input_types=input_types)
+        
+        fe_manager = FrontEndManager()
+        fe = fe_manager.load_by_framework("pytorch")
+        im = fe.load(decoder)
+        with torch.no_grad():
+            ov_model = fe.convert(im)
+        params = ov_model.get_parameters()
+        if params[-1].get_element_type().is_dynamic():
+            ov_model.remove_parameter(params[-1])
+        print(ov_model)
         return ov_model
 
     def infer_fw_model(self, model_obj, inputs):
