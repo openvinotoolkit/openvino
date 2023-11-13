@@ -115,7 +115,7 @@ In rare cases, converting PyTorch operations requires transformation. The main
 difference between transformation and translation is that transformation works on the graph rather
 than on the `NodeContext` of a single operation. This means that some functionality
 provided by `NodeContext` is not accessible in transformation and usually
-requires working with `PtFramworkNode` directly. [General rules](https://docs.openvino.ai/2023.1/openvino_docs_transformations.html)
+requires working with `PtFramworkNode` directly. [General rules](https://docs.openvino.ai/2023.2/openvino_docs_transformations.html)
 for writing transformations also apply to PT FE transformations.
 
 ### PyTorch Frontend Layer Tests

@@ -47,5 +47,5 @@ After the creation the proxy plugin has next properties:
  * [OpenVINO Core Components](../../README.md)
  * [OpenVINO Plugins](../README.md)
  * [Developer documentation](../../../docs/dev/index.md)
- * [OpenVINO Plugin Developer Guide](https://docs.openvino.ai/2023.1/openvino_docs_ie_plugin_dg_overview.html)
+ * [OpenVINO Plugin Developer Guide](https://docs.openvino.ai/2023.2/openvino_docs_ie_plugin_dg_overview.html)
 

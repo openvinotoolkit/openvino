@@ -3,7 +3,7 @@
 <!--- The note below is intended for master branch only for pre-release purpose. Remove it for official releases. --->
 > **NOTE**: This version is pre-release software and has not undergone full release validation or qualification. No support is offered on pre-release software and APIs/behavior are subject to change. It should NOT be incorporated into any production software/solution and instead should be used only for early testing and integration while awaiting a final release version of this software.
 
-> **NOTE**: OpenVINO™ Development Tools package has been deprecated and will be discontinued with 2024.0 release. To learn more, refer to the [OpenVINO Legacy Features and Components page](https://docs.openvino.ai/2023.1/openvino_legacy_features.html).
+> **NOTE**: OpenVINO™ Development Tools package has been deprecated and will be discontinued with 2024.0 release. To learn more, refer to the [OpenVINO Legacy Features and Components page](https://docs.openvino.ai/2023.2/openvino_legacy_features.html).
 
 Intel® Distribution of OpenVINO™ toolkit is an open-source toolkit for optimizing and deploying AI inference. It can be used to develop applications and solutions based on deep learning tasks, such as: emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, etc. It provides high-performance and rich deployment options, from edge to cloud.
 
@@ -128,7 +128,7 @@ For example, to install and configure the components for working with TensorFlow
 
 ## Troubleshooting
 
-For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](https://docs.openvino.ai/2023.1/openvino_docs_get_started_guide_troubleshooting.html). The following sections also provide explanations to several error messages.
+For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](https://docs.openvino.ai/2023.2/openvino_docs_get_started_guide_troubleshooting.html). The following sections also provide explanations to several error messages.
 
 ### Errors with Installing via PIP for Users in China
 
