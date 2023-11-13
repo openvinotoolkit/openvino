@@ -59,6 +59,7 @@ std::vector<size_t> _get_strides(const ov::op::v0::Constant& self) {
     }
 }
 
+// TODO: Remove in future and re-use `get_data`
 template <typename T>
 py::buffer_info _get_buffer_info(const ov::op::v0::Constant& c) {
     ov::Shape shape = c.get_shape();
@@ -71,6 +72,7 @@ py::buffer_info _get_buffer_info(const ov::op::v0::Constant& c) {
     );
 }
 
+// TODO: Remove in future and re-use `get_data`
 template <>
 py::buffer_info _get_buffer_info<ov::float16>(const ov::op::v0::Constant& c) {
     ov::Shape shape = c.get_shape();
@@ -160,6 +162,7 @@ void regclass_graph_op_Constant(py::module m) {
         }
     });
 
+    // TODO: Remove in future and re-use `get_data`
     // Provide buffer access
     constant.def_buffer([](const ov::op::v0::Constant& self) -> py::buffer_info {
         auto element_type = self.get_element_type();
@@ -192,6 +195,26 @@ void regclass_graph_op_Constant(py::module m) {
         }
     });
 
+    constant.def(
+        "get_data",
+        [](ov::op::v0::Constant& self) {
+            auto ov_type = self.get_element_type();
+            auto dtype = Common::ov_type_to_dtype().at(ov_type);
+            if (ov_type.bitwidth() < Common::values::min_bitwidth) {
+                return py::array(dtype, self.get_byte_size(), self.get_data_ptr());
+            }
+            return py::array(dtype, self.get_shape(), _get_strides(self), self.get_data_ptr());
+        },
+        R"(
+            Access to Constant's data - creates a copy of data.
+
+            Returns numpy array with corresponding shape and dtype.
+            For Constants with openvino specific element type, such as u1,
+            it returns linear array, with uint8 / int8 numpy dtype.
+
+            :rtype: numpy.array
+        )");
+
     constant.def_property_readonly(
         "data",
         [](ov::op::v0::Constant& self) {
@@ -203,7 +226,7 @@ void regclass_graph_op_Constant(py::module m) {
             return py::array(dtype, self.get_shape(), _get_strides(self), self.get_data_ptr(), py::cast(self));
         },
         R"(
-            Access to Constant's data.
+            Access to Constant's data - creates a view of data.
 
             Returns numpy array with corresponding shape and dtype.
             For Constants with openvino specific element type, such as u1,
