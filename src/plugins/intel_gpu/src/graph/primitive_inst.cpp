@@ -427,7 +427,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
 
     auto current_shape = actual_layout.get_shape();
-    auto& sp = get_network().get_shape_predictor();
+    auto& sp = *get_network().get_shape_predictor();
     auto dt_size = ov::element::Type(actual_layout.data_type).bitwidth();
     auto prealloc_info = sp.predict_preallocation_shape(id(), current_shape, dt_size, can_reuse_buffer);
     if (prealloc_info.first && sp.can_preallocate(ov::shape_size(prealloc_info.second) * dt_size)) {

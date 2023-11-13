@@ -37,8 +37,9 @@ struct condition_impl : typed_primitive_impl<condition> {
         set_node_params(instance.get_node());
 
         auto pred = condition_inst::get_pred_from_memory(instance.pred_memory_ptr(), instance.get_network().get_stream());
-        network::ptr executed_net = pred? instance.get_net_true() : instance.get_net_false();
-        auto branch = pred? instance.get_branch_true() : instance.get_branch_false();
+        network::ptr executed_net = pred ? instance.get_net_true() : instance.get_net_false();
+        auto branch = pred ? instance.get_branch_true() : instance.get_branch_false();
+        executed_net->set_shape_predictor(instance.get_network().get_shape_predictor());
         GPU_DEBUG_LOG << "predicate: " << (pred ? "True" : "False") << std::endl;
 
         // Set input memory of inner network before its execution
