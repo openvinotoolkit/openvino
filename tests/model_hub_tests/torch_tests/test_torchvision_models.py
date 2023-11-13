@@ -94,29 +94,7 @@ class TestTorchHubConvertModel(TestConvertModel):
         return [i.numpy() for i in self.inputs]
 
     def convert_model(self, model_obj):
-        #ov_model = convert_model(model_obj, example_input=self.example)
-        em = export(model_obj, self.example)
-        mfx = make_fx(em)(*self.example)
-        mfx.eval()
-        gm = mfx
-        
-        input_shapes = []
-        input_types = []
-        for input_data in self.example:
-            input_types.append(input_data.type())
-            input_shapes.append(input_data.size())
-            
-        decoder = TorchFXPythonDecoder(gm, gm, input_shapes=input_shapes, input_types=input_types)
-        
-        fe_manager = FrontEndManager()
-        fe = fe_manager.load_by_framework("pytorch")
-        im = fe.load(decoder)
-        with torch.no_grad():
-            ov_model = fe.convert(im)
-        params = ov_model.get_parameters()
-        if params[-1].get_element_type().is_dynamic():
-            ov_model.remove_parameter(params[-1])
-        print(ov_model)
+        ov_model = convert_model(model_obj, example_input=self.example)
         return ov_model
 
     def infer_fw_model(self, model_obj, inputs):
