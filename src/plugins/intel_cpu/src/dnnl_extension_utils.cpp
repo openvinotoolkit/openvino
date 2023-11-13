@@ -68,7 +68,7 @@ memory::data_type DnnlExtensionUtils::IEPrecisionToDataType(const InferenceEngin
         case InferenceEngine::Precision::UNSPECIFIED:
             return memory::data_type::undef;
         default: {
-            IE_THROW() << "OneDNN doesn't support " << prec.name();
+            OPENVINO_THROW("Cpu plugin doesn't support ", prec.name(), " for use with oneDNN");
         }
     }
 }
