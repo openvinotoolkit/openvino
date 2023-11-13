@@ -2,5 +2,5 @@
 # SPDX-License-Identifier: Apache-2.0
 
 telemetry_params = {
-    'TID': "G-W5E9RNLD4H"
+    'TID': "G-5ZPQ2TWGMJ"
 }
