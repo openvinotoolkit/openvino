@@ -24,7 +24,7 @@ TEST(CoreTests, ThrowOnRegisterPluginTwice) {
                     ::testing::HasSubstr("Device with \"TEST_DEVICE\"  is already registered in the OpenVINO Runtime"));
 }
 
-TEST(CoreTests, ThrowOnRegisterPluginsTwice) {
+TEST(CoreTests, NoThrowOnRegisterPluginsTwice) {
     ov::Core core;
 
     auto getPluginXml = [&]() -> std::string {
@@ -37,9 +37,7 @@ TEST(CoreTests, ThrowOnRegisterPluginsTwice) {
     };
 
     core.register_plugins(getPluginXml());
-    OV_EXPECT_THROW(core.register_plugins(getPluginXml()),
-                    ov::Exception,
-                    ::testing::HasSubstr("Device with \"TEST_DEVICE\"  is already registered in the OpenVINO Runtime"));
+    EXPECT_NO_THROW(core.register_plugins(getPluginXml()));
 }
 
 TEST(CoreTests_getPluginPath_FromXML, UseAbsPathAsIs) {
