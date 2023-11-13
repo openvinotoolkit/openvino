@@ -14,8 +14,8 @@
 #include <immintrin.h>
 #endif
 
-#include <ngraph/op/experimental_detectron_generate_proposals.hpp>
-#include "ie_parallel.hpp"
+#include "openvino/op/experimental_detectron_generate_proposals.hpp"
+#include "openvino/core/parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "experimental_detectron_generate_proposals_single_image.h"
 
@@ -274,7 +274,7 @@ void fill_output_blobs(const float* proposals, const int* roi_indices,
 bool ExperimentalDetectronGenerateProposalsSingleImage::isSupportedOperation
             (const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto proposalOp = ov::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(op);
+        const auto proposalOp = ov::as_type_ptr<const ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(op);
         if (!proposalOp) {
             errorMessage = "Node is not an instance of the Proposal from the operations set v0.";
             return false;
@@ -294,7 +294,7 @@ ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerate
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    auto proposalOp = ov::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(op);
+    auto proposalOp = ov::as_type_ptr<const ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(op);
     auto proposalAttrs = proposalOp->get_attrs();
 
     min_size_ = proposalAttrs.min_size;

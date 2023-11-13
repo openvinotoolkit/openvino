@@ -22,8 +22,7 @@
 #include "dnnl_scratch_pad.h"
 #include <openvino/itt.hpp>
 #include "utils/ngraph_utils.hpp"
-#include <ngraph/ops.hpp>
-#include <ngraph/node.hpp>
+#include "openvino/core/node.hpp"
 #include <ie_precision.hpp>
 #include <nodes/common/blocked_desc_creator.h>
 #include "cpu_types.h"

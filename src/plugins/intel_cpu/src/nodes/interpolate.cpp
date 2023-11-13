@@ -10,7 +10,7 @@
 #include <vector>
 #include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include <algorithm>
 
 #include <cpu/x64/jit_generator.hpp>
@@ -23,9 +23,9 @@
 #include "emitters/x64/jit_bf16_emitters.hpp"
 #include "emitters/x64/jit_load_store_emitters.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset4.hpp>
-#include <ngraph/opsets/opset11.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset4.hpp>
+#include <openvino/opsets/opset11.hpp>
 #include <shape_inference/static_shape.hpp>
 #include <shape_inference/shape_inference.hpp>
 #include <ie_ngraph_utils.hpp>
@@ -1658,14 +1658,14 @@ inline SizeVector to5Dim(SizeVector casesDim) {
     return dim5;
 }
 
-using ngInterpMode = ngraph::opset4::Interpolate::InterpolateMode;
-using ngInterpCoordTransf = ngraph::opset4::Interpolate::CoordinateTransformMode;
-using ngInterpNearMode = ngraph::opset4::Interpolate::NearestMode;
-using ngInterpShapeCalcMode = ngraph::opset4::Interpolate::ShapeCalcMode;
+using ngInterpMode = ov::opset4::Interpolate::InterpolateMode;
+using ngInterpCoordTransf = ov::opset4::Interpolate::CoordinateTransformMode;
+using ngInterpNearMode = ov::opset4::Interpolate::NearestMode;
+using ngInterpShapeCalcMode = ov::opset4::Interpolate::ShapeCalcMode;
 
 bool Interpolate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (const auto interp = std::dynamic_pointer_cast<const ngraph::opset4::Interpolate>(op)) {
+        if (const auto interp = std::dynamic_pointer_cast<const ov::opset4::Interpolate>(op)) {
             const auto &interpAttr = interp->get_attrs();
             const auto &interpMode = interpAttr.mode;
             if (!one_of(interpMode, ngInterpMode::NEAREST, ngInterpMode::LINEAR, ngInterpMode::LINEAR_ONNX, ngInterpMode::CUBIC)) {
@@ -1707,17 +1707,17 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
             }
 
             if (!isDynamicNgraphNode(op) && interpShapeCalcMode == ngInterpShapeCalcMode::SCALES &&
-                    !ov::is_type<ngraph::opset1::Constant>(op->get_input_node_ptr(SCALES_ID))) {
+                    !ov::is_type<ov::opset1::Constant>(op->get_input_node_ptr(SCALES_ID))) {
                 errorMessage = "Only const 'scales' input is supported for static shapes in Interpolate-4";
                 return false;
             }
 
             if (interp->get_input_size() > 3 &&
-                std::dynamic_pointer_cast<const ngraph::opset1::Constant>(interp->get_input_node_shared_ptr(AXES_ID)) == nullptr) {
+                std::dynamic_pointer_cast<const ov::opset1::Constant>(interp->get_input_node_shared_ptr(AXES_ID)) == nullptr) {
                 errorMessage = "Only const 'axes' input is supported in Interpolate-4";
                 return false;
             }
-        } else if (const auto interp = std::dynamic_pointer_cast<const ngraph::opset11::Interpolate>(op)) {
+        } else if (const auto interp = std::dynamic_pointer_cast<const ov::opset11::Interpolate>(op)) {
             const auto &interpAttr = interp->get_attrs();
             const auto &interpMode = interpAttr.mode;
             if (!one_of(interpMode, ngInterpMode::BILINEAR_PILLOW, ngInterpMode::BICUBIC_PILLOW)) {
@@ -1736,12 +1736,12 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
                 return false;
             }
             if (!isDynamicNgraphNode(op) &&
-                    !ov::is_type<ngraph::opset1::Constant>(op->get_input_node_ptr(SIZE_OR_SCALE_ID_V11))) {
+                    !ov::is_type<ov::opset1::Constant>(op->get_input_node_ptr(SIZE_OR_SCALE_ID_V11))) {
                 errorMessage = "Only const 'scales_or_sizes' input is supported for static shapes in Interpolate-11";
                 return false;
             }
             if (interp->get_input_size() > 2 &&
-                std::dynamic_pointer_cast<const ngraph::opset1::Constant>(interp->get_input_node_shared_ptr(AXES_ID_V11)) == nullptr) {
+                std::dynamic_pointer_cast<const ov::opset1::Constant>(interp->get_input_node_shared_ptr(AXES_ID_V11)) == nullptr) {
                 errorMessage = "Only const 'axes' input is supported in Interpolate-11";
                 return false;
             }
@@ -1765,7 +1765,7 @@ public:
     InterpolateShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
     ShapeInferPtr makeShapeInfer() const override {
         IShapeInfer::port_mask_t port_mask = 0x00;
-        if (auto interp4 = ov::as_type_ptr<ngraph::opset4::Interpolate>(m_op)) {
+        if (auto interp4 = ov::as_type_ptr<ov::opset4::Interpolate>(m_op)) {
             const auto &attr = interp4->get_attrs();
 
             if (attr.shape_calculation_mode == ngInterpShapeCalcMode::SCALES) {
@@ -1775,7 +1775,7 @@ public:
             } else {
                 IE_ASSERT(false) << "Unsupported interpolate shape calculation mode";
             }
-        } else if (auto interp11 = ov::as_type_ptr<ngraph::opset11::Interpolate>(m_op)) {
+        } else if (auto interp11 = ov::as_type_ptr<ov::opset11::Interpolate>(m_op)) {
             port_mask = PortMask(Interpolate::SIZE_OR_SCALE_ID_V11, Interpolate::AXES_ID_V11);
         } else {
             IE_THROW() << "Shape infer factory cannot be created for " << m_op->get_type_name() << " node with name: " << m_op->get_friendly_name()
@@ -1795,7 +1795,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Interpolate node with name '" + getName() + "'";
 
-        if (const auto interp = std::dynamic_pointer_cast<const ngraph::opset4::Interpolate>(op)) {
+        if (const auto interp = std::dynamic_pointer_cast<const ov::opset4::Interpolate>(op)) {
             is_version11 = false;
             const auto numInputs = inputShapes.size();
             if (numInputs != 3 && numInputs != 4)
@@ -1884,21 +1884,21 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
                     interpAttrs.padEnd[i] = static_cast<int>(interpAttr.pads_end[i]);
             }
 
-            const auto scalesNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(interp->get_input_node_shared_ptr(SCALES_ID));
+            const auto scalesNode = std::dynamic_pointer_cast<const ov::opset1::Constant>(interp->get_input_node_shared_ptr(SCALES_ID));
             if (scalesNode) {
                 scales = scalesNode->cast_vector<float>();
                 isScaleConstant = true;
             }
 
             if (isAxesSpecified) {
-                axes = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(interp->get_input_node_shared_ptr(AXES_ID))->cast_vector<int>();
+                axes = std::dynamic_pointer_cast<const ov::opset1::Constant>(interp->get_input_node_shared_ptr(AXES_ID))->cast_vector<int>();
             } else {
                 axes.resize(dataRank);
                 for (int i = 0; i < static_cast<int>(dataRank); i++) {
                     axes[i] = i;
                 }
             }
-        } else if (const auto interp = std::dynamic_pointer_cast<const ngraph::opset11::Interpolate>(op)) {
+        } else if (const auto interp = std::dynamic_pointer_cast<const ov::opset11::Interpolate>(op)) {
             is_version11 = true;
             const auto numInputs = inputShapes.size();
             if (numInputs != 2 && numInputs != 3)
@@ -1927,7 +1927,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             const auto &interpShapeCalcMode = interpAttr.shape_calculation_mode;
             if (interpShapeCalcMode == ngInterpShapeCalcMode::SCALES) {
                 shapeCalcMode = InterpolateShapeCalcMode::scales;
-                const auto scalesNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(interp->get_input_node_shared_ptr(SIZE_OR_SCALE_ID_V11));
+                const auto scalesNode = std::dynamic_pointer_cast<const ov::opset1::Constant>(interp->get_input_node_shared_ptr(SIZE_OR_SCALE_ID_V11));
                 if (scalesNode) {
                     scales = scalesNode->cast_vector<float>();
                     isScaleConstant = true;
@@ -1955,7 +1955,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             }
 
             if (isAxesSpecified) {
-                axes = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(interp->get_input_node_shared_ptr(AXES_ID_V11))->cast_vector<int>();
+                axes = std::dynamic_pointer_cast<const ov::opset1::Constant>(interp->get_input_node_shared_ptr(AXES_ID_V11))->cast_vector<int>();
                 if (dataRank == 4 && axes.size() == 2 && axes[0] == 1 && axes[1] == 2 && mayiuse(cpu::x64::sse41)) {
                     NCHWAsNHWC = true;
                     axes[0] = 2;

@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 
 /*
  * Description:

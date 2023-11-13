@@ -5,7 +5,7 @@
 #include "fused_mul_add.hpp"
 
 #include "snippets/itt.hpp"
-#include "ngraph/op/util/elementwise_args.hpp"
+#include "openvino/op/util/elementwise_args.hpp"
 
 #include <ngraph/runtime/host_tensor.hpp>
 

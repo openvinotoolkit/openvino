@@ -3,7 +3,7 @@
 //
 
 #include "ref_opt_transpose.hpp"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 
 namespace ov {
 namespace intel_cpu {

@@ -4,8 +4,8 @@
 
 #include <string>
 
-#include <ngraph/opsets/opset1.hpp>
-#include "ie_parallel.hpp"
+#include <openvino/opsets/opset1.hpp>
+#include "openvino/core/parallel.hpp"
 #include "grn.h"
 
 using namespace InferenceEngine;
@@ -16,7 +16,7 @@ namespace node {
 
 bool GRN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto grn = std::dynamic_pointer_cast<const ngraph::opset1::GRN>(op);
+        const auto grn = std::dynamic_pointer_cast<const ov::opset1::GRN>(op);
         if (!grn) {
             errorMessage = "Only opset1 GRN operation is supported";
             return false;
@@ -35,7 +35,7 @@ GRN::GRN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     }
 
     errorPrefix = "GRN layer with name '" + op->get_friendly_name() + "'";
-    const auto grn = std::dynamic_pointer_cast<const ngraph::opset1::GRN>(op);
+    const auto grn = std::dynamic_pointer_cast<const ov::opset1::GRN>(op);
     if (grn == nullptr)
         IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
             "' is not an instance of GRN from opset1.";

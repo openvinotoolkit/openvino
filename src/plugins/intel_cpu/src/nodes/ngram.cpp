@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "ngram.h"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
 #include "shape_inference/custom/ngram.hpp"

@@ -4,7 +4,7 @@
 
 #include "pad.h"
 
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "utils/bfloat16.hpp"
 #include <selective_build.h>

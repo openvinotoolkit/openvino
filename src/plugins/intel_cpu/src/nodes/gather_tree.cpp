@@ -6,8 +6,8 @@
 #include <vector>
 #include <cmath>
 
-#include <ngraph/op/gather_tree.hpp>
-#include "ie_parallel.hpp"
+#include "openvino/op/gather_tree.hpp"
+#include "openvino/core/parallel.hpp"
 #include "gather_tree.h"
 #include <utils/general_utils.h>
 
@@ -19,7 +19,7 @@ namespace node {
 
 bool GatherTree::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto gatherElementsOp = ov::as_type_ptr<const ngraph::op::v1::GatherTree>(op);
+        const auto gatherElementsOp = ov::as_type_ptr<const ov::op::v1::GatherTree>(op);
         if (!gatherElementsOp) {
             errorMessage = "Node is not an instance of the GatherTree operation from operation set v1.";
             return false;

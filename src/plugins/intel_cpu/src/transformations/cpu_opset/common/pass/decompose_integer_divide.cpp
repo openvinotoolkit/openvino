@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "decompose_integer_divide.hpp"
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include "openvino/core/rt_info.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
 DecomposeIntegerDivide::DecomposeIntegerDivide() {
-    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(ov::pass::pattern::wrap_type<ngraph::opset1::Divide>(), "DecomposeIntegerDivide"),
+    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(ov::pass::pattern::wrap_type<ov::opset1::Divide>(), "DecomposeIntegerDivide"),
          [](ov::pass::pattern::Matcher& m) {
-             auto divide = std::dynamic_pointer_cast<ngraph::opset1::Divide>(m.get_match_root());
+             auto divide = std::dynamic_pointer_cast<ov::opset1::Divide>(m.get_match_root());
              if (!divide) {
                  return false;
              }
@@ -19,8 +19,8 @@ DecomposeIntegerDivide::DecomposeIntegerDivide() {
                  return false;
              }
 
-             auto new_divide = std::make_shared<ngraph::opset1::Divide>(divide->input_value(0), divide->input_value(1));
-             auto new_floor = std::make_shared<ngraph::opset1::Floor>(new_divide);
+             auto new_divide = std::make_shared<ov::opset1::Divide>(divide->input_value(0), divide->input_value(1));
+             auto new_floor = std::make_shared<ov::opset1::Floor>(new_divide);
              new_floor->set_friendly_name(divide->get_friendly_name());
              ov::copy_runtime_info(divide, new_floor);
              ov::replace_node(divide, new_floor);

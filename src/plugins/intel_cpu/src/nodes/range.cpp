@@ -3,8 +3,8 @@
 //
 
 #include <string>
-#include <ngraph/opsets/opset1.hpp>
-#include "ie_parallel.hpp"
+#include <openvino/opsets/opset1.hpp>
+#include "openvino/core/parallel.hpp"
 #include "range.h"
 #include <utils/general_utils.h>
 #include <shape_inference/shape_inference_internal_dyn.hpp>
@@ -17,7 +17,7 @@ namespace node {
 
 bool Range::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(), ngraph::op::v0::Range::get_type_info_static(), ngraph::op::v4::Range::get_type_info_static())) {
+        if (!one_of(op->get_type_info(), ov::op::v0::Range::get_type_info_static(), ov::op::v4::Range::get_type_info_static())) {
             errorMessage = "Only opset1 and opset4 Range operation is supported";
             return false;
         }

@@ -13,7 +13,7 @@
 #include <onednn/iml_type_mapper.h>
 #include <edge.h>
 #include <cpu_memory.h>
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "conv.h"
 #include "fake_quantize.h"
 #include "pooling.h"
@@ -39,7 +39,7 @@ bool Concat::isExecutable() const {
 
 bool Concat::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto concatOp = ov::as_type_ptr<const ngraph::op::v0::Concat>(op);
+        const auto concatOp = ov::as_type_ptr<const ov::op::v0::Concat>(op);
         if (!concatOp) {
             errorMessage = "Node is not an instance of the Concat operation.";
             return false;
@@ -58,7 +58,7 @@ Concat::Concat(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
     }
 
     const auto inRank = getInputShapeAtPort(0).getRank();
-    auto concatOp = ov::as_type_ptr<ngraph::op::v0::Concat>(op);
+    auto concatOp = ov::as_type_ptr<ov::op::v0::Concat>(op);
     auto axis = concatOp->get_axis();
     if (axis < 0) {
         axis += inRank;

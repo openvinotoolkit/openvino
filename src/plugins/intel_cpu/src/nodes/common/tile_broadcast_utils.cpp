@@ -6,7 +6,7 @@
 
 #include "cpu_convert.h"
 #include "cpu_memcpy.h"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 

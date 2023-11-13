@@ -9,8 +9,7 @@
 #include "exec_graph_info.hpp"
 #include "ie_common.h"
 #include <dnnl_debug.h>
-#include "ngraph/ngraph.hpp"
-#include <ngraph/pass/manager.hpp>
+#include <openvino/pass/manager.hpp>
 #include <openvino/pass/serialize.hpp>
 
 #include <vector>
@@ -165,11 +164,11 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph) {
         std::shared_ptr<ov::Node> return_node;
         if (is_input) {
             auto& desc = node->getChildEdgeAt(0)->getMemory().getDesc();
-            auto param = std::make_shared<ngraph::op::Parameter>(details::convertPrecision(desc.getPrecision()), desc.getShape().toPartialShape());
+            auto param = std::make_shared<ov::op::v0::Parameter>(details::convertPrecision(desc.getPrecision()), desc.getShape().toPartialShape());
             return_node = param;
             params.push_back(param);
         } else if (is_output) {
-            results.emplace_back(std::make_shared<ngraph::op::Result>(get_inputs(node).back()));
+            results.emplace_back(std::make_shared<ov::op::v0::Result>(get_inputs(node).back()));
             return_node = results.back();
         } else {
             return_node = std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(

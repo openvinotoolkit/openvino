@@ -8,8 +8,8 @@
 #include <vector>
 #include <utility>
 #include <ie_common.h>
-#include <ngraph/partial_shape.hpp>
 #include "cpu_types.h"
+#include "openvino/core/partial_shape.hpp"
 
 namespace ov {
 namespace intel_cpu {

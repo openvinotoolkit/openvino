@@ -8,7 +8,7 @@
 #include <node.h>
 #include "proposal_imp.hpp"
 
-using proposal_conf = InferenceEngine::Extensions::Cpu::proposal_conf;
+using proposal_conf = ov::Extensions::Cpu::proposal_conf;
 
 namespace ov {
 namespace intel_cpu {

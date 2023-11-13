@@ -12,7 +12,7 @@
 #include <common/primitive_hashing_utils.hpp>
 
 #include "rdft.h"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "ie_precision.hpp"
 
 #include "utils/general_utils.h"

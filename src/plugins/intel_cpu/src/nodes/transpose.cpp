@@ -3,7 +3,7 @@
 //
 
 #include "transpose.h"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "nodes/common/reorder_prim.h"
 
 #include <algorithm>

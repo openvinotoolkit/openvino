@@ -6,7 +6,7 @@
 #include <vector>
 #include <string>
 #include "embedding_bag_packed_sum.h"
-#include <ngraph/opsets/opset3.hpp>
+#include <openvino/opsets/opset3.hpp>
 
 using namespace InferenceEngine;
 
@@ -16,7 +16,7 @@ namespace node {
 
 bool EmbeddingBagPackedSum::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto embBagPackedSumOp = ov::as_type_ptr<const ngraph::op::v3::EmbeddingBagPackedSum>(op);
+        const auto embBagPackedSumOp = ov::as_type_ptr<const ov::op::v3::EmbeddingBagPackedSum>(op);
         if (!embBagPackedSumOp) {
             errorMessage = "Node is not an instance of the EmbeddingBagPackedSum operation from opset v3.";
             return false;

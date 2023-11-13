@@ -4,7 +4,7 @@
 
 #include "space_to_batch.h"
 
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include <openvino/op/space_to_batch.hpp>
 
 using namespace InferenceEngine;

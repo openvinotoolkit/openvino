@@ -9,7 +9,7 @@
 #include <openvino/op/i420_to_rgb.hpp>
 #include <openvino/op/i420_to_bgr.hpp>
 #include <openvino/core/type.hpp>
-#include <ie/ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 #include "kernels/x64/jit_kernel.hpp"
 #include "shape_inference/custom/color_convert.hpp"
 

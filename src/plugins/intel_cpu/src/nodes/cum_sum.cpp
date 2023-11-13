@@ -5,9 +5,9 @@
 #include <string>
 #include <vector>
 
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset3.hpp>
-#include "ie_parallel.hpp"
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset3.hpp>
+#include "openvino/core/parallel.hpp"
 #include "ie_precision.hpp"
 #include <ie_ngraph_utils.hpp>
 #include "cum_sum.h"
@@ -22,7 +22,7 @@ namespace node {
 
 bool CumSum::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto cumsum = std::dynamic_pointer_cast<const ngraph::opset3::CumSum>(op);
+        const auto cumsum = std::dynamic_pointer_cast<const ov::opset3::CumSum>(op);
         if (!cumsum) {
             errorMessage = "Only opset3 CumSum operation is supported";
             return false;
@@ -50,7 +50,7 @@ CumSum::CumSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
         IE_THROW() << errorPrefix << " doesn't support 'data' input tensor with rank: " << numOfDims;
     }
 
-    const auto cumsum = std::dynamic_pointer_cast<const ngraph::opset3::CumSum>(op);
+    const auto cumsum = std::dynamic_pointer_cast<const ov::opset3::CumSum>(op);
     if (cumsum == nullptr)
         IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
             "' is not an instance of CumSum from opset3.";

@@ -3,7 +3,7 @@
 //
 
 #include <vector>
-#include <ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 #include "transpose.hpp"
 
 namespace ov {

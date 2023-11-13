@@ -12,7 +12,7 @@
 #include <cpu/ref_depthwise_injector.hpp>
 #include "utils/bfloat16.hpp"
 #include "utils/cpu_utils.hpp"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 
 namespace ov {
 namespace intel_cpu {

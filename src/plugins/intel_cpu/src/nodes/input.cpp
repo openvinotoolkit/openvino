@@ -11,10 +11,8 @@
 #include <algorithm>
 #include <cmath>
 #include <utils/general_utils.h>
-#include <ngraph/ops.hpp>
-#include <ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 #include <ie_ngraph_utils.hpp>
-#include <blob_factory.hpp>
 #include "caseless.hpp"
 #include "common/cpu_memcpy.h"
 #include "common/cpu_convert.h"
@@ -26,7 +24,7 @@
 using namespace dnnl;
 using namespace InferenceEngine;
 using namespace details;
-using namespace ngraph::op;
+using namespace ov::op;
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
@@ -245,7 +243,7 @@ Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr conte
 
     constant = ConstantType::NoConst;
 
-    constOp = ov::as_type_ptr<ngraph::op::Constant>(op);
+    constOp = ov::as_type_ptr<ov::op::v0::Constant>(op);
     if (constOp) {
         constant = ConstantType::Const;
         cloneBlobIfRequired();

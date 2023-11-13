@@ -5,9 +5,9 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "gather_elements.h"
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <precision_utils.h>
 #include <utils/general_utils.h>
 #include "common/cpu_memcpy.h"

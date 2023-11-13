@@ -13,13 +13,13 @@
 #include <vector>
 #include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "cpu/x64/jit_generator.hpp"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "utils/general_utils.h"
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include "utils/cpu_utils.hpp"
 
 // WA for xbyak.h
@@ -885,12 +885,12 @@ bool BinaryConvolution::isSupportedOperation(const std::shared_ptr<const ov::Nod
             return false;
         }
 
-        const auto binConv = std::dynamic_pointer_cast<const ngraph::opset1::BinaryConvolution>(op);
+        const auto binConv = std::dynamic_pointer_cast<const ov::opset1::BinaryConvolution>(op);
         if (!binConv) {
             errorMessage = "Only opset1 BinaryConvolution operation is supported";
             return false;
         }
-        if (binConv->get_mode() != ngraph::op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT) {
+        if (binConv->get_mode() != ov::op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT) {
             errorMessage = "Doesn't support mode: " + ov::as_string(binConv->get_mode());
             return false;
         }
@@ -905,7 +905,7 @@ BinaryConvolution::BinaryConvolution(const std::shared_ptr<ov::Node>& op, const 
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "BinaryConvolution node with name '" + getName() + "' ";
-        const auto binConv = std::dynamic_pointer_cast<const ngraph::opset1::BinaryConvolution>(op);
+        const auto binConv = std::dynamic_pointer_cast<const ov::opset1::BinaryConvolution>(op);
 
         pad_value = binConv->get_pad_value();
         for (size_t i = 0; i < binConv->get_strides().size(); i++) {

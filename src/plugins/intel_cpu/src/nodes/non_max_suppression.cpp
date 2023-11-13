@@ -9,7 +9,7 @@
 
 #include "non_max_suppression.h"
 
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "utils/general_utils.h"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "openvino/op/nms_rotated.hpp"

@@ -22,9 +22,9 @@ namespace node {
 std::mutex MemoryNodeVirtualEdge::holderMutex;
 
 MemoryNode::MemoryNode(const std::shared_ptr<ov::Node>& op) {
-    if (auto assignOp = std::dynamic_pointer_cast<ngraph::op::AssignBase>(op)) {
+    if (auto assignOp = std::dynamic_pointer_cast<ov::op::util::AssignBase>(op)) {
         _id = assignOp->get_variable_id();
-    } else if (auto readValueOp = std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(op)) {
+    } else if (auto readValueOp = std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(op)) {
         _id = readValueOp->get_variable_id();
     }
 }
@@ -37,8 +37,8 @@ bool MemoryOutput::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
         }
 
         if (!one_of(op->get_type_info(),
-                ngraph::op::v3::Assign::get_type_info_static(),
-                ngraph::op::v6::Assign::get_type_info_static())) {
+                ov::op::v3::Assign::get_type_info_static(),
+                ov::op::v6::Assign::get_type_info_static())) {
             errorMessage = "Node is not an instance of Assign from the operation set v3 or v6.";
             return false;
         }
@@ -94,8 +94,8 @@ bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
         }
 
         if (!one_of(op->get_type_info(),
-                ngraph::op::v3::ReadValue::get_type_info_static(),
-                ngraph::op::v6::ReadValue::get_type_info_static())) {
+                ov::op::v3::ReadValue::get_type_info_static(),
+                ov::op::v6::ReadValue::get_type_info_static())) {
             errorMessage = "Node is not an instance of ReadValue from the operation set v3 or v6.";
             return false;
         }

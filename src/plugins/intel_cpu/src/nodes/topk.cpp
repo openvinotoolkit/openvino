@@ -10,8 +10,7 @@
 #include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
 #include "emitters/x64/jit_load_store_emitters.hpp"
-#include "ie_parallel.hpp"
-#include <ngraph/op/topk.hpp>
+#include "openvino/core/parallel.hpp"
 #include <ie_ngraph_utils.hpp>
 #include <algorithm>
 
@@ -19,7 +18,8 @@
 #include <cpu/x64/jit_uni_eltwise.hpp>
 #include "common/cpu_memcpy.h"
 
-#include <ngraph/opsets/opset1.hpp>
+#include "openvino/op/topk.hpp"
+#include "openvino/opsets/opset1.hpp"
 
 using namespace dnnl;
 using namespace InferenceEngine;

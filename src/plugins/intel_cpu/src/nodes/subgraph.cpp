@@ -4,7 +4,7 @@
 
 #include "subgraph.h"
 
-#include <ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 
 #include <vector>
 #include <algorithm>
@@ -13,7 +13,8 @@
 #include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
 
-#include <ngraph/rt_info.hpp>
+#include "openvino/pass/visualize_tree.hpp"
+#include "openvino/core/rt_info.hpp"
 #include <ie_ngraph_utils.hpp>
 
 #include <snippets/op/subgraph.hpp>

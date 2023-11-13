@@ -7,8 +7,8 @@
 #include <mutex>
 
 #include <onednn/dnnl.h>
-#include <ngraph/op/detection_output.hpp>
-#include "ie_parallel.hpp"
+#include "openvino/op/detection_output.hpp"
+#include "openvino/core/parallel.hpp"
 #include "detection_output.h"
 
 using namespace dnnl;

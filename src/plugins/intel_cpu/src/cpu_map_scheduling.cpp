@@ -5,7 +5,7 @@
 #include "cpu_map_scheduling.hpp"
 
 #include "cpu_streams_calculation.hpp"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "ie_system_conf.h"
 
 namespace ov {

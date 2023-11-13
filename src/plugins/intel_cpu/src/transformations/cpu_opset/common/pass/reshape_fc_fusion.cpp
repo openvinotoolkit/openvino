@@ -5,16 +5,16 @@
 #include "reshape_fc_fusion.hpp"
 #include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include <numeric>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/pattern/op/or.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include "openvino/core/rt_info.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 
 #include "itt.hpp"
 
 ov::intel_cpu::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
     MATCHER_SCOPE(ReshapeFullyConnectedFusion);
-    auto m_reshape = ov::pass::pattern::wrap_type<ngraph::opset1::Reshape>({ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()),
+    auto m_reshape = ov::pass::pattern::wrap_type<ov::opset1::Reshape>({ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape()),
                                                                           ov::pass::pattern::any_input()},
                                                                          ov::pass::pattern::has_static_shape());
     ov::OutputVector fcInputs = {m_reshape, ov::pass::pattern::any_input()};
@@ -24,7 +24,7 @@ ov::intel_cpu::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
         auto fc = std::dynamic_pointer_cast<ov::intel_cpu::FullyConnectedNode>(m.get_match_root());
         if (!fc)
             return false;
-        auto reshape = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(fc->get_input_node_shared_ptr(0));
+        auto reshape = std::dynamic_pointer_cast<ov::opset1::Reshape>(fc->get_input_node_shared_ptr(0));
         if (!reshape)
             return false;
 
@@ -54,8 +54,8 @@ ov::intel_cpu::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
         }
 
         if (newWeightsShape != weightInput.get_shape()) {
-            auto newShape = std::make_shared<ngraph::opset1::Constant>(ov::element::i64, ov::Shape{newWeightsShape.size()}, newWeightsShape);
-            weightInput = std::make_shared<ngraph::opset1::Reshape>(weightInput, newShape, true);
+            auto newShape = std::make_shared<ov::opset1::Constant>(ov::element::i64, ov::Shape{newWeightsShape.size()}, newWeightsShape);
+            weightInput = std::make_shared<ov::opset1::Reshape>(weightInput, newShape, true);
             new_ops.push_back(weightInput.get_node_shared_ptr());
         }
 
