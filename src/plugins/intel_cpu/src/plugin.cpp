@@ -25,7 +25,6 @@
 #include "transformations/transformation_pipeline.h"
 #include "transformations/utils/utils.hpp"
 #include "utils/denormals.hpp"
-#include "cpu_map_scheduling.hpp"
 #include "weights_cache.hpp"
 
 #if defined(__linux__)
