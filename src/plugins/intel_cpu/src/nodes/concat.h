@@ -16,9 +16,9 @@ namespace node {
 
 class Concat : public Node {
 public:
-    Concat(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Concat(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void initOptimalPrimitiveDescriptor() override;
@@ -40,7 +40,7 @@ private:
     bool canBeInPlace = false;
     bool canOptimizeNspc = false;
     void execRef();
-    size_t inverseOrder(const InferenceEngine::SizeVector& order, size_t axis);
+    size_t inverseOrder(const VectorDims& order, size_t axis);
     void execNspcSpecCase();
     std::vector<VectorDims> inputStrides;
     std::vector<size_t> nelemToCopy; // byte moved in each iter

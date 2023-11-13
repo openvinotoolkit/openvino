@@ -18,9 +18,9 @@ namespace node {
 
 class Transpose : public Node {
 public:
-    Transpose(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Transpose(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
@@ -30,7 +30,7 @@ public:
         return false;
     }
 
-    const InferenceEngine::SizeVector& getOrder() const {
+    const VectorDims& getOrder() const {
         return order;
     }
 
@@ -49,7 +49,7 @@ protected:
 private:
     TransposeExecutorPtr execPtr = nullptr;
     dnnl::primitive prim;
-    InferenceEngine::SizeVector order;
+    VectorDims order;
     InferenceEngine::Precision prec;
 
     TransposeParams transposeParams;

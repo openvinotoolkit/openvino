@@ -98,7 +98,7 @@ bool FCKey::operator==(const FCKey &rhs) const {
 
 } // namespace
 
-bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto fc = std::dynamic_pointer_cast<const FullyConnectedNode>(op);
         if (!fc) {
@@ -126,7 +126,7 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ngraph::No
     return true;
 }
 
-FullyConnected::FullyConnected(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, FCShapeInferFactory(op)), withBiases(false) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage))

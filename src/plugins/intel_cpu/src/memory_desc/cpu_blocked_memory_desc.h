@@ -84,7 +84,7 @@ private:
     size_t getElementOffset(size_t elemNumber) const override;
     bool canComputeMemSizeZeroDims() const override;
     size_t getCurrentMemSizeImp() const override;
-    size_t getOffset(const InferenceEngine::SizeVector& v) const;
+    size_t getOffset(const VectorDims& v) const;
     bool isPlainFormat() const;
     bool isBlockedCFormat(size_t blk_size) const;
     bool isTailCFormat() const;

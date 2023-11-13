@@ -19,9 +19,9 @@ class Eltwise;
 
 class Convolution : public Node {
 public:
-    Convolution(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
@@ -55,7 +55,7 @@ public:
     std::vector<int32_t> inputZeroPoints;
     void initializeInputZeroPoints(const uint8_t* inputZpData, const size_t inputZpSize);
 
-    const InferenceEngine::SizeVector &getWeightDims() { return weightDims; }
+    const VectorDims &getWeightDims() { return weightDims; }
     const std::vector<size_t> &getStride() { return stride; }
     const std::vector<ptrdiff_t> &getDilation() { return dilation; }
     const std::vector<ptrdiff_t> &getPaddingL() { return paddingL; }
@@ -142,7 +142,7 @@ private:
     std::vector<ptrdiff_t> dilation;
     std::vector<ptrdiff_t> paddingL;
     std::vector<ptrdiff_t> paddingR;
-    InferenceEngine::SizeVector weightDims;
+    VectorDims weightDims;
     std::unordered_map<int, MemoryPtr> convPostOpsArgs[2];
 
     size_t dw_conv_oc;

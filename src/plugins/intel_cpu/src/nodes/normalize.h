@@ -78,9 +78,9 @@ struct jit_uni_normalize_kernel {
 #endif
 class NormalizeL2 : public Node {
 public:
-    NormalizeL2(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    NormalizeL2(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;

@@ -1768,40 +1768,40 @@ private:
 
 #endif // OPENVINO_ARCH_X86_64
 
-const std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>& op, Reduce& node)>>& Reduce::getInitializers() {
-    static const std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, Reduce&)>> initializers = {
-        {ngraph::opset4::ReduceL1::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+const std::map<const ov::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ov::Node>& op, Reduce& node)>>& Reduce::getInitializers() {
+    static const std::map<const ov::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ov::Node>&, Reduce&)>> initializers = {
+        {ngraph::opset4::ReduceL1::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
             node.algorithm = Algorithm::ReduceL1;
         }},
-        {ngraph::opset4::ReduceL2::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+        {ngraph::opset4::ReduceL2::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
             node.algorithm = Algorithm::ReduceL2;
         }},
-        {ngraph::opset1::ReduceLogicalAnd::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+        {ngraph::opset1::ReduceLogicalAnd::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
             node.algorithm = Algorithm::ReduceAnd;
         }},
-        {ngraph::opset1::ReduceLogicalOr::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+        {ngraph::opset1::ReduceLogicalOr::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
             node.algorithm = Algorithm::ReduceOr;
         }},
-        {ngraph::opset1::ReduceMax::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+        {ngraph::opset1::ReduceMax::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
             node.algorithm = Algorithm::ReduceMax;
         }},
-        {ngraph::opset1::ReduceMean::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+        {ngraph::opset1::ReduceMean::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
             node.algorithm = Algorithm::ReduceMean;
         }},
-        {ngraph::opset1::ReduceMin::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+        {ngraph::opset1::ReduceMin::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
             node.algorithm = Algorithm::ReduceMin;
         }},
-        {ngraph::opset1::ReduceProd::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+        {ngraph::opset1::ReduceProd::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
             node.algorithm = Algorithm::ReduceProd;
         }},
-        {ngraph::opset1::ReduceSum::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Reduce& node) {
+        {ngraph::opset1::ReduceSum::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
             node.algorithm = Algorithm::ReduceSum;
         }}
     };
     return initializers;
 }
 
-bool Reduce::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Reduce::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (std::dynamic_pointer_cast<const ngraph::op::util::ArithmeticReductionKeepDims>(op) == nullptr &&
                 std::dynamic_pointer_cast<const ngraph::op::util::LogicalReductionKeepDims>(op) == nullptr) {
@@ -1836,7 +1836,7 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-Reduce::Reduce(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+Reduce::Reduce(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, NgraphShapeInferFactory(op, PortMask(REDUCE_INDEXES))) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {

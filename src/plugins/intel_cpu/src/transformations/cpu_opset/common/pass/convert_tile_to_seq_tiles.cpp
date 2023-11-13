@@ -16,10 +16,10 @@
 
 ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
     MATCHER_SCOPE(ConvertTileToSeqTiles);
-    auto tile = ngraph::pattern::wrap_type<ngraph::opset1::Tile>({ngraph::pattern::any_input(ngraph::pattern::has_static_rank()),
-                                                                  ngraph::pattern::wrap_type<ngraph::opset1::Constant>()});
+    auto tile = ov::pass::pattern::wrap_type<ngraph::opset1::Tile>({ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
+                                                                  ov::pass::pattern::wrap_type<ngraph::opset1::Constant>()});
 
-    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto tile = std::dynamic_pointer_cast<ngraph::opset1::Tile>(m.get_match_root());
         if (!tile) {
             return false;
@@ -51,7 +51,7 @@ ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
                     return false;
                 }
             }
-            ngraph::replace_node(tile, {last_node});
+            ov::replace_node(tile, {last_node});
             return true;
         }
 
@@ -65,7 +65,7 @@ ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
             friendly_name += ":";
         }
 
-        ngraph::NodeVector new_ops;
+        ov::NodeVector new_ops;
 
         auto tiles_it = tiles.rbegin();
         while (tiles_it != tiles.rend()) {
@@ -73,7 +73,7 @@ ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
             if (tile_dim != 1) {
                 std::vector<int64_t> dims(input_shape_rank, 1);
                 dims[cur_dim_id] = tile_dim;
-                auto const_node = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{input_shape_rank}, dims);
+                auto const_node = std::make_shared<ngraph::opset1::Constant>(ov::element::i64, ov::Shape{input_shape_rank}, dims);
                 auto new_tile = std::make_shared<ngraph::opset1::Tile>(last_node, const_node);
                 new_tile->set_friendly_name(friendly_name);
                 friendly_name += "_" + std::to_string(cur_dim_id);
@@ -86,11 +86,11 @@ ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
         }
 
         last_node.get_node_shared_ptr()->set_friendly_name(tile->get_friendly_name());
-        ngraph::copy_runtime_info(tile, new_ops);
-        ngraph::replace_node(tile, {last_node});
+        ov::copy_runtime_info(tile, new_ops);
+        ov::replace_node(tile, {last_node});
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(tile, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(tile, matcher_name);
     this->register_matcher(m, callback);
 }

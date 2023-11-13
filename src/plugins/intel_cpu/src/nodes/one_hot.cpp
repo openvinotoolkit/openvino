@@ -20,7 +20,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool OneHot::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool OneHot::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto oneHot = std::dynamic_pointer_cast<const ngraph::opset1::OneHot>(op);
         if (!oneHot) {
@@ -41,7 +41,7 @@ bool OneHot::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-OneHot::OneHot(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+OneHot::OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, OneHotShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -57,11 +57,11 @@ OneHot::OneHot(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
     axis = oneHot->get_axis();
 
     VectorDims srcDims = getInputShapeAtPort(INDICES_ID).getDims();
-    if (ngraph::is_scalar(srcDims)) {
+    if (ov::is_scalar(srcDims)) {
         srcDims = SizeVector{1};
     }
     VectorDims dstDims = getOutputShapeAtPort(0).getDims();
-    if (ngraph::is_scalar(dstDims)) {
+    if (ov::is_scalar(dstDims)) {
         dstDims = SizeVector{1};
     }
 

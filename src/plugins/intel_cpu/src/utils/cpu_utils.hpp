@@ -37,7 +37,7 @@ struct is_any_of<T, U, Rest...>
 * rank of resulting shape
 * @return normalized vector
 */
-inline std::vector<size_t> getNormalizedDimsBySize(const InferenceEngine::SizeVector &dims, size_t ndims) {
+inline std::vector<size_t> getNormalizedDimsBySize(const VectorDims &dims, size_t ndims) {
     if (dims.size() >= ndims)
         return dims;
 
@@ -58,8 +58,8 @@ inline std::vector<size_t> getNormalizedDimsBySize(const InferenceEngine::SizeVe
 * flag which specify how we compare C dims if value is undefined (weak or strong)
 * @return true if broadcastable, false otherwise.
 */
-inline bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVector &firstInputDims,
-                                                 const InferenceEngine::SizeVector& secondInputDims,
+inline bool isPerTensorOrPerChannelBroadcastable(const VectorDims &firstInputDims,
+                                                 const VectorDims& secondInputDims,
                                                  int channelAxis,
                                                  bool weakComparison = false) {
     bool (*dimsEqual)(size_t, size_t) = weakComparison ? static_cast<bool (*)(size_t, size_t)>(dimsEqualWeak) :

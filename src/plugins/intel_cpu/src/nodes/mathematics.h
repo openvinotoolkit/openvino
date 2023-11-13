@@ -13,7 +13,7 @@ namespace node {
 
 class Math : public Node {
 public:
-    Math(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Math(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -23,10 +23,10 @@ public:
     bool needPrepareParams() const override { return false; };
     void executeDynamicImpl(dnnl::stream strm) override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, Math& node)>>& getInitializers();
+    static std::map<const ov::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ov::Node>&, Math& node)>>& getInitializers();
 
     float alpha = 0.0f;
     float beta = 0.0f;

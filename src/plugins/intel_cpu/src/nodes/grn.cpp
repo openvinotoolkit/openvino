@@ -14,7 +14,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool GRN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool GRN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto grn = std::dynamic_pointer_cast<const ngraph::opset1::GRN>(op);
         if (!grn) {
@@ -27,7 +27,7 @@ bool GRN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
     return true;
 }
 
-GRN::GRN(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+GRN::GRN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

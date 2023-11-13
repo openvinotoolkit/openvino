@@ -17,7 +17,7 @@ namespace node {
 
 class Lrn : public Node {
 public:
-    Lrn(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Lrn(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
@@ -35,7 +35,7 @@ public:
     void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     using executorPtr = std::shared_ptr<DnnlExecutor>;

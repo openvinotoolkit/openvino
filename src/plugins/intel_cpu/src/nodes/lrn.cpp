@@ -64,9 +64,9 @@ bool LrnKey::operator==(const LrnKey &rhs) const {
 }
 } // namespace
 
-bool Lrn::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Lrn::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto lrn = ngraph::as_type_ptr<const ngraph::opset1::LRN>(op);
+        auto lrn = ov::as_type_ptr<const ngraph::opset1::LRN>(op);
         if (!lrn) {
             errorMessage = "Only opset1 LRN operation is supported";
             return false;
@@ -77,7 +77,7 @@ bool Lrn::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
             errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(dataDims.size());
             return false;
         }
-        auto axesNode = ngraph::as_type_ptr<const ngraph::opset1::Constant>(lrn->get_input_node_shared_ptr(1));
+        auto axesNode = ov::as_type_ptr<const ngraph::opset1::Constant>(lrn->get_input_node_shared_ptr(1));
         if (!axesNode) {
             errorMessage = "Only Constant operation on 'axis' input is supported";
             return false;
@@ -110,14 +110,14 @@ bool Lrn::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
     return true;
 }
 
-Lrn::Lrn(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+Lrn::Lrn(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
         Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "LRN node with name '" + getName() + "'";
 
-        auto lrn = ngraph::as_type_ptr<const ngraph::opset1::LRN>(op);
-        auto axes = ngraph::as_type_ptr<const ngraph::opset1::Constant>(lrn->get_input_node_shared_ptr(1))->cast_vector<int64_t>();
+        auto lrn = ov::as_type_ptr<const ngraph::opset1::LRN>(op);
+        auto axes = ov::as_type_ptr<const ngraph::opset1::Constant>(lrn->get_input_node_shared_ptr(1))->cast_vector<int64_t>();
         bool isAcrossMaps = (axes.size() == 1 && axes[0] == 1);
         alg = isAcrossMaps ? dnnl::algorithm::lrn_across_channels : dnnl::algorithm::lrn_within_channel;
         alpha = static_cast<float>(lrn->get_alpha());

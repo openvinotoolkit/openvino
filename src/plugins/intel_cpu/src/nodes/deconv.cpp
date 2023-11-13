@@ -125,7 +125,7 @@ bool DeconvKey::operator==(const DeconvKey &rhs) const {
  */
 class DeconfolutionShapeInferFactory : public ShapeInferFactory {
 public:
-    DeconfolutionShapeInferFactory(std::shared_ptr<ngraph::Node> op) : m_op(op) {}
+    DeconfolutionShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
     ShapeInferPtr makeShapeInfer() const override {
         if (m_op->get_input_size() > 2) {
             return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), PortMask(2));
@@ -133,11 +133,11 @@ public:
         return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), EMPTY_PORT_MASK);
     }
 private:
-    std::shared_ptr<ngraph::Node> m_op;
+    std::shared_ptr<ov::Node> m_op;
 };
 } // namespace
 
-bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (std::dynamic_pointer_cast<const ngraph::opset1::ConvolutionBackpropData>(op) == nullptr &&
                 std::dynamic_pointer_cast<const ngraph::opset1::GroupConvolutionBackpropData>(op) == nullptr) {
@@ -159,7 +159,7 @@ bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
     return true;
 }
 
-Deconvolution::Deconvolution(const std::shared_ptr<ngraph::Node>& op,
+Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op,
                              const GraphContext::CPtr context) : Node(op, context, DeconfolutionShapeInferFactory(op)) {
     std::string errorMessage;
     errorPrefix = "Deconvolution node with name '" + getName() + "' ";
@@ -220,7 +220,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ngraph::Node>& op,
     externOutShape = inputShapes.size() == 3;
     biasPort = externOutShape ? 3 : 2;
     if (externOutShape && isDynamicNode()) {
-        bool isConstOutShape = ngraph::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+        bool isConstOutShape = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
         if (isConstOutShape) {
             lastOutputSpatialDims = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2))->cast_vector<int32_t>();
         }
@@ -246,7 +246,7 @@ InferenceEngine::Blob::Ptr Deconvolution::createWeiBlobAsIO(InferenceEngine::Siz
     InferenceEngine::SizeVector dimsForBlockedDesc{dims};
     std::swap(dimsForBlockedDesc[withGroups + 0], dimsForBlockedDesc[withGroups + 1]);
 
-    InferenceEngine::SizeVector orderForBlockedDesc;
+    VectorDims orderForBlockedDesc;
     if (withGroups) {
         orderForBlockedDesc = {0, 2, 1};
     } else {

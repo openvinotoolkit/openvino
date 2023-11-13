@@ -47,7 +47,7 @@ public:
 
     virtual impl_desc_type getImplType() const = 0;
 
-    static InferenceEngine::SizeVector transformTo5DCase(const InferenceEngine::SizeVector& shape, bool initAcrossChannels);
+    static VectorDims transformTo5DCase(const VectorDims& shape, bool initAcrossChannels);
 
 protected:
     MVNAttrs mvnAttrs;

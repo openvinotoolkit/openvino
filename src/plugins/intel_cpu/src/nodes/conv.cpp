@@ -211,9 +211,9 @@ private:
     std::vector<std::shared_ptr<Input>> outputs;
 };
 
-bool Convolution::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Convolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ngraph::is_type<ngraph::op::v1::Convolution>(op) && !ngraph::is_type<ngraph::op::v1::GroupConvolution>(op)) {
+        if (!ov::is_type<ngraph::op::v1::Convolution>(op) && !ov::is_type<ngraph::op::v1::GroupConvolution>(op)) {
             errorMessage = "Only opset1 Convolution and GroupConvolution operations are supported";
             return false;
         }
@@ -233,7 +233,7 @@ bool Convolution::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
     return true;
 }
 
-Convolution::Convolution(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), withBiases(false), withSum(false), withDWConv(false),
           isGrouped(false), dw_conv_oc(0), dw_conv_ih(0), dw_conv_iw(0), dw_conv_in_dt(memory::data_type::undef),
           groupNum(1lu), IC(1), groupIC(1), groupOC(1), eltwisePrecision(Precision::FP32) {
@@ -242,8 +242,8 @@ Convolution::Convolution(const std::shared_ptr<ngraph::Node>& op, const GraphCon
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    auto convolutionOp = ngraph::as_type_ptr<ngraph::op::v1::Convolution>(op);
-    auto groupConvolutionOp = ngraph::as_type_ptr<ngraph::op::v1::GroupConvolution>(op);
+    auto convolutionOp = ov::as_type_ptr<ngraph::op::v1::Convolution>(op);
+    auto groupConvolutionOp = ov::as_type_ptr<ngraph::op::v1::GroupConvolution>(op);
 
     if (convolutionOp) {
         algorithm = Algorithm::ConvolutionCommon;

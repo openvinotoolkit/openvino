@@ -103,7 +103,7 @@ public:
     using executorPtr = std::shared_ptr<IEltwiseExecutor>;
 
 public:
-    Eltwise(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Eltwise(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -141,7 +141,7 @@ public:
 
     BroadcastingPolicy getBroadcastingPolicy() const { return broadcastingPolicy; }
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     executorPtr execPtr = nullptr;
@@ -185,10 +185,10 @@ private:
     std::vector<MemoryPtr> memPtrs = {};
     std::vector<const void*> fqDataPtrs;
 
-    using Initializer = std::function<void(const std::shared_ptr<ngraph::Node>&, Eltwise& node)>;
-    static const std::map<const ngraph::DiscreteTypeInfo, Initializer>& getInitializers();
+    using Initializer = std::function<void(const std::shared_ptr<ov::Node>&, Eltwise& node)>;
+    static const std::map<const ov::DiscreteTypeInfo, Initializer>& getInitializers();
 
-    static BroadcastingPolicy determineBroadcastingPolicy(const std::shared_ptr<ngraph::Node>& op);
+    static BroadcastingPolicy determineBroadcastingPolicy(const std::shared_ptr<ov::Node>& op);
 
     size_t getOpInputsNum() const;
 

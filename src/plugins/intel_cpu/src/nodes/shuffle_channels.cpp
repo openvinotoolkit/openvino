@@ -52,7 +52,7 @@ bool ShuffleChannels::ShuffleChannelsAttributes::operator==(const ShuffleChannel
     return result;
 }
 
-bool ShuffleChannels::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool ShuffleChannels::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         auto shuffleChannels = ov::as_type_ptr<const ngraph::op::v0::ShuffleChannels>(op);
         if (!shuffleChannels) {
@@ -65,7 +65,7 @@ bool ShuffleChannels::isSupportedOperation(const std::shared_ptr<const ngraph::N
     return true;
 }
 
-ShuffleChannels::ShuffleChannels(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+ShuffleChannels::ShuffleChannels(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

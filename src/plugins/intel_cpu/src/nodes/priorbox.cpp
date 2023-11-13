@@ -33,7 +33,7 @@ float clip_less(float x, float threshold) {
 
 }   // namespace
 
-bool PriorBox::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool PriorBox::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto priorBox = std::dynamic_pointer_cast<const ngraph::opset1::PriorBox>(op);
         if (!priorBox) {
@@ -46,7 +46,7 @@ bool PriorBox::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& o
     return true;
 }
 
-PriorBox::PriorBox(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+PriorBox::PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, PriorBoxShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

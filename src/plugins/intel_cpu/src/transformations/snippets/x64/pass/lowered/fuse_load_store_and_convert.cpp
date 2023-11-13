@@ -31,7 +31,7 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_load_convert(snippets::lowe
     if (consumers.size() != 1)
         return false;
 
-    std::shared_ptr<ngraph::Node> load_convert = nullptr;
+    std::shared_ptr<ov::Node> load_convert = nullptr;
     if (const auto convert_saturation = ov::as_type_ptr<snippets::op::ConvertSaturation>(convert)) {
         load_convert = std::make_shared<ov::intel_cpu::LoadConvertSaturation>(load->input_value(0),
                                                                               convert_saturation->get_destination_type(),
@@ -76,7 +76,7 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_store_convert(snippets::low
     if (!store)
         return false;
 
-    std::shared_ptr<ngraph::Node> store_convert = nullptr;
+    std::shared_ptr<ov::Node> store_convert = nullptr;
     if (const auto convert_saturation = ov::as_type_ptr<snippets::op::ConvertSaturation>(convert)) {
         store_convert = std::make_shared<ov::intel_cpu::StoreConvertSaturation>(convert->input_value(0),
                                                                                 convert_saturation->get_destination_type(),

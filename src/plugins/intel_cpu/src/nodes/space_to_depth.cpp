@@ -51,7 +51,7 @@ bool SpaceToDepth::SpaceToDepthAttrs::operator==(const SpaceToDepthAttrs& rhs) c
     return result;
 }
 
-bool SpaceToDepth::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+bool SpaceToDepth::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                   std::string& errorMessage) noexcept {
     try {
         const auto spaceToDepth = ov::as_type_ptr<const ngraph::opset1::SpaceToDepth>(op);
@@ -63,7 +63,7 @@ bool SpaceToDepth::isSupportedOperation(const std::shared_ptr<const ngraph::Node
         if (!one_of(mode,
                     ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST,
                     ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST)) {
-            errorMessage = "Does not support mode: " + ngraph::as_string(mode);
+            errorMessage = "Does not support mode: " + ov::as_string(mode);
             return false;
         }
     } catch (...) {
@@ -72,7 +72,7 @@ bool SpaceToDepth::isSupportedOperation(const std::shared_ptr<const ngraph::Node
     return true;
 }
 
-SpaceToDepth::SpaceToDepth(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+SpaceToDepth::SpaceToDepth(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -91,7 +91,7 @@ SpaceToDepth::SpaceToDepth(const std::shared_ptr<ngraph::Node>& op, const GraphC
     } else if (modeNgraph == ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST) {
         attrs.mode = Mode::DEPTH_FIRST;
     } else {
-        THROW_ERROR << "doesn't support mode: " << ngraph::as_string(modeNgraph);
+        THROW_ERROR << "doesn't support mode: " << ov::as_string(modeNgraph);
     }
 
     attrs.blockSize = spaceToDepth->get_block_size();

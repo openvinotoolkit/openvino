@@ -13,7 +13,7 @@ namespace node {
 
 class ExperimentalDetectronGenerateProposalsSingleImage : public Node {
 public:
-    ExperimentalDetectronGenerateProposalsSingleImage(const std::shared_ptr<ngraph::Node>& op,
+    ExperimentalDetectronGenerateProposalsSingleImage(const std::shared_ptr<ov::Node>& op,
         const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
@@ -24,7 +24,7 @@ public:
     bool needShapeInfer() const override;
     bool needPrepareParams() const override;
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     // Inputs:

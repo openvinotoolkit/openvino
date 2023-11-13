@@ -17,7 +17,7 @@ namespace node {
 
 class OneHot : public Node {
 public:
-    OneHot(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -29,7 +29,7 @@ public:
     bool needPrepareParams() const override { return false; };
     void executeDynamicImpl(dnnl::stream strm) override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     typedef InferenceEngine::PrecisionTrait<InferenceEngine::Precision::I32>::value_type in_type;

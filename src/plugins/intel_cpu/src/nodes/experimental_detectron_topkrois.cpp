@@ -17,7 +17,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool ExperimentalDetectronTopKROIs::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool ExperimentalDetectronTopKROIs::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto topKROI = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronTopKROIs>(op);
         if (!topKROI) {
@@ -30,7 +30,7 @@ bool ExperimentalDetectronTopKROIs::isSupportedOperation(const std::shared_ptr<c
     return true;
 }
 
-ExperimentalDetectronTopKROIs::ExperimentalDetectronTopKROIs(const std::shared_ptr<ngraph::Node>& op,
+ExperimentalDetectronTopKROIs::ExperimentalDetectronTopKROIs(const std::shared_ptr<ov::Node>& op,
                                                              const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;

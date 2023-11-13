@@ -367,9 +367,9 @@ bool jit_roi_pooling_params::operator==(const jit_roi_pooling_params &rhs) const
            alg == rhs.alg;
 }
 
-bool ROIPooling::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool ROIPooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto roiPooling = ngraph::as_type_ptr<const ngraph::opset2::ROIPooling>(op);
+        auto roiPooling = ov::as_type_ptr<const ngraph::opset2::ROIPooling>(op);
         if (!roiPooling) {
             errorMessage = "Only opset2 ROIPooling operation is supported";
             return false;
@@ -385,7 +385,7 @@ bool ROIPooling::isSupportedOperation(const std::shared_ptr<const ngraph::Node>&
     return true;
 }
 
-ROIPooling::ROIPooling(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+ROIPooling::ROIPooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -394,7 +394,7 @@ ROIPooling::ROIPooling(const std::shared_ptr<ngraph::Node>& op, const GraphConte
 
     std::string errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
 
-    auto roiPooling = ngraph::as_type_ptr<const ngraph::opset2::ROIPooling>(op);
+    auto roiPooling = ov::as_type_ptr<const ngraph::opset2::ROIPooling>(op);
     refParams.pooled_h = roiPooling->get_output_roi()[0];
     refParams.pooled_w = roiPooling->get_output_roi()[1];
     refParams.spatial_scale = roiPooling->get_spatial_scale();

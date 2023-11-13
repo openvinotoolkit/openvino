@@ -16,7 +16,7 @@ class ExtensionManager {
 public:
     using Ptr = std::shared_ptr<ExtensionManager>;
     ExtensionManager() = default;
-    InferenceEngine::ILayerImpl::Ptr CreateImplementation(const std::shared_ptr<ngraph::Node>& op);
+    InferenceEngine::ILayerImpl::Ptr CreateImplementation(const std::shared_ptr<ov::Node>& op);
     void AddExtension(const InferenceEngine::IExtensionPtr& extension);
     const std::vector<InferenceEngine::IExtensionPtr> & Extensions() const;
 

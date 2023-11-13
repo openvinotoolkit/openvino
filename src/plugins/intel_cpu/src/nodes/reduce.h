@@ -89,7 +89,7 @@ struct jit_uni_reduce_post_kernel {
 
 class Reduce : public Node {
 public:
-    Reduce(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Reduce(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -105,7 +105,7 @@ public:
     }
 
     bool isExecutable() const override;
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     void reduce_type(const uint8_t *in_ptr, uint8_t *out_ptr);
@@ -122,7 +122,7 @@ private:
     inline void init_dst_data(uint8_t *out_ptr, size_t dst_size);
     inline void create_hybrid_working_memory();
     inline void create_opt_working_memory();
-    inline void calc_process_dst_dims(std::vector<int> &reduce_axes, const InferenceEngine::SizeVector &dst_dim);
+    inline void calc_process_dst_dims(std::vector<int> &reduce_axes, const VectorDims &dst_dim);
     inline void set_reduce_dim_flags();
     inline void reduce_ref(const float *in_ptr, float *out_ptr);
     void reduce_ref_process(const float *in_ptr, float *out_ptr, float init_value, std::function<float(float, float)> func);
@@ -163,9 +163,9 @@ private:
     uint8_t *tmp_ptr;
     ReduceLayoutType layout;
     InferenceEngine::Precision input_prec, output_prec, intermediate_prec, tmp_prec;
-    InferenceEngine::SizeVector src_dims;
-    InferenceEngine::SizeVector process_dst_dims;
-    InferenceEngine::SizeVector axes_for_reduction;
+    VectorDims src_dims;
+    VectorDims process_dst_dims;
+    VectorDims axes_for_reduction;
     std::vector<int> raw_axes;
     std::vector<uint8_t> intermediate_buf;
 
@@ -185,7 +185,7 @@ private:
     std::shared_ptr<jit_uni_reduce_kernel> reduce_tmp_kernel;
     std::shared_ptr<jit_uni_reduce_post_kernel> reduce_post_kernel;
 
-    static const std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>& op, Reduce& node)>>& getInitializers();
+    static const std::map<const ov::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ov::Node>& op, Reduce& node)>>& getInitializers();
 
     std::string errorPrefix;
 

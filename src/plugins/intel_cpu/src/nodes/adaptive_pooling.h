@@ -16,14 +16,14 @@ namespace node {
 
 class AdaptivePooling : public Node {
 public:
-    AdaptivePooling(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    AdaptivePooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     int spatialDimsCount;
