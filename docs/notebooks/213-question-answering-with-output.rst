@@ -7,53 +7,93 @@ model <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/inte
 distilled and quantized to ``INT8`` on SQuAD v1.1 training set from
 larger BERT-large model. The model comes from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__. Final part
-of this notebook provides live inference results from your inputs. 
+of this notebook provides live inference results from your inputs.
 
 **Table of contents:**
+---
 
-- `Imports <#imports>`__ 
-- `The model <#the-model>`__ 
+- `Imports <#imports>`__
+- `The model <#the-model>`__
+- `Download the model <#download-the-model>`__
+- `Load the model <#load-the-model>`__
+- `Select inference device <#select-inference-device>`__
+- `Processing <#processing>`__
+- `Preprocessing <#preprocessing>`__
+- `Postprocessing <#postprocessing>`__
+- `Main Processing Function <#main-processing-function>`__
+- `Run <#run>`__
+- `Run on local paragraphs <#run-on-local-paragraphs>`__
+- `Run on websites <#run-on-websites>`__
 
-  - `Download the model <#download-the-model>`__ 
-  - `Load the model <#load-the-model>`__ 
-  
-    - `Select inference device <#select-inference-device>`__ 
+.. code:: ipython3
 
-- `Processing <#processing>`__ 
+    %pip install -q "openvino>=2023.1.0"
 
-  - `Preprocessing <#preprocessing>`__ 
-  - `Postprocessing <#postprocessing>`__ 
-  - `Main Processing Function <#main-processing-function>`__ 
-  
-- `Run <#Run>`__
 
-  - `Run on local paragraphs <#run-on-local-paragraphs>`__ 
-  - `Run on websites <#run-on-websites>`__
+.. parsed-literal::
 
-Imports
-###############################################################################################################################
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    Note: you may need to restart the kernel to use updated packages.
+
+
+Imports 
+-------------------------------------------------
+
+.. code:: ipython3
+
+    # Fetch `notebook_utils` module
+    import urllib.request
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
+        filename='notebook_utils.py'
+    )
+    
+    from notebook_utils import download_file
 
 .. code:: ipython3
 
     import operator
     import time
     from urllib import parse
+    from pathlib import Path
     
     import numpy as np
-    from openvino.runtime import Core
+    import openvino as ov
     
+    
+    download_file(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/213-question-answering/html_reader.py',
+        filename='html_reader.py'
+    )
     import html_reader as reader
+    
+    download_file(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/213-question-answering/tokens_bert.py',
+        filename='tokens_bert.py'
+    )
     import tokens_bert as tokens
 
-The model
-###############################################################################################################################
 
-Download the model
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-Use ``omz_downloader``, which is a command-line tool from the
-``openvino-dev`` package. The ``omz_downloader`` tool automatically
-creates a directory structure and downloads the selected model. If the
+.. parsed-literal::
+
+    html_reader.py:   0%|          | 0.00/635 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    tokens_bert.py:   0%|          | 0.00/929 [00:00<?, ?B/s]
+
+
+The model 
+---------------------------------------------------
+
+Download the model 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Download pretrained models from
+https://storage.openvinotoolkit.org/repositories/open_model_zoo. If the
 model is already downloaded, this step is skipped.
 
 You can download and use any of the following models:
@@ -63,48 +103,49 @@ You can download and use any of the following models:
 ``bert-small-uncased-whole-word-masking-squad-0002``,
 ``bert-small-uncased-whole-word-masking-squad-int8-0002``, just change
 the model name in the code below. All of these models are already
-converted to OpenVINO Intermediate Representation (OpenVINO IR), so
-there is no need to use ``omz_converter``.
+converted to OpenVINO Intermediate Representation (OpenVINO IR).
 
 .. code:: ipython3
 
-    # A directory where the model will be downloaded.
-    base_model_dir = "model"
+    MODEL_DIR = Path("model")
+    MODEL_DIR.mkdir(exist_ok=True)
     
-    # Selected precision (FP32, FP16, FP16-INT8).
-    precision = "FP16-INT8"
+    model_xml_url = "https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/bert-small-uncased-whole-word-masking-squad-int8-0002/FP16-INT8/bert-small-uncased-whole-word-masking-squad-int8-0002.xml"
+    model_bin_url = "https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/bert-small-uncased-whole-word-masking-squad-int8-0002/FP16-INT8/bert-small-uncased-whole-word-masking-squad-int8-0002.bin"
     
-    # The name of the model from Open Model Zoo.
-    model_name = "bert-small-uncased-whole-word-masking-squad-int8-0002"
+    download_file(model_xml_url, model_xml_url.split("/")[-1], MODEL_DIR)
+    download_file(model_bin_url, model_bin_url.split("/")[-1], MODEL_DIR)
     
-    model_path = f"model/intel/{model_name}/{precision}/{model_name}.xml"
-    model_weights_path = f"model/intel/{model_name}/{precision}/{model_name}.bin"
-    
-    download_command = f"omz_downloader " \
-                       f"--name {model_name} " \
-                       f"--precision {precision} " \
-                       f"--output_dir {base_model_dir} " \
-                       f"--cache_dir {base_model_dir}"
-    ! $download_command
+    model_path = MODEL_DIR / model_xml_url.split("/")[-1]
+
 
 
 .. parsed-literal::
 
-    ################|| Downloading bert-small-uncased-whole-word-masking-squad-int8-0002 ||################
-    
-    ========== Downloading model/intel/bert-small-uncased-whole-word-masking-squad-int8-0002/vocab.txt
-    
-    
-    ========== Downloading model/intel/bert-small-uncased-whole-word-masking-squad-int8-0002/FP16-INT8/bert-small-uncased-whole-word-masking-squad-int8-0002.xml
-    
-    
-    ========== Downloading model/intel/bert-small-uncased-whole-word-masking-squad-int8-0002/FP16-INT8/bert-small-uncased-whole-word-masking-squad-int8-0002.bin
-    
-    
+    model/bert-small-uncased-whole-word-masking-squad-int8-0002.xml:   0%|          | 0.00/1.11M [00:00<?, ?B/s]
 
 
-Load the model
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+.. parsed-literal::
+
+    model/bert-small-uncased-whole-word-masking-squad-int8-0002.bin:   0%|          | 0.00/39.3M [00:00<?, ?B/s]
+
+
+.. code:: ipython3
+
+    model_path
+
+
+
+
+.. parsed-literal::
+
+    PosixPath('model/bert-small-uncased-whole-word-masking-squad-int8-0002.xml')
+
+
+
+Load the model 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Downloaded models are located in a fixed structure, which indicates a
 vendor, a model name and a precision. Only a few lines of code are
@@ -116,20 +157,20 @@ You can choose ``CPU`` or ``GPU`` for this model.
 .. code:: ipython3
 
     # Initialize OpenVINO Runtime.
-    core = Core()
+    core = ov.Core()
     # Read the network and corresponding weights from a file.
     model = core.read_model(model_path)
 
-Select inference device
--------------------------------------------------------------------------------------------------------------------------------
+Select inference device 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Select device from dropdown list for running inference using OpenVINO:
+select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
     import ipywidgets as widgets
     
-    core = Core()
+    core = ov.Core()
     
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -178,8 +219,8 @@ for BERT-large-like model.
 
 
 
-Processing
-###############################################################################################################################
+Processing 
+----------------------------------------------------
 
 NLP models usually take a list of tokens as a standard input. A token is
 a single word converted to some integer. To provide the proper input,
@@ -189,11 +230,14 @@ content from provided URLs.
 
 .. code:: ipython3
 
-    # The path to the vocabulary file.
-    vocab_file_path = "../data/text/bert-uncased/vocab.txt"
+    # Download the vocabulary from the openvino_notebooks storage
+    vocab_file_path = download_file(
+        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/text/bert-uncased/vocab.txt",
+        directory="data"
+    )
     
     # Create a dictionary with words and their indices.
-    vocab = tokens.load_vocab_file(vocab_file_path)
+    vocab = tokens.load_vocab_file(str(vocab_file_path))
     
     # Define special tokens.
     cls_token = vocab["[CLS]"]
@@ -216,8 +260,15 @@ content from provided URLs.
         # Produce one big context string.
         return "\n".join(paragraphs)
 
-Preprocessing
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+.. parsed-literal::
+
+    data/vocab.txt:   0%|          | 0.00/226k [00:00<?, ?B/s]
+
+
+Preprocessing 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The input size in this case is 384 tokens long. The main input
 (``input_ids``) to used BERT model consists of two parts: question
@@ -299,8 +350,8 @@ documentation <https://github.com/openvinotoolkit/open_model_zoo/tree/master/mod
     
         return (input_ids, attention_mask, token_type_ids), diff_input_size
 
-Postprocessing
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Postprocessing 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The results from the network are raw (logits). Use the softmax function
 to get the probability distribution. Then, find the best answer in the
@@ -392,8 +443,8 @@ answer should come with the highest score.
         # Return the part of the context, which is already an answer.
         return context[answer[1]:answer[2]], answer[0]
 
-Main Processing Function
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Main Processing Function 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Run question answering on a specific knowledge base (websites) and
 iterate through the questions.
@@ -434,11 +485,11 @@ iterate through the questions.
                 print(f"Score: {score:.2f}")
                 print(f"Time: {end_time - start_time:.2f}s")
 
-Run
-###############################################################################################################################
+Run 
+---------------------------------------------
 
-Run on local paragraphs
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Run on local paragraphs 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Change sources to your own to answer your questions. You can use as many
 sources as you want. Usually, you need to wait a few seconds for the
@@ -486,11 +537,11 @@ questions in the box.**
     Question: What is the term for a task that generally lends itself to being solved by a computer?
     Answer: A computational problem
     Score: 0.51
-    Time: 0.03s
+    Time: 0.04s
 
 
-Run on websites
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Run on websites 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You can also provide URLs. Note that the context (a knowledge base) is
 built from paragraphs on websites. If some information is outside the
@@ -525,6 +576,6 @@ questions in the box.**
     Context: ['https://en.wikipedia.org/wiki/OpenVINO']
     Question: What does OpenVINO mean?
     Answer: Open Visual Inference and Neural network Optimization
-    Score: 0.94
-    Time: 0.06s
+    Score: 0.95
+    Time: 0.05s
 
