@@ -62,7 +62,7 @@ interface CompiledModel {
 
 interface Tensor {
   data: number[];
-  getPrecision(): element;
+  getElementType(): element;
   getShape(): number[];
   getData(): number[];
 }

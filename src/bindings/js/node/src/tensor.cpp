@@ -44,7 +44,7 @@ Napi::Function TensorWrap::GetClassConstructor(Napi::Env env) {
                        {InstanceAccessor<&TensorWrap::get_data>("data"),
                         InstanceMethod("getData", &TensorWrap::get_data),
                         InstanceMethod("getShape", &TensorWrap::get_shape),
-                        InstanceMethod("getPrecision", &TensorWrap::get_precision)});
+                        InstanceMethod("getElementType", &TensorWrap::get_element_type)});
 }
 
 Napi::Object TensorWrap::Init(Napi::Env env, Napi::Object exports) {
@@ -138,6 +138,6 @@ Napi::Value TensorWrap::get_shape(const Napi::CallbackInfo& info) {
     return cpp_to_js<ov::Shape, Napi::Array>(info, _tensor.get_shape());
 }
 
-Napi::Value TensorWrap::get_precision(const Napi::CallbackInfo& info) {
+Napi::Value TensorWrap::get_element_type(const Napi::CallbackInfo& info) {
     return cpp_to_js<ov::element::Type_t, Napi::String>(info, _tensor.get_element_type());
 }
