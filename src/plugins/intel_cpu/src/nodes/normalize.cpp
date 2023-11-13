@@ -697,7 +697,7 @@ private:
     }
 };
 #endif
-bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         auto norm = ov::as_type_ptr<const ngraph::op::v0::NormalizeL2>(op);
         if (!norm) {
@@ -739,14 +739,14 @@ bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
         };
 
         const auto axes = axesNode->cast_vector<size_t>();
-        if (!isSupportedAxes(axes, inputRank) && ngraph::shape_size(axesNode->get_shape()) != 0) {
+        if (!isSupportedAxes(axes, inputRank) && ov::shape_size(axesNode->get_shape()) != 0) {
             errorMessage = "Doesn't support reduction axes: " + vec2str(axes);
             return false;
         }
 
         const auto mode = norm->get_eps_mode();
         if (!one_of(mode, ngraph::op::EpsMode::ADD, ngraph::op::EpsMode::MAX)) {
-            errorMessage = "Doesn't support eps_mode: " + ngraph::as_string(mode);
+            errorMessage = "Doesn't support eps_mode: " + ov::as_string(mode);
             return false;
         }
     } catch (...) {
@@ -755,7 +755,7 @@ bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
     return true;
 }
 
-NormalizeL2::NormalizeL2(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+NormalizeL2::NormalizeL2(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
         Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -772,10 +772,10 @@ NormalizeL2::NormalizeL2(const std::shared_ptr<ngraph::Node>& op, const GraphCon
     auto norm = ov::as_type_ptr<const ngraph::op::v0::NormalizeL2>(op);
     attrs.eps = norm->get_eps();
     attrs.epsMode = norm->get_eps_mode() == ngraph::op::EpsMode::MAX ? NormEpsMode::MAX : NormEpsMode::ADD;
-    attrs.across_spatial = ngraph::shape_size(op->get_input_shape(AXES)) != 1;
+    attrs.across_spatial = ov::shape_size(op->get_input_shape(AXES)) != 1;
     // One of the corner cases is when axes is an empty list,
     // then we divide each input element by itself resulting value 1 for all non-zero elements
-    attrs.cornerCase = ngraph::shape_size(op->get_input_shape(AXES)) == 0;
+    attrs.cornerCase = ov::shape_size(op->get_input_shape(AXES)) == 0;
 }
 
 void NormalizeL2::initSupportedPrimitiveDescriptors() {
@@ -796,10 +796,14 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
             inputPrecision = outputPrecision = Precision::BF16;
     }
 
-    if (!one_of(inputPrecision, Precision::FP32, Precision::BF16, Precision::I8, Precision::U8)) {
+    if (one_of(Precision::FP16, inputPrecision, outputPrecision) && mayiuse(cpu::x64::sse41)) {
+        inputPrecision = outputPrecision = Precision::FP32;
+    }
+
+    if (!one_of(inputPrecision, Precision::FP32, Precision::BF16, Precision::FP16, Precision::I8, Precision::U8)) {
         THROW_ERROR << "has unsupported input precision: " << inputPrecision;
     }
-    if (!one_of(outputPrecision, Precision::FP32, Precision::BF16, Precision::I8, Precision::U8)) {
+    if (!one_of(outputPrecision, Precision::FP32, Precision::BF16, Precision::FP16, Precision::I8, Precision::U8)) {
         THROW_ERROR << "has unsupported output precision: " << outputPrecision;
     }
 
@@ -1483,7 +1487,8 @@ std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Execut
               OV_CASE2(Precision::U8, Precision::FP32, uint8_t, float),
               OV_CASE2(Precision::I8, Precision::FP32, int8_t, float),
               OV_CASE2(Precision::FP32, Precision::FP32, float, float),
-              OV_CASE2(Precision::BF16, Precision::BF16, bfloat16_t, bfloat16_t));
+              OV_CASE2(Precision::BF16, Precision::BF16, bfloat16_t, bfloat16_t),
+              OV_CASE2(Precision::FP16, Precision::FP16, float16_t, float16_t));
 
     return ctx.executor;
 }

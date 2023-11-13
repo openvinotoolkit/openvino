@@ -106,6 +106,7 @@ from openvino.runtime.opset1.ops import minimum
 from openvino.runtime.opset4.ops import mish
 from openvino.runtime.opset1.ops import mod
 from openvino.runtime.opset9.ops import multiclass_nms
+from openvino.runtime.opset13.ops import multinomial
 from openvino.runtime.opset1.ops import multiply
 from openvino.runtime.opset6.ops import mvn
 from openvino.runtime.opset1.ops import negative
@@ -150,6 +151,7 @@ from openvino.runtime.opset9.ops import roi_align
 from openvino.runtime.opset2.ops import roi_pooling
 from openvino.runtime.opset7.ops import roll
 from openvino.runtime.opset5.ops import round
+from openvino.runtime.opset13.ops import scaled_dot_product_attention
 from openvino.runtime.opset12.ops import scatter_elements_update
 from openvino.runtime.opset3.ops import scatter_update
 from openvino.runtime.opset1.ops import select

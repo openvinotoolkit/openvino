@@ -125,7 +125,7 @@ bool DeconvKey::operator==(const DeconvKey &rhs) const {
  */
 class DeconfolutionShapeInferFactory : public ShapeInferFactory {
 public:
-    DeconfolutionShapeInferFactory(std::shared_ptr<ngraph::Node> op) : m_op(op) {}
+    DeconfolutionShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
     ShapeInferPtr makeShapeInfer() const override {
         if (m_op->get_input_size() > 2) {
             return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), PortMask(2));
@@ -133,11 +133,11 @@ public:
         return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), EMPTY_PORT_MASK);
     }
 private:
-    std::shared_ptr<ngraph::Node> m_op;
+    std::shared_ptr<ov::Node> m_op;
 };
 } // namespace
 
-bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (std::dynamic_pointer_cast<const ngraph::opset1::ConvolutionBackpropData>(op) == nullptr &&
                 std::dynamic_pointer_cast<const ngraph::opset1::GroupConvolutionBackpropData>(op) == nullptr) {
@@ -159,7 +159,7 @@ bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
     return true;
 }
 
-Deconvolution::Deconvolution(const std::shared_ptr<ngraph::Node>& op,
+Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op,
                              const GraphContext::CPtr context) : Node(op, context, DeconfolutionShapeInferFactory(op)) {
     std::string errorMessage;
     errorPrefix = "Deconvolution node with name '" + getName() + "' ";
@@ -220,7 +220,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ngraph::Node>& op,
     externOutShape = inputShapes.size() == 3;
     biasPort = externOutShape ? 3 : 2;
     if (externOutShape && isDynamicNode()) {
-        bool isConstOutShape = ngraph::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+        bool isConstOutShape = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
         if (isConstOutShape) {
             lastOutputSpatialDims = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2))->cast_vector<int32_t>();
         }
@@ -246,7 +246,7 @@ InferenceEngine::Blob::Ptr Deconvolution::createWeiBlobAsIO(InferenceEngine::Siz
     InferenceEngine::SizeVector dimsForBlockedDesc{dims};
     std::swap(dimsForBlockedDesc[withGroups + 0], dimsForBlockedDesc[withGroups + 1]);
 
-    InferenceEngine::SizeVector orderForBlockedDesc;
+    VectorDims orderForBlockedDesc;
     if (withGroups) {
         orderForBlockedDesc = {0, 2, 1};
     } else {
@@ -937,6 +937,10 @@ void Deconvolution::prepareParams() {
         } else {
             std::tie(desc, fwd_conv_pd) = createDefaultMkldnnDeconvDesc(key.inp0->getDnnlDesc(), key.inp1->getDnnlDesc(), key.out->getDnnlDesc(),
                                                                         key.stride, key.dilation, key.paddingL, key.paddingR, key.attr, engine);
+#if defined(SELECTIVE_BUILD_ANALYZER)
+            // Create dummy primitive to WA CC issue.
+            OPENVINO_ASSERT(dnnl::primitive(fwd_conv_pd));
+#endif
         }
 
         primitive_desc_iterator itpd = desc;
@@ -989,6 +993,10 @@ void Deconvolution::prepareParams() {
             } else {
                 std::tie(anyDeconvDesc, fwdConvPd) = createDefaultMkldnnDeconvDesc(inDesc, wghDesc, outDesc,
                                                               key.stride, key.dilation, key.paddingL, key.paddingR, key.attr, engine);
+#if defined(SELECTIVE_BUILD_ANALYZER)
+                // Create dummy primitive to WA CC issue.
+                OPENVINO_ASSERT(dnnl::primitive(fwd_conv_pd));
+#endif
             }
 
             if (anyDeconvDesc) {
@@ -1083,10 +1091,10 @@ void Deconvolution::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc
         std::tie(deconv_desc, fwd_conv_pd) = createDescriptorInternalDefault(in_candidate, wgh_candidate, out_candidate, dnnl::algorithm::convolution_direct,
                                                                                 deconvAttrs.stride, deconvAttrs.dilation, deconvAttrs.paddingL,
                                                                                 deconvAttrs.paddingR, *attr, getEngine());
-        IE_ASSERT(fwd_conv_pd &&  deconv_desc && deconv_desc.get(true) != nullptr)
-                << "Failed to create convolution_backward_data::primitive_desc: " << "Node: ##" << getName();
-        fwdConvPD.push_back(fwd_conv_pd); // oneDNN requires forward pd to exists until primitive is created
-        descs.push_back(deconv_desc);
+        if (fwd_conv_pd && deconv_desc && deconv_desc.get(true) != nullptr) {
+            fwdConvPD.push_back(fwd_conv_pd);  // oneDNN requires forward pd to exists until primitive is created
+            descs.push_back(deconv_desc);
+        }
     }
 }
 

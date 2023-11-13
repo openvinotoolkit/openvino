@@ -18,7 +18,7 @@ namespace node {
 
 class FullyConnected : public Node {
 public:
-    FullyConnected(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape &dims) const override;
     void getSupportedDescriptors() override;
@@ -51,7 +51,7 @@ public:
 
     bool canFuse(const NodePtr& node) const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
@@ -60,11 +60,8 @@ public:
         this->weightsNonTransposed = weightsNonTransposed;
     }
 
-    void fuseDecompressionMultiply(const NodePtr& constData);
-    const std::vector<float>& getDecompressionMultiply() const { return decompressionMultiply; }
-
-    void fuseDecompressionSubtract(const NodePtr& constData);
-    const std::vector<float>& getDecompressionSubtract() const { return decompressionSubtract; }
+    void fuseDecompressionMultiply(const MemoryCPtr& memory);
+    void fuseDecompressionSubtract(const MemoryCPtr& memory);
 
 private:
     void createDescriptorInternal(const dnnl::memory::desc &inputDesc,
@@ -102,7 +99,7 @@ private:
                                     const dnnl::engine& engine);
 
     bool canBeExecutedInConv1x1() const;
-    void fuseDecompressionConstant(const NodePtr& constData, std::vector<float>& decompressionValues);
+    void fuseDecompressionConstant(const MemoryCPtr& memory, MemoryCPtr& decompressionValuesPtr);
 
     // sparse weights
     bool useSparseWeights = false;
@@ -121,8 +118,8 @@ private:
     void prepareWeightsUsingDummyShape();
 #endif
     bool useWeightsDecompressionImpl = false;
-    std::vector<float> decompressionSubtract;
-    std::vector<float> decompressionMultiply;
+    MemoryCPtr decompressionSubtractPtr = nullptr;
+    MemoryCPtr decompressionMultiplyPtr = nullptr;
 
     // FC with transposed weights
     bool weightsNonTransposed = false;

@@ -312,12 +312,8 @@ def update_fallback_with_conversion_error(use_new_frontend: bool, is_tf: bool, e
     conversion_error_re = r"^(\[TensorFlow\ Frontend\]\ Internal\ error\,\ no\ translator\ found\ for\ operation\(s\)\:\ )((\w+)(\,\ \w+)*)$"
     conversion_error_match = re.findall(conversion_error_re, ex_msg, re.MULTILINE)
     all_fallback_operations = [
-        # corresponds to TF1 TensorList operation
-        "TensorArrayScatterV3", "TensorArrayV3", "TensorArraySizeV3", "TensorArrayGatherV3",
-        # corresponds to operations with complex tensors
-        "FFT", "FFT2D", "FFT3D", "IFFT", "IFFT2D", "IFFT3D",
-        "RFFT", "RFFT2D", "RFFT3D", "IRFFT", "IRFFT2D", "IRFFT3D",
-        "Complex", "ComplexAbs", "Real", "Imag",
+        # corresponds to TF1 While operation
+        "LoopCond", "Enter", "NextIteration", "Exit", "Switch", "Merge",
     ]
     if len(conversion_error_match) < 1 or len(conversion_error_match[0]) != 4:
         # no match for the fallback by unsupported operation

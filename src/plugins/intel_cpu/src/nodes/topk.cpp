@@ -1851,7 +1851,7 @@ TopK::TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context
 
         stable = false;
         if (!sort_index) {
-            const auto topKOpV11 = ngraph::as_type_ptr<const ov::op::v11::TopK>(op);
+            const auto topKOpV11 = ov::as_type_ptr<const ov::op::v11::TopK>(op);
             if (topKOpV11) {
                 stable = topKOpV11->get_stable();
             }
@@ -2073,7 +2073,7 @@ void TopK::createPrimitive() {
         layout = TopKLayoutType::topk_blocked;
     }
 
-    if (inputShapesDefined() && isExecutable()) {
+    if (!isDynamicNode() && isExecutable()) {
         if (needPrepareParams())
             prepareParams();
         updateLastInputDims();

@@ -113,16 +113,16 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr &node) {
 
 }  // namespace
 
-std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph) {
-    std::map<NodePtr, std::shared_ptr<ngraph::Node> > node2layer;
+std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph) {
+    std::map<NodePtr, std::shared_ptr<ov::Node> > node2layer;
 
-    ngraph::ResultVector results;
-    ngraph::ParameterVector params;
-    ngraph::NodeVector to_hold;
+    ov::ResultVector results;
+    ov::ParameterVector params;
+    ov::NodeVector to_hold;
 
     auto get_inputs = [&] (const NodePtr & node) {
         auto pr_edges = node->getParentEdges();
-        ngraph::OutputVector inputs(pr_edges.size());
+        ov::OutputVector inputs(pr_edges.size());
 
         for (size_t i = 0; i < pr_edges.size(); i++) {
             auto edge = node->getParentEdgeAt(i);
@@ -162,7 +162,7 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph
         }
 
         auto meta_data = extract_node_metadata(node);
-        std::shared_ptr<ngraph::Node> return_node;
+        std::shared_ptr<ov::Node> return_node;
         if (is_input) {
             auto& desc = node->getChildEdgeAt(0)->getMemory().getDesc();
             auto param = std::make_shared<ngraph::op::Parameter>(details::convertPrecision(desc.getPrecision()), desc.getShape().toPartialShape());
@@ -192,7 +192,7 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph
         return return_node;
     };
 
-    ngraph::NodeVector nodes;
+    ov::NodeVector nodes;
     nodes.reserve(graph.graphNodes.size());
     for (auto &node : graph.graphNodes) {  // important: graph.graphNodes are in topological order
         nodes.emplace_back(create_ngraph_node(node));
@@ -204,7 +204,7 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph
         holder->add_control_dependency(node);
     }
 
-    return std::make_shared<ngraph::Function>(results, params, graph._name);
+    return std::make_shared<ov::Model>(results, params, graph._name);
 }
 
 #ifdef CPU_DEBUG_CAPS
@@ -227,7 +227,7 @@ void serializeToXML(const Graph &graph, const std::string& path) {
         return;
 
     std::string binPath;
-    ngraph::pass::Manager manager;
+    ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(path,
                                                binPath,
                                                ov::pass::Serialize::Version::IR_V10);

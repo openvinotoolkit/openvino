@@ -14,7 +14,6 @@
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"
 #include "detection_output_inst.h"
-#include "binary_convolution_inst.h"
 #include "quantize_inst.h"
 
 #include <vector>
@@ -169,6 +168,7 @@ public:
     impl_types get_preferred_impl_type(program_node& node, format preferred_format);
 
     impl_types get_forced_impl_type_by_config(program_node& node);
+    static bool is_node_suitable_for_onednn(program_node& node);
     static bool are_data_types_suitable_for_onednn(program_node& node);
     bool are_layouts_suitable_for_onednn(program_node& node);
     static bool onednn_check_data_types_for_pooling(data_types in_dt, data_types out_dt);
@@ -188,6 +188,7 @@ public:
     optimization_attributes get_optimization_attributes() { return _optimization_attributes; }
 
     void set_implementation_forcing(const ov::intel_gpu::ImplForcingMap& map);
+    const std::map<primitive_id, std::pair<format::type, impl_types>> get_implementation_forcing() const;
 
     void update_formats_map(const convolution_node& node);
     bool is_format_optimized(const convolution_node& node, const format& format, bool use_weak_restrictions = false);

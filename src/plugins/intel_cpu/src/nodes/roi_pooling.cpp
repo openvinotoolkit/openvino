@@ -367,9 +367,9 @@ bool jit_roi_pooling_params::operator==(const jit_roi_pooling_params &rhs) const
            alg == rhs.alg;
 }
 
-bool ROIPooling::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool ROIPooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto roiPooling = ngraph::as_type_ptr<const ngraph::opset2::ROIPooling>(op);
+        auto roiPooling = ov::as_type_ptr<const ngraph::opset2::ROIPooling>(op);
         if (!roiPooling) {
             errorMessage = "Only opset2 ROIPooling operation is supported";
             return false;
@@ -385,7 +385,7 @@ bool ROIPooling::isSupportedOperation(const std::shared_ptr<const ngraph::Node>&
     return true;
 }
 
-ROIPooling::ROIPooling(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+ROIPooling::ROIPooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -394,7 +394,7 @@ ROIPooling::ROIPooling(const std::shared_ptr<ngraph::Node>& op, const GraphConte
 
     std::string errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
 
-    auto roiPooling = ngraph::as_type_ptr<const ngraph::opset2::ROIPooling>(op);
+    auto roiPooling = ov::as_type_ptr<const ngraph::opset2::ROIPooling>(op);
     refParams.pooled_h = roiPooling->get_output_roi()[0];
     refParams.pooled_w = roiPooling->get_output_roi()[1];
     refParams.spatial_scale = roiPooling->get_spatial_scale();
@@ -434,13 +434,6 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    refParams.src_prc = getOriginalInputPrecisionAtPort(0);
-
-    if (!mayiuse(avx512_core)) {
-        if (refParams.src_prc == Precision::BF16)
-            refParams.src_prc = Precision::FP32;
-    }
-
     auto format = mayiuse(avx512_core) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
     impl_desc_type impl_type;
     if (mayiuse(cpu::x64::avx512_core)) {
@@ -451,6 +444,17 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
         impl_type = impl_desc_type::jit_sse42;
     } else {
         impl_type = impl_desc_type::ref;
+    }
+
+    refParams.src_prc = getOriginalInputPrecisionAtPort(0);
+
+    if (!mayiuse(avx512_core)) {
+        if (refParams.src_prc == Precision::BF16)
+            refParams.src_prc = Precision::FP32;
+    }
+
+    if (impl_type != impl_desc_type::ref && refParams.src_prc == Precision::FP16) {
+        refParams.src_prc = Precision::FP32;
     }
 
     addSupportedPrimDesc({{format, refParams.src_prc},
@@ -826,7 +830,8 @@ std::shared_ptr<ROIPooling::ROIPoolingExecutor> ROIPooling::ROIPoolingExecutor::
 
     OV_SWITCH(intel_cpu, ROIPoolingExecutorCreation, ctx, jpp.src_prc,
               OV_CASE(Precision::FP32, float),
-              OV_CASE(Precision::BF16, bfloat16_t))
+              OV_CASE(Precision::BF16, bfloat16_t),
+              OV_CASE(Precision::FP16, float16_t))
 
     return ctx.executor;
 }

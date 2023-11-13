@@ -3,6 +3,7 @@
 //
 #include "snippets/shape_inference/shape_infer_instances.hpp"
 #include "snippets/snippets_isa.hpp"
+#include "snippets/utils.hpp"
 #include "openvino/op/select.hpp"
 namespace ov {
 namespace snippets {
@@ -158,6 +159,77 @@ Result HorizonOpShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes
     if (!output_shapes.empty())
         output_shapes.back() = 1;
     return {{output_shapes}, ShapeInferStatus::success};
+}
+
+BrgemmShapeInfer::BrgemmShapeInfer(const std::shared_ptr<Node>& n) {
+    for (const auto& in : n->inputs()) {
+        const auto& port = lowered::PortDescriptorUtils::get_port_descriptor_ptr(in);
+        m_io_layouts.push_back(port->get_layout());
+    }
+    const auto& port = lowered::PortDescriptorUtils::get_port_descriptor_ptr(n->output(0));
+    m_io_layouts.push_back(port->get_layout());
+}
+
+Result BrgemmShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
+    OPENVINO_ASSERT(input_shapes.size() == 2 || input_shapes.size() == 3, "BRGEMM expects 2 or 3 input shapes for shape inference");
+
+    // Todo: Ideally we should use the layout stored in PortDescriptors. Can we do it?
+    const auto& arg0_shape = ov::snippets::utils::get_planar_vdims(input_shapes[0].get(), m_io_layouts[0]);
+    const auto& arg1_shape = ov::snippets::utils::get_planar_vdims(input_shapes[1].get(), m_io_layouts[1]);
+
+    size_t arg0_rank = arg0_shape.size(), arg1_rank = arg1_shape.size();
+
+    // temporary shapes to calculate output shape
+    VectorDims arg0_shape_tmp(arg0_shape), arg1_shape_tmp(arg1_shape);
+
+    // one-dimensional tensors unsqueezing is applied to each input independently.
+    if (arg0_rank == 1) {
+        // If the first input is 1D tensor, it is unsqueezed to 2D tensor (row vector)
+        // by adding axes with size 1 at ROW_INDEX_DIM, to the left of the shape.
+        // For example {S} will be reshaped to {1, S}.
+        arg0_shape_tmp.insert(arg0_shape_tmp.begin(), 1);
+        arg0_rank = arg0_shape_tmp.size();
+    }
+    if (arg1_rank == 1) {
+        // If the second input is 1D tensor, it is unsqueezed to 2D tensor (column vector)
+        // by adding axes with size 1 at COL_INDEX_DIM, to the right of the shape.
+        // For example {S} will be reshaped to {S, 1}.
+        arg1_shape_tmp.insert(arg1_shape_tmp.end(), 1);
+        arg1_rank = arg1_shape_tmp.size();
+    }
+
+    // add 1 to begin to align shape ranks if needed
+    if (arg0_rank < arg1_rank)
+        arg0_shape_tmp.insert(arg0_shape_tmp.begin(), arg1_rank - arg0_rank, 1);
+    else if (arg0_rank > arg1_rank)
+        arg1_shape_tmp.insert(arg1_shape_tmp.begin(), arg0_rank - arg1_rank, 1);
+
+    size_t max_rank = arg0_shape_tmp.size();
+    VectorDims output_shape(max_rank);
+    for (size_t i = 0; i < max_rank - 2; ++i) {
+        if (arg0_shape_tmp[i] == arg1_shape_tmp[i]) {
+            output_shape[i] = arg0_shape_tmp[i];
+        } else {
+            if (arg0_shape_tmp[i] == 1 || arg0_shape_tmp[i] == DYNAMIC_DIMENSION)
+                output_shape[i] = arg1_shape_tmp[i];
+            else if (arg1_shape_tmp[i] == 1 || arg1_shape_tmp[i] == DYNAMIC_DIMENSION)
+                output_shape[i] = arg0_shape_tmp[i];
+            else
+                OPENVINO_THROW("Incompatible Brgemm batch dimension");
+        }
+    }
+    output_shape[output_shape.size() - 2] = arg0_shape_tmp[arg0_shape_tmp.size() - 2];  // M
+    output_shape[output_shape.size() - 1] = arg1_shape_tmp[arg1_shape_tmp.size() - 1];  // N
+
+    // removing the temporary axes from originally 1D tensors.
+    if (arg0_shape.size() == 1) {
+        output_shape.erase(output_shape.begin() + output_shape.size() - 2);
+    }
+    if (arg1_shape.size() == 1) {
+        output_shape.erase(output_shape.begin() + output_shape.size() - 1);
+    }
+    output_shape = ov::snippets::utils::get_planar_vdims(output_shape, m_io_layouts.back());
+    return {{output_shape}, snippets::ShapeInferStatus::success};
 }
 
 } // namespace snippets

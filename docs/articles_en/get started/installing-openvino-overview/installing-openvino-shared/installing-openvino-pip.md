@@ -12,9 +12,10 @@
    Note that the PyPi distribution:
    
    * offers the Python API only
-   * does not offer support for GNA and NPU inference
    * is dedicated to users of all major OSes: Windows, Linux, and macOS 
      (all x86_64 / arm64 architectures)
+   * Windows and Linux do not offer support for GNA and NPU inference
+   * macOS offers support only for CPU inference
 
 .. tab-set::
 
@@ -22,7 +23,7 @@
       :sync: system-requirements
 
       | Full requirement listing is available in:
-      | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
+      | :doc:`System Requirements Page <system_requirements>`
       | `PyPi OpenVINO page <https://pypi.org/project/openvino/>`__
    
    
@@ -133,16 +134,16 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
    :width: 400
 
-Try the `Python Quick Start Example <https://docs.openvino.ai/2023.1/notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+Try the `Python Quick Start Example <https://docs.openvino.ai/2023.2/notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
 
 Get started with Python
 +++++++++++++++++++++++
 
 Visit the :doc:`Tutorials <tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
-* `OpenVINO Python API Tutorial <https://docs.openvino.ai/2023.1/notebooks/002-openvino-api-with-output.html>`__
-* `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/2023.1/notebooks/001-hello-world-with-output.html>`__
-* `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/2023.1/notebooks/205-vision-background-removal-with-output.html>`__
+* `OpenVINO Python API Tutorial <https://docs.openvino.ai/2023.2/notebooks/002-openvino-api-with-output.html>`__
+* `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/2023.2/notebooks/001-hello-world-with-output.html>`__
+* `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/2023.2/notebooks/205-vision-background-removal-with-output.html>`__
 
 
 

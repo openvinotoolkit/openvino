@@ -19,6 +19,7 @@
 #include "openvino/opsets/opset4.hpp"
 #include "openvino/opsets/opset5.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "ov_ops/type_relaxed.hpp"
@@ -134,6 +135,74 @@ TEST(TransformationTests, ConvertPrecision_NMS5) {
     static const precisions_map precisions = {{element::i64, element::i32}, {element::f32, element::f16}};
     manager.register_pass<pass::InitNodeInfo>();
     manager.register_pass<pass::ConvertPrecision>(precisions);
+    manager.run_passes(f);
+    ASSERT_NO_THROW(check_rt_info(f));
+    ASSERT_FALSE(has_type<element::Type_t::i64>(f));
+    ASSERT_FALSE(has_type<element::Type_t::f32>(f));
+}
+
+TEST(TransformationTests, DoubleConvertPrecision_NMS5) {
+    std::shared_ptr<Model> f;
+    {
+        auto boxes = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1000, 4});
+        auto scores = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1000});
+        auto max_output_boxes_per_class = opset5::Constant::create(element::i64, Shape{}, {10});
+        auto iou_threshold = opset5::Constant::create(element::f32, Shape{}, {0.75});
+        auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.7});
+        auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes,
+                                                               scores,
+                                                               max_output_boxes_per_class,
+                                                               iou_threshold,
+                                                               score_threshold,
+                                                               opset5::NonMaxSuppression::BoxEncodingType::CORNER,
+                                                               true);
+
+        auto result1 = std::make_shared<opset5::Result>(nms->output(0));
+        auto result2 = std::make_shared<opset5::Result>(nms->output(1));
+        auto result3 = std::make_shared<opset5::Result>(nms->output(2));
+        f = std::make_shared<Model>(ResultVector{result1, result2, result3}, ParameterVector{boxes, scores});
+    }
+
+    pass::Manager manager;
+    static const precisions_map precisions1 = {{element::f32, element::f16}};
+    static const precisions_map precisions2 = {{element::i64, element::i32}};
+    manager.register_pass<pass::InitNodeInfo>();
+    manager.register_pass<pass::ConvertPrecision>(precisions1);
+    manager.register_pass<pass::ConvertPrecision>(precisions2);
+    manager.run_passes(f);
+    ASSERT_NO_THROW(check_rt_info(f));
+    ASSERT_FALSE(has_type<element::Type_t::i64>(f));
+    ASSERT_FALSE(has_type<element::Type_t::f32>(f));
+}
+
+TEST(TransformationTests, DoubleConvertPrecision_NMS9) {
+    std::shared_ptr<Model> f;
+    {
+        auto boxes = std::make_shared<opset9::Parameter>(element::f32, Shape{1, 1000, 4});
+        auto scores = std::make_shared<opset9::Parameter>(element::f32, Shape{1, 1, 1000});
+        auto max_output_boxes_per_class = opset9::Constant::create(element::i64, Shape{}, {10});
+        auto iou_threshold = opset9::Constant::create(element::f32, Shape{}, {0.75});
+        auto score_threshold = opset9::Constant::create(element::f32, Shape{}, {0.7});
+        auto nms = std::make_shared<opset9::NonMaxSuppression>(boxes,
+                                                               scores,
+                                                               max_output_boxes_per_class,
+                                                               iou_threshold,
+                                                               score_threshold,
+                                                               opset9::NonMaxSuppression::BoxEncodingType::CORNER,
+                                                               true);
+
+        auto result1 = std::make_shared<opset9::Result>(nms->output(0));
+        auto result2 = std::make_shared<opset9::Result>(nms->output(1));
+        auto result3 = std::make_shared<opset9::Result>(nms->output(2));
+        f = std::make_shared<Model>(ResultVector{result1, result2, result3}, ParameterVector{boxes, scores});
+    }
+
+    pass::Manager manager;
+    static const precisions_map precisions1 = {{element::f32, element::f16}};
+    static const precisions_map precisions2 = {{element::i64, element::i32}};
+    manager.register_pass<pass::InitNodeInfo>();
+    manager.register_pass<pass::ConvertPrecision>(precisions1);
+    manager.register_pass<pass::ConvertPrecision>(precisions2);
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
@@ -1188,7 +1257,7 @@ void constant_convert_test(element::Type type_from,
     }
     ASSERT_TRUE(actual.size() >= expected.size());
     for (size_t i = 0; i < expected.size(); i++) {
-        ASSERT_EQ(expected[i], actual[i]);
+        EXPECT_EQ(expected[i], actual[i]) << "Elements with index " << i << " are not equal.";
     }
 }
 
@@ -1378,7 +1447,7 @@ TEST(TransformationTests, ConvertPrecision_ConstantConversion_U1ToU4) {
     constant_convert_test<uint8_t, uint8_t>(element::u1,
                                             element::u4,
                                             std::vector<uint8_t>{171},
-                                            {1, 0, 1, 0, 1, 0, 1, 1});
+                                            {0, 1, 0, 1, 0, 1, 1, 1});
 }
 
 TEST(TransformationTests, ConvertPrecision_keep_precission_sensitive_fp32_with_exp) {
@@ -2192,7 +2261,7 @@ TEST(TransformationTests, align_mixed_fp16_fp32_with_parameter_for_shape_1) {
         auto upscale_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {2.0f});
         auto mul_1 = make_shared<ov::op::v1::Multiply>(shape_input, upscale_const);
         auto axis_const = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
-        auto final_float_shape = make_shared<ov::op::v1::ReduceProd>(mul_1, axis_const);
+        auto final_float_shape = make_shared<ov::op::v1::ReduceProd>(mul_1, axis_const, true);
         auto final_int_shape = make_shared<ov::op::v0::Convert>(final_float_shape, element::i64);
         auto reshape_1 = make_shared<ov::op::v1::Reshape>(input_1, final_int_shape, false);
 
@@ -2214,7 +2283,7 @@ TEST(TransformationTests, align_mixed_fp16_fp32_with_parameter_for_shape_1) {
         auto upscale_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {2.0f});
         auto mul_1 = make_shared<ov::op::v1::Multiply>(shape_input, upscale_const);
         auto axis_const = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
-        auto final_float_shape = make_shared<ov::op::v1::ReduceProd>(mul_1, axis_const);
+        auto final_float_shape = make_shared<ov::op::v1::ReduceProd>(mul_1, axis_const, true);
         auto final_int_shape = make_shared<ov::op::v0::Convert>(final_float_shape, element::i64);
         auto reshape_1 = make_shared<ov::op::v1::Reshape>(input_1, final_int_shape, false);
 
@@ -2235,7 +2304,7 @@ TEST(TransformationTests, align_mixed_fp16_fp32_with_parameter_for_shape_2) {
         auto upscale_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {2.0f});
         auto mul_1 = make_shared<ov::op::v1::Multiply>(shape_input, upscale_const);
         auto axis_const = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
-        auto final_float_shape = make_shared<ov::op::v1::ReduceProd>(mul_1, axis_const);
+        auto final_float_shape = make_shared<ov::op::v1::ReduceProd>(mul_1, axis_const, true);
         auto final_int_shape = make_shared<ov::op::v0::Convert>(final_float_shape, element::i64);
         auto reshape_1 = make_shared<ov::op::v1::Reshape>(input_1, final_int_shape, false);
 
@@ -2260,7 +2329,7 @@ TEST(TransformationTests, align_mixed_fp16_fp32_with_parameter_for_shape_2) {
         auto upscale_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {2.0f});
         auto mul_1 = make_shared<ov::op::v1::Multiply>(shape_input, upscale_const);
         auto axis_const = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
-        auto final_float_shape = make_shared<ov::op::v1::ReduceProd>(mul_1, axis_const);
+        auto final_float_shape = make_shared<ov::op::v1::ReduceProd>(mul_1, axis_const, true);
         auto final_int_shape = make_shared<ov::op::v0::Convert>(final_float_shape, element::i64);
         auto reshape_1 = make_shared<ov::op::v1::Reshape>(convert_to_f16, final_int_shape, false);
         auto convert_to_f32 = make_shared<ov::op::v0::Convert>(reshape_1, element::f32);

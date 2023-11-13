@@ -14,7 +14,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool LogSoftmax::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool LogSoftmax::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto logSoftMax = std::dynamic_pointer_cast<const ngraph::opset5::LogSoftmax>(op);
         if (!logSoftMax) {
@@ -27,7 +27,7 @@ bool LogSoftmax::isSupportedOperation(const std::shared_ptr<const ngraph::Node>&
     return true;
 }
 
-LogSoftmax::LogSoftmax(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+LogSoftmax::LogSoftmax(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

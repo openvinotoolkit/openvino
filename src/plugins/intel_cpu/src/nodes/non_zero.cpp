@@ -20,7 +20,7 @@ namespace node {
 static constexpr int blockSize = dnnl::impl::cpu::platform::get_cache_line_size() * 2;
 static constexpr int elementsStride = blockSize / sizeof(int);
 
-bool NonZero::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool NonZero::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (op->get_type_info() != ngraph::op::v3::NonZero::get_type_info_static()) {
             errorMessage = "Node is not an instance of NonZero from the operation set v3.";
@@ -32,7 +32,7 @@ bool NonZero::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-NonZero::NonZero(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+NonZero::NonZero(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -40,8 +40,8 @@ NonZero::NonZero(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CP
     } else {
         IE_THROW(NotImplemented) << errorMessage;
     }
-    if (op->get_output_element_type(0) != ngraph::element::i32) {
-        IE_THROW() << errorPrefix << "doesn't support demanded output precision";
+    if (op->get_output_element_type(0) != ov::element::i32) {
+        OPENVINO_THROW(errorPrefix, "doesn't support demanded output precision");
     }
 }
 
@@ -57,7 +57,7 @@ void NonZero::initSupportedPrimitiveDescriptors() {
         return;
 
     const auto &inPrc = getOriginalInputPrecisionAtPort(0);
-    if (!one_of(inPrc, Precision::FP32, Precision::BF16, Precision::I32, Precision::U32, Precision::I8,  Precision::U8)) {
+    if (!one_of(inPrc, Precision::FP32, Precision::BF16, Precision::FP16, Precision::I32, Precision::U32, Precision::I8,  Precision::U8)) {
         IE_THROW() << "Can't create primitive descriptor for NonZero layer with name: " << getName() << " doesn't support "
                    << inPrc.name() << " precision on 0 port";
     }
@@ -123,6 +123,7 @@ void NonZero::execute(dnnl::stream strm) {
     OV_SWITCH(intel_cpu, NonZeroExecute, ctx, inputPrec,
               OV_CASE(Precision::FP32, float),
               OV_CASE(Precision::BF16, bfloat16_t),
+              OV_CASE(Precision::FP16, float16),
               OV_CASE(Precision::I32, int),
               OV_CASE(Precision::U32, uint32_t),
               OV_CASE(Precision::I8, int8_t),

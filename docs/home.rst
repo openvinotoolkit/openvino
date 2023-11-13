@@ -25,13 +25,13 @@ OpenVINO 2023.0
          			<li class="splide__slide">An open-source toolkit for optimizing and deploying deep learning models.<br>Boost your AI deep-learning inference performance!</li>
                   
                   <li class="splide__slide"Better OpenVINO integration with PyTorch!<br>Use PyTorch models directly, without converting them first.<br>
-                     <a href="https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html">Learn more...</a>
+                     <a href="https://docs.openvino.ai/2023.2/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html">Learn more...</a>
                   </li>
                   <li class="splide__slide">OpenVINO via PyTorch 2.0 torch.compile()<br>Use OpenVINO directly in PyTorch-native applications!<br>
-                     <a href="https://docs.openvino.ai/2023.1/pytorch_2_0_torch_compile.html">Learn more...</a>
+                     <a href="https://docs.openvino.ai/2023.2/pytorch_2_0_torch_compile.html">Learn more...</a>
                   </li>
                   <li class="splide__slide">Do you like Generative AI? You will love how it performs with OpenVINO!<br>
-                     <a href="https://docs.openvino.ai/2023.1/tutorials.html">Check out our new notebooks...</a>
+                     <a href="https://docs.openvino.ai/2023.2/tutorials.html">Check out our new notebooks...</a>
          		</ul>
            </div>
          </section>
@@ -96,6 +96,13 @@ OpenVINO 2023.0
 
       Optimize generation of the graph model with PyTorch 2.0 torch.compile() backend
 
+   .. grid-item-card:: Generative AI optimization and deployment
+      :link: gen_ai_guide
+      :link-alt: gen ai
+      :link-type: doc
+
+      Generative AI optimization and deployment
+
 
 Feature Overview
 ##############################
@@ -136,6 +143,4 @@ Feature Overview
    LEARN OPENVINO <learn_openvino>
    OPENVINO WORKFLOW <openvino_workflow>
    DOCUMENTATION <documentation>
-   RESOURCES <resources>
-   RELEASE NOTES <release_notes>
-
+   ABOUT OPENVINO <about_openvino>
