@@ -57,10 +57,12 @@ model_int8 = ov.compile_model(quantized_model)
 
 input_fp32 = ... # FP32 model input
 res = model_int8(input_fp32)
+#! [inference]
 
+#! [save]
 # save the model with compress_to_fp16=False to avoid an accuracy drop from compression
 # of unquantized weights to FP16. This is necessary because
 # nncf.quantize_with_accuracy_control(...) keeps the most impactful operations within
 # the model in the original precision to achieve the specified model accuracy
 ov.save_model(quantized_model, "quantized_model.xml", compress_to_fp16=False)
-#! [inference]
+#! [save]
