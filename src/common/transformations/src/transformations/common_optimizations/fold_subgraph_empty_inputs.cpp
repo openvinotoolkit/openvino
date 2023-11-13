@@ -6,11 +6,11 @@
 
 #include <algorithm>
 #include <memory>
-#include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -34,7 +34,7 @@ ov::pass::FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
                      std::back_inserter(empty_inputs),
                      [](const Output<Node>& input) {
                          // skip constants
-                         if (std::dynamic_pointer_cast<opset8::Constant>(input.get_node_shared_ptr())) {
+                         if (std::dynamic_pointer_cast<ov::op::v0::Constant>(input.get_node_shared_ptr())) {
                              return false;
                          }
                          // skip non-static shapes
@@ -50,7 +50,7 @@ ov::pass::FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
         if (empty_inputs.size()) {
             for (const auto& input : empty_inputs) {
                 const ov::Output<ov::Node> const_empty_replacement =
-                    std::make_shared<opset8::Constant>(input.get_element_type(), input.get_shape());
+                    std::make_shared<ov::op::v0::Constant>(input.get_element_type(), input.get_shape());
                 std::replace(std::begin(multi_subgraph_op_inputs),
                              std::end(multi_subgraph_op_inputs),
                              input,

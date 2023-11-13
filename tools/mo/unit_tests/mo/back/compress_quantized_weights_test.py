@@ -5,7 +5,7 @@ import unittest
 from argparse import Namespace
 
 import numpy as np
-from generator import generator, generate
+import pytest
 
 from openvino.tools.mo.back.compress_quantized_weights import CompressQuantizeWeights, ZeroPointOptimizer
 from openvino.tools.mo.ops.Cast import Cast
@@ -176,9 +176,8 @@ class CompressionQuantizeDequantizeSeparateTest(unittest.TestCase):
         self.assertTrue(flag, resp)
 
 
-@generator
-class CompressionDataTypeTest(unittest.TestCase):
-    @generate(*[np.int64,
+class TestCompressionDataTypeTest():
+    @pytest.mark.parametrize("original",[np.int64,
                 np.int32,
                 np.float64,
                 np.float32,
@@ -207,7 +206,7 @@ class CompressionDataTypeTest(unittest.TestCase):
             *connect('mul:0', 'output'),
         ], nodes_with_edges_only=True)
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
     def test_data_type_new_fp16(self):
         nodes = nodes_dict(np.float16)
@@ -234,7 +233,7 @@ class CompressionDataTypeTest(unittest.TestCase):
             *connect('mul:0', 'output'),
         ], nodes_with_edges_only=True)
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
 
     def test_fp16_fake_quantize(self):
@@ -261,7 +260,7 @@ class CompressionDataTypeTest(unittest.TestCase):
 
         error_message = 'Unexpected number of {} nodes {} CompressQuantizeWeights.dequantize_data call `{}`'
         fq_nodes = graph.get_op_nodes(type='FakeQuantize')
-        self.assertEqual(len(fq_nodes), 1, error_message.format('FakeQuantize', 'before', len(fq_nodes)))
+        assert len(fq_nodes) == 1, error_message.format('FakeQuantize', 'before', len(fq_nodes))
 
         CompressQuantizeWeights().find_and_replace_pattern(graph)
         graph.clean_up()
@@ -269,7 +268,7 @@ class CompressionDataTypeTest(unittest.TestCase):
         graph.clean_up()
 
         fq_nodes = graph.get_op_nodes(type='FakeQuantize')
-        self.assertEqual(len(fq_nodes), 0, error_message.format('FakeQuantize', 'after', len(fq_nodes)))
+        assert len(fq_nodes) == 0, error_message.format('FakeQuantize', 'after', len(fq_nodes))
 
         graph_ref = build_graph(nodes, [
             *connect('int_weights:0', '0:cast'),
@@ -279,14 +278,13 @@ class CompressionDataTypeTest(unittest.TestCase):
         ], {'cast': {'dst_type': original_type}}, nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
 
-@generator
-class AccuracyCheckFP32Test(unittest.TestCase):
+class TestAccuracyCheckFP32Test():
     eps = np.finfo(np.float32).eps
 
-    @generate(*[
+    @pytest.mark.parametrize("data, in_low, in_high, out_low, out_high, levels, add_cast" ,[
         ([-2.586, -1.338, 2.773, 4.414], [-2.586], [4.414], [-2.586], [4.414], 256, False),
         ([-1.5, -0.32, 0.167, 2.8], [-1.5], [2.8], [-1.5], [2.8], 256, False),
         ([1, 1 + eps, 1 + 2 * eps, 1 + 3 * eps], [1], [1 + 3 * eps], [1], [1 + 3 * eps], 256, False),
@@ -332,29 +330,28 @@ class AccuracyCheckFP32Test(unittest.TestCase):
         const_result_graph = build_graph({**shaped_const_with_data('weights', np.array(data).shape), **result()},
                                          [*connect('weights', 'output')], nodes_with_edges_only=True)
         (flag, resp) = compare_graphs(graph, const_result_graph, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
         (flag, resp) = compare_graphs(graph_ref, const_result_graph, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
         # as this two graphs calculated the same data through different constant folding functions, they resulted in
         # constants of different data type since FakeQuantize always have f32 output dtype, but eltwises use numpy
         # for folding which doesn't have such restriction
         const_node = graph.get_op_nodes(type='Const')
-        self.assertEqual(len(const_node), 1)
+        assert len(const_node) == 1
         if const_node[0].data_type == np.float64:
             const_node[0].data_type = np.float32
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
         # I would like to leave this commented code here to quickly check the actual output value:
         # print(result_node.in_port(0).data.get_value())  # actual calculated value
 
 
-@generator
-class NegativeCompressionTestLevels(unittest.TestCase):
-    @generate(*[(2), (257), (None), (0), (-5)])
+class TestNegativeCompressionTestLevels():
+    @pytest.mark.parametrize("levels" , [(2), (257), (None), (0), (-5)])
     def test_negative_fq_unacceptable_levels(self, levels):
         nodes = nodes_dict(np.float32, None, levels)
 
@@ -370,12 +367,12 @@ class NegativeCompressionTestLevels(unittest.TestCase):
         CompressQuantizeWeights().find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
 
-@generator
-class ZeroPointOptimizerTestClass(unittest.TestCase):
-    @generate(*[
+
+class TestZeroPointOptimizerTestClass():
+    @pytest.mark.parametrize("weights, zero_point, adj_weights, adj_zero_point" ,[
         ([-10, 7], [-1], [-9, 8], [0]),
         ([-10, 7], [-0.99999999], [-9, 8], [0]),
     ])
@@ -407,9 +404,9 @@ class ZeroPointOptimizerTestClass(unittest.TestCase):
         graph_ref.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
-    @generate(*[
+    @pytest.mark.parametrize("weights, zero_point, adj_weights, adj_zero_point" ,[
         ([-128, 7], [1], [-128, 7], [1]),
         ([127, 7], [-1], [127, 7], [-1]),
     ])
@@ -438,4 +435,4 @@ class ZeroPointOptimizerTestClass(unittest.TestCase):
         graph_ref.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp

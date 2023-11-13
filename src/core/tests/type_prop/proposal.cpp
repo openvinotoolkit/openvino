@@ -2,604 +2,663 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/proposal.hpp"
+#include "openvino/op/proposal.hpp"
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "util/type_prop.hpp"
+#include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
+using namespace testing;
 
 // ------------------------------ V0 ------------------------------
 
 TEST(type_prop, proposal_v0_invalid_class_probs_rank) {
-    op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+    op::v0::Proposal::Attributes attrs;
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
 
-    try {
-        auto proposal = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Invalid input tensor rank.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Proposal layer shape class_probs should be rank 4 compatible"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(std::ignore = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs),
+                    NodeValidationFailure,
+                    HasSubstr("Proposal layer shape class_probs should be rank 4 compatible"));
 }
 
 TEST(type_prop, proposal_v0_invalid_anchor_count) {
-    op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+    op::v0::Proposal::Attributes attrs;
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
 
-    try {
-        auto proposal = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Invalid input tensor rank.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Anchor number inconsistent between"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(std::ignore = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs),
+                    NodeValidationFailure,
+                    HasSubstr("Anchor number inconsistent between"));
 }
 
 TEST(type_prop, proposal_v0_invalid_class_bbox_deltas_rank) {
-    op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+    op::v0::Proposal::Attributes attrs;
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
 
-    try {
-        auto proposal = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Invalid input tensor rank.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Proposal layer shape bbox_deltas should be rank 4 compatible"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(std::ignore = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs),
+                    NodeValidationFailure,
+                    HasSubstr("Proposal layer shape bbox_deltas should be rank 4 compatible"));
 }
 
 TEST(type_prop, proposal_v0_invalid_image_shape_rank) {
-    op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 4, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{2, 1});
+    op::v0::Proposal::Attributes attrs;
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4, 3, 4});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 1});
 
-    try {
-        auto proposal = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Invalid input tensor rank.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Proposal layer shape image_shape should be rank 1 compatible"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(std::ignore = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs),
+                    NodeValidationFailure,
+                    HasSubstr("Image_shape must be 1-D tensor"));
 }
 
 TEST(type_prop, proposal_v0_invalid_image_shape_size) {
-    op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 4, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{5});
+    op::v0::Proposal::Attributes attrs;
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4, 3, 4});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5});
 
-    try {
-        auto proposal = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Invalid input tensor rank.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("Image_shape 1D tensor must have => 3 and <= 4 elements (image_shape_shape[0]"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(std::ignore = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs),
+                    NodeValidationFailure,
+                    HasSubstr("Image_shape must be 1-D tensor and has got 3 or 4 elements (image_shape_shape[0]"));
+}
+
+TEST(type_prop, proposal_v0_default_ctor) {
+    op::v0::Proposal::Attributes attrs;
+    attrs.base_size = 1;
+    attrs.pre_nms_topn = 20;
+    attrs.post_nms_topn = 200;
+    const size_t batch_size = 7;
+
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f16, Shape{batch_size, 12, 34, 62});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f16, Shape{batch_size, 24, 34, 62});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f16, Shape{3});
+
+    auto op = make_shared<op::v0::Proposal>();
+    op->set_arguments(OutputVector{class_probs, class_bbox_deltas, image_shape});
+    op->set_attrs(attrs);
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_input_size(), 3);
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_output_element_type(0), element::f16);
+    EXPECT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
 }
 
 TEST(type_prop, proposal_v0_shape_infer) {
-    op::ProposalAttrs attrs;
+    op::v0::Proposal::Attributes attrs;
     attrs.base_size = 1;
     attrs.pre_nms_topn = 20;
     attrs.post_nms_topn = 200;
     const size_t batch_size = 7;
 
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{batch_size, 12, 34, 62});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{batch_size, 24, 34, 62});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::bf16, Shape{batch_size, 12, 34, 62});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::bf16, Shape{batch_size, 24, 34, 62});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::bf16, Shape{3});
     auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-    ASSERT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
+
+    EXPECT_EQ(op->get_output_element_type(0), element::bf16);
+    EXPECT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
 }
 
 TEST(type_prop, proposal_v0_dynamic_class_probs_dim1_batch_size_infer) {
-    op::ProposalAttrs attrs;
+    op::v0::Proposal::Attributes attrs;
     attrs.post_nms_topn = 1;
-    const size_t batch_size = 2;
-    auto class_probs = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{batch_size, 4, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+    const auto batch_size = Dimension(2);
+
+    auto class_props_shape = PartialShape{-1, 2, 3, 4};
+    auto class_bbox_shape = PartialShape{batch_size, 4, {0, 3}, {1, 4}};
+    set_shape_labels(class_props_shape, 10);
+    set_shape_labels(class_bbox_shape, 20);
+
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, class_props_shape);
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, class_bbox_shape);
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
 
     auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-    ASSERT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{batch_size * attrs.post_nms_topn, 5}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, ov::no_label));
 }
 
 TEST(type_prop, proposal_v0_dynamic_bbox_deltas_dim1_batch_size_infer) {
-    op::ProposalAttrs attrs;
+    op::v0::Proposal::Attributes attrs;
     attrs.post_nms_topn = 1;
-    const size_t batch_size = 2;
-    auto class_probs = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{batch_size, 4, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+    const auto batch_size = Dimension(2);
+
+    auto class_props_shape = PartialShape{batch_size, 2, {1, 3}, {1, 4}};
+    auto class_bbox_shape = PartialShape{-1, 4, 3, 4};
+    set_shape_labels(class_props_shape, 10);
+
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f64, class_props_shape);
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f64, class_bbox_shape);
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f64, Shape{3});
 
     auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-    ASSERT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f64);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{batch_size * attrs.post_nms_topn, 5}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, ov::no_label));
 }
 
 TEST(type_prop, proposal_v0_dynamic_class_probs_bbox_deltas_dim1_batch_size_infer) {
-    op::ProposalAttrs attrs;
+    op::v0::Proposal::Attributes attrs;
     attrs.post_nms_topn = 1;
-    auto class_probs = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 4, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, 4, 3, 4});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
 
     auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-    ASSERT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic() * attrs.post_nms_topn, 5}));
+
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 5}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(ov::no_label));
 }
 
 TEST(type_prop, proposal_v0_dynamic_range_class_probs_bbox_deltas_dim1_batch_size_infer) {
-    op::ProposalAttrs attrs;
+    op::v0::Proposal::Attributes attrs;
     attrs.post_nms_topn = 2;
-    auto class_probs = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(8, 14), 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(10, 15), 4, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+
+    auto class_props_shape = PartialShape{{8, 14}, 2, 3, 4};
+    auto class_bbox_shape = PartialShape{{10, 15}, 4, {0, 3}, {1, 4}};
+    set_shape_labels(class_props_shape, 10);
+    set_shape_labels(class_bbox_shape, 20);
+
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, class_props_shape);
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, class_bbox_shape);
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
 
     auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-    ASSERT_EQ(op->get_output_partial_shape(0),
+    EXPECT_EQ(op->get_output_partial_shape(0),
               (PartialShape{Dimension(10 * attrs.post_nms_topn, 14 * attrs.post_nms_topn), 5}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(ov::no_label));
 }
 
 TEST(type_prop, proposal_v0_dynamic_image_shape_shape_infer) {
-    op::ProposalAttrs attrs;
-    attrs.base_size = 1;
+    op::v0::Proposal::Attributes attrs;
+    attrs.base_size = 2;
     attrs.pre_nms_topn = 20;
     attrs.post_nms_topn = 200;
-    const size_t batch_size = 7;
+    const auto batch_size = Dimension(7);
 
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{batch_size, 12, 34, 62});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{batch_size, 24, 34, 62});
-    auto image_shape = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto class_props_shape = PartialShape{batch_size, 12, 34, 62};
+    auto class_bbox_shape = PartialShape{batch_size, 24, 34, 62};
+    set_shape_labels(class_props_shape, 10);
+    set_shape_labels(class_bbox_shape, 20);
+
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, class_props_shape);
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, class_bbox_shape);
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+
     auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-    ASSERT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
+
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{batch_size * attrs.post_nms_topn, 5}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(ov::no_label));
+}
+
+TEST(type_prop, proposal_v0_class_probs_dynamic_rank_but_batch_shape_defined_in_bbox) {
+    op::v0::Proposal::Attributes attrs;
+    attrs.post_nms_topn = 2;
+    const auto batch_size = Dimension(7);
+
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{batch_size, 24, 32, 32});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(1));
+
+    auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{batch_size * attrs.post_nms_topn, 5}));
+}
+
+TEST(type_prop, proposal_v0_bbox_dynamic_rank_but_batch_defined_in_class_probs) {
+    op::v0::Proposal::Attributes attrs;
+    attrs.post_nms_topn = 2;
+    const auto batch_size = Dimension(7);
+
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{batch_size, 24, 32, 32});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(1));
+
+    auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{batch_size * attrs.post_nms_topn, 5}));
 }
 
 TEST(type_prop, proposal_v0_everything_dynamic_shape_infer) {
-    op::ProposalAttrs attrs;
+    op::v0::Proposal::Attributes attrs;
     attrs.post_nms_topn = 1;
-    auto class_probs = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
-    auto image_shape = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(1));
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(1));
 
     auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-    ASSERT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic() * attrs.post_nms_topn, 5}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 5}));
 }
 
 TEST(type_prop, proposal_v0_everything_dynamic_class_probs_dynamic_rank_shape_infer) {
-    op::ProposalAttrs attrs;
+    op::v0::Proposal::Attributes attrs;
     attrs.post_nms_topn = 1;
-    auto class_probs = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
-    auto image_shape = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(1));
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(1));
 
     auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-    ASSERT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic() * attrs.post_nms_topn, 5}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 5}));
 }
 
 TEST(type_prop, proposal_v0_everything_dynamic_class_probs_bbox_deltas_dynamic_rank_shape_infer) {
-    op::ProposalAttrs attrs;
+    op::v0::Proposal::Attributes attrs;
     attrs.post_nms_topn = 1;
-    auto class_probs = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    auto image_shape = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(1));
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(1));
 
     auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-    ASSERT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic() * attrs.post_nms_topn, 5}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 5}));
 }
 
 TEST(type_prop, proposal_v0_invalid_class_probs_dynamic) {
-    op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(3));
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 4, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{5});
+    op::v0::Proposal::Attributes attrs;
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4, 3, 4});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5});
 
-    try {
-        auto proposal = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Invalid input tensor rank.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Proposal layer shape class_probs should be rank 4 compatible"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(std::ignore = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs),
+                    NodeValidationFailure,
+                    HasSubstr("Proposal layer shape class_probs should be rank 4 compatible"));
 }
 
 TEST(type_prop, proposal_v0_invalid_bbox_deltas_dynamic) {
-    op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(3));
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{5});
+    op::v0::Proposal::Attributes attrs;
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5});
 
-    try {
-        auto proposal = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Invalid input tensor rank.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Proposal layer shape bbox_deltas should be rank 4 compatible"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(std::ignore = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs),
+                    NodeValidationFailure,
+                    HasSubstr("Proposal layer shape bbox_deltas should be rank 4 compatible"));
 }
 
 TEST(type_prop, proposal_v0_invalid_image_shape_dynamic) {
-    op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 4, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(0));
+    op::v0::Proposal::Attributes attrs;
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4, 3, 4});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(0));
 
-    try {
-        auto proposal = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Invalid input tensor rank.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Proposal layer shape image_shape should be rank 1 compatible"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(std::ignore = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs),
+                    NodeValidationFailure,
+                    HasSubstr("Image_shape must be 1-D tensor"));
 }
 
 TEST(type_prop, proposal_v0_invalid_class_probs_type) {
-    op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::i32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 4, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+    op::v0::Proposal::Attributes attrs;
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4, 3, 4});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
 
-    try {
-        auto proposal = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Invalid input tensor rank.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Proposal layer input class_probs should have floating point type"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(std::ignore = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs),
+                    NodeValidationFailure,
+                    HasSubstr("Proposal layer input class_probs should have floating point type"));
 }
 
 TEST(type_prop, proposal_v0_invalid_bbox_deltas_type) {
-    op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::i32, Shape{1, 4, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+    op::v0::Proposal::Attributes attrs;
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1, 4, 3, 4});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
 
-    try {
-        auto proposal = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Invalid input tensor rank.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Proposal layer input bbox_deltas should have floating point type"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(std::ignore = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs),
+                    NodeValidationFailure,
+                    HasSubstr("Proposal layer input bbox_deltas should have floating point type"));
 }
 
 TEST(type_prop, proposal_v0_invalid_image_shape_type) {
-    op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 4, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::i32, Shape{3});
+    op::v0::Proposal::Attributes attrs;
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4, 3, 4});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::i32, Shape{3});
 
-    try {
-        auto proposal = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Invalid input tensor rank.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Proposal layer input image_shape should have floating point type"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(std::ignore = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs),
+                    NodeValidationFailure,
+                    HasSubstr("Proposal layer input image_shape should have floating point type"));
 }
+
 // ------------------------------ V4 ------------------------------
 
 TEST(type_prop, proposal_v4_invalid_class_probs_rank) {
-    op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+    op::v0::Proposal::Attributes attrs;
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
 
-    try {
-        auto proposal = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Invalid input tensor rank.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Proposal layer shape class_probs should be rank 4 compatible"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(std::ignore = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs),
+                    NodeValidationFailure,
+                    HasSubstr("Proposal layer shape class_probs should be rank 4 compatible"));
 }
 
 TEST(type_prop, proposal_v4_invalid_class_bbox_deltas_rank) {
-    op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+    op::v0::Proposal::Attributes attrs;
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
 
-    try {
-        auto proposal = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Invalid input tensor rank.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Proposal layer shape bbox_deltas should be rank 4 compatible"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(std::ignore = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs),
+                    NodeValidationFailure,
+                    HasSubstr("Proposal layer shape bbox_deltas should be rank 4 compatible"));
 }
 
 TEST(type_prop, proposal_v4_invalid_image_shape_rank) {
-    op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 4, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{2, 1});
+    op::v0::Proposal::Attributes attrs;
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4, 3, 4});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 1});
 
-    try {
-        auto proposal = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Invalid input tensor rank.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Proposal layer shape image_shape should be rank 1 compatible"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(std::ignore = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs),
+                    NodeValidationFailure,
+                    HasSubstr("Image_shape must be 1-D tensor"));
 }
 
 TEST(type_prop, proposal_v4_invalid_image_shape_size) {
-    op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 4, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{5});
+    op::v0::Proposal::Attributes attrs;
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4, 3, 4});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5});
 
-    try {
-        auto proposal = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Invalid input tensor rank.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("Image_shape 1D tensor must have => 3 and <= 4 elements (image_shape_shape[0]"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(std::ignore = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs),
+                    NodeValidationFailure,
+                    HasSubstr("Image_shape must be 1-D tensor and has got 3 or 4 elements (image_shape_shape[0]"));
+}
+
+TEST(type_prop, proposal_v4_default_ctor) {
+    op::v0::Proposal::Attributes attrs;
+    attrs.base_size = 1;
+    attrs.pre_nms_topn = 20;
+    attrs.post_nms_topn = 200;
+    const size_t batch_size = 7;
+
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f16, Shape{batch_size, 12, 34, 62});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f16, Shape{batch_size, 24, 34, 62});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f16, Shape{3});
+
+    auto op = make_shared<op::v4::Proposal>();
+    op->set_arguments(OutputVector{class_probs, class_bbox_deltas, image_shape});
+    op->set_attrs(attrs);
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_input_size(), 3);
+    EXPECT_EQ(op->get_output_size(), 2);
+
+    EXPECT_THAT(op->outputs(), Each(Property("Element type", &Output<Node>::get_element_type, element::f16)));
+    EXPECT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
+    EXPECT_EQ(op->get_output_shape(1), (Shape{batch_size * attrs.post_nms_topn}));
 }
 
 TEST(type_prop, proposal_v4_shape_infer) {
-    op::ProposalAttrs attrs;
+    op::v0::Proposal::Attributes attrs;
     attrs.base_size = 1;
     attrs.pre_nms_topn = 20;
     attrs.post_nms_topn = 200;
     const size_t batch_size = 7;
 
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{batch_size, 12, 34, 62});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{batch_size, 24, 34, 62});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, Shape{batch_size, 12, 34, 62});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, Shape{batch_size, 24, 34, 62});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
     auto op = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-    ASSERT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
-    ASSERT_EQ(op->get_output_shape(1), (Shape{batch_size * attrs.post_nms_topn}));
+
+    EXPECT_THAT(op->outputs(), Each(Property("Element type", &Output<Node>::get_element_type, element::f32)));
+    EXPECT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
+    EXPECT_EQ(op->get_output_shape(1), (Shape{batch_size * attrs.post_nms_topn}));
 }
 
 TEST(type_prop, proposal_v4_dynamic_class_probs_dim1_batch_size_infer) {
-    op::ProposalAttrs attrs;
+    op::v0::Proposal::Attributes attrs;
     attrs.post_nms_topn = 1;
-    const size_t batch_size = 2;
-    auto class_probs = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{batch_size, 4, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+    const auto batch_size = Dimension(2);
+
+    auto class_props_shape = PartialShape{-1, 2, 3, 4};
+    auto class_bbox_shape = PartialShape{batch_size, 4, {0, 3}, {1, 4}};
+    set_shape_labels(class_props_shape, 10);
+    set_shape_labels(class_bbox_shape, 20);
+
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f64, class_props_shape);
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f64, class_bbox_shape);
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f64, Shape{3});
 
     auto op = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-    ASSERT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
+
+    EXPECT_THAT(op->outputs(), Each(Property("Element type", &Output<Node>::get_element_type, element::f64)));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{batch_size * attrs.post_nms_topn, 5}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, ov::no_label));
+
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{batch_size * attrs.post_nms_topn}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(1)), ElementsAre(20));
 }
 
 TEST(type_prop, proposal_v4_dynamic_bbox_deltas_dim1_batch_size_infer) {
-    op::ProposalAttrs attrs;
-    const size_t batch_size = 2;
+    op::v0::Proposal::Attributes attrs;
     attrs.post_nms_topn = 1;
-    auto class_probs = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{batch_size, 4, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+    const auto batch_size = Dimension(2);
+
+    auto class_props_shape = PartialShape{batch_size, 2, 3, 4};
+    auto class_bbox_shape = PartialShape{-1, 4, {0, 3}, {1, 4}};
+    set_shape_labels(class_props_shape, 10);
+
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::bf16, class_props_shape);
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::bf16, class_bbox_shape);
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::bf16, Shape{3});
 
     auto op = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-    ASSERT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
+
+    EXPECT_THAT(op->outputs(), Each(Property("Element type", &Output<Node>::get_element_type, element::bf16)));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{batch_size * attrs.post_nms_topn, 5}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, ov::no_label));
+
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{batch_size * attrs.post_nms_topn}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(1)), ElementsAre(10));
 }
 
 TEST(type_prop, proposal_v4_dynamic_class_probs_bbox_deltas_dim1_batch_size_infer) {
-    op::ProposalAttrs attrs;
+    op::v0::Proposal::Attributes attrs;
     attrs.post_nms_topn = 1;
-    auto class_probs = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 4, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+
+    auto class_props_shape = PartialShape{-1, 2, 3, 4};
+    auto class_bbox_shape = PartialShape{-1, 4, 3, 4};
+    set_shape_labels(class_bbox_shape, 20);
+
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, class_props_shape);
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, class_bbox_shape);
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
 
     auto op = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-    ASSERT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic() * attrs.post_nms_topn, 5}));
-    ASSERT_EQ(op->get_output_partial_shape(1), (PartialShape{Dimension::dynamic() * attrs.post_nms_topn}));
+
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 5}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, ov::no_label));
+
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{-1}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(1)), ElementsAre(20));
 }
 
 TEST(type_prop, proposal_v4_dynamic_image_shape_shape_infer) {
-    op::ProposalAttrs attrs;
+    op::v0::Proposal::Attributes attrs;
     attrs.base_size = 1;
     attrs.pre_nms_topn = 20;
     attrs.post_nms_topn = 200;
-    const size_t batch_size = 7;
+    const auto batch_size = Dimension(7);
 
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{batch_size, 12, 34, 62});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{batch_size, 24, 34, 62});
-    auto image_shape = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto class_props_shape = PartialShape{batch_size, 2, 3, 4};
+    auto class_bbox_shape = PartialShape{batch_size, 4, {0, 3}, {1, 4}};
+    set_shape_labels(class_props_shape, 10);
+    set_shape_labels(class_bbox_shape, 20);
+
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, class_props_shape);
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, class_bbox_shape);
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+
     auto op = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-    ASSERT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
+
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{batch_size * attrs.post_nms_topn, 5}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(ov::no_label));
+
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{batch_size * attrs.post_nms_topn}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(1)), ElementsAre(ov::no_label));
 }
 
 TEST(type_prop, proposal_v4_everything_dynamic_shape_infer) {
-    op::ProposalAttrs attrs;
+    op::v0::Proposal::Attributes attrs;
     attrs.post_nms_topn = 1;
-    auto class_probs = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
-    auto image_shape = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(1));
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(1));
 
     auto op = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-    ASSERT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic() * attrs.post_nms_topn, 5}));
-    ASSERT_EQ(op->get_output_partial_shape(1), (PartialShape{Dimension::dynamic() * attrs.post_nms_topn}));
+
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 5}));
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{-1}));
 }
 
 TEST(type_prop, proposal_v4_everything_dynamic_class_probs_dynamic_rank_shape_infer) {
-    op::ProposalAttrs attrs;
+    op::v0::Proposal::Attributes attrs;
     attrs.post_nms_topn = 1;
-    auto class_probs = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
-    auto image_shape = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(1));
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(1));
 
     auto op = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-    ASSERT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic() * attrs.post_nms_topn, 5}));
-    ASSERT_EQ(op->get_output_partial_shape(1), (PartialShape{Dimension::dynamic() * attrs.post_nms_topn}));
+
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 5}));
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{-1}));
 }
 
 TEST(type_prop, proposal_v4_everything_dynamic_class_probs_bbox_deltas_dynamic_rank_shape_infer) {
-    op::ProposalAttrs attrs;
+    op::v0::Proposal::Attributes attrs;
     attrs.post_nms_topn = 1;
-    auto class_probs = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    auto image_shape = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(1));
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(1));
 
     auto op = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-    ASSERT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic() * attrs.post_nms_topn, 5}));
-    ASSERT_EQ(op->get_output_partial_shape(1), (PartialShape{Dimension::dynamic() * attrs.post_nms_topn}));
+
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 5}));
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{-1}));
 }
 
 TEST(type_prop, proposal_v4_dynamic_range_class_probs_bbox_deltas_dim1_batch_size_infer) {
-    op::ProposalAttrs attrs;
+    op::v0::Proposal::Attributes attrs;
     attrs.post_nms_topn = 2;
-    auto class_probs = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(8, 14), 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(10, 15), 4, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+
+    auto class_props_shape = PartialShape{{8, 14}, 2, 3, 4};
+    auto class_bbox_shape = PartialShape{{10, 15}, 4, {0, 3}, {1, 4}};
+    set_shape_labels(class_props_shape, 10);
+    set_shape_labels(class_bbox_shape, 20);
+
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, class_props_shape);
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, class_bbox_shape);
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
 
     auto op = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-    ASSERT_EQ(op->get_output_partial_shape(0),
+
+    EXPECT_EQ(op->get_output_partial_shape(0),
               (PartialShape{Dimension(10 * attrs.post_nms_topn, 14 * attrs.post_nms_topn), 5}));
-    ASSERT_EQ(op->get_output_partial_shape(1),
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(ov::no_label));
+
+    EXPECT_EQ(op->get_output_partial_shape(1),
               (PartialShape{Dimension(10 * attrs.post_nms_topn, 14 * attrs.post_nms_topn)}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(1)), Each(ov::no_label));
+}
+
+TEST(type_prop, proposal_v4_class_dynamic_rank_but_batch_shape_defined_in_bbox) {
+    op::v0::Proposal::Attributes attrs;
+    attrs.post_nms_topn = 1;
+    const auto batch_size = Dimension(7);
+
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{batch_size, 24, 32, 32});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(1));
+
+    auto op = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{batch_size * attrs.post_nms_topn, 5}));
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{batch_size * attrs.post_nms_topn}));
+}
+
+TEST(type_prop, proposal_v4_bbox_dynamic_rank_but_batch_defined_in_class_probs) {
+    op::v0::Proposal::Attributes attrs;
+    attrs.post_nms_topn = 1;
+    const auto batch_size = Dimension(10);
+
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{batch_size, 24, 32, 32});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(1));
+
+    auto op = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{batch_size * attrs.post_nms_topn, 5}));
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{batch_size * attrs.post_nms_topn}));
 }
 
 TEST(type_prop, proposal_v4_invalid_class_probs_dynamic) {
-    op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(3));
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 4, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{5});
+    op::v0::Proposal::Attributes attrs;
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4, 3, 4});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5});
 
-    try {
-        auto proposal = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Invalid input tensor rank.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Proposal layer shape class_probs should be rank 4 compatible"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(std::ignore = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs),
+                    NodeValidationFailure,
+                    HasSubstr("Proposal layer shape class_probs should be rank 4 compatible"));
 }
 
 TEST(type_prop, proposal_v4_invalid_bbox_deltas_dynamic) {
-    op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(3));
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{5});
+    op::v0::Proposal::Attributes attrs;
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5});
 
-    try {
-        auto proposal = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Invalid input tensor rank.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Proposal layer shape bbox_deltas should be rank 4 compatible"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(std::ignore = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs),
+                    NodeValidationFailure,
+                    HasSubstr("Proposal layer shape bbox_deltas should be rank 4 compatible"));
 }
 
 TEST(type_prop, proposal_v4_invalid_image_shape_dynamic) {
-    op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 4, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(0));
+    op::v0::Proposal::Attributes attrs;
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4, 3, 4});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(0));
 
-    try {
-        auto proposal = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Invalid input tensor rank.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Proposal layer shape image_shape should be rank 1 compatible"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(std::ignore = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs),
+                    NodeValidationFailure,
+                    HasSubstr("Image_shape must be 1-D tensor"));
 }
 
 TEST(type_prop, proposal_v4_invalid_class_probs_type) {
-    op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::i32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 4, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+    op::v0::Proposal::Attributes attrs;
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4, 3, 4});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
 
-    try {
-        auto proposal = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Invalid input tensor rank.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Proposal layer input class_probs should have floating point type"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(std::ignore = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs),
+                    NodeValidationFailure,
+                    HasSubstr("Proposal layer input class_probs should have floating point type"));
 }
 
 TEST(type_prop, proposal_v4_invalid_bbox_deltas_type) {
-    op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::i32, Shape{1, 4, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+    op::v0::Proposal::Attributes attrs;
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1, 4, 3, 4});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
 
-    try {
-        auto proposal = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Invalid input tensor rank.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Proposal layer input bbox_deltas should have floating point type"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(std::ignore = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs),
+                    NodeValidationFailure,
+                    HasSubstr("Proposal layer input bbox_deltas should have floating point type"));
 }
 
 TEST(type_prop, proposal_v4_invalid_image_shape_type) {
-    op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 4, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::i32, Shape{3});
+    op::v0::Proposal::Attributes attrs;
+    auto class_probs = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4, 3, 4});
+    auto image_shape = make_shared<ov::op::v0::Parameter>(element::i32, Shape{3});
 
-    try {
-        auto proposal = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Invalid input tensor rank.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Proposal layer input image_shape should have floating point type"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(std::ignore = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs),
+                    NodeValidationFailure,
+                    HasSubstr("Proposal layer input image_shape should have floating point type"));
 }

@@ -10,16 +10,24 @@ import pytest
 import datetime
 import time
 
-import openvino.runtime.opset8 as ops
-from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model, InferRequest
-from openvino.runtime import Type, PartialShape, Shape, Layout
+import openvino.runtime.opset13 as ops
+from openvino import (
+    Core,
+    CompiledModel,
+    InferRequest,
+    AsyncInferQueue,
+    Model,
+    Layout,
+    PartialShape,
+    Shape,
+    Type,
+    Tensor,
+)
+from openvino.runtime import ProfilingInfo
 from openvino.preprocess import PrePostProcessor
 
 from tests import skip_need_mock_op
-from tests.conftest import model_path
-from tests.test_utils.test_utils import generate_image, get_relu_model
-
-test_net_xml, test_net_bin = model_path()
+from tests.utils.helpers import generate_image, get_relu_model
 
 
 def create_model_with_memory(input_shape, data_type):
@@ -84,12 +92,15 @@ def abs_model_with_data(device, ov_type, numpy_dtype):
 
     array1 = np.array([[-1, 2, 5, -3]]).astype(numpy_dtype)
 
-    return request, tensor1, array1
+    return compiled_model, request, tensor1, array1
 
 
 def test_get_profiling_info(device):
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+    param = ops.parameter([1, 3, 32, 32], np.float32, name="data")
+    softmax = ops.softmax(param, 1, name="fc_out")
+    model = Model([softmax], [param], "test_model")
+
     core.set_property(device, {"PERF_COUNT": "YES"})
     compiled_model = core.compile_model(model, device)
     img = generate_image()
@@ -98,8 +109,8 @@ def test_get_profiling_info(device):
     request.infer({tensor_name: img})
     assert request.latency > 0
     prof_info = request.get_profiling_info()
-    soft_max_node = next(node for node in prof_info if node.node_name == "fc_out")
-    assert "Softmax" in soft_max_node.node_type
+    soft_max_node = next(node for node in prof_info if node.node_type == "Softmax")
+    assert soft_max_node
     assert soft_max_node.status == ProfilingInfo.Status.EXECUTED
     assert isinstance(soft_max_node.real_time, datetime.timedelta)
     assert isinstance(soft_max_node.cpu_time, datetime.timedelta)
@@ -153,22 +164,28 @@ def test_tensor_setter(device):
 
 def test_set_tensors(device):
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+
+    param = ops.parameter([1, 3, 32, 32], np.float32, name="data")
+    softmax = ops.softmax(param, 1, name="fc_out")
+    res = ops.result(softmax, name="res")
+    res.output(0).get_tensor().set_names({"res"})
+    model = Model([res], [param], "test_model")
+
     compiled_model = core.compile_model(model, device)
 
     data1 = generate_image()
     tensor1 = Tensor(data1)
-    data2 = np.ones(shape=(1, 10), dtype=np.float32)
+    data2 = np.ones(shape=(1, 3, 32, 32), dtype=np.float32)
     tensor2 = Tensor(data2)
     data3 = np.ones(shape=(1, 3, 32, 32), dtype=np.float32)
     tensor3 = Tensor(data3)
-    data4 = np.zeros(shape=(1, 10), dtype=np.float32)
+    data4 = np.zeros(shape=(1, 3, 32, 32), dtype=np.float32)
     tensor4 = Tensor(data4)
 
     request = compiled_model.create_infer_request()
-    request.set_tensors({"data": tensor1, "fc_out": tensor2})
+    request.set_tensors({"data": tensor1, "res": tensor2})
     t1 = request.get_tensor("data")
-    t2 = request.get_tensor("fc_out")
+    t2 = request.get_tensor("res")
     assert np.allclose(tensor1.data, t1.data, atol=1e-2, rtol=1e-2)
     assert np.allclose(tensor2.data, t2.data, atol=1e-2, rtol=1e-2)
 
@@ -284,7 +301,7 @@ def test_inputs_outputs_property_and_method(device):
 @pytest.mark.skip(reason="Sporadically failed. Need further investigation. Ticket - 95967")
 def test_cancel(device):
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     img = generate_image()
     request = compiled_model.create_infer_request()
@@ -302,10 +319,10 @@ def test_cancel(device):
     assert "[ INFER_CANCELLED ]" in str(e.value)
 
 
-@pytest.mark.parametrize("shared_flag", [True, False])
-def test_start_async(device, shared_flag):
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_start_async(device, share_inputs):
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     img = generate_image()
     jobs = 3
@@ -321,15 +338,15 @@ def test_start_async(device, shared_flag):
     callbacks_info["finished"] = 0
     for request in requests:
         request.set_callback(callback, callbacks_info)
-        request.start_async({0: img}, shared_memory=shared_flag)
+        request.start_async({0: img}, share_inputs=share_inputs)
     for request in requests:
         request.wait()
         assert request.latency > 0
     assert callbacks_info["finished"] == jobs
 
 
-@pytest.mark.parametrize("shared_flag", [True, False])
-def test_infer_list_as_inputs(device, shared_flag):
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_infer_list_as_inputs(device, share_inputs):
     num_inputs = 4
     input_shape = [2, 1]
     dtype = np.float32
@@ -345,18 +362,18 @@ def test_infer_list_as_inputs(device, shared_flag):
     request = compiled_model.create_infer_request()
 
     inputs = [np.random.normal(size=input_shape).astype(dtype)]
-    request.infer(inputs, shared_memory=shared_flag)
+    request.infer(inputs, share_inputs=share_inputs)
     check_fill_inputs(request, inputs)
 
     inputs = [
         np.random.normal(size=input_shape).astype(dtype) for _ in range(num_inputs)
     ]
-    request.infer(inputs, shared_memory=shared_flag)
+    request.infer(inputs, share_inputs=share_inputs)
     check_fill_inputs(request, inputs)
 
 
-@pytest.mark.parametrize("shared_flag", [True, False])
-def test_infer_mixed_keys(device, shared_flag):
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_infer_mixed_keys(device, share_inputs):
     core = Core()
     model = get_relu_model()
     compiled_model = core.compile_model(model, device)
@@ -368,7 +385,7 @@ def test_infer_mixed_keys(device, shared_flag):
     tensor2 = Tensor(data2)
 
     request = compiled_model.create_infer_request()
-    res = request.infer({0: tensor2, "data": tensor}, shared_memory=shared_flag)
+    res = request.infer({0: tensor2, "data": tensor}, share_inputs=share_inputs)
     assert np.argmax(res[compiled_model.output()]) == 531
 
 
@@ -387,11 +404,11 @@ def test_infer_mixed_keys(device, shared_flag):
     (Type.u64, np.uint64),
     (Type.boolean, bool),
 ])
-@pytest.mark.parametrize("shared_flag", [True, False])
-def test_infer_mixed_values(device, ov_type, numpy_dtype, shared_flag):
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_infer_mixed_values(device, ov_type, numpy_dtype, share_inputs):
     request, tensor1, array1 = concat_model_with_data(device, ov_type, numpy_dtype)
 
-    request.infer([tensor1, array1], shared_memory=shared_flag)
+    request.infer([tensor1, array1], share_inputs=share_inputs)
 
     assert np.array_equal(request.output_tensors[0].data, np.concatenate((tensor1.data, array1)))
 
@@ -411,11 +428,11 @@ def test_infer_mixed_values(device, ov_type, numpy_dtype, shared_flag):
     (Type.u64, np.uint64),
     (Type.boolean, bool),
 ])
-@pytest.mark.parametrize("shared_flag", [True, False])
-def test_async_mixed_values(device, ov_type, numpy_dtype, shared_flag):
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_async_mixed_values(device, ov_type, numpy_dtype, share_inputs):
     request, tensor1, array1 = concat_model_with_data(device, ov_type, numpy_dtype)
 
-    request.start_async([tensor1, array1], shared_memory=shared_flag)
+    request.start_async([tensor1, array1], share_inputs=share_inputs)
     request.wait()
     assert np.array_equal(request.output_tensors[0].data, np.concatenate((tensor1.data, array1)))
 
@@ -431,14 +448,14 @@ def test_async_mixed_values(device, ov_type, numpy_dtype, shared_flag):
     (Type.u16, np.uint16),
     (Type.i64, np.int64),
 ])
-@pytest.mark.parametrize("shared_flag", [True, False])
-def test_infer_single_input(device, ov_type, numpy_dtype, shared_flag):
-    request, tensor1, array1 = abs_model_with_data(device, ov_type, numpy_dtype)
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_infer_single_input(device, ov_type, numpy_dtype, share_inputs):
+    _, request, tensor1, array1 = abs_model_with_data(device, ov_type, numpy_dtype)
 
-    request.infer(array1, shared_memory=shared_flag)
+    request.infer(array1, share_inputs=share_inputs)
     assert np.array_equal(request.get_output_tensor().data, np.abs(array1))
 
-    request.infer(tensor1, shared_memory=shared_flag)
+    request.infer(tensor1, share_inputs=share_inputs)
     assert np.array_equal(request.get_output_tensor().data, np.abs(tensor1.data))
 
 
@@ -453,25 +470,25 @@ def test_infer_single_input(device, ov_type, numpy_dtype, shared_flag):
     (Type.u16, np.uint16),
     (Type.i64, np.int64),
 ])
-@pytest.mark.parametrize("shared_flag", [True, False])
-def test_async_single_input(device, ov_type, numpy_dtype, shared_flag):
-    request, tensor1, array1 = abs_model_with_data(device, ov_type, numpy_dtype)
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_async_single_input(device, ov_type, numpy_dtype, share_inputs):
+    _, request, tensor1, array1 = abs_model_with_data(device, ov_type, numpy_dtype)
 
-    request.start_async(array1, shared_memory=shared_flag)
+    request.start_async(array1, share_inputs=share_inputs)
     request.wait()
     assert np.array_equal(request.get_output_tensor().data, np.abs(array1))
 
-    request.start_async(tensor1, shared_memory=shared_flag)
+    request.start_async(tensor1, share_inputs=share_inputs)
     request.wait()
     assert np.array_equal(request.get_output_tensor().data, np.abs(tensor1.data))
 
 
-@pytest.mark.parametrize("shared_flag", [True, False])
-def test_infer_queue(device, shared_flag):
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_infer_queue(device, share_inputs):
     jobs = 8
     num_request = 4
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     infer_queue = AsyncInferQueue(compiled_model, num_request)
     jobs_done = [{"finished": False, "latency": 0} for _ in range(jobs)]
@@ -482,15 +499,15 @@ def test_infer_queue(device, shared_flag):
 
     img = None
 
-    if not shared_flag:
+    if not share_inputs:
         img = generate_image()
     infer_queue.set_callback(callback)
     assert infer_queue.is_ready()
 
     for i in range(jobs):
-        if shared_flag:
+        if share_inputs:
             img = generate_image()
-        infer_queue.start_async({"data": img}, i, shared_memory=shared_flag)
+        infer_queue.start_async({"data": img}, i, share_inputs=share_inputs)
     infer_queue.wait_all()
     assert all(job["finished"] for job in jobs_done)
     assert all(job["latency"] > 0 for job in jobs_done)
@@ -512,6 +529,22 @@ def test_infer_queue_iteration(device):
     assert infer_request.userdata is None
     with pytest.raises(StopIteration):
         next(it)
+
+
+def test_get_compiled_model(device):
+    core = Core()
+    param = ops.parameter([10])
+    data = np.random.rand((10))
+    model = Model(ops.relu(param), [param])
+    compiled_model_1 = core.compile_model(model, device)
+    infer_request = compiled_model_1.create_infer_request()
+    compiled_model_2 = infer_request.get_compiled_model()
+
+    ref = infer_request.infer({0: data})
+    test = compiled_model_2.create_infer_request().infer({0: data})
+
+    assert isinstance(compiled_model_2, CompiledModel)
+    assert np.allclose(ref[0], test[0])
 
 
 def test_infer_queue_userdata_is_empty(device):
@@ -536,7 +569,7 @@ def test_infer_queue_fail_on_cpp_model(device):
     jobs = 6
     num_request = 4
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     infer_queue = AsyncInferQueue(compiled_model, num_request)
 
@@ -558,7 +591,7 @@ def test_infer_queue_fail_on_py_model(device):
     jobs = 1
     num_request = 1
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     infer_queue = AsyncInferQueue(compiled_model, num_request)
 
@@ -678,21 +711,21 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
         assert np.allclose(res[list(res)[0]], expected_res, atol=1e-6), f"Expected values: {expected_res} \n Actual values: {res} \n"
 
 
-@pytest.mark.parametrize("shared_flag", [True, False])
-def test_get_results(device, shared_flag):
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_get_results(device, share_inputs):
     core = Core()
     data = ops.parameter([10], np.float64)
     model = Model(ops.split(data, 0, 5), [data])
     compiled_model = core.compile_model(model, device)
     request = compiled_model.create_infer_request()
     inputs = [np.random.normal(size=list(compiled_model.input().shape))]
-    results = request.infer(inputs, shared_memory=shared_flag)
+    results = request.infer(inputs, share_inputs=share_inputs)
     for output in compiled_model.outputs:
         assert np.array_equal(results[output], request.results[output])
 
 
-@pytest.mark.parametrize("shared_flag", [True, False])
-def test_results_async_infer(device, shared_flag):
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_results_async_infer(device, share_inputs):
     jobs = 8
     num_request = 4
     core = Core()
@@ -708,7 +741,7 @@ def test_results_async_infer(device, shared_flag):
     img = generate_image()
     infer_queue.set_callback(callback)
     for i in range(jobs):
-        infer_queue.start_async({"data": img}, i, shared_memory=shared_flag)
+        infer_queue.start_async({"data": img}, i, share_inputs=share_inputs)
     infer_queue.wait_all()
 
     request = compiled_model.create_infer_request()
@@ -722,8 +755,8 @@ def test_results_async_infer(device, shared_flag):
     os.environ.get("TEST_DEVICE") not in ["GPU"],
     reason="Device dependent test",
 )
-@pytest.mark.parametrize("shared_flag", [True, False])
-def test_infer_float16(device, shared_flag):
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_infer_float16(device, share_inputs):
     model = bytes(
         b"""<net name="add_model" version="10">
     <layers>
@@ -798,13 +831,13 @@ def test_infer_float16(device, shared_flag):
     compiled_model = core.compile_model(model, device)
     input_data = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]).astype(np.float16)
     request = compiled_model.create_infer_request()
-    outputs = request.infer({0: input_data, 1: input_data}, shared_memory=shared_flag)
+    outputs = request.infer({0: input_data, 1: input_data}, share_inputs=share_inputs)
     assert np.allclose(list(outputs.values()), list(request.results.values()))
     assert np.allclose(list(outputs.values()), input_data + input_data)
 
 
-@pytest.mark.parametrize("shared_flag", [True, False])
-def test_ports_as_inputs(device, shared_flag):
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_ports_as_inputs(device, share_inputs):
     input_shape = [2, 2]
     param_a = ops.parameter(input_shape, np.float32)
     param_b = ops.parameter(input_shape, np.float32)
@@ -822,64 +855,64 @@ def test_ports_as_inputs(device, shared_flag):
 
     res = request.infer(
         {compiled_model.inputs[0]: tensor1, compiled_model.inputs[1]: tensor2},
-        shared_memory=shared_flag,
+        share_inputs=share_inputs,
     )
     assert np.array_equal(res[compiled_model.outputs[0]], tensor1.data + tensor2.data)
 
     res = request.infer(
         {request.model_inputs[0]: tensor1, request.model_inputs[1]: tensor2},
-        shared_memory=shared_flag,
+        share_inputs=share_inputs,
     )
     assert np.array_equal(res[request.model_outputs[0]], tensor1.data + tensor2.data)
 
 
-@pytest.mark.parametrize("shared_flag", [True, False])
-def test_inputs_dict_not_replaced(device, shared_flag):
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_inputs_dict_not_replaced(device, share_inputs):
     request, arr_1, arr_2 = create_simple_request_and_inputs(device)
 
     inputs = {0: arr_1, 1: arr_2}
     inputs_copy = deepcopy(inputs)
 
-    res = request.infer(inputs, shared_memory=shared_flag)
+    res = request.infer(inputs, share_inputs=share_inputs)
 
     np.testing.assert_equal(inputs, inputs_copy)
     assert np.array_equal(res[request.model_outputs[0]], arr_1 + arr_2)
 
 
-@pytest.mark.parametrize("shared_flag", [True, False])
-def test_inputs_list_not_replaced(device, shared_flag):
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_inputs_list_not_replaced(device, share_inputs):
     request, arr_1, arr_2 = create_simple_request_and_inputs(device)
 
     inputs = [arr_1, arr_2]
     inputs_copy = deepcopy(inputs)
 
-    res = request.infer(inputs, shared_memory=shared_flag)
+    res = request.infer(inputs, share_inputs=share_inputs)
 
     assert np.array_equal(inputs, inputs_copy)
     assert np.array_equal(res[request.model_outputs[0]], arr_1 + arr_2)
 
 
-@pytest.mark.parametrize("shared_flag", [True, False])
-def test_inputs_tuple_not_replaced(device, shared_flag):
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_inputs_tuple_not_replaced(device, share_inputs):
     request, arr_1, arr_2 = create_simple_request_and_inputs(device)
 
     inputs = (arr_1, arr_2)
     inputs_copy = deepcopy(inputs)
 
-    res = request.infer(inputs, shared_memory=shared_flag)
+    res = request.infer(inputs, share_inputs=share_inputs)
 
     assert np.array_equal(inputs, inputs_copy)
     assert np.array_equal(res[request.model_outputs[0]], arr_1 + arr_2)
 
 
-@pytest.mark.parametrize("shared_flag", [True, False])
-def test_invalid_inputs(device, shared_flag):
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_invalid_inputs(device, share_inputs):
     request, _, _ = create_simple_request_and_inputs(device)
 
     inputs = "some_input"
 
     with pytest.raises(TypeError) as e:
-        request.infer(inputs, shared_memory=shared_flag)
+        request.infer(inputs, share_inputs=share_inputs)
     assert "Incompatible inputs of type:" in str(e.value)
 
 
@@ -905,8 +938,8 @@ def test_infer_dynamic_model(device):
     assert request.get_input_tensor().shape == Shape(shape3)
 
 
-@pytest.mark.parametrize("shared_flag", [True, False])
-def test_array_like_input_request(device, shared_flag):
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_array_like_input_request(device, share_inputs):
     class ArrayLikeObject:
         # Array-like object accepted by np.array to test inputs similar to torch tensor and tf.Tensor
         def __init__(self, array) -> None:
@@ -915,13 +948,13 @@ def test_array_like_input_request(device, shared_flag):
         def __array__(self):
             return np.array(self.data)
 
-    request, _, input_data = abs_model_with_data(device, Type.f32, np.single)
+    _, request, _, input_data = abs_model_with_data(device, Type.f32, np.single)
     model_input_object = ArrayLikeObject(input_data.tolist())
     model_input_list = [ArrayLikeObject(input_data.tolist())]
     model_input_dict = {0: ArrayLikeObject(input_data.tolist())}
 
     # Test single array-like object in InferRequest().Infer()
-    res_object = request.infer(model_input_object, shared_memory=shared_flag)
+    res_object = request.infer(model_input_object, share_inputs=share_inputs)
     assert np.array_equal(res_object[request.model_outputs[0]], np.abs(input_data))
 
     # Test list of array-like objects to use normalize_inputs()
@@ -933,8 +966,8 @@ def test_array_like_input_request(device, shared_flag):
     assert np.array_equal(res_dict[request.model_outputs[0]], np.abs(input_data))
 
 
-@pytest.mark.parametrize("shared_flag", [True, False])
-def test_array_like_input_async(device, shared_flag):
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_array_like_input_async(device, share_inputs):
     class ArrayLikeObject:
         # Array-like object accepted by np.array to test inputs similar to torch tensor and tf.Tensor
         def __init__(self, array) -> None:
@@ -943,11 +976,11 @@ def test_array_like_input_async(device, shared_flag):
         def __array__(self):
             return np.array(self.data)
 
-    request, _, input_data = abs_model_with_data(device, Type.f32, np.single)
+    _, request, _, input_data = abs_model_with_data(device, Type.f32, np.single)
     model_input_object = ArrayLikeObject(input_data.tolist())
     model_input_list = [ArrayLikeObject(input_data.tolist())]
     # Test single array-like object in InferRequest().start_async()
-    request.start_async(model_input_object, shared_memory=shared_flag)
+    request.start_async(model_input_object, share_inputs=share_inputs)
     request.wait()
     assert np.array_equal(request.get_output_tensor().data, np.abs(input_data))
 
@@ -957,8 +990,8 @@ def test_array_like_input_async(device, shared_flag):
     assert np.array_equal(request.get_output_tensor().data, np.abs(input_data))
 
 
-@pytest.mark.parametrize("shared_flag", [True, False])
-def test_array_like_input_async_infer_queue(device, shared_flag):
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_array_like_input_async_infer_queue(device, share_inputs):
     class ArrayLikeObject:
         # Array-like object accepted by np.array to test inputs similar to torch tensor and tf.Tensor
         def __init__(self, array) -> None:
@@ -992,7 +1025,7 @@ def test_array_like_input_async_infer_queue(device, shared_flag):
     # Test list of array-like objects in AsyncInferQueue.start_async()
     infer_queue_list = AsyncInferQueue(compiled_model, jobs)
     for i in range(jobs):
-        infer_queue_list.start_async(model_input_list[i], shared_memory=shared_flag)
+        infer_queue_list.start_async(model_input_list[i], share_inputs=share_inputs)
     infer_queue_list.wait_all()
 
     for i in range(jobs):
@@ -1009,7 +1042,7 @@ def test_convert_infer_request(device):
     assert "cannot deepcopy 'openvino.runtime.ConstOutput' object." in str(e)
 
 
-@pytest.mark.parametrize("shared_flag", [True, False])
+@pytest.mark.parametrize("share_inputs", [True, False])
 @pytest.mark.parametrize("input_data", [
     np.array(1.0, dtype=np.float32),
     np.array(1, dtype=np.int32),
@@ -1018,7 +1051,7 @@ def test_convert_infer_request(device):
     1.0,
     1,
 ])
-def test_only_scalar_infer(device, shared_flag, input_data):
+def test_only_scalar_infer(device, share_inputs, input_data):
     core = Core()
     param = ops.parameter([], np.float32, name="data")
     relu = ops.relu(param, name="relu")
@@ -1027,18 +1060,18 @@ def test_only_scalar_infer(device, shared_flag, input_data):
     compiled = core.compile_model(model=model, device_name=device)
     request = compiled.create_infer_request()
 
-    res = request.infer(input_data, shared_memory=shared_flag)
+    res = request.infer(input_data, share_inputs=share_inputs)
 
     assert res[request.model_outputs[0]] == np.maximum(input_data, 0)
 
     input_tensor = request.get_input_tensor()
-    if shared_flag and isinstance(input_data, np.ndarray) and input_data.dtype == input_tensor.data.dtype:
+    if share_inputs and isinstance(input_data, np.ndarray) and input_data.dtype == input_tensor.data.dtype:
         assert np.shares_memory(input_data, input_tensor.data)
     else:
         assert not np.shares_memory(input_data, input_tensor.data)
 
 
-@pytest.mark.parametrize("shared_flag", [True, False])
+@pytest.mark.parametrize("share_inputs", [True, False])
 @pytest.mark.parametrize("input_data", [
     {0: np.array(1.0, dtype=np.float32), 1: np.array([1.0, 2.0], dtype=np.float32)},
     {0: np.array(1, dtype=np.int32), 1: np.array([1, 2], dtype=np.int32)},
@@ -1047,7 +1080,7 @@ def test_only_scalar_infer(device, shared_flag, input_data):
     {0: 1.0, 1: np.array([1.0, 2.0], dtype=np.float32)},
     {0: 1, 1: np.array([1.0, 2.0], dtype=np.int32)},
 ])
-def test_mixed_scalar_infer(device, shared_flag, input_data):
+def test_mixed_scalar_infer(device, share_inputs, input_data):
     core = Core()
     param0 = ops.parameter([], np.float32, name="data0")
     param1 = ops.parameter([2], np.float32, name="data1")
@@ -1057,14 +1090,14 @@ def test_mixed_scalar_infer(device, shared_flag, input_data):
     compiled = core.compile_model(model=model, device_name=device)
     request = compiled.create_infer_request()
 
-    res = request.infer(input_data, shared_memory=shared_flag)
+    res = request.infer(input_data, share_inputs=share_inputs)
 
     assert np.allclose(res[request.model_outputs[0]], np.add(input_data[0], input_data[1]))
 
     input_tensor0 = request.get_input_tensor(0)
     input_tensor1 = request.get_input_tensor(1)
 
-    if shared_flag:
+    if share_inputs:
         if isinstance(input_data[0], np.ndarray) and input_data[0].dtype == input_tensor0.data.dtype:
             assert np.shares_memory(input_data[0], input_tensor0.data)
         else:
@@ -1078,12 +1111,12 @@ def test_mixed_scalar_infer(device, shared_flag, input_data):
         assert not np.shares_memory(input_data[1], input_tensor1.data)
 
 
-@pytest.mark.parametrize("shared_flag", [True, False])
+@pytest.mark.parametrize("share_inputs", [True, False])
 @pytest.mark.parametrize("input_data", [
     {0: np.array(1.0, dtype=np.float32), 1: np.array([3.0], dtype=np.float32)},
     {0: np.array(1.0, dtype=np.float32), 1: np.array([3.0, 3.0, 3.0], dtype=np.float32)},
 ])
-def test_mixed_dynamic_infer(device, shared_flag, input_data):
+def test_mixed_dynamic_infer(device, share_inputs, input_data):
     core = Core()
     param0 = ops.parameter([], np.float32, name="data0")
     param1 = ops.parameter(["?"], np.float32, name="data1")
@@ -1093,14 +1126,14 @@ def test_mixed_dynamic_infer(device, shared_flag, input_data):
     compiled = core.compile_model(model=model, device_name=device)
     request = compiled.create_infer_request()
 
-    res = request.infer(input_data, shared_memory=shared_flag)
+    res = request.infer(input_data, share_inputs=share_inputs)
 
     assert np.allclose(res[request.model_outputs[0]], np.add(input_data[0], input_data[1]))
 
     input_tensor0 = request.get_input_tensor(0)
     input_tensor1 = request.get_input_tensor(1)
 
-    if shared_flag:
+    if share_inputs:
         if isinstance(input_data[0], np.ndarray) and input_data[0].dtype == input_tensor0.data.dtype:
             assert np.shares_memory(input_data[0], input_tensor0.data)
         else:
@@ -1112,3 +1145,111 @@ def test_mixed_dynamic_infer(device, shared_flag, input_data):
     else:
         assert not np.shares_memory(input_data[0], input_tensor0.data)
         assert not np.shares_memory(input_data[1], input_tensor1.data)
+
+
+@pytest.mark.parametrize("share_inputs", [True, False])
+@pytest.mark.parametrize(("input_data", "change_flags"), [
+    ({0: np.frombuffer(b"\x01\x02\x03\x04", np.uint8)}, False),
+    ({0: np.array([1, 2, 3, 4], dtype=np.uint8)}, True),
+])
+def test_not_writable_inputs_infer(device, share_inputs, input_data, change_flags):
+    if change_flags is True:
+        input_data[0].setflags(write=0)
+    # identity model
+    input_shape = [4]
+    param_node = ops.parameter(input_shape, np.uint8, name="data0")
+    core = Core()
+    model = Model(param_node, [param_node])
+    compiled = core.compile_model(model, "CPU")
+
+    results = compiled(input_data, share_inputs=share_inputs)
+
+    assert np.array_equal(results[0], input_data[0])
+
+    request = compiled.create_infer_request()
+    results = request.infer(input_data, share_inputs=share_inputs)
+
+    assert np.array_equal(results[0], input_data[0])
+
+    input_tensor = request.get_input_tensor(0)
+
+    # Not writable inputs should always be copied.
+    assert not np.shares_memory(input_data[0], input_tensor.data)
+
+
+@pytest.mark.parametrize("shared_flag", [True, False])
+def test_shared_memory_deprecation(device, shared_flag):
+    compiled, request, _, input_data = abs_model_with_data(device, Type.f32, np.float32)
+
+    with pytest.warns(FutureWarning, match="`shared_memory` is deprecated and will be removed in 2024.0"):
+        _ = compiled(input_data, shared_memory=shared_flag)
+
+    with pytest.warns(FutureWarning, match="`shared_memory` is deprecated and will be removed in 2024.0"):
+        _ = request.infer(input_data, shared_memory=shared_flag)
+
+    with pytest.warns(FutureWarning, match="`shared_memory` is deprecated and will be removed in 2024.0"):
+        request.start_async(input_data, shared_memory=shared_flag)
+    request.wait()
+
+    queue = AsyncInferQueue(compiled, jobs=1)
+
+    with pytest.warns(FutureWarning, match="`shared_memory` is deprecated and will be removed in 2024.0"):
+        queue.start_async(input_data, shared_memory=shared_flag)
+    queue.wait_all()
+
+
+@pytest.mark.parametrize("share_inputs", [True, False])
+@pytest.mark.parametrize("share_outputs", [True, False])
+@pytest.mark.parametrize("is_positional", [True, False])
+def test_compiled_model_share_memory(device, share_inputs, share_outputs, is_positional):
+    compiled, _, _, input_data = abs_model_with_data(device, Type.f32, np.float32)
+
+    if is_positional:
+        results = compiled(input_data, share_inputs=share_inputs, share_outputs=share_outputs)
+    else:
+        results = compiled(input_data, share_inputs, share_outputs)
+
+    assert np.array_equal(results[0], np.abs(input_data))
+
+    in_tensor_shares = np.shares_memory(compiled._infer_request.get_input_tensor(0).data, input_data)
+    if share_inputs:
+        assert in_tensor_shares
+    else:
+        assert not in_tensor_shares
+
+    out_tensor_shares = np.shares_memory(compiled._infer_request.get_output_tensor(0).data, results[0])
+    if share_outputs:
+        assert out_tensor_shares
+        assert results[0].flags["OWNDATA"] is False
+    else:
+        assert not out_tensor_shares
+        assert results[0].flags["OWNDATA"] is True
+
+
+@pytest.mark.parametrize("share_inputs", [True, False])
+@pytest.mark.parametrize("share_outputs", [True, False])
+@pytest.mark.parametrize("is_positional", [True, False])
+def test_infer_request_share_memory(device, share_inputs, share_outputs, is_positional):
+    _, request, _, input_data = abs_model_with_data(device, Type.f32, np.float32)
+
+    if is_positional:
+        results = request.infer(input_data, share_inputs=share_inputs, share_outputs=share_outputs)
+    else:
+        results = request.infer(input_data, share_inputs, share_outputs)
+
+    assert np.array_equal(results[0], np.abs(input_data))
+
+    in_tensor_shares = np.shares_memory(request.get_input_tensor(0).data, input_data)
+
+    if share_inputs:
+        assert in_tensor_shares
+    else:
+        assert not in_tensor_shares
+
+    out_tensor_shares = np.shares_memory(request.get_output_tensor(0).data, results[0])
+    if share_outputs:
+        assert out_tensor_shares
+        assert results[0].flags["OWNDATA"] is False
+    else:
+        assert not out_tensor_shares
+        assert results[0].flags["OWNDATA"] is True

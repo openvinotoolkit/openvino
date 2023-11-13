@@ -8,6 +8,7 @@
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
+#include "intel_gpu/runtime/device_info.hpp"
 
 #include <string>
 #include <vector>
@@ -30,6 +31,8 @@ size_t kernel_impl_params::hash() const {
     for (auto& fd : fused_desc) {
         seed = hash_combine(seed, fd.desc->hash());
     }
+
+    seed = hash_combine(seed, _can_be_optimized);
     return seed;
 }
 
@@ -69,6 +72,7 @@ bool kernel_impl_params::operator==(const kernel_impl_params& rhs) const {
 
 void kernel_impl_params::save(BinaryOutputBuffer& ob) const {
     ob << desc;
+    ob << static_cast<uint64_t>(dev_type);
     ob << has_runtime_layouts;
     ob << unique_id;
     ob << input_layouts;
@@ -133,6 +137,9 @@ void kernel_impl_params::save(BinaryOutputBuffer& ob) const {
 void kernel_impl_params::load(BinaryInputBuffer& ib) {
     prog = nullptr;
     ib >> desc;
+    size_t dev_type_id = 0;
+    ib >> dev_type_id;
+    dev_type = static_cast<cldnn::device_type>(dev_type_id);
     ib >> has_runtime_layouts;
     ib >> unique_id;
     ib >> input_layouts;

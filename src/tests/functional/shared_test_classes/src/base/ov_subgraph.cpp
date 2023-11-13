@@ -18,13 +18,16 @@
 #include "openvino/pass/serialize.hpp"
 #include "transformations/convert_precision.hpp"
 
+#include "template/properties.hpp"
+
 #include "common_test_utils/graph_comparator.hpp"
 
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 #include "common_test_utils/file_utils.hpp"
-#include "functional_test_utils/crash_handler.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "functional_test_utils/crash_handler.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -36,13 +39,13 @@ namespace ov {
 namespace test {
 
 std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
-    os << CommonTestUtils::partialShape2str({inputShape.first}) << "_" << CommonTestUtils::vec2str(inputShape.second);
+    os << ov::test::utils::partialShape2str({inputShape.first}) << "_" << ov::test::utils::vec2str(inputShape.second);
     return os;
 }
 
 void SubgraphBaseTest::run() {
     is_reported = true;
-    bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
+    bool isCurrentTestDisabled = ov::test::utils::current_test_is_disabled();
 
     ov::test::utils::PassRate::Statuses status = isCurrentTestDisabled ?
          ov::test::utils::PassRate::Statuses::SKIPPED :
@@ -54,16 +57,16 @@ void SubgraphBaseTest::run() {
         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
 
     // in case of crash jump will be made and work will be continued
-    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+    auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
 
     // place to jump in case of a crash
     int jmpRes = 0;
 #ifdef _WIN32
-    jmpRes = setjmp(CommonTestUtils::env);
+    jmpRes = setjmp(ov::test::utils::env);
 #else
-    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
+    jmpRes = sigsetjmp(ov::test::utils::env, 1);
 #endif
-    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
+    if (jmpRes == ov::test::utils::JMP_STATUS::ok) {
         crashHandler->StartTimer();
 
         ASSERT_FALSE(targetStaticShapes.empty() && !function->get_parameters().empty()) << "Target Static Shape is empty!!!";
@@ -71,18 +74,7 @@ void SubgraphBaseTest::run() {
         try {
             compile_model();
             for (const auto& targetStaticShapeVec : targetStaticShapes) {
-                try {
-                    if (!inputDynamicShapes.empty()) {
-                        // resize ngraph function according new target shape
-                        // Note: output shapes of some nodes depend on the input data
-                        // so for some tests we need to override this function and replace parameter with constant node to get correct output shapes
-                        init_ref_function(functionRefs, targetStaticShapeVec);
-                    }
-                    generate_inputs(targetStaticShapeVec);
-                } catch (const std::exception& ex) {
-                    throw std::runtime_error("[IE TEST INFRA] Impossible to reshape ov::Model using the shape: " +
-                        CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
-                }
+                generate_inputs(targetStaticShapeVec);
                 validate();
             }
             status = ov::test::utils::PassRate::Statuses::PASSED;
@@ -97,9 +89,9 @@ void SubgraphBaseTest::run() {
         if (status != ov::test::utils::PassRate::Statuses::PASSED) {
             GTEST_FATAL_FAILURE_(errorMessage.c_str());
         }
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
         IE_THROW() << "Crash happens";
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
         summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
         IE_THROW() << "Crash happens";
     }
@@ -108,7 +100,7 @@ void SubgraphBaseTest::run() {
 void SubgraphBaseTest::serialize() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    std::string output_name = CommonTestUtils::generateTestFilePrefix();
+    std::string output_name = ov::test::utils::generateTestFilePrefix();
 
     std::string out_xml_path = output_name + ".xml";
     std::string out_bin_path = output_name + ".bin";
@@ -132,24 +124,126 @@ void SubgraphBaseTest::serialize() {
 
     EXPECT_TRUE(success) << message;
 
-    CommonTestUtils::removeIRFiles(out_xml_path, out_bin_path);
+    ov::test::utils::removeIRFiles(out_xml_path, out_bin_path);
 }
 
 void SubgraphBaseTest::query_model() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    bool isCurrentTestDisabled = ov::test::utils::current_test_is_disabled();
 
-    auto queryNetworkResult = core->query_model(function, targetDevice);
-    std::set<std::string> expected;
-    for (auto&& node : function->get_ops()) {
-        expected.insert(node->get_friendly_name());
-    }
+    ov::test::utils::PassRate::Statuses status = isCurrentTestDisabled ?
+         ov::test::utils::PassRate::Statuses::SKIPPED :
+         ov::test::utils::PassRate::Statuses::CRASHED;
+    summary.setDeviceName(targetDevice);
+    summary.updateOPsStats(function, status, rel_influence_coef);
 
-    std::set<std::string> actual;
-    for (auto&& res : queryNetworkResult) {
-        actual.insert(res.first);
+    if (isCurrentTestDisabled)
+        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+
+    // in case of crash jump will be made and work will be continued
+    auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
+
+    // place to jump in case of a crash
+    int jmpRes = 0;
+#ifdef _WIN32
+    jmpRes = setjmp(ov::test::utils::env);
+#else
+    jmpRes = sigsetjmp(ov::test::utils::env, 1);
+#endif
+    if (jmpRes == ov::test::utils::JMP_STATUS::ok) {
+        crashHandler->StartTimer();
+        std::string errorMessage;
+        try {
+            auto queryNetworkResult = core->query_model(function, targetDevice);
+            std::set<std::string> expected;
+            for (auto&& node : function->get_ops()) {
+                expected.insert(node->get_friendly_name());
+            }
+
+            std::set<std::string> actual;
+            for (auto&& res : queryNetworkResult) {
+                actual.insert(res.first);
+            }
+            if (expected != actual) {
+                IE_THROW() << "Expected and actual are different";
+            }
+            status = ov::test::utils::PassRate::Statuses::PASSED;
+        } catch (const std::exception& ex) {
+            status = ov::test::utils::PassRate::Statuses::FAILED;
+            errorMessage = ex.what();
+        } catch (...) {
+            status = ov::test::utils::PassRate::Statuses::FAILED;
+            errorMessage = "Unknown failure occurred.";
+        }
+        summary.updateOPsStats(function, status, rel_influence_coef);
+        if (status != ov::test::utils::PassRate::Statuses::PASSED) {
+            GTEST_FATAL_FAILURE_(errorMessage.c_str());
+        }
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
+        IE_THROW() << "Crash happens";
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
+        summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
+        IE_THROW() << "Crash happens";
     }
-    if (expected != actual) {
-        IE_THROW() << "Expected and actual are different";
+}
+
+void SubgraphBaseTest::import_export() {
+    bool isCurrentTestDisabled = ov::test::utils::current_test_is_disabled();
+
+    ov::test::utils::PassRate::Statuses status = isCurrentTestDisabled ?
+         ov::test::utils::PassRate::Statuses::SKIPPED :
+         ov::test::utils::PassRate::Statuses::CRASHED;
+    summary.setDeviceName(targetDevice);
+    summary.updateOPsStats(function, status, rel_influence_coef);
+
+    if (isCurrentTestDisabled)
+        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+
+    // in case of crash jump will be made and work will be continued
+    auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
+
+    // place to jump in case of a crash
+    int jmpRes = 0;
+#ifdef _WIN32
+    jmpRes = setjmp(ov::test::utils::env);
+#else
+    jmpRes = sigsetjmp(ov::test::utils::env, 1);
+#endif
+    if (jmpRes == ov::test::utils::JMP_STATUS::ok) {
+        crashHandler->StartTimer();
+        std::string errorMessage;
+        try {
+            compile_model();
+
+            std::stringstream strm;
+            compiledModel.export_model(strm);
+            ov::CompiledModel importedModel = core->import_model(strm, targetDevice, configuration);
+            auto importedFunction = importedModel.get_runtime_model()->clone();
+
+            auto comparator = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::ATTRIBUTES)
+                        .enable(FunctionsComparator::NAMES)
+                        .enable(FunctionsComparator::CONST_VALUES);
+            auto res = comparator.compare(importedFunction, function);
+            if (!res.valid) {
+                throw std::runtime_error(res.message);
+            }
+            status = ov::test::utils::PassRate::Statuses::PASSED;
+        } catch (const std::exception& ex) {
+            status = ov::test::utils::PassRate::Statuses::FAILED;
+            errorMessage = ex.what();
+        } catch (...) {
+            status = ov::test::utils::PassRate::Statuses::FAILED;
+            errorMessage = "Unknown failure occurred.";
+        }
+        summary.updateOPsStats(function, status, rel_influence_coef);
+        if (status != ov::test::utils::PassRate::Statuses::PASSED) {
+            GTEST_FATAL_FAILURE_(errorMessage.c_str());
+        }
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
+        IE_THROW() << "Crash happens";
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
+        summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
+        IE_THROW() << "Crash happens";
     }
 }
 
@@ -207,39 +301,13 @@ void SubgraphBaseTest::compile_model() {
     auto start_time = std::chrono::system_clock::now();
 
     configure_model();
-    if (functionRefs == nullptr) {
-        functionRefs = function->clone();
-    }
-
-    // Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
-    #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-        if (targetDevice == CommonTestUtils::DEVICE_CPU && !configuration.count(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16)) {
-                configuration.insert({InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
-        }
-    #endif
-
-    // Set inference_precision hint to run fp32 model in fp32 runtime precision as default plugin execution precision may vary
-    if (targetDevice == CommonTestUtils::DEVICE_GPU) {
-        ov::element::Type hint = ov::element::f32;
-        for (auto& param : function->get_parameters()) {
-            if (param->get_output_element_type(0) == ov::element::f16) {
-                hint = ov::element::f16;
-                break;
-            }
-        }
-        configuration.insert({ov::hint::inference_precision.name(), hint});
-    }
-
+    core_configuration(this);
     compiledModel = core->compile_model(function, targetDevice, configuration);
     if (is_report_stages) {
         auto end_time = std::chrono::system_clock::now();
         std::chrono::duration<double> duration = end_time - start_time;
         std::cout << "[ PLUGIN      ] `SubgraphBaseTest::compile_model()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
     }
-}
-
-void SubgraphBaseTest::init_ref_function(std::shared_ptr<ov::Model> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) {
-    ngraph::helpers::resize_function(funcRef, targetInputStaticShapes);
 }
 
 void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
@@ -251,23 +319,17 @@ void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInput
         for (size_t i = 0; i < param->get_output_size(); i++) {
             for (const auto &node : param->get_output_target_inputs(i)) {
                 std::shared_ptr<ov::Node> nodePtr = node.get_node()->shared_from_this();
-                if (std::dynamic_pointer_cast<ov::op::v0::Convert>(nodePtr)) {
-                    std::shared_ptr<ov::Node> nextNodePtr = nodePtr->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
-                    if (!ngraph::is_type<ov::op::v0::Result>(nextNodePtr)) {
-                        inputNode = nodePtr;
-                        nodePtr = nextNodePtr;
-                    }
-                }
                 auto it = inputMap.find(nodePtr->get_type_info());
                 ASSERT_NE(it, inputMap.end());
                 for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
                     if (nodePtr->get_input_node_ptr(port)->shared_from_this() == inputNode->shared_from_this()) {
-                        inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), *itTargetShape++)});
+                        inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), *itTargetShape)});
                         break;
                     }
                 }
             }
         }
+        itTargetShape++;
     }
 }
 
@@ -279,36 +341,21 @@ void SubgraphBaseTest::infer() {
     inferRequest.infer();
 }
 
-std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
+void SubgraphBaseTest::update_ref_model() {
+    if (functionRefs == nullptr) {
+        functionRefs = function->clone();
+    }
     using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::Tensor>;
 
-    auto functionToProcess = functionRefs->clone();
-    //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16
-    precisions_map precisions = {
-            { ngraph::element::bf16, ngraph::element::f32 }
-    };
-    auto convert_added = false;
-    for (const auto &param : function->get_parameters()) {
-        for (size_t i = 0; i < param->get_output_size(); i++) {
-            for (const auto &node : param->get_output_target_inputs(i)) {
-                std::shared_ptr<ov::Node> nodePtr = node.get_node()->shared_from_this();
-                if (std::dynamic_pointer_cast<ov::op::v0::Convert>(nodePtr)) {
-                    convert_added = true;
-                    break;
-                }
-            }
-        }
+    if (!convert_precisions.empty()) {
+        pass::Manager manager;
+        manager.register_pass<ov::pass::ConvertPrecision>(convert_precisions, type_to_fuse_map{}, false, false);
+        manager.run_passes(functionRefs);
+        functionRefs->validate_nodes_and_infer_types();
     }
-    if (!convert_added) {
-        precisions.insert({ ngraph::element::f16, ngraph::element::f32});
-    }
-    pass::Manager manager;
-    manager.register_pass<ov::pass::ConvertPrecision>(precisions);
-    manager.run_passes(functionToProcess);
-    functionToProcess->validate_nodes_and_infer_types();
 
-    ov::preprocess::PrePostProcessor p(functionToProcess);
-    const auto& inputNodes = functionToProcess->inputs();
+    ov::preprocess::PrePostProcessor p(functionRefs);
+    const auto& inputNodes = functionRefs->inputs();
     for (size_t i = 0; i < inputNodes.size(); ++i) {
         auto itr = std::find_if(inputs.begin(), inputs.end(),
                                 [&](const InputsMap::value_type& item) {
@@ -326,18 +373,80 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
             throw std::runtime_error(errMsg.str());
         }
     }
-
-    const auto& outputs = functionToProcess->outputs();
+    const auto& outputs = functionRefs->outputs();
     for (size_t i = 0; i < outputs.size(); ++i) {
         if (outType != ElementType::undefined && outType != outputs[i].get_element_type()) {
             p.output(i).tensor().set_element_type(outType);
         }
     }
+    functionRefs = p.build();
+}
 
-    functionToProcess = p.build();
+void SubgraphBaseTest::match_parameters() {
+    matched_parameters.clear();
+    const auto& ref_params = functionRefs->get_parameters();
+    const auto& params = function->get_parameters();
+    size_t param_size = params.size(), ref_param_size = ref_params.size();
+    if (params.size() < ref_params.size()) {
+        throw std::runtime_error("Incompatible parameters in original and reference model!");
+    }
+    if (params.size() == ref_params.size()) {
+        for (size_t in_idx = 0; in_idx < params.size(); ++in_idx) {
+            matched_parameters.insert({ ref_params[in_idx], params[in_idx] });
+        }
+    } else {
+        auto it = params.begin();
+        auto it_ref = ref_params.begin();
+        while (it_ref != ref_params.end() && it != params.end()) {
+            bool is_match_in = true;
+            if ((*it_ref)->get_output_partial_shape(0).is_static()) {
+                if (inputs.at(*it).get_shape() != (*it_ref)->get_output_shape(0)) {
+                    is_match_in = false;
+                }
+            } else if ((*it)->get_output_partial_shape(0) != (*it_ref)->get_output_partial_shape(0)) {
+                is_match_in = false;
+            }
+            if ((*it)->get_output_element_type(0) != ((*it_ref)->get_output_element_type(0))) {
+                is_match_in = false;
+            }
+            if (is_match_in) {
+                matched_parameters.insert({ *it_ref, *it });
+                ++it_ref;
+            }
+            ++it;
+        }
+        if (matched_parameters.size() != ref_params.size()) {
+            throw std::runtime_error("Incompatible parameters in original and reference model!");
+        }
+    }
+}
 
-    auto results = ngraph::helpers::interpretFunction(functionToProcess, inputs);
-    return results;
+std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
+    if (is_report_stages) {
+        std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is started"<< std::endl;
+    }
+    auto start_time = std::chrono::system_clock::now();
+
+    update_ref_model();
+    match_parameters();
+
+    auto compiledModelRef = core->compile_model(functionRefs, ov::test::utils::DEVICE_TEMPLATE, {{ ov::template_plugin::disable_transformations(true) }});
+    auto inferRequestRef = compiledModelRef.create_infer_request();
+    for (const auto& param : functionRefs->get_parameters()) {
+        inferRequestRef.set_tensor(param->get_default_output(), inputs.at(matched_parameters[param]));
+    }
+    inferRequestRef.infer();
+
+    auto outputs = std::vector<ov::Tensor>{};
+    for (const auto& output : functionRefs->outputs()) {
+        outputs.push_back(inferRequestRef.get_tensor(output));
+    }
+    if (is_report_stages) {
+        auto end_time = std::chrono::system_clock::now();
+        std::chrono::duration<double> duration = end_time - start_time;
+        std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
+    }
+    return outputs;
 }
 
 std::vector<ov::Tensor> SubgraphBaseTest::get_plugin_outputs() {
@@ -377,7 +486,7 @@ void SubgraphBaseTest::validate() {
     }
 
     ASSERT_EQ(actualOutputs.size(), expectedOutputs.size())
-        << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
+        << "TEMPLATE plugin has " << expectedOutputs.size() << " outputs, while " << targetDevice << " " << actualOutputs.size();
     if (is_report_stages) {
         std::cout << "[ COMPARATION ] `ov_tensor_utils.hpp::compare()` is started"<< std::endl;
     }

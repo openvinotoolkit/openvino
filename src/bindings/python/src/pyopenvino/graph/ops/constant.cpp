@@ -127,6 +127,8 @@ void regclass_graph_op_Constant(py::module m) {
 
     constant.def("get_value_strings", &ov::op::v0::Constant::get_value_strings);
 
+    constant.def("get_byte_size", &ov::op::v0::Constant::get_byte_size);
+
     constant.def("get_vector", [](const ov::op::v0::Constant& self) {
         auto element_type = self.get_element_type();
         if (element_type == ov::element::boolean) {
@@ -211,4 +213,15 @@ void regclass_graph_op_Constant(py::module m) {
 
             :rtype: numpy.array
         )");
+
+    constant.def("__repr__", [](const ov::op::v0::Constant& self) {
+        std::stringstream shapes_ss;
+        for (size_t i = 0; i < self.get_output_size(); ++i) {
+            if (i > 0) {
+                shapes_ss << ", ";
+            }
+            shapes_ss << self.get_output_partial_shape(i);
+        }
+        return "<" + Common::get_class_name(self) + ": '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
+    });
 }

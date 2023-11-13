@@ -8,6 +8,7 @@
 #include <map>
 
 using namespace InferenceEngine;
+IE_SUPPRESS_DEPRECATED_START
 
 TensorDesc::TensorDesc(const Precision& precision, const SizeVector& dims, Layout layout)
     : precision(precision),
@@ -297,7 +298,9 @@ BlockingDesc::BlockingDesc(const SizeVector& blocked_dims,
     this->offsetPaddingToData = dimOffsets;
 
     // check that strides are valid
-    {
+    if (!std::any_of(blocked_dims.begin(), blocked_dims.end(), [](const size_t dim) {
+            return dim == 0ul;
+        })) {
         size_t denseStride = 1;
 
         for (size_t i = 1; i <= strides.size(); i++) {
@@ -533,3 +536,4 @@ TensorDesc InferenceEngine::make_roi_desc(const TensorDesc& origDesc,
     }
     return make_roi_desc(origDesc, slice, useOrigMemDesc);
 }
+IE_SUPPRESS_DEPRECATED_END

@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/single_layer/generate_proposals.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 
 namespace ov {
@@ -82,7 +82,7 @@ void GenerateProposalsLayerTest::SetUp() {
 
     inType = outType = netPrecision;
     targetDevice = targetName;
-    if (targetDevice == CommonTestUtils::DEVICE_GPU) {
+    if (targetDevice == ov::test::utils::DEVICE_GPU) {
         if (netPrecision == element::Type_t::f16) {
             abs_threshold = 0.2;
         } else {
@@ -92,7 +92,10 @@ void GenerateProposalsLayerTest::SetUp() {
 
     init_input_shapes(inputShapes);
 
-    auto params = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes});
+    ov::ParameterVector params;
+    for (auto&& shape : inputDynamicShapes) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+    }
     auto paramsOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto generateProposals = std::make_shared<ov::op::v9::GenerateProposals>(
         params[0], // im_info
@@ -124,7 +127,7 @@ void GenerateProposalsLayerTest::generate_inputs(const std::vector<ngraph::Shape
 
 void GenerateProposalsLayerTest::compare(const std::vector<ov::Tensor>& expected,
                                          const std::vector<ov::Tensor>& actual) {
-    if (targetDevice != CommonTestUtils::DEVICE_GPU) {
+    if (targetDevice != ov::test::utils::DEVICE_GPU) {
         SubgraphBaseTest::compare(expected, actual);
         return;
     }

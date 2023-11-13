@@ -11,22 +11,19 @@ using namespace ov::test::behavior;
 namespace {
 
 const std::vector<ov::AnyMap> configs = {
-    {}
+    {{ov::hint::inference_precision.name(), ov::element::f32}}
 };
 
 const std::vector<ov::AnyMap> HeteroConfigs = {
-    {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
-};
-
-const std::vector<ov::AnyMap> AutoConfigs = {
-    {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
+    {{ov::hint::inference_precision.name(), ov::element::f32},
+     {ov::device::priorities(ov::test::utils::DEVICE_CPU)}},
 };
 
 std::shared_ptr<ngraph::Function> getFunction1() {
     const std::vector<size_t> inputShape = {1, 4, 20, 20};
     const ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32;
 
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     params.front()->set_friendly_name("Param_1");
     params.front()->get_output_tensor(0).set_names({"input_tensor"});
 
@@ -45,7 +42,7 @@ std::shared_ptr<ngraph::Function> getFunction2() {
     const std::vector<size_t> inputShape = {1, 4, 20, 20};
     const ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32;
 
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     params.front()->set_friendly_name("Param_1");
     params.front()->get_output_tensor(0).set_names({"input_tensor"});
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
@@ -70,7 +67,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_1, OVInferRequestDynamicTests,
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
                                     {{1, 4, 20, 20}, {1, 4, 20, 20}},
                                     {{2, 4, 20, 20}, {2, 4, 20, 20}}}),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::ValuesIn(configs)),
                         OVInferRequestDynamicTests::getTestCaseName);
 
@@ -80,7 +77,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_2, OVInferRequestDynamicTests,
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
                                     {{1, 4, 20, 20}, {1, 2, 20, 40}},
                                     {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::ValuesIn(configs)),
                         OVInferRequestDynamicTests::getTestCaseName);
 
@@ -90,18 +87,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferRequestDynamicTests,
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
                                     {{1, 4, 20, 20}, {1, 2, 20, 40}},
                                     {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
-                                ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                ::testing::Values(ov::test::utils::DEVICE_HETERO),
                                 ::testing::ValuesIn(HeteroConfigs)),
                         OVInferRequestDynamicTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestDynamicTests,
-                        ::testing::Combine(
-                                ::testing::Values(getFunction2()),
-                                ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
-                                    {{1, 4, 20, 20}, {1, 2, 20, 40}},
-                                    {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
-                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(AutoConfigs)),
-                        OVInferRequestDynamicTests::getTestCaseName);
-
 }  // namespace

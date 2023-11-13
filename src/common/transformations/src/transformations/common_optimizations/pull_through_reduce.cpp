@@ -9,8 +9,10 @@
 
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/reduction_base.hpp"
-#include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "sequnce_generator.hpp"
@@ -53,6 +55,9 @@ const std::vector<int64_t> adjust_axes(const std::vector<int64_t>& axes_to_align
 // - Reshape(input_shape={5,10,15}, target_shape={5,10,1,15}), 2 axis is returned
 std::vector<int64_t> try_get_unsqueeze_axes_from_reshape(const ov::Shape& target_shape, const ov::Shape& input_shape) {
     std::vector<int64_t> result;
+    if (target_shape.size() <= input_shape.size()) {
+        return result;
+    }
     if (input_shape.size() == 0) {  // scalar case - can be reshaped only to [1,..,1] shape
         result.resize(target_shape.size(), 0);
         std::iota(std::begin(result), std::end(result), 0);
@@ -80,13 +85,13 @@ std::vector<int64_t> try_get_unsqueeze_axes_from_reshape(const ov::Shape& target
 }
 
 // Update given reshape_input_shape by inserting "1" dimension on the postion represented by axes_to_insert
-std::shared_ptr<ov::opset9::Constant> update_reshape_target_shape(const ov::Shape& reshape_input_shape,
+std::shared_ptr<ov::op::v0::Constant> update_reshape_target_shape(const ov::Shape& reshape_input_shape,
                                                                   const std::vector<int64_t>& axes_to_insert) {
     auto result = std::vector<int64_t>(std::begin(reshape_input_shape), std::end(reshape_input_shape));
     for (const auto& axis : axes_to_insert) {
         result.insert(std::next(std::begin(result), axis), 1);
     }
-    return ov::opset9::Constant::create(ov::element::i64, ov::Shape{result.size()}, result);
+    return ov::op::v0::Constant::create(ov::element::i64, ov::Shape{result.size()}, result);
 }
 
 // Return true if given inputs have some common elements, otherwise return false.
@@ -102,9 +107,10 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
     MATCHER_SCOPE(PullUnsqueezeThroughReduce);
 
     const auto input = pattern::any_input(pattern::has_static_rank());
-    const auto unsqueeze_axes = pattern::wrap_type<opset9::Constant>();
-    const auto unsqueeze = pattern::wrap_type<opset9::Unsqueeze>({input, unsqueeze_axes}, pattern::consumers_count(1));
-    const auto reduce_axes = pattern::wrap_type<opset9::Constant>();
+    const auto unsqueeze_axes = pattern::wrap_type<ov::op::v0::Constant>();
+    const auto unsqueeze =
+        pattern::wrap_type<ov::op::v0::Unsqueeze>({input, unsqueeze_axes}, pattern::consumers_count(1));
+    const auto reduce_axes = pattern::wrap_type<ov::op::v0::Constant>();
     const auto reduce = pattern::wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
         {unsqueeze, reduce_axes});
 
@@ -115,9 +121,9 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
             std::dynamic_pointer_cast<op::util::ReductionBase>(pattern_map.at(reduce).get_node_shared_ptr());
         const auto unsqueeze_node = pattern_map.at(unsqueeze).get_node_shared_ptr();
         auto unsqueeze_axes_input =
-            std::dynamic_pointer_cast<opset9::Constant>(pattern_map.at(unsqueeze_axes).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(unsqueeze_axes).get_node_shared_ptr());
         auto reduce_axes_input =
-            std::dynamic_pointer_cast<opset9::Constant>(pattern_map.at(reduce_axes).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(reduce_axes).get_node_shared_ptr());
 
         if (!unsqueeze_axes_input || !reduce_axes_input || !reduce_node) {
             return false;
@@ -144,17 +150,17 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
         if (!keep_dims) {
             const auto unsqueeze_adjusted_axes = adjust_axes(unsqueeze_axes_val, reduce_axes_val);
             if (unsqueeze_adjusted_axes != unsqueeze_axes_val) {
-                unsqueeze_axes_input = opset9::Constant::create(unsqueeze_axes_input->get_element_type(),
-                                                                unsqueeze_axes_input->get_shape(),
-                                                                unsqueeze_adjusted_axes);
+                unsqueeze_axes_input = ov::op::v0::Constant::create(unsqueeze_axes_input->get_element_type(),
+                                                                    unsqueeze_axes_input->get_shape(),
+                                                                    unsqueeze_adjusted_axes);
             }
         }
 
         const auto reduce_adjusted_axes = adjust_axes(reduce_axes_val, unsqueeze_axes_val);
         if (reduce_adjusted_axes != reduce_axes_val) {
-            reduce_axes_input = opset9::Constant::create(reduce_axes_input->get_element_type(),
-                                                         reduce_axes_input->get_shape(),
-                                                         reduce_adjusted_axes);
+            reduce_axes_input = ov::op::v0::Constant::create(reduce_axes_input->get_element_type(),
+                                                             reduce_axes_input->get_shape(),
+                                                             reduce_adjusted_axes);
         }
 
         const auto new_reduce_node = reduce_node->clone_with_new_inputs({input_node, reduce_axes_input});
@@ -176,10 +182,10 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
     MATCHER_SCOPE(PullReshapeThroughReduce);
 
     const auto input = pattern::any_input(pattern::has_static_shape());
-    const auto reshape_target_shape = pattern::wrap_type<opset9::Constant>();
+    const auto reshape_target_shape = pattern::wrap_type<ov::op::v0::Constant>();
     const auto reshape =
-        pattern::wrap_type<opset9::Reshape>({input, reshape_target_shape}, pattern::consumers_count(1));
-    const auto reduce_axes = pattern::wrap_type<opset9::Constant>();
+        pattern::wrap_type<ov::op::v1::Reshape>({input, reshape_target_shape}, pattern::consumers_count(1));
+    const auto reduce_axes = pattern::wrap_type<ov::op::v0::Constant>();
     const auto reduce = pattern::wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
         {reshape, reduce_axes});
 
@@ -211,16 +217,16 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
         const auto reduce_adjusted_axes = adjust_axes(reduce_axes_val, unsqueeze_axes);
 
         auto reduce_axes_input =
-            std::dynamic_pointer_cast<opset9::Constant>(pattern_map.at(reduce_axes).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(reduce_axes).get_node_shared_ptr());
 
         if (!reduce_axes_input) {
             return false;
         }
 
         if (reduce_adjusted_axes != reduce_axes_val) {
-            reduce_axes_input = opset9::Constant::create(reduce_axes_input->get_element_type(),
-                                                         reduce_axes_input->get_shape(),
-                                                         reduce_adjusted_axes);
+            reduce_axes_input = ov::op::v0::Constant::create(reduce_axes_input->get_element_type(),
+                                                             reduce_axes_input->get_shape(),
+                                                             reduce_adjusted_axes);
         }
 
         const auto new_reduce_node = reduce_node->clone_with_new_inputs({input_node, reduce_axes_input});

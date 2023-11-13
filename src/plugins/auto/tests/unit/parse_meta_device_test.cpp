@@ -2,63 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_metric_helpers.hpp>
-#include <common_test_utils/test_constants.hpp>
-#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp"
-#include "unit_test_utils/mocks/mock_iinfer_request.hpp"
-#include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
-#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
-#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_ivariable_state_internal.hpp"
-#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
-#include <ie_core.hpp>
-#include <multi-device/multi_device_config.hpp>
-#include <ngraph_functions/subgraph_builders.hpp>
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
-#include "include/mock_auto_device_plugin.hpp"
-#include "include/mock_common.hpp"
+#include "include/auto_unit_test.hpp"
 
-using ::testing::MatcherCast;
-using ::testing::HasSubstr;
-using ::testing::AllOf;
-using ::testing::Throw;
-using ::testing::Matches;
-using ::testing::_;
-using ::testing::StrEq;
-using ::testing::StrNe;
-using ::testing::Return;
-using ::testing::Property;
-using ::testing::Eq;
-using ::testing::AnyNumber;
-using ::testing::ReturnRef;
-using ::testing::AtLeast;
-using ::testing::InvokeWithoutArgs;
+using namespace ov::mock_auto_plugin;
 using Config = std::map<std::string, std::string>;
-using namespace MockMultiDevice;
+using testing::Throw;
 
-// const char cpuFullDeviceName[] = "Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz";
 const char igpuFullDeviceName[] = "Intel(R) Gen9 HD Graphics (iGPU)";
 const char dgpuFullDeviceName[] = "Intel(R) Iris(R) Xe MAX Graphics (dGPU)";
-// const char myriadFullDeviceName[] = "Intel Movidius Myriad X VPU";
-// const char vpuxFullDeviceName[] = "";
-const std::vector<std::string>  availableDevs = {"CPU", "GPU.0", "GPU.1", "VPUX"};
-const std::vector<std::string>  availableDevsNoID = {"CPU", "GPU", "VPUX"};
-using ConfigParams = std::tuple<
-        std::string,                        // Priority devices
-        std::vector<DeviceInformation>,     // expect metaDevices
-        bool                                // if throw exception
-        >;
-class ParseMetaDeviceTest : public ::testing::TestWithParam<ConfigParams> {
-public:
-    std::shared_ptr<MockICore>                      core;
-    std::shared_ptr<MockMultiDeviceInferencePlugin> plugin;
-
+const std::vector<std::string> availableDevsNoID = {"CPU", "GPU", "OTHER"};
+using ConfigParams = std::tuple<std::string,                     // Priority devices
+                                std::vector<DeviceInformation>,  // expect metaDevices
+                                bool,                            // if throw exception
+                                int                              // expected times of calling get_supported_property()
+                                >;
+class ParseMetaDeviceTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
         std::string priorityDevices;
         std::vector<DeviceInformation> metaDevices;
         bool throwException;
-        std::tie(priorityDevices, metaDevices, throwException) = obj.param;
+        int expectedTimes;
+        std::tie(priorityDevices, metaDevices, throwException, expectedTimes) = obj.param;
         std::ostringstream result;
         result << "priorityDevices_" << priorityDevices;
         if (throwException) {
@@ -66,50 +31,29 @@ public:
         } else {
             result << "_throwException_false";
         }
+        result << "_expectedGetSupportedProperty_" << expectedTimes;
         return result.str();
     }
 
-    void TearDown() override {
-        core.reset();
-        plugin.reset();
-    }
-
     void SetUp() override {
-       // prepare mockicore and cnnNetwork for loading
-       core  = std::shared_ptr<MockICore>(new MockICore());
-       auto* origin_plugin = new MockMultiDeviceInferencePlugin();
-       plugin  = std::shared_ptr<MockMultiDeviceInferencePlugin>(origin_plugin);
-       // replace core with mock Icore
-       plugin->SetCore(core);
-
-       IE_SET_METRIC(SUPPORTED_METRICS, metrics, {METRIC_KEY(SUPPORTED_CONFIG_KEYS), METRIC_KEY(FULL_DEVICE_NAME)});
-       ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_METRICS)), _))
-           .WillByDefault(RETURN_MOCK_VALUE(metrics));
-       ON_CALL(*core, GetMetric(StrEq("GPU"),
-                   StrEq(METRIC_KEY(FULL_DEVICE_NAME)), _)).WillByDefault(Return(igpuFullDeviceName));
-       ON_CALL(*core, GetConfig(StrEq("GPU"),
-                   StrEq(CONFIG_KEY(DEVICE_ID)))).WillByDefault(Return(0));
-       ON_CALL(*core, GetMetric(StrEq("GPU.0"),
-                   StrEq(METRIC_KEY(FULL_DEVICE_NAME)), _)).WillByDefault(Return(igpuFullDeviceName));
-       ON_CALL(*core, GetMetric(StrEq("GPU.1"),
-                   StrEq(METRIC_KEY(FULL_DEVICE_NAME)), _)).WillByDefault(Return(dgpuFullDeviceName));
-
-       ON_CALL(*plugin, ParseMetaDevices).WillByDefault([this](const std::string& priorityDevices,
-                   const std::map<std::string, std::string>& config) {
-               return plugin->MultiDeviceInferencePlugin::ParseMetaDevices(priorityDevices, config);
-               });
-        std::tie(priorityDevices, metaDevices, throwException) = GetParam();
-        sizeOfMetaDevices = static_cast<int>(metaDevices.size());
+        ON_CALL(*core, get_supported_property(StrEq("INVALID_DEVICE"), _)).WillByDefault(Throw(ov::Exception("")));
+        ON_CALL(*core, get_property(StrEq("GPU.2"), ov::supported_properties.name(), _))
+            .WillByDefault(Throw(ov::Exception("")));
+        ON_CALL(*plugin, parse_meta_devices)
+            .WillByDefault([this](const std::string& priorityDevices, const ov::AnyMap& config) {
+                return plugin->Plugin::parse_meta_devices(priorityDevices, config);
+            });
+        std::tie(priorityDevices, metaDevices, throwException, expectedTimes) = GetParam();
     }
 
     void compare(std::vector<DeviceInformation>& result, std::vector<DeviceInformation>& expect) {
         EXPECT_EQ(result.size(), expect.size());
         if (result.size() == expect.size()) {
-            for (unsigned int i = 0 ; i < result.size(); i++) {
-                EXPECT_EQ(result[i].deviceName, expect[i].deviceName);
-                EXPECT_EQ(result[i].uniqueName, expect[i].uniqueName);
-                EXPECT_EQ(result[i].numRequestsPerDevices, expect[i].numRequestsPerDevices);
-                EXPECT_EQ(result[i].defaultDeviceID, expect[i].defaultDeviceID);
+            for (unsigned int i = 0; i < result.size(); i++) {
+                EXPECT_EQ(result[i].device_name, expect[i].device_name);
+                EXPECT_EQ(result[i].unique_name, expect[i].unique_name);
+                EXPECT_EQ(result[i].num_requests_per_devices, expect[i].num_requests_per_devices);
+                EXPECT_EQ(result[i].default_device_id, expect[i].default_device_id);
             }
         }
     }
@@ -117,8 +61,8 @@ public:
     void compareDevicePriority(std::vector<DeviceInformation>& result, std::vector<DeviceInformation>& expect) {
         EXPECT_EQ(result.size(), expect.size());
         if (result.size() == expect.size()) {
-            for (unsigned int i = 0 ; i < result.size(); i++) {
-                EXPECT_EQ(result[i].devicePriority, expect[i].devicePriority);
+            for (unsigned int i = 0; i < result.size(); i++) {
+                EXPECT_EQ(result[i].device_priority, expect[i].device_priority);
             }
         }
     }
@@ -128,72 +72,56 @@ protected:
     std::string priorityDevices;
     std::vector<DeviceInformation> metaDevices;
     bool throwException;
-    int sizeOfMetaDevices;
+    int expectedTimes;
 };
 using ParseMetaDeviceNoIDTest = ParseMetaDeviceTest;
 
 TEST_P(ParseMetaDeviceTest, ParseMetaDevicesWithPriority) {
-    ON_CALL(*core, GetAvailableDevices()).WillByDefault(Return(availableDevs));
-    IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, configKeys, {});
-    ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
-           .WillByDefault(RETURN_MOCK_VALUE(configKeys));
-
-    EXPECT_CALL(*plugin, ParseMetaDevices(_, _)).Times(1);
-    EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AnyNumber());
-    EXPECT_CALL(*core, GetConfig(_, _)).Times(AnyNumber());
-    EXPECT_CALL(*core, GetAvailableDevices()).Times(1);
-    EXPECT_CALL(*core, GetSupportedConfig(_, _)).Times(sizeOfMetaDevices);
+    EXPECT_CALL(*plugin, parse_meta_devices(_, _)).Times(1);
+    EXPECT_CALL(*core, get_property(_, _, _)).Times(AnyNumber());
+    EXPECT_CALL(*core, get_available_devices()).Times(1);
+    EXPECT_CALL(*core, get_supported_property(_, _)).Times(expectedTimes);
     if (throwException) {
-        ASSERT_ANY_THROW(plugin->ParseMetaDevices(priorityDevices, {}));
+        ASSERT_ANY_THROW(plugin->parse_meta_devices(priorityDevices, {}));
     } else {
-       auto result = plugin->ParseMetaDevices(priorityDevices, {{ov::device::priorities.name(), priorityDevices}});
-       compare(result, metaDevices);
-       compareDevicePriority(result, metaDevices);
+        auto result = plugin->parse_meta_devices(priorityDevices, {ov::device::priorities(priorityDevices)});
+        compare(result, metaDevices);
+        compareDevicePriority(result, metaDevices);
     }
 }
 
 TEST_P(ParseMetaDeviceTest, ParseMetaDevicesNotWithPriority) {
-    ON_CALL(*core, GetAvailableDevices()).WillByDefault(Return(availableDevs));
-    IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, configKeys, {});
-    ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
-           .WillByDefault(RETURN_MOCK_VALUE(configKeys));
-
-    EXPECT_CALL(*plugin, ParseMetaDevices(_, _)).Times(1 + !throwException);
-    EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AnyNumber());
-    EXPECT_CALL(*core, GetConfig(_, _)).Times(AnyNumber());
-    EXPECT_CALL(*core, GetAvailableDevices()).Times(1 + !throwException);
+    EXPECT_CALL(*plugin, parse_meta_devices(_, _)).Times(1 + !throwException);
+    EXPECT_CALL(*core, get_property(_, _, _)).Times(AnyNumber());
+    EXPECT_CALL(*core, get_available_devices()).Times(1 + !throwException);
     if (throwException) {
-        ASSERT_ANY_THROW(plugin->ParseMetaDevices(priorityDevices, {}));
+        ASSERT_ANY_THROW(plugin->parse_meta_devices(priorityDevices, {}));
     } else {
-       auto result = plugin->ParseMetaDevices(priorityDevices, {{}});
-       compare(result, metaDevices);
-       for (unsigned int i = 0 ; i < result.size(); i++) {
-           EXPECT_EQ(result[i].devicePriority, 0);
-       }
-       auto result2 = plugin->ParseMetaDevices(priorityDevices, {{ov::device::priorities.name(), ""}});
-       compare(result2, metaDevices);
-       for (unsigned int i = 0 ; i < result.size(); i++) {
-           EXPECT_EQ(result2[i].devicePriority, 0);
-       }
+        auto result = plugin->parse_meta_devices(priorityDevices, {});
+        compare(result, metaDevices);
+        for (unsigned int i = 0; i < result.size(); i++) {
+            EXPECT_EQ(result[i].device_priority, 0);
+        }
+        auto result2 = plugin->parse_meta_devices(priorityDevices, {ov::device::priorities("")});
+        compare(result2, metaDevices);
+        for (unsigned int i = 0; i < result.size(); i++) {
+            EXPECT_EQ(result2[i].device_priority, 0);
+        }
     }
 }
 
 TEST_P(ParseMetaDeviceNoIDTest, ParseMetaDevices) {
-    ON_CALL(*core, GetAvailableDevices()).WillByDefault(Return(availableDevsNoID));
-    IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, configKeys, {CONFIG_KEY(DEVICE_ID)});
-    ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
-           .WillByDefault(RETURN_MOCK_VALUE(configKeys));
-    EXPECT_CALL(*plugin, ParseMetaDevices(_, _)).Times(1);
-    EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AnyNumber());
-    EXPECT_CALL(*core, GetConfig(_, _)).Times(AnyNumber());
-    EXPECT_CALL(*core, GetAvailableDevices()).Times(1);
-    EXPECT_CALL(*core, GetSupportedConfig(_, _)).Times(sizeOfMetaDevices);
+    ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevsNoID));
+    EXPECT_CALL(*plugin, parse_meta_devices(_, _)).Times(1);
+    EXPECT_CALL(*core, get_property(_, _, _)).Times(AnyNumber());
+    EXPECT_CALL(*core, get_available_devices()).Times(1);
+    EXPECT_CALL(*core, get_supported_property(_, _)).Times(expectedTimes);
     if (throwException) {
-        ASSERT_ANY_THROW(plugin->ParseMetaDevices(priorityDevices, {}));
+        ASSERT_ANY_THROW(plugin->parse_meta_devices(priorityDevices, {}));
     } else {
-       auto result = plugin->ParseMetaDevices(priorityDevices, {{ov::device::priorities.name(), priorityDevices}});
-       compare(result, metaDevices);
-       compareDevicePriority(result, metaDevices);
+        auto result = plugin->parse_meta_devices(priorityDevices, {ov::device::priorities(priorityDevices)});
+        compare(result, metaDevices);
+        compareDevicePriority(result, metaDevices);
     }
 }
 // ConfigParams details
@@ -201,72 +129,71 @@ TEST_P(ParseMetaDeviceNoIDTest, ParseMetaDevices) {
 // ConfigParams {devicePriority, expect metaDevices, ifThrowException}
 
 const std::vector<ConfigParams> testConfigs = {
-    // ConfigParams {"CPU,GPU,MYRIAD,VPUX",
-    //     {{"CPU", {}, -1, "", "CPU_", 0},
-    //         {"GPU.0", {}, -1, "0", std::string(igpuFullDeviceName) + "_0", 1},
-    //         {"GPU.1", {}, -1, "1", std::string(dgpuFullDeviceName) + "_1", 1},
-    //         {"MYRIAD.9.2-ma2480", {}, -1, "9.2-ma2480", "MYRIAD_9.2-ma2480", 2},
-    //         {"MYRIAD.9.1-ma2480", {}, -1, "9.1-ma2480", "MYRIAD_9.1-ma2480", 2},
-    //         {"VPUX", {}, -1, "", "VPUX_", 3}}, false},
-    // ConfigParams {"VPUX,MYRIAD,GPU,CPU",
-    //     {{"VPUX", {}, -1, "", "VPUX_", 0},
-    //         {"MYRIAD.9.2-ma2480", {}, -1, "9.2-ma2480", "MYRIAD_9.2-ma2480", 1},
-    //         {"MYRIAD.9.1-ma2480", {}, -1, "9.1-ma2480", "MYRIAD_9.1-ma2480", 1},
-    //         {"GPU.0", {}, -1, "0", std::string(igpuFullDeviceName) + "_0", 2},
-    //         {"GPU.1", {}, -1, "1", std::string(dgpuFullDeviceName) + "_1", 2},
-    //         {"CPU", {}, -1, "", "CPU_", 3}}, false},
-    // ConfigParams {"CPU(1),GPU(2),MYRIAD(3),VPUX(4)",
-    //     {{"CPU", {}, 1, "", "CPU_", 0},
-    //         {"GPU.0", {}, 2, "0", std::string(igpuFullDeviceName) + "_0", 1},
-    //         {"GPU.1", {}, 2, "1", std::string(dgpuFullDeviceName) + "_1", 1},
-    //         {"MYRIAD.9.2-ma2480", {}, 3, "9.2-ma2480", "MYRIAD_9.2-ma2480", 2},
-    //         {"MYRIAD.9.1-ma2480", {}, 3, "9.1-ma2480", "MYRIAD_9.1-ma2480", 2},
-    //         {"VPUX", {}, 4, "", "VPUX_", 3}}, false},
-    //
-    ConfigParams {"CPU,GPU,VPUX",
-         {{"CPU", {}, -1, "", "CPU_", 0},
-             {"GPU.0", {}, -1, "", std::string(igpuFullDeviceName) + "_0", 1},
-             {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1},
-             {"VPUX", {}, -1, "", "VPUX_", 2}}, false},
-    ConfigParams {"VPUX,GPU,CPU",
-         {{"VPUX", {}, -1, "", "VPUX_", 0},
-             {"GPU.0", {}, -1, "", std::string(igpuFullDeviceName) + "_0", 1},
-             {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1},
-             {"CPU", {}, -1, "", "CPU_", 2}}, false},
-    ConfigParams {"CPU(1),GPU(2),VPUX(4)",
-         {{"CPU", {}, 1, "", "CPU_", 0},
-             {"GPU.0", {}, 2, "", std::string(igpuFullDeviceName) + "_0", 1},
-             {"GPU.1", {}, 2, "", std::string(dgpuFullDeviceName) + "_1", 1},
-             {"VPUX", {}, 4, "", "VPUX_", 2}}, false},
+    ConfigParams{"CPU,GPU.2,OTHER", {{"CPU", {}, -1, "", "CPU_", 0}, {"OTHER", {}, -1, "", "OTHER_", 2}}, false, 3},
+    ConfigParams{"CPU,GPU,OTHER",
+                 {{"CPU", {}, -1, "", "CPU_", 0},
+                  {"GPU.0", {}, -1, "", std::string(igpuFullDeviceName) + "_0", 1},
+                  {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1},
+                  {"OTHER", {}, -1, "", "OTHER_", 2}},
+                 false,
+                 4},
+    ConfigParams{"OTHER,GPU,CPU",
+                 {{"OTHER", {}, -1, "", "OTHER_", 0},
+                  {"GPU.0", {}, -1, "", std::string(igpuFullDeviceName) + "_0", 1},
+                  {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1},
+                  {"CPU", {}, -1, "", "CPU_", 2}},
+                 false,
+                 4},
+    ConfigParams{"OTHER,GPU,INVALID_DEVICE",
+                 {{"OTHER", {}, -1, "", "OTHER_", 0},
+                  {"GPU.0", {}, -1, "", std::string(igpuFullDeviceName) + "_0", 1},
+                  {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1}},
+                 false,
+                 3},
+    ConfigParams{"CPU(1),GPU(2),OTHER(4)",
+                 {{"CPU", {}, 1, "", "CPU_", 0},
+                  {"GPU.0", {}, 2, "", std::string(igpuFullDeviceName) + "_0", 1},
+                  {"GPU.1", {}, 2, "", std::string(dgpuFullDeviceName) + "_1", 1},
+                  {"OTHER", {}, 4, "", "OTHER_", 2}},
+                 false,
+                 4},
 
-    ConfigParams {"CPU(-1),GPU,VPUX",  {}, true},
-    ConfigParams {"CPU(NA),GPU,VPUX",  {}, true},
+    ConfigParams{"CPU(-1),GPU,OTHER", {}, true, 0},
+    ConfigParams{"CPU(NA),GPU,OTHER", {}, true, 0},
+    ConfigParams{"INVALID_DEVICE", {}, false, 0},
+    ConfigParams{"INVALID_DEVICE,CPU", {{"CPU", {}, -1, "", "CPU_", 1}}, false, 2},
 
-    ConfigParams {"CPU(3),GPU.1,VPUX",
-        {{"CPU", {}, 3, "",  "CPU_", 0},
-            {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1},
-            {"VPUX", {}, -1, "", "VPUX_", 2}}, false},
-    ConfigParams {"VPUX,GPU.1,CPU(3)",
-        {{"VPUX", {}, -1, "", "VPUX_", 0},
-            {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1},
-            {"CPU", {}, 3, "",  "CPU_", 2}}, false}
-};
+    ConfigParams{"CPU(3),GPU.1,OTHER",
+                 {{"CPU", {}, 3, "", "CPU_", 0},
+                  {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1},
+                  {"OTHER", {}, -1, "", "OTHER_", 2}},
+                 false,
+                 3},
+    ConfigParams{"OTHER,GPU.1,CPU(3)",
+                 {{"OTHER", {}, -1, "", "OTHER_", 0},
+                  {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1},
+                  {"CPU", {}, 3, "", "CPU_", 2}},
+                 false,
+                 3}};
 
 const std::vector<ConfigParams> testConfigsNoID = {
-    ConfigParams {"CPU,GPU,VPUX",
-        {{"CPU", {}, -1, "", "CPU_", 0},
-        {"GPU", {}, -1, "0", std::string(igpuFullDeviceName) + "_0", 1},
-        {"VPUX", {}, -1, "", "VPUX_", 2}}, false},
+    ConfigParams{"CPU,GPU,OTHER",
+                 {{"CPU", {}, -1, "", "CPU_", 0},
+                  {"GPU", {}, -1, "0", std::string(igpuFullDeviceName) + "_0", 1},
+                  {"OTHER", {}, -1, "", "OTHER_", 2}},
+                 false,
+                 3},
 };
 
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
+                         ParseMetaDeviceTest,
+                         ::testing::ValuesIn(testConfigs),
+                         ParseMetaDeviceTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ParseMetaDeviceTest,
-                ::testing::ValuesIn(testConfigs),
-            ParseMetaDeviceTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
+                         ParseMetaDeviceNoIDTest,
+                         ::testing::ValuesIn(testConfigsNoID),
+                         ParseMetaDeviceTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ParseMetaDeviceNoIDTest,
-                ::testing::ValuesIn(testConfigsNoID),
-            ParseMetaDeviceTest::getTestCaseName);
-
-//toDo need add test for ParseMetaDevices(_, config) to check device config of
-//return metaDevices
+// toDo need add test for ParseMetaDevices(_, config) to check device config of
+// return metaDevices

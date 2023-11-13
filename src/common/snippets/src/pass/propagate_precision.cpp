@@ -4,23 +4,24 @@
 
 #include "snippets/pass/propagate_precision.hpp"
 
-#include <assert.h>
-#include <memory>
 #include "ov_ops/type_relaxed.hpp"
 #include "snippets/itt.hpp"
-#include "ngraph/rt_info.hpp"
+#include "snippets/utils.hpp"
+#include "openvino/core/rt_info.hpp"
 
-using namespace ngraph;
+#include <assert.h>
+#include <memory>
 
-ngraph::snippets::pass::PropagatePrecision::PropagatePrecision(
+
+ov::snippets::pass::PropagatePrecision::PropagatePrecision(
     const std::shared_ptr<const TargetMachine>& target_machine) : target_machine(target_machine) {
 }
 
-bool ngraph::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
+bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_MODEL_SCOPE(PropagatePrecision);
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::PropagatePrecision")
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::PropagatePrecision")
 
-    std::unordered_map<std::shared_ptr<ngraph::opset1::Result>, element::Type> result_types;
+    std::unordered_map<std::shared_ptr<ov::opset1::Result>, element::Type> result_types;
     auto results = f->get_results();
     for (auto& result : results) {
         result_types.emplace(result, result->get_input_element_type(0));
@@ -29,12 +30,20 @@ bool ngraph::snippets::pass::PropagatePrecision::run_on_model(const std::shared_
     bool was_updated = false;
     for (const auto& op : f->get_ordered_ops()) {
         auto type_info = op->get_type_info();
-        OPENVINO_ASSERT(
-            target_machine->has(type_info),
-            "operation '" + std::string(type_info.version_id) + "::" + std::string(type_info.name) + "' was not found in target machine");
+        std::set<ov::element::TypeVector> supported_precisions;
+        // TODO: At the moment Softmax is decomposed on Linear IR level.
+        //       When Softmax will be decomposed on openvino level, remove it
+        if (type_info.is_castable(ov::op::v1::Softmax::get_type_info_static())) {
+            supported_precisions = {{ov::element::f32}};
+        } else {
+            OPENVINO_ASSERT(
+                target_machine->has(type_info),
+                "operation '" + std::string(type_info.version_id) + "::" + std::string(type_info.name) + "' was not found in target machine");
 
-        auto exec = target_machine->get_supported_precisions(type_info);
-        const auto supported_precisions = exec(op);
+            auto exec = target_machine->get_supported_precisions(type_info);
+            supported_precisions = exec(op);
+        }
+
         if (supported_precisions.empty()) {
             continue;
         }
@@ -45,7 +54,7 @@ bool ngraph::snippets::pass::PropagatePrecision::run_on_model(const std::shared_
         //   2) Type relaxed based operations. Will be resolved by snippet opset.
 
         for (const auto& input : op->inputs()) {
-            const auto convert = ngraph::as_type<snippets::op::ConvertSaturation>(input.get_source_output().get_node());
+            const auto convert = ov::as_type<snippets::op::ConvertSaturation>(input.get_source_output().get_node());
             if (convert == nullptr) {
                 continue;
             }
@@ -87,10 +96,10 @@ bool ngraph::snippets::pass::PropagatePrecision::run_on_model(const std::shared_
                 "there are no supported precisions for operation '" + std::string(type_info.version_id) + "::" + std::string(type_info.name) + "'");
 
             auto find_convert = [](
-                const ngraph::Output<ngraph::Node> parent_output,
-                const ngraph::element::Type convert_type) -> snippets::op::ConvertSaturation* {
+                const ov::Output<ov::Node> parent_output,
+                const ov::element::Type convert_type) -> snippets::op::ConvertSaturation* {
                 for (const auto& input : parent_output.get_target_inputs()) {
-                    const auto child = ngraph::as_type<snippets::op::ConvertSaturation>(input.get_node());
+                    const auto child = ov::as_type<snippets::op::ConvertSaturation>(input.get_node());
                     if ((child != nullptr) && (child->get_output_element_type(0) == convert_type)) {
                         return child;
                     }
@@ -105,7 +114,7 @@ bool ngraph::snippets::pass::PropagatePrecision::run_on_model(const std::shared_
                 const auto actual_before = parent_output.get_element_type();
                 if (actual_before != required_after) {
                     was_updated = true;
-                    auto existing_convert = ngraph::as_type<ngraph::snippets::op::ConvertSaturation>(
+                    auto existing_convert = ov::as_type<ov::snippets::op::ConvertSaturation>(
                         parent_output.get_node());
 
                     if (existing_convert == nullptr) {
@@ -119,10 +128,10 @@ bool ngraph::snippets::pass::PropagatePrecision::run_on_model(const std::shared_
 
                     if (existing_convert == nullptr) {
                         // create new Convert
-                        auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
+                        auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(
                             parent_output,
                             required_after);
-                        ngraph::copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
+                        copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
                         op->set_argument(op_input.get_index(), convert);
                         continue;
                     }
@@ -138,19 +147,19 @@ bool ngraph::snippets::pass::PropagatePrecision::run_on_model(const std::shared_
 
                     if (can_be_fused(actual_after, required_after)) {
                         // fuse existing convert
-                        auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
+                        auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(
                             existing_convert->get_input_node_shared_ptr(0),
                             required_after);
-                        ngraph::copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
+                        copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
                         op->set_argument(op_input.get_index(), convert);
                         continue;
                     }
 
                     // create new convert
-                    auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
+                    auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(
                         existing_convert->output(0),
                         required_after);
-                    ngraph::copy_runtime_info(existing_convert->output(0).get_node()->shared_from_this(), convert);
+                    copy_runtime_info(existing_convert->output(0).get_node()->shared_from_this(), convert);
                     op->set_argument(op_input.get_index(), convert);
                 }
             }
@@ -169,10 +178,10 @@ bool ngraph::snippets::pass::PropagatePrecision::run_on_model(const std::shared_
         const auto expected_type = it->second;
         if (actual_type != it->second) {
             was_updated = true;
-            auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
+            auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(
                 result->get_input_node_shared_ptr(0),
                 expected_type);
-            ngraph::copy_runtime_info(result->get_input_node_shared_ptr(0), convert);
+            copy_runtime_info(result->get_input_node_shared_ptr(0), convert);
             result->set_argument(0, convert);
         }
     }
@@ -180,7 +189,7 @@ bool ngraph::snippets::pass::PropagatePrecision::run_on_model(const std::shared_
     return was_updated;
 }
 
-bool ngraph::snippets::pass::PropagatePrecision::validate_and_infer_types_and_restore_outputs(const std::shared_ptr<ngraph::Node>& op) {
+bool ov::snippets::pass::PropagatePrecision::validate_and_infer_types_and_restore_outputs(const std::shared_ptr<ov::Node>& op) {
     bool was_updated = false;
 
     // update output precision
@@ -212,10 +221,10 @@ bool ngraph::snippets::pass::PropagatePrecision::validate_and_infer_types_and_re
 
         if (output.get_element_type() != op_output_types[i]) {
             was_updated = true;
-            auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
+            auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(
                 output,
                 op_output_types[i]);
-            ngraph::copy_runtime_info(output.get_node_shared_ptr(), convert);
+            copy_runtime_info(output.get_node_shared_ptr(), convert);
 
             for (auto& input : output.get_target_inputs()) {
                 auto child = input.get_node();
@@ -226,7 +235,7 @@ bool ngraph::snippets::pass::PropagatePrecision::validate_and_infer_types_and_re
                 input.replace_source_output(convert->output(0));
 
 
-                if (ngraph::is_type<ngraph::op::Result>(input.get_node())) {
+                if (ov::is_type<ov::op::v0::Result>(input.get_node())) {
                     // Result input tensor name was changed, the name has to be restored
                     // task #107826
                     input.get_tensor_ptr()->add_names(output.get_tensor_ptr()->get_names());
@@ -243,7 +252,7 @@ bool ngraph::snippets::pass::PropagatePrecision::validate_and_infer_types_and_re
     return was_updated;
 }
 
-bool ngraph::snippets::pass::PropagatePrecision::can_be_removed(
+bool ov::snippets::pass::PropagatePrecision::can_be_removed(
     const element::Type& actual_before,
     const element::Type& actual_after,
     const element::Type& required_after) noexcept {
@@ -254,7 +263,7 @@ bool ngraph::snippets::pass::PropagatePrecision::can_be_removed(
     return can_be_fused(actual_after, actual_before);
 }
 
-bool ngraph::snippets::pass::PropagatePrecision::can_be_fused(
+bool ov::snippets::pass::PropagatePrecision::can_be_fused(
     const element::Type& actual,
     const element::Type& required) noexcept {
     if (actual == required) {
@@ -278,7 +287,7 @@ bool ngraph::snippets::pass::PropagatePrecision::can_be_fused(
         (actual.bitwidth() > required.bitwidth());
 }
 
-std::vector<element::Type> ngraph::snippets::pass::PropagatePrecision::get_precisions(
+std::vector<ov::element::Type> ov::snippets::pass::PropagatePrecision::get_precisions(
     const std::vector<element::Type>& input_precisions,
     const std::set<std::vector<element::Type>>& supported_precisions_pack) noexcept {
     bool was_found = false;

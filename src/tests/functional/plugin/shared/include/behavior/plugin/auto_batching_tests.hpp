@@ -11,7 +11,7 @@
 #include <common_test_utils/test_common.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
 
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "base/behavior_test_utils.hpp"
 
@@ -81,7 +81,7 @@ protected:
             }
             // minimize timeout to reduce test time
             config[CONFIG_KEY(AUTO_BATCH_TIMEOUT)] = std::to_string(1);
-            auto exec_net_ref = ie.LoadNetwork(net, std::string(CommonTestUtils::DEVICE_BATCH) + ":" +
+            auto exec_net_ref = ie.LoadNetwork(net, std::string(ov::test::utils::DEVICE_BATCH) + ":" +
                                                     target_device + "(" + std::to_string(num_batch) + ")",
                                                config);
 
@@ -164,10 +164,12 @@ public:
 };
 
 TEST_P(AutoBatching_Test, compareAutoBatchingToSingleBatch) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     TestAutoBatch();
 }
 
 TEST_P(AutoBatching_Test_DetectionOutput, compareAutoBatchingToSingleBatch) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     TestAutoBatch();
 }
 

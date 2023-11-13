@@ -10,6 +10,7 @@
 #include "default_opset.hpp"
 #include "utils/reshape.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {

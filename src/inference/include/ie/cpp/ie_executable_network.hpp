@@ -10,6 +10,16 @@
 
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <map>
 #include <memory>
 #include <ostream>
@@ -32,7 +42,7 @@ class IExecutableNetworkInternal;
 /**
  * @brief This is an interface of an executable network
  */
-class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) {
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) {
     std::shared_ptr<IExecutableNetworkInternal> _impl;
     std::shared_ptr<void> _so;
 
@@ -180,7 +190,6 @@ public:
      */
     explicit operator bool() const noexcept;
 
-    IE_SUPPRESS_DEPRECATED_START
     /**
      * @deprecated The method Will be removed
      * @brief reset owned object to new pointer.
@@ -188,7 +197,6 @@ public:
      * Essential for cases when simultaneously loaded networks not expected.
      * @param newActual actual pointed object
      */
-    INFERENCE_ENGINE_DEPRECATED("The method will be removed")
     void reset(std::shared_ptr<IExecutableNetwork> newActual);
 
     /**
@@ -196,7 +204,6 @@ public:
      * @brief cast operator is used when this wrapper initialized by LoadNetwork
      * @return A shared pointer to IExecutableNetwork interface.
      */
-    INFERENCE_ENGINE_DEPRECATED("The method will be removed. Use operator bool")
     operator std::shared_ptr<IExecutableNetwork>();
 
     /**
@@ -206,7 +213,6 @@ public:
      * Wraps IExecutableNetwork::CreateInferRequest.
      * @return shared pointer on InferenceEngine::InferRequest object
      */
-    INFERENCE_ENGINE_DEPRECATED("Use ExecutableNetwork::CreateInferRequest instead")
     InferRequest::Ptr CreateInferRequestPtr();
 };
 

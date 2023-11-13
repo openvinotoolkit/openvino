@@ -17,7 +17,7 @@ struct range_impl : typed_primitive_impl_ocl<range> {
     using kernel_selector_t = kernel_selector::range_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::range_params, kernel_selector::range_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::range_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<range_impl>(*this);
@@ -66,3 +66,4 @@ attach_range_impl::attach_range_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::range_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::range)

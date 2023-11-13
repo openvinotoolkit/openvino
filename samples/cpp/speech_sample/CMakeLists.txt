@@ -8,27 +8,12 @@ file (GLOB HDR ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 # Required zlib and cnpy dependencies
 
-if(NOT ANDROID)
-    find_package(PkgConfig QUIET)
-endif()
-
-if(NOT TARGET zlib::zlib)
-    if(PkgConfig_FOUND)
-        pkg_search_module(zlib QUIET
-                          IMPORTED_TARGET GLOBAL
-                          zlib)
-        if(zlib_FOUND)
-            add_library(zlib::zlib ALIAS PkgConfig::zlib)
-        endif()
-    endif()
-
-    if(zlib_FOUND)
-        message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
-    elseif(EXISTS "${Samples_SOURCE_DIR}/thirdparty/zlib")
+if(NOT TARGET ZLIB::ZLIB)
+    if(EXISTS "${Samples_SOURCE_DIR}/thirdparty/zlib")
         # OpenVINO package puts thirdparty to samples dir
         add_subdirectory("${Samples_SOURCE_DIR}/thirdparty/zlib"
                          "${Samples_BINARY_DIR}/thirdparty/zlib" EXCLUDE_FROM_ALL)
-    elseif(EXISTS "${Samples_SOURCE_DIR}/thirdparty/zlib")
+    elseif(EXISTS "${Samples_SOURCE_DIR}/../../thirdparty/zlib")
         # Allow running samples CMakeLists.txt as stand alone from openvino sources
         add_subdirectory("${Samples_SOURCE_DIR}/../../thirdparty/zlib"
                          "${Samples_BINARY_DIR}/thirdparty/zlib" EXCLUDE_FROM_ALL)
@@ -47,7 +32,7 @@ endif()
 
 # add sample
 
-ie_add_sample(NAME speech_sample
+ov_add_sample(NAME speech_sample
               SOURCES ${SRC}
               HEADERS ${HDR}
               DEPENDENCIES ${GFLAGS_TARGET} cnpy ie_samples_utils)

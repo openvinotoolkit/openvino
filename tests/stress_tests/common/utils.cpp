@@ -33,24 +33,12 @@ std::string fileNameNoExt(const std::string &filepath) {
     return filepath.substr(0, pos);
 }
 
-
-/// Parses number from provided string
-static int parseLine(std::string line) {
-    std::string res = "";
-    for (auto c: line)
-        if (isdigit(c))
-            res += c;
-    if (res.empty())
-        // If number wasn't found return -1
-        return -1;
-    return std::stoi(res);
-}
-
 #ifdef _WIN32
 static PROCESS_MEMORY_COUNTERS getMemoryInfo() {
     static PROCESS_MEMORY_COUNTERS pmc;
     pmc.cb = sizeof(PROCESS_MEMORY_COUNTERS);
-    GetProcessMemoryInfo(GetCurrentProcess(),&pmc, pmc.cb);
+    if (!GetProcessMemoryInfo(GetCurrentProcess(), &pmc, pmc.cb))
+        throw std::runtime_error("Can't get system memory values");
     return pmc;
 }
 
@@ -94,20 +82,34 @@ size_t getThreadsNum() {
     }
 
 #else
-size_t getSystemDataByName(char *name){
+size_t getSystemDataByName(char* name) {
+    auto parseLine = [](std::string line) -> size_t {
+        std::string res = "";
+        for (auto c : line)
+            if (isdigit(c))
+                res += c;
+        if (res.empty())
+            throw std::runtime_error("Can't get system memory values");
+        return std::stoul(res);
+    };
+
     FILE* file = fopen("/proc/self/status", "r");
     size_t result = 0;
+    bool status = false;
     if (file != nullptr) {
         char line[128];
 
         while (fgets(line, 128, file) != NULL) {
             if (strncmp(line, name, strlen(name)) == 0) {
                 result = parseLine(line);
+                status = true;
                 break;
             }
         }
         fclose(file);
     }
+    if (!status)
+        throw std::runtime_error("Can't get system memory values");
     return result;
 }
 

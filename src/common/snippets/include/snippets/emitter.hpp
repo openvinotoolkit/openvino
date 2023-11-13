@@ -6,12 +6,12 @@
 
 #include <vector>
 #include <cstdint>
-#include "ngraph/node.hpp"
 
-namespace ngraph {
+#include "openvino/core/node.hpp"
+
+namespace ov {
 namespace snippets {
 
-using code = const uint8_t *;
 using RegInfo = std::pair<std::vector<size_t>, std::vector<size_t>>;
 
 /**
@@ -24,11 +24,7 @@ public:
     /**
      * @brief Default constructor
      */
-    Emitter(const std::shared_ptr<ngraph::Node>& n) {
-    }
-
-    Emitter(std::vector<std::pair<std::shared_ptr<Emitter>, RegInfo>>& region) {
-    }
+    Emitter() {}
 
     /**
      * @brief called by generator to generate code to produce target code for a specific operation
@@ -47,12 +43,10 @@ public:
      * @brief called by generator to generate data section, if needed for a specific operation
      * @return void
      */
-    virtual void emit_data() const {
-    }
+    virtual void emit_data() const {}
+
     virtual ~Emitter() = default;
 };
 
-using AllocatedEmitter = std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo>;
-
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

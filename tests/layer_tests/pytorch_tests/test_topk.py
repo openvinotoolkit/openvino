@@ -1,5 +1,6 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+import os
 
 import numpy as np
 import pytest
@@ -31,9 +32,9 @@ class TestTopK(PytorchLayerTest):
 
         return aten_topk(k, dim, largest, sort), ref_net, "aten::topk"
 
-    @pytest.mark.parametrize(("input_tensor"), [
-        np.random.rand(7, 5, 5, 4),
-        np.random.rand(5, 6, 6, 7, 8),
+    @pytest.mark.parametrize(("input_shape"), [
+        [7, 5, 5, 4],
+        [5, 6, 6, 7, 8]
     ])
 
     @pytest.mark.parametrize(("k"), [
@@ -60,6 +61,7 @@ class TestTopK(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_topK(self, input_tensor, k, dim, largest, sort, ie_device, precision, ir_version):
-        self.input_tensor = input_tensor
+    @pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == 'true', reason="Ticket - 115085")
+    def test_topK(self, input_shape, k, dim, largest, sort, ie_device, precision, ir_version):
+        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
         self._test(*self.create_model(k, dim, largest, sort), ie_device, precision, ir_version)

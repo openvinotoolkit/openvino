@@ -4,31 +4,32 @@
 
 #include <vector>
 
-#include "single_layer_tests/reduce_ops.hpp"
+#include "single_op_tests/reduce_ops.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using ov::test::ReduceOpsLayerTest;
+using ov::test::ReduceOpsLayerWithSpecificInputTest;
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16,
-        InferenceEngine::Precision::I64,
-        InferenceEngine::Precision::I32,
-        InferenceEngine::Precision::U64
+const std::vector<ov::element::Type> model_types = {
+        ov::element::f32,
+        ov::element::f16,
+        ov::element::i64,
+        ov::element::i32,
+        ov::element::u64
 };
 
-const std::vector<bool> keepDims = {
+const std::vector<bool> keep_dims = {
         true,
         false,
 };
 
-const std::vector<std::vector<size_t>> inputShapes = {
+const std::vector<std::vector<size_t>> input_shapes = {
         std::vector<size_t>{10, 20, 30, 40},
         std::vector<size_t>{3, 5, 7, 9},
 };
 
-const std::vector<std::vector<size_t>> inputShapesOneAxis = {
+const std::vector<std::vector<size_t>> input_shapes_one_axis = {
         std::vector<size_t>{10, 20, 30, 40},
         std::vector<size_t>{3, 5, 7, 9},
         std::vector<size_t>{10},
@@ -53,167 +54,137 @@ const std::vector<std::vector<int>> axes = {
         {1, -1}
 };
 
-std::vector<CommonTestUtils::OpType> opTypes = {
-        CommonTestUtils::OpType::SCALAR,
-        CommonTestUtils::OpType::VECTOR,
+std::vector<ov::test::utils::OpType> op_types = {
+        ov::test::utils::OpType::SCALAR,
+        ov::test::utils::OpType::VECTOR,
 };
 
-const std::vector<ngraph::helpers::ReductionType> reductionTypes = {
-        ngraph::helpers::ReductionType::Mean,
-        ngraph::helpers::ReductionType::Min,
-        ngraph::helpers::ReductionType::Max,
-        ngraph::helpers::ReductionType::Sum,
-        ngraph::helpers::ReductionType::Prod,
-        ngraph::helpers::ReductionType::L1,
-        ngraph::helpers::ReductionType::L2,
+const std::vector<ov::test::utils::ReductionType> reduction_types = {
+        ov::test::utils::ReductionType::Mean,
+        ov::test::utils::ReductionType::Min,
+        ov::test::utils::ReductionType::Max,
+        ov::test::utils::ReductionType::Sum,
+        ov::test::utils::ReductionType::Prod,
+        ov::test::utils::ReductionType::L1,
+        ov::test::utils::ReductionType::L2,
 };
 
-const std::vector<ngraph::helpers::ReductionType> reductionLogicalTypes = {
-        ngraph::helpers::ReductionType::LogicalOr,
-        ngraph::helpers::ReductionType::LogicalAnd
+const std::vector<ov::test::utils::ReductionType> reduction_logical_types = {
+        ov::test::utils::ReductionType::LogicalOr,
+        ov::test::utils::ReductionType::LogicalAnd
 };
 
-const auto paramsOneAxis = testing::Combine(
+const auto params_one_axis = testing::Combine(
         testing::Values(std::vector<int>{0}),
-        testing::ValuesIn(opTypes),
-        testing::ValuesIn(keepDims),
-        testing::ValuesIn(reductionTypes),
-        testing::Values(netPrecisions[0]),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::ValuesIn(inputShapesOneAxis),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::ValuesIn(op_types),
+        testing::ValuesIn(keep_dims),
+        testing::ValuesIn(reduction_types),
+        testing::Values(model_types[0]),
+        testing::ValuesIn(input_shapes_one_axis),
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-const auto paramsOneAxisLogical = testing::Combine(
+const auto params_one_axis_logical = testing::Combine(
         testing::Values(std::vector<int>{0}),
-        testing::ValuesIn(opTypes),
-        testing::ValuesIn(keepDims),
-        testing::ValuesIn(reductionLogicalTypes),
-        testing::Values(InferenceEngine::Precision::BOOL),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::ValuesIn(inputShapesOneAxis),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::ValuesIn(op_types),
+        testing::ValuesIn(keep_dims),
+        testing::ValuesIn(reduction_logical_types),
+        testing::Values(ov::element::boolean),
+        testing::ValuesIn(input_shapes_one_axis),
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-const auto params_Precisions = testing::Combine(
+const auto params_model_types = testing::Combine(
         testing::Values(std::vector<int>{1, 3}),
-        testing::Values(opTypes[1]),
-        testing::ValuesIn(keepDims),
-        testing::Values(ngraph::helpers::ReductionType::Max,
-                        ngraph::helpers::ReductionType::Mean,
-                        ngraph::helpers::ReductionType::Min,
-                        ngraph::helpers::ReductionType::Sum,
-                        ngraph::helpers::ReductionType::Prod),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(op_types[1]),
+        testing::ValuesIn(keep_dims),
+        testing::Values(ov::test::utils::ReductionType::Max,
+                        ov::test::utils::ReductionType::Mean,
+                        ov::test::utils::ReductionType::Min,
+                        ov::test::utils::ReductionType::Sum,
+                        ov::test::utils::ReductionType::Prod),
+        testing::ValuesIn(model_types),
         testing::Values(std::vector<size_t>{2, 2, 2, 2}),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-const auto params_Precisions_ReduceL1 = testing::Combine(
+const auto params_model_types_ReduceL1 = testing::Combine(
         testing::Values(std::vector<int>{1, 3}),
-        testing::Values(opTypes[1]),
-        testing::ValuesIn(keepDims),
-        testing::Values(ngraph::helpers::ReductionType::L1),
-        testing::Values(InferenceEngine::Precision::FP32,
-                        InferenceEngine::Precision::FP16,
-                        InferenceEngine::Precision::I64,
-                        InferenceEngine::Precision::I32),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(op_types[1]),
+        testing::ValuesIn(keep_dims),
+        testing::Values(ov::test::utils::ReductionType::L1),
+        testing::Values(ov::element::f32,
+                        ov::element::f16,
+                        ov::element::i64,
+                        ov::element::i32),
         testing::Values(std::vector<size_t>{2, 2, 2, 2}),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-const auto params_Precisions_ReduceL2 = testing::Combine(
+const auto params_model_types_ReduceL2 = testing::Combine(
         testing::Values(std::vector<int>{1, 3}),
-        testing::Values(opTypes[1]),
-        testing::ValuesIn(keepDims),
-        testing::Values(ngraph::helpers::ReductionType::L2),
-        testing::Values(InferenceEngine::Precision::FP32,
-                        InferenceEngine::Precision::FP16),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(op_types[1]),
+        testing::ValuesIn(keep_dims),
+        testing::Values(ov::test::utils::ReductionType::L2),
+        testing::Values(ov::element::f32,
+                        ov::element::f16),
         testing::Values(std::vector<size_t>{2, 2, 2, 2}),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-const auto params_InputShapes = testing::Combine(
+const auto params_input_shapes = testing::Combine(
         testing::Values(std::vector<int>{0}),
-        testing::Values(opTypes[1]),
-        testing::ValuesIn(keepDims),
-        testing::Values(ngraph::helpers::ReductionType::Mean),
-        testing::Values(netPrecisions[0]),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(op_types[1]),
+        testing::ValuesIn(keep_dims),
+        testing::Values(ov::test::utils::ReductionType::Mean),
+        testing::Values(model_types[0]),
         testing::Values(std::vector<size_t>{3},
                         std::vector<size_t>{3, 5},
                         std::vector<size_t>{2, 4, 6},
                         std::vector<size_t>{2, 4, 6, 8},
                         std::vector<size_t>{2, 2, 2, 2, 2},
                         std::vector<size_t>{2, 2, 2, 2, 2, 2}),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-const auto params_Axes = testing::Combine(
+const auto params_axes = testing::Combine(
         testing::ValuesIn(axes),
-        testing::Values(opTypes[1]),
-        testing::ValuesIn(keepDims),
-        testing::Values(ngraph::helpers::ReductionType::Mean),
-        testing::Values(netPrecisions[0]),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::ValuesIn(inputShapes),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(op_types[1]),
+        testing::ValuesIn(keep_dims),
+        testing::Values(ov::test::utils::ReductionType::Mean),
+        testing::Values(model_types[0]),
+        testing::ValuesIn(input_shapes),
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-const auto params_ReductionTypes = testing::Combine(
+const auto params_reduction_types = testing::Combine(
         testing::Values(std::vector<int>{0, 1, 3}),
-        testing::Values(opTypes[1]),
-        testing::ValuesIn(keepDims),
-        testing::ValuesIn(reductionTypes),
-        testing::Values(netPrecisions[0]),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(op_types[1]),
+        testing::ValuesIn(keep_dims),
+        testing::ValuesIn(reduction_types),
+        testing::Values(model_types[0]),
         testing::Values(std::vector<size_t>{2, 9, 2, 9}),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-const auto params_ReductionTypesLogical = testing::Combine(
+const auto params_reduction_types_logical = testing::Combine(
         testing::Values(std::vector<int>{0, 1, 3}),
-        testing::Values(opTypes[1]),
-        testing::ValuesIn(keepDims),
-        testing::ValuesIn(reductionLogicalTypes),
-        testing::Values(InferenceEngine::Precision::BOOL),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(op_types[1]),
+        testing::ValuesIn(keep_dims),
+        testing::ValuesIn(reduction_logical_types),
+        testing::Values(ov::element::boolean),
         testing::Values(std::vector<size_t>{2, 9, 2, 9}),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto params_ReduceSum_accuracy = testing::Combine(
         testing::Values(std::vector<int>{0}),
-        testing::Values(opTypes[1]),
+        testing::Values(op_types[1]),
         testing::Values(true),
-        testing::Values(ngraph::helpers::ReductionType::Sum),
-        testing::Values(InferenceEngine::Precision::FP32),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(ov::test::utils::ReductionType::Sum),
+        testing::Values(ov::element::f32),
         testing::Values(std::vector<size_t>{1000000}),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -226,63 +197,63 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
         smoke_ReduceOneAxis,
         ReduceOpsLayerTest,
-        paramsOneAxis,
+        params_one_axis,
         ReduceOpsLayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_ReduceLogicalOneAxis,
         ReduceOpsLayerTest,
-        paramsOneAxisLogical,
+        params_one_axis_logical,
         ReduceOpsLayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_Precisions,
         ReduceOpsLayerTest,
-        params_Precisions,
+        params_model_types,
         ReduceOpsLayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_Precisions_L1,
         ReduceOpsLayerTest,
-        params_Precisions_ReduceL1,
+        params_model_types_ReduceL1,
         ReduceOpsLayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_Precisions_L2,
         ReduceOpsLayerTest,
-        params_Precisions_ReduceL2,
+        params_model_types_ReduceL2,
         ReduceOpsLayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_InputShapes,
         ReduceOpsLayerTest,
-        params_InputShapes,
+        params_input_shapes,
         ReduceOpsLayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_Axes,
         ReduceOpsLayerTest,
-        params_Axes,
+        params_axes,
         ReduceOpsLayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_ReductionTypes,
         ReduceOpsLayerTest,
-        params_ReductionTypes,
+        params_reduction_types,
         ReduceOpsLayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_ReduceLogical_ReductionTypes,
         ReduceOpsLayerTest,
-        params_ReductionTypesLogical,
+        params_reduction_types_logical,
         ReduceOpsLayerTest::getTestCaseName
 );
 
@@ -291,16 +262,13 @@ INSTANTIATE_TEST_SUITE_P(
         ReduceOpsLayerWithSpecificInputTest,
         testing::Combine(
                 testing::ValuesIn(decltype(axes) {{0}, {1}}),
-                testing::Values(opTypes[1]),
+                testing::Values(op_types[1]),
                 testing::Values(true),
-                testing::Values(ngraph::helpers::ReductionType::Sum),
-                testing::Values(InferenceEngine::Precision::FP32,
-                                InferenceEngine::Precision::I32),
-                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                testing::Values(InferenceEngine::Layout::ANY),
+                testing::Values(ov::test::utils::ReductionType::Sum),
+                testing::Values(ov::element::f32,
+                                ov::element::i32),
                 testing::Values(std::vector<size_t> {2, 10}),
-                testing::Values(CommonTestUtils::DEVICE_CPU)),
+                testing::Values(ov::test::utils::DEVICE_CPU)),
         ReduceOpsLayerWithSpecificInputTest::getTestCaseName
 );
 

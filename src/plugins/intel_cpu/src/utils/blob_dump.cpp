@@ -94,12 +94,12 @@ void BlobDumper::prepare_plain_data(const MemoryPtr &memory, std::vector<uint8_t
 
     // check if it already plain
     if (desc.hasLayoutType(LayoutType::ncsp)) {
-        cpu_memcpy(data.data(), reinterpret_cast<const uint8_t*>(memory->GetPtr()), size);
+        cpu_memcpy(data.data(), reinterpret_cast<const uint8_t*>(memory->getData()), size);
         return;
     }
 
     // Copy to plain
-    const void *ptr = memory->GetData();
+    const void *ptr = memory->getData();
 
     switch (desc.getPrecision()) {
         case Precision::FP32:
@@ -113,6 +113,13 @@ void BlobDumper::prepare_plain_data(const MemoryPtr &memory, std::vector<uint8_t
         case Precision::BF16: {
             auto *pln_blob_ptr = reinterpret_cast<int16_t *>(data.data());
             auto *blob_ptr = reinterpret_cast<const int16_t *>(ptr);
+            for (size_t i = 0; i < data_size; i++)
+                pln_blob_ptr[i] = blob_ptr[desc.getElementOffset(i)];
+            break;
+        }
+        case Precision::FP16: {
+            auto *pln_blob_ptr = reinterpret_cast<float16 *>(data.data());
+            auto *blob_ptr = reinterpret_cast<const float16 *>(ptr);
             for (size_t i = 0; i < data_size; i++)
                 pln_blob_ptr[i] = blob_ptr[desc.getElementOffset(i)];
             break;
@@ -161,13 +168,19 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) const {
            << "shape: ";
     for (size_t d : dims) stream << d << " ";
     stream << "(" << data_size << ")" <<
-    " by address 0x" << std::hex << reinterpret_cast<const long long *>(memory->GetData()) << std::dec <<std::endl;
+    " by address 0x" << std::hex << reinterpret_cast<const long long *>(memory->getData()) << std::dec <<std::endl;
 
-    const void *ptr = memory->GetData();
+    const void *ptr = memory->getData();
 
     switch (desc.getPrecision()) {
         case Precision::FP32 : {
             auto *blob_ptr = reinterpret_cast<const float*>(ptr);
+            for (size_t i = 0; i < data_size; i++)
+                stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
+            break;
+        }
+        case Precision::I32: {
+            auto *blob_ptr = reinterpret_cast<const int32_t*>(ptr);
             for (size_t i = 0; i < data_size; i++)
                 stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
             break;
@@ -180,8 +193,8 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) const {
             }
             break;
         }
-        case Precision::I32: {
-            auto *blob_ptr = reinterpret_cast<const int32_t*>(ptr);
+        case Precision::FP16: {
+            auto *blob_ptr = reinterpret_cast<const float16*>(ptr);
             for (size_t i = 0; i < data_size; i++)
                 stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
             break;
@@ -198,7 +211,32 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) const {
                 stream << static_cast<int>(blob_ptr[desc.getElementOffset(i)]) << std::endl;
             break;
         }
+        case Precision::I64: {
+            auto* blob_ptr = reinterpret_cast<const int64_t*>(ptr);
+            for (size_t i = 0; i < data_size; i++)
+                stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
+            break;
+        }
+        case Precision::U32: {
+            auto* blob_ptr = reinterpret_cast<const uint32_t*>(ptr);
+            for (size_t i = 0; i < data_size; i++)
+                stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
+            break;
+        }
+        case Precision::U16: {
+            auto* blob_ptr = reinterpret_cast<const uint16_t*>(ptr);
+            for (size_t i = 0; i < data_size; i++)
+                stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
+            break;
+        }
+        case Precision::I16: {
+            auto* blob_ptr = reinterpret_cast<const int16_t*>(ptr);
+            for (size_t i = 0; i < data_size; i++)
+                stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
+            break;
+        }
         default:
+            break;
             IE_THROW() << "Dumper. Unsupported precision";
     }
 }

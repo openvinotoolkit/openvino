@@ -12,7 +12,6 @@ void register_implementations() {
     REGISTER_OCL(activation);
     REGISTER_OCL(adaptive_pooling);
     REGISTER_OCL(arg_max_min);
-    REGISTER_OCL(binary_convolution);
     REGISTER_OCL(border);
     REGISTER_OCL(broadcast);
     REGISTER_OCL(bucketize);
@@ -40,6 +39,7 @@ void register_implementations() {
     REGISTER_OCL(gemm);
     REGISTER_OCL(generate_proposals);
     REGISTER_OCL(grid_sample);
+    REGISTER_OCL(group_normalization);
     REGISTER_OCL(lrn);
     REGISTER_OCL(lstm_gemm);
     REGISTER_OCL(lstm_elt);
@@ -64,6 +64,7 @@ void register_implementations() {
     REGISTER_OCL(reshape);
     REGISTER_OCL(reverse);
     REGISTER_OCL(reverse_sequence);
+    REGISTER_OCL(rms);
     REGISTER_OCL(roi_align);
     REGISTER_OCL(roi_pooling);
     REGISTER_OCL(roll);
@@ -81,7 +82,6 @@ void register_implementations() {
     REGISTER_OCL(tile);
     REGISTER_OCL(lstm_dynamic_input);
     REGISTER_OCL(lstm_dynamic_timeloop);
-    REGISTER_OCL(generic_layer);
     REGISTER_OCL(gather_tree);
     REGISTER_OCL(resample);
     REGISTER_OCL(grn);
@@ -94,6 +94,8 @@ void register_implementations() {
     REGISTER_OCL(count_nonzero);
     REGISTER_OCL(gather_nonzero);
     REGISTER_OCL(eye);
+    REGISTER_OCL(unique_count);
+    REGISTER_OCL(unique_gather);
 }
 
 }  // namespace ocl

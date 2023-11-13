@@ -2,76 +2,64 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/hsigmoid.hpp"
+#include "openvino/op/hsigmoid.hpp"
 
-#include <ngraph/validation_util.hpp>
-
+#include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/hsigmoid.hpp"
+#include "openvino/reference/hsigmoid.hpp"
 
-using namespace std;
-using namespace ngraph;
-
-op::v5::HSigmoid::HSigmoid(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
+namespace ov {
+namespace op {
+namespace v5 {
+HSigmoid::HSigmoid(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
-bool op::v5::HSigmoid::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v5_HSigmoid_visit_attributes);
-    return true;
-}
-
-shared_ptr<Node> op::v5::HSigmoid::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> HSigmoid::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v5_HSigmoid_clone_with_new_inputs);
-    return make_shared<op::v5::HSigmoid>(new_args.at(0));
+    return std::make_shared<HSigmoid>(new_args.at(0));
 }
 
+namespace hsigmoid {
 namespace {
-template <element::Type_t ET>
-inline bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const size_t count) {
-    using T = typename element_type_traits<ET>::value_type;
+struct Evaluate : element::NoAction<bool> {
+    using element::NoAction<bool>::visit;
 
-    runtime::reference::hsigmoid<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
-    return true;
-}
-
-bool evaluate_hsigmoid(const HostTensorPtr& arg, const HostTensorPtr& out) {
-    bool rc = true;
-    size_t count = shape_size(arg->get_shape());
-    out->set_unary(arg);
-
-    switch (arg->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_hsigmoid, bf16, arg, out, count);
-        NGRAPH_TYPE_CASE(evaluate_hsigmoid, f16, arg, out, count);
-        NGRAPH_TYPE_CASE(evaluate_hsigmoid, f32, arg, out, count);
-    default:
-        rc = false;
-        break;
+    template <element::Type_t ET, class T = fundamental_type_for<ET>>
+    static result_type visit(const Tensor& in, Tensor& out, const size_t count) {
+        ov::reference::hsigmoid(in.data<const T>(), out.data<T>(), count);
+        return true;
     }
-    return rc;
-}
+};
 }  // namespace
+}  // namespace hsigmoid
 
-bool op::v5::HSigmoid::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool HSigmoid::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v5_HSigmoid_evaluate);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    return evaluate_hsigmoid(inputs[0], outputs[0]);
+    OPENVINO_ASSERT(outputs.size() == 1);
+    OPENVINO_ASSERT(inputs.size() == 1);
+
+    const auto& input_shape = inputs[0].get_shape();
+    const auto count = shape_size(input_shape);
+    outputs[0].set_shape(input_shape);
+    using namespace ov::element;
+    return IfTypeOf<bf16, f16, f32>::apply<hsigmoid::Evaluate>(inputs[0].get_element_type(),
+                                                               inputs[0],
+                                                               outputs[0],
+                                                               count);
 }
 
-bool op::v5::HSigmoid::has_evaluate() const {
+bool HSigmoid::has_evaluate() const {
     OV_OP_SCOPE(v5_HSigmoid_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
+    case element::bf16:
+    case element::f16:
+    case element::f32:
         return true;
     default:
-        break;
+        return false;
     }
-    return false;
 }
+}  // namespace v5
+}  // namespace op
+}  // namespace ov

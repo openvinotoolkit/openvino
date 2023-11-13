@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
-#include "ngraph/op/constant.hpp"
+#include "openvino/op/op.hpp"
+#include "openvino/op/constant.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace op {
 
@@ -41,4 +41,4 @@ public:
 
 } // namespace op
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

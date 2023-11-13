@@ -2,13 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/embeddingbag_offsets_base.hpp"
+#include "openvino/op/util/embeddingbag_offsets_base.hpp"
 
 #include "embeddingbag_offsets_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/op/constant.hpp"
-
-using namespace std;
 
 ov::op::util::EmbeddingBagOffsetsBase::EmbeddingBagOffsetsBase(const Output<Node>& emb_table,
                                                                const Output<Node>& indices,

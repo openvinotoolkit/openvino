@@ -25,6 +25,7 @@ public:
     program_node& location() const { return get_dependency(0); }
     program_node& confidence() const { return get_dependency(1); }
     program_node& prior_box() const { return get_dependency(2); }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 };
 
 using detection_output_node = typed_program_node<detection_output>;
@@ -35,6 +36,8 @@ class typed_primitive_inst<detection_output> : public typed_primitive_inst_base<
     using parent::parent;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(detection_output_node const& node, kernel_impl_params const& impl_param);
     static layout calc_output_layout(detection_output_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(detection_output_node const& node);
 

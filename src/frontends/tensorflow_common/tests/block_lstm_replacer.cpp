@@ -6,14 +6,11 @@
 
 #include <gtest/gtest.h>
 
-#include <frontend/shared/include/utils.hpp>
-#include <openvino/frontend/manager.hpp>
-#include <openvino/opsets/opset9.hpp>
-#include <openvino/pass/manager.hpp>
-
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "gtest/gtest.h"
+#include "conversion_with_reference.hpp"
 #include "helper_ops/block_lstm.hpp"
+#include "openvino/frontend/manager.hpp"
+#include "openvino/opsets/opset9.hpp"
+#include "openvino/pass/manager.hpp"
 
 using namespace std;
 using namespace ov;
@@ -181,29 +178,29 @@ shared_ptr<Model> gen_model_ref(Dimension m_batch_size,
 
 }  // namespace
 
-TEST_F(TransformationTestsF, BlockLSTMReplacerWithHiddenOutput) {
+TEST_F(FrontEndConversionWithReferenceTestsF, BlockLSTMReplacerWithHiddenOutput) {
     {
-        function = gen_model(2, 10, 120, 20, 1.0f, -1.0f, false);
+        model = gen_model(2, 10, 120, 20, 1.0f, -1.0f, false);
         manager.register_pass<BlockLSTMReplacer>();
     }
-    { function_ref = gen_model_ref(2, 10, 120, 20, 1.0f); }
+    { model_ref = gen_model_ref(2, 10, 120, 20, 1.0f); }
 }
 
-TEST_F(TransformationTestsF, BlockLSTMReplacerWithHiddenOutputAndLastCellState) {
+TEST_F(FrontEndConversionWithReferenceTestsF, BlockLSTMReplacerWithHiddenOutputAndLastCellState) {
     {
-        function = gen_model(2, 10, 120, 20, 1.0f, -1.0f, false, true);
+        model = gen_model(2, 10, 120, 20, 1.0f, -1.0f, false, true);
         manager.register_pass<BlockLSTMReplacer>();
     }
-    { function_ref = gen_model_ref(2, 10, 120, 20, 1.0f, true); }
+    { model_ref = gen_model_ref(2, 10, 120, 20, 1.0f, true); }
 }
 
-TEST_F(TransformationTestsF, BlockLSTMReplacerWithPeepHole) {
+TEST_F(FrontEndConversionWithReferenceTestsF, BlockLSTMReplacerWithPeepHole) {
     {
-        function = gen_model(2, 10, 120, 20, 1.0f, -1.0f, true);
+        model = gen_model(2, 10, 120, 20, 1.0f, -1.0f, true);
         manager.register_pass<BlockLSTMReplacer>();
     }
     {
         // the transformation is not applied for the peep hole case
-        function_ref = gen_model(2, 10, 120, 20, 1.0f, -1.0f, true);
+        model_ref = gen_model(2, 10, 120, 20, 1.0f, -1.0f, true);
     }
 }

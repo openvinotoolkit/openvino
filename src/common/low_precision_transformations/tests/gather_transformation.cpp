@@ -4,37 +4,37 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/gather.hpp>
+#include "low_precision/gather.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/gather_function.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/gather.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
 using namespace testing;
-using namespace ngraph::pass;
-using namespace ngraph;
+using namespace ov::pass;
+using namespace ov;
 
 class GatherTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-        ngraph::element::Type precisionAfterOperation;
+        ov::element::Type precisionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
@@ -47,13 +47,13 @@ public:
     Expected expected;
 };
 
-typedef std::tuple<ngraph::PartialShape, GatherTransformationTestValues, int> GatherTransformationParams;
+typedef std::tuple<ov::PartialShape, GatherTransformationTestValues, int> GatherTransformationParams;
 
 class GatherTransformation : public LayerTransformation,
                              public testing::WithParamInterface<GatherTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::PartialShape inputShape = std::get<0>(GetParam());
+        const ov::PartialShape inputShape = std::get<0>(GetParam());
         const GatherTransformationTestValues testValues = std::get<1>(GetParam());
         const int opset_version = std::get<2>(GetParam());
 
@@ -68,7 +68,7 @@ public:
                                                                    opset_version);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::GatherTransformation, ngraph::opset1::Gather>(testValues.params);
+        transformer.add<ov::pass::low_precision::GatherTransformation, ov::op::v1::Gather>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction =
@@ -85,7 +85,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<GatherTransformationParams> obj) {
-        const ngraph::PartialShape inputShape = std::get<0>(obj.param);
+        const ov::PartialShape inputShape = std::get<0>(obj.param);
         const GatherTransformationTestValues testValues = std::get<1>(obj.param);
         const int opset_version = std::get<2>(obj.param);
 
@@ -110,7 +110,7 @@ TEST_P(GatherTransformation, CompareFunctions) {
 namespace testValues1 {
 const std::vector<int> opset_version = {1, 7, 8};
 
-const std::vector<ngraph::PartialShape> inputShapes3D = {{3, 3, 4}, {-1, -1, -1}};
+const std::vector<ov::PartialShape> inputShapes3D = {{3, 3, 4}, {-1, -1, -1}};
 
 const std::vector<GatherTransformationTestValues> testValues = {
     // U8: per-tensor quantization
@@ -119,58 +119,58 @@ const std::vector<GatherTransformationTestValues> testValues = {
      {0},
      std::int64_t{0},
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {{128}, ngraph::element::f32, {}, true, 1, ngraph::element::u8, true}, {0.1f}}},
-     {ngraph::element::u8,
+     {ov::element::u8,
+      {{ov::element::f32}, {{128}, ov::element::f32, {}, true, 1, ov::element::u8, true}, {0.1f}}},
+     {ov::element::u8,
       {{}, {}, {}},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {{128}, ngraph::element::f32, {}, true, 1, ngraph::element::u8, true}, {0.1f}}}},
+      ov::element::u8,
+      {{ov::element::f32}, {{128}, ov::element::f32, {}, true, 1, ov::element::u8, true}, {0.1f}}}},
     // U8: per-tensor quantization
     {{2},
      {0, 1},
      {0},
      std::int64_t{0},
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8, {{ngraph::element::f32}, {128}, {0.1f}}},
-     {ngraph::element::u8, {{}, {}, {}}, ngraph::element::u8, {{ngraph::element::f32}, {128}, {0.1f}}}},
+     {ov::element::u8, {{ov::element::f32}, {128}, {0.1f}}},
+     {ov::element::u8, {{}, {}, {}}, ov::element::u8, {{ov::element::f32}, {128}, {0.1f}}}},
     // U8: per-tensor quantization
     {{3, 2},
      {1, 2, 1, 2, 1, 2},
      {1},
      std::int64_t{1},
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8, {{ngraph::element::f32}, {128}, {0.1f}}},
-     {ngraph::element::u8, {{}, {}, {}}, ngraph::element::u8, {{ngraph::element::f32}, {128}, {0.1f}}}},
+     {ov::element::u8, {{ov::element::f32}, {128}, {0.1f}}},
+     {ov::element::u8, {{}, {}, {}}, ov::element::u8, {{ov::element::f32}, {128}, {0.1f}}}},
     // U8: per-channel quantization with the same values
     {{1},
      {0},
      {0},
      std::int64_t{0},
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32},
+     {ov::element::u8,
+      {{ov::element::f32},
        {{128.f}, element::undefined, {1, 3, 1}, false, 1ul, element::u8, true},
-       {{0.1f}, ngraph::element::f32, {1, 3, 1}}}},
-     {ngraph::element::u8,
+       {{0.1f}, ov::element::f32, {1, 3, 1}}}},
+     {ov::element::u8,
       {{}, {}, {}},
-      ngraph::element::u8,
-      {{ngraph::element::f32},
+      ov::element::u8,
+      {{ov::element::f32},
        {{128.f}, element::undefined, {1, 3, 1}, false, 1ul, element::u8, true},
-       {{0.1f}, ngraph::element::f32, {1, 3, 1}}}}},
+       {{0.1f}, ov::element::f32, {1, 3, 1}}}}},
     // U8: per-channel quantization, gather axis match with channel
     {{1},
      {0},
      {1},  // axis
      std::int64_t{0},
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32},
-       {{128, 64, 32}, ngraph::element::f32, {1, 3, 1}},
-       {{0.3f, 0.2f, 0.1f}, ngraph::element::f32, {1, 3, 1}}}},
-     {ngraph::element::u8,
+     {ov::element::u8,
+      {{ov::element::f32},
+       {{128, 64, 32}, ov::element::f32, {1, 3, 1}},
+       {{0.3f, 0.2f, 0.1f}, ov::element::f32, {1, 3, 1}}}},
+     {ov::element::u8,
       {{}, {}, {}},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {{128}, ngraph::element::f32, {}}, {{0.3f}, ngraph::element::f32, {}}}}},
+      ov::element::u8,
+      {{ov::element::f32}, {{128}, ov::element::f32, {}}, {{0.3f}, ov::element::f32, {}}}}},
     // U8: per-channel quantization, gather axis match with channel, quantization constant shape size is
     // less than input shape
     {{1},
@@ -178,52 +178,52 @@ const std::vector<GatherTransformationTestValues> testValues = {
      {1},  // axis
      std::int64_t{0},
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32},
-       {{128, 64, 32}, ngraph::element::f32, {3, 1}},
-       {{0.3f, 0.2f, 0.1f}, ngraph::element::f32, {3, 1}}}},
-     {ngraph::element::u8,
+     {ov::element::u8,
+      {{ov::element::f32},
+       {{128, 64, 32}, ov::element::f32, {3, 1}},
+       {{0.3f, 0.2f, 0.1f}, ov::element::f32, {3, 1}}}},
+     {ov::element::u8,
       {{}, {}, {}},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {{64}, ngraph::element::f32, {}}, {{0.2f}, ngraph::element::f32, {}}}}},
+      ov::element::u8,
+      {{ov::element::f32}, {{64}, ov::element::f32, {}}, {{0.2f}, ov::element::f32, {}}}}},
     // U8: per-channel quantization, gather axis and channel doesn't match
     {{1},
      {0},
      {0},
      std::int64_t{0},
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32},
-       {{128, 64, 32}, ngraph::element::f32, {1, 3, 1}},
-       {{0.3f, 0.2f, 0.1f}, ngraph::element::f32, {1, 3, 1}}}},
-     {ngraph::element::u8,
+     {ov::element::u8,
+      {{ov::element::f32},
+       {{128, 64, 32}, ov::element::f32, {1, 3, 1}},
+       {{0.3f, 0.2f, 0.1f}, ov::element::f32, {1, 3, 1}}}},
+     {ov::element::u8,
       {{}, {}, {}},
-      ngraph::element::u8,
-      {{ngraph::element::f32},
-       {{128, 64, 32}, ngraph::element::f32, {1, 3, 1}},
-       {{0.3f, 0.2f, 0.1f}, ngraph::element::f32, {1, 3, 1}}}}},
+      ov::element::u8,
+      {{ov::element::f32},
+       {{128, 64, 32}, ov::element::f32, {1, 3, 1}},
+       {{0.3f, 0.2f, 0.1f}, ov::element::f32, {1, 3, 1}}}}},
     // U8: per-channel quantization,  negative axis, gather axis match with channel
     {{1},
      {0},
      {-2},  // axis
      std::int64_t{0},
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32},
-       {{128, 64, 32}, ngraph::element::f32, {1, 3, 1}},
-       {{0.3f, 0.2f, 0.1f}, ngraph::element::f32, {1, 3, 1}}}},
-     {ngraph::element::u8,
+     {ov::element::u8,
+      {{ov::element::f32},
+       {{128, 64, 32}, ov::element::f32, {1, 3, 1}},
+       {{0.3f, 0.2f, 0.1f}, ov::element::f32, {1, 3, 1}}}},
+     {ov::element::u8,
       {{}, {}, {}},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {{128}, ngraph::element::f32, {}}, {{0.3f}, ngraph::element::f32, {}}}}},
+      ov::element::u8,
+      {{ov::element::f32}, {{128}, ov::element::f32, {}}, {{0.3f}, ov::element::f32, {}}}}},
     // empty
     {{1},
      {0},
      {0},
      std::int64_t{0},
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8, {}},
-     {ngraph::element::u8, {}, ngraph::element::u8, {}}},
+     {ov::element::u8, {}},
+     {ov::element::u8, {}, ov::element::u8, {}}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,
@@ -237,7 +237,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 namespace testValues2 {
 const std::vector<int> opset_version = {8};
 
-const std::vector<ngraph::PartialShape> inputShapes3D = {{3, 3, 4}, {-1, -1, -1}};
+const std::vector<ov::PartialShape> inputShapes3D = {{3, 3, 4}, {-1, -1, -1}};
 
 const std::vector<GatherTransformationTestValues> testValues = {
     // U8: per-tensor quantization, negative indices value
@@ -246,22 +246,22 @@ const std::vector<GatherTransformationTestValues> testValues = {
      {1},
      std::int64_t{1},
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8, {{ngraph::element::f32}, {128}, {0.1f}}},
-     {ngraph::element::u8, {{}, {}, {}}, ngraph::element::u8, {{ngraph::element::f32}, {128}, {0.1f}}}},
+     {ov::element::u8, {{ov::element::f32}, {128}, {0.1f}}},
+     {ov::element::u8, {{}, {}, {}}, ov::element::u8, {{ov::element::f32}, {128}, {0.1f}}}},
     // U8: per-channel quantization, negative indices value, gather axis match with channel
     {{1},
      {-1},  // indices value
      {1},   // axis
      std::int64_t{0},
      LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8,
-      {{ngraph::element::f32},
-       {{128, 64, 32}, ngraph::element::f32, {1, 3, 1}},
-       {{0.3f, 0.2f, 0.1f}, ngraph::element::f32, {1, 3, 1}}}},
-     {ngraph::element::u8,
+     {ov::element::u8,
+      {{ov::element::f32},
+       {{128, 64, 32}, ov::element::f32, {1, 3, 1}},
+       {{0.3f, 0.2f, 0.1f}, ov::element::f32, {1, 3, 1}}}},
+     {ov::element::u8,
       {{}, {}, {}},
-      ngraph::element::u8,
-      {{ngraph::element::f32}, {{32}, ngraph::element::f32, {}}, {{0.1f}, ngraph::element::f32, {}}}}},
+      ov::element::u8,
+      {{ov::element::f32}, {{32}, ov::element::f32, {}}, {{0.1f}, ov::element::f32, {}}}}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,

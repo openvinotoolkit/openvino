@@ -41,7 +41,7 @@ struct roi_align_impl : typed_primitive_impl_ocl<roi_align> {
     using kernel_selector_t = kernel_selector::roi_align_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::roi_align_params, kernel_selector::roi_align_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::roi_align_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<roi_align_impl>(*this);
@@ -96,3 +96,4 @@ attach_roi_align_impl::attach_roi_align_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::roi_align_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::roi_align)

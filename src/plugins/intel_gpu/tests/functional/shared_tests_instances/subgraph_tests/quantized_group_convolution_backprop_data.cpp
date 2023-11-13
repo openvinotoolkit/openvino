@@ -20,7 +20,7 @@ const std::vector<size_t> numOutChannels = {16, 32};
 const std::vector<size_t> numGroups = {2, 8, 16};
 
 const std::vector<size_t > levels = {256};
-const std::vector<QuantizationGranularity > granularity = {Pertensor, Perchannel};
+const std::vector<QuantizationGranularity > granularity = {QuantizationGranularity::Pertensor, QuantizationGranularity::Perchannel};
 
 /* ============= 2D GroupConvolutionBackpropData ============= */
 const std::vector<std::vector<size_t >> inputShapes2D = {{1, 16, 10, 10}, {1, 32, 10, 10}};
@@ -48,7 +48,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_QuantGroupConvBackpropData2D, QuantGroupConvBackp
                                 quantGroupConvBackpropData2DParams,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(inputShapes2D),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         QuantGroupConvBackpropDataLayerTest::getTestCaseName);
 
 /* ============= 3D GroupConvolutionBackpropData ============= */
@@ -77,7 +77,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_QuantGroupConvBackpropData3D, QuantGroupConvBackp
                                 quantGroupConvBackpropData3DParams,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(inputShapes3D),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         QuantGroupConvBackpropDataLayerTest::getTestCaseName);
 
 }  // namespace

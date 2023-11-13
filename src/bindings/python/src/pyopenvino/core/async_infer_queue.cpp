@@ -3,7 +3,6 @@
 
 #include "pyopenvino/core/async_infer_queue.hpp"
 
-#include <ie_common.h>
 #include <pybind11/functional.h>
 #include <pybind11/stl.h>
 
@@ -359,6 +358,6 @@ void regclass_AsyncInferQueue(py::module m) {
     )");
 
     cls.def("__repr__", [](const AsyncInferQueue& self) {
-        return "<AsyncInferQueue: " + std::to_string(self.m_requests.size()) + " jobs>";
+        return "<" + Common::get_class_name(self) + ": " + std::to_string(self.m_requests.size()) + " jobs>";
     });
 }

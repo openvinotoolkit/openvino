@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
@@ -37,13 +37,13 @@ public:
         std::ostringstream result;
         result << "IS=(";
         for (size_t i = 0lu; i < inputShapes.size(); i++) {
-            result << CommonTestUtils::partialShape2str({inputShapes[i].first}) << (i < inputShapes.size() - 1lu ? "_" : "");
+            result << ov::test::utils::partialShape2str({inputShapes[i].first}) << (i < inputShapes.size() - 1lu ? "_" : "");
         }
         result << ")_TS=";
         for (size_t i = 0lu; i < inputShapes.front().second.size(); i++) {
             result << "{";
             for (size_t j = 0lu; j < inputShapes.size(); j++) {
-                result << CommonTestUtils::vec2str(inputShapes[j].second[i]) << (j < inputShapes.size() - 1lu ? "_" : "");
+                result << ov::test::utils::vec2str(inputShapes[j].second[i]) << (j < inputShapes.size() - 1lu ? "_" : "");
             }
             result << "}_";
         }
@@ -78,7 +78,7 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         axis = std::get<0>(axisAndBatchDims);
         const int batchDims = std::get<1>(axisAndBatchDims);
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes(inputShapes);
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
@@ -105,13 +105,12 @@ protected:
             params.push_back(std::make_shared<ov::op::v0::Parameter>(intInputsPrecision, inputDynamicShapes[2]));
             params[2]->set_friendly_name("axis");
         }
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
         std::shared_ptr<ov::Node> gatherNode;
         if (isAxisConstant) {
-            gatherNode = std::make_shared<ov::op::v8::Gather>(paramOuts[0], paramOuts[1],
+            gatherNode = std::make_shared<ov::op::v8::Gather>(params[0], params[1],
                     ov::op::v0::Constant::create(intInputsPrecision, ov::Shape({1}), { axis }), batchDims);
         } else {
-            gatherNode = std::make_shared<ov::op::v8::Gather>(paramOuts[0], paramOuts[1], paramOuts[2], batchDims);
+            gatherNode = std::make_shared<ov::op::v8::Gather>(params[0], params[1], params[2], batchDims);
         }
 
         function = makeNgraphFunction(netPrecision, params, gatherNode, "GatherCPU");
@@ -124,7 +123,7 @@ protected:
         const size_t normAxis = axis < 0 ? axis + targetInputStaticShapes[0].size() : axis;
         const int32_t axisDim = targetInputStaticShapes[0][normAxis];
 
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::runtime::Tensor tensor;
 
@@ -146,7 +145,79 @@ protected:
     int64_t axis = 0;
 };
 
+typedef std::tuple<
+        InputShape,                        // Input shapes
+        std::vector<int64_t>,              // Indices
+        int,                               // Axis
+        ElementType,                       // Network precision
+        CPUSpecificParams                 // CPU specific params
+> GatherInPlaceLayerTestCPUParams;
+
+class GatherInPlaceLayerTestCPU : public testing::WithParamInterface<GatherInPlaceLayerTestCPUParams>,
+                           virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<GatherInPlaceLayerTestCPUParams> obj) {
+        InputShape inputShapes;
+        std::vector<int64_t> indices;
+        int axis;
+        ElementType netPrecision;
+        CPUSpecificParams cpuParams;
+
+        std::tie(inputShapes, indices, axis, netPrecision, cpuParams) = obj.param;
+
+        std::ostringstream result;
+        result << "IS=(";
+
+        result << ov::test::utils::partialShape2str({inputShapes.first}) << ")_TS=";
+
+        result << "{";
+        for (size_t i = 0lu; i < inputShapes.second.size(); i++) {
+            result << ov::test::utils::vec2str(inputShapes.second[i]) << (i < inputShapes.second.size() - 1lu ? "_" : "");
+        }
+        result << "}_";
+        result << "axis=" << axis << "_";
+        result << "indices=" << ov::test::utils::vec2str(indices) << "_";
+        result << "netPrc=" << netPrecision << "_";
+        result << CPUTestsBase::getTestCaseName(cpuParams);
+
+        return result.str();
+    }
+
+protected:
+    void SetUp() override {
+        InputShape inputShapes;
+        std::vector<int64_t> indices;
+        int axis;
+        ElementType netPrecision;
+        CPUSpecificParams cpuParams;
+        constexpr ElementType intInputsPrecision = ElementType::i64;
+        constexpr int batchDims = 0;
+
+        std::tie(inputShapes, indices, axis, netPrecision, cpuParams) = this->GetParam();
+        std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+        targetDevice = ov::test::utils::DEVICE_CPU;
+        init_input_shapes({ inputShapes });
+
+        selectedType = makeSelectedTypeStr(selectedType, netPrecision);
+
+        ngraph::ParameterVector params {
+            std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])
+        };
+        params[0]->set_friendly_name("data");
+        std::shared_ptr<ov::Node> gatherNode = std::make_shared<ov::op::v8::Gather>(params[0],
+            ov::op::v0::Constant::create(intInputsPrecision, ov::Shape({indices.size()}), indices),
+            ov::op::v0::Constant::create(intInputsPrecision, ov::Shape({1}), { axis }), batchDims);
+
+        function = makeNgraphFunction(netPrecision, params, gatherNode, "GatherCPU");
+    }
+};
+
 TEST_P(GatherLayerTestCPU, CompareWithRefs) {
+    run();
+    CheckPluginRelatedResults(compiledModel, "Gather");
+}
+
+TEST_P(GatherInPlaceLayerTestCPU, CompareWithRefs) {
     run();
     CheckPluginRelatedResults(compiledModel, "Gather");
 }
@@ -847,5 +918,45 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_4D_ref8_Bmax, GatherLayerTestCPU,
                     ::testing::Values(cpuParamsRef),
                     ::testing::Values(additionalConfig[0])),
                 GatherLayerTestCPU::getTestCaseName);
+
+// InPlace
+
+const std::vector<ov::test::InputShape> shapesInPlace4D_0 = {
+    { {}, { {5, 4, 4, 19} } },
+    { {5, 4, -1, -1}, { {5, 4, 4, 19}, {5, 4, 4, 25}, {5, 4, 2, 19} } },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_inplace_4D_0, GatherInPlaceLayerTestCPU,
+                ::testing::Combine(
+                    ::testing::ValuesIn(shapesInPlace4D_0),
+                    ::testing::Values(std::vector<int64_t>{ 2 }),
+                    ::testing::Values(0),
+                    ::testing::Values(ElementType::f32),
+                    ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"})),
+                GatherInPlaceLayerTestCPU::getTestCaseName);
+
+const std::vector<ov::test::InputShape> shapesInPlace4D_1 = {
+    { {}, { {1, 9, 4, 19} } },
+    { {1, 9, -1, -1}, { {1, 9, 4, 19}, {1, 9, 4, 25}, {1, 9, 2, 19} } },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_inplace_4D_1, GatherInPlaceLayerTestCPU,
+                ::testing::Combine(
+                    ::testing::ValuesIn(shapesInPlace4D_1),
+                    ::testing::Values(std::vector<int64_t>{ -4 }, std::vector<int64_t>{ 5 }),
+                    ::testing::Values(1),
+                    ::testing::Values(ElementType::f32),
+                    ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"})),
+                GatherInPlaceLayerTestCPU::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_4D_out_of_range, GatherInPlaceLayerTestCPU,
+                ::testing::Combine(
+                    ::testing::ValuesIn(shapesInPlace4D_1),
+                    ::testing::Values(std::vector<int64_t>{ 10 }, std::vector<int64_t>{ -15 }),
+                    ::testing::Values(1),
+                    ::testing::Values(ElementType::f32),
+                    ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_any"})),
+                GatherInPlaceLayerTestCPU::getTestCaseName);
+
 } // namespace
 } // namespace CPULayerTestsDefinitions

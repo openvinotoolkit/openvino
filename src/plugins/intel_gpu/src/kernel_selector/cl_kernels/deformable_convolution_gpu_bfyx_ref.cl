@@ -50,10 +50,10 @@ KERNEL(deformable_convolution_gpu_bfyx_ref)(
     const int offset_size = FILTER_SIZE_Y * FILTER_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_X;
 
     for (uint c = 0; c < FILTER_IFM_NUM; ++c) {
-#if GROUPED
-        const int deformable_group_idx = (FILTER_IFM_NUM * of + c) / (FILTER_IFM_NUM * FILTER_GROUPS_NUM / DEFORMABLE_GROUPS);
+#if DEFORMABLE_GROUPS == 1
+        const int deformable_group_idx = 0;
 #else
-        const int deformable_group_idx = (FILTER_IFM_NUM * of + c) / (FILTER_IFM_NUM * FILTER_GROUPS_NUM / DEFORMABLE_GROUPS) % DEFORMABLE_GROUPS;
+        const int deformable_group_idx = (FILTER_IFM_NUM * of + c) / (( FILTER_IFM_NUM * FILTER_GROUPS_NUM) / DEFORMABLE_GROUPS) % DEFORMABLE_GROUPS;
 #endif
         const int trans_offset = b * INPUT1_BATCH_PITCH + deformable_group_idx * 2 * offset_size;
 #if DEFORMABLE_MASK_ENABLED

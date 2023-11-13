@@ -70,6 +70,11 @@ def _(
         tensor = Tensor(tensor_type, value.shape)
         tensor.data[:] = value.view(tensor_dtype)
         return tensor
+    # WA for "not writeable" edge-case, always copy.
+    if value.flags["WRITEABLE"] is False:
+        tensor = Tensor(tensor_type, value.shape)
+        tensor.data[:] = value.astype(tensor_dtype) if tensor_dtype != value.dtype else value
+        return tensor
     # If types are mismatched, convert and always copy.
     if tensor_dtype != value.dtype:
         print(f'Requested tensor_dtype = {tensor_dtype}.\nRepresented as requested: {value.astype(tensor_dtype)}')

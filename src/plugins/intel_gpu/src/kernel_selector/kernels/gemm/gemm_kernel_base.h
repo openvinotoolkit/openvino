@@ -53,8 +53,6 @@ protected:
     virtual JitConstants GetFusedPrimitivesJitConstants(const gemm_params& params, const DispatchData& dispatchData) const;
     Datatype GetActivationType(const gemm_params& params) const;
     // --Fused ops
-
-    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
     bool Validate(const Params& p, const optional_params&) const override;
 };
 }  // namespace kernel_selector

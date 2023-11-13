@@ -67,9 +67,9 @@ void ExperimentalDetectronTopKROIs::execute(dnnl::stream strm) {
     const int input_rois_num = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     const int top_rois_num = (std::min)(max_rois_num_, input_rois_num);
 
-    auto *input_rois = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ROIS)->getMemoryPtr()->GetPtr());
-    auto *input_probs = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_PROBS)->getMemoryPtr()->GetPtr());
-    auto *output_rois = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->GetPtr());
+    auto *input_rois = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ROIS)->getMemoryPtr()->getData());
+    auto *input_probs = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_PROBS)->getMemoryPtr()->getData());
+    auto *output_rois = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->getData());
 
     std::vector<size_t> idx(input_rois_num);
     iota(idx.begin(), idx.end(), 0);

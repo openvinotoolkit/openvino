@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/select.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <string>
 
 using namespace ngraph;
@@ -35,12 +35,12 @@ public:
 
         result << "IS=";
         for (const auto& shape : inshapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << "TS=";
         for (const auto& shape : inshapes) {
             for (const auto& item : shape.second) {
-                result << CommonTestUtils::vec2str(item) << "_";
+                result << ov::test::utils::vec2str(item) << "_";
             }
         }
         result << "Precision=" << netType << "_";
@@ -65,8 +65,7 @@ protected:
             std::make_shared<opset1::Parameter>(netType, inputDynamicShapes[2]),
         };
 
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
-        auto select = builder::makeSelect(paramOuts, broadcast);
+        auto select = std::make_shared<ov::op::v1::Select>(params[0], params[1], params[2], broadcast);
 
         auto makeFunction = [](ParameterVector &params, const std::shared_ptr<Node> &lastNode) {
             ResultVector results;
@@ -134,7 +133,7 @@ const auto numpyCases = ::testing::Combine(
         ::testing::ValuesIn(inShapesDynamicNumpy),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(op::AutoBroadcastType::NUMPY),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
+        ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_select_CompareWithRefsNumpy_dynamic, SelectLayerGPUTest, numpyCases, SelectLayerGPUTest::getTestCaseName);
@@ -151,7 +150,7 @@ const auto rangeNumpyCases = ::testing::Combine(
         ::testing::ValuesIn(inShapesDynamicRangeNumpy),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(op::AutoBroadcastType::NUMPY),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
+        ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_select_CompareWithRefsNumpy_dynamic_range, SelectLayerGPUTest, rangeNumpyCases, SelectLayerGPUTest::getTestCaseName);
@@ -174,7 +173,7 @@ const auto noneCases = ::testing::Combine(
         ::testing::ValuesIn(inShapesDynamicNone),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(op::AutoBroadcastType::NONE),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
+        ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_select_CompareWithRefsNone_dynamic, SelectLayerGPUTest, noneCases, SelectLayerGPUTest::getTestCaseName);

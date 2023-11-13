@@ -28,7 +28,7 @@ CommonDispatchData ConvertColorKernelBase::SetDefault(const convert_color_params
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
 
-    dispatchData.gws = { out.Batch().v, out.Y().v, out.X().v };
+    dispatchData.gws = { out.Batch().v, out.Feature().v, out.Y().v };
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout);
 
     return dispatchData;
@@ -47,7 +47,7 @@ JitConstants ConvertColorKernelBase::GetJitConstants(const convert_color_params&
             jit.AddConstant(MakeJitConstant("CONVERT_FROM_I420", ""));
             break;
         default:
-            IE_THROW() << "Not supported input color format";
+            OPENVINO_THROW("Not supported input color format");
     }
 
     switch (params.output_color_format) {
@@ -58,7 +58,7 @@ JitConstants ConvertColorKernelBase::GetJitConstants(const convert_color_params&
             jit.AddConstant(MakeJitConstant("CONVERT_TO_BGR", ""));
             break;
         default:
-            IE_THROW() << "Not supported output color format";
+            OPENVINO_THROW("Not supported output color format");
     }
 
     switch (params.mem_type) {
@@ -69,7 +69,7 @@ JitConstants ConvertColorKernelBase::GetJitConstants(const convert_color_params&
             jit.AddConstant(MakeJitConstant("SURFACE_MEM", ""));
             break;
         default:
-            IE_THROW() << "Not supported memory type";
+            OPENVINO_THROW("Not supported memory type");
     }
     return jit;
 }

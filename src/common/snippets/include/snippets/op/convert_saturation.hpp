@@ -5,9 +5,9 @@
 #pragma once
 
 #include <openvino/op/convert.hpp>
-#include "ngraph/op/op.hpp"
+#include "openvino/op/op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace op {
 
@@ -35,4 +35,4 @@ public:
 
 } // namespace op
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

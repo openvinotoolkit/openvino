@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,12 +8,13 @@ using namespace dnnl::impl::cpu;
 
 namespace ov {
 namespace intel_cpu {
+namespace kernel {
 
 #define GET_OFF(field) offsetof(GridSamplesKernelExecArgs, field)
 
 template <x64::cpu_isa_t isa>
 GridSampleKernel<isa>::GridSampleKernel(const GridSampleKernelConfParams& jcp) :
-        GridSampleKernelBase(jit_name(), jcp) {
+        GridSampleKernelBase(jit_name(), jcp, isa) {
     vlen = x64::cpu_isa_traits<isa>::vlen;
     dataTypeSize = jcp.inDataPrc.size();
     gridTypeSize = jcp.gridPrc.size();
@@ -29,7 +30,7 @@ template <x64::cpu_isa_t isa>
 void GridSampleKernel<isa>::create_ker() {
     auto code = x64::jit_generator::create_kernel();
     if (code != dnnl::impl::status::success)
-        IE_THROW() << "Could not create GridSample kernel. Error code: " << std::to_string(code);
+        OPENVINO_THROW("Could not create GridSample kernel. Error code: ", std::to_string(code));
     ker_ = (decltype(ker_))jit_ker();
 }
 
@@ -520,7 +521,7 @@ void GridSampleKernel<x64::avx>::getTailCoordinates(const Vmm& vHCoord, const Vm
     mov(rGridRest, regWorkAmount);
     sal(rGridRest, 0x1); // multiply by gridShape[3] == 2
 
-    for (int i = 0; i < dataElPerVec; i++) {
+    for (size_t i = 0; i < dataElPerVec; i++) {
         cmp(rGridRest, 0);
         jle(lEnd, T_NEAR);
 
@@ -539,7 +540,7 @@ void GridSampleKernel<x64::avx>::getTailCoordinates(const Vmm& vHCoord, const Vm
     vperm2f128(vWCoord, vWCoord, vWCoord, 0x1);
     vperm2f128(vHCoord, vHCoord, vHCoord, 0x1);
 
-    for (int i = 0; i < dataElPerVec; i++) {
+    for (size_t i = 0; i < dataElPerVec; i++) {
         cmp(rGridRest, 0);
         jle(lLoop2End, T_NEAR);
 
@@ -1224,7 +1225,7 @@ void GridSampleKernel<isa>::nearestInterpolation(const Vmm& vWCoord, const Vmm& 
     mov(rSrcTmp, regSrc);
     mov(rDstTmp, regDst);
 
-    for (int ch = 0; ch < jcp.cannelNum; ch++) {
+    for (uint64_t ch = 0; ch < jcp.cannelNum; ch++) {
         if (jcp.dynamicChannel) {
             rChannel = getReg64();
             mov(rChannel, ptr[regParams + GET_OFF(channelsNum)]);
@@ -1334,7 +1335,7 @@ void GridSampleKernel<x64::avx512_core>::bilinearInterpolation(const Vmm& vWCoor
     mov(rSrcTmp, regSrc);
     mov(rDstTmp, regDst);
 
-    for (int ch = 0; ch < jcp.cannelNum; ch++) {
+    for (uint64_t ch = 0; ch < jcp.cannelNum; ch++) {
         if (jcp.dynamicChannel) {
             rChannel = getReg64();
             mov(rChannel, 0);
@@ -1502,7 +1503,7 @@ void GridSampleKernel<isa>::bilinearInterpolation(const Vmm& vWCoord, const Vmm&
     mov(rDstTmp,   regDst);
     mov(rTypeSize, ptr[regParams + GET_OFF(dataTypeSize)]);
 
-    for (int ch = 0; ch < jcp.cannelNum; ch++) {
+    for (uint64_t ch = 0; ch < jcp.cannelNum; ch++) {
         if (jcp.dynamicChannel) {
             rChannel = getReg64();
             mov(rChannel, ptr[regParams + GET_OFF(channelsNum)]);
@@ -1663,7 +1664,7 @@ void GridSampleKernel<x64::avx512_core>::bicubicInterpolation(const Vmm& vWCoord
     mov(rSrcTmp, regSrc);
     mov(rDstTmp, regDst);
 
-    for (int ch = 0; ch < jcp.cannelNum; ch++) {
+    for (size_t ch = 0; ch < jcp.cannelNum; ch++) {
         if (jcp.dynamicChannel) {
             rChannel = getReg64();
             mov(rChannel, 0);
@@ -1956,7 +1957,7 @@ void GridSampleKernel<isa>::bicubicInterpolation(const Vmm& vWCoord, const Vmm& 
     mov(rSrcTmp, regSrc);
     mov(rDstTmp, regDst);
 
-    for (int ch = 0; ch < jcp.cannelNum; ch++) {
+    for (uint64_t ch = 0; ch < jcp.cannelNum; ch++) {
         if (jcp.dynamicChannel) {
             rChannel = getReg64();
             mov(rChannel, ptr[regParams + GET_OFF(channelsNum)]);
@@ -2085,5 +2086,6 @@ template class GridSampleKernel<x64::avx512_core>;
 template class GridSampleKernel<x64::avx2>;
 template class GridSampleKernel<x64::sse41>;
 
+}   // namespace kernel
 }   // namespace intel_cpu
 }   // namespace ov

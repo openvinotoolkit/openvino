@@ -8,6 +8,11 @@
 
    Debugging Auto-Device Plugin <openvino_docs_OV_UG_supported_plugins_AUTO_debugging>
 
+.. meta::
+   :description: The Automatic Device Selection mode in OpenVINO™ Runtime 
+                 detects available devices and selects the optimal processing 
+                 unit for inference automatically.
+
 
 This article introduces how Automatic Device Selection works and how to use it for inference.
 
@@ -51,11 +56,10 @@ The logic behind the choice is as follows:
 To put it simply, when loading the model to the first device on the list fails, AUTO will try to load it to the next device in line, until one of them succeeds.
 What is important, **AUTO starts inference with the CPU of the system by default**, as it provides very low latency and can start inference with no additional delays.
 While the CPU is performing inference, AUTO continues to load the model to the device best suited for the purpose and transfers the task to it when ready.
-This way, the devices which are much slower in compiling models, GPU being the best example, do not impede inference at its initial stages.
+This way, the devices which are much slower in compiling models, GPU being the best example, do not impact inference at its initial stages.
 For example, if you use a CPU and a GPU, the first-inference latency of AUTO will be better than that of using GPU alone.
 
-Note that if you choose to exclude CPU from the priority list or disable the initial CPU acceleration feature via ``ov::intel_auto::enable_startup_fallback``, it will be unable to support the initial model compilation stage.
-
+Note that if you choose to exclude CPU from the priority list or disable the initial CPU acceleration feature via ``ov::intel_auto::enable_startup_fallback``, it will be unable to support the initial model compilation stage. The models with dynamic input/output or stateful :doc:`stateful<openvino_docs_OV_UG_model_state_intro>` operations will be loaded to the CPU if it is in the candidate list. Otherwise, these models will follow the normal flow and be loaded to the device based on priority.
 
 .. image:: _static/images/autoplugin_accelerate.svg
 
@@ -86,12 +90,15 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 
 
 +----------------------------------------------+--------------------------------------------------------------------+
-| Property                                     | Values and Description                                             |
+| Property(C++ version)                        | Values and Description                                             |
 +==============================================+====================================================================+
 | <device candidate list>                      | **Values**:                                                        |
-|                                              |       empty                                                        |
-|                                              |       ``AUTO``                                                     |
-|                                              |       ``AUTO: <device names>`` (comma-separated, no spaces)        |
+|                                              |                                                                    |
+|                                              | empty                                                              |
+|                                              |                                                                    |
+|                                              | ``AUTO``                                                           |
+|                                              |                                                                    |
+|                                              | ``AUTO: <device names>`` (comma-separated, no spaces)              |
 |                                              |                                                                    |
 |                                              | Lists the devices available for selection.                         |
 |                                              | The device sequence will be taken as priority from high to low.    |
@@ -99,54 +106,87 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 |                                              | and all devices will be "viewed" as candidates.                    |
 +----------------------------------------------+--------------------------------------------------------------------+
 | ``ov::device::priorities``                   | **Values**:                                                        |
-|                                              |       ``<device names>`` (comma-separated, no spaces)              |
+|                                              |                                                                    |
+|                                              | ``<device names>`` (comma-separated, no spaces)                    |
 |                                              |                                                                    |
 |                                              | Specifies the devices for AUTO to select.                          |
 |                                              | The device sequence will be taken as priority from high to low.    |
 |                                              | This configuration is optional.                                    |
 +----------------------------------------------+--------------------------------------------------------------------+
 | ``ov::hint::performance_mode``               | **Values**:                                                        |
-|                                              |       ``ov::hint::PerformanceMode::LATENCY``                       |
-|                                              |       ``ov::hint::PerformanceMode::THROUGHPUT``                    |
-|                                              |       ``ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT``         |
+|                                              |                                                                    |
+|                                              | ``ov::hint::PerformanceMode::LATENCY``                             |
+|                                              |                                                                    |
+|                                              | ``ov::hint::PerformanceMode::THROUGHPUT``                          |
+|                                              |                                                                    |
+|                                              | ``ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT``               |
 |                                              |                                                                    |
 |                                              | Specifies the performance option preferred by the application.     |
 +----------------------------------------------+--------------------------------------------------------------------+
 | ``ov::hint::model_priority``                 | **Values**:                                                        |
-|                                              |       ``ov::hint::Priority::HIGH``                                 |
-|                                              |       ``ov::hint::Priority::MEDIUM``                               |
-|                                              |       ``ov::hint::Priority::LOW``                                  |
+|                                              |                                                                    |
+|                                              | ``ov::hint::Priority::HIGH``                                       |
+|                                              |                                                                    |
+|                                              | ``ov::hint::Priority::MEDIUM``                                     |
+|                                              |                                                                    |
+|                                              | ``ov::hint::Priority::LOW``                                        |
 |                                              |                                                                    |
 |                                              | Indicates the priority for a model.                                |
+|                                              |                                                                    |
 |                                              | IMPORTANT: This property is not fully supported yet.               |
 +----------------------------------------------+--------------------------------------------------------------------+
 | ``ov::execution_devices``                    | Lists the runtime target devices on which the inferences are being |
 |                                              | executed.                                                          |
+|                                              |                                                                    |
 |                                              | Examples of returning results could be ``(CPU)``(``CPU`` is a      |
 |                                              | temporary device, indicating that CPU is used for acceleration at  |
 |                                              | the model compilation stage), ``CPU``, ``GPU``, ``CPU GPU``,       |
 |                                              | ``GPU.0``, etc.                                                    |
 +----------------------------------------------+--------------------------------------------------------------------+
 | ``ov::intel_auto::enable_startup_fallback``  | **Values**:                                                        |
-|                                              |       ``true``                                                     |
-|                                              |       ``false``                                                    |
+|                                              |                                                                    |
+|                                              | ``true``                                                           |
+|                                              |                                                                    |
+|                                              | ``false``                                                          |
 |                                              |                                                                    |
 |                                              | Enables/disables CPU as acceleration (or the helper device) in the |
 |                                              | beginning. The default value is ``true``, indicating that CPU is   |
 |                                              | used as acceleration by default.                                   |
 +----------------------------------------------+--------------------------------------------------------------------+
 | ``ov::intel_auto::enable_runtime_fallback``  | **Values**:                                                        |
-|                                              |       ``true``                                                     |
-|                                              |       ``false``                                                    |
+|                                              |                                                                    |
+|                                              | ``true``                                                           |
+|                                              |                                                                    |
+|                                              | ``false``                                                          |
 |                                              |                                                                    |
 |                                              | Enables/disables runtime fallback to other devices and performs    |
 |                                              | the failed inference request again, if inference request fails on  |
 |                                              | the currently selected device.                                     |
+|                                              |                                                                    |
 |                                              | The default value is ``true``.                                     |
 +----------------------------------------------+--------------------------------------------------------------------+
 
 Inference with AUTO is configured similarly to when device plugins are used:
 you compile the model on the plugin with configuration and execute inference.
+
+The code samples on this page assume following import(Python)/using (C++) are included at the beginning of code snippets. 
+
+.. tab-set::
+
+    .. tab-item:: Python
+        :sync: py
+
+        .. doxygensnippet:: docs/snippets/ov_auto.py
+           :language: python
+           :fragment: [py_ov_property_import_header]
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/AUTO0.cpp
+            :language: cpp
+            :fragment: [py_ov_property_import_header]
+
 
 
 Device Candidates and Priority
@@ -164,19 +204,19 @@ See the following code for using AUTO and specifying devices:
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/AUTO0.cpp
-            :language: cpp
-            :fragment: [part0]
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_auto.py
            :language: python
            :fragment: [part0]
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/AUTO0.cpp
+            :language: cpp
+            :fragment: [part0]
     
 
 
@@ -189,15 +229,6 @@ To check what devices are present in the system, you can use Device API, as list
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-        
-        .. code-block:: sh
-           
-           ov::runtime::Core::get_available_devices()
-        
-        See the Hello Query Device C++ Sample for reference.
-
     .. tab-item:: Python
         :sync: py
          
@@ -207,6 +238,15 @@ To check what devices are present in the system, you can use Device API, as list
         
         See the Hello Query Device Python Sample for reference.
 
+    .. tab-item:: C++
+        :sync: cpp
+        
+        .. code-block:: sh
+           
+           ov::runtime::Core::get_available_devices()
+        
+        See the Hello Query Device C++ Sample for reference.
+
 
 Excluding Devices from Device Candidate List
 --------------------------------------------
@@ -215,19 +255,19 @@ You can also exclude hardware devices from AUTO, for example, to reserve CPU for
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-        
-        .. code-block:: sh
-           
-           ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:-CPU");
-
     .. tab-item:: Python
         :sync: py
         
         .. code-block:: sh
            
            compiled_model = core.compile_model(model=model, device_name="AUTO:-CPU")
+
+    .. tab-item:: C++
+        :sync: cpp
+        
+        .. code-block:: sh
+           
+           ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:-CPU");
 
 
 AUTO will then query all available devices and remove CPU from the candidate list.
@@ -240,11 +280,11 @@ Performance Hints for AUTO
 
 The ``ov::hint::performance_mode`` property enables you to specify a performance option for AUTO to be more efficient for particular use cases. The default hint for AUTO is ``LATENCY``.
 
-The THROUGHPUT and CUMULATIVE_THROUGHPUT hints below only improve performance in an asynchronous inference pipeline. For information on asynchronous inference, see the `Async API documentation <https://docs.openvino.ai/latest/openvino_docs_OV_UG_Infer_request.html#doxid-openvino-docs-o-v-u-g-infer-request>`__ . The following notebooks provide examples of how to set up an asynchronous pipeline:
+The THROUGHPUT and CUMULATIVE_THROUGHPUT hints below only improve performance in an asynchronous inference pipeline. For information on asynchronous inference, see the :doc:`Async API documentation <openvino_docs_OV_UG_Infer_request>` . The following notebooks provide examples of how to set up an asynchronous pipeline:
 
 * :doc:`Image Classification Async Sample <openvino_inference_engine_samples_classification_sample_async_README>`
-* `Notebook - Asynchronous Inference with OpenVINO™ <https://docs.openvino.ai/latest/notebooks/115-async-api-with-output.html>`__
-* `Notebook - Automatic Device Selection with OpenVINO <https://docs.openvino.ai/latest/notebooks/106-auto-device-with-output.html>`__
+* `Notebook - Asynchronous Inference with OpenVINO™ <notebooks/115-async-api-with-output.html>`__
+* `Notebook - Automatic Device Selection with OpenVINO <notebooks/106-auto-device-with-output.html>`__
 
 LATENCY
 --------------------
@@ -276,6 +316,13 @@ If device priority is specified when using CUMULATIVE_THROUGHPUT, AUTO will run 
 
 .. tab-set::
    
+    .. tab-item:: Python
+        :sync: py
+
+        .. code-block:: sh
+         
+           compiled_model = core.compile_model(model, "AUTO:GPU,CPU", {hints.performance_mode: hints.PerformanceMode.CUMULATIVE_THROUGHPUT})
+
     .. tab-item:: C++
         :sync: cpp
 
@@ -283,18 +330,18 @@ If device priority is specified when using CUMULATIVE_THROUGHPUT, AUTO will run 
    
            ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:GPU,CPU", ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
    
-    .. tab-item:: Python
-        :sync: py
-
-        .. code-block:: sh
-         
-           compiled_model = core.compile_model(model, "AUTO:GPU,CPU", {"PERFORMANCE_HINT" : {"CUMULATIVE_THROUGHPUT"}})
-
 
 If AUTO is used without specifying any device names, and if there are multiple GPUs in the system, CUMULATIVE_THROUGHPUT mode will use all of the GPUs by default. If the system has more than two GPU devices, AUTO will remove CPU from the device candidate list to keep the GPUs running at full capacity. A full list of system devices and their unique identifiers can be queried using ov::Core::get_available_devices (for more information, see :doc:`Query Device Properties <openvino_docs_OV_UG_query_api>`). To explicitly specify which GPUs to use, set their priority when compiling with AUTO:
 
 .. tab-set::
    
+    .. tab-item:: Python
+        :sync: py
+
+        .. code-block:: sh
+         
+           compiled_model = core.compile_model(model, "AUTO:GPU.1,GPU.0", {hints.performance_mode: hints.PerformanceMode.CUMULATIVE_THROUGHPUT})
+
     .. tab-item:: C++
         :sync: cpp
 
@@ -302,13 +349,6 @@ If AUTO is used without specifying any device names, and if there are multiple G
    
            ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:GPU.1,GPU.0", ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
 
-   
-    .. tab-item:: Python
-        :sync: py
-
-        .. code-block:: sh
-         
-           compiled_model = core.compile_model(model, "AUTO:GPU.1,GPU.0", {"PERFORMANCE_HINT" : {"CUMULATIVE_THROUGHPUT"})
 
 Code Examples
 --------------------
@@ -318,19 +358,19 @@ To enable performance hints for your application, use the following code:
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/AUTO3.cpp
-            :language: cpp
-            :fragment: [part3]
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_auto.py
            :language: python
            :fragment: [part3]
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/AUTO3.cpp
+            :language: cpp
+            :fragment: [part3]
 
 
 Disabling Auto-Batching for THROUGHPUT and CUMULATIVE_THROUGHPUT
@@ -346,19 +386,19 @@ The ``ov::hint::model_priority`` property enables you to control the priorities 
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/AUTO4.cpp
-            :language: cpp
-            :fragment: [part4]
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_auto.py
            :language: python
            :fragment: [part4]
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/AUTO4.cpp
+            :language: cpp
+            :fragment: [part4]
 
 
 Checking Target Runtime Devices
@@ -369,13 +409,6 @@ To query the runtime target devices on which the inferences are being executed u
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/AUTO7.cpp
-            :language: cpp
-            :fragment: [part7]
-
     .. tab-item:: Python
         :sync: py
 
@@ -383,6 +416,12 @@ To query the runtime target devices on which the inferences are being executed u
            :language: python
            :fragment: [part7]
 
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/AUTO7.cpp
+            :language: cpp
+            :fragment: [part7]
 
 
 Configuring Individual Devices and Creating the Auto-Device plugin on Top
@@ -392,19 +431,19 @@ Although the methods described above are currently the preferred way to execute 
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/AUTO5.cpp
-            :language: cpp
-            :fragment: [part5]
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_auto.py
            :language: python
            :fragment: [part5]
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/AUTO5.cpp
+            :language: cpp
+            :fragment: [part5]
 
 
 .. _using-auto-with-openvino-samples-and-benchmark-app:

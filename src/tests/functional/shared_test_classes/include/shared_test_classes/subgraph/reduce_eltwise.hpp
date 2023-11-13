@@ -9,8 +9,8 @@
 #include <vector>
 #include <memory>
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 namespace SubgraphTestsDefinitions {
@@ -18,7 +18,7 @@ namespace SubgraphTestsDefinitions {
 using ReduceEltwiseParamsTuple = typename std::tuple<
         std::vector<size_t>,              // Input shapes
         std::vector<int>,                 // Axis to reduce order
-        CommonTestUtils::OpType,          // Scalar or vector type axis
+        ov::test::utils::OpType,          // Scalar or vector type axis
         bool,                             // Keep dims
         InferenceEngine::Precision,       // Network precision
         std::string>;                     // Device name

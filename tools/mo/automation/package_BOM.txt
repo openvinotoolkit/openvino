@@ -836,9 +836,10 @@ openvino/tools/mo/moc_frontend/analysis.py
 openvino/tools/mo/moc_frontend/check_config.py
 openvino/tools/mo/moc_frontend/extractor.py
 openvino/tools/mo/moc_frontend/layout_utils.py
+openvino/tools/mo/moc_frontend/moc_emit_ir.py
+openvino/tools/mo/moc_frontend/paddle_frontend_utils.py
 openvino/tools/mo/moc_frontend/pipeline.py
 openvino/tools/mo/moc_frontend/pytorch_frontend_utils.py
-openvino/tools/mo/moc_frontend/serialize.py
 openvino/tools/mo/moc_frontend/shape_utils.py
 openvino/tools/mo/ops/__init__.py
 openvino/tools/mo/ops/activation.py
@@ -927,11 +928,13 @@ openvino/tools/mo/ops/MatMul.py
 openvino/tools/mo/ops/memory.py
 openvino/tools/mo/ops/memoryoffset.py
 openvino/tools/mo/ops/merge.py
+openvino/tools/mo/ops/multinomial.py
 openvino/tools/mo/ops/mvn.py
 openvino/tools/mo/ops/mxfft.py
 openvino/tools/mo/ops/mxrepeat.py
 openvino/tools/mo/ops/mxreshape.py
 openvino/tools/mo/ops/NextIteration.py
+openvino/tools/mo/ops/nms_rotated.py
 openvino/tools/mo/ops/non_max_suppression.py
 openvino/tools/mo/ops/non_zero.py
 openvino/tools/mo/ops/normalize.py
@@ -1031,6 +1034,7 @@ openvino/tools/mo/utils/class_registration.py
 openvino/tools/mo/utils/cli_parser.py
 openvino/tools/mo/utils/custom_replacement_config.py
 openvino/tools/mo/utils/dsu.py
+openvino/tools/mo/utils/environment_setup_utils.py
 openvino/tools/mo/utils/error.py
 openvino/tools/mo/utils/find_ie_version.py
 openvino/tools/mo/utils/find_inputs.py
@@ -1105,4 +1109,3 @@ openvino/tools/mo/utils/type_utils.py
 openvino/tools/mo/utils/unsupported_ops.py
 openvino/tools/mo/utils/utils.py
 openvino/tools/mo/utils/version.py
-openvino/tools/mo/utils/versions_checker.py

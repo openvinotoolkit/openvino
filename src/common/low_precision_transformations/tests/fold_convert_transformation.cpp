@@ -11,64 +11,64 @@
 #include <gtest/gtest.h>
 
 #include <utility>
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
 
-#include <low_precision/fold_convert.hpp>
-#include "lpt_ngraph_functions/common/builders.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "low_precision/fold_convert.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 namespace {
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 using namespace ngraph::builder::subgraph;
 
 class FoldConvertTransformationTestValues {
 public:
     TestTransformationParams params;
-    ngraph::element::Type precision;
+    ov::element::Type precision;
     ngraph::builder::subgraph::DequantizationOperations dequantizationActual;
     ngraph::builder::subgraph::DequantizationOperations dequantizationExpected;
 };
 
 typedef std::tuple<
-    ngraph::PartialShape,
+    ov::PartialShape,
     FoldConvertTransformationTestValues> FoldConvertTransformationParams;
 
 class FoldConvertTransformation : public LayerTransformation, public testing::WithParamInterface<FoldConvertTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::PartialShape inputShape = std::get<0>(GetParam());
+        const ov::PartialShape inputShape = std::get<0>(GetParam());
         const FoldConvertTransformationTestValues testValues = std::get<1>(GetParam());
 
         const auto createFunction = [](
-            const ngraph::element::Type precision,
-            const ngraph::PartialShape& inputShape,
-            const ngraph::builder::subgraph::DequantizationOperations& dequantization) -> std::shared_ptr<ngraph::Function> {
-            auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
-            std::shared_ptr<ngraph::Node> output = makeDequantization(input, dequantization);
+            const ov::element::Type precision,
+            const ov::PartialShape& inputShape,
+            const ngraph::builder::subgraph::DequantizationOperations& dequantization) -> std::shared_ptr<ov::Model> {
+            auto input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
+            std::shared_ptr<ov::Node> output = makeDequantization(input, dequantization);
             output->set_friendly_name("output");
 
-            return std::make_shared<ngraph::Function>(
-                ngraph::ResultVector{ std::make_shared<ngraph::opset1::Result>(output) },
+            return std::make_shared<ov::Model>(
+                ngraph::ResultVector{ std::make_shared<ov::op::v0::Result>(output) },
                 ngraph::ParameterVector{ input },
                 "FoldConvertTransformation");
         };
         actualFunction = createFunction(testValues.precision, inputShape, testValues.dequantizationActual);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::FoldConvertTransformation, ngraph::opset1::Add>(testValues.params);
+        transform.add<ov::pass::low_precision::FoldConvertTransformation, ov::op::v1::Add>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = createFunction(testValues.precision, inputShape, testValues.dequantizationExpected);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FoldConvertTransformationParams> obj) {
-        const ngraph::PartialShape inputShape = std::get<0>(obj.param);
+        const ov::PartialShape inputShape = std::get<0>(obj.param);
         const FoldConvertTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
@@ -89,7 +89,7 @@ TEST_P(FoldConvertTransformation, CompareFunctions) {
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
-const std::vector<ngraph::PartialShape> inputShapes = {
+const std::vector<ov::PartialShape> inputShapes = {
     {1, 4, 16, 16},
     {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
     PartialShape::dynamic()
@@ -123,15 +123,15 @@ const std::vector<FoldConvertTransformationTestValues> testValues = {
     //       Multiply
     {
         LayerTransformation::createParamsU8I8(),
-        ngraph::element::f32,
+        ov::element::f32,
         {
-            {ngraph::element::f32},
-            { {7.f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true },
+            {ov::element::f32},
+            { {7.f}, ov::element::f32, {}, false, 1, ov::element::u8, true },
             { 10.f }
         },
         {
-            {ngraph::element::f32},
-            { {7.f}, ngraph::element::f32, {}, false, 1 },
+            {ov::element::f32},
+            { {7.f}, ov::element::f32, {}, false, 1 },
             { 10.f }
         }
     },
@@ -163,15 +163,15 @@ const std::vector<FoldConvertTransformationTestValues> testValues = {
     //       Multiply
     {
         LayerTransformation::createParamsU8I8(),
-        ngraph::element::f32,
+        ov::element::f32,
         {
-            {ngraph::element::f32},
-            { {7.f}, ngraph::element::f32, {}, false, 0, ngraph::element::u8, true },
+            {ov::element::f32},
+            { {7.f}, ov::element::f32, {}, false, 0, ov::element::u8, true },
             { 10.f }
         },
         {
-            {ngraph::element::f32},
-            { {7.f}, ngraph::element::f32, {}, false, 0 },
+            {ov::element::f32},
+            { {7.f}, ov::element::f32, {}, false, 0 },
             { 10.f }
         }
     }

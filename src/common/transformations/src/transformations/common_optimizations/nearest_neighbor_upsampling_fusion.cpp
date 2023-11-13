@@ -6,16 +6,23 @@
 
 #include <algorithm>
 #include <memory>
-#include <ngraph/pattern/matcher.hpp>
-#include <ngraph/pattern/op/or.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <tuple>
 #include <utility>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -31,7 +38,7 @@ std::vector<float> get_scales_from_mul_const_shape(const Shape& s, uint64_t inpu
     if (input_rank < 4 || s.size() != 2 * input_rank - 2)
         return {};
 
-    ngraph::Shape expected_shape(2 * input_rank - 2, 1);
+    ov::Shape expected_shape(2 * input_rank - 2, 1);
     std::vector<float> scales(input_rank - 2);
     for (uint64_t i = 1; i <= input_rank - 2; ++i) {
         expected_shape[2 * i] = s[2 * i];
@@ -44,7 +51,7 @@ std::vector<float> get_scales_from_mul_const_shape(const Shape& s, uint64_t inpu
     return scales;
 }
 
-bool check_concat_1(const std::shared_ptr<opset8::Concat>& concat, const Shape& shape) {
+bool check_concat_1(const std::shared_ptr<ov::op::v0::Concat>& concat, const Shape& shape) {
     size_t rank = shape.size();
 
     const auto inputs = concat->input_values();
@@ -55,17 +62,17 @@ bool check_concat_1(const std::shared_ptr<opset8::Concat>& concat, const Shape& 
 
     std::vector<int64_t> input_constants(num_of_input_values, 1);
     for (size_t i = 1; i < num_of_input_values; ++i) {
-        const auto& current_input = std::dynamic_pointer_cast<opset8::Unsqueeze>(inputs[i].get_node_shared_ptr());
+        const auto& current_input = std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(inputs[i].get_node_shared_ptr());
         if (!current_input)
             return false;
 
         const auto current_input_axis =
-            std::dynamic_pointer_cast<opset8::Constant>(current_input->input_value(1).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(current_input->input_value(1).get_node_shared_ptr());
         if (!current_input_axis || current_input_axis->cast_vector<int64_t>() != std::vector<int64_t>{0})
             return false;
 
         const auto unsqueezed_const =
-            std::dynamic_pointer_cast<opset8::Constant>(current_input->input_value(0).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(current_input->input_value(0).get_node_shared_ptr());
         if (!unsqueezed_const)
             return false;
 
@@ -95,7 +102,7 @@ bool check_concat_1(const std::shared_ptr<opset8::Concat>& concat, const Shape& 
 //
 // This function gets a new spatial shape from unsqueezed constants of 'concat_2', that is, the vector with elements
 //      [newD_1, newD_2, ..., newD_{r - 2}].
-std::vector<int64_t> get_new_spatial_shape_from_concat_2(const std::shared_ptr<opset8::Concat>& concat,
+std::vector<int64_t> get_new_spatial_shape_from_concat_2(const std::shared_ptr<ov::op::v0::Concat>& concat,
                                                          const Shape& input_shape) {
     size_t rank = input_shape.size();
 
@@ -108,17 +115,17 @@ std::vector<int64_t> get_new_spatial_shape_from_concat_2(const std::shared_ptr<o
     std::vector<int64_t> input_constants(num_of_input_values - 1, 0);
 
     for (size_t i = 1; i < num_of_input_values; ++i) {
-        const auto& current_input = std::dynamic_pointer_cast<opset8::Unsqueeze>(inputs[i].get_node_shared_ptr());
+        const auto& current_input = std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(inputs[i].get_node_shared_ptr());
         if (!current_input)
             return {};
 
         const auto current_input_axis =
-            std::dynamic_pointer_cast<opset8::Constant>(current_input->input_value(1).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(current_input->input_value(1).get_node_shared_ptr());
         if (!current_input_axis || current_input_axis->cast_vector<int64_t>() != std::vector<int64_t>{0})
             return {};
 
         const auto unsqueezed_const =
-            std::dynamic_pointer_cast<opset8::Constant>(current_input->input_value(0).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(current_input->input_value(0).get_node_shared_ptr());
         if (!unsqueezed_const)
             return {};
 
@@ -267,30 +274,30 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
     //
     // Of course, the replacement shouldn't be done, if all S_i are equal to 1.
     auto input = pass::pattern::any_input(pattern::has_static_shape());
-    auto concat_1 = pattern::wrap_type<opset8::Concat>();
-    auto concat_2 = pattern::wrap_type<opset8::Concat>();
-    auto reshape_1 = pattern::wrap_type<opset8::Reshape>({input, concat_1});
-    auto mul_const = pattern::wrap_type<opset8::Constant>(pattern::has_static_shape());
-    auto mul = pattern::wrap_type<opset8::Multiply>({reshape_1, mul_const});
-    auto reshape_2 = pattern::wrap_type<opset8::Reshape>({mul, concat_2});
+    auto concat_1 = pattern::wrap_type<ov::op::v0::Concat>();
+    auto concat_2 = pattern::wrap_type<ov::op::v0::Concat>();
+    auto reshape_1 = pattern::wrap_type<ov::op::v1::Reshape>({input, concat_1});
+    auto mul_const = pattern::wrap_type<ov::op::v0::Constant>(pattern::has_static_shape());
+    auto mul = pattern::wrap_type<ov::op::v1::Multiply>({reshape_1, mul_const});
+    auto reshape_2 = pattern::wrap_type<ov::op::v1::Reshape>({mul, concat_2});
 
-    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         const auto reshape_2_node =
-            std::dynamic_pointer_cast<opset8::Reshape>(pattern_to_output.at(reshape_2).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v1::Reshape>(pattern_to_output.at(reshape_2).get_node_shared_ptr());
         const auto mul_node =
-            std::dynamic_pointer_cast<opset8::Multiply>(pattern_to_output.at(mul).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v1::Multiply>(pattern_to_output.at(mul).get_node_shared_ptr());
         if (!reshape_2_node || !mul_node)
             return false;
 
         const auto mul_const_node =
-            std::dynamic_pointer_cast<opset8::Constant>(pattern_to_output.at(mul_const).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mul_const).get_node_shared_ptr());
         if (!mul_const_node)
             return false;
 
         const auto reshape_1_node =
-            std::dynamic_pointer_cast<opset8::Reshape>(pattern_to_output.at(reshape_1).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v1::Reshape>(pattern_to_output.at(reshape_1).get_node_shared_ptr());
         if (!reshape_1_node)
             return false;
 
@@ -311,7 +318,7 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
         }
 
         const auto concat_1_node =
-            std::dynamic_pointer_cast<opset8::Concat>(pattern_to_output.at(concat_1).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v0::Concat>(pattern_to_output.at(concat_1).get_node_shared_ptr());
         if (!concat_1_node)
             return false;
 
@@ -320,7 +327,7 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
             return false;
 
         const auto concat_2_node =
-            std::dynamic_pointer_cast<opset8::Concat>(pattern_to_output.at(concat_2).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v0::Concat>(pattern_to_output.at(concat_2).get_node_shared_ptr());
         if (!concat_2_node)
             return false;
 
@@ -329,14 +336,14 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
             return false;
 
         const auto ss_before_concat_1 =
-            std::dynamic_pointer_cast<opset8::StridedSlice>(concat_1_node->input_value(0).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v1::StridedSlice>(concat_1_node->input_value(0).get_node_shared_ptr());
         const auto ss_before_concat_2 =
-            std::dynamic_pointer_cast<opset8::StridedSlice>(concat_2_node->input_value(0).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v1::StridedSlice>(concat_2_node->input_value(0).get_node_shared_ptr());
         if (!ss_before_concat_1 || !ss_before_concat_2 || ss_before_concat_1.get() != ss_before_concat_2.get())
             return false;
 
         const auto shapeof_node =
-            std::dynamic_pointer_cast<opset8::ShapeOf>(ss_before_concat_1->input_value(0).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v3::ShapeOf>(ss_before_concat_1->input_value(0).get_node_shared_ptr());
         if (!shapeof_node)
             return false;
 
@@ -345,27 +352,28 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
         if (before_shapeof.get_node() != before_reshape_1.get_node())
             return false;
 
-        opset8::Interpolate::InterpolateAttrs attrs;
-        attrs.mode = opset8::Interpolate::InterpolateMode::NEAREST;
-        attrs.shape_calculation_mode = opset8::Interpolate::ShapeCalcMode::SCALES;
-        attrs.nearest_mode = opset8::Interpolate::NearestMode::ROUND_PREFER_FLOOR;
+        ov::op::v4::Interpolate::InterpolateAttrs attrs;
+        attrs.mode = ov::op::v4::Interpolate::InterpolateMode::NEAREST;
+        attrs.shape_calculation_mode = ov::op::v4::Interpolate::ShapeCalcMode::SCALES;
+        attrs.nearest_mode = ov::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR;
         attrs.pads_begin = std::vector<size_t>{0};
         attrs.pads_end = std::vector<size_t>{0};
         attrs.antialias = false;
-        attrs.coordinate_transformation_mode = opset8::Interpolate::CoordinateTransformMode::HALF_PIXEL;
+        attrs.coordinate_transformation_mode = ov::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL;
         attrs.cube_coeff = -0.75f;
 
         const auto& input_node = pattern_to_output.at(input);
         const auto& type = input_node.get_element_type();
-        const auto scales_node = opset8::Constant::create(type, {scales.size()}, scales);
-        const auto sizes_node = opset8::Constant::create(element::i64, {new_spatial_shape.size()}, new_spatial_shape);
+        const auto scales_node = ov::op::v0::Constant::create(type, {scales.size()}, scales);
+        const auto sizes_node =
+            ov::op::v0::Constant::create(element::i64, {new_spatial_shape.size()}, new_spatial_shape);
 
         std::vector<int64_t> axes(input_rank - 2);
         std::iota(axes.begin(), axes.end(), static_cast<int64_t>(1));
-        const auto axes_node = opset8::Constant::create(element::i64, {axes.size()}, axes);
+        const auto axes_node = ov::op::v0::Constant::create(element::i64, {axes.size()}, axes);
 
         auto interpolate =
-            register_new_node<opset8::Interpolate>(before_shapeof, sizes_node, scales_node, axes_node, attrs);
+            register_new_node<ov::op::v4::Interpolate>(before_shapeof, sizes_node, scales_node, axes_node, attrs);
 
         interpolate->set_friendly_name(reshape_2_node->get_friendly_name());
         copy_runtime_info(
@@ -376,6 +384,6 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_2, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(reshape_2, matcher_name);
     register_matcher(m, callback);
 }

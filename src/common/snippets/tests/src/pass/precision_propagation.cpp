@@ -5,11 +5,12 @@
 #include "pass/precision_propagation.hpp"
 
 #include <gtest/gtest.h>
-#include "ngraph/pass/validate.hpp"
+
+#include "snippets/lowered/expression.hpp"
 #include "snippets/pass/propagate_precision.hpp"
 #include "snippets/op/convert_saturation.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include "precision_propagation_function.hpp"
+#include "precision_propagation.hpp"
 
 namespace ov {
 namespace test {
@@ -23,17 +24,17 @@ public:
         const std::set<std::vector<element::Type>>& op1_supported_precisions,
         const std::set<std::vector<element::Type>>& op2_supported_precisions)
         : DummyTargetMachine() {
-        jitters[DummyAdd::get_type_info_static()] = ngraph::snippets::jitters_value {
-            [](const std::shared_ptr<ngraph::Node>& n) { return std::make_shared<DummyEmitter>(); },
-            [op1_supported_precisions](const std::shared_ptr<ngraph::Node>& n) { return op1_supported_precisions; }};
-        jitters[op::v1::Maximum::get_type_info_static()] = ngraph::snippets::jitters_value{
-            [](const std::shared_ptr<ngraph::Node>& n) { return std::make_shared<DummyEmitter>(); },
-            [op2_supported_precisions](const std::shared_ptr<ngraph::Node>&n) { return op2_supported_precisions; }};
+        jitters[DummyAdd::get_type_info_static()] = ov::snippets::jitters_value {
+            [](const ov::snippets::lowered::ExpressionPtr& n) { return std::make_shared<DummyEmitter>(); },
+            [op1_supported_precisions](const std::shared_ptr<ov::Node>& n) { return op1_supported_precisions; }};
+        jitters[op::v1::Maximum::get_type_info_static()] = ov::snippets::jitters_value{
+            [](const ov::snippets::lowered::ExpressionPtr& n) { return std::make_shared<DummyEmitter>(); },
+            [op2_supported_precisions](const std::shared_ptr<ov::Node>&n) { return op2_supported_precisions; }};
 
-        auto default_jitter = ngraph::snippets::jitters_value{
-            [](const std::shared_ptr<ngraph::Node>& n) { return std::make_shared<DummyEmitter>(); },
-            [](const std::shared_ptr<ngraph::Node>& n) { return std::set<std::vector<element::Type>>{};} };
-        jitters[ngraph::snippets::op::ConvertSaturation::get_type_info_static()] = default_jitter;
+        auto default_jitter = ov::snippets::jitters_value{
+            [](const ov::snippets::lowered::ExpressionPtr& n) { return std::make_shared<DummyEmitter>(); },
+            [](const std::shared_ptr<ov::Node>& n) { return std::set<std::vector<element::Type>>{};} };
+        jitters[ov::snippets::op::ConvertSaturation::get_type_info_static()] = default_jitter;
     }
 };
 
@@ -48,7 +49,7 @@ std::string PrecisionPropagationTest::getTestCaseName(testing::TestParamInfo<Pre
         std::ostringstream result;
         result << "{";
         for (const auto& precisions : precisions_pack) {
-            result << CommonTestUtils::vec2str(precisions) << "_";
+            result << ov::test::utils::vec2str(precisions) << "_";
         }
         result << "}";
         return result.str();
@@ -91,15 +92,15 @@ TEST_P(PrecisionPropagationTest, CompareFunctions) {
             test_values.expected.convertion_before_op2_2,
             test_values.expected.convertion_after_op2
         });
-    function = function_stub.getOriginal();
+    model = function_stub.getOriginal();
 
     const auto target_machine = std::make_shared<DummyPrecisionPropagationTargetMachine>(
         test_values.actual.op1_supported_precisions,
         test_values.actual.op2_supported_precisions);
 
-    manager.register_pass<ngraph::snippets::pass::PropagatePrecision>(target_machine);
+    manager.register_pass<ov::snippets::pass::PropagatePrecision>(target_machine);
 
-    function_ref = function_stub.getReference();
+    model_ref = function_stub.getReference();
 }
 
 namespace PrecisionPropagationTestInstantiation {

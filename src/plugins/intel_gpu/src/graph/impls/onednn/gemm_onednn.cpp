@@ -19,7 +19,7 @@ struct gemm_onednn : typed_primitive_onednn_impl<gemm> {
     using parent = typed_primitive_onednn_impl<gemm>;
     using parent::parent;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::gemm_onednn)
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
@@ -33,12 +33,14 @@ protected:
 
         {
             auto& weights = instance.input_memory(1);
-            args.insert({DNNL_ARG_WEIGHTS, weights.get_onednn_memory(_pd.weights_desc(0))});
+            auto offset = onednn::get_offset(instance.get_input_layout(1), _pd.dnnl::primitive_desc_base::weights_desc(0));
+            args.insert({DNNL_ARG_WEIGHTS, weights.get_onednn_memory(_pd.weights_desc(0), offset)});
         }
 
         if (instance.inputs_memory_count() == 3) {
             auto& weights = instance.input_memory(2);
-            args.insert({DNNL_ARG_BIAS, weights.get_onednn_memory(_pd.weights_desc(1))});
+            auto offset = onednn::get_offset(instance.get_input_layout(2), _pd.dnnl::primitive_desc_base::weights_desc(1));
+            args.insert({DNNL_ARG_BIAS, weights.get_onednn_memory(_pd.weights_desc(1), offset)});
         }
 
         return args;
@@ -102,9 +104,9 @@ protected:
         in1_dims = onednn::convert_gemm_tensor(in1_l.get_tensor(), rank, batched_dims_can_be_removed);
         out_dims = onednn::convert_gemm_tensor(out_l.get_tensor(), rank, batched_dims_can_be_removed);
 
-        in0_fmt = onednn::convert_gemm_data_format(in0_dims);
-        in1_fmt = onednn::convert_gemm_data_format(in1_dims);
-        out_fmt = onednn::convert_gemm_data_format(out_dims);
+        in0_fmt = onednn::convert_gemm_data_format(in0_dims, in0_l.format);
+        in1_fmt = onednn::convert_gemm_data_format(in1_dims, in1_l.format);
+        out_fmt = onednn::convert_gemm_data_format(out_dims, out_l.format);
 
         if (prim->transpose_input0) {
             in0_fmt = transpose_format(in0_fmt);
@@ -121,7 +123,7 @@ protected:
             auto bias_rank = cldnn::format::dimension(bias_l.format);
             bias_dt = onednn::convert_data_type(bias_l.data_type);
             bias_dims = onednn::convert_gemm_tensor(bias_l.get_tensor(), bias_rank, batched_dims_can_be_removed);
-            bias_fmt = onednn::convert_gemm_data_format(bias_dims);
+            bias_fmt = onednn::convert_gemm_data_format(bias_dims, bias_l.format);
         }
     }
 
@@ -296,6 +298,8 @@ public:
         std::vector<uint8_t> prim_cache;
         ib >> prim_cache;
 
+        _scratchpad_md = _pd.scratchpad_desc();
+
         _prim = dnnl::primitive(_pd, prim_cache);
 #endif
     }
@@ -321,6 +325,9 @@ attach_gemm_onednn::attach_gemm_onednn() {
     };
     std::vector<format::type> fmt = {
         format::bfyx,
+        format::byxf,
+        format::byfx,
+        format::bxfy,
         format::bfzyx,
         format::bfwzyx,
     };

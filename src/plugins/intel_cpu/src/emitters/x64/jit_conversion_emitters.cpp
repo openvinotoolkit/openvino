@@ -18,7 +18,7 @@ namespace ov {
 namespace intel_cpu {
 
 jit_convert_emitter::jit_convert_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
-: jit_emitter(host, host_isa, node, exec_prc) {
+: jit_emitter(host, host_isa, exec_prc) {
     input_type = node->get_input_element_type(0);
     output_type = node->get_output_element_type(0);
 
@@ -110,6 +110,11 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t> &in_vec_
             if (one_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8))
                 h->uni_vcvttps2dq(vmm_dst, vmm_dst);
             break;
+        case ov::element::f16:
+            h->vcvtph2ps(vmm_dst, Ymm(vmm_src.getIdx()));
+            if (one_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8))
+                h->uni_vcvttps2dq(vmm_dst, vmm_dst);
+            break;
         case ov::element::i8:
             h->uni_vpmovsxbd(vmm_dst, vmm_src);
             break;
@@ -138,6 +143,15 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t> &in_vec_
                 float2bfloat<isa>({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())});
             }
             break;
+        case ov::element::f16:
+            if (input_type == ov::element::f32) {
+                h->vcvtps2ph(vmm_dst, vmm_src, 0x4);
+            } else {
+                if (one_of(input_type, ov::element::i8, ov::element::u8)) {
+                    h->uni_vcvtdq2ps(vmm_dst, vmm_dst);
+                }
+                h->vcvtps2ph(vmm_dst, vmm_dst, 0x4);
+            }
         case ov::element::i8:
         case ov::element::u8:
             if (input_type == ov::element::i32) {
@@ -222,6 +236,11 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t> &in_vec_
             if (one_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8))
                 h->uni_vcvttps2dq(vmm_dst, vmm_dst);
             break;
+        case ov::element::f16:
+            h->vcvtph2ps(vmm_dst, Ymm(vmm_src.getIdx()));
+            if (one_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8))
+                h->uni_vcvttps2dq(vmm_dst, vmm_dst);
+            break;
         case ov::element::i8:
             h->uni_vpmovsxbd(vmm_dst, vmm_src);
             break;
@@ -234,7 +253,7 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t> &in_vec_
 
     switch (output_type) {
         case ov::element::f32:
-            if (!one_of(input_type, ov::element::i32, ov::element::bf16)) {
+            if (!one_of(input_type, ov::element::i32, ov::element::bf16, ov::element::f16)) {
                 h->uni_vcvtdq2ps(vmm_dst, vmm_dst);
             }
             break;
@@ -248,6 +267,16 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t> &in_vec_
                     h->uni_vcvtdq2ps(vmm_dst, vmm_dst);
                 }
                 float2bfloat<isa>({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())});
+            }
+            break;
+        case ov::element::f16:
+            if (input_type == ov::element::f32) {
+                h->vcvtps2ph(vmm_dst, vmm_src, 0x4);
+            } else {
+                if (one_of(input_type, ov::element::i8, ov::element::u8)) {
+                    h->uni_vcvtdq2ps(vmm_dst, vmm_dst);
+                }
+                h->vcvtps2ph(vmm_dst, vmm_dst, 0x4);
             }
             break;
         case ov::element::i8:

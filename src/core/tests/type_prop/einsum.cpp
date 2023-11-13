@@ -1,30 +1,32 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/einsum.hpp"
+
+#include <gmock/gmock.h>
+
 #include "common_test_utils/test_assertions.hpp"
-#include "dimension_tracker.hpp"
-#include "gmock/gmock.h"
-#include "ngraph/ngraph.hpp"
+#include "common_test_utils/type_prop.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 using namespace testing;
 
 namespace {
 constexpr size_t exp_einsum_outputs_count = 1;
 }
 
-class TypePropEinsumTest : public TypePropOpTest<op::v7::Einsum> {
+class TypePropEinsumTest : public TypePropOpTest<ov::op::v7::Einsum> {
 protected:
     template <class ShapeContainer>
     OutputVector make_inputs(const element::Type dtype, ShapeContainer&& input_shapes) const {
         OutputVector inputs;
         inputs.reserve(input_shapes.size());
         for (auto&& shape : input_shapes) {
-            inputs.push_back(std::make_shared<op::Parameter>(dtype, shape));
+            inputs.push_back(std::make_shared<ov::op::v0::Parameter>(dtype, shape));
         }
         return inputs;
     }
@@ -58,7 +60,7 @@ TEST_F(TypePropEinsumTest, static_shape_trace) {
     const std::string equation = "kii->k";
     constexpr auto et = element::f32;
 
-    const auto input = make_shared<op::Parameter>(et, Shape{2, 3, 3});
+    const auto input = make_shared<ov::op::v0::Parameter>(et, Shape{2, 3, 3});
     const auto o = make_op(OutputVector{input}, equation);
 
     EXPECT_EQ(o->get_equation(), equation);
@@ -71,7 +73,7 @@ TEST_F(TypePropEinsumTest, static_shape_diag_extraction) {
     const std::string equation = "kii->ki";
     constexpr auto et = element::f32;
 
-    const auto input = make_shared<op::Parameter>(et, Shape{2, 3, 3});
+    const auto input = make_shared<ov::op::v0::Parameter>(et, Shape{2, 3, 3});
     const auto o = make_op(OutputVector{input}, equation);
 
     EXPECT_EQ(o->get_equation(), equation);
@@ -84,7 +86,7 @@ TEST_F(TypePropEinsumTest, static_shape_transpose) {
     const std::string equation = "ijk->kij";
     constexpr auto et = element::f32;
 
-    const auto input = make_shared<op::Parameter>(et, Shape{1, 2, 3});
+    const auto input = make_shared<ov::op::v0::Parameter>(et, Shape{1, 2, 3});
     const auto o = make_op(OutputVector{input}, equation);
 
     EXPECT_EQ(o->get_equation(), equation);
@@ -109,7 +111,7 @@ TEST_F(TypePropEinsumTest, static_shape_ellipsis_one_input) {
     const std::string equation = "a...->...";
     constexpr auto et = element::f32;
 
-    const auto input = make_shared<op::Parameter>(et, Shape{5, 3});
+    const auto input = make_shared<ov::op::v0::Parameter>(et, Shape{5, 3});
     const auto o = make_op(OutputVector{input}, equation);
 
     EXPECT_EQ(o->get_equation(), equation);
@@ -167,7 +169,7 @@ TEST_F(TypePropEinsumTest, dynamic_shape_diag_extraction) {
     auto input_shape = PartialShape{{2, 7}, {1, 5}, 4, {3, 5}, 3};
     set_shape_labels(input_shape, 10);
 
-    const auto input = make_shared<op::Parameter>(et, input_shape);
+    const auto input = make_shared<ov::op::v0::Parameter>(et, input_shape);
     const auto o = make_op(OutputVector{input}, equation);
 
     EXPECT_EQ(o->get_equation(), equation);
@@ -201,7 +203,7 @@ TEST_F(TypePropEinsumTest, implicit_mode_mixed_case_letters) {
     auto input_shape = PartialShape{1, {2, 3}, {4, 5}};
     set_shape_labels(input_shape, 10);
 
-    const auto input = make_shared<op::Parameter>(et, input_shape);
+    const auto input = make_shared<ov::op::v0::Parameter>(et, input_shape);
     const auto o = make_op(OutputVector{input}, equation);
 
     EXPECT_EQ(o->get_equation(), equation);
@@ -337,7 +339,7 @@ TEST_F(TypePropEinsumTest, incorrect_equation_invalid_labels) {
     const auto inputs = make_inputs(element::f32, input_shapes);
 
     OV_EXPECT_THROW(auto o = make_op(inputs, equation),
-                    CheckFailure,
+                    AssertFailure,
                     HasSubstr("Input subscript of Einsum equation must consist of either only alphabetic "
                               "letters or alphabetic letters with one ellipsis."));
 }
@@ -349,7 +351,7 @@ TEST_F(TypePropEinsumTest, incorrect_equation_incompatible_shapes) {
     const auto inputs = make_inputs(element::f32, input_shapes);
 
     OV_EXPECT_THROW(auto o = make_op(inputs, equation),
-                    CheckFailure,
+                    AssertFailure,
                     HasSubstr("Different input dimensions indicated by the same labels "
                               "for Einsum must be compatible."));
 }
@@ -372,7 +374,7 @@ TEST_F(TypePropEinsumTest, incorrect_equation_missed_ellipsis) {
     const auto inputs = make_inputs(element::f32, input_shapes);
 
     OV_EXPECT_THROW(auto o = make_op(inputs, equation),
-                    CheckFailure,
+                    AssertFailure,
                     HasSubstr("Output subscript of Einsum equation must contain one "
                               "ellipsis if ellipsis is met in any input subscript."));
 }

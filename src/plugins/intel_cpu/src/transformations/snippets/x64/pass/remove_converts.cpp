@@ -5,19 +5,17 @@
 #include "remove_converts.hpp"
 
 #include "snippets/itt.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/rt_info.hpp"
-#include "ngraph/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "snippets/op/convert_saturation.hpp"
 
 ov::intel_cpu::pass::RemoveConverts::RemoveConverts() {
     MATCHER_SCOPE(RemoveConverts);
-    auto parent_convert_wrap = ngraph::pattern::wrap_type<ngraph::snippets::op::ConvertSaturation>();
-    auto child_convert_wrap = ngraph::pattern::wrap_type<ngraph::snippets::op::ConvertSaturation>({ parent_convert_wrap });
+    auto parent_convert_wrap = ov::pass::pattern::wrap_type<snippets::op::ConvertSaturation>();
+    auto child_convert_wrap = ov::pass::pattern::wrap_type<snippets::op::ConvertSaturation>({ parent_convert_wrap });
 
-    auto callback = [=](ngraph::pattern::Matcher& m) {
-        OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::RemoveConverts")
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::RemoveConverts")
         const auto& pm = m.get_pattern_value_map();
         const auto parent_convert = pm.at(parent_convert_wrap).get_node_shared_ptr();
         const auto child_convert = pm.at(child_convert_wrap).get_node_shared_ptr();
@@ -33,6 +31,6 @@ ov::intel_cpu::pass::RemoveConverts::RemoveConverts() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(child_convert_wrap, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(child_convert_wrap, matcher_name);
     register_matcher(m, callback);
 }

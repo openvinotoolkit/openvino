@@ -32,6 +32,8 @@ struct primitive_type {
     virtual std::unique_ptr<primitive_impl> choose_impl(const program_node& node) const = 0;
     virtual std::unique_ptr<primitive_impl> choose_impl(const program_node& node, const kernel_impl_params& params) const = 0;
 
+    virtual std::set<impl_types> get_available_impls(const program_node& node) const = 0;
+
     virtual bool does_an_implementation_exist(const program_node& node) const = 0;
     virtual bool does_an_implementation_exist(const program_node& node, const kernel_impl_params& params) const = 0;
 

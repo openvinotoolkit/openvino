@@ -26,9 +26,9 @@ std::vector<ov::test::ElementType> netPrecisions = {
     ov::element::f16,
 };
 
-std::vector<CommonTestUtils::OpType> opTypes = {
-    CommonTestUtils::OpType::SCALAR,
-    CommonTestUtils::OpType::VECTOR,
+std::vector<ov::test::utils::OpType> opTypes = {
+    ov::test::utils::OpType::SCALAR,
+    ov::test::utils::OpType::VECTOR,
 };
 
 std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {ngraph::helpers::EltwiseTypes::MULTIPLY,
@@ -51,7 +51,7 @@ const auto multiply_params_1 =
                        ::testing::ValuesIn(netPrecisions),
                        ::testing::Values(ov::element::undefined),
                        ::testing::Values(ov::element::undefined),
-                       ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                       ::testing::Values(ov::test::utils::DEVICE_GNA),
                        ::testing::ValuesIn(additional_config_inputs_1));
 
 const auto multiply_params_2 =
@@ -62,7 +62,7 @@ const auto multiply_params_2 =
                        ::testing::ValuesIn(netPrecisions),
                        ::testing::Values(ov::element::undefined),
                        ::testing::Values(ov::element::undefined),
-                       ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                       ::testing::Values(ov::test::utils::DEVICE_GNA),
                        ::testing::ValuesIn(additional_config_inputs_2));
 
 INSTANTIATE_TEST_SUITE_P(smoke_EltwiseLayerConstTest,

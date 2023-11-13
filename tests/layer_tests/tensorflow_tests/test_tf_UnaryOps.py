@@ -1,14 +1,12 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
+
 import numpy as np
 import pytest
-import sys
-from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
 from common.utils.tf_utils import permute_nchw_to_nhwc
-
-from unit_tests.utils.graph import build_graph
 
 
 class TestUnaryOps(CommonTFLayerTest):
@@ -16,11 +14,12 @@ class TestUnaryOps(CommonTFLayerTest):
 
     def _prepare_input(self, inputs_dict):
         non_negative = ['Sqrt', 'Log']
-        narrow_borders = ["Sinh", "Cosh", "Tanh", "Exp"]
+        narrow_borders = ["Sinh", "Cosh", "Tanh", "Exp", "Selu"]
         within_one = ['Asin', 'Acos', 'Atanh']
         from_one = ['Acosh']
 
         logical_type = ['LogicalNot']
+        bitwise_type = ["BitwiseNot"]
 
         # usual function domain
         lower = -256
@@ -41,6 +40,8 @@ class TestUnaryOps(CommonTFLayerTest):
         for input in inputs_dict.keys():
             if self.current_op_type in logical_type:
                 inputs_dict[input] = np.random.randint(0, 1, inputs_dict[input]).astype(bool)
+            elif self.current_op_type in bitwise_type:
+                inputs_dict[input] = np.random.randint(lower, upper, inputs_dict[input]).astype(np.int32)
             else:
                 inputs_dict[input] = np.random.uniform(lower, upper, inputs_dict[input]).astype(
                     np.float32)
@@ -48,13 +49,6 @@ class TestUnaryOps(CommonTFLayerTest):
         return inputs_dict
 
     def create_net_with_mish(self, shape, ir_version, use_new_frontend):
-        """
-        TODO: Move functionality to `create_net_with_unary_op()` once tensorflow_addons
-        supports Python 3.11
-            Tensorflow net                 IR net
-
-            Input->mish          =>       Input->mish
-        """
         import tensorflow as tf
         import tensorflow_addons as tfa
 
@@ -70,41 +64,11 @@ class TestUnaryOps(CommonTFLayerTest):
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
-        #
-        #   Create reference IR net
-        #   Please, specify 'type': 'Input' for input node
-        #   Moreover, do not forget to validate ALL layer attributes!!!
-        #
-
         ref_net = None
-
-        if check_ir_version(10, None, ir_version) and not use_new_frontend:
-            nodes_attributes = {
-                'input': {'kind': 'op', 'type': 'Parameter'},
-                'input_data': {'shape': shape, 'kind': 'data'},
-                'testing_op': {'kind': 'op', 'type': 'Mish'},
-                'testing_data': {'shape': shape, 'kind': 'data'},
-                'result': {'kind': 'op', 'type': 'Result'}
-            }
-
-            ref_net = build_graph(nodes_attributes,
-                                  [('input', 'input_data'),
-                                   ('input_data', 'testing_op'),
-                                   ('testing_op', 'testing_data'),
-                                   ('testing_data', 'result')
-                                   ])
 
         return tf_net, ref_net
 
     def create_net_with_unary_op(self, shape, ir_version, op_type, use_new_frontend):
-        """
-        TODO: Move functionality of `create_net_with_mish()` here once tensorflow_addons
-        supports Python 3.11
-            Tensorflow net                 IR net
-
-            Input->UnaryOp       =>       Input->UnaryOp
-
-        """
         import tensorflow as tf
 
         self.current_op_type = op_type
@@ -116,6 +80,7 @@ class TestUnaryOps(CommonTFLayerTest):
             'Asinh': tf.math.asinh,
             'Atan': tf.math.atan,
             'Atanh': tf.math.atanh,
+            'BitwiseNot': tf.bitwise.invert,
             'Ceiling': tf.math.ceil,
             'Cos': tf.math.cos,
             'Cosh': tf.math.cosh,
@@ -125,8 +90,9 @@ class TestUnaryOps(CommonTFLayerTest):
             'Floor': tf.math.floor,
             'Log': tf.math.log,
             'LogicalNot': tf.math.logical_not,
-            #'Mish': tfa.activations.mish,  # temporarily moved to `create_net_with_mish()`
+            # 'Mish': tfa.activations.mish,  # temporarily moved to `create_net_with_mish()`
             'Negative': tf.math.negative,
+            'Selu': tf.nn.selu,
             'Sigmoid': tf.nn.sigmoid,
             'Sign': tf.math.sign,
             'Sin': tf.math.sin,
@@ -143,6 +109,8 @@ class TestUnaryOps(CommonTFLayerTest):
         type = tf.float32
         if op_type == "LogicalNot":
             type = tf.bool
+        elif op_type == "BitwiseNot":
+            type = tf.int32
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
             tf_x_shape = shape.copy()
@@ -158,30 +126,7 @@ class TestUnaryOps(CommonTFLayerTest):
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
-        #
-        #   Create reference IR net
-        #   Please, specify 'type': 'Input' for input node
-        #   Moreover, do not forget to validate ALL layer attributes!!!
-        #
-
         ref_net = None
-
-        if check_ir_version(10, None, ir_version) and not use_new_frontend:
-            nodes_attributes = {
-                'input': {'kind': 'op', 'type': 'Parameter'},
-                'input_data': {'shape': shape, 'kind': 'data'},
-                'testing_op': {'kind': 'op', 'type': self.current_op_type},
-                'testing_data': {'shape': shape, 'kind': 'data'},
-                'result': {'kind': 'op', 'type': 'Result'}
-            }
-
-            ref_net = build_graph(nodes_attributes,
-                                  [('input', 'input_data'),
-                                   ('input_data', 'testing_op'),
-                                   ('testing_op', 'testing_data'),
-                                   ('testing_data', 'result')
-                                   ])
-
         return tf_net, ref_net
 
     test_data_precommit = [dict(shape=[4, 6, 8, 10, 12])]
@@ -213,22 +158,26 @@ class TestUnaryOps(CommonTFLayerTest):
                                          'LogicalNot',
                                          'Square',
                                          'Erf',
+                                         'BitwiseNot'
                                          ])
     @pytest.mark.precommit
     def test_unary_op_precommit(self, params, ie_device, precision, ir_version, temp_dir, op_type,
                                 use_new_frontend, use_old_api):
+        if not use_new_frontend and op_type in ['BitwiseNot']:
+            pytest.skip("Bitwise ops are supported only by new TF FE.")
         if ie_device == 'GPU':
             pytest.skip("5D tensors is not supported on GPU")
         self._test(*self.create_net_with_unary_op(**params, ir_version=ir_version, op_type=op_type,
                                                   use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
-        
-    @pytest.mark.xfail(sys.version_info > (3, 10), reason="tensorflow_addons package is not available for Python 3.11 and higher")
+
+    @pytest.mark.xfail(sys.version_info > (3, 10),
+                       reason="tensorflow_addons package is not available for Python 3.11 and higher")
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
     def test_unary_op_mish_precommit(self, params, ie_device, precision, ir_version, temp_dir,
-                                use_new_frontend, use_old_api):
+                                     use_new_frontend, use_old_api):
         """
         TODO: Move to `test_unary_op_precommit()` once tensorflow_addons package is available for Python 3.11
         """
@@ -271,18 +220,24 @@ class TestUnaryOps(CommonTFLayerTest):
                                          'Asinh',
                                          'Square',
                                          'Erf',
+                                         'Selu',
+                                         'BitwiseNot'
                                          ])
     @pytest.mark.nightly
+    @pytest.mark.skipif(sys.platform == 'darwin', reason="Ticket - 122182")
     def test_unary_op(self, params, ie_device, precision, ir_version, temp_dir, op_type,
                       use_new_frontend, use_old_api):
+        if not use_new_frontend and op_type in ['BitwiseNot']:
+            pytest.skip("Bitwise ops are supported only by new TF FE.")
         if ie_device == 'GPU':
             pytest.skip("5D tensors is not supported on GPU")
         self._test(*self.create_net_with_unary_op(**params, ir_version=ir_version, op_type=op_type,
                                                   use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
-        
-    @pytest.mark.xfail(sys.version_info > (3, 10), reason="tensorflow_addons package is not available for Python 3.11 and higher")
+
+    @pytest.mark.xfail(sys.version_info > (3, 10),
+                       reason="tensorflow_addons package is not available for Python 3.11 and higher")
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_unary_op_mish(self, params, ie_device, precision, ir_version, temp_dir, op_type,

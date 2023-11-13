@@ -11,6 +11,16 @@
  */
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <d3d11.h>
 
 #include <memory>
@@ -28,7 +38,7 @@ namespace gpu {
  * GetContext() method of Executable network or using CreateContext() Core call.
  * @note User can also obtain OpenCL context handle from this class.
  */
-class D3DContext : public ClContext {
+class INFERENCE_ENGINE_1_0_DEPRECATED D3DContext : public ClContext {
 public:
     /**
      * @brief A smart pointer to the D3DContext object
@@ -53,7 +63,7 @@ public:
  * The plugin object derived from this class can be obtained with CreateBlob() call.
  * @note User can also obtain OpenCL buffer handle from this class.
  */
-class D3DBufferBlob : public ClBufferBlob {
+class INFERENCE_ENGINE_1_0_DEPRECATED D3DBufferBlob : public ClBufferBlob {
 public:
     /**
      * @brief A smart pointer to the D3DBufferBlob object
@@ -84,7 +94,7 @@ public:
  * The plugin object derived from this class can be obtained with CreateBlob() call.
  * @note User can also obtain OpenCL 2D image handle from this class.
  */
-class D3DSurface2DBlob : public ClImage2DBlob {
+class INFERENCE_ENGINE_1_0_DEPRECATED D3DSurface2DBlob : public ClImage2DBlob {
 public:
     /**
      * @brief A smart pointer to the D3DSurface2DBlob object
@@ -121,36 +131,6 @@ public:
 };
 
 /**
- * @brief This function is used to obtain a NV12 compound blob object from NV12 DXGI video decoder output.
- * The resulting compound contains two remote blobs for Y and UV planes of the surface.
- * @param height Height of Y plane
- * @param width Widht of Y plane
- * @param ctx A pointer to remote context
- * @param nv12_surf A ID3D11Texture2D instance to create NV12 blob from
- * @return NV12 remote blob
- */
-OPENVINO_DEPRECATED("This function is deprecated and will be removed in 2023.1 release")
-static inline Blob::Ptr make_shared_blob_nv12(size_t height,
-                                              size_t width,
-                                              RemoteContext::Ptr ctx,
-                                              ID3D11Texture2D* nv12_surf) {
-    // despite of layout, blob dimensions always follow in N,C,H,W order
-    TensorDesc desc(Precision::U8, {1, 1, height, width}, Layout::NHWC);
-
-    ParamMap blobParams = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE)},
-                           {GPU_PARAM_KEY(DEV_OBJECT_HANDLE), static_cast<gpu_handle_param>(nv12_surf)},
-                           {GPU_PARAM_KEY(VA_PLANE), uint32_t(0)}};
-    Blob::Ptr y_blob = std::dynamic_pointer_cast<Blob>(ctx->CreateBlob(desc, blobParams));
-
-    TensorDesc uvdesc(Precision::U8, {1, 2, height / 2, width / 2}, Layout::NHWC);
-    blobParams[GPU_PARAM_KEY(MEM_HANDLE)] = static_cast<gpu_handle_param>(nv12_surf);
-    blobParams[GPU_PARAM_KEY(VA_PLANE)] = uint32_t(1);
-    Blob::Ptr uv_blob = std::dynamic_pointer_cast<Blob>(ctx->CreateBlob(uvdesc, blobParams));
-
-    return InferenceEngine::make_shared_blob<NV12Blob>(y_blob, uv_blob);
-}
-
-/**
  * @brief This function is used to obtain remote context object from ID3D11Device
  * @param core Inference Engine Core object instance
  * @param deviceName A name of to create a remote context for
@@ -159,10 +139,10 @@ static inline Blob::Ptr make_shared_blob_nv12(size_t height,
  * device should be used
  * @return A shared remote context instance
  */
-static inline D3DContext::Ptr make_shared_context(Core& core,
-                                                  std::string deviceName,
-                                                  ID3D11Device* device,
-                                                  int target_tile_id = -1) {
+INFERENCE_ENGINE_1_0_DEPRECATED static inline D3DContext::Ptr make_shared_context(Core& core,
+                                                                                  std::string deviceName,
+                                                                                  ID3D11Device* device,
+                                                                                  int target_tile_id = -1) {
     // clang-format off
     ParamMap contextParams = {
         {GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)},
@@ -170,7 +150,7 @@ static inline D3DContext::Ptr make_shared_context(Core& core,
         {GPU_PARAM_KEY(TILE_ID), target_tile_id}
     };
     // clang-format on
-    return std::dynamic_pointer_cast<D3DContext>(core.CreateContext(deviceName, contextParams));
+    return std::dynamic_pointer_cast<D3DContext>(core.CreateContext(deviceName, contextParams)->GetHardwareContext());
 }
 
 /**
@@ -180,8 +160,10 @@ static inline D3DContext::Ptr make_shared_context(Core& core,
  * @param buffer A pointer to ID3D11Buffer instance to create remote blob based on
  * @return A remote blob instance
  */
-static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::Ptr ctx, ID3D11Buffer* buffer) {
-    auto casted = std::dynamic_pointer_cast<D3DContext>(ctx);
+INFERENCE_ENGINE_1_0_DEPRECATED static inline Blob::Ptr make_shared_blob(const TensorDesc& desc,
+                                                                         RemoteContext::Ptr ctx,
+                                                                         ID3D11Buffer* buffer) {
+    auto casted = ctx->as<D3DContext>();
     if (nullptr == casted) {
         IE_THROW() << "Invalid remote context passed";
     }
@@ -200,11 +182,11 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
  * @return Smart pointer to created RemoteBlob object cast to base class
  * @note The underlying ID3D11Texture2D can also be a plane of output surface of DXGI video decoder
  */
-static inline Blob::Ptr make_shared_blob(const TensorDesc& desc,
-                                         RemoteContext::Ptr ctx,
-                                         ID3D11Texture2D* surface,
-                                         uint32_t plane = 0) {
-    auto casted = std::dynamic_pointer_cast<D3DContext>(ctx);
+INFERENCE_ENGINE_1_0_DEPRECATED static inline Blob::Ptr make_shared_blob(const TensorDesc& desc,
+                                                                         RemoteContext::Ptr ctx,
+                                                                         ID3D11Texture2D* surface,
+                                                                         uint32_t plane = 0) {
+    auto casted = ctx->as<D3DContext>();
     if (nullptr == casted) {
         IE_THROW() << "Invalid remote context passed";
     }

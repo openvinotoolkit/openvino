@@ -25,7 +25,7 @@ std::vector<size_t> hiddenSizes = {384, 128, 64, 32, 100};
 INSTANTIATE_TEST_SUITE_P(smoke_negative_memory_layer_offset,
                          NegativeMemoryOffsetTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(inputSizes),
                                             ::testing::ValuesIn(hiddenSizes),
                                             ::testing::Values(config)),

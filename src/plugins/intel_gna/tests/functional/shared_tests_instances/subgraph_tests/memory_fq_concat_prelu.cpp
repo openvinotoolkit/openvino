@@ -19,7 +19,8 @@ std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP16,
 };
 
-std::map<std::string, std::string> additional_config = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}}};
+std::vector<std::map<std::string, std::string>> configs = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}},
+                                                           {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};
 
 std::vector<std::tuple<std::vector<int64_t>,
                        std::vector<int64_t>,
@@ -51,8 +52,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_memory_fq_concat_prelu,
                          MemoryFqConcatPrelu,
                          ::testing::Combine(::testing::ValuesIn(inputs),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::Values(additional_config),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
+                                            ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(strided_slice_params),
                                             ::testing::ValuesIn(fake_quantize_params)),
                          MemoryFqConcatPrelu::getTestCaseName);

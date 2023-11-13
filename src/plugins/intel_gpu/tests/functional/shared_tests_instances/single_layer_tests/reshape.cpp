@@ -2,60 +2,35 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include "single_layer_tests/reshape.hpp"
+#include "single_op_tests/reshape.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
-
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-            InferenceEngine::Precision::FP32,
-            InferenceEngine::Precision::FP16,
-            InferenceEngine::Precision::I64
-};
+using ov::test::ReshapeLayerTest;
+using ov::test::reshapeParams;
 
-//TODO: Issue : - 28981
-INSTANTIATE_TEST_SUITE_P(DISABLE_smoke_ReshapeCheckDynBatch, ReshapeLayerTest,
-        ::testing::Combine(
-                ::testing::Values(true),
-                ::testing::ValuesIn(netPrecisions),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t>({1, 16, 16, 16})),
-                ::testing::Values(std::vector<int64_t>({1, 0, 256})),
-                 ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                ::testing::Values(std::map<std::string, std::string>({{CONFIG_KEY(DYN_BATCH_ENABLED), CONFIG_VALUE(YES)}}))),
-                ReshapeLayerTest::getTestCaseName);
+const std::vector<ov::element::Type> netPrecisions = {
+            ov::element::f32,
+            ov::element::f16,
+            ov::element::i64
+};
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCheck, ReshapeLayerTest,
         ::testing::Combine(
                 ::testing::Values(true),
                 ::testing::ValuesIn(netPrecisions),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({10, 10, 10, 10})),
                 ::testing::Values(std::vector<int64_t>({10, 0, 100})),
-                ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                ::testing::Values(std::map<std::string, std::string>({}))),
+                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                 ReshapeLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCheckNegative, ReshapeLayerTest,
         ::testing::Combine(
                 ::testing::Values(true),
                 ::testing::ValuesIn(netPrecisions),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({10, 10, 10, 10})),
                 ::testing::Values(std::vector<int64_t>({10, -1, 100})),
-                ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                ::testing::Values(std::map<std::string, std::string>({}))),
+                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                 ReshapeLayerTest::getTestCaseName);
 
 static std::vector<reshapeParams> generate_tests() {
@@ -77,11 +52,8 @@ static std::vector<reshapeParams> generate_tests() {
         {{2, 2, 3, 1, 3, 2, 4, 2}, {2, 2, 3, 1, 6, 8}},
     };
     for (auto& p : params) {
-        reshapeParams test_case = std::make_tuple(false, InferenceEngine::Precision::FP16,
-                                      InferenceEngine::Precision::UNSPECIFIED, InferenceEngine::Precision::UNSPECIFIED,
-                                      InferenceEngine::Layout::ANY, InferenceEngine::Layout::ANY,
-                                      p.first, p.second,
-                                      CommonTestUtils::DEVICE_GPU, std::map<std::string, std::string>({}));
+        reshapeParams test_case = std::make_tuple(false, ov::element::f16,
+                                      p.first, p.second, ov::test::utils::DEVICE_GPU);
         res.push_back(test_case);
     }
 

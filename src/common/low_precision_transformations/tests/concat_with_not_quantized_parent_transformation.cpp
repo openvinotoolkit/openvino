@@ -10,28 +10,28 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
 
-#include <low_precision/low_precision.hpp>
+#include "low_precision/low_precision.hpp"
 
-#include <low_precision/concat.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/rt_info/precision_preserved_attribute.hpp>
-#include <low_precision/align_quantization_parameters.hpp>
-#include <low_precision/fuse_subtract_to_fake_quantize.hpp>
-#include <low_precision/fuse_multiply_to_fake_quantize.hpp>
-#include <low_precision/markup_can_be_quantized.hpp>
-#include <low_precision/markup_quantization_granularity.hpp>
+#include "low_precision/concat.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/rt_info/precision_preserved_attribute.hpp"
+#include "low_precision/align_quantization_parameters.hpp"
+#include "low_precision/fuse_subtract_to_fake_quantize.hpp"
+#include "low_precision/fuse_multiply_to_fake_quantize.hpp"
+#include "low_precision/markup_can_be_quantized.hpp"
+#include "low_precision/markup_quantization_granularity.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "lpt_ngraph_functions/concat_function.hpp"
-#include "lpt_ngraph_functions/common/builders.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "ov_lpt_models/concat.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 using namespace ngraph::builder::subgraph;
 
 namespace {
@@ -64,7 +64,7 @@ public:
     ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize2;
     ngraph::builder::subgraph::DequantizationOperations::Convert convert2;
     ngraph::builder::subgraph::DequantizationOperations dequantization2;
-    ngraph::element::Type precisionAfterOperation;
+    ov::element::Type precisionAfterOperation;
     ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
 };
 
@@ -114,8 +114,8 @@ inline std::ostream& operator<<(std::ostream& out, const ConcatWithNotQuantizedP
 }
 
 typedef std::tuple <
-    ngraph::element::Type,
-    std::pair<ngraph::Shape, ngraph::Shape>,
+    ov::element::Type,
+    std::pair<ov::Shape, ov::Shape>,
     ConcatWithNotQuantizedParentTransformationTestValues
 > ConcatWithNotQuantizedParentTransformationParams;
 
@@ -124,8 +124,8 @@ class ConcatWithNotQuantizedParentTransformation :
     public testing::WithParamInterface<ConcatWithNotQuantizedParentTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::element::Type precision = std::get<0>(GetParam());
-        const std::pair<ngraph::Shape, ngraph::Shape> shapes = std::get<1>(GetParam());
+        const ov::element::Type precision = std::get<0>(GetParam());
+        const std::pair<ov::Shape, ov::Shape> shapes = std::get<1>(GetParam());
         ConcatWithNotQuantizedParentTransformationTestValues testValues = std::get<2>(GetParam());
 
         // dequantization output precision depends on input precision
@@ -150,48 +150,48 @@ public:
             testValues.actual.dequantization2,
             true,
             {},
-            ngraph::element::undefined,
+            ov::element::undefined,
             {},
             testValues.axis,
             testValues.addNotPrecisionPreservedOperation);
 
-        auto precisionsRestrictions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
-            ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::Convolution>({
-                {{0}, {ngraph::element::u8}},
-                {{1}, {ngraph::element::i8}}
+        auto precisionsRestrictions = std::vector<ov::pass::low_precision::PrecisionsRestriction>({
+            ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Convolution>({
+                {{0}, {ov::element::u8}},
+                {{1}, {ov::element::i8}}
             }),
-            ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::AvgPool>({{{0}, testValues.params.precisionsOnActivations}})
+            ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::AvgPool>({{{0}, testValues.params.precisionsOnActivations}})
         });
 
-        auto quantizationRestrictions = std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>({
-            ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>({0})
+        auto quantizationRestrictions = std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>({
+            ov::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::Convolution>({0})
         });
 
         const auto params = TestTransformationParams(testValues.params.updatePrecisions);
         const auto legacyParams = TestTransformationParams::toParams(params);
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::low_precision::MarkupPrecisions>(precisionsRestrictions);
-        manager.register_pass<ngraph::pass::low_precision::MarkupQuantizationGranularity>(quantizationRestrictions);
-        manager.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved>(params.defaultPrecisions);
-        manager.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
-        manager.register_pass<ngraph::pass::low_precision::AlignQuantizationIntervals>(params.defaultPrecisions);
-        manager.register_pass<ngraph::pass::low_precision::AlignQuantizationParameters>(params.defaultPrecisions);
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::low_precision::MarkupPrecisions>(precisionsRestrictions);
+        manager.register_pass<ov::pass::low_precision::MarkupQuantizationGranularity>(quantizationRestrictions);
+        manager.register_pass<ov::pass::low_precision::MarkupAvgPoolPrecisionPreserved>(params.defaultPrecisions);
+        manager.register_pass<ov::pass::low_precision::PropagatePrecisions>();
+        manager.register_pass<ov::pass::low_precision::AlignQuantizationIntervals>(params.defaultPrecisions);
+        manager.register_pass<ov::pass::low_precision::AlignQuantizationParameters>(params.defaultPrecisions);
 
-        std::shared_ptr<ngraph::pass::GraphRewrite> common = manager.register_pass<ngraph::pass::GraphRewrite>();
-        common->add_matcher<ngraph::pass::low_precision::ConcatTransformation>(legacyParams);
-        common->add_matcher<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation>(legacyParams);
+        std::shared_ptr<ov::pass::GraphRewrite> common = manager.register_pass<ov::pass::GraphRewrite>();
+        common->add_matcher<ov::pass::low_precision::ConcatTransformation>(legacyParams);
+        common->add_matcher<ov::pass::low_precision::FakeQuantizeDecompositionTransformation>(legacyParams);
         manager.run_passes(actualFunction);
 
         {
-            ngraph::pass::Manager standaloneCleanupManager;
-            standaloneCleanupManager.register_pass<ngraph::pass::low_precision::FuseSubtractToFakeQuantizeTransformation>();
+            ov::pass::Manager standaloneCleanupManager;
+            standaloneCleanupManager.register_pass<ov::pass::low_precision::FuseSubtractToFakeQuantizeTransformation>();
             standaloneCleanupManager.run_passes(actualFunction);
         }
 
         {
-            ngraph::pass::Manager standaloneCleanupManager;
-            standaloneCleanupManager.register_pass<ngraph::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation>();
+            ov::pass::Manager standaloneCleanupManager;
+            standaloneCleanupManager.register_pass<ov::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation>();
             standaloneCleanupManager.run_passes(actualFunction);
         }
 
@@ -200,7 +200,7 @@ public:
         }
 
         if (!testValues.params.updatePrecisions &&
-            (precision == ngraph::element::f32) &&
+            (precision == ov::element::f32) &&
             !testValues.result.dequantizationAfter.convert.empty()) {
             testValues.result.dequantizationAfter.convert = {};
         }
@@ -218,9 +218,9 @@ public:
             testValues.result.dequantization2,
             true,
             {
-                PrecisionPreservedAttribute(true),
-                IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul),
-                QuantizationAlignmentAttribute(false)
+                ov::PrecisionPreservedAttribute(true),
+                ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul),
+                ov::QuantizationAlignmentAttribute(false)
             },
             testValues.result.precisionAfterOperation,
             testValues.result.dequantizationAfter,
@@ -229,8 +229,8 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConcatWithNotQuantizedParentTransformationParams> obj) {
-        const ngraph::element::Type precision = std::get<0>(obj.param);
-        const std::pair<ngraph::Shape, ngraph::Shape> shapes = std::get<1>(obj.param);
+        const ov::element::Type precision = std::get<0>(obj.param);
+        const std::pair<ov::Shape, ov::Shape> shapes = std::get<1>(obj.param);
         const ConcatWithNotQuantizedParentTransformationTestValues testValues = std::get<2>(obj.param);
 
         std::ostringstream result;
@@ -250,7 +250,7 @@ TEST_P(ConcatWithNotQuantizedParentTransformation, CompareFunctions) {
     auto res = compare_functions(actualFunction, referenceFunction, true, true, false, true, false);
     ASSERT_TRUE(res.first) << res.second;
 
-    auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
+    auto actualFakeQuantizes = LayerTransformation::get<ov::op::v0::FakeQuantize>(actualFunction);
     for (auto it = actualFakeQuantizes.begin(); it != actualFakeQuantizes.end(); it++) {
         const auto actualFakeQuantize = *it;
         if (actualFakeQuantize->output(0).get_target_inputs().begin()->get_index() == 1ul) {
@@ -258,21 +258,21 @@ TEST_P(ConcatWithNotQuantizedParentTransformation, CompareFunctions) {
             break;
         }
     }
-    ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<PrecisionsAttribute>(actualFakeQuantizes)) <<
-        "PrecisionsAttribute are not the same";
+    ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<ov::PrecisionsAttribute>(actualFakeQuantizes)) <<
+        "ov::PrecisionsAttribute are not the same";
 
     ConcatWithNotQuantizedParentTransformationTestValues testValues = std::get<2>(GetParam());
     if (testValues.checkIntervalsAlignmentAttributes) {
-        auto operations = LayerTransformation::get<opset1::Concat>(actualFunction);
+        auto operations = LayerTransformation::get<ov::op::v0::Concat>(actualFunction);
         operations.insert(operations.end(), actualFakeQuantizes.begin(), actualFakeQuantizes.end());
-        ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<IntervalsAlignmentAttribute>(operations)) <<
-            "IntervalsAlignmentAttribute are not the same";
+        ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<ov::IntervalsAlignmentAttribute>(operations)) <<
+            "ov::IntervalsAlignmentAttribute are not the same";
     }
 }
 
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-    //ngraph::element::f16
+const std::vector<ov::element::Type> precisions = {
+    ov::element::f32,
+    //ov::element::f16
 };
 
 const std::vector<ConcatWithNotQuantizedParentTransformationTestValues> testValues = {
@@ -293,13 +293,13 @@ const std::vector<ConcatWithNotQuantizedParentTransformationTestValues> testValu
             { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
             {},
             {},
-            ngraph::element::f32,
+            ov::element::f32,
             {},
         }
     }
 };
 
-const std::vector<std::pair<ngraph::Shape, ngraph::Shape>> shapes = {
+const std::vector<std::pair<ov::Shape, ov::Shape>> shapes = {
     {{ 1, 3, 9, 9 }, { 1, 3, 9, 9 }},
     {{ 4, 3, 9, 9 }, { 4, 3, 9, 9 }}
 };

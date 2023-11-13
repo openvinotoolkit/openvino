@@ -66,7 +66,7 @@ function(build_docs)
     set(DOXYFILE_BUILD "${DOCS_BUILD_DIR}/Doxyfile.config")
     configure_file(${DOXYFILE_SOURCE} ${DOXYFILE_BUILD} @ONLY)
 
-    list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
+    list(APPEND commands COMMAND ${Python3_EXECUTABLE} ${DOXY_MD_FILTER}
         --input_dir=${OpenVINO_SOURCE_DIR}
         --output_dir=${DOCS_BUILD_DIR}/openvino
         --exclude_dir=${DOCS_BUILD_DIR})
@@ -76,8 +76,8 @@ function(build_docs)
     # build with openvino notebooks
     if(ENABLE_OPENVINO_NOTEBOOKS)
         set(NBDOC_SCRIPT "${DOCS_SOURCE_DIR}/nbdoc/nbdoc.py")
-        list(APPEND commands
-            COMMAND ${PYTHON_EXECUTABLE} "${NBDOC_SCRIPT}" "${RST_OUTPUT}/notebooks"
+        list(PREPEND commands
+            COMMAND ${Python3_EXECUTABLE} "${NBDOC_SCRIPT}" "${DOCS_SOURCE_DIR}/notebooks" "${RST_OUTPUT}/notebooks"
         )
     endif()
 
@@ -97,8 +97,8 @@ function(build_docs)
     if(EXISTS "${OMZ_DOCS_DIR}")
         get_filename_component(OMZ_DOCS_DIR "${OMZ_DOCS_DIR}" ABSOLUTE)
         list(APPEND commands
-        COMMAND ${PYTHON_EXECUTABLE} ${OMZ_DOCS_DIR}/ci/prepare-documentation.py ${CMAKE_BINARY_DIR}/open_model_zoo)
-        list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
+        COMMAND ${Python3_EXECUTABLE} ${OMZ_DOCS_DIR}/ci/prepare-documentation.py ${CMAKE_BINARY_DIR}/open_model_zoo)
+        list(APPEND commands COMMAND ${Python3_EXECUTABLE} ${DOXY_MD_FILTER}
             --input_dir=${CMAKE_BINARY_DIR}/open_model_zoo
             --output_dir=${DOCS_BUILD_DIR}/open_model_zoo)
     endif()
@@ -107,7 +107,7 @@ function(build_docs)
     if(EXISTS "${WORKBENCH_DOCS_DIR}")
         get_filename_component(WORKBENCH_DOCS_DIR "${WORKBENCH_DOCS_DIR}" ABSOLUTE)
 
-        list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
+        list(APPEND commands COMMAND ${Python3_EXECUTABLE} ${DOXY_MD_FILTER}
             --input_dir=${WORKBENCH_DOCS_DIR}
             --output_dir=${DOCS_BUILD_DIR}/workbench)
     endif()
@@ -116,7 +116,7 @@ function(build_docs)
     if(EXISTS "${OTE_DOCS_DIR}")
         get_filename_component(WORKBENCH_DOCS_DIR "${OTE_DOCS_DIR}" ABSOLUTE)
 
-        list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
+        list(APPEND commands COMMAND ${Python3_EXECUTABLE} ${DOXY_MD_FILTER}
             --input_dir=${OTE_DOCS_DIR}
             --output_dir=${DOCS_BUILD_DIR}/ote)
     endif()
@@ -125,7 +125,7 @@ function(build_docs)
     if(EXISTS "${OVMS_DOCS_DIR}")
         get_filename_component(OVMS_DOCS_DIR "${OVMS_DOCS_DIR}" ABSOLUTE)
 
-        list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
+        list(APPEND commands COMMAND ${Python3_EXECUTABLE} ${DOXY_MD_FILTER}
             --input_dir=${OVMS_DOCS_DIR}
             --output_dir=${DOCS_BUILD_DIR}/ovms)
     endif()
@@ -144,7 +144,7 @@ function(build_docs)
 
     add_custom_target(doxygen_xml
                       DEPENDS preprocess_docs
-                      COMMAND ${PYTHON_EXECUTABLE} ${REMOVE_XML_SCRIPT} ${XML_OUTPUT}
+                      COMMAND ${Python3_EXECUTABLE} ${REMOVE_XML_SCRIPT} ${XML_OUTPUT}
                       COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYFILE_BUILD}
                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       COMMENT "Generate doxygen XML output"
@@ -153,11 +153,11 @@ function(build_docs)
     # Post-process docs
     add_custom_command(TARGET doxygen_xml
                        POST_BUILD
-                       COMMAND ${PYTHON_EXECUTABLE} ${PREPARE_XML_SCRIPT} ${XML_OUTPUT}
+                       COMMAND ${Python3_EXECUTABLE} ${PREPARE_XML_SCRIPT} ${XML_OUTPUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_IN} ${DOXYREST_OUT}
                        COMMAND ${DOXYREST_EXECUTABLE} -c ${DOXYREST_CONFIG_OUT}
-                       COMMAND ${PYTHON_EXECUTABLE} ${COPY_IMAGES_SCRIPT} ${XML_OUTPUT} ${RST_OUTPUT}
-                       COMMAND ${PYTHON_EXECUTABLE} ${DOXYGEN_MAPPING_SCRIPT} ${XML_OUTPUT} ${DOCS_BUILD_DIR} ${OpenVINO_SOURCE_DIR}/../
+                       COMMAND ${Python3_EXECUTABLE} ${COPY_IMAGES_SCRIPT} ${XML_OUTPUT} ${RST_OUTPUT}
+                       COMMAND ${Python3_EXECUTABLE} ${DOXYGEN_MAPPING_SCRIPT} ${XML_OUTPUT} ${DOCS_BUILD_DIR} ${OpenVINO_SOURCE_DIR}/../
                        COMMAND ${CMAKE_COMMAND} -E copy ${SPHINX_INDEX_IN} ${SPHINX_INDEX_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${SPHINX_TEMPLATES_IN} ${SPHINX_TEMPLATES_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_IN} ${DOXYREST_OUT}

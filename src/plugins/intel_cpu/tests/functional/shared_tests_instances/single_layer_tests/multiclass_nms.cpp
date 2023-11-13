@@ -104,7 +104,7 @@ const auto nmsParamsStatic_smoke1 = ::testing::Combine(
     ::testing::ValuesIn(sortResultType),
     ::testing::Combine(::testing::ValuesIn(sortResDesc), ::testing::ValuesIn(normalized)),
     ::testing::ValuesIn(outStaticShape),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU));
+    ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 const auto nmsParamsDynamic_smoke1 = ::testing::Combine(
     ::testing::ValuesIn(inDynamicShapeParams1),
@@ -120,7 +120,7 @@ const auto nmsParamsDynamic_smoke1 = ::testing::Combine(
     ::testing::ValuesIn(sortResultType),
     ::testing::Combine(::testing::ValuesIn(sortResDesc), ::testing::ValuesIn(normalized)),
     ::testing::ValuesIn(outStaticShape),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU));
+    ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MulticlassNmsLayerTest_static1, MulticlassNmsLayerTest, nmsParamsStatic_smoke1, MulticlassNmsLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_MulticlassNmsLayerTest_dynamic1, MulticlassNmsLayerTest, nmsParamsDynamic_smoke1, MulticlassNmsLayerTest::getTestCaseName);
@@ -139,7 +139,7 @@ const auto nmsParamsStatic_smoke2 = ::testing::Combine(
     ::testing::ValuesIn(sortResultType),
     ::testing::Combine(::testing::ValuesIn(sortResDesc), ::testing::ValuesIn(normalized)),
     ::testing::ValuesIn(outStaticShape),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU));
+    ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 const auto nmsParamsDynamic_smoke2 = ::testing::Combine(
     ::testing::ValuesIn(inDynamicShapeParams2),
@@ -155,7 +155,7 @@ const auto nmsParamsDynamic_smoke2 = ::testing::Combine(
     ::testing::ValuesIn(sortResultType),
     ::testing::Combine(::testing::ValuesIn(sortResDesc), ::testing::ValuesIn(normalized)),
     ::testing::ValuesIn(outStaticShape),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU));
+    ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MulticlassNmsLayerTest_static2, MulticlassNmsLayerTest, nmsParamsStatic_smoke2, MulticlassNmsLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_MulticlassNmsLayerTest_dynamic2, MulticlassNmsLayerTest, nmsParamsDynamic_smoke2, MulticlassNmsLayerTest::getTestCaseName);

@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include "openvino/core/deprecated.hpp"
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
@@ -18,3 +21,4 @@ OutputVector random_normal_like(const Node& node);
 }  // namespace op
 }  // namespace onnx_import
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

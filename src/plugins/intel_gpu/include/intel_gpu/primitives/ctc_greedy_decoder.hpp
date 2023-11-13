@@ -11,6 +11,8 @@ namespace cldnn {
 struct ctc_greedy_decoder : public primitive_base<ctc_greedy_decoder> {
     CLDNN_DECLARE_PRIMITIVE(ctc_greedy_decoder)
 
+    ctc_greedy_decoder() : primitive_base("", {}) {}
+
     /// @brief Constructs ctc_greedy_decoder primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id (input, sequence_indicators, second_output(optional)).
@@ -28,7 +30,7 @@ struct ctc_greedy_decoder : public primitive_base<ctc_greedy_decoder> {
         , output_tensor(output_tensor) {}
 
     uint32_t blank_index;
-    bool ctc_merge_repeated;
+    bool ctc_merge_repeated = false;
     tensor output_tensor;
     primitive_id second_output;
 
@@ -49,6 +51,22 @@ struct ctc_greedy_decoder : public primitive_base<ctc_greedy_decoder> {
         return blank_index == rhs_casted.blank_index &&
                ctc_merge_repeated == rhs_casted.ctc_merge_repeated &&
                second_output.empty() == rhs_casted.second_output.empty();
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<ctc_greedy_decoder>::save(ob);
+        ob << blank_index;
+        ob << ctc_merge_repeated;
+        ob << output_tensor;
+        ob << second_output;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<ctc_greedy_decoder>::load(ib);
+        ib >> blank_index;
+        ib >> ctc_merge_repeated;
+        ib >> output_tensor;
+        ib >> second_output;
     }
 };
 }  // namespace cldnn

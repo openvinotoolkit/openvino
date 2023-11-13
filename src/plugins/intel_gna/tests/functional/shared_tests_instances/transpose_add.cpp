@@ -24,7 +24,7 @@ namespace SubgraphTestsDefinitions {
 INSTANTIATE_TEST_SUITE_P(smoke_basic,
                          TransposeAdd,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(input_shapes),
                                             ::testing::Values(additional_config)),
                          TransposeAdd::getTestCaseName);

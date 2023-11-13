@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 
-#include "ngraph/op/select.hpp"
+#include "openvino/op/select.hpp"
 
 #include "intel_gpu/primitives/select.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
@@ -14,7 +14,7 @@
 namespace ov {
 namespace intel_gpu {
 
-static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Select>& op) {
+static void CreateSelectOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::Select>& op) {
     validate_inputs_count(op, {3});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
@@ -24,12 +24,12 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
 
     auto broadcast_type = op->get_auto_broadcast();
 
-    if (broadcast_type.m_type != ngraph::op::AutoBroadcastType::NONE &&
-        broadcast_type.m_type != ngraph::op::AutoBroadcastType::NUMPY) {
-        IE_THROW() << "Unsupported broadcast type (" << broadcast_type.m_type << ") in layer " + op->get_friendly_name();
+    if (broadcast_type.m_type != ov::op::AutoBroadcastType::NONE &&
+        broadcast_type.m_type != ov::op::AutoBroadcastType::NUMPY) {
+        OPENVINO_THROW("[GPU] Unsupported broadcast type (", broadcast_type.m_type, ") in layer " + op->get_friendly_name());
     }
 
-    if (broadcast_type.m_type == ngraph::op::AutoBroadcastType::NUMPY) {
+    if (broadcast_type.m_type == ov::op::AutoBroadcastType::NUMPY) {
         // Preprocess inputs
         for (size_t i = 0; i < inputs.size(); ++i) {
             auto input_pshape = op->get_input_partial_shape(i);

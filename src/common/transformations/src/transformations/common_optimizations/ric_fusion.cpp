@@ -5,19 +5,29 @@
 #include "transformations/common_optimizations/ric_fusion.hpp"
 
 #include <memory>
-#include <ngraph/log.hpp>
-#include <ngraph/op/util/binary_elementwise_arithmetic.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <ngraph/pattern/op/or.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <openvino/core/validation_util.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <utility>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/util/binary_elementwise_arithmetic.hpp"
+#include "openvino/op/util/pad_base.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
@@ -25,8 +35,8 @@ namespace pass {
 namespace ric_attr {
 
 namespace {
-std::shared_ptr<opset8::Constant> create_1d_const(const std::vector<int64_t>& values) {
-    return opset8::Constant::create(ov::element::i64, ov::Shape{values.size()}, values);
+std::shared_ptr<ov::op::v0::Constant> create_1d_const(const std::vector<int64_t>& values) {
+    return ov::op::v0::Constant::create(ov::element::i64, ov::Shape{values.size()}, values);
 }
 }  // namespace
 
@@ -69,18 +79,18 @@ public:
         const auto& input_pshape = input.get_partial_shape();
         const auto input_rank = input_pshape.rank();
         if (input_rank.is_dynamic()) {
-            NGRAPH_DEBUG << "Axis calculated to materialize RIC on input: input rank is dynamic";
+            OPENVINO_DEBUG << "Axis calculated to materialize RIC on input: input rank is dynamic";
             return;
         }
         const auto axis = get_axis();
         // Despite of m_axis is signed integer this transformartion does not handle negative axes values
         if (axis < 0 || axis >= static_cast<int64_t>(input_pshape.size())) {
-            NGRAPH_DEBUG << "Axis calculated to materialize RIC on input: " << input << " is out of range";
+            OPENVINO_DEBUG << "Axis calculated to materialize RIC on input: " << input << " is out of range";
             return;
         }
         const auto& axis_dim = input_pshape[axis];
         if (axis_dim.is_dynamic()) {
-            NGRAPH_DEBUG << "Axis calculated to materialize RIC on input: " << input << " is dynamic";
+            OPENVINO_DEBUG << "Axis calculated to materialize RIC on input: " << input << " is dynamic";
             return;
         }
         auto output = input.get_source_output();
@@ -90,7 +100,8 @@ public:
             order.resize(axis_dim.get_length());
             std::iota(order.rbegin(), order.rend(), 0);
         }
-        auto gather = std::make_shared<opset8::Gather>(output, create_1d_const(order), create_1d_const({get_axis()}));
+        auto gather =
+            std::make_shared<ov::op::v8::Gather>(output, create_1d_const(order), create_1d_const({get_axis()}));
         input.replace_source_output(gather);
         ov::copy_runtime_info(nodes, gather);
     }
@@ -214,13 +225,13 @@ class SplitConcat : public ov::pass::MatcherPass {
 public:
     SplitConcat(NodeVector& nodes_to_fuse) {
         MATCHER_SCOPE(SplitConcat);
-        auto split_p = pattern::wrap_type<opset8::Split>();
-        auto pattern_root = pattern::wrap_type<opset8::Concat>({split_p, split_p, split_p});
+        auto split_p = pattern::wrap_type<ov::op::v1::Split>();
+        auto pattern_root = pattern::wrap_type<ov::op::v0::Concat>({split_p, split_p, split_p});
 
         auto callback = [=, &nodes_to_fuse](pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
-            auto concat = ov::as_type_ptr<opset8::Concat>(pattern_map.at(pattern_root).get_node_shared_ptr());
-            auto split = ov::as_type_ptr<opset8::Split>(pattern_map.at(split_p).get_node_shared_ptr());
+            auto concat = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(pattern_root).get_node_shared_ptr());
+            auto split = ov::as_type_ptr<ov::op::v1::Split>(pattern_map.at(split_p).get_node_shared_ptr());
             if (!concat || !split)
                 return false;
 
@@ -272,8 +283,8 @@ public:
         MATCHER_SCOPE(Gather);
         auto input_p = pattern::any_input(pattern::has_static_rank());
         auto indices_p = pattern::any_input();
-        auto axis_p = pattern::wrap_type<opset8::Constant>();
-        auto pattern_root = pattern::wrap_type<opset8::Gather>({input_p, indices_p, axis_p});
+        auto axis_p = pattern::wrap_type<ov::op::v0::Constant>();
+        auto pattern_root = pattern::wrap_type<ov::op::v8::Gather>({input_p, indices_p, axis_p});
 
         auto callback = [=, &nodes_to_fuse](pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
@@ -335,7 +346,7 @@ class Binary : public ov::pass::MatcherPass {
 public:
     Binary() {
         MATCHER_SCOPE(Binary);
-        auto pattern_root = pattern::wrap_type<op::util::BinaryElementwiseArithmetic, opset8::FakeQuantize>();
+        auto pattern_root = pattern::wrap_type<op::util::BinaryElementwiseArithmetic, ov::op::v0::FakeQuantize>();
 
         auto callback = [=](pattern::Matcher& m) {
             const auto& root = m.get_match_root();
@@ -346,7 +357,7 @@ public:
                 auto output = input.get_source_output();
                 if (ric_attr::has(output)) {
                     attrs.insert({input.get_index(), ric_attr::get(output).propagate()});
-                } else if (!ov::is_type<opset8::Constant>(output.get_node())) {
+                } else if (!ov::is_type<ov::op::v0::Constant>(output.get_node())) {
                     // If number of non-constant inputs and without RIC attr is greater than 0 we have to skip
                     // propagation because it is not efficient to have a lot of RIC copies on data path.
                     return false;
@@ -421,7 +432,7 @@ public:
     Convolution() {
         MATCHER_SCOPE(Convolution);
         auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
-        auto pattern_root = pattern::wrap_type<opset8::Convolution>(
+        auto pattern_root = pattern::wrap_type<ov::op::v1::Convolution>(
             {input_p, pattern::any_input(pattern::has_static_dim(1 /*output channel*/))});
         auto callback = [=](pattern::Matcher& m) {
             auto conv = m.get_match_root();
@@ -443,8 +454,8 @@ public:
     GroupConvolution() {
         MATCHER_SCOPE(GroupConvolution);
         auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
-        auto pattern_root =
-            pattern::wrap_type<opset8::GroupConvolution>({input_p, pattern::any_input(pattern::has_static_shape())});
+        auto pattern_root = pattern::wrap_type<ov::op::v1::GroupConvolution>(
+            {input_p, pattern::any_input(pattern::has_static_shape())});
 
         auto callback = [=](pattern::Matcher& m) {
             auto conv = m.get_match_root();
@@ -498,7 +509,7 @@ class ShapeOf : public ov::pass::MatcherPass {
 public:
     ShapeOf() {
         MATCHER_SCOPE(ShapeOf);
-        auto pattern_root = pattern::wrap_type<opset1::ShapeOf, opset8::ShapeOf>();
+        auto pattern_root = pattern::wrap_type<ov::op::v0::ShapeOf, ov::op::v3::ShapeOf>();
 
         auto callback = [=](pattern::Matcher& m) {
             // Skip propagation for ShapeOf path
@@ -514,8 +525,10 @@ class PassThrough : public ov::pass::MatcherPass {
 public:
     PassThrough() {
         MATCHER_SCOPE(PassThrough);
-        auto pattern_root =
-            pattern::wrap_type<op::util::UnaryElementwiseArithmetic, opset8::Convert, opset8::Pad, opset8::PRelu>();
+        auto pattern_root = pattern::wrap_type<op::util::UnaryElementwiseArithmetic,
+                                               ov::op::v0::Convert,
+                                               op::util::PadBase,
+                                               ov::op::v0::PRelu>();
 
         auto callback = [=](pattern::Matcher& m) {
             auto root = m.get_match_root();
@@ -535,8 +548,8 @@ public:
     Transpose() {
         MATCHER_SCOPE(Transpose);
         auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
-        auto order_p = pattern::wrap_type<opset8::Constant>();
-        auto pattern_root = pattern::wrap_type<opset8::Transpose>({input_p, order_p});
+        auto order_p = pattern::wrap_type<ov::op::v0::Constant>();
+        auto pattern_root = pattern::wrap_type<ov::op::v1::Transpose>({input_p, order_p});
 
         auto callback = [=](pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
@@ -544,7 +557,7 @@ public:
             auto ric = ric_attr::get(input).propagate();
 
             auto order_node =
-                std::dynamic_pointer_cast<opset8::Constant>(pattern_map.at(order_p).get_node_shared_ptr());
+                std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(order_p).get_node_shared_ptr());
             auto order = order_node->cast_vector<int64_t>();
 
             int64_t new_axis = std::find(order.begin(), order.end(), ric.get_axis()) - order.begin();
@@ -572,7 +585,7 @@ public:
                         continue;
                     }
                     ric.set_can_be_fused(false);
-                    NGRAPH_DEBUG << "Node is unsupported by RIC Fusion: " << *m.get_match_root() << std::endl;
+                    OPENVINO_DEBUG << "Node is unsupported by RIC Fusion: " << *m.get_match_root() << std::endl;
                 }
             }
             return true;
@@ -622,8 +635,8 @@ public:
     EraseSplitConcat() {
         MATCHER_SCOPE(EraseSplitConcat);
         auto input_p = pattern::any_input();
-        auto split_p = pattern::wrap_type<opset8::Split>({input_p, pattern::any_input()});
-        auto pattern_root = pattern::wrap_type<opset8::Concat>({split_p, split_p, split_p}, need_to_erase_ric);
+        auto split_p = pattern::wrap_type<ov::op::v1::Split>({input_p, pattern::any_input()});
+        auto pattern_root = pattern::wrap_type<ov::op::v0::Concat>({split_p, split_p, split_p}, need_to_erase_ric);
 
         auto callback = [=](pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
@@ -643,8 +656,9 @@ public:
     EraseGather() {
         MATCHER_SCOPE(EraseGather);
         auto input_p = pattern::any_input();
-        auto pattern_root = pattern::wrap_type<opset8::Gather>({input_p, pattern::any_input(), pattern::any_input()},
-                                                               need_to_erase_ric);
+        auto pattern_root =
+            pattern::wrap_type<ov::op::v8::Gather>({input_p, pattern::any_input(), pattern::any_input()},
+                                                   need_to_erase_ric);
         auto callback = [=](pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             auto output = pattern_map.at(pattern_root);
@@ -665,12 +679,12 @@ public:
     Binary() {
         MATCHER_SCOPE(Binary);
         auto fake_quantize_pattern =
-            pattern::wrap_type<opset8::FakeQuantize>({pattern::any_input(pattern::has_static_rank()),
-                                                      pattern::any_input(pattern::has_static_rank()),
-                                                      pattern::any_input(pattern::has_static_rank()),
-                                                      pattern::any_input(pattern::has_static_rank()),
-                                                      pattern::any_input(pattern::has_static_rank())},
-                                                     pattern::has_static_rank());
+            pattern::wrap_type<ov::op::v0::FakeQuantize>({pattern::any_input(pattern::has_static_rank()),
+                                                          pattern::any_input(pattern::has_static_rank()),
+                                                          pattern::any_input(pattern::has_static_rank()),
+                                                          pattern::any_input(pattern::has_static_rank()),
+                                                          pattern::any_input(pattern::has_static_rank())},
+                                                         pattern::has_static_rank());
         auto binary_elementwise_pattern = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>(
             {pattern::any_input(pattern::has_static_rank()), pattern::any_input(pattern::has_static_rank())},
             pattern::has_static_rank());
@@ -747,7 +761,7 @@ class ConvertPassThrough : public ov::pass::MatcherPass {
 public:
     ConvertPassThrough() {
         MATCHER_SCOPE(ConvertPassThrough);
-        auto pattern_root = pattern::wrap_type<opset8::Convert>(pattern::has_static_rank());
+        auto pattern_root = pattern::wrap_type<ov::op::v0::Convert>(pattern::has_static_rank());
         auto callback = [=](pattern::Matcher& m) {
             auto root = m.get_match_root();
             const auto& output = root->output(0);
@@ -800,8 +814,8 @@ public:
         RUN_ON_FUNCTION_SCOPE(Constant);
         for (const auto& node : model->get_ordered_ops()) {
             if ((std::dynamic_pointer_cast<op::util::BinaryElementwiseArithmetic>(node) ||
-                 std::dynamic_pointer_cast<opset8::FakeQuantize>(node) ||
-                 std::dynamic_pointer_cast<opset8::Convert>(node)) &&
+                 std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(node) ||
+                 std::dynamic_pointer_cast<ov::op::v0::Convert>(node)) &&
                 node->get_output_partial_shape(0).rank().is_static()) {
                 continue;
             }
@@ -809,7 +823,7 @@ public:
                 for (const auto& consumer : output.get_target_inputs()) {
                     if (ric_attr::has(consumer)) {
                         auto ric = ric_attr::get(consumer);
-                        if (std::dynamic_pointer_cast<opset8::Constant>(node)) {
+                        if (std::dynamic_pointer_cast<ov::op::v0::Constant>(node)) {
                             ric.set_is_final(true);
                             ric_attr::set(consumer, ric);
                         } else {  // Unsupported

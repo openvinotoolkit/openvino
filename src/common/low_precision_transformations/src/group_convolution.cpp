@@ -8,19 +8,19 @@
 #include <string>
 #include <vector>
 
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
 GroupConvolutionTransformation::GroupConvolutionTransformation(const Params& params) : ConvolutionTransformation(params) {
     MATCHER_SCOPE(GroupConvolutionTransformation);
-    auto matcher = pattern::wrap_type<opset1::GroupConvolution>();
+    auto matcher = pattern::wrap_type<ov::opset1::GroupConvolution>();
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -28,16 +28,16 @@ GroupConvolutionTransformation::GroupConvolutionTransformation(const Params& par
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
 bool GroupConvolutionTransformation::isQuantized(const std::shared_ptr<const Node>& layer,
-    const std::vector<ngraph::element::Type>& defaultPrecisions) const {
+    const std::vector<ov::element::Type>& defaultPrecisions) const {
     return GroupConvolutionTransformation::isQuantizedStatic(layer, defaultPrecisions);
 }
 
-bool GroupConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) {
+bool GroupConvolutionTransformation::transform(TransformationContext &context, ov::pass::pattern::Matcher &m) {
     auto convolution = m.get_match_root();
 
     if (!WeightableLayerTransformation::canBeTransformed(context, convolution)) {
@@ -49,11 +49,11 @@ bool GroupConvolutionTransformation::transform(TransformationContext &context, n
 }
 
 bool GroupConvolutionTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer,
-    const std::vector<ngraph::element::Type>& defaultPrecisions) {
+    const std::vector<ov::element::Type>& defaultPrecisions) {
     return WeightableLayerTransformation::isQuantizedStatic(layer, true, defaultPrecisions);
 }
 
-size_t GroupConvolutionTransformation::getInputChannels(const std::shared_ptr<ngraph::Node> conv) const {
+size_t GroupConvolutionTransformation::getInputChannels(const std::shared_ptr<ov::Node> conv) const {
     const auto groups = conv->get_input_partial_shape(1)[0];
     const auto channels = conv->get_input_partial_shape(1)[2];
     assert(channels.is_static() && groups.is_static());
@@ -62,4 +62,4 @@ size_t GroupConvolutionTransformation::getInputChannels(const std::shared_ptr<ng
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

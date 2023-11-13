@@ -41,9 +41,9 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
 
 public:
     enum NMSType {CAFFE, MXNET};
-    NMSType nms_type;
+    NMSType nms_type = NMSType::CAFFE;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::detection_output_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<detection_output_impl>(*this);
@@ -56,7 +56,7 @@ public:
     }
 
     void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<detection_output>());
+        OPENVINO_ASSERT(arg.is_type<detection_output>());
         const auto& node = arg.as<detection_output>();
         nms_type = (node.get_primitive()->decrease_label_id ? NMSType::MXNET : NMSType::CAFFE);
     }
@@ -282,6 +282,12 @@ public:
         auto out_ptr = lock.begin();
 
         const auto& args = instance.argument;
+
+        auto confidence_layout = instance.confidence_memory()->get_layout();
+        auto priors_layout = instance.prior_box_memory()->get_layout();
+
+        const int num_of_priors = priors_layout.spatial(1) / args->prior_info_size;
+        const int num_classes = (args->num_classes == -1) ? confidence_layout.feature() / num_of_priors : args->num_classes;
         // Per image -> For each label: Pair (score, prior index)
         std::vector<std::map<int, std::vector<std::pair<float, int>>>> final_detections;
         for (int image = 0; image < num_of_images; ++image) {
@@ -290,7 +296,7 @@ public:
             std::map<int, std::vector<int>> indices;
             int num_det = 0;
             if (nms_type == NMSType::CAFFE) {
-                for (int cls = 0; cls < static_cast<int>(args->num_classes); ++cls) {
+                for (int cls = 0; cls < num_classes; ++cls) {
                     if (static_cast<int>(cls) == args->background_label_id) {
                         conf_per_image[cls].clear();
                         continue;  // Skip background class.
@@ -493,7 +499,7 @@ public:
                                            std::vector<std::array<float, PRIOR_BOX_SIZE>>& prior_variances) {
         auto input_prior_box = instance.prior_box_memory();
         const int num_of_priors = static_cast<int>(prior_bboxes.size()) / images_count;
-        mem_lock<dtype, mem_lock_type::read> lock{input_prior_box, stream};
+        mem_lock<dtype, mem_lock_type::read> lock{std::move(input_prior_box), stream};
         for (int i = 0; i < images_count; i++) {
             auto prior_box_data =
                 lock.begin() + i * num_of_priors * prior_info_size * (variance_encoded_in_target ? 1 : 2);
@@ -522,9 +528,7 @@ public:
     template <typename dtype>
     void extract_confidences_per_image_caffe(stream& stream, const detection_output_inst& instance,
                                              std::vector<std::vector<std::vector<std::pair<float, int>>>>& confidences,
-                                             const int num_of_priors) {
-        const int num_classes = instance.argument->num_classes;
-
+                                             const int num_of_priors, const int num_classes) {
         const int num_of_images = static_cast<int>(confidences.size());
         auto input_confidence = instance.confidence_memory();
         const float confidence_threshold = instance.argument->confidence_threshold;
@@ -616,9 +620,8 @@ public:
     template <typename dtype>
     void extract_confidences_per_image_mxnet(stream& stream, const detection_output_inst& instance,
                                              std::vector<std::vector<std::vector<std::pair<float, int>>>>& confidences,
-                                             const int num_of_priors,
+                                             const int num_of_priors, const int num_classes,
                                              std::vector<std::vector<std::pair<float, std::pair<int, int>>>>& scoreIndexPairs) {
-        const int num_classes = instance.argument->num_classes;
         const int background_label_id = instance.argument->background_label_id;
         const int num_of_images = static_cast<int>(confidences.size());
         auto input_confidence = instance.confidence_memory();
@@ -750,11 +753,13 @@ public:
 
         const auto& args = instance.argument;
 
+        auto confidence_layout = instance.confidence_memory()->get_layout();
         auto priors_layout = instance.prior_box_memory()->get_layout();
 
         const int num_of_images = static_cast<int>(bboxes.size());
         const int num_of_priors = priors_layout.spatial(1) / args->prior_info_size;
-        const int num_loc_classes = args->share_location ? 1 : args->num_classes;
+        const int num_classes = (args->num_classes == -1) ? confidence_layout.feature() / num_of_priors : args->num_classes;
+        const int num_loc_classes = args->share_location ? 1 : num_classes;
 
         // Extract locations per image.
         std::vector<std::vector<std::vector<bounding_box>>> locations(
@@ -812,9 +817,9 @@ public:
         }
         // Extract confidences per image.
         if (nms_type == NMSType::CAFFE) {
-            extract_confidences_per_image_caffe<dtype>(stream, instance, confidences, num_of_priors);
+            extract_confidences_per_image_caffe<dtype>(stream, instance, confidences, num_of_priors, num_classes);
         } else {
-            extract_confidences_per_image_mxnet<dtype>(stream, instance, confidences, num_of_priors, scoreIndexPairs);
+            extract_confidences_per_image_mxnet<dtype>(stream, instance, confidences, num_of_priors, num_classes, scoreIndexPairs);
         }
     }
 
@@ -834,11 +839,11 @@ public:
 
         std::vector<std::vector<std::pair<float, std::pair<int, int>>>> scoreIndexPairs;
         if (instance.location_memory()->get_layout().data_type == data_types::f32) {
-            prepare_data<data_type_to_type<data_types::f32>::type>(stream, instance, bboxes, confidences, scoreIndexPairs);
-            generate_detections<data_type_to_type<data_types::f32>::type>(stream, instance, num_of_images, bboxes, confidences, scoreIndexPairs);
+            prepare_data<ov::element_type_traits<data_types::f32>::value_type>(stream, instance, bboxes, confidences, scoreIndexPairs);
+            generate_detections<ov::element_type_traits<data_types::f32>::value_type>(stream, instance, num_of_images, bboxes, confidences, scoreIndexPairs);
         } else {
-            prepare_data<data_type_to_type<data_types::f16>::type>(stream, instance, bboxes, confidences, scoreIndexPairs);
-            generate_detections<data_type_to_type<data_types::f16>::type>(stream, instance, num_of_images, bboxes, confidences, scoreIndexPairs);
+            prepare_data<ov::element_type_traits<data_types::f16>::value_type>(stream, instance, bboxes, confidences, scoreIndexPairs);
+            generate_detections<ov::element_type_traits<data_types::f16>::value_type>(stream, instance, num_of_images, bboxes, confidences, scoreIndexPairs);
         }
 
         ev->set();
@@ -855,10 +860,16 @@ public:
 namespace detail {
 
 attach_detection_output_impl::attach_detection_output_impl() {
-    implementation_map<detection_output>::add(impl_types::cpu, detection_output_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx)
-    });
+    auto formats = {
+        format::bfyx
+    };
+
+    auto types = {
+        data_types::f32,
+        data_types::f16
+    };
+
+    implementation_map<detection_output>::add(impl_types::cpu, shape_types::any, detection_output_impl::create, types, formats);
 }
 
 }  // namespace detail

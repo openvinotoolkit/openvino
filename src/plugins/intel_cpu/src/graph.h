@@ -4,26 +4,29 @@
 
 #pragma once
 
-#include "cpp/ie_cnn_network.h"
+#include "cache/multi_cache.h"
 #include "config.h"
 #include "cpu_memory.h"
-#include "normalize_preprocess.h"
-#include "node.h"
-#include "edge.h"
-#include "cache/multi_cache.h"
 #include "dnnl_scratch_pad.h"
+#include "edge.h"
 #include "graph_context.h"
+#include "node.h"
+#include "normalize_preprocess.h"
+#include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/profiling_info.hpp"
+
+#include <atomic>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
-#include <atomic>
+
+#include "proxy_mem_mgr.h"
 
 namespace ov {
 namespace intel_cpu {
 
-class InferRequestBase;
-class InferRequest;
+class SyncInferRequest;
 
 class Graph {
 public:
@@ -58,10 +61,10 @@ public:
         return _normalizePreprocMap.find(name) != _normalizePreprocMap.end();
     }
 
-    void PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in);
-    void PullOutputData(InferenceEngine::BlobMap &out);
+    void PushInputData(const std::string& name, const ov::SoPtr<ITensor>& input);
+    void PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& output);
 
-    void Infer(InferRequestBase* request = nullptr);
+    void Infer(SyncInferRequest* request = nullptr);
 
     const std::vector<NodePtr>& GetNodes() const {
         return graphNodes;
@@ -90,14 +93,14 @@ public:
     NodePtr getInputNodeByName(const std::string &name) {
         auto input = inputNodesMap.find(name);
         if (input == inputNodesMap.end())
-            IE_THROW() << "CPU execution graph doesn't contain input node with name: " << name;
+            OPENVINO_THROW("CPU execution graph doesn't contain input node with name: ", name);
         return input->second;
     }
 
     NodePtr getOutputNodeByName(const std::string &name) {
         auto output = outputNodesMap.find(name);
         if (output == outputNodesMap.end())
-            IE_THROW() << "CPU execution graph doesn't contain output node with name: " << name;
+            OPENVINO_THROW("CPU execution graph doesn't contain output node with name: ", name);
         return output->second;
     }
 
@@ -113,7 +116,7 @@ public:
         return context;
     }
 
-    void GetPerfData(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const;
+    void GetPerfData(std::vector<ov::ProfilingInfo> &perfMap) const;
 
     void RemoveDroppedNodes();
     void RemoveDroppedEdges();
@@ -180,7 +183,7 @@ public:
      */
     bool InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPort, int childPort, bool initNode = false);
 
-    std::shared_ptr<ngraph::Function> dump() const;
+    std::shared_ptr<ov::Model> dump() const;
 
     void ResetInferCount() { infer_count = 0; }
 
@@ -190,16 +193,7 @@ public:
         return graphHasDynamicInput;
     }
 
-    /**
-     * @brief This call updates the dynamic batch value
-     * 
-     * @note It is used for backward compatibility with legacy API only.
-     * @param newDynBatch
-     * new dynamic batch value
-     */
-    void setDynBatch(int newDynBatch) {
-        dynBatch = newDynBatch;
-    }
+    Status getStatus() const {return status;}
 
 protected:
     void VisitNode(NodePtr node, std::vector<NodePtr>& sortedNodes);
@@ -232,30 +226,31 @@ protected:
 
     bool graphHasDynamicInput = false;
 
-    void Replicate(const InferenceEngine::CNNNetwork &network);
     void Replicate(const std::shared_ptr<const ov::Model> &subgraph);
     void InitGraph();
     void InitNodes();
     void InitDescriptors();
+    void ResolveInplaceDirections();
     void InitOptimalPrimitiveDescriptors();
     void InitEdges();
+    bool ProcessDynNodes();
     void Allocate();
     void AllocateWithReuse();
     void ExtractExecutableNodes();
     void ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const;
     void CreatePrimitivesAndExecConstants() const;
-    void InferStatic(InferRequestBase* request);
-    void InferDynamic(InferRequestBase* request);
+    void InferStatic(SyncInferRequest* request);
+    void InferDynamic(SyncInferRequest* request);
 
-    friend class LegacyInferRequest;
-    friend class intel_cpu::InferRequest;
-    friend class intel_cpu::InferRequestBase;
-    friend std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph);
+    friend class intel_cpu::SyncInferRequest;
+    friend std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph);
 
 private:
     // TODO: change std::map to std::unordered_map
     std::map<std::string, NodePtr> inputNodesMap;
     std::map<std::string, NodePtr> outputNodesMap;
+
+    std::unordered_map<std::string, ProxyMemoryMngrPtr> outputNodesMemMngrMap;
 
     // these node pointers (from graphNodes) are to avoid regular checking for
     // constantness of nodes in Infer methods and calls of
@@ -266,12 +261,10 @@ private:
 
     GraphContext::CPtr context;
 
-    // this field stores the dynamic batch value to provide backward compatibility
-    // with the legacy API dyn batch behaviour
-    int dynBatch = -1;
-
+    void EnforceInferencePrecision();
     void EnforceBF16();
+    void resolveInPlaceDirection(const NodePtr& node) const;
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

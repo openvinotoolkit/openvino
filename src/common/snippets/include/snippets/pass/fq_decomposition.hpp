@@ -4,13 +4,10 @@
 
 #pragma once
 
-#include "ngraph/op/fake_quantize.hpp"
-#include "ngraph/pass/graph_rewrite.hpp"
-#include "ngraph/pass/constant_folding.hpp"
-#include "snippets/pass/transform_convert.hpp"
-#include "transformations_visibility.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace pass {
 
@@ -50,18 +47,18 @@ namespace pass {
  *
  */
 
-class FakeQuantizeDecomposition : public ngraph::pass::MatcherPass {
+class FakeQuantizeDecomposition : public ov::pass::MatcherPass {
 public:
     FakeQuantizeDecomposition();
 
-    static bool getScalesAndShifts(const std::shared_ptr<const ngraph::op::v0::FakeQuantize>& fq_node,
+    static bool getScalesAndShifts(const std::shared_ptr<const ov::op::v0::FakeQuantize>& fq_node,
                                    std::vector<float>& cl,
                                    std::vector<float>& ch,
                                    std::vector<float>& isc,
                                    std::vector<float>& ish,
                                    std::vector<float>& osc,
                                    std::vector<float>& osh);
-    static std::vector<float> calculateScales(const ngraph::element::Type& out_type,
+    static std::vector<float> calculateScales(const ov::element::Type& out_type,
                                               const std::vector<float>& cl,
                                               const std::vector<float>& ch,
                                               const std::vector<float>& isc,
@@ -80,11 +77,13 @@ public:
  *          2. ConstantFolding
  *          3. Validate
  */
-class CommonFakeQuantizeDecomposition: public ngraph::pass::FunctionPass {
+class CommonFakeQuantizeDecomposition: public ov::pass::ModelPass {
 public:
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+
+    static bool is_supported_fq(const std::shared_ptr<const ov::op::v0::FakeQuantize>& fq);
 };
 
 }  // namespace pass
 }  // namespace snippets
-}  // namespace ngraph
+}  // namespace ov

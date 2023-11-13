@@ -370,6 +370,11 @@ class Node;
 class RuntimeAttribute;
 
 class CompiledModel;
+namespace proxy {
+
+class CompiledModel;
+
+}
 class RemoteContext;
 class RemoteTensor;
 
@@ -377,7 +382,7 @@ class RemoteTensor;
  * @brief This class represents an object to work with different types
  */
 class OPENVINO_API Any {
-    std::vector<std::shared_ptr<void>> _so;
+    std::shared_ptr<void> _so;
 
     template <typename T>
     using decay_t = typename std::decay<T>::type;
@@ -659,11 +664,12 @@ class OPENVINO_API Any {
     friend class ::ov::RuntimeAttribute;
     friend class ::InferenceEngine::ExecutableNetwork;
     friend class ::ov::CompiledModel;
+    friend class ::ov::proxy::CompiledModel;
     friend class ::ov::RemoteContext;
     friend class ::ov::RemoteTensor;
     friend class ::ov::Plugin;
 
-    Any(const Any& other, const std::vector<std::shared_ptr<void>>& so);
+    Any(const Any& other, const std::shared_ptr<void>& so);
 
     void impl_check() const;
 

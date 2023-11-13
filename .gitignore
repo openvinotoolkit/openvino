@@ -13,6 +13,7 @@ cmake-build*
 *.idea
 .vscode
 .vs/
+.vsconan/
 .DS_Store
 **/tags
 compile_commands.json
@@ -26,6 +27,7 @@ temp/
 .repo/
 CMakeLists.txt.user
 docs/IE_PLUGIN_DG/html/
+CMakeUserPresets.json
 
 *.project
 *.cproject
@@ -59,3 +61,4 @@ __pycache__
 /tools/mo/*.svg
 /src/plugins/intel_cpu/tools/commit_slider/*.json
 /src/plugins/intel_cpu/tools/commit_slider/slider_cache/*
+.github/GITHUB_OUTPUT

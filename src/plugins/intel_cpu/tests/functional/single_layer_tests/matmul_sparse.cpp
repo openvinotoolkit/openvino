@@ -6,7 +6,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <string>
 #include <ov_ops/type_relaxed.hpp>
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
@@ -51,7 +51,7 @@ public:
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : shapeRelatedParams.inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << "TS=";
         for (const auto& shape : shapeRelatedParams.inputShapes) {
@@ -59,7 +59,7 @@ public:
             if (!shape.second.empty()) {
                 auto itr = shape.second.begin();
                 do {
-                    result << CommonTestUtils::vec2str(*itr);
+                    result << ov::test::utils::vec2str(*itr);
                 } while (++itr != shape.second.end() && result << "_");
             }
             result << ")_";
@@ -104,7 +104,7 @@ protected:
         std::mt19937 gen_f(123);
         std::uniform_real_distribution<float> dist_f(0.f, 1.f);
 
-        int countZero = 0;
+        size_t countZero = 0;
 
         res[0] = startFrom;
         res[vec_len - 1] = upTo;
@@ -129,11 +129,11 @@ protected:
                                             bool transpose_b,
                                             const std::vector<int8_t>& weiData) {
         using namespace ngraph;
-        auto inputParamsFP32 = builder::makeDynamicParams(element::f32, {A.get_partial_shape()});
+        auto inputParamsFP32 = std::make_shared<ov::op::v0::Parameter>(element::f32, A.get_partial_shape());
         auto matrixBFP32 = builder::makeDynamicInputLayer(element::f32, helpers::InputLayerType::CONSTANT, inShapeB);
 
         auto matMulRelaxed = std::make_shared<ov::op::TypeRelaxed<opset3::MatMul>>(
-            *as_type_ptr<opset3::MatMul>(builder::makeMatMul(inputParamsFP32[0], matrixBFP32, transpose_a, transpose_b)),
+            *as_type_ptr<opset3::MatMul>(builder::makeMatMul(inputParamsFP32, matrixBFP32, transpose_a, transpose_b)),
             element::f32);
 
         auto matrixB = ngraph::builder::makeConstant<int8_t>(weiType, inShapeB.get_shape(), weiData);
@@ -159,7 +159,7 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         init_input_shapes(shapeRelatedParams.inputShapes);
 
@@ -189,13 +189,12 @@ protected:
         cpuNodeType = "FullyConnected";
         selectedType = makeSelectedTypeStr(selectedType, element::i8);
 
-        auto params = builder::makeDynamicParams(inType, {inShapeA});
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inShapeA)};
 
         auto matrixB = builder::makeDynamicInputLayer(element::f32, helpers::InputLayerType::CONSTANT, inShapeB);
 
         auto weiData = generateSparseVector(ngraph::shape_size(inShapeB.get_shape()), weiSparseRate);
-        auto matMul = makeMatMulRelaxed(paramOuts[0], inShapeB, weiType, transpA, transpB, weiData);
+        auto matMul = makeMatMulRelaxed(params[0], inShapeB, weiType, transpA, transpB, weiData);
 
         function = makeNgraphFunction(element::f32, params, matMul, cpuNodeType);
 
@@ -259,6 +258,7 @@ const std::vector<ShapeRelatedParams> IS2D_sparse_smoke = {
         },
         {false, true}
     },
+    {static_shapes_to_test_representation({{1, 4096}, {4096, 16384}}), {false, true}},
 };
 
 const auto testParams2D_i8_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_sparse_smoke),

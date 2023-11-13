@@ -4,8 +4,8 @@
 
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace CPUTestUtils;
 using namespace InferenceEngine;
@@ -36,14 +36,14 @@ public:
     }
 
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         if (Precision::BF16 == (inPrc = outPrc = this->GetParam()))
             configuration.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES });
         else
             configuration.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO });
 
         const std::vector<size_t> inputShape = {1, 3, 3, 11};
-        auto inputParams = ngraph::builder::makeParams(ngraph::element::f32, {inputShape});
+        ov::ParameterVector inputParams {std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ov::Shape(inputShape))};
 
         auto transposeOrder = ngraph::opset8::Constant::create(ngraph::element::i32, {4}, {0, 3, 2, 1});
         auto transpose = std::make_shared<ngraph::opset8::Transpose>(inputParams[0], transposeOrder);

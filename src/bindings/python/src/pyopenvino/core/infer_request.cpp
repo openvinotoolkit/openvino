@@ -3,7 +3,6 @@
 
 #include "pyopenvino/core/infer_request.hpp"
 
-#include <ie_common.h>
 #include <pybind11/functional.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
@@ -15,14 +14,14 @@
 
 namespace py = pybind11;
 
-inline py::dict run_sync_infer(InferRequestWrapper& self) {
+inline py::object run_sync_infer(InferRequestWrapper& self, bool share_outputs) {
     {
         py::gil_scoped_release release;
         *self.m_start_time = Time::now();
         self.m_request.infer();
         *self.m_end_time = Time::now();
     }
-    return Common::outputs_to_dict(self);
+    return Common::outputs_to_dict(self, share_outputs);
 }
 
 void regclass_InferRequest(py::module m) {
@@ -168,11 +167,12 @@ void regclass_InferRequest(py::module m) {
     // Overload for single input, it will throw error if a model has more than one input.
     cls.def(
         "infer",
-        [](InferRequestWrapper& self, const ov::Tensor& inputs) {
+        [](InferRequestWrapper& self, const ov::Tensor& inputs, bool share_outputs) {
             self.m_request.set_input_tensor(inputs);
-            return run_sync_infer(self);
+            return run_sync_infer(self, share_outputs);
         },
         py::arg("inputs"),
+        py::arg("share_outputs"),
         R"(
             Infers specified input(s) in synchronous mode.
             Blocks all methods of InferRequest while request is running.
@@ -194,13 +194,14 @@ void regclass_InferRequest(py::module m) {
     // and values are always of type: ov::Tensor.
     cls.def(
         "infer",
-        [](InferRequestWrapper& self, const py::dict& inputs) {
+        [](InferRequestWrapper& self, const py::dict& inputs, bool share_outputs) {
             // Update inputs if there are any
             Common::set_request_tensors(self.m_request, inputs);
             // Call Infer function
-            return run_sync_infer(self);
+            return run_sync_infer(self, share_outputs);
         },
         py::arg("inputs"),
+        py::arg("share_outputs"),
         R"(
             Infers specified input(s) in synchronous mode.
             Blocks all methods of InferRequest while request is running.
@@ -611,6 +612,18 @@ void regclass_InferRequest(py::module m) {
             :rtype: List[openvino.runtime.VariableState]
         )");
 
+    cls.def(
+        "get_compiled_model",
+        [](InferRequestWrapper& self) {
+            return self.m_request.get_compiled_model();
+        },
+        R"(
+            Returns the compiled model.
+
+            :return: Compiled model object.
+            :rtype: openvino.runtime.CompiledModel
+        )");
+
     cls.def_property_readonly(
         "userdata",
         [](InferRequestWrapper& self) {
@@ -715,7 +728,7 @@ void regclass_InferRequest(py::module m) {
     cls.def_property_readonly(
         "results",
         [](InferRequestWrapper& self) {
-            return Common::outputs_to_dict(self);
+            return Common::outputs_to_dict(self, false);
         },
         R"(
             Gets all outputs tensors of this InferRequest.
@@ -728,6 +741,7 @@ void regclass_InferRequest(py::module m) {
         auto inputs_str = Common::docs::container_to_string(self.m_inputs, ",\n");
         auto outputs_str = Common::docs::container_to_string(self.m_outputs, ",\n");
 
-        return "<InferRequest:\ninputs[\n" + inputs_str + "\n]\noutputs[\n" + outputs_str + "\n]>";
+        return "<" + Common::get_class_name(self) + ":\ninputs[\n" + inputs_str + "\n]\noutputs[\n" + outputs_str +
+               "\n]>";
     });
 }

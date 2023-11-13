@@ -2,19 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <string>
-#include <vector>
-
 #include "grid_sample.hpp"
 #include "ie_parallel.hpp"
-#include <ngraph/opsets/opset1.hpp>
+#include "openvino/op/grid_sample.hpp"
 
 using namespace InferenceEngine;
-using namespace dnnl::impl::cpu;
 using namespace ov::intel_cpu;
 using namespace ov::intel_cpu::node;
-
-#define THROW_ERROR IE_THROW() << getTypeStr() << " node with name '" << getName() << "' "
+#if defined(OPENVINO_ARCH_X86_64)
+using namespace dnnl::impl::cpu;
+#endif // OPENVINO_ARCH_X86_64
 
 
 bool GridSample::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -23,10 +20,14 @@ bool GridSample::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
             errorMessage = "Not supported GridSample operation version. CPU plug-in supports only 9th version.";
             return false;
         }
+#if defined(OPENVINO_ARCH_X86_64)
         if (!x64::mayiuse(x64::sse41)) {
             errorMessage = "Not supported CPU instructions set.";
             return false;
         }
+#else
+        return false;
+#endif // OPENVINO_ARCH_X86_64
     } catch (...) {
         return false;
     }
@@ -34,25 +35,27 @@ bool GridSample::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
     return true;
 }
 
+#if defined(OPENVINO_ARCH_X86_64)
+
 GridSample::GridSample(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, PortMask(1))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        THROW_CPU_NODE_ERR(errorMessage);
     }
 
     if (op->get_input_size() != 2 || op->get_output_size() != 1)
-        THROW_ERROR << "has incorrect number of input/output ports.";
+        THROW_CPU_NODE_ERR("has incorrect number of input/output ports.");
 
     const auto& dataShape = getInputShapeAtPort(IN_DATA);
     if (dataShape.getRank() != 4)
-        THROW_ERROR << "has incorrect rank of the Data input.";
+        THROW_CPU_NODE_ERR("has incorrect rank of the Data input.");
 
     const auto& gridShape = getInputShapeAtPort(IN_GRID);
     if (gridShape.getRank() != 4)
-        THROW_ERROR << "has incorrect rank of the Grid input.";
+        THROW_CPU_NODE_ERR("has incorrect rank of the Grid input.");
     if (gridShape.isStatic() && gridShape.getDims()[3] != 2)
-        THROW_ERROR << "has incorrect shape of the Grid input. The 4th dimension should be equal to 2.";
+        THROW_CPU_NODE_ERR("has incorrect shape of the Grid input. The 4th dimension should be equal to 2.");
 
     const auto& attributes = ov::as_type_ptr<ov::op::v9::GridSample>(op)->get_attributes();
     alignCorners = attributes.align_corners;
@@ -67,7 +70,7 @@ GridSample::GridSample(const std::shared_ptr<ov::Node>& op, const GraphContext::
             interpolationMode = GridSampleInterpolationMode::NEAREST;
             break;
         default:
-            THROW_ERROR << "supports only BILINEAR, BICUBIC, NEAREST interpolation modes.";
+            THROW_CPU_NODE_ERR("supports only BILINEAR, BICUBIC, NEAREST interpolation modes.");
     }
     switch (attributes.padding_mode) {
         case op::v9::GridSample::PaddingMode::ZEROS:
@@ -80,7 +83,7 @@ GridSample::GridSample(const std::shared_ptr<ov::Node>& op, const GraphContext::
             paddingMode = GridSamplePaddingMode::REFLECTION;
             break;
         default:
-            THROW_ERROR << "supports only BORDER, REFLECTION, ZEROS paddings modes.";
+            THROW_CPU_NODE_ERR("supports only BORDER, REFLECTION, ZEROS paddings modes.");
     }
 }
 
@@ -110,7 +113,7 @@ void GridSample::initSupportedPrimitiveDescriptors() {
 }
 
 void GridSample::createPrimitive() {
-    GridSampleKernelConfParams jcp;
+    kernel::GridSampleKernelConfParams jcp;
 
     jcp.inDataPrc     = dataPrecision;
     jcp.gridPrc       = gridPrecision;
@@ -133,17 +136,15 @@ void GridSample::createPrimitive() {
         jcp.cannelNum      = jcp.dynamicChannel ? 1lu : srcDataDims[1];
     }
 
-#if defined(OPENVINO_ARCH_X86_64)
     if (x64::mayiuse(x64::avx512_core)) {
-        jitKernel.reset(new GridSampleKernel<x64::avx512_core>(jcp));
+        jitKernel.reset(new kernel::GridSampleKernel<x64::avx512_core>(jcp));
     } else if (x64::mayiuse(x64::avx2)) {
-        jitKernel.reset(new GridSampleKernel<x64::avx2>(jcp));
+        jitKernel.reset(new kernel::GridSampleKernel<x64::avx2>(jcp));
     } else if (x64::mayiuse(x64::sse41)) {
-        jitKernel.reset(new GridSampleKernel<x64::sse41>(jcp));
+        jitKernel.reset(new kernel::GridSampleKernel<x64::sse41>(jcp));
     }
-#endif // OPENVINO_ARCH_X86_64
     if (!jitKernel) {
-        THROW_ERROR << " could not create JIT kernel.";
+        THROW_CPU_NODE_ERR("could not create JIT kernel.");
     }
     jitKernel->create_ker();
 
@@ -179,17 +180,17 @@ void GridSample::createPrimitive() {
 }
 
 void GridSample::prepareParams() {
-    auto& dataMemPtr = getParentEdgeAt(IN_DATA)->getMemoryPtr();
+    auto dataMemPtr = getParentEdgeAt(IN_DATA)->getMemoryPtr();
     if (!dataMemPtr || !dataMemPtr->isAllocated())
-        THROW_ERROR << " has not allocated input data memory.";
-    auto& gridMemPtr = getParentEdgeAt(IN_GRID)->getMemoryPtr();
+        THROW_CPU_NODE_ERR("has not allocated input data memory.");
+    auto gridMemPtr = getParentEdgeAt(IN_GRID)->getMemoryPtr();
     if (!gridMemPtr || !gridMemPtr->isAllocated())
-        THROW_ERROR << " has not allocated input grid memory.";
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        THROW_CPU_NODE_ERR("has not allocated input grid memory.");
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        THROW_ERROR << " has not allocated output memory.";
+        THROW_CPU_NODE_ERR("has not allocated output memory.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_ERROR << " has unidentified preferable primitive descriptor.";
+        THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor.");
 
     const uint64_t dataElPerVec = jitKernel->getDataElPerVec();
     const auto& srcDataShape = dataMemPtr->getStaticDims();
@@ -262,13 +263,13 @@ void GridSample::prepareParams() {
 }
 
 void GridSample::execute(dnnl::stream strm) {
-    const void*    srcData = getParentEdgeAt(IN_DATA)->getMemoryPtr()->GetPtr();
-    const uint8_t* gridData = reinterpret_cast<uint8_t*>(getParentEdgeAt(IN_GRID)->getMemoryPtr()->GetPtr());
-    uint8_t*       dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const void*    srcData = getParentEdgeAt(IN_DATA)->getMemoryPtr()->getData();
+    const uint8_t* gridData = reinterpret_cast<uint8_t*>(getParentEdgeAt(IN_GRID)->getMemoryPtr()->getData());
+    uint8_t*       dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     auto threadBody = [&](const int ithr, const int nthr) {
         const auto& p = execParamsPerThread[ithr];
-        auto arg = GridSamplesKernelExecArgs();
+        auto arg = kernel::GridSamplesKernelExecArgs();
         if (p.workAmount == 0lu) {
             return;
         }
@@ -311,3 +312,5 @@ void GridSample::executeDynamicImpl(dnnl::stream strm) {
 bool GridSample::created() const {
     return getType() == Type::GridSample;
 }
+
+#endif // OPENVINO_ARCH_X86_64

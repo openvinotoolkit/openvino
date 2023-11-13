@@ -10,8 +10,8 @@
 #include <memory>
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -23,6 +23,9 @@ using GRUCellParams = typename std::tuple<
         std::vector<std::string>,          // activations
         float,                             // clip
         bool,                              // linear_before_reset
+        ngraph::helpers::InputLayerType,   // W input type (Constant or Parameter)
+        ngraph::helpers::InputLayerType,   // R input type (Constant or Parameter)
+        ngraph::helpers::InputLayerType,   // B input type (Constant or Parameter)
         InferenceEngine::Precision,        // Network precision
         std::string>;                      // Device name
 

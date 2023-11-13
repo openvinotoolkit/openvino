@@ -10,19 +10,19 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/reshape.hpp>
-#include <low_precision/concat.hpp>
+#include "transformations/utils/utils.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/reshape.hpp"
+#include "low_precision/concat.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "lpt_ngraph_functions/concat_function.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "ov_lpt_models/concat.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 namespace {
 class ActualValues {
@@ -48,8 +48,8 @@ inline std::ostream& operator<<(std::ostream& out, const ResultValues& values) {
 
 class TestValues {
 public:
-    ngraph::Shape inputShape;
-    ngraph::Shape reshapeOutputShape;
+    ov::Shape inputShape;
+    ov::Shape reshapeOutputShape;
     TestTransformationParams params;
     ActualValues actual;
     ResultValues result;
@@ -60,14 +60,14 @@ inline std::ostream& operator<<(std::ostream& out, const TestValues& values) {
 }
 
 typedef std::tuple <
-        ngraph::element::Type,
+        ov::element::Type,
         TestValues
 > ConcatTransformationParams;
 
 class ConcatWithIntermediateReshapeTransformation : public LayerTransformation, public testing::WithParamInterface<ConcatTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::element::Type precision = std::get<0>(GetParam());
+        const ov::element::Type precision = std::get<0>(GetParam());
         TestValues testValues = std::get<1>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::ConcatFunction::getOriginalWithIntermediateReshape(
@@ -78,9 +78,9 @@ public:
             testValues.actual.fakeQuantize2);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::opset1::Concat>(testValues.params);
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
-        transform.add<ngraph::pass::low_precision::ReshapeTransformation, ngraph::opset1::Reshape>(testValues.params);
+        transform.add<ov::pass::low_precision::ConcatTransformation, ov::op::v0::Concat>(testValues.params);
+        transform.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(testValues.params);
+        transform.add<ov::pass::low_precision::ReshapeTransformation, ov::op::v1::Reshape>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReferenceWithIntermediateReshape(
@@ -93,7 +93,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConcatTransformationParams> obj) {
-        const ngraph::element::Type precision = std::get<0>(obj.param);
+        const ov::element::Type precision = std::get<0>(obj.param);
         const TestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
@@ -112,9 +112,9 @@ TEST_P(ConcatWithIntermediateReshapeTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::element::Type> precisions = {
-        ngraph::element::f32,
-        // ngraph::element::f16
+const std::vector<ov::element::Type> precisions = {
+        ov::element::f32,
+        // ov::element::f16
 };
 
 const std::vector<TestValues> testValues = {
@@ -124,13 +124,13 @@ const std::vector<TestValues> testValues = {
         Shape{ 2, 1, 1, 9 },
         LayerTransformation::createParamsU8I8(),
         {
-            { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
-            { 256ul, ngraph::Shape({}), {0.f}, {25.5f}, {0.f}, {25.5f} }
+            { 256ul, ov::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
+            { 256ul, ov::Shape({}), {0.f}, {25.5f}, {0.f}, {25.5f} }
         },
         {
-            { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {255.f} },
-            { 256ul, ngraph::Shape({}), {0.f}, {25.5f}, {0.f}, {255.f} },
-            { {ngraph::element::f32}, {}, { {0.01f, 0.1f} } }
+            { 256ul, ov::Shape({}), {0.f}, {2.55f}, {0.f}, {255.f} },
+            { 256ul, ov::Shape({}), {0.f}, {25.5f}, {0.f}, {255.f} },
+            { {ov::element::f32}, {}, { {0.01f, 0.1f} } }
         }
     },
 };

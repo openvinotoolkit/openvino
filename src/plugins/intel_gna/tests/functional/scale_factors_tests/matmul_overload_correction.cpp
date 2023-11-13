@@ -13,9 +13,9 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
@@ -46,7 +46,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_IS=" << CommonTestUtils::vec2str(inputShape);
+        result << "_IS=" << ov::test::utils::vec2str(inputShape);
         result << "_secondInput=" << (isSecondInputConst ? "const" : "param");
         result << "_swapInputs=" << swapInputs;
 
@@ -66,7 +66,7 @@ protected:
         const ngraph::Shape shape1 = inputShape;
         const ngraph::Shape shape2 = {1, inputShape[1] * inputShape[1]};
         const float maxInputValue = 10.0f;
-        auto params = ngraph::builder::makeParams(ngPrc, {shape1});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape1))};
         auto relu = std::make_shared<ngraph::opset8::Relu>(params[0]);
 
         std::shared_ptr<ngraph::Node> input2;
@@ -74,7 +74,7 @@ protected:
             input2 = ngraph::builder::makeConstant<float>(
                 ngPrc,
                 ngraph::Shape{shape1[1], shape1[1]},
-                CommonTestUtils::generate_float_numbers(shape2[1], 0.0f, maxInputValue));
+                ov::test::utils::generate_float_numbers(shape2[1], 0.0f, maxInputValue));
         } else {
             input2 = ngraph::builder::makeInputLayer(ngPrc, ngraph::helpers::InputLayerType::PARAMETER, shape2);
             params.push_back(std::dynamic_pointer_cast<ngraph::opset8::Parameter>(input2));
@@ -155,7 +155,7 @@ const std::vector<std::vector<size_t>> inputShapes = {{1, 128}, {1, 256}};
 INSTANTIATE_TEST_SUITE_P(smoke_base,
                          MatMulOverloadCorrectionNegTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShapes),
                                             ::testing::ValuesIn({true}),

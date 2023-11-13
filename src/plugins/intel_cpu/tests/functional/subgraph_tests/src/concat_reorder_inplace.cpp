@@ -4,8 +4,8 @@
 
 #include <ngraph/opsets/opset8.hpp>
 
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
@@ -34,7 +34,8 @@ class ConcatReorderInPlaceTest : virtual public LayerTestsUtils::LayerTestsCommo
 public:
     void SetUp() override {
         const std::vector<size_t> inputShape = {1, 100, 1, 1};
-        auto inputParams = ngraph::builder::makeParams(ngraph::element::f32, {inputShape, inputShape});
+        ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(inputShape)),
+                                        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(inputShape))};
         auto concat = ngraph::builder::makeConcat(ngraph::OutputVector{inputParams[0], inputParams[1]}, 1);
         const auto targetFormat = nhwc;
         auto mul1 = std::make_shared<ngraph::opset8::Multiply>(
@@ -54,7 +55,7 @@ public:
                                      std::make_shared<ngraph::opset8::Result>(mul2),
                                      std::make_shared<ngraph::opset8::Result>(mul3)};
         function = std::make_shared<ngraph::Function>(results, inputParams, "ConcatReorderInPlace");
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
     }
 };
 

@@ -13,7 +13,7 @@
 
 #include <gtest/gtest.h>
 
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -42,11 +42,11 @@ inline bool sw_plugin_in_target_device(std::string targetDevice) {
             targetDevice.find("HETERO") != std::string::npos || targetDevice.find("AUTO") != std::string::npos);
 }
 
-class APIBaseTest : public CommonTestUtils::TestsCommon {
+class APIBaseTest : public ov::test::TestsCommon {
 private:
     // in case of crash jump will be made and work will be continued
-    const std::unique_ptr<CommonTestUtils::CrashHandler> crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(
-                                                                        new CommonTestUtils::CrashHandler(CommonTestUtils::CONFORMANCE_TYPE::api));
+    const std::unique_ptr<ov::test::utils::CrashHandler> crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(
+                                                                        new ov::test::utils::CrashHandler(ov::test::utils::CONFORMANCE_TYPE::api));
 
 protected:
     double k = 1.0;
@@ -119,7 +119,7 @@ public:
         std::ostringstream result;
         result << "targetDevice=" << targetDevice << "_";
         if (!configuration.empty()) {
-            using namespace CommonTestUtils;
+            using namespace ov::test::utils;
             for (auto &configItem : configuration) {
                 result << "configItem=" << configItem.first << "_";
                 configItem.second.print(result);
@@ -161,9 +161,9 @@ inline ov::Core createCoreWithTemplate() {
     ov::Core core;
 #ifndef OPENVINO_STATIC_LIBRARY
     std::string pluginName = "openvino_template_plugin";
-    pluginName += IE_BUILD_POSTFIX;
-    core.register_plugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), pluginName),
-        CommonTestUtils::DEVICE_TEMPLATE);
+    pluginName += OV_BUILD_POSTFIX;
+    core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(), pluginName),
+        ov::test::utils::DEVICE_TEMPLATE);
 #endif // !OPENVINO_STATIC_LIBRARY
     return core;
 }
@@ -187,10 +187,10 @@ public:
     virtual void setHeteroNetworkAffinity(const std::string &targetDevice) {
         const std::map<std::string, std::string> deviceMapping = {{"Split_2",       targetDevice},
                                                                   {"Convolution_4", targetDevice},
-                                                                  {"Convolution_7", CommonTestUtils::DEVICE_CPU},
-                                                                  {"Relu_5",        CommonTestUtils::DEVICE_CPU},
+                                                                  {"Convolution_7", ov::test::utils::DEVICE_CPU},
+                                                                  {"Relu_5",        ov::test::utils::DEVICE_CPU},
                                                                   {"Relu_8",        targetDevice},
-                                                                  {"Concat_9",      CommonTestUtils::DEVICE_CPU}};
+                                                                  {"Concat_9",      ov::test::utils::DEVICE_CPU}};
 
         for (const auto &op : actualNetwork->get_ops()) {
             auto it = deviceMapping.find(op->get_friendly_name());

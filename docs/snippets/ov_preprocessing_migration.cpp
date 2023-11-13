@@ -5,7 +5,17 @@
 #include <openvino/opsets/opset8.hpp>
 #include <openvino/core/preprocess/pre_post_process.hpp>
 
+#ifndef IN_OV_COMPONENT
+#    define IN_OV_COMPONENT
+#    define WAS_OV_LIBRARY_DEFINED
+#endif
+
 #include "inference_engine.hpp"
+
+#ifdef WAS_OV_LIBRARY_DEFINED
+#    undef IN_OV_COMPONENT
+#    undef WAS_OV_LIBRARY_DEFINED
+#endif
 
 int main_new() {
     std::string model_path;
@@ -99,15 +109,6 @@ inputInfo->setLayout(InferenceEngine::Layout::NHWC);
 // model input layout is always NCHW in Inference Engine
 // for shapes with 4 dimensions
     //! [conversions]
-    }
-
-    {
-    //! [color_space]
-auto preProcess = network.getInputsInfo()[operation_name]->getPreProcess();
-// Inference Engine supposes NV12 as two inputs which need to be passed
-// as InferenceEngine::NV12Blob composed of two Y and UV planes
-preProcess.setColorFormat(InferenceEngine::NV12);
-    //! [color_space]
     }
 
     {

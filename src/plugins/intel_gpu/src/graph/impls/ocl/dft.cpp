@@ -16,7 +16,7 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
     using kernel_selector_t = kernel_selector::dft_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::dft_params, kernel_selector::dft_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::dft_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<dft_impl>(*this);
@@ -102,3 +102,4 @@ attach_dft_impl::attach_dft_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::dft_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::dft)

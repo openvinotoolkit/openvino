@@ -15,7 +15,7 @@ set(shellcheck_skip_list
     "${OpenVINO_SOURCE_DIR}/src/bindings/python/thirdparty/pybind11"
     "${TEMP}")
 
-ie_shellcheck_process(DIRECTORY "${OpenVINO_SOURCE_DIR}"
+ov_shellcheck_process(DIRECTORY "${OpenVINO_SOURCE_DIR}"
                       SKIP ${shellcheck_skip_list})
 
 #
@@ -45,7 +45,8 @@ endif()
 
 install(PROGRAMS "${_setupvars_file_full_path}"
         DESTINATION .
-        COMPONENT ${OV_CPACK_COMP_SETUPVARS})
+        COMPONENT ${OV_CPACK_COMP_SETUPVARS}
+        ${OV_CPACK_COMP_SETUPVARS_EXCLUDE_ALL})
 
 # install install_dependencies
 
@@ -54,5 +55,6 @@ if(LINUX)
 
     install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/install_dependencies/install_openvino_dependencies.sh"
             DESTINATION install_dependencies/
-            COMPONENT ${OV_CPACK_COMP_INSTALL_DEPENDENCIES})
+            COMPONENT ${OV_CPACK_COMP_INSTALL_DEPENDENCIES}
+            ${OV_CPACK_COMP_INSTALL_DEPENDENCIES_EXCLUDE_ALL})
 endif()

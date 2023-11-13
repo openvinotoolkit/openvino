@@ -13,7 +13,7 @@
 
 #include "../shared_tests_instances/skip_tests_check.hpp"
 #include "common_test_utils/test_common.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "transformations/init_node_info.hpp"
 
@@ -84,18 +84,18 @@ public:
 
         std::ostringstream result;
         result << "M=" << static_cast<uint32_t>(model) << "_";
-        result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-        result << "K" << CommonTestUtils::vec2str(kernel) << "_";
-        result << "S" << CommonTestUtils::vec2str(stride) << "_";
-        result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
-        result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
-        result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
+        result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+        result << "K" << ov::test::utils::vec2str(kernel) << "_";
+        result << "S" << ov::test::utils::vec2str(stride) << "_";
+        result << "PB" << ov::test::utils::vec2str(padBegin) << "_";
+        result << "PE" << ov::test::utils::vec2str(padEnd) << "_";
+        result << "D=" << ov::test::utils::vec2str(dilation) << "_";
         result << "O=" << numOutChannels << "_";
         result << "AP=" << padType << "_";
-        result << "B=" << CommonTestUtils::vec2str(bias) << "_";
-        result << "B=" << CommonTestUtils::vec2str(transpBias) << "_";
-        result << "MPP=" << CommonTestUtils::vec2str(maxpoolPool) << "_";
-        result << "MPS=" << CommonTestUtils::vec2str(maxpoolStride) << "_";
+        result << "B=" << ov::test::utils::vec2str(bias) << "_";
+        result << "B=" << ov::test::utils::vec2str(transpBias) << "_";
+        result << "MPP=" << ov::test::utils::vec2str(maxpoolPool) << "_";
+        result << "MPS=" << ov::test::utils::vec2str(maxpoolStride) << "_";
         result << "netPRC=" << netPrecision.name() << "_";
         result << "targetDevice=" << targetDevice << "_";
         for (auto const& configItem : configuration) {
@@ -129,12 +129,12 @@ protected:
         Shape maxpoolShape{maxpoolPool};
         Strides maxpoolStrides{maxpoolStride};
 
-        auto input = builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         auto transposeInOrder = opset7::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
         auto transposeIn = std::make_shared<Transpose>(input[0], transposeInOrder);
         auto filterSize = std::accumulate(std::begin(kernel), std::end(kernel), 1ull, std::multiplies<size_t>());
         auto filterWeights =
-            CommonTestUtils::generate_float_numbers(numOutChannels * inputShape[3] * filterSize, -0.03f, 0.03f);
+            ov::test::utils::generate_float_numbers(numOutChannels * inputShape[3] * filterSize, -0.03f, 0.03f);
         auto conv = builder::makeConvolution(transposeIn,
                                              ngPrc,
                                              kernel,
@@ -147,7 +147,7 @@ protected:
                                              false,
                                              filterWeights);
         auto transposeOutOrder = opset7::Constant::create(element::i64, Shape{4}, {0, 2, 3, 1});
-        auto biasWeights = CommonTestUtils::generate_float_numbers(shape_size(biasShape), -1.5f, 1.5f);
+        auto biasWeights = ov::test::utils::generate_float_numbers(shape_size(biasShape), -1.5f, 1.5f);
         Output<Node> biasConst = std::make_shared<Constant>(ngPrc, biasShape, biasWeights);
         Output<Node> lastOp = std::make_shared<Transpose>(conv, transposeOutOrder);
 
@@ -283,7 +283,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Decompose2DConv,
                          ::testing::Combine(conv2DParams,
                                             miscParams,
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(input2DNHWC),
                                             ::testing::ValuesIn(models)),
@@ -297,7 +297,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Decompose2DConv_Exec3XCompile20,
                         ::testing::Combine(conv2DParams,
                                            miscParams,
                                            ::testing::ValuesIn(netPrecisions),
-                                           ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                           ::testing::Values(ov::test::utils::DEVICE_GNA),
                                            ::testing::ValuesIn(configsExec3XCompile20),
                                            ::testing::ValuesIn(input2DNHWC),
                                            ::testing::ValuesIn(modelsWithPool)),
@@ -335,7 +335,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Decompose2DConvStridesDilations,
                          ::testing::Combine(conv2DParamsStrides,
                                             miscParams,
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configsStrides),
                                             ::testing::ValuesIn(input2DNHWCStrides),
                                             ::testing::ValuesIn(modelsStrides)),
@@ -383,7 +383,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Decompose2DConvGNA3X,
                          ::testing::Combine(conv2DParamsGNA3X,
                                             miscParamsGNA3X,
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configsGNA3X),
                                             ::testing::ValuesIn(input2DNHWCGNA3X),
                                             ::testing::ValuesIn(modelsGNA3X)),

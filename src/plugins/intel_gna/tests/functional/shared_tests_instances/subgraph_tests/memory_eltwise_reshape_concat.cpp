@@ -21,7 +21,7 @@ std::map<std::string, std::string> additional_config = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_MemoryEltwiseReshapeConcatTest,
                          MemoryEltwiseReshapeConcatTest,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::Values(InferenceEngine::Precision::FP32),
                                             ::testing::ValuesIn(input_multiples),
                                             ::testing::ValuesIn(concat_sizes),

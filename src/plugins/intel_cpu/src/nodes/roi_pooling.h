@@ -93,9 +93,9 @@ private:
     public:
         ROIPoolingExecutor() = default;
         virtual void exec(
-            const ov::intel_cpu::Memory& srcData,
-            const ov::intel_cpu::Memory& srcRoi,
-            const ov::intel_cpu::Memory& dst) = 0;
+            const ov::intel_cpu::IMemory& srcData,
+            const ov::intel_cpu::IMemory& srcRoi,
+            const ov::intel_cpu::IMemory& dst) = 0;
         virtual ~ROIPoolingExecutor() = default;
 
         static std::shared_ptr<ROIPoolingExecutor> createROIPoolingNewExecutor(const jit_roi_pooling_params& jpp);

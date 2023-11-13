@@ -11,6 +11,8 @@
 
 namespace LayerTestsDefinitions {
 
+using ngraph::helpers::InputLayerType;
+
 class GRUCellGNATest : public GRUCellTest {
 protected:
     void SetUp() override {
@@ -23,6 +25,9 @@ protected:
         std::vector<float> activations_beta;
         float clip;
         bool linear_before_reset;
+        InputLayerType WType;
+        InputLayerType RType;
+        InputLayerType BType;
         InferenceEngine::Precision netPrecision;
         std::tie(should_decompose,
                  batch,
@@ -31,6 +36,9 @@ protected:
                  activations,
                  clip,
                  linear_before_reset,
+                 WType,
+                 RType,
+                 BType,
                  netPrecision,
                  targetDevice) = this->GetParam();
 
@@ -42,23 +50,27 @@ protected:
              {(linear_before_reset ? 4 : 3) * hidden_size}},
         };
 
+        ASSERT_EQ(InputLayerType::CONSTANT, WType);
+        ASSERT_EQ(InputLayerType::CONSTANT, RType);
+        ASSERT_EQ(InputLayerType::CONSTANT, BType);
+
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
+                                   std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[1]))};
         std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
-        auto in = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params));
         std::vector<float> weights_vals =
-            CommonTestUtils::generate_float_numbers(ngraph::shape_size(WRB[0]), -0.0001f, 0.0001f);
+            ov::test::utils::generate_float_numbers(ngraph::shape_size(WRB[0]), -0.0001f, 0.0001f);
         std::vector<float> reccurrenceWeights_vals =
-            CommonTestUtils::generate_float_numbers(ngraph::shape_size(WRB[1]), -0.0001f, 0.0001f);
+            ov::test::utils::generate_float_numbers(ngraph::shape_size(WRB[1]), -0.0001f, 0.0001f);
         std::vector<float> bias_vals =
-            CommonTestUtils::generate_float_numbers(ngraph::shape_size(WRB[2]), -0.0001f, 0.0001f);
+            ov::test::utils::generate_float_numbers(ngraph::shape_size(WRB[2]), -0.0001f, 0.0001f);
 
         auto weightsNode = ngraph::builder::makeConstant<float>(ngPrc, WRB[0], weights_vals);
         auto reccurrenceWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, WRB[1], reccurrenceWeights_vals);
         auto biasNode = ngraph::builder::makeConstant<float>(ngPrc, WRB[2], bias_vals);
 
-        auto gru_cell = std::make_shared<ngraph::opset8::GRUCell>(in[0],
-                                                                  in[1],
+        auto gru_cell = std::make_shared<ngraph::opset8::GRUCell>(params[0],
+                                                                  params[1],
                                                                   weightsNode,
                                                                   reccurrenceWeightsNode,
                                                                   biasNode,
@@ -82,7 +94,7 @@ protected:
         InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
         blob->allocate();
         auto* rawBlobDataPtr = blob->buffer().as<float*>();
-        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.002f, 0.002f);
+        std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -0.002f, 0.002f);
         for (size_t i = 0; i < blob->size(); i++) {
             rawBlobDataPtr[i] = values[i];
         }
@@ -121,8 +133,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_GRUCellCommon,
                                             ::testing::ValuesIn(activations),
                                             ::testing::ValuesIn(clip),
                                             ::testing::ValuesIn(linear_before_reset),
+                                            ::testing::Values(InputLayerType::CONSTANT),
+                                            ::testing::Values(InputLayerType::CONSTANT),
+                                            ::testing::Values(InputLayerType::CONSTANT),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          GRUCellTest::getTestCaseName);
 
 }  // namespace

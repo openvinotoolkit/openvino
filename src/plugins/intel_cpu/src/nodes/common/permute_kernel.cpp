@@ -13,6 +13,8 @@
 
 #include "cpu/x64/jit_generator.hpp"
 #include <common/primitive_hashing_utils.hpp>
+#include "nodes/executors/transpose.hpp"
+#include "nodes/executors/common/ref_transpose.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl;
@@ -77,7 +79,7 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
         Xbyak::Label tail_loop_label;
         Xbyak::Label exit_label;
 
-        if (n + 1 == jcp.ndims) {
+        if (n + 1 == static_cast<int>(jcp.ndims)) {
             if (jcp.src_strides[n] == 1 && jcp.dst_strides[n] == 1) {
                 uint32_t step = vlen / jcp.data_size;
 
@@ -102,7 +104,7 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
             cmp(reg_work_amount, 0);
             je(exit_label, T_NEAR);
 
-            if (n + 1 == jcp.ndims) {
+            if (n + 1 == static_cast<int>(jcp.ndims)) {
                 load(xmm, ptr[reg_src]);
                 store(ptr[reg_dst], xmm);
             } else {
@@ -146,121 +148,7 @@ private:
 #endif // OPENVINO_ARCH_X86_64
 
 PermuteKernel::PermuteKernel(const PermuteParams& params) : params(params) {
-    prepareParams();
-}
-
-void PermuteKernel::prepareParams() {
-    SizeVector src_block_strides(params.src_block_dims.size(), 1);
-    SizeVector dst_block_strides(params.dst_block_dims.size(), 1);
-    for (int i = params.src_block_dims.size() - 2; i >= 0; i--)
-        src_block_strides[i] = src_block_strides[i + 1] * params.src_block_dims[i + 1];
-    for (int i = params.dst_block_dims.size() - 2; i >= 0; i--)
-        dst_block_strides[i] = dst_block_strides[i + 1] * params.dst_block_dims[i + 1];
-
-    SizeVector new_dst_block_strides = dst_block_strides;
-    SizeVector new_dst_block_order = params.dst_block_order;
-    SizeVector new_dst_block_dims = params.dst_block_dims;
-    SizeVector new_src_block_strides(dst_block_strides.size());
-    SizeVector mask(dst_block_strides.size());
-
-    SizeVector tmp_order;
-    for (size_t i = 0; i < params.dst_block_order.size(); i++) {
-        tmp_order.push_back(params.order[params.dst_block_order[i]]);
-    }
-
-    for (int i = tmp_order.size() - 1; i >= 0; i--) {
-        int pos = std::distance(std::find(
-                params.src_block_order.rbegin(), params.src_block_order.rend(), tmp_order[i]), params.src_block_order.rend() - 1);
-        if (pos != -1) {
-            new_src_block_strides[i] = src_block_strides[pos];
-            params.src_block_order.erase(params.src_block_order.begin() + pos);
-            src_block_strides.erase(src_block_strides.begin() + pos);
-            mask[i] = 0;
-        } else {
-            new_src_block_strides[i] = new_src_block_strides[tmp_order.size() - 1] * params.dst_block_dims[tmp_order.size() - 1];
-            mask[i] = 1;
-            mask[tmp_order.size() - 1] = 1;
-        }
-    }
-    if (!params.src_block_order.empty()) {
-        int pos = std::distance(tmp_order.begin(), std::find(tmp_order.begin(), tmp_order.end(), params.src_block_order[0]));
-        new_src_block_strides.insert(new_src_block_strides.begin() + pos,
-                                     src_block_strides[0]);
-        new_dst_block_strides.insert(new_dst_block_strides.begin() + pos,
-                                  new_dst_block_strides[pos] * params.src_block_dims[params.src_block_dims.size() - 1]);
-        new_dst_block_order.insert(new_dst_block_order.begin() + pos,
-                                   new_dst_block_order[pos]);
-        new_dst_block_dims.insert(new_dst_block_dims.begin() + pos + 1,
-                                  params.src_block_dims[params.src_block_dims.size() - 1]);
-        new_dst_block_dims[pos] = div_up(new_dst_block_dims[pos], new_dst_block_dims[pos + 1]);
-        mask.insert(mask.begin() + pos + 1, 1);
-        mask[pos] = 1;
-    }
-
-    SizeVector sorted_src_strides;
-    SizeVector sorted_dst_strides;
-    SizeVector sorted_order;
-    SizeVector sorted_dst_dims;
-
-    //  support dynamic batch
-    int batch_ord = std::distance(params.order.begin(), std::find(params.order.begin(), params.order.end(), 0));
-    int batch_count = 0;
-    int batch_pos = 0;
-    for (size_t i = 0; i < new_dst_block_order.size(); i++) {
-        if (new_dst_block_order[i] == batch_ord) {
-            batch_count++;
-            batch_pos = i;
-        }
-    }
-    if (batch_count == 1) {
-        sorted_src_strides.push_back(new_src_block_strides[batch_pos]);
-        sorted_dst_strides.push_back(new_dst_block_strides[batch_pos]);
-        sorted_order.push_back(new_dst_block_order[batch_pos]);
-        sorted_dst_dims.push_back(new_dst_block_dims[batch_pos]);
-        jcp.supported_dynamic_batch = true;
-    }
-
-    int n2 = 0;
-    for (size_t i = 0; i < mask.size(); i++) {
-        if (mask[i] == 0) {
-            n2++;
-            if (batch_count == 1 && new_dst_block_order[i] == batch_ord) {
-                continue;
-            }
-            sorted_src_strides.push_back(new_src_block_strides[i]);
-            sorted_dst_strides.push_back(new_dst_block_strides[i]);
-            sorted_order.push_back(new_dst_block_order[i]);
-            sorted_dst_dims.push_back(new_dst_block_dims[i]);
-        }
-    }
-    for (size_t i = 0; i < mask.size(); i++) {
-        if (mask[i] == 1) {
-            sorted_src_strides.push_back(new_src_block_strides[i]);
-            sorted_dst_strides.push_back(new_dst_block_strides[i]);
-            sorted_order.push_back(new_dst_block_order[i]);
-            sorted_dst_dims.push_back(new_dst_block_dims[i]);
-        }
-    }
-
-    int max_threads = parallel_get_max_threads();
-    const int n_max = 3;    //  max count dims for parallel
-    int n = 0;
-    int work_amount = sorted_dst_dims[0];
-    for (size_t i = 1; i < sorted_dst_dims.size() && n < n_max; i++) {
-        n++;
-        if (work_amount >= 4 * max_threads) {   //  4 * max_threads is a specially selected value for best performance
-            break;
-        }
-        work_amount *= sorted_dst_dims[i];
-    }
-
-    jcp.src_strides = sorted_src_strides;
-    jcp.dst_strides = sorted_dst_strides;
-    jcp.dst_block_dims = sorted_dst_dims;
-    jcp.n = std::min(n, n2);
-    jcp.ndims = sorted_order.size();
-    jcp.data_size = params.data_size;
-
+    jcp = TransposeExecutor::prepareParams(params);
 #if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
         permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::avx512_core>(jcp));
@@ -281,7 +169,7 @@ void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data, const in
         return;
     }
 
-    referenceExecute(src_data, dst_data, mb);
+    RefTransposeExecutor::referenceExecute(src_data, dst_data, jcp, mb);
 }
 
 void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data) {
@@ -291,7 +179,7 @@ void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data) {
         return;
     }
 
-    referenceExecute(src_data, dst_data, dst_dims[0]);
+    RefTransposeExecutor::referenceExecute(src_data, dst_data, jcp,  dst_dims[0]);
 }
 
 void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {
@@ -299,7 +187,7 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data,
     const SizeVector dst_strides = jcp.dst_strides;
     const SizeVector src_strides = jcp.src_strides;
 
-    if (dst_dims[0] != mb)
+    if (static_cast<int>(dst_dims[0]) != mb)
         dst_dims[0] = mb;
 
     switch (jcp.n) {
@@ -341,60 +229,6 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data,
             break;
     }
     return;
-}
-
-static inline size_t parallel_init(size_t start, size_t nDims, const SizeVector& dims, SizeVector& indexes) {
-    for (int j = nDims - 1; j >= 0; j--) {
-        indexes[j] = start % dims[j];
-        start = start / dims[j];
-    }
-    return start;
-}
-
-static inline void parallel_step(size_t nDims, const SizeVector& dims, SizeVector& indexes) {
-    for (int j = nDims - 1; j >= 0; --j) {
-        ++indexes[j];
-        if (indexes[j] < dims[j])
-            break;
-        else
-            indexes[j] = 0;
-    }
-}
-
-void PermuteKernel::referenceExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {
-    SizeVector dst_dims = jcp.dst_block_dims;
-    const SizeVector dst_strides = jcp.dst_strides;
-    const SizeVector src_strides = jcp.src_strides;
-    const size_t data_size = jcp.data_size;
-    const size_t ndims = dst_dims.size();
-
-    if (dst_dims[0] != mb)
-        dst_dims[0] = mb;
-
-    size_t work_amount = std::accumulate(dst_dims.begin(), dst_dims.end(), 1, std::multiplies<size_t>());
-
-    auto get_idx = [ndims, data_size](const SizeVector& indexes, const SizeVector& strides) {
-        size_t idx = 0;
-        for (size_t i = 0; i < ndims; ++i)
-            idx += indexes[i] * strides[i];
-        return idx * data_size;
-    };
-
-    parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start = 0, end = 0;
-        SizeVector indexes(ndims, 0);
-        splitter(work_amount, nthr, ithr, start, end);
-
-        parallel_init(start, ndims, dst_dims, indexes);
-
-        for (size_t iwork = start; iwork < end; ++iwork) {
-            const size_t dst_idx = get_idx(indexes, dst_strides);
-            const size_t src_idx = get_idx(indexes, src_strides);
-            cpu_memcpy(&dst_data[dst_idx], &src_data[src_idx], data_size);
-
-            parallel_step(ndims, dst_dims, indexes);
-        }
-    });
 }
 
 size_t PermuteParams::hash() const {

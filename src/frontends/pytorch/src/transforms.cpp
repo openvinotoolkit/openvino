@@ -8,10 +8,10 @@
 #include <tuple>
 
 #include "openvino/frontend/pytorch/decoder.hpp"
-#include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "pt_framework_node.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -69,7 +69,7 @@ std::shared_ptr<FrameworkNode> cast_internal_node(std::shared_ptr<Node> node, co
     if (!fw_node) {
         return nullptr;
     }
-    if (fw_node->get_attrs().find("PtTypeName") != fw_node->get_attrs().end()) {
+    if (fw_node->get_attrs().find(PtFrameworkNode::op_type_key) != fw_node->get_attrs().end()) {
         // This is FW node, not PT FW internal node, don't mix them
         return nullptr;
     }
@@ -346,7 +346,7 @@ public:
                 // Replace a single result with 6 results, per each input of parent list_pack
 
                 auto inputs = list_pack->inputs();
-                for (auto input : inputs) {
+                for (auto& input : inputs) {
                     model->add_results({make_shared<opset10::Result>(input.get_source_output())});
                     // TODO: Keep tracking between original and new Results
                 }

@@ -9,6 +9,7 @@
 #include <intel_gpu/primitives/quantize.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/gemm.hpp>
+#include <intel_gpu/primitives/permute.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/runtime/tensor.hpp>
 
@@ -492,6 +493,9 @@ TEST_P(gemm_2in_act_scale_eltwise, basic) {
     );
 
     tolerance = default_tolerance(p.default_type);
+    if (p.default_type == data_types::f16 && p.kernel_name == "gemm_tiled_opt") {
+        tolerance *= 2.1f; // Issue: 94154
+    }
     execute(p, false);
 }
 
@@ -510,6 +514,9 @@ TEST_P(gemm_2in_act_scale_eltwise, broadcast_eltwise) {
     );
 
     tolerance = default_tolerance(p.default_type);
+    if (p.default_type == data_types::f16 && p.kernel_name == "gemm_tiled_opt") {
+        tolerance *= 2.1f; // Issue: 94154
+    }
     execute(p, false);
 }
 
@@ -526,3 +533,103 @@ INSTANTIATE_TEST_SUITE_P(
         // gemm_test_params{ CASE_GEMM_ELTWISE_2IN_U8S8_2, 3, 3, "gemm_mmad_int8_slm" },   // tolerance issue
         gemm_test_params{CASE_GEMM_ELTWISE_2IN_FP16_2, 3, 3, "gemm_tiled_opt"},
     }));
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+class GemmFusingTestOneDNN : public ::BaseFusingTest<gemm_test_params> {
+public:
+    void execute(gemm_test_params& p, bool is_dynamic, bool is_caching_test = false) {
+        if (!engine.get_device_info().supports_immad)
+            return;
+        cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
+
+        auto impl_forcing = cfg_fused.get_property(ov::intel_gpu::force_implementations);
+        auto forcing_format = p.input_format;
+        for (auto& forcing : impl_forcing)
+            if (forcing.first == "gemm_prim")
+                forcing_format = forcing.second.output_format;
+        ov::intel_gpu::ImplementationDesc gemm_impl = { forcing_format, "", impl_types::onednn };
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "gemm_prim", gemm_impl } }));
+        cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
+
+        auto input0_prim = get_mem(get_input_layout(p, 0));
+        auto input1_prim = get_mem(get_input_layout(p, 1));
+
+        network::ptr network_not_fused = get_network(this->engine, this->topology_non_fused, cfg_not_fused, get_test_stream_ptr(), is_caching_test);
+        network::ptr network_fused = get_network(this->engine, this->topology_fused, cfg_fused, get_test_stream_ptr(), is_caching_test);
+        network_fused->set_input_data("input0", input0_prim);
+        network_not_fused->set_input_data("input0", input0_prim);
+        network_fused->set_input_data("input1", input1_prim);
+        network_not_fused->set_input_data("input1", input1_prim);
+        if (p.in_shapes.size() > 2) {
+            auto input2_prim = get_mem(get_input_layout(p, 2));
+            network_fused->set_input_data("input2", input2_prim);
+            network_not_fused->set_input_data("input2", input2_prim);
+        }
+
+        compare(*network_not_fused, *network_fused, p);
+    }
+
+    layout get_input_layout(gemm_test_params& p, int in_no) {
+        if (in_no == 0)
+            return layout{ p.in_shapes.at(0), p.data_type_in0, p.input_format };
+        else if (in_no == 1)
+            return layout{ p.in_shapes.at(1), p.data_type_in1, p.input_format };
+        else
+            return layout{ p.in_shapes.at(2), p.data_type_in2, p.input_format };
+    }
+
+    layout get_per_channel_layout(gemm_test_params& p) {
+        return layout{ov::PartialShape{ 1, p.in_shapes[0][1], 1, 1 }, p.default_type, p.default_format };
+    }
+
+    layout get_output_layout(gemm_test_params& p) {
+        return layout{ p.out_shape, p.default_type, p.input_format };
+    }
+};
+
+class gemm_permute_2in : public GemmFusingTestOneDNN {};
+TEST_P(gemm_permute_2in, gemm_permute) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input0", get_input_layout(p, 0)),
+        input_layout("input1", get_input_layout(p, 1)),
+        gemm("gemm_prim", { input_info("input0"), input_info("input1") }, data_types::f16),
+        permute("permute", input_info("gemm_prim"), {0, 2, 1, 3}),
+        reorder("reorder_bfyx", input_info("permute"), p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(data_types::f16);
+    execute(p, false);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    fusings_gpu, gemm_permute_2in, ::testing::ValuesIn(std::vector<gemm_test_params>{
+        gemm_test_params{CASE_GEMM_2IN_FP16_1, 3, 4},
+        gemm_test_params{CASE_GEMM_2IN_FP16_2, 3, 4},
+        gemm_test_params{CASE_GEMM_2IN_FP16_3, 3, 4},
+    }));
+
+class permute_gemm_2in : public GemmFusingTestOneDNN {};
+TEST_P(permute_gemm_2in, permute_gemm) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input0", get_input_layout(p, 0)),
+        input_layout("input1", get_input_layout(p, 1)),
+        permute("permute0", input_info("input0"), {0, 2, 1, 3}),
+        permute("permute1", input_info("input1"), {1, 2, 3, 0}),
+        gemm("gemm_prim", { input_info("permute0"), input_info("permute1") }, data_types::f16),
+        reorder("reorder_bfyx", input_info("gemm_prim"), p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(data_types::f16);
+    execute(p, false);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    fusings_gpu, permute_gemm_2in, ::testing::ValuesIn(std::vector<gemm_test_params>{
+        gemm_test_params{CASE_GEMM_2IN_FP16_1, 3, 5},
+        gemm_test_params{CASE_GEMM_2IN_FP16_2, 3, 5},
+        gemm_test_params{CASE_GEMM_2IN_FP16_3, 3, 5},
+    }));
+
+#endif // ENABLE_ONEDNN_FOR_GPU

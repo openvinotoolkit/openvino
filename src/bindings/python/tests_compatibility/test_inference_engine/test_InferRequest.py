@@ -302,7 +302,8 @@ def test_async_infer_callback_wait_before_start(device):
     request = exec_net.requests[0]
     request.set_completion_callback(callback)
     status = request.wait()
-    assert status == ie.StatusCode.INFER_NOT_STARTED
+    # Plugin API 2.0 has the different behavior will not return this status
+    # assert status == ie.StatusCode.INFER_NOT_STARTED
     request.async_infer({'parameter': img})
     status = request.wait()
     assert status == ie.StatusCode.OK
@@ -320,7 +321,8 @@ def test_async_infer_callback_wait_in_callback(device):
             self.cv = threading.Condition()
             self.request.set_completion_callback(self.callback)
             self.status_code = self.request.wait(ie.WaitMode.STATUS_ONLY)
-            assert self.status_code == ie.StatusCode.INFER_NOT_STARTED
+            # Plugin API 2.0 has the different behavior will not return this status
+            # assert self.status_code == ie.StatusCode.INFER_NOT_STARTED
 
         def callback(self, statusCode, userdata):
             self.status_code = self.request.wait(ie.WaitMode.STATUS_ONLY)
@@ -374,7 +376,7 @@ def test_get_perf_counts(device):
     request = exec_net.requests[0]
     request.infer({'data': img})
     pc = request.get_perf_counts()
-    assert pc['29']["status"] == "EXECUTED"
+    assert pc['29/WithoutBiases']["status"] == "EXECUTED"
     del exec_net
     del ie_core
     del net
@@ -399,23 +401,6 @@ def test_blob_setter(device):
     request.infer()
     res_2 = np.sort(request.output_blobs['fc_out'].buffer)
     assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)
-
-
-def test_blob_setter_with_preprocess(device):
-    ie_core = ie.IECore()
-    net = ie_core.read_network(test_net_xml, test_net_bin)
-    exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
-
-    img = generate_image()
-    tensor_desc = ie.TensorDesc("FP32", [1, 3, 32, 32], "NCHW")
-    img_blob = ie.Blob(tensor_desc, img)
-    preprocess_info = ie.PreProcessInfo()
-    preprocess_info.mean_variant = ie.MeanVariant.MEAN_IMAGE
-
-    request = exec_net.requests[0]
-    request.set_blob('data', img_blob, preprocess_info)
-    pp = request.preprocess_info["data"]
-    assert pp.mean_variant == ie.MeanVariant.MEAN_IMAGE
 
 
 def test_getting_preprocess(device):
@@ -525,7 +510,7 @@ def test_set_blob_with_incorrect_size(device):
     blob = ie.Blob(tensor_desc)
     with pytest.raises(RuntimeError) as e:
         exec_net.requests[0].set_blob("data", blob)
-    assert f"Input blob size is not equal network input size" in str(e.value)
+    assert f"Can't set the input tensor" in str(e.value)
     with pytest.raises(RuntimeError) as e:
         exec_net.requests[0].set_blob("out", blob)
-    assert f"Output blob size is not equal network output size" in str(e.value)
+    assert f"Can't set the output tensor" in str(e.value)

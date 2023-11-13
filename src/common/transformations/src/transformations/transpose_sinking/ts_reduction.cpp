@@ -42,20 +42,11 @@ bool get_keep_dims(const std::shared_ptr<Node>& main_node) {
 TSReductionForward::TSReductionForward() {
     MATCHER_SCOPE(TSReductionForward);
 
-    auto transpose_label = wrap_type<ov::op::v1::Transpose>({any_input(), wrap_type<ov::op::v0::Constant>()});
-    auto reduce_label = wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
-        {transpose_label, wrap_type<ov::op::v0::Constant>()});
-
-    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
-        const auto& pattern_to_output = m.get_pattern_map();
-        auto transpose = as_type_ptr<ov::op::v1::Transpose>(pattern_to_output.at(transpose_label));
-        auto main_node = pattern_to_output.at(reduce_label);
-        if (!transpose || transformation_callback(main_node)) {
-            return false;
-        }
-
+    create_pattern<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(true, {0});
+    auto sinking_transformation = [=](const std::shared_ptr<Node>& main_node,
+                                      const TransposeInputsInfo& transpose_info) -> bool {
         auto keep_dims = get_keep_dims(main_node);
-        auto transpose_order = as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
+        auto transpose_order = transpose_info.transpose_const;
         auto reduction_axes = as_type_ptr<ov::op::v0::Constant>(main_node->get_input_node_shared_ptr(1));
         if (!transpose_order || !reduction_axes)
             return false;
@@ -84,7 +75,7 @@ TSReductionForward::TSReductionForward() {
         auto new_const =
             ov::op::v0::Constant::create(reduction_axes->get_element_type(), {new_values.size()}, new_values);
         main_node->input(1).replace_source_output(new_const);
-        TransposeInputsInfo transpose_input_info = {transpose, new_transpose_order, 0};
+        TransposeInputsInfo transpose_input_info = {transpose_info.transpose, new_transpose_order, 0};
         // deletes Transpose from 0 input
         auto success = sink_forward::UpdateInputTransposes(main_node, transpose_input_info, {0});
         if (!success) {
@@ -92,16 +83,12 @@ TSReductionForward::TSReductionForward() {
         }
 
         copy_runtime_info(reduction_axes, new_const);
-        main_node->validate_and_infer_types();
-        for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
-            register_new_node(new_node);
-            UpdateForwardSinkingAbility(new_node);
-        }
+
+        default_outputs_update(main_node, transpose_input_info);
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(reduce_label, matcher_name);
-    register_matcher(m, matcher_pass_callback);
+    transpose_sinking(matcher_name, sinking_transformation);
 }
 
 TSReductionBackward::TSReductionBackward() {

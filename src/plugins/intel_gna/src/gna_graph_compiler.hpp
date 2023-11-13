@@ -53,10 +53,14 @@ private:
                                                 size_t element_size,
                                                 uint32_t num_rows,
                                                 uint32_t num_cols);
-
-    std::unique_ptr<const limitations::cnn2d::AbstractValidator> cnn2dValidator;
+    std::vector<uint8_t> static copy_matrix(uint8_t* ptr_matrix,
+                                            size_t element_size,
+                                            uint32_t num_rows,
+                                            uint32_t num_cols);
 
     bool ShouldUseOnlyConv2DGnaIface() const;
+
+    std::shared_ptr<limitations::cnn2d::AbstractValidator> m_cnn2d_validator;
 
 public:
     backend::DnnComponents dnnComponents;
@@ -64,10 +68,12 @@ public:
     ConcatConnection concat_connection;
     ConstConnections const_connections;
 
-    GNAGraphCompiler(const Config& gna_config);
+    GNAGraphCompiler(const Config& gna_config,
+                     std::shared_ptr<backend::AMIntelDNN> dnn_ptr,
+                     std::shared_ptr<GnaInputs> inputs_ptr,
+                     std::shared_ptr<limitations::cnn2d::AbstractValidator> cnn2d_validator,
+                     std::shared_ptr<gna_memory_type> gna_mem_ptr);
     void setGNAMemoryPtr(std::shared_ptr<gna_memory_type> gnaMemPtr);
-    void setDNNPtr(std::shared_ptr<backend::AMIntelDNN> dnnPtr);
-    void setInputsPtr(std::shared_ptr<GnaInputs> inputsPtr);
 
     void fillMemoryConnections(std::unordered_map<std::string, std::vector<InferenceEngine::CNNLayerPtr>>& memoryPairs);
 
@@ -92,8 +98,6 @@ public:
                            const uint32_t windowW,
                            const uint32_t strideH,
                            const uint32_t strideW) const;
-
-    void SetValidatorTarget(const target::DeviceVersion& target);
 
     /**
      * Connects either memory output, or generic output to a layer

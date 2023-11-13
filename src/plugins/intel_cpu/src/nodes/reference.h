@@ -12,7 +12,7 @@ namespace node {
 
 class Reference : public Node {
 public:
-    Reference(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context, const std::string& errorMessage);
+    Reference(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context, const std::string& errorMessage);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -22,6 +22,7 @@ public:
 
     bool needShapeInfer() const override;
     bool needPrepareParams() const override { return false; }
+    bool isExecutable() const override { return true; }
     void executeDynamicImpl(dnnl::stream strm) override;
 
 private:
@@ -29,7 +30,7 @@ private:
     ov::TensorVector prepareOutputs() const;
 
 private:
-    const std::shared_ptr<ngraph::Node> ngraphOp;
+    const std::shared_ptr<ov::Node> ovCoreNode;
     const std::string additionalErrorMessage;
 };
 

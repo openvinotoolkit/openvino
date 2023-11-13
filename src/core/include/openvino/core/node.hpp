@@ -19,7 +19,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "ngraph/op/util/op_annotations.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/deprecated.hpp"
@@ -39,14 +38,6 @@
 #include "openvino/op/util/variable_value.hpp"
 #include "openvino/runtime/tensor.hpp"
 
-namespace ngraph {
-
-namespace runtime {
-class HostTensor;
-}  // namespace runtime
-
-}  // namespace ngraph
-
 namespace ov {
 namespace op {
 namespace v0 {
@@ -62,9 +53,9 @@ namespace pattern {
 class Matcher;
 }  // namespace pattern
 }  // namespace pass
-using HostTensor = ngraph::runtime::HostTensor;
-using HostTensorPtr = std::shared_ptr<HostTensor>;
-using HostTensorVector = std::vector<HostTensorPtr>;
+OPENVINO_SUPPRESS_DEPRECATED_START
+using HostTensorVector = std::vector<ngraph::HostTensorPtr>;
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <typename NodeType>
 class Input;
@@ -534,29 +525,46 @@ public:
                                     const Node* node,
                                     const std::string& explanation);
 
+    template <class TShape>
+    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
+                                    std::pair<const Node*, const std::vector<TShape>*>&& ctx,
+                                    const std::string& explanation);
+
 protected:
     explicit NodeValidationFailure(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
 };
 
+/**
+ * @brief Specialization to throw the `NodeValidationFailure` for shape inference using `PartialShape`
+ *
+ * @param check_loc_info Exception location details to print.
+ * @param ctx            NodeValidationFailure context which got pointer to node and input shapes used for shape
+ * inference.
+ * @param explanation    Exception explanation string.
+ */
+template <>
+OPENVINO_API void NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
+                                                std::pair<const Node*, const std::vector<PartialShape>*>&& ctx,
+                                                const std::string& explanation);
 }  // namespace ov
 #define NODE_VALIDATION_CHECK(node, ...) OPENVINO_ASSERT_HELPER(::ov::NodeValidationFailure, (node), __VA_ARGS__)
 
-namespace ov {
-template <typename T>
-void check_new_args_count(const Node* node, T new_args) {
-    NODE_VALIDATION_CHECK(node,
-                          new_args.size() == node->input_values().size(),
-                          "clone_with_new_inputs() expected ",
-                          node->input_values().size(),
-                          " argument",
-                          (node->input_values().size() == 1 ? "" : "s"),
-                          " but got ",
-                          new_args.size());
-}
-
-}  // namespace ov
+/** \brief Throw NodeValidationFailure with additional information about input shapes used during shape inference. */
+#define NODE_SHAPE_INFER_CHECK(node, input_shapes, ...) \
+    NODE_VALIDATION_CHECK(std::make_pair(static_cast<const ::ov::Node*>((node)), &(input_shapes)), __VA_ARGS__)
 
 namespace ov {
+
+/**
+ * @brief Check new arguments size if match node inputs count.
+ *
+ * This check is required in cloning ov::Node.
+ *
+ * @param node      Pointer to node.
+ * @param new_args  Vector with new outputs to check.
+ */
+void OPENVINO_API check_new_args_count(const Node* const node, const OutputVector& new_args);
+
 /// \brief Visits a reference to a node that has been registered with the visitor.
 template <>
 class OPENVINO_API AttributeAdapter<std::shared_ptr<ov::Node>> : public VisitorAdapter {

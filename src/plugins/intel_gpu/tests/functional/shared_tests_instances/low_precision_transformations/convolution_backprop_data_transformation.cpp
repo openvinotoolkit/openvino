@@ -15,7 +15,7 @@ const std::vector<ngraph::element::Type> netPrecisions = {
         ngraph::element::f16
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true)
 };
 
@@ -116,7 +116,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionBackpropDataTransformation,
             ::testing::ValuesIn(netPrecisions),
             ::testing::ValuesIn(inputShapes),
             ::testing::ValuesIn(outputShapes),
-            ::testing::Values(CommonTestUtils::DEVICE_GPU),
+            ::testing::Values(ov::test::utils::DEVICE_GPU),
             ::testing::ValuesIn(trasformationParamValues),
             ::testing::ValuesIn(params)),
     ConvolutionBackpropDataTransformation::getTestCaseName);

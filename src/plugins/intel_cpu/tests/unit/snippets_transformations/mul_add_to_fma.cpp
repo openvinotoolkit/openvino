@@ -6,9 +6,11 @@
 #include <subgraph_simple.hpp>
 #include <transformations/snippets/x64/pass/mul_add_to_fma.hpp>
 #include <transformations/snippets/x64/op/fused_mul_add.hpp>
-
-#include "snippets/pass/loop_helpers.hpp"
+#include <transformations/snippets/x64/shape_inference.hpp>
+#include "snippets/op/scalar.hpp"
 #include "lowering_utils.hpp"
+#include "common_test_utils/common_utils.hpp"
+#include "snippets/pass/manager.hpp"
 
 namespace ov {
 namespace test {
@@ -61,37 +63,20 @@ protected:
         ParameterVector parameters{data0, data1};
         std::shared_ptr<Node> data2;
         if (scalar_input) {
-            data2 = std::make_shared<ngraph::snippets::op::Scalar>(precision, Shape{}, 2.f);
+            data2 = std::make_shared<ov::snippets::op::Scalar>(precision, Shape{1}, 2.f);
         } else {
             auto parameter = std::make_shared<op::v0::Parameter>(precision, input_shapes[2]);
             parameters.push_back(parameter);
             data2 = parameter;
         }
 
-        auto load0 = std::make_shared<ngraph::snippets::op::Load>(data0);
-        auto load1 = std::make_shared<ngraph::snippets::op::Load>(data1);
-        auto load2 = scalar_input ? data2 : std::make_shared<ngraph::snippets::op::Load>(data2);
 
-        auto a = scalar_input || add_input_idx == 0 ? load0 : load1;
-        auto b = scalar_input || add_input_idx == 0 ? load1 : load2;
-        auto c = scalar_input || add_input_idx == 0 ? load2 : load0;
+        auto a = scalar_input || add_input_idx == 0 ? data0 : data1;
+        auto b = scalar_input || add_input_idx == 0 ? data1 : data2;
+        auto c = scalar_input || add_input_idx == 0 ? data2 : data0;
 
         auto fma = std::make_shared<ov::intel_cpu::FusedMulAdd>(a, b, c);
-        auto store = std::make_shared<ngraph::snippets::op::Store>(fma);
-        auto model = std::make_shared<ov::Model>(NodeVector{store}, parameters);
-
-        ResultVector results({model->get_results()[0]});
-        const auto& inner_loop_begin = ngraph::snippets::op::insertLoopBegin(parameters);
-        // control dependency is added only in the case when scalar are located before loopBegin in topological order
-        if (scalar_input && add_input_idx == 1) {
-            data2->add_control_dependency(inner_loop_begin);
-        }
-        std::vector<bool> apply_increments(parameters.size() + results.size(), true);
-        ngraph::snippets::op::insertLoopEnd(results, inner_loop_begin, 1, 1, apply_increments);
-        const auto& outer_loop_begin = ngraph::snippets::op::insertLoopBegin(parameters);
-        ngraph::snippets::op::insertLoopEnd(results, outer_loop_begin, 1, 1, apply_increments);
-
-        return model;
+        return std::make_shared<ov::Model>(NodeVector{fma}, parameters);
     }
 
     void validate_function(const std::shared_ptr<Model> &m) const override {
@@ -127,37 +112,46 @@ public:
 
         std::ostringstream result;
         for (size_t i = 0; i < inputShapes.size(); i++)
-            result << "IS[" << i << "]=" << inputShapes[i] << "_";
-        result << "MS=" << master_shape << "_";
+            result << "IS[" << i << "]=" <<  ov::test::utils::partialShape2str({inputShapes[i]}) << "_";
+        result << "MS=" << ov::test::utils::partialShape2str({master_shape}) << "_";
         result << "add_input_idx=" << add_input_idx;
         return result.str();
     }
 
 protected:
     void SetUp() override {
+        using PassPosition = ov::snippets::pass::Manager::PassPosition;
         LoweringTests::SetUp();
         std::vector<PartialShape> inputShapes(3);
         size_t add_input_idx;
         std::tie(inputShapes[0], inputShapes[1], inputShapes[2], master_shape, add_input_idx) = this->GetParam();
         const bool scalar_input = ov::shape_size(inputShapes[2].to_shape()) == 1;
-        snippets_function = std::make_shared<EltwiseWithMulAddFunction>(inputShapes, add_input_idx, scalar_input);
+        snippets_model = std::make_shared<EltwiseWithMulAddFunction>(inputShapes, add_input_idx, scalar_input);
 
-        cpu_manager.register_pass<ov::intel_cpu::pass::MulAddToFMA>();
+        // Note: this inserts MulAddToFMA at the end of the pipeline
+        backend_passes.emplace_back(PassPosition(PassPosition::Place::PipelineEnd),
+                                    std::make_shared<ov::intel_cpu::pass::MulAddToFMA>());
 
         std::vector<ov::Node::type_info_t> custom_opset{ov::intel_cpu::FusedMulAdd::get_type_info_static()};
         auto target_machine = std::make_shared<DummyTargetMachine>(custom_opset);
         generator = std::make_shared<DummyGenerator>(target_machine);
     }
 
-    std::shared_ptr<SnippetsFunctionBase> snippets_function;
-    std::shared_ptr<ngraph::snippets::Generator> generator;
-    ov::pass::Manager cpu_manager;
+    std::shared_ptr<SnippetsFunctionBase> snippets_model;
+    std::shared_ptr<ov::snippets::Generator> generator;
+    std::vector<ov::snippets::pass::Manager::PositionedPass> backend_passes;
 };
 
 TEST_P(MulAddToFMATests, MulAddToFMATests) {
-    auto subgraph = getLoweredSubgraph(snippets_function->getOriginal(), master_shape, {}, {}, cpu_manager, generator);
+    auto subgraph = getLoweredSubgraph(snippets_model->getOriginal(),
+                                       master_shape,
+                                       backend_passes,
+                                       {},
+                                       {},
+                                       generator,
+                                       std::make_shared<ov::snippets::CPUShapeInferSnippetsFactory>());
     model = subgraph->body_ptr();
-    model_ref = snippets_function->getLowered();
+    model_ref = snippets_model->getLowered();
 }
 
 namespace MulAddToFMATestsInstantiation {

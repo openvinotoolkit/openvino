@@ -16,6 +16,7 @@
 #include <utils/general_utils.h>
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "nodes/node_config.h"
 #include <common/primitive_hashing_utils.hpp>
 
 // to access and change C pooling primitive desc internal padding field
@@ -242,7 +243,7 @@ void Pooling::initEffectiveAttributes(const Shape &inShape, const Shape &outShap
     const auto &inDims = inShape.getStaticDims();
     const auto &outDims = outShape.getStaticDims();
 
-    for (int i = 0; i < poolingAttrs.effective_pad_end.size(); i++) {
+    for (size_t i = 0; i < poolingAttrs.effective_pad_end.size(); i++) {
         int krn = poolingAttrs.kernel[i];
         int dil = poolingAttrs.dilation[i];
         int src = inDims[2 + i];
@@ -270,14 +271,31 @@ void Pooling::getSupportedDescriptors() {
     const auto &childShape = getOutputShapeAtPort(0);
     const size_t inputRank = getInputShapeAtPort(0).getRank();
 
+    if (isDynamicNode()) {
+        inShape = MemoryDescUtils::makeDummyShape(parentShape);
+        const auto& origDims = parentShape.getDims();
+        const auto& origMaxDims = parentShape.getMaxDims();
+
+        auto inDims = inShape.getStaticDims();
+        for (size_t i = 0; i < inDims.size() - 2; i++) {
+            if (origDims[i + 2] == Shape::UNDEFINED_DIM) {
+                inDims[i + 2] = std::min<Dim>(origMaxDims[i + 2], std::max<Dim>(inDims[i + 2], poolingAttrs.kernel[i]));
+            }
+        }
+        inShape = Shape(inDims);
+    } else {
+        inShape = parentShape;
+    }
+
 #if defined(OV_CPU_WITH_ACL)
     // WA: we may specify any layout here (NCHW or NHWC) since both are supported by ACL
-    arm_compute::DataLayout dataLayout = (parentShape.getDims().size() == 5) ? arm_compute::DataLayout::NDHWC : arm_compute::DataLayout::NCHW;
-    arm_compute::TensorInfo srcTensorInfo = arm_compute::TensorInfo(shapeCast(parentShape.getDims()),
+    arm_compute::DataLayout dataLayout = (inShape.getDims().size() == 5) ? arm_compute::DataLayout::NDHWC : arm_compute::DataLayout::NCHW;
+    arm_compute::TensorInfo srcTensorInfo = arm_compute::TensorInfo(shapeCast(inShape.getDims()),
                                                                     1,
                                                                     precisionToAclDataType(inputPrecision),
                                                                     dataLayout);
-    arm_compute::TensorInfo dstTensorInfo = arm_compute::TensorInfo(shapeCast(childShape.getDims()),
+    arm_compute::TensorInfo dstTensorInfo = arm_compute::TensorInfo(shapeCast(isDynamicNode() ? MemoryDescUtils::makeDummyShape(childShape).getDims() :
+                                                                                                childShape.getDims()),
                                                                     1,
                                                                     precisionToAclDataType(outputPrecision),
                                                                     dataLayout);
@@ -286,22 +304,25 @@ void Pooling::getSupportedDescriptors() {
     useACL = AclPoolingExecutor::isSupported(srcTensorInfo,
                                              dstTensorInfo,
                                              poolingAttrs,
-                                             parentShape.getDims().size(),
+                                             inShape.getDims().size(),
                                              getOriginalOutputsNumber(),
                                              dataLayout,
                                              (getOriginalOutputsNumber() > 1) ? &getOutputShapeAtPort(1).getDims() : nullptr,
                                              &pool_info,
-                                             &pool3d_info);
+                                             &pool3d_info,
+                                             isDynamicNode());
     //FIXME: 5D tensors case is not assigned to ACL because there is no way to check layout here
     //NEPooling3dLayer supports NDHWC only
-    if (parentShape.getDims().size() == 5)
+    if (inShape.getDims().size() == 5) {
         useACL = false;
+        DEBUG_LOG("FIXME: 5D tensors case is not assigned to ACL because there is no way to check layout in getSupportedDescriptors()");
+    }
 #endif
     if (useACL) return;
 
     // WA: LPT transformation has WA which allows average pooling has I8/U8 output precision instead of FP32,
     // so we explicitly set output precision as FP32
-    if (outputPrecision != Precision::I8 && inputPrecision != Precision::BF16) {
+    if (!one_of(outputPrecision, Precision::I8, Precision::BF16, Precision::FP16)) {
         if (getAlgorithm() == Algorithm::PoolingMax) {
             // oneDNN supports only equal precisions for input and output
             outputPrecision = inputPrecision;
@@ -309,7 +330,7 @@ void Pooling::getSupportedDescriptors() {
             outputPrecision = Precision::FP32;
         }
     }
-    if (inputPrecision == Precision::BF16) {
+    if (one_of(inputPrecision, Precision::BF16, Precision::FP16)) {
         outputPrecision = inputPrecision;
     }
 
@@ -323,26 +344,14 @@ void Pooling::getSupportedDescriptors() {
     if ((inputRank < 3) || (inputRank > 5))
         IE_THROW() << "Pooling layer. Unsupported mode. Only 3D, 4D and 5D blobs are supported as input.";
 
-    inShape = MemoryDescUtils::makeDummyShape(parentShape);
-    if (isDynamicNode()) {
-        const auto& origDims = parentShape.getDims();
-        const auto& origMaxDims = parentShape.getMaxDims();
 
-        auto inDims = inShape.getStaticDims();
-        for (size_t i = 0; i < inDims.size() - 2; i++) {
-            if (origDims[i + 2] == Shape::UNDEFINED_DIM) {
-                inDims[i + 2] = std::min<Dim>(origMaxDims[i + 2], std::max<Dim>(inDims[i + 2], poolingAttrs.kernel[i]));
-            }
-        }
-        inShape = Shape(inDims);
-    }
 
     initEffectiveAttributes(inShape,
                             MemoryDescUtils::makeDummyShape(childShape));
 
     if (inputPrecision == Precision::I8 || inputPrecision == Precision::U8) {
         //  We have to extend i8i8_pooling_fwd_t from oneDNN to support BF16 output data type
-        if (outputDataType == memory::data_type::bf16)
+        if (one_of(outputDataType, memory::data_type::bf16, memory::data_type::f16))
             outputDataType = memory::data_type::f32;
         // i8 layers supports only ndhwc and nhwc layouts
         const auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, inputRank == 3 ?
@@ -358,7 +367,7 @@ void Pooling::getSupportedDescriptors() {
                                    memory::format_tag::ncw : (inputRank == 4 ? memory::format_tag::nchw : memory::format_tag::ncdhw));
         createDescriptor({ in_candidate }, { out_candidate });
     } else {
-        if (inputDataType != memory::data_type::bf16) {
+        if (!one_of(inputDataType, memory::data_type::bf16, memory::data_type::f16)) {
             inputDataType = memory::data_type::f32;
             outputDataType = memory::data_type::f32;
         }
@@ -385,21 +394,26 @@ void Pooling::prepareParams() {
     } else {
         attr = initPrimitiveAttr();
     }
-
+    if (isDynamicNode()) {
+        if (poolingAttrs.auto_pad) {
+            poolingAttrs.data_pad_begin = shapeInference->get_pads_begin();
+            poolingAttrs.data_pad_end = shapeInference->get_pads_end();
+        }
+    }
     if (useACL) {
-        auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-        auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+        auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
         if (!dstMemPtr || !dstMemPtr->isAllocated())
             IE_THROW() << "Destination memory didn't allocate.";
         if (!srcMemPtr || !srcMemPtr->isAllocated())
             IE_THROW() << "Input memory didn't allocate.";
 
         std::vector<MemoryDescPtr> srcMemoryDescs;
-        for (int i = 0; i < getOriginalInputsNumber(); i++) {
+        for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
             srcMemoryDescs.push_back(getParentEdgeAt(i)->getMemoryPtr()->getDescPtr());
         }
         std::vector<MemoryDescPtr> dstMemoryDescs;
-        for (int i = 0; i < getOriginalOutputsNumber(); i++) {
+        for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
             dstMemoryDescs.push_back(getChildEdgeAt(i)->getMemoryPtr()->getDescPtr());
         }
 
@@ -409,14 +423,10 @@ void Pooling::prepareParams() {
                                                                                             *attr);
         selected_pd->setImplementationType(execPtr->getImplType());
     } else {
-        auto inDesc = getParentEdgesAtPort(0)[0]->getMemory().GetDescWithType<DnnlMemoryDesc>();
-        auto outDesc = getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<DnnlMemoryDesc>();
+        auto inDesc = getParentEdgesAtPort(0)[0]->getMemory().getDescWithType<DnnlMemoryDesc>();
+        auto outDesc = getChildEdgesAtPort(0)[0]->getMemory().getDescWithType<DnnlMemoryDesc>();
 
         if (isDynamicNode()) {
-            if (poolingAttrs.auto_pad) {
-                poolingAttrs.data_pad_begin = shapeInference->get_pads_begin();
-                poolingAttrs.data_pad_end = shapeInference->get_pads_end();
-            }
             initEffectiveAttributes(inDesc->getShape(), outDesc->getShape());
         }
 
@@ -467,9 +477,9 @@ void Pooling::prepareParams() {
         }
 
         auto scratchpadMem = getScratchPadMem(dnnlExecPtr->getScratchPadDesc());
-        primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
-        primArgs[DNNL_ARG_SRC] = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-        primArgs[DNNL_ARG_DST] = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+        primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
+        primArgs[DNNL_ARG_SRC] = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getPrimitive();
+        primArgs[DNNL_ARG_DST] = getChildEdgesAtPort(0)[0]->getMemoryPtr()->getPrimitive();
 
         Node::appendPostOpArgs(*attr, primArgs, postOpsArgs);
 
@@ -487,11 +497,11 @@ void Pooling::execute(dnnl::stream strm) {
         dnnlExecPtr->exec(primArgs, strm);
     } else if (execPtr) {
         std::vector<MemoryCPtr> srcMemory;
-        for (int i = 0; i < getOriginalInputsNumber(); i++) {
+        for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
             srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
         }
         std::vector<MemoryPtr> dstMemory;
-        for (int i = 0; i < getOriginalOutputsNumber(); i++) {
+        for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
             dstMemory.push_back(getChildEdgeAt(i)->getMemoryPtr());
         }
 
@@ -576,15 +586,14 @@ void Pooling::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
     const auto& out_candidate = dnnlOutDesc.getDnnlDesc();
 
     auto desc = createDescriptorInternal(in_candidate, out_candidate, getPoolingAlgorithm());
-    descs.emplace_back(desc);
+
+    if (desc)
+        descs.emplace_back(desc);
 }
 
 void Pooling::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
-
-    dnnl::primitive_attr attr;
-    setPostOps(attr);
 
     if (useACL) {
         auto& creatorsMap = BlockedDescCreator::getCommonCreators();
@@ -593,17 +602,16 @@ void Pooling::initSupportedPrimitiveDescriptors() {
             config.inConfs.resize(getParentEdges().size());
             config.outConfs.resize(getOriginalOutputsNumber());
 
-            config.inConfs[0].setMemDesc(
-                creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getInputShapeAtPort(0)));
-            config.outConfs[0].setMemDesc(
-                creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(0), getOutputShapeAtPort(0)));
-
             std::vector<MemoryDescPtr> srcMemoryDescs;
-            for (int i = 0; i < config.inConfs.size(); i++) {
+            for (size_t i = 0; i < config.inConfs.size(); i++) {
+                config.inConfs[i].setMemDesc(
+                    creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(i), getInputShapeAtPort(i)));
                 srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
             }
             std::vector<MemoryDescPtr> dstMemoryDescs;
-            for (int i = 0; i < config.outConfs.size(); i++) {
+            for (size_t i = 0; i < config.outConfs.size(); i++) {
+                config.outConfs[i].setMemDesc(
+                    creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(i), getOutputShapeAtPort(i)));
                 dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
             }
 
@@ -611,53 +619,61 @@ void Pooling::initSupportedPrimitiveDescriptors() {
                 poolingAttrs,
                 srcMemoryDescs,
                 dstMemoryDescs,
-                std::make_shared<ExecutorContext>(context, getPrimitivesPriority()));
+                std::make_shared<ExecutorContext>(context, getImplPriority()));
             supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::undef, factory);
         };
+
         pushDesc(LayoutType::ncsp);
-    } else {
-        for (auto& desc : descs) {
-            auto itpd = desc;
 
-            while (static_cast<bool>(itpd)) {
-                NodeConfig config;
-                for (size_t i = 0; i < descInputNumbers(); i++) {
-                    PortConfig dataConfig;
-                    dataConfig.inPlace(-1);
-                    dataConfig.constant(false);
-                    dataConfig.setMemDesc(getSrcMemDesc(itpd, i));
+        return;
+    }
 
-                    config.inConfs.push_back(dataConfig);
-                }
+    auto addSupportedPrimitiveDescriptor = [&](const dnnl::primitive_desc& prim_desc) {
+        std::vector<PortConfig> inConfs, outConfs;
+        const int inPlaceOutPort = canBeInPlace() ? 0 : -1;
 
-                for (size_t i = 0; i < descOutputNumbers(); i++) {
-                    PortConfig dataConfig;
-                    dataConfig.inPlace(canBeInPlace() ? 0 : -1);
-                    dataConfig.constant(false);
-                    dataConfig.setMemDesc(getDstMemDesc(itpd, i));
-
-                    config.outConfs.push_back(dataConfig);
-                }
-
-                // CPU plugin doesn't support second output of MaxPool-8, but anyway we should have out config for second port as stub
-                if (isMaxPool8) {
-                    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-                    PortConfig dataConfig;
-                    dataConfig.inPlace(-1);
-                    dataConfig.constant(false);
-                    dataConfig.setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(config.outConfs.front().getMemDesc()->getPrecision(),
-                                                                                            getOutputShapeAtPort(1)));
-
-                    config.outConfs.push_back(dataConfig);
-                }
-
-                impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-                supportedPrimitiveDescriptors.emplace_back(config, impl_type);
-                if (!itpd.next_impl())
-                    break;
-            }
+        for (size_t i = 0; i < descInputNumbers(); i++) {
+            auto desc = getSrcMemDesc(prim_desc, i);
+            inConfs.emplace_back(desc);
         }
+
+        for (size_t i = 0; i < descOutputNumbers(); i++) {
+            auto desc = getDstMemDesc(prim_desc, i);
+            // PortConfig in{desc, inPlaceOutPort};
+            outConfs.emplace_back(desc, BlockedMemoryDesc::FULL_MASK, inPlaceOutPort);
+        }
+
+        // CPU plugin doesn't support second output of MaxPool-8, but anyway we should have out config for second port as stub
+        if (isMaxPool8) {
+            const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+            const auto outputPrecision = outConfs.front().getMemDesc()->getPrecision();
+            auto desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(outputPrecision, getOutputShapeAtPort(1));
+
+            outConfs.emplace_back(desc);
+        }
+
+        const NodeConfig config(inConfs, outConfs);
+        const impl_desc_type impl_type = parse_impl_name(prim_desc.impl_info_str());
+
+        supportedPrimitiveDescriptors.emplace_back(config, impl_type);
+    };
+
+    for (auto& desc : descs) {
+        auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));
+        const bool first_match = customImplPriorities.empty();
+        DnnlExtensionUtils::for_each_implementation(desc,
+                                                    first_match,
+                                                    [&](impl_desc_type implType) {
+                                                        return contains(getImplPriority(), implType);
+                                                    },
+                                                    [&](dnnl::primitive_desc& desc) {
+                                                        addSupportedPrimitiveDescriptor(desc);
+                                                    });
+
+        // fallback. if none of the primitive types is present in the priority list just add first implementation
+        // @todo this fallback is not necessary if primitive priority list is filled correctly
+        if (supportedPrimitiveDescriptors.empty())
+            addSupportedPrimitiveDescriptor(first_desc);
     }
 }
 

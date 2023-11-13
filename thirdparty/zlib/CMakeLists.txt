@@ -14,7 +14,11 @@ else()
         set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -diag-disable=266")
     endif()
     if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-deprecated-non-prototype")
+        include(CheckCCompilerFlag)
+        check_c_compiler_flag("-Wdeprecated-non-prototype" DEPRECATED_NO_PROTOTYPE)
+        if(DEPRECATED_NO_PROTOTYPE)
+            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-deprecated-non-prototype")
+        endif()
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-variable")
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-deprecated-declarations")
     endif()
@@ -55,8 +59,8 @@ set(zlib_ext_hdrs
     zlib/zconf.h)
 
 add_library(${TARGET_NAME} STATIC ${zlib_srcs} ${zlib_hdrs} ${lib_ext_hdrs})
-add_library(${TARGET_NAME}::${TARGET_NAME} ALIAS ${TARGET_NAME})
+add_library(ZLIB::ZLIB ALIAS ${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/zlib")
 
-set_target_properties(zlib PROPERTIES FOLDER thirdparty)
+set_target_properties(${TARGET_NAME} PROPERTIES FOLDER thirdparty)

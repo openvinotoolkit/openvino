@@ -7,7 +7,7 @@
 #include <vector>
 
 #include <openvino/core/partial_shape.hpp>
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
@@ -77,13 +77,13 @@ public:
         result << "outPRC="  << outPrc << separator;
         result << "inL="     << inLayout << separator;
         result << "outL="    << outLayout << separator;
-        result << "widths="  << CommonTestUtils::vec2str(attributes.widths)  << separator;
-        result << "heights=" << CommonTestUtils::vec2str(attributes.heights) << separator;
+        result << "widths="  << ov::test::utils::vec2str(attributes.widths)  << separator;
+        result << "heights=" << ov::test::utils::vec2str(attributes.heights) << separator;
         result << "variances=";
         if (attributes.variances.empty())
             result << "()" << separator;
         else
-            result << CommonTestUtils::vec2str(attributes.variances) << separator;
+            result << ov::test::utils::vec2str(attributes.variances) << separator;
         result << "stepWidth="  << attributes.step_widths  << separator;
         result << "stepHeight=" << attributes.step_heights << separator;
         result << "step="       << attributes.step << separator;
@@ -109,7 +109,7 @@ protected:
                  inputShapes, imageShapes, targetDevice) = GetParam();
 
         selectedType = makeSelectedTypeStr("ref_any", ov::test::ElementType::i32);
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         init_input_shapes({ inputShapes, imageShapes });
 
@@ -124,8 +124,10 @@ protected:
             attributes.offset,
             attributes.variances) = specParams;
 
-        auto params = ngraph::builder::makeDynamicParams(netPrecision, { inputShapes.first, imageShapes.first });
-
+        ov::ParameterVector params;
+        for (auto&& shape : { inputShapes.first, imageShapes.first }) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+        }
         auto shape_of_1 = std::make_shared<ngraph::opset3::ShapeOf>(params[0]);
         auto shape_of_2 = std::make_shared<ngraph::opset3::ShapeOf>(params[1]);
         auto priorBoxClustered = std::make_shared<ngraph::op::PriorBoxClustered>(
@@ -219,7 +221,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PriorBoxClustered, PriorBoxClusteredLayerCPUTest,
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(imageShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     PriorBoxClusteredLayerCPUTest::getTestCaseName
 );
 

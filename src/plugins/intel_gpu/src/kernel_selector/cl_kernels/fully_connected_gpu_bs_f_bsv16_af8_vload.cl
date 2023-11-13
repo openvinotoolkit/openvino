@@ -31,6 +31,8 @@
 }
 
 #define SUB_GROUP_SIZE 16
+#define INPUT_FEATURE_ALIGNMENT 8
+#define ALIGNED_INPUT0_ELEMENTS_COUNT ALIGN(INPUT0_ELEMENTS_COUNT, INPUT_FEATURE_ALIGNMENT)
 
 __attribute__((reqd_work_group_size(SUB_GROUP_SIZE, 1, 1)))
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
@@ -59,9 +61,9 @@ KERNEL (fully_connected_gpu_bs_f_bsv16_af8_vload)(
 
     MAKE_VECTOR_TYPE(UNIT_TYPE, 16) blockC00 = UNIT_VAL_ZERO;
 
-    uint weight_offset = id_in_sub_group + SUB_GROUP_SIZE * group_id * INPUT0_ELEMENTS_COUNT;
+    uint weight_offset = id_in_sub_group + SUB_GROUP_SIZE * group_id * ALIGNED_INPUT0_ELEMENTS_COUNT;
 
-    uint input_idx = id_in_sub_group + batch_group_id * BATCHES_PER_WORK_ITEM * INPUT0_ELEMENTS_COUNT;
+    uint input_idx = id_in_sub_group + batch_group_id * BATCHES_PER_WORK_ITEM * ALIGNED_INPUT0_ELEMENTS_COUNT;
     for(uint h = 0; h < INPUT0_ELEMENTS_COUNT / 8; h++)
     {
         // read input data in blocks ( 16 batch * 8 x )
@@ -73,6 +75,19 @@ KERNEL (fully_connected_gpu_bs_f_bsv16_af8_vload)(
         weight_offset += 128;
         input_idx     += 128; // 128 = 16 x 8 - because of input format which have blocks of 128 elements
     }
+
+#if ALIGNED_INPUT0_ELEMENTS_COUNT != INPUT0_ELEMENTS_COUNT
+    {
+        // Processing of leftover input features
+        MAKE_VECTOR_TYPE(UNIT_TYPE, 8) blockA00 = UNIT_VAL_ZERO;
+        for (uint idx = 0; idx < INPUT0_ELEMENTS_COUNT % INPUT_FEATURE_ALIGNMENT; idx++) {
+            blockA00[idx] = input[input_idx + idx * SUB_GROUP_SIZE];
+        }
+
+        MAKE_VECTOR_TYPE(UNIT_TYPE, 8) blockB00 = ALIGNED_BLOCK_READ8(weight, weight_offset);
+        MULTIPLY_BLOCKS_16x8(blockC00, blockA00, blockB00)
+    }
+#endif
 
 #if BIAS_TERM
     blockC00 += bias[neuronIdx];

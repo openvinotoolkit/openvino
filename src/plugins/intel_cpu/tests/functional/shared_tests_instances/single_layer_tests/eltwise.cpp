@@ -3,13 +3,16 @@
 //
 
 #include <vector>
-#include "single_layer_tests/eltwise.hpp"
+#include "single_op_tests/eltwise.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace ov::test::subgraph;
-
 namespace {
-std::vector<std::vector<ov::Shape>> inShapesStatic = {
+using ov::test::EltwiseLayerTest;
+using ov::test::utils::InputLayerType;
+using ov::test::utils::OpType;
+using ov::test::utils::EltwiseTypes;
+
+std::vector<std::vector<ov::Shape>> in_shapes_static = {
         {{2}},
         {{2, 200}},
         {{10, 200}},
@@ -29,107 +32,107 @@ std::vector<std::vector<ov::Shape>> inShapesStatic = {
         {{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}},
 };
 
-std::vector<std::vector<ov::Shape>> inShapesStaticCheckCollapse = {
+std::vector<std::vector<ov::Shape>> in_shapes_static_check_collapse = {
         {{16, 16, 16, 16}, {16, 16, 16, 1}},
         {{16, 16, 16, 1}, {16, 16, 16, 1}},
         {{16, 16, 16, 16}, {16, 16, 1, 16}},
         {{16, 16, 1, 16}, {16, 16, 1, 16}},
 };
 
-std::vector<std::vector<ov::test::InputShape>> inShapesDynamic = {
+std::vector<std::vector<ov::test::InputShape>> in_shapes_dynamic = {
         {{{ngraph::Dimension(1, 10), 200}, {{2, 200}, {1, 200}}},
          {{ngraph::Dimension(1, 10), 200}, {{2, 200}, {5, 200}}}},
 };
 
-std::vector<std::vector<ov::test::InputShape>> inShapesDynamicLargeUpperBound = {
+std::vector<std::vector<ov::test::InputShape>> in_shapes_dynamic_large_upper_bound = {
         {{{ngraph::Dimension(1, 1000000000000), 200}, {{2, 200}, {5, 200}}}},
 };
 
-std::vector<ov::test::ElementType> netPrecisions = {
+std::vector<ov::test::ElementType> model_types = {
         ov::element::f32,
         ov::element::f16,
         ov::element::i32,
 };
 
-std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER,
+std::vector<InputLayerType> secondary_input_types = {
+        InputLayerType::CONSTANT,
+        InputLayerType::PARAMETER,
 };
 
-std::vector<ngraph::helpers::InputLayerType> secondaryInputTypesDynamic = {
-        ngraph::helpers::InputLayerType::PARAMETER,
+std::vector<InputLayerType> secondary_input_types_dynamic = {
+        InputLayerType::PARAMETER,
 };
 
-std::vector<CommonTestUtils::OpType> opTypes = {
-        CommonTestUtils::OpType::SCALAR,
-        CommonTestUtils::OpType::VECTOR,
+std::vector<OpType> op_types = {
+        OpType::SCALAR,
+        OpType::VECTOR,
 };
 
-std::vector<CommonTestUtils::OpType> opTypesDynamic = {
-        CommonTestUtils::OpType::VECTOR,
+std::vector<OpType> op_types_dynamic = {
+        OpType::VECTOR,
 };
 
-std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
-        ngraph::helpers::EltwiseTypes::ADD,
-        ngraph::helpers::EltwiseTypes::MULTIPLY,
-        ngraph::helpers::EltwiseTypes::SUBTRACT,
-        ngraph::helpers::EltwiseTypes::DIVIDE,
-        ngraph::helpers::EltwiseTypes::FLOOR_MOD,
-        ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
-        ngraph::helpers::EltwiseTypes::POWER,
-        ngraph::helpers::EltwiseTypes::MOD
+std::vector<EltwiseTypes> eltwise_op_types = {
+        EltwiseTypes::ADD,
+        EltwiseTypes::MULTIPLY,
+        EltwiseTypes::SUBTRACT,
+        EltwiseTypes::DIVIDE,
+        EltwiseTypes::FLOOR_MOD,
+        EltwiseTypes::SQUARED_DIFF,
+        EltwiseTypes::POWER,
+        EltwiseTypes::MOD
 };
 
-std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesDynamic = {
-        ngraph::helpers::EltwiseTypes::ADD,
-        ngraph::helpers::EltwiseTypes::MULTIPLY,
-        ngraph::helpers::EltwiseTypes::SUBTRACT,
+std::vector<EltwiseTypes> eltwise_op_types_dynamic = {
+        EltwiseTypes::ADD,
+        EltwiseTypes::MULTIPLY,
+        EltwiseTypes::SUBTRACT,
 };
 
 ov::test::Config additional_config = {};
 
 const auto multiply_params = ::testing::Combine(
-        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapesStatic)),
-        ::testing::ValuesIn(eltwiseOpTypes),
-        ::testing::ValuesIn(secondaryInputTypes),
-        ::testing::ValuesIn(opTypes),
-        ::testing::ValuesIn(netPrecisions),
+        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(in_shapes_static)),
+        ::testing::ValuesIn(eltwise_op_types),
+        ::testing::ValuesIn(secondary_input_types),
+        ::testing::ValuesIn(op_types),
+        ::testing::ValuesIn(model_types),
         ::testing::Values(ov::element::undefined),
         ::testing::Values(ov::element::undefined),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
 const auto collapsing_params = ::testing::Combine(
-        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapesStaticCheckCollapse)),
-        ::testing::ValuesIn(eltwiseOpTypes),
-        ::testing::ValuesIn(secondaryInputTypes),
-        ::testing::Values(opTypes[1]),
-        ::testing::ValuesIn(netPrecisions),
+        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(in_shapes_static_check_collapse)),
+        ::testing::ValuesIn(eltwise_op_types),
+        ::testing::ValuesIn(secondary_input_types),
+        ::testing::Values(op_types[1]),
+        ::testing::ValuesIn(model_types),
         ::testing::Values(ov::element::undefined),
         ::testing::Values(ov::element::undefined),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
 const auto multiply_params_dynamic = ::testing::Combine(
-        ::testing::ValuesIn(inShapesDynamic),
-        ::testing::ValuesIn(eltwiseOpTypesDynamic),
-        ::testing::ValuesIn(secondaryInputTypesDynamic),
-        ::testing::ValuesIn(opTypesDynamic),
-        ::testing::ValuesIn(netPrecisions),
+        ::testing::ValuesIn(in_shapes_dynamic),
+        ::testing::ValuesIn(eltwise_op_types_dynamic),
+        ::testing::ValuesIn(secondary_input_types_dynamic),
+        ::testing::ValuesIn(op_types_dynamic),
+        ::testing::ValuesIn(model_types),
         ::testing::Values(ov::element::undefined),
         ::testing::Values(ov::element::undefined),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
 const auto multiply_params_dynamic_large_upper_bound = ::testing::Combine(
-        ::testing::ValuesIn(inShapesDynamicLargeUpperBound),
-        ::testing::Values(ngraph::helpers::EltwiseTypes::ADD),
-        ::testing::ValuesIn(secondaryInputTypesDynamic),
-        ::testing::ValuesIn(opTypesDynamic),
+        ::testing::ValuesIn(in_shapes_dynamic_large_upper_bound),
+        ::testing::Values(EltwiseTypes::ADD),
+        ::testing::ValuesIn(secondary_input_types_dynamic),
+        ::testing::ValuesIn(op_types_dynamic),
         ::testing::Values(ov::element::f32),
         ::testing::Values(ov::element::undefined),
         ::testing::Values(ov::element::undefined),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_static, EltwiseLayerTest, multiply_params, EltwiseLayerTest::getTestCaseName);
@@ -147,9 +150,9 @@ std::vector<std::vector<ov::Shape>> inShapesSingleThread = {
         {{2, 1, 2, 1, 2, 2}},
 };
 
-std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesSingleThread = {
-        ngraph::helpers::EltwiseTypes::ADD,
-        ngraph::helpers::EltwiseTypes::POWER,
+std::vector<EltwiseTypes> eltwise_op_typesSingleThread = {
+        EltwiseTypes::ADD,
+        EltwiseTypes::POWER,
 };
 
 ov::AnyMap additional_config_single_thread = {
@@ -158,13 +161,13 @@ ov::AnyMap additional_config_single_thread = {
 
 const auto single_thread_params = ::testing::Combine(
         ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapesSingleThread)),
-        ::testing::ValuesIn(eltwiseOpTypesSingleThread),
-        ::testing::ValuesIn(secondaryInputTypes),
-        ::testing::ValuesIn(opTypes),
-        ::testing::ValuesIn(netPrecisions),
+        ::testing::ValuesIn(eltwise_op_typesSingleThread),
+        ::testing::ValuesIn(secondary_input_types),
+        ::testing::ValuesIn(op_types),
+        ::testing::ValuesIn(model_types),
         ::testing::Values(ov::element::undefined),
         ::testing::Values(ov::element::undefined),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config_single_thread));
 
 INSTANTIATE_TEST_SUITE_P(smoke_SingleThread, EltwiseLayerTest, single_thread_params, EltwiseLayerTest::getTestCaseName);

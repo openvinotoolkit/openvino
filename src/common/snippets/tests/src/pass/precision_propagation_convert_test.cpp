@@ -53,7 +53,7 @@ TEST_F(PrecisionPropagationConvertTest, smoke_Snippets_PrecisionPropagation_can_
     };
 
     for (const auto& precisions : precisions_set) {
-        ASSERT_TRUE(ngraph::snippets::pass::PropagatePrecision::can_be_fused(
+        ASSERT_TRUE(ov::snippets::pass::PropagatePrecision::can_be_fused(
             precisions.first,
             precisions.second)) << precisions.second << " can replace " << precisions.first;
 
@@ -61,7 +61,7 @@ TEST_F(PrecisionPropagationConvertTest, smoke_Snippets_PrecisionPropagation_can_
             continue;
         }
 
-        ASSERT_FALSE(ngraph::snippets::pass::PropagatePrecision::can_be_fused(
+        ASSERT_FALSE(ov::snippets::pass::PropagatePrecision::can_be_fused(
             precisions.second,
             precisions.first)) << precisions.second << " can not replace " << precisions.first;
     }
@@ -138,7 +138,7 @@ TEST_F(PrecisionPropagationConvertTest, smoke_Snippets_PrecisionPropagation_can_
     };
 
     for (const auto& precisions : precisions_set) {
-        ASSERT_FALSE(ngraph::snippets::pass::PropagatePrecision::can_be_fused(
+        ASSERT_FALSE(ov::snippets::pass::PropagatePrecision::can_be_fused(
             precisions.first,
             precisions.second)) << precisions.second << " can not replace " << precisions.first;
     }
@@ -182,7 +182,7 @@ TEST_F(PrecisionPropagationConvertTest, smoke_Snippets_PrecisionPropagation_can_
         const auto actual_before = std::get<0>(precisions);
         const auto actual_after = std::get<1>(precisions);
         const auto required_after = std::get<2>(precisions);
-        ASSERT_TRUE(ngraph::snippets::pass::PropagatePrecision::can_be_removed(
+        ASSERT_TRUE(ov::snippets::pass::PropagatePrecision::can_be_removed(
             actual_before,
             actual_after,
             required_after)) << "can_be_removed: " << actual_before << " => " << actual_after << " => " << required_after;

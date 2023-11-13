@@ -64,7 +64,7 @@ This is OpenVINO Inference Engine testing framework. OpenVINO Inference Engine t
 * **Inference Engine tests utilities**
   The set of utilities which are used by the Inference Engine Functional and Unit tests. Different helper functions,
   blob comparators, OS-specific constants, etc. are implemented within the utilities.
-  Internal namespaces (for example, `CommonTestUtils::`, `FuncTestUtils::` or `UnitTestUtils::`) must be used to
+  Internal namespaces (for example, `ov::test::utils::`) must be used to
   separate utilities by domains.
 
   > **NOTE**: All the utilities libraries are added to the developer package and available for closed source

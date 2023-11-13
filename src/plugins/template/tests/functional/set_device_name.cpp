@@ -1,10 +1,10 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <string>
-#include <stdexcept>
-
 #include "set_device_name.hpp"
+
+#include <stdexcept>
+#include <string>
 
 namespace ov {
 namespace test {
@@ -13,5 +13,5 @@ void set_device_suffix(const std::string& suffix) {
         throw std::runtime_error("The suffix can't be used for TEMPLATE device!");
     }
 }
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

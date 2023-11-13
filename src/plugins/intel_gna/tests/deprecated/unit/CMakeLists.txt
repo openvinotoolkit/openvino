@@ -8,9 +8,6 @@ set(TARGET_NAME InferenceEngineUnitTests)
 
 ov_disable_deprecated_warnings()
 
-# rpath enabled for unit tests only
-SET (CMAKE_SKIP_RPATH OFF)
-
 # collect sources
 
 file(GLOB
@@ -42,7 +39,7 @@ if (ENABLE_INTEL_GNA AND BUILD_SHARED_LIBS)
         list(REMOVE_ITEM TEST_SRC "${gna_stub}")
         add_library(libGNAStubs SHARED "${gna_stub}")
 
-        find_package(libGNA)
+        find_package(libGNA NO_MODULE REQUIRED)
 
         target_include_directories(libGNAStubs PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/engines/gna/")
         target_link_libraries(libGNAStubs PUBLIC libGNA::API gmock gtest)
@@ -79,7 +76,7 @@ endif()
 target_link_libraries(${TARGET_NAME} PRIVATE
     # static libraries
     inference_engine_s # need to have this explicitly for USE_STATIC_IE
-    unitTestUtils
+    unit_test_utils
     ieTestHelpers_s
     ${TEST_DEPS}
 
@@ -91,7 +88,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE
 ov_try_use_gold_linker()
 
 add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
-set_property(TEST ${TARGET_NAME} PROPERTY LABELS IE)
+set_property(TEST ${TARGET_NAME} PROPERTY LABELS OV UNIT)
 
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION tests

@@ -2,32 +2,31 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/opsets/opset5.hpp"
 #include "shared_test_classes/subgraph/split_concat_memory.hpp"
 
-namespace SubgraphTestsDefinitions {
-
-using namespace CommonTestUtils;
-using namespace InferenceEngine;
+namespace ov {
+namespace test {
 
 std::string SplitConcatMemory::getTestCaseName(const testing::TestParamInfo<ParamType>& obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+    ov::element::Type netPrecision;
+    ov::Shape inputShapes;
     int axis;
     std::string targetDevice;
     std::tie(inputShapes, netPrecision, axis, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "PRC=" << netPrecision.name() << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "PRC=" << netPrecision.get_type_name() << "_";
     result << "axis=" << axis << "_";
     result << "dev=" << targetDevice;
     return result.str();
 }
 
 void SplitConcatMemory::SetUp() {
-    SizeVector shape;
-    std::tie(shape, inPrc, axis, targetDevice) = this->GetParam();
+    abs_threshold = 0.01;
+    ov::Shape shape;
+
+    std::tie(shape, inType, axis, targetDevice) = this->GetParam();
 
     auto shape_14 = shape;
     shape_14[axis] /= 4;
@@ -47,36 +46,42 @@ void SplitConcatMemory::SetUp() {
      *      __|___         __|___
      *     [_out1_]       [_mem2_]
      */
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
-    ngraph::Shape ng_share_14(shape_14);
-    ngraph::Shape ng_share_34(shape_34);
+    ov::Shape ng_share_14(shape_14);
+    ov::Shape ng_share_34(shape_34);
 
-    auto input = std::make_shared<ngraph::opset5::Parameter>(ngPrc, ng_share_14);
+    auto input = std::make_shared<ov::op::v0::Parameter>(inType, ng_share_14);
     input->set_friendly_name("input");
+    auto& tensor = input->get_output_tensor(0);
+    tensor.set_names({"input_t"});
+    // input->output(0).set_names({"input"});
 
-    auto mem_c = std::make_shared<ngraph::opset5::Constant>(ngPrc, ng_share_34, 0);
-    auto mem_r = std::make_shared<ngraph::opset5::ReadValue>(mem_c, "id");
-    auto cnc = std::make_shared<ngraph::opset5::Concat>(ngraph::NodeVector{mem_r, input}, axis);
+    auto mem_c = std::make_shared<ov::op::v0::Constant>(inType, ng_share_34, 0);
+    auto mem_r = std::make_shared<ov::op::v3::ReadValue>(mem_c, "id");
+    auto cnc = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{mem_r, input}, axis);
 
-    std::vector<int64_t> chunks_val {static_cast<int64_t>(ng_share_14[axis]), static_cast<int64_t>(ng_share_34[axis])};
-    auto chunk_c = std::make_shared<ngraph::opset5::Constant>(::ngraph::element::i64, ngraph::Shape{chunks_val.size()}, chunks_val);
-    auto axis_c = std::make_shared<ngraph::opset5::Constant>(::ngraph::element::i64, ngraph::Shape{}, axis);
-    auto spl = std::make_shared<ngraph::opset5::VariadicSplit>(cnc, axis_c, chunk_c);
+    std::vector<int64_t> chunks_val{static_cast<int64_t>(ng_share_14[axis]), static_cast<int64_t>(ng_share_34[axis])};
+    auto chunk_c = std::make_shared<ov::op::v0::Constant>(::ov::element::i64, ov::Shape{chunks_val.size()}, chunks_val);
+    auto axis_c = std::make_shared<ov::op::v0::Constant>(::ov::element::i64, ov::Shape{}, axis);
+    auto spl = std::make_shared<ov::op::v1::VariadicSplit>(cnc, axis_c, chunk_c);
 
-    auto one = std::make_shared<ngraph::opset5::Constant>(ngPrc, ngraph::Shape{}, 1);
-    auto plus = std::make_shared<ngraph::opset5::Add>(cnc, one, ngraph::op::AutoBroadcastType::NUMPY);
+    auto one = std::make_shared<ov::op::v0::Constant>(inType, ov::Shape{}, 1);
+    auto plus = std::make_shared<ov::op::v1::Add>(cnc, one, ov::op::AutoBroadcastType::NUMPY);
     plus->set_friendly_name("plus_one");
 
-    auto mem_w = std::make_shared<ngraph::opset5::Assign>(spl->output(1), "id");
+    auto& o_tensor = plus->get_output_tensor(0);
+    o_tensor.set_names({"plus_one_t"});
+    // input->output(0).set_names({"plus_one"});
 
-    // WA. Ngraph limitations. Assign should have control dependencies on read.
+    auto mem_w = std::make_shared<ov::op::v3::Assign>(spl->output(1), "id");
+
+    // WA. OpenVINO limitations. Assign should have control dependencies on read.
     // And someone should hold assign node.
     mem_w->add_control_dependency(mem_r);
     plus->add_control_dependency(mem_w);
 
-    function = std::make_shared<ngraph::Function>(
-            ngraph::NodeVector      {plus},
-            ngraph::ParameterVector {input},
-            "CyclicBuffer4");
+    function = std::make_shared<ov::Model>(ov::NodeVector{plus}, ov::ParameterVector{input}, "CyclicBuffer4");
 }
-}  // namespace SubgraphTestsDefinitions
+
+}  // namespace test
+}  // namespace ov
+

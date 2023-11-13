@@ -4,59 +4,56 @@
 
 #include <gtest/gtest.h>
 
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <util/test_tools.hpp>
+#include "common_test_utils/test_tools.hpp"
+#include "openvino/core/rtti.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace ::testing;
 using namespace std;
-using namespace ngraph;
+using namespace ov;
+using namespace ov::pass;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-
-class RenameReLU : public ngraph::pass::MatcherPass {
+class RenameReLU : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("RanameReLU");
     RenameReLU() : MatcherPass() {
-        auto relu = pattern::wrap_type<opset3::Relu>();
-        ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        auto relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>();
+        ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
             auto relu = m.get_match_root();
             relu->set_friendly_name("renamed");
             return false;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(relu, "RenameReLU");
+        auto m = std::make_shared<pass::pattern::Matcher>(relu, "RenameReLU");
         this->register_matcher(m, callback);
     }
 };
 
-NGRAPH_RTTI_DEFINITION(RenameReLU, "RenameReLU");
-
-class RenameSigmoid : public ngraph::pass::MatcherPass {
+class RenameSigmoid : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("RenameSigmoid");
     RenameSigmoid() : MatcherPass() {
-        auto sigmoid = pattern::wrap_type<opset3::Sigmoid>();
-        ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        auto sigmoid = pattern::wrap_type<ov::op::v0::Sigmoid>();
+        ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
             auto sigmoid = m.get_match_root();
             sigmoid->set_friendly_name("renamed");
             return false;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(sigmoid, "RenameSigmoid");
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(sigmoid, "RenameSigmoid");
         this->register_matcher(m, callback);
     }
 };
 
-NGRAPH_RTTI_DEFINITION(RenameSigmoid, "RenameSigmoid");
-
-class TestFunctionPass : public ngraph::pass::FunctionPass {
+class TestModelPass : public pass::ModelPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TestModelPass");
 
-    bool run_on_model(const std::shared_ptr<Function>& f) override {
+    bool run_on_model(const std::shared_ptr<ov::Model>& f) override {
         pass::Manager manager(get_pass_config());
 
         manager.register_pass<RenameReLU, false /*disabled by default*/>();
@@ -67,36 +64,32 @@ public:
     }
 };
 
-NGRAPH_RTTI_DEFINITION(TestFunctionPass, "TestFunctionPass");
-
-class TestGraphRewritePass : public ngraph::pass::GraphRewrite {
+class TestGraphRewritePass : public pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TestGraphRewritePass");
     TestGraphRewritePass() {
         add_matcher<RenameReLU, false /*disabled by default*/>();
         add_matcher<RenameSigmoid>();
     }
 };
 
-NGRAPH_RTTI_DEFINITION(TestGraphRewritePass, "TestGraphRewritePass");
-
-std::tuple<std::shared_ptr<Function>, std::shared_ptr<Node>, std::shared_ptr<Node>> get_test_function() {
-    auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-    auto relu = std::make_shared<ngraph::opset3::Relu>(data);
+static std::tuple<std::shared_ptr<Model>, std::shared_ptr<Node>, std::shared_ptr<Node>> get_test_function() {
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
+    auto relu = std::make_shared<ov::op::v0::Relu>(data);
     relu->set_friendly_name("relu");
-    auto sigmoid = std::make_shared<ngraph::opset3::Sigmoid>(relu);
+    auto sigmoid = std::make_shared<ov::op::v0::Sigmoid>(relu);
     sigmoid->set_friendly_name("sigmoid");
-    auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{sigmoid}, ngraph::ParameterVector{data});
-    return std::tuple<std::shared_ptr<Function>, std::shared_ptr<Node>, std::shared_ptr<Node>>(f, relu, sigmoid);
+    auto f = std::make_shared<ov::Model>(ov::NodeVector{sigmoid}, ov::ParameterVector{data});
+    return std::tuple<std::shared_ptr<Model>, std::shared_ptr<Node>, std::shared_ptr<Node>>(f, relu, sigmoid);
 }
 
 TEST(PassConfig, EnableDisablePasses1) {
-    std::shared_ptr<Function> f;
+    std::shared_ptr<Model> f;
     std::shared_ptr<Node> relu, sigmoid;
     std::tie(f, relu, sigmoid) = get_test_function();
 
     pass::Manager manager;
-    manager.register_pass<TestFunctionPass>();
+    manager.register_pass<TestModelPass>();
     manager.run_passes(f);
 
     ASSERT_EQ(relu->get_friendly_name(), "relu");
@@ -104,12 +97,12 @@ TEST(PassConfig, EnableDisablePasses1) {
 }
 
 TEST(PassConfig, EnableDisablePasses2) {
-    std::shared_ptr<Function> f;
+    std::shared_ptr<Model> f;
     std::shared_ptr<Node> relu, sigmoid;
     std::tie(f, relu, sigmoid) = get_test_function();
 
     pass::Manager manager;
-    manager.register_pass<TestFunctionPass>();
+    manager.register_pass<TestModelPass>();
 
     auto pass_config = manager.get_pass_config();
     pass_config->disable<RenameSigmoid>();
@@ -127,12 +120,12 @@ TEST(PassConfig, EnableDisablePasses2) {
 }
 
 TEST(PassConfig, EnableDisablePasses3) {
-    std::shared_ptr<Function> f;
+    std::shared_ptr<Model> f;
     std::shared_ptr<Node> relu, sigmoid;
     std::tie(f, relu, sigmoid) = get_test_function();
 
     pass::Manager manager;
-    manager.register_pass<TestFunctionPass>();
+    manager.register_pass<TestModelPass>();
 
     auto pass_config = manager.get_pass_config();
     pass_config->enable<RenameReLU>();
@@ -143,12 +136,12 @@ TEST(PassConfig, EnableDisablePasses3) {
 }
 
 TEST(PassConfig, EnableDisablePasses4) {
-    std::shared_ptr<Function> f;
+    std::shared_ptr<Model> f;
     std::shared_ptr<Node> relu, sigmoid;
     std::tie(f, relu, sigmoid) = get_test_function();
 
     pass::Manager manager;
-    manager.register_pass<TestFunctionPass>();
+    manager.register_pass<TestModelPass>();
 
     auto pass_config = manager.get_pass_config();
     pass_config->enable<RenameReLU>();
@@ -165,7 +158,7 @@ TEST(PassConfig, EnableDisablePasses4) {
 }
 
 TEST(PassConfig, EnableDisablePasses5) {
-    std::shared_ptr<Function> f;
+    std::shared_ptr<Model> f;
     std::shared_ptr<Node> relu, sigmoid;
     std::tie(f, relu, sigmoid) = get_test_function();
 
@@ -178,7 +171,7 @@ TEST(PassConfig, EnableDisablePasses5) {
 }
 
 TEST(PassConfig, EnableDisablePasses6) {
-    std::shared_ptr<Function> f;
+    std::shared_ptr<Model> f;
     std::shared_ptr<Node> relu, sigmoid;
     std::tie(f, relu, sigmoid) = get_test_function();
 
@@ -201,7 +194,7 @@ TEST(PassConfig, EnableDisablePasses6) {
 }
 
 TEST(PassConfig, EnableDisablePasses7) {
-    std::shared_ptr<Function> f;
+    std::shared_ptr<Model> f;
     std::shared_ptr<Node> relu, sigmoid;
     std::tie(f, relu, sigmoid) = get_test_function();
 
@@ -217,7 +210,7 @@ TEST(PassConfig, EnableDisablePasses7) {
 }
 
 TEST(PassConfig, EnableDisablePasses8) {
-    std::shared_ptr<Function> f;
+    std::shared_ptr<Model> f;
     std::shared_ptr<Node> relu, sigmoid;
     std::tie(f, relu, sigmoid) = get_test_function();
 
@@ -240,7 +233,7 @@ TEST(PassConfig, EnableDisablePasses8) {
 }
 
 TEST(PassConfig, EnableDisablePasses9) {
-    std::shared_ptr<Function> f;
+    std::shared_ptr<Model> f;
     std::shared_ptr<Node> relu, sigmoid;
     std::tie(f, relu, sigmoid) = get_test_function();
 
@@ -264,19 +257,19 @@ TEST(PassConfig, EnableDisablePasses9) {
     ASSERT_EQ(sigmoid->get_friendly_name(), "renamed");
 }
 
-class TestNestedMatcher : public ngraph::pass::MatcherPass {
+class TestNestedMatcher : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TestNestedMatcher");
     TestNestedMatcher() : MatcherPass() {
         auto any_op = pattern::any_input();
-        ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [this](pattern::Matcher& m) {
             auto root = m.get_match_root();
             auto pass_config = this->get_pass_config();
-            if (std::dynamic_pointer_cast<opset3::Relu>(root) && !pass_config->is_disabled<RenameReLU>()) {
+            if (std::dynamic_pointer_cast<op::v0::Relu>(root) && !pass_config->is_disabled<RenameReLU>()) {
                 auto pass = std::make_shared<RenameReLU>();
                 pass->set_pass_config(pass_config);
                 pass->apply(root);
-            } else if (std::dynamic_pointer_cast<opset3::Sigmoid>(root) && !pass_config->is_disabled<RenameSigmoid>()) {
+            } else if (std::dynamic_pointer_cast<op::v0::Sigmoid>(root) && !pass_config->is_disabled<RenameSigmoid>()) {
                 auto pass = std::make_shared<RenameSigmoid>();
                 pass->set_pass_config(pass_config);
                 pass->apply(root);
@@ -284,25 +277,21 @@ public:
             return false;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(any_op, "TestNestedMatcher");
+        auto m = std::make_shared<pass::pattern::Matcher>(any_op, "TestNestedMatcher");
         this->register_matcher(m, callback);
     }
 };
 
-NGRAPH_RTTI_DEFINITION(TestNestedMatcher, "TestNestedMatcher");
-
 class TestNestedGraphRewrite : public pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TestNestedGraphRewrite");
     TestNestedGraphRewrite() {
         add_matcher<TestNestedMatcher>();
     }
 };
 
-NGRAPH_RTTI_DEFINITION(TestNestedGraphRewrite, "TestNestedGraphRewrite");
-
 TEST(PassConfig, EnableDisablePasses10) {
-    std::shared_ptr<Function> f;
+    std::shared_ptr<Model> f;
     std::shared_ptr<Node> relu, sigmoid;
     std::tie(f, relu, sigmoid) = get_test_function();
 
@@ -326,7 +315,7 @@ TEST(PassConfig, EnableDisablePasses10) {
 }
 
 TEST(PassConfig, EnableDisablePasses11) {
-    std::shared_ptr<Function> f;
+    std::shared_ptr<Model> f;
     std::shared_ptr<Node> relu, sigmoid;
     std::tie(f, relu, sigmoid) = get_test_function();
 

@@ -5,7 +5,6 @@
 #include "memory_solver.hpp"
 
 #include <gtest/gtest.h>
-#include <ie_common.h>
 
 #include <vector>
 
@@ -78,7 +77,7 @@ TEST(MemSolverTest, GetOffsetThrowException) {
     MemorySolver ms(boxes);
     ms.solve();
 
-    EXPECT_THROW(ms.getOffset(100), InferenceEngine::Exception);
+    EXPECT_THROW(ms.getOffset(100), std::runtime_error);
 }
 
 //  |

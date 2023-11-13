@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_layer/shape_of.hpp"
 #include "shared_test_classes/single_layer/strided_slice.hpp"
@@ -45,9 +45,9 @@ public:
         std::tie(inputShapes, netType, targetDevice, additionalConfig) = basicParamsSet;
         result << "IS=";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
             for (const auto& actual_shape : shape.second) {
-                result << CommonTestUtils::partialShape2str({actual_shape}) << "_";
+                result << ov::test::utils::partialShape2str({actual_shape}) << "_";
             }
         }
         result << "NetType=" << netType << "_";
@@ -90,17 +90,18 @@ protected:
           init_input_shapes(inputShapes);
           const auto AllZeroData = inputDynamicShapes[0];
           const auto ConcatInputData = inputDynamicShapes[1];
-          auto params = builder::makeDynamicParams(netType, {AllZeroData, ConcatInputData});
-          auto paramOuts =
-              helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
+          ov::ParameterVector params;
+          for (auto&& shape : {AllZeroData, ConcatInputData})
+              params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
+
           const ElementType intInputsPrecision = ElementType::i32;
-          auto nonzeroEmptyResultOp = std::make_shared<ngraph::opset3::NonZero>(paramOuts[0]);
+          auto nonzeroEmptyResultOp = std::make_shared<ngraph::opset3::NonZero>(params[0]);
 
           auto convertEmptyInputOp = ngraph::builder::makeConversion(nonzeroEmptyResultOp,
                                                                      ElementType::i32,
                                                                      ngraph::helpers::ConversionTypes::CONVERT);
           auto concatPartialInputEmptyOp =
-              ngraph::builder::makeConcat({convertEmptyInputOp, paramOuts[1], convertEmptyInputOp},
+              ngraph::builder::makeConcat({convertEmptyInputOp, params[1], convertEmptyInputOp},
                                           1);  // partially empty input / non empty output
           auto concatEmptyInputEmptyOutputOp =
               ngraph::builder::makeConcat({convertEmptyInputOp, convertEmptyInputOp, convertEmptyInputOp},
@@ -114,14 +115,14 @@ protected:
 
           auto axisNode = ngraph::builder::makeConstant<int64_t>(intInputsPrecision, ov::Shape({1}), {0});
           auto gatherEmptyIndicesOp =
-              std::make_shared<ov::op::v7::Gather>(paramOuts[0], squeezeEmptyInputOp, axisNode, 0);
+              std::make_shared<ov::op::v7::Gather>(params[0], squeezeEmptyInputOp, axisNode, 0);
           auto shapeofEmptyInputOp = std::make_shared<ngraph::opset3::ShapeOf>(gatherEmptyIndicesOp, ElementType::i32);
           ngraph::ResultVector results = {std::make_shared<ngraph::opset1::Result>(shapeofEmptyInputOp),
                                           std::make_shared<ngraph::opset1::Result>(concatPartialInputEmptyOp),
                                           std::make_shared<ngraph::opset1::Result>(concatEmptyInputEmptyOutputOp)};
           function = std::make_shared<ngraph::Function>(results, params, "result");
 
-          auto nonzero = std::make_shared<ngraph::opset3::NonZero>(paramOuts[0]);
+          auto nonzero = std::make_shared<ngraph::opset3::NonZero>(params[0]);
      }
 };
 
@@ -145,7 +146,7 @@ const std::vector<std::vector<ov::test::InputShape>> dynInputShapes = {
 
 const auto testParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInputShapes),
                                                    ::testing::ValuesIn(netPrecisions), // netprec
-                                                   ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                                   ::testing::Values(ov::test::utils::DEVICE_GPU),
                                                    ::testing::Values(emptyAdditionalConfig));
 
 INSTANTIATE_TEST_SUITE_P(smoke_empty_tensor, EmptyTensorDynamicGPUTest,

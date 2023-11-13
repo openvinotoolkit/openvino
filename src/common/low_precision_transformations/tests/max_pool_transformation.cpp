@@ -9,35 +9,35 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <low_precision/max_pool.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
+#include "low_precision/max_pool.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/max_pool_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/max_pool.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 
 using namespace testing;
-using namespace ngraph::pass;
-using namespace ngraph;
+using namespace ov::pass;
+using namespace ov;
 
 class MaxPoolTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization1;
-        ngraph::element::Type preicsionAfterOperation;
+        ov::element::Type preicsionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantization2;
     };
 
     class Expected {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization1;
-        ngraph::element::Type preicsionAfterOperation;
+        ov::element::Type preicsionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantization2;
     };
 
@@ -47,13 +47,13 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::PartialShape,
+    ov::PartialShape,
     MaxPoolTransformationTestValues> MaxPoolTransformationParams;
 
 class MaxPoolTransformation : public LayerTransformation, public testing::WithParamInterface<MaxPoolTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::PartialShape shape = std::get<0>(GetParam());
+        const ov::PartialShape shape = std::get<0>(GetParam());
         const MaxPoolTransformationTestValues testValues = std::get<1>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::MaxPoolFunction::get(
@@ -64,7 +64,7 @@ public:
             testValues.actual.dequantization2);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(testValues.params);
+        transform.add<ov::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::MaxPoolFunction::get(
@@ -76,7 +76,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MaxPoolTransformationParams> obj) {
-        const ngraph::PartialShape shape = std::get<0>(obj.param);
+        const ov::PartialShape shape = std::get<0>(obj.param);
         const MaxPoolTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
@@ -99,7 +99,7 @@ TEST_P(MaxPoolTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> shapes = {
+const std::vector<ov::PartialShape> shapes = {
     { 1, 3, 72, 48 },
     { 4, 3, 72, 48 },
     { -1, -1, -1, -1 },
@@ -110,39 +110,39 @@ const std::vector<MaxPoolTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            { {}, {}, { {0.02f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 }},
-            ngraph::element::f32,
+            ov::element::u8,
+            { {}, {}, { {0.02f}, ov::element::f32, {}, true, 1, ov::element::f32 }},
+            ov::element::f32,
             {}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { {0.02f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 }}
+            ov::element::u8,
+            { ov::element::f32, {}, { {0.02f}, ov::element::f32, {}, true, 1, ov::element::f32 }}
         }
     },
     // Subtract + Multiply
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
                 {},
-                { {128.f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 },
-                { {0.02f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 }
+                { {128.f}, ov::element::f32, {}, true, 1, ov::element::f32 },
+                { {0.02f}, ov::element::f32, {}, true, 1, ov::element::f32 }
             },
-            ngraph::element::f32,
+            ov::element::f32,
             {}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                ngraph::element::f32,
-                { {128.f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 },
-                { {0.02f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 }
+                ov::element::f32,
+                { {128.f}, ov::element::f32, {}, true, 1, ov::element::f32 },
+                { {0.02f}, ov::element::f32, {}, true, 1, ov::element::f32 }
             }
         }
     },
@@ -150,47 +150,47 @@ const std::vector<MaxPoolTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            { ngraph::element::f32, { 128 }, { 0.02f }},
-            ngraph::element::f32,
+            ov::element::u8,
+            { ov::element::f32, { 128 }, { 0.02f }},
+            ov::element::f32,
             {}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            { ngraph::element::f32, { 128 }, { 0.02f }}
+            ov::element::u8,
+            { ov::element::f32, { 128 }, { 0.02f }}
         }
     },
     // Convert + Subtract + Multiply
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.02f }},
-            ngraph::element::f32,
+            ov::element::u8,
+            { ov::element::f32, {}, { 0.02f }},
+            ov::element::f32,
             {}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { 0.02f }}
+            ov::element::u8,
+            { ov::element::f32, {}, { 0.02f }}
         }
     },
     // Convert + Subtract + Multiply
     {
         LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
         {
-            ngraph::element::f32,
-            { ngraph::element::f32, { 128 }, { 0.02f }},
-            ngraph::element::f32,
+            ov::element::f32,
+            { ov::element::f32, { 128 }, { 0.02f }},
+            ov::element::f32,
             {}
         },
         {
-            ngraph::element::f32,
+            ov::element::f32,
             {},
-            ngraph::element::f32,
+            ov::element::f32,
             { {}, { 128 }, { 0.02f }}
         }
     },
@@ -198,15 +198,15 @@ const std::vector<MaxPoolTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
         {
-            ngraph::element::f32,
-            { ngraph::element::f32, {}, { 0.02f }},
-            ngraph::element::f32,
+            ov::element::f32,
+            { ov::element::f32, {}, { 0.02f }},
+            ov::element::f32,
             {}
         },
         {
-            ngraph::element::f32,
+            ov::element::f32,
             {},
-            ngraph::element::f32,
+            ov::element::f32,
             { {}, {}, { 0.02f }}
         }
     },
@@ -214,16 +214,16 @@ const std::vector<MaxPoolTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            { ngraph::element::f32, {{128.f, 64.f, 32.f}}, {{0.02f, 0.01f, 0.03f}}},
-            ngraph::element::f32,
+            ov::element::u8,
+            { ov::element::f32, {{128.f, 64.f, 32.f}}, {{0.02f, 0.01f, 0.03f}}},
+            ov::element::f32,
             {}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, { {0.02f, 0.01f, 0.03f} }}
+            ov::element::u8,
+            {{ov::element::f32}, {{128.f, 64.f, 32.f}}, { {0.02f, 0.01f, 0.03f} }}
         }
     }
 };
@@ -238,7 +238,7 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> shapesWithDynamicChannels = {
+const std::vector<ov::PartialShape> shapesWithDynamicChannels = {
     PartialShape::dynamic()
 };
 
@@ -247,31 +247,31 @@ const std::vector<MaxPoolTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            { ngraph::element::f32, {128.f}, {0.01f}},
-            ngraph::element::f32,
+            ov::element::u8,
+            { ov::element::f32, {128.f}, {0.01f}},
+            ov::element::f32,
             {}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            { ngraph::element::f32, {128.f}, {0.01f}}
+            ov::element::u8,
+            { ov::element::f32, {128.f}, {0.01f}}
         }
     },
     // per-channel dequantization
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            { ngraph::element::f32, {{128.f, 64.f, 32.f}}, {{0.02f, 0.01f, 0.03f}}},
-            ngraph::element::f32,
+            ov::element::u8,
+            { ov::element::f32, {{128.f, 64.f, 32.f}}, {{0.02f, 0.01f, 0.03f}}},
+            ov::element::f32,
             {}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, { {0.02f, 0.01f, 0.03f} }},
-            ngraph::element::f32,
+            ov::element::u8,
+            {{ov::element::f32}, {{128.f, 64.f, 32.f}}, { {0.02f, 0.01f, 0.03f} }},
+            ov::element::f32,
             {}
         }
     }

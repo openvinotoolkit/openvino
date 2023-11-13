@@ -3,9 +3,6 @@
 //
 
 #include "intel_gpu/plugin/legacy_api_helper.hpp"
-#include "ie_plugin_config.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
-#include "gpu/gpu_config.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -229,7 +226,6 @@ std::vector<std::string> LegacyAPIHelper::get_supported_configs() {
         CONFIG_KEY(PERFORMANCE_HINT),
         CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS),
         CONFIG_KEY(PERF_COUNT),
-        CONFIG_KEY(DYN_BATCH_ENABLED),
         CONFIG_KEY(CONFIG_FILE),
         CONFIG_KEY(DEVICE_ID),
         CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
@@ -248,6 +244,7 @@ std::vector<std::string> LegacyAPIHelper::get_supported_configs() {
 }
 
 std::vector<std::string> LegacyAPIHelper::get_supported_metrics() {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     std::vector<std::string> supported_metrics = {
         METRIC_KEY(AVAILABLE_DEVICES),
         METRIC_KEY(SUPPORTED_METRICS),
@@ -265,8 +262,8 @@ std::vector<std::string> LegacyAPIHelper::get_supported_metrics() {
         GPU_METRIC_KEY(UARCH_VERSION),
         GPU_METRIC_KEY(EXECUTION_UNITS_COUNT),
         GPU_METRIC_KEY(MEMORY_STATISTICS),
-        ov::caching_properties.name(),
     };
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return supported_metrics;
 }

@@ -4,19 +4,24 @@
 
 #include "transformation_helper.hpp"
 
+#include "common/graph_utils.hpp"
 #include "log/debug.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "ops/gna_convolution.hpp"
+#include "ops/gna_max_pool.hpp"
+#include "transformations/rt_info/transpose_sinking_attr.hpp"
+
+using namespace ov::opset12;
+using namespace ov::intel_gna;
 
 namespace ov {
 namespace intel_gna {
 namespace pass {
 namespace helper {
 
-using namespace ov::opset10;
-
-void GetConvData(std::shared_ptr<ngraph::op::ConvolutionIE> conv, ConvData& conv_data) {
+void GetConvData(std::shared_ptr<ngraph::opset7::Convolution> conv, ConvData& conv_data) {
     OPENVINO_ASSERT(conv);
     conv_data.output_height = conv->get_output_shape(0)[2];
     conv_data.output_width = conv->get_output_shape(0)[3];
@@ -40,17 +45,17 @@ void GetConvData(std::shared_ptr<ngraph::op::ConvolutionIE> conv, ConvData& conv
     conv_data.element_type = conv->get_element_type();
 }
 
-void GetConvData(std::shared_ptr<Convolution> conv, ConvData& conv_data) {
+void GetConvData(std::shared_ptr<ov::intel_gna::op::GNAConvolution> conv, ConvData& conv_data) {
     OPENVINO_ASSERT(conv);
     conv_data.output_height = conv->get_output_shape(0)[2];
     conv_data.output_width = conv->get_output_shape(0)[3];
-    conv_data.input_channel_count = conv->input_value(0).get_shape()[1];
-    conv_data.input_height = conv->input_value(0).get_shape()[2];
-    conv_data.input_width = conv->input_value(0).get_shape()[3];
+    conv_data.input_channel_count = conv->input_value(0).get_shape()[3];
+    conv_data.input_height = conv->input_value(0).get_shape()[1];
+    conv_data.input_width = conv->input_value(0).get_shape()[2];
     conv_data.filter_count = conv->input_value(1).get_shape()[0];
-    conv_data.filter_channel_count = conv->input_value(1).get_shape()[1];
-    conv_data.filter_height = conv->input_value(1).get_shape()[2];
-    conv_data.filter_width = conv->input_value(1).get_shape()[3];
+    conv_data.filter_channel_count = conv->input_value(1).get_shape()[3];
+    conv_data.filter_height = conv->input_value(1).get_shape()[1];
+    conv_data.filter_width = conv->input_value(1).get_shape()[2];
     conv_data.filter_dilation_height = conv->get_dilations()[0];
     conv_data.filter_dilation_width = conv->get_dilations()[1];
     conv_data.filter_stride_height = conv->get_strides()[0];
@@ -89,7 +94,7 @@ bool TransposeOrderMatches(std::shared_ptr<Transpose> transpose, std::vector<siz
     if (data.empty())
         return false;
 
-    if (!std::equal(order.begin(), order.end(), data.begin()))
+    if (!graph_utils::are_shapes_equal(order, data))
         return false;
 
     return true;
@@ -153,13 +158,99 @@ void remove_single_input_node(std::shared_ptr<ov::Node> node) {
     if (!node_parent) {
         THROW_GNA_EXCEPTION << "The removing node has no parrent node";
     }
-    if (!std::equal(input_node_shape.begin(), input_node_shape.end(), output_node_shape.begin())) {
+    if (!graph_utils::are_shapes_equal(input_node_shape, output_node_shape)) {
         auto reshape_const_node =
             std::make_shared<Constant>(ov::element::i64, ov::Shape{output_node_shape.size()}, output_node_shape);
         node_parent = std::make_shared<Reshape>(node_parent, reshape_const_node, false);
     }
 
     ov::replace_output_update_name(node->output(0), node_parent->output(0));
+}
+
+void swap_output_names(ov::Output<ov::Node> output1, ov::Output<ov::Node> output2) {
+    const auto node2_output_names = output2.get_names();
+    output2.set_names(output1.get_names());
+    output1.set_names(node2_output_names);
+}
+
+void swap_friendly_names(std::shared_ptr<ov::Node> node1, std::shared_ptr<ov::Node> node2) {
+    const std::string node2_name = node2->get_friendly_name();
+    node2->set_friendly_name(node1->get_friendly_name());
+    node1->set_friendly_name(node2_name);
+}
+
+void swap_names(std::shared_ptr<ov::Node> node1, std::shared_ptr<ov::Node> node2) {
+    swap_friendly_names(node1, node2);
+    swap_output_names(node1->output(0), node2->output(0));
+}
+
+ov::AxisVector reverse_transpose_order(const ov::AxisVector& axis_order) {
+    ov::AxisVector out(axis_order.size());
+    for (size_t i = 0; i < axis_order.size(); i++) {
+        out.at(axis_order[i]) = i;
+    }
+    return out;
+}
+
+ov::NodeVector find_input_transposes(const std::shared_ptr<const ov::Node>& node) {
+    ov::NodeVector transposes;
+    for (size_t input_idx = 0; input_idx < node->get_input_size(); ++input_idx) {
+        auto input_node = node->get_input_node_shared_ptr(input_idx);
+        auto transpose_node = ov::as_type_ptr<Transpose>(input_node);
+        if (transpose_node)
+            transposes.push_back(transpose_node);
+    }
+
+    return transposes;
+}
+
+void mark_input_transposes_as_nosinking(std::shared_ptr<const ov::Node> node) {
+    for (const auto& input : find_input_transposes(node))
+        ov::mark_as_no_sinking_node(input);
+}
+
+TransposeInfo get_first_input_transpose(const std::shared_ptr<const ov::Node>& node) {
+    for (size_t input_idx = 0; input_idx < node->get_input_size(); ++input_idx) {
+        std::shared_ptr<Node> input_node = node->get_input_node_shared_ptr(input_idx);
+        auto transpose_node = as_type_ptr<Transpose>(input_node);
+        if (!transpose_node)
+            continue;
+        auto constant_node = as_type_ptr<Constant>(transpose_node->input_value(1).get_node_shared_ptr());
+        if (!constant_node)
+            continue;
+        {
+            TransposeInfo input_info;
+            input_info.transpose = transpose_node;
+            input_info.transpose_const = constant_node;
+            return input_info;
+        }
+    }
+
+    return {};
+}
+
+TransposeInfo get_first_output_transpose(const std::shared_ptr<const ov::Node>& node) {
+    for (size_t i = 0; i < node->get_output_size(); ++i) {
+        for (const auto& input : node->output(i).get_target_inputs()) {
+            Node* node = input.get_node();
+            if (!dynamic_cast<Transpose*>(node))
+                continue;
+            auto transpose_node = as_type_ptr<Transpose>(node->shared_from_this());
+            if (!transpose_node)
+                continue;
+            auto constant_node = as_type_ptr<Constant>(transpose_node->input_value(1).get_node_shared_ptr());
+            if (!constant_node)
+                continue;
+            {
+                TransposeInfo input_info;
+                input_info.transpose = transpose_node;
+                input_info.transpose_const = constant_node;
+                return input_info;
+            }
+        }
+    }
+
+    return {};
 }
 
 }  // namespace helper

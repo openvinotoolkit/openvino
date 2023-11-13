@@ -15,17 +15,22 @@ namespace snippets {
 
 std::string MHA::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAParams> obj) {
     std::vector<ov::PartialShape> inputShapes;
-    bool withMul;
+    std::vector<ov::element::Type> elem_types;
     ov::element::Type prc;
+    bool withMul;
+    size_t thread_count;
     std::string targetDevice;
     size_t num_nodes, num_subgraphs;
     std::map<std::string, std::string> additionalConfig;
-    std::tie(inputShapes, withMul, prc, num_nodes, num_subgraphs, targetDevice, additionalConfig) = obj.param;
+    std::tie(inputShapes, elem_types, prc, withMul, thread_count, num_nodes, num_subgraphs, targetDevice, additionalConfig) = obj.param;
 
     std::ostringstream result;
     for (size_t i = 0; i < inputShapes.size(); ++i)
-        result << "IS[" << i << "]=" << CommonTestUtils::partialShape2str({inputShapes[i]}) << "_";
+        result << "IS[" << i << "]=" << ov::test::utils::partialShape2str({inputShapes[i]}) << "_";
+    for (size_t i = 0; i < elem_types.size(); i++)
+        result << "T[" << i <<"]=" << elem_types[i] << "_";
     result << "Mul=" << withMul << "_";
+    result << "ThreadNum=" << thread_count << "_";
     result << "PRC=" << prc << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
@@ -43,14 +48,14 @@ std::string MHA::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAP
 
 void MHA::SetUp() {
     std::vector<ov::PartialShape> inputShapes;
-    bool withMul;
     ov::element::Type prc;
     std::map<std::string, std::string> additionalConfig;
-    std::tie(inputShapes, withMul, prc, ref_num_nodes, ref_num_subgraphs, targetDevice, additionalConfig) = this->GetParam();
+    std::tie(inputShapes, m_input_types, prc, m_with_mul, m_thread_count,
+             ref_num_nodes, ref_num_subgraphs, targetDevice, additionalConfig) = this->GetParam();
     init_input_shapes(static_partial_shapes_to_test_representation(inputShapes));
 
-    auto f = ov::test::snippets::MHAFunction(inputDynamicShapes, withMul);
-    function = f.getOriginal();
+    const auto subgraph_model = get_subgraph();
+    function = subgraph_model->getOriginal();
 
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
     if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
@@ -60,6 +65,14 @@ void MHA::SetUp() {
 
     setInferenceType(prc);
     inType = outType = prc;
+    if (prc == ov::element::bf16)
+        rel_threshold = 0.05f;
+}
+
+void MHA::compile_model() {
+    if (m_thread_count != default_thread_count)
+        core->set_property(targetDevice, ov::inference_num_threads(m_thread_count));
+    SubgraphBaseTest::compile_model();
 }
 
 void MHA::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
@@ -68,30 +81,13 @@ void MHA::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticSha
     for (int i = 0; i < model_inputs.size(); ++i) {
         const auto& model_input = model_inputs[i];
         ov::Tensor tensor;
-        tensor = ov::test::utils::create_and_fill_tensor_normal_distribution(model_input.get_element_type(), targetInputStaticShapes[i], 1.0f, 0.5f);
+        tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), 2, -1, 256);
         inputs.insert({model_input.get_node_shared_ptr(), tensor});
     }
 }
 
-void MHASelect::SetUp() {
-    std::vector<ov::PartialShape> inputShapes;
-    bool withMul;
-    ov::element::Type prc;
-    std::map<std::string, std::string> additionalConfig;
-    std::tie(inputShapes, withMul, prc, ref_num_nodes, ref_num_subgraphs, targetDevice, additionalConfig) = this->GetParam();
-    init_input_shapes(static_partial_shapes_to_test_representation(inputShapes));
-
-    auto f = ov::test::snippets::MHASelectFunction(inputDynamicShapes);
-    function = f.getOriginal();
-
-    configuration.insert(additionalConfig.begin(), additionalConfig.end());
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
-    }
-
-    setInferenceType(prc);
-    inType = outType = prc;
+std::shared_ptr<SnippetsFunctionBase> MHA::get_subgraph() {
+    return std::make_shared<ov::test::snippets::MHAFunction>(inputDynamicShapes, m_input_types, m_with_mul);
 }
 
 void MHASelect::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
@@ -106,73 +102,117 @@ void MHASelect::generate_inputs(const std::vector<ngraph::Shape>& targetInputSta
             tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), 5 + seed, -2, 10, seed);
             seed++;
         } else {
-            tensor = ov::test::utils::create_and_fill_tensor_normal_distribution(model_input.get_element_type(), model_input.get_shape(), 1.0f, 0.5f);
+            tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), 2, -1, 256);
         }
         inputs.insert({node_input, tensor});
     }
 }
 
-void MHAWOTransposeOnInputs::SetUp() {
-    std::vector<ov::PartialShape> inputShapes;
-    bool withMul;
-    ov::element::Type prc;
-    std::map<std::string, std::string> additionalConfig;
-    std::tie(inputShapes, withMul, prc, ref_num_nodes, ref_num_subgraphs, targetDevice, additionalConfig) = this->GetParam();
-    init_input_shapes(static_partial_shapes_to_test_representation(inputShapes));
-
-    auto f = ov::test::snippets::MHAWOTransposeOnInputsFunction(inputDynamicShapes);
-    function = f.getOriginal();
-
-    configuration.insert(additionalConfig.begin(), additionalConfig.end());
-    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
-        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
-                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
-    }
-
-    setInferenceType(prc);
-    inType = outType = prc;
+std::shared_ptr<SnippetsFunctionBase> MHASelect::get_subgraph() {
+    return std::make_shared<ov::test::snippets::MHASelectFunction>(inputDynamicShapes, m_input_types);
 }
 
-void MHAWOTranspose::SetUp() {
-    std::vector<ov::PartialShape> inputShapes;
-    bool withMul;
-    ov::element::Type prc;
-    std::map<std::string, std::string> additionalConfig;
-    std::tie(inputShapes, withMul, prc, ref_num_nodes, ref_num_subgraphs, targetDevice, additionalConfig) = this->GetParam();
-    init_input_shapes(static_partial_shapes_to_test_representation(inputShapes));
-
-    auto f = ov::test::snippets::MHAWOTransposeFunction(inputDynamicShapes);
-    function = f.getOriginal();
-
-    configuration.insert(additionalConfig.begin(), additionalConfig.end());
-
-    setInferenceType(prc);
-    inType = outType = prc;
-    if (prc == ov::element::bf16)
-        abs_threshold = 0.3;
+std::shared_ptr<SnippetsFunctionBase> MHAWOTransposeOnInputs::get_subgraph() {
+    return std::make_shared<ov::test::snippets::MHAWOTransposeOnInputsFunction>(inputDynamicShapes);
 }
 
+std::shared_ptr<SnippetsFunctionBase> MHAWOTranspose::get_subgraph() {
+    return std::make_shared<ov::test::snippets::MHAWOTransposeFunction>(inputDynamicShapes, m_input_types);
+}
+
+std::shared_ptr<SnippetsFunctionBase> MHAINT8MatMul::get_subgraph() {
+    return std::make_shared<ov::test::snippets::MHAINT8MatMulFunction>(inputDynamicShapes);
+}
+
+std::shared_ptr<SnippetsFunctionBase> MHAQuantMatMul0::get_subgraph() {
+    return std::make_shared<ov::test::snippets::MHAQuantMatMul0Function>(inputDynamicShapes);
+}
+
+std::shared_ptr<SnippetsFunctionBase> MHAFQAfterMatMul::get_subgraph() {
+    return std::make_shared<ov::test::snippets::MHAFQAfterMatMulFunction>(inputDynamicShapes);
+}
+
+std::shared_ptr<SnippetsFunctionBase> MHAFQ::get_subgraph() {
+    return std::make_shared<ov::test::snippets::MHAFQFunction>(inputDynamicShapes);
+}
+
+std::shared_ptr<SnippetsFunctionBase> MHAMulAdd::get_subgraph() {
+    return std::make_shared<ov::test::snippets::MHAMulAddFunction>(inputDynamicShapes);
+}
+
+std::shared_ptr<SnippetsFunctionBase> MHATransposedB::get_subgraph() {
+    return std::make_shared<ov::test::snippets::MHATransposedInputFunction>(inputDynamicShapes, true);
+}
+
+std::shared_ptr<SnippetsFunctionBase> MHAWithExtractedReshape::get_subgraph() {
+    return std::make_shared<ov::test::snippets::MHAWithExtractedReshapeFunction>(inputDynamicShapes, false);
+}
 
 TEST_P(MHA, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
 }
 
 TEST_P(MHASelect, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
 }
 
 TEST_P(MHAWOTransposeOnInputs, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
 }
 
 TEST_P(MHAWOTranspose, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
 }
 
+TEST_P(MHAMulAdd, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MHATransposedB, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MHAINT8MatMul, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MHAQuantMatMul0, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MHAFQAfterMatMul, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MHAFQ, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MHAWithExtractedReshape, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
 
 } // namespace snippets
 } // namespace test

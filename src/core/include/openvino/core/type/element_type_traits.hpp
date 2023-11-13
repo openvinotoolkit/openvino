@@ -94,6 +94,11 @@ struct element_type_traits<element::Type_t::u64> {
 };
 
 template <>
+struct element_type_traits<element::Type_t::nf4> {
+    using value_type = int8_t;
+};
+
+template <>
 struct element_type_traits<element::Type_t::string> {
     using value_type = std::string;
 };

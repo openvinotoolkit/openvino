@@ -177,11 +177,11 @@ Roll::RollExecutor::RollExecutor(const VectorDims& dataDims, const VectorDims& s
 
 template<typename T>
 void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr, const MemoryPtr& shiftMemPtr, const MemoryPtr& axesMemPtr,
-    MemoryPtr& dstMemPtr) {
-    const auto *data = reinterpret_cast<const T *>(dataMemPtr->GetPtr());
-    const auto *shift = reinterpret_cast<const int32_t *>(shiftMemPtr->GetPtr());
-    const auto *axes = reinterpret_cast<const int32_t *>(axesMemPtr->GetPtr());
-    auto *dst = reinterpret_cast<T *>(dstMemPtr->GetPtr());
+    const MemoryPtr& dstMemPtr) {
+    const auto *data = reinterpret_cast<const T *>(dataMemPtr->getData());
+    const auto *shift = reinterpret_cast<const int32_t *>(shiftMemPtr->getData());
+    const auto *axes = reinterpret_cast<const int32_t *>(axesMemPtr->getData());
+    auto *dst = reinterpret_cast<T *>(dstMemPtr->getData());
 
     std::vector<size_t> shiftsVector(numOfDims, 0ul);
     const VectorDims& dataDims = dataMemPtr->getStaticDims();
@@ -197,7 +197,7 @@ void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr, const MemoryPtr& shif
     const size_t rightBlockSize = blockSize - leftBlockSize;
     const size_t elementSize = sizeof(T);
 
-    const auto strides = dataMemPtr->GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    const auto strides = dataMemPtr->getDescWithType<BlockedMemoryDesc>()->getStrides();
     const auto calculateShiftOffset = [](size_t dataOffset, size_t dimShift, size_t segmentSize, size_t dimSize){
         size_t pos = dataOffset / segmentSize % dimSize;
         size_t shift = (pos + dimShift) % dimSize - pos;

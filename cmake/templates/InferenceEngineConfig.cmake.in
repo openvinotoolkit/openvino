@@ -25,6 +25,8 @@
 
 @PACKAGE_INIT@
 
+message(WARNING "find_package(InferenceEngine) is deprecated and will be removed in 2024.0 release. Please, use find_package(OpenVINO)")
+
 if(NOT DEFINED CMAKE_FIND_PACKAGE_NAME)
     set(CMAKE_FIND_PACKAGE_NAME InferenceEngine)
     set(_ie_need_package_name_reset ON)
@@ -37,6 +39,7 @@ include(CMakeFindDependencyMacro)
 
 find_dependency(OpenVINO
                 PATHS "${CMAKE_CURRENT_LIST_DIR}"
+                      "${CMAKE_CURRENT_LIST_DIR}/../openvino${InferenceEngine_VERSION}"
                 NO_CMAKE_FIND_ROOT_PATH
                 NO_DEFAULT_PATH)
 
@@ -76,7 +79,7 @@ endforeach()
 set(PACKAGE_PREFIX_DIR ${_ie_package_prefix_dir})
 unset(_ie_package_prefix_dir)
 
-set_and_check(InferenceEngine_INCLUDE_DIRS "@PACKAGE_IE_INCLUDE_DIR@")
+set_and_check(InferenceEngine_INCLUDE_DIRS "@PACKAGE_OV_INCLUDE_DIR@")
 
 check_required_components(${CMAKE_FIND_PACKAGE_NAME})
 

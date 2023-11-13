@@ -4,9 +4,10 @@
 
 #pragma once
 
+#include "checkpoint_v1_reader.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
+#include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/input_model.hpp"
-#include "openvino/frontend/tensorflow/graph_iterator.hpp"
 #include "place.hpp"
 #include "translate_session.hpp"
 
@@ -23,11 +24,9 @@ class InputModel : public ov::frontend::InputModel {
     class InputModelTFImpl;
     std::shared_ptr<InputModelTFImpl> _impl;
 
-    std::vector<std::string> get_input_names() const;
     std::vector<std::string> get_output_names() const;
     std::vector<std::shared_ptr<OpPlace>> get_op_places() const;
     std::map<std::string, Output<Node>> get_tensor_values() const;
-    std::shared_ptr<InputModel> get_body_input_model(const std::string& body_input_model_name) const;
 
 public:
     explicit InputModel(const GraphIterator::Ptr& graph_iterator,
@@ -35,6 +34,7 @@ public:
                         const std::shared_ptr<VariablesIndex>& variables_index = {},
                         const std::shared_ptr<std::map<std::string, std::string>> saved_model_input_names = nullptr,
                         const std::shared_ptr<std::map<std::string, std::string>> saved_model_output_names = nullptr,
+                        const std::shared_ptr<CheckpointV1Reader> checkpoint_v1_reader = nullptr,
                         const bool native_format = false);
 
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;
@@ -53,7 +53,11 @@ public:
     std::shared_ptr<std::map<std::string, std::string>> get_saved_model_input_names() const;
     std::shared_ptr<std::map<std::string, std::string>> get_saved_model_output_names() const;
 
+    std::shared_ptr<CheckpointV1Reader> get_checkpoint_v1_reader() const;
+
     std::map<std::string, std::shared_ptr<TensorPlace>> get_tensor_places() const;
+    std::shared_ptr<InputModel> get_body_input_model(const std::string& body_input_model_name) const;
+    std::vector<std::string> get_input_names() const;
 };
 
 }  // namespace tensorflow

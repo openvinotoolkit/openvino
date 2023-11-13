@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: OpenVINO™ Runtime Python API enables you to share memory on inputs, hide 
+                 the latency with asynchronous calls and implement "postponed return".
+
+
 .. warning:: 
    
    All mentioned methods are very dependent on a specific hardware and software set-up. 
@@ -21,16 +26,17 @@ The ``CompiledModel`` class provides the ``__call__`` method that runs a single 
    :fragment: [direct_inference]
 
 
-Shared Memory on Inputs
-#######################
+Shared Memory on Inputs and Outputs
+###################################
 
 While using ``CompiledModel``, ``InferRequest`` and ``AsyncInferQueue``, 
 OpenVINO™ Runtime Python API provides an additional mode - "Shared Memory". 
-Specify the ``shared_memory`` flag to enable or disable this feature. 
-The "Shared Memory" mode may be beneficial when inputs are large and copying 
-data is considered an expensive operation. This feature creates shared ``Tensor`` 
+Specify the ``share_inputs`` and ``share_outputs`` flag to enable or disable this feature. 
+The "Shared Memory" mode may be beneficial when inputs or outputs are large and copying data is considered an expensive operation.
+
+This feature creates shared ``Tensor`` 
 instances with the "zero-copy" approach, reducing overhead of setting inputs 
-to minimum. Example usage:
+to minimum. For outputs this feature creates numpy views on data. Example usage:
 
 
 .. doxygensnippet:: docs/snippets/ov_python_inference.py
@@ -40,13 +46,14 @@ to minimum. Example usage:
 
 .. note:: 
 
-   "Shared Memory" is enabled by default in ``CompiledModel.__call__``. 
+   "Shared Memory" on inputs is enabled by default in ``CompiledModel.__call__``. 
    For other methods, like ``InferRequest.infer`` or ``InferRequest.start_async``, 
    it is required to set the flag to ``True`` manually.
+   "Shared Memory" on outputs is disabled by default in all sequential inference methods (``CompiledModel.__call__`` and ``InferRequest.infer``). It is required to set the flag to ``True`` manually.
 
 .. warning:: 
 
-   When data is being shared, all modifications may affect inputs of the inference! 
+   When data is being shared, all modifications (including subsequent inference calls) may affect inputs and outputs of the inference! 
    Use this feature with caution, especially in multi-threaded/parallel code,
    where data can be modified outside of the function's control flow.
 
@@ -74,10 +81,9 @@ Example usage:
 
 "Postponed Return" is a practice to omit overhead of ``OVDict``, which is always returned from
 synchronous calls. "Postponed Return" could be applied when:
-* only a part of output data is required. For example, only one specific output is significant
-  in a given pipeline step and all outputs are large, thus, expensive to copy.
-* data is not required "now". For example, it can be later extracted inside the pipeline as
-  a part of latency hiding.
+
+* only a part of output data is required. For example, only one specific output is significant in a given pipeline step and all outputs are large, thus, expensive to copy.
+* data is not required "now". For example, it can be later extracted inside the pipeline as a part of latency hiding.
 * data return is not required at all. For example, models are being chained with the pure ``Tensor`` interface.
 
 

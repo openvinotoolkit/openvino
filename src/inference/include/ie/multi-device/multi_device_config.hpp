@@ -11,6 +11,16 @@
 
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include "ie_plugin_config.hpp"
 
 namespace InferenceEngine {
@@ -32,7 +42,7 @@ namespace MultiDeviceConfigParams {
 /**
  * @brief Device Priorities config option, with comma-separated devices listed in the desired priority
  */
-DECLARE_MULTI_CONFIG_KEY(DEVICE_PRIORITIES);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_MULTI_CONFIG_KEY(DEVICE_PRIORITIES);
 
 }  // namespace MultiDeviceConfigParams
 }  // namespace InferenceEngine

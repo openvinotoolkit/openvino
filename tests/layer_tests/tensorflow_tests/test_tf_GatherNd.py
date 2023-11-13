@@ -12,7 +12,7 @@ class TestGatherNd(CommonTFLayerTest):
         assert 'params' in inputs_info
         assert 'indices' in inputs_info
         params_shape = inputs_info['params']
-        indices_shape = inputs_info['indices']
+        indices_shape = list(inputs_info['indices'])
         inputs_data = {}
         inputs_data['params'] = np.random.randint(-50, 50, params_shape).astype(self.params_type)
         # generate indices for each slice and concatenate

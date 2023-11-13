@@ -9,8 +9,8 @@
 #include <ngraph/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "ov_models/builders.hpp"
 #include "transformations/remove_converts.hpp"
 
 namespace testing {
@@ -20,7 +20,7 @@ typedef std::tuple<ov::element::Type,  // Net precision
                    >
     removeConvertTestParams;
 
-class RemoveInputConvertTest : public CommonTestUtils::TestsCommon,
+class RemoveInputConvertTest : public ov::test::TestsCommon,
                                public ::testing::WithParamInterface<removeConvertTestParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<removeConvertTestParams>& obj) {
@@ -207,7 +207,9 @@ public:
 
         // test function
         {
-            auto input = ngraph::builder::makeParams(target_precision_, {input_shape, input_shape, input_shape});
+            ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(target_precision_, input_shape),
+                                      std::make_shared<ov::op::v0::Parameter>(target_precision_, input_shape),
+                                      std::make_shared<ov::op::v0::Parameter>(target_precision_, input_shape)};
             auto convert1 =
                 ngraph::builder::makeConversion(input[0], net_precision_, ngraph::helpers::ConversionTypes::CONVERT);
             auto convert2 =
@@ -222,7 +224,9 @@ public:
 
         // ref function
         {
-            auto input = ngraph::builder::makeParams(net_precision_, {input_shape, input_shape, input_shape});
+            ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(net_precision_, input_shape),
+                                      std::make_shared<ov::op::v0::Parameter>(net_precision_, input_shape),
+                                      std::make_shared<ov::op::v0::Parameter>(net_precision_, input_shape)};
             auto mul1 = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
             auto mul2 = ngraph::builder::makeEltwise(input[2], mul1, ngraph::helpers::EltwiseTypes::ADD);
             auto result = std::make_shared<ngraph::opset8::Result>(mul2);
@@ -242,8 +246,10 @@ public:
         const ngraph::Shape input_shape{1, 10};
         // test function
         {
-            auto input =
-                ngraph::builder::makeParams(net_precision_, {input_shape, input_shape, input_shape, input_shape});
+            ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(net_precision_, input_shape),
+                                      std::make_shared<ov::op::v0::Parameter>(net_precision_, input_shape),
+                                      std::make_shared<ov::op::v0::Parameter>(net_precision_, input_shape),
+                                      std::make_shared<ov::op::v0::Parameter>(net_precision_, input_shape)};
             auto mul1 = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
             auto mul2 = ngraph::builder::makeEltwise(input[2], input[3], ngraph::helpers::EltwiseTypes::ADD);
             auto convert1 =
@@ -259,8 +265,10 @@ public:
 
         // ref function
         {
-            auto input =
-                ngraph::builder::makeParams(net_precision_, {input_shape, input_shape, input_shape, input_shape});
+            ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(net_precision_, input_shape),
+                                      std::make_shared<ov::op::v0::Parameter>(net_precision_, input_shape),
+                                      std::make_shared<ov::op::v0::Parameter>(net_precision_, input_shape),
+                                      std::make_shared<ov::op::v0::Parameter>(net_precision_, input_shape)};
             auto mul1 = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
             auto mul2 = ngraph::builder::makeEltwise(input[2], input[3], ngraph::helpers::EltwiseTypes::ADD);
             auto result1 = std::make_shared<ngraph::opset8::Result>(mul1);
@@ -282,8 +290,10 @@ public:
         const ngraph::Shape input_shape{1, 10};
         // test function
         {
-            auto input =
-                ngraph::builder::makeParams(net_precision_, {input_shape, input_shape, input_shape, input_shape});
+            ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(net_precision_, input_shape),
+                                      std::make_shared<ov::op::v0::Parameter>(net_precision_, input_shape),
+                                      std::make_shared<ov::op::v0::Parameter>(net_precision_, input_shape),
+                                      std::make_shared<ov::op::v0::Parameter>(net_precision_, input_shape)};
             auto mul1 = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
             auto mul2 = ngraph::builder::makeEltwise(input[2], input[3], ngraph::helpers::EltwiseTypes::ADD);
             auto mul3 = ngraph::builder::makeEltwise(mul1, mul2, ngraph::helpers::EltwiseTypes::ADD);
@@ -304,8 +314,10 @@ public:
 
         // ref function
         {
-            auto input =
-                ngraph::builder::makeParams(net_precision_, {input_shape, input_shape, input_shape, input_shape});
+            ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(net_precision_, input_shape),
+                                      std::make_shared<ov::op::v0::Parameter>(net_precision_, input_shape),
+                                      std::make_shared<ov::op::v0::Parameter>(net_precision_, input_shape),
+                                      std::make_shared<ov::op::v0::Parameter>(net_precision_, input_shape)};
             auto mul1 = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
             auto mul2 = ngraph::builder::makeEltwise(input[2], input[3], ngraph::helpers::EltwiseTypes::ADD);
             auto mul3 = ngraph::builder::makeEltwise(mul1, mul2, ngraph::helpers::EltwiseTypes::ADD);

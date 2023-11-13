@@ -6,10 +6,10 @@
 
 #include <memory>
 #include <string>
-#include <transformations_visibility.hpp>
 
 #include "openvino/op/generate_proposals.hpp"
 #include "openvino/op/op.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace op {

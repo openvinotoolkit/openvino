@@ -14,6 +14,7 @@
 #include <utils/bfloat16.hpp>
 #include <utils/general_utils.h>
 #include <vector>
+#include "shape_inference/custom/adaptive_pooling.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl;
@@ -22,57 +23,6 @@ using namespace dnnl::impl::cpu::x64;
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
-namespace {
-/**
- * Implements Adaptive Pooling shape inference algorithm. The output tensor shape consists of the input [N, C] dimensions and
- * the [D_out, H_out, W_out] dimensions, which are placed in the second input parameter.
- * 
- */
-class AdaptivePoolingShapeInfer : public ShapeInferEmptyPads {
-public:
-    explicit AdaptivePoolingShapeInfer(size_t outputs_count) : m_outputs_count(outputs_count) {}
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        const auto& inputDims = input_shapes[0].get();
-        const auto& spatialDims = input_shapes[1].get();
-        const auto inputRank = inputDims.size();
-        const auto spatialDimsSize = spatialDims[0];
-
-        VectorDims outputDims(inputRank);
-        outputDims[0] = inputDims[0];
-        outputDims[1] = inputDims[1];
-        auto newSpatialDimsPtr = reinterpret_cast<int32_t *>(data_dependency.at(1)->GetPtr());
-        for (size_t i = 0; i < spatialDimsSize; i++) {
-            outputDims[i + 2] = newSpatialDimsPtr[i];
-        }
-
-        std::vector<VectorDims> result(m_outputs_count, outputDims);
-        return {std::move(result), ShapeInferStatus::success};
-    }
-
-    port_mask_t get_port_mask() const override {
-        return PortMask(1);
-    }
-
-private:
-    size_t m_outputs_count;
-};
-
-class AdaptivePoolingShapeInferFactory : public ShapeInferFactory {
-public:
-    AdaptivePoolingShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
-    ShapeInferPtr makeShapeInfer() const override {
-        size_t outputs_count = m_op->get_output_size();
-        return std::make_shared<AdaptivePoolingShapeInfer>(outputs_count);
-    }
-
-private:
-    std::shared_ptr<ov::Node> m_op;
-};
-
-} // namespace
 
 bool AdaptivePooling::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -116,9 +66,6 @@ AdaptivePooling::AdaptivePooling(const std::shared_ptr<ngraph::Node>& op, const 
 }
 
 void AdaptivePooling::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-
     if (getParentEdges().size() != 2)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
     if (getChildEdges().size() < (algorithm == Algorithm::AdaptivePoolingMax ? 2 : 1))
@@ -139,9 +86,9 @@ void AdaptivePooling::getSupportedDescriptors() {
 }
 
 bool AdaptivePooling::needShapeInfer() const {
-    const auto newSpatialDimsPtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr());
-    for (size_t i = 0; i < spatialDimsCount; i++) {
-        if (spatialDimsValue[i] != newSpatialDimsPtr[i]) {
+    const auto newSpatialDimsPtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->getData());
+    for (int i = 0; i < spatialDimsCount; i++) {
+        if (static_cast<int32_t>(spatialDimsValue[i]) != newSpatialDimsPtr[i]) {
             for (size_t j = 0; j < spatialDimsValue.size(); j++) {
                 spatialDimsValue[j] = newSpatialDimsPtr[j];
             }
@@ -187,8 +134,8 @@ void AdaptivePooling::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void AdaptivePooling::execute(dnnl::stream strm) {
-    auto inputPrec = getParentEdgeAt(0)->getMemory().GetDataType();
-    auto outputPrec = getChildEdgeAt(0)->getMemory().GetDataType();
+    auto inputPrec = getParentEdgeAt(0)->getMemory().getDataType();
+    auto outputPrec = getChildEdgeAt(0)->getMemory().getDataType();
     if (!(inputPrec == dnnl_f32 && outputPrec == dnnl_f32))
         IE_THROW() << errorPrefix << "doesn't support demanded precisions";
 
@@ -197,22 +144,22 @@ void AdaptivePooling::execute(dnnl::stream strm) {
     int *indexDst = nullptr;
 
     if (algorithm == Algorithm::AdaptivePoolingMax) {
-        indexDst = reinterpret_cast<int *>(getChildEdgeAt(1)->getMemoryPtr()->GetPtr());
+        indexDst = reinterpret_cast<int *>(getChildEdgeAt(1)->getMemoryPtr()->getData());
     }
 
     auto isPlainFmt = srcMemory0.getDesc().hasLayoutType(LayoutType::ncsp);
     auto isTailCFmt = srcMemory0.getDesc().hasLayoutType(LayoutType::nspc);
     auto isBlkFmt = srcMemory0.getDesc().hasLayoutType(LayoutType::nCsp16c) || srcMemory0.getDesc().hasLayoutType(LayoutType::nCsp8c);
 
-    auto srcBlockDesc = srcMemory0.GetDescWithType<BlockedMemoryDesc>();
+    auto srcBlockDesc = srcMemory0.getDescWithType<BlockedMemoryDesc>();
     int blockSize = isBlkFmt ? srcBlockDesc->getBlockDims().back() : 1;
 
-    const auto *src = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    const auto *srcPooledSpatialShapes = reinterpret_cast<const int *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
-    auto *dst = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto *src = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    const auto *srcPooledSpatialShapes = reinterpret_cast<const int *>(getParentEdgeAt(1)->getMemoryPtr()->getData());
+    auto *dst = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
-    if (srcMemory1.GetShape().getElementsCount() != spatialDimsCount)
-        IE_THROW() << errorPrefix << "has input spatial dimension (" << srcMemory1.GetShape().getElementsCount()
+    if (static_cast<int>(srcMemory1.getShape().getElementsCount()) != spatialDimsCount)
+        IE_THROW() << errorPrefix << "has input spatial dimension (" << srcMemory1.getShape().getElementsCount()
                    << ") inconsistent with pooling vector size (" << spatialDimsCount << ")";
 
     auto inputDimVector = srcMemory0.getStaticDims();
@@ -229,14 +176,14 @@ void AdaptivePooling::execute(dnnl::stream strm) {
     const int iHW = IH * IW;
     const int oDHW = OD * OH * OW, oHW = OH * OW;
 
-    const int chPadding = blockSize * (isBlkFmt ? srcBlockDesc->getBlockDims()[1] : srcMemory0.GetShape().getStaticDims()[1]);
+    const int chPadding = blockSize * (isBlkFmt ? srcBlockDesc->getBlockDims()[1] : srcMemory0.getShape().getStaticDims()[1]);
     const int blockCount = (isTailCFmt ? 1 :  chPadding / blockSize);
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << errorPrefix << "doesn't have primitive descriptors.";
     auto config = selectedPrimitiveDescriptor->getConfig();
     auto srcStrides = srcBlockDesc->getStrides();
-    auto dstStrides = getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    auto dstStrides = getChildEdgesAtPort(0)[0]->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
 
     // unified strides array
     const size_t tailDimsOffset = (isTailCFmt ? -1 : 0);

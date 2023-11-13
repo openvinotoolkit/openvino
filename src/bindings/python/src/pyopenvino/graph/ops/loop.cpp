@@ -6,9 +6,10 @@
 
 #include <string>
 
-#include "ngraph/log.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/loop.hpp"
+#include "openvino/util/log.hpp"
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/ops/util/multisubgraph.hpp"
 
 namespace py = pybind11;
@@ -27,7 +28,7 @@ void regclass_graph_op_Loop(py::module m) {
                 MultiSubgraphHelpers::is_constant_or_parameter(execution_condition)) {
                 return std::make_shared<ov::op::v5::Loop>(trip_count->output(0), execution_condition->output(0));
             } else {
-                NGRAPH_WARN
+                OPENVINO_WARN
                     << "Please specify execution_condition and trip_count as Constant or Parameter. Default Loop() "
                        "constructor was applied.";
                 return std::make_shared<ov::op::v5::Loop>();
@@ -91,7 +92,9 @@ void regclass_graph_op_Loop(py::module m) {
             py::arg("successive_value"));
 
     cls.def("get_function", [](const std::shared_ptr<ov::op::v5::Loop>& self) {
-        return self->get_function();
+        auto model = self->get_function();
+        py::type model_class = py::module_::import("openvino.runtime").attr("Model");
+        return model_class(py::cast(model));
     });
 
     cls.def(
@@ -134,4 +137,15 @@ void regclass_graph_op_Loop(py::module m) {
             self->set_output_descriptions(0, MultiSubgraphHelpers::list_to_output_descriptor(outputs));
         },
         py::arg("outputs"));
+
+    cls.def("__repr__", [](const ov::op::v5::Loop& self) {
+        std::stringstream shapes_ss;
+        for (size_t i = 0; i < self.get_output_size(); ++i) {
+            if (i > 0) {
+                shapes_ss << ", ";
+            }
+            shapes_ss << self.get_output_partial_shape(i);
+        }
+        return "<" + Common::get_class_name(self) + ": '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
+    });
 }

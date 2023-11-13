@@ -57,7 +57,7 @@ public:
         std::ostringstream result;
         result << "netPRC=" << netPrecision.name() << "_";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({ shape.first }) << "_";
+            result << ov::test::utils::partialShape2str({ shape.first }) << "_";
         }
         result << "TS=";
         for (const auto& shape : inputShapes) {
@@ -65,13 +65,13 @@ public:
             if (!shape.second.empty()) {
                 auto itr = shape.second.begin();
                 do {
-                    result << CommonTestUtils::vec2str(*itr);
+                    result << ov::test::utils::vec2str(*itr);
                 } while (++itr != shape.second.end() && result << "_");
             }
             result << ")_";
         }
 
-        result << "PS=" << CommonTestUtils::vec2str(poolShape) << "_";
+        result << "PS=" << ov::test::utils::vec2str(poolShape) << "_";
         result << "Scale=" << spatial_scale << "_";
         switch (pool_method) {
         case ngraph::helpers::ROIPoolingTypes::ROI_MAX:
@@ -155,12 +155,9 @@ protected:
                     }
                 } else {
                     switch (funcInput.get_element_type()) {
-                    case ngraph::element::f32: {
-                        CommonTestUtils::fill_data_roi<InferenceEngine::Precision::FP32>(tensor, feat_map_shape[0] - 1, height, width, 1.f, is_roi_max_mode);
-                        break;
-                    }
-                    case ngraph::element::bf16: {
-                        CommonTestUtils::fill_data_roi<InferenceEngine::Precision::BF16>(tensor, feat_map_shape[0] - 1, height, width, 1.f, is_roi_max_mode);
+                    case ov::element::f32:
+                    case ov::element::bf16: {
+                        ov::test::utils::fill_data_roi(tensor, feat_map_shape[0] - 1, height, width, 1.f, is_roi_max_mode);
                         break;
                     }
                     default:
@@ -205,11 +202,11 @@ protected:
         init_input_shapes(inputShapes);
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeDynamicParams(ngPrc, inputDynamicShapes);
-        auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes)
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, shape));
 
-        auto roi_pooling = ngraph::builder::makeROIPooling(paramOuts[0], paramOuts[1], poolShape, spatial_scale, pool_method);
+        auto roi_pooling = ngraph::builder::makeROIPooling(params[0], params[1], poolShape, spatial_scale, pool_method);
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(roi_pooling)};
 
         function = makeNgraphFunction(ngPrc, params, roi_pooling, "ROIPooling");
@@ -336,14 +333,14 @@ const auto test_ROIPooling_max = ::testing::Combine(::testing::ValuesIn(inShapes
                                                     ::testing::ValuesIn(spatial_scales),
                                                     ::testing::Values(ngraph::helpers::ROIPoolingTypes::ROI_MAX),
                                                     ::testing::ValuesIn(netPRCs),
-                                                    ::testing::Values(CommonTestUtils::DEVICE_CPU));
+                                                    ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 const auto test_ROIPooling_bilinear = ::testing::Combine(::testing::ValuesIn(inShapes),
                                                          ::testing::ValuesIn(pooledShapes_bilinear),
                                                          ::testing::Values(spatial_scales[1]),
                                                          ::testing::Values(ngraph::helpers::ROIPoolingTypes::ROI_BILINEAR),
                                                          ::testing::ValuesIn(netPRCs),
-                                                         ::testing::Values(CommonTestUtils::DEVICE_CPU));
+                                                         ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_ROIPoolingCPU_max,
                         ROIPoolingCPULayerTest,
@@ -368,7 +365,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ROIPoolingCPU_bilinear_ultimateRightBorderProposa
                                                               ::testing::Values(spatial_scales[1]),
                                                               ::testing::Values(ngraph::helpers::ROIPoolingTypes::ROI_BILINEAR),
                                                               ::testing::Values(InferenceEngine::Precision::FP32),
-                                                              ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                                              ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                            ::testing::ValuesIn(selectCPUInfoForDevice()),
                                            ::testing::Values(ProposalGenerationMode::ULTIMATE_RIGHT_BORDER),
                                            ::testing::Values(std::map<std::string, std::string>{

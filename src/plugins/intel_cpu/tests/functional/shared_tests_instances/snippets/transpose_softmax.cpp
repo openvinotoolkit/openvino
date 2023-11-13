@@ -23,7 +23,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeSoftmax, TransposeSoftmax,
                              ::testing::Values(-1),
                              ::testing::Values(1),
                              ::testing::Values(1),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                      TransposeSoftmax::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeSoftmaxEltwise, TransposeSoftmaxEltwise,
@@ -33,7 +33,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeSoftmaxEltwise, TransposeSoftma
                                  ::testing::Values(-1),
                                  ::testing::Values(1),
                                  ::testing::Values(1),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          TransposeSoftmax::getTestCaseName);
 
 } // namespace

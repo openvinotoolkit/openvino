@@ -9,6 +9,9 @@
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_plugin_config.hpp"
 #include "iplugin_wrapper.hpp"
+#include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "openvino/util/common_util.hpp"
 
 #define OV_PLUGIN_CALL_STATEMENT(...)                                                  \
     OPENVINO_ASSERT(m_ptr != nullptr, "OpenVINO Runtime Plugin was not initialized."); \
@@ -49,7 +52,7 @@ const ov::Version ov::Plugin::get_version() const {
     OV_PLUGIN_CALL_STATEMENT(return m_ptr->get_version());
 }
 
-void ov::Plugin::add_extension(const ie::IExtensionPtr& extension) {
+void ov::Plugin::add_extension(const InferenceEngine::IExtensionPtr& extension) {
     OPENVINO_SUPPRESS_DEPRECATED_START
     OV_PLUGIN_CALL_STATEMENT(m_ptr->add_extension(extension));
     OPENVINO_SUPPRESS_DEPRECATED_END
@@ -70,7 +73,7 @@ ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(const std::string& model
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                        const ov::RemoteContext& context,
+                                                        const ov::SoPtr<ov::IRemoteContext>& context,
                                                         const ov::AnyMap& properties) const {
     OV_PLUGIN_CALL_STATEMENT(return {m_ptr->compile_model(model, properties, context), m_so});
 }
@@ -85,22 +88,26 @@ ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(std::istream& model, cons
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(std::istream& networkModel,
-                                                       const ov::RemoteContext& context,
+                                                       const ov::SoPtr<ov::IRemoteContext>& context,
                                                        const ov::AnyMap& config) const {
     OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(networkModel, context, config), m_so});
 }
 
-ov::RemoteContext ov::Plugin::create_context(const AnyMap& params) const {
+ov::SoPtr<ov::IRemoteContext> ov::Plugin::create_context(const AnyMap& params) const {
     OV_PLUGIN_CALL_STATEMENT({
         auto remote = m_ptr->create_context(params);
-        return {remote, {m_so}};
+        if (!remote._so)
+            remote._so = m_so;
+        return remote;
     });
 }
 
-ov::RemoteContext ov::Plugin::get_default_context(const AnyMap& params) const {
+ov::SoPtr<ov::IRemoteContext> ov::Plugin::get_default_context(const AnyMap& params) const {
     OV_PLUGIN_CALL_STATEMENT({
         auto remote = m_ptr->get_default_context(params);
-        return {remote, {m_so}};
+        if (!remote._so)
+            remote._so = m_so;
+        return remote;
     });
 }
 
@@ -109,7 +116,7 @@ ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& argument
         if (ov::supported_properties == name) {
             try {
                 return {m_ptr->get_property(name, arguments), {m_so}};
-            } catch (const ie::Exception&) {
+            } catch (const InferenceEngine::Exception&) {
                 std::vector<ov::PropertyName> supported_properties;
                 try {
                     auto ro_properties =
@@ -121,7 +128,7 @@ ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& argument
                         }
                     }
                 } catch (const ov::Exception&) {
-                } catch (const ie::Exception&) {
+                } catch (const InferenceEngine::Exception&) {
                 }
                 try {
                     auto rw_properties = m_ptr->get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS), arguments)
@@ -130,12 +137,62 @@ ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& argument
                         supported_properties.emplace_back(rw_property, PropertyMutability::RW);
                     }
                 } catch (const ov::Exception&) {
-                } catch (const ie::Exception&) {
+                } catch (const InferenceEngine::Exception&) {
                 }
                 supported_properties.emplace_back(ov::supported_properties.name(), PropertyMutability::RO);
                 return supported_properties;
             }
         }
+        // Add legacy supported properties
+        if (METRIC_KEY(SUPPORTED_METRICS) == name || METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
+            try {
+                return {m_ptr->get_property(name, arguments), {m_so}};
+            } catch (const ov::Exception&) {
+                auto props =
+                    m_ptr->get_property(ov::supported_properties.name(), arguments).as<std::vector<PropertyName>>();
+                std::vector<std::string> legacy_properties;
+                for (const auto& prop : props) {
+                    if ((METRIC_KEY(SUPPORTED_METRICS) == name && !prop.is_mutable()) ||
+                        (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name && prop.is_mutable()))
+                        legacy_properties.emplace_back(prop);
+                }
+                if (METRIC_KEY(SUPPORTED_METRICS) == name) {
+                    legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_METRICS));
+                    legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                }
+                if (METRIC_KEY(SUPPORTED_METRICS) == name && supports_model_caching(false))
+                    legacy_properties.emplace_back(METRIC_KEY(IMPORT_EXPORT_SUPPORT));
+
+                return legacy_properties;
+            }
+        }
+        if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
+            try {
+                return {m_ptr->get_property(name, arguments), {m_so}};
+            } catch (const ov::Exception&) {
+                if (!supports_model_caching(false))
+                    throw;
+                // if device has ov::device::capability::EXPORT_IMPORT it means always true
+                return true;
+            }
+        }
         return {m_ptr->get_property(name, arguments), {m_so}};
     });
+}
+
+bool ov::Plugin::supports_model_caching(bool check_old_api) const {
+    bool supported(false);
+    if (check_old_api) {
+        auto supportedMetricKeys = get_property(METRIC_KEY(SUPPORTED_METRICS), {}).as<std::vector<std::string>>();
+        supported = util::contains(supportedMetricKeys, METRIC_KEY(IMPORT_EXPORT_SUPPORT)) &&
+                    get_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT), {}).as<bool>();
+    }
+    if (!supported) {
+        supported = util::contains(get_property(ov::supported_properties), ov::device::capabilities) &&
+                    util::contains(get_property(ov::device::capabilities), ov::device::capability::EXPORT_IMPORT);
+    }
+    if (supported) {
+        supported = util::contains(get_property(ov::internal::supported_properties), ov::internal::caching_properties);
+    }
+    return supported;
 }

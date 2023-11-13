@@ -1,98 +1,88 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 #include "pass/canonicalization.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include <subgraph_lowered.hpp>
+#include "snippets/pass/canonicalization.hpp"
+#include "snippets/op/rank_normalization.hpp"
+#include <subgraph_simple.hpp>
 
 namespace ov {
 namespace test {
 namespace snippets {
-using ngraph::snippets::op::Subgraph;
+namespace {
+void normalizeParameter(const std::shared_ptr<ov::opset1::Parameter>& par, size_t num_prepend, size_t num_append) {
+    auto target_inputs = par->get_output_target_inputs(0);
+    auto rank_norm = std::make_shared<ov::snippets::op::RankNormalization>(par,
+                                                                           num_prepend,
+                                                                           num_append);
+    for (auto& t : target_inputs)
+        t.replace_source_output(rank_norm);
+}
+} // namespace
 
-std::string CanonicalizationTests::getTestCaseName(testing::TestParamInfo<canonicalizationParams> obj) {
-    std::vector<std::tuple<Shape, Subgraph::BlockedShape>> inputs(2);
-    Subgraph::BlockedShape output;
-    Shape expectedOutput;
-    std::tie(inputs[0], inputs[1], output, expectedOutput) = obj.param;
-    std::ostringstream result;
-    for (size_t i = 0; i < inputs.size(); i++) {
-        const auto &blockedshape = std::get<1>(inputs[i]);
-        // input shape
-        result << "IS[" << i << "]=" << CommonTestUtils::vec2str(std::get<0>(inputs[i])) << "_";
-        // input blocked shape
-        result << "IBS[" << i << "]=" << CommonTestUtils::partialShape2str({std::get<0>(blockedshape)}) << "_";
-        // input blocked order
-        result << "IBO[" << i << "]=" << CommonTestUtils::vec2str(std::get<1>(blockedshape)) << "_";
-    }
-    // output blocked shape
-    result << "OBS[0]=" << CommonTestUtils::partialShape2str({std::get<0>(output)}) << "_";
-    // output blocked order
-    result << "OBO[0]=" << CommonTestUtils::vec2str(std::get<1>(output)) << "_";
-    result << "ExpOS[0]=" << CommonTestUtils::vec2str(expectedOutput) << "_";
-    return result.str();
+void CanonicalizationTests::prepare_functions(const std::vector<VectorDims>& shapes) {
+    std::vector<PartialShape> pshapes;
+    pshapes.reserve(shapes.size());
+    for (const auto& v : shapes )
+        pshapes.emplace_back(v);
+    const auto &f = AddFunction(pshapes);
+    model = f.getOriginal();
+    model_ref = model->clone();
 }
 
-void CanonicalizationTests::SetUp() {
-    TransformationTestsF::SetUp();
-    std::vector<std::tuple<Shape, Subgraph::BlockedShape>> inputs(2);
-    output_blocked_shapes.resize(1);
-    std::tie(inputs[0], inputs[1], output_blocked_shapes[0], expected_output_shape) = this->GetParam();
-
-    input_blocked_shapes = {std::get<1>(inputs[0]), std::get<1>(inputs[1])};
-    snippets_function = std::make_shared<AddFunction>(std::vector<PartialShape>{std::get<0>(inputs[0]), std::get<0>(inputs[1])});
+void CanonicalizationTests::run() {
+    ASSERT_TRUE(model);
+    ASSERT_EQ(m_input_shapes.size(), m_input_layouts.size());
+    BlockedShapeVector blocked_input_shapes;
+    blocked_input_shapes.reserve(m_input_shapes.size());
+    for (size_t i = 0; i < m_input_shapes.size(); i++)
+        blocked_input_shapes.emplace_back(m_input_shapes[i], m_input_layouts[i]);
+    manager.register_pass<ov::snippets::pass::Canonicalization>(blocked_input_shapes);
+    disable_rt_info_check();
 }
 
-TEST_P(CanonicalizationTests, Add) {
-    function = snippets_function->getOriginal();
-    function_ref = snippets_function->getReference();
-    auto subgraph =  getTokenizedSubgraph(function);
-    subgraph->set_generator(std::make_shared<DummyGenerator>());
-    auto canonical_output_shape = subgraph->canonicalize(output_blocked_shapes, input_blocked_shapes);
-    ASSERT_TRUE(canonical_output_shape.is_static());
-    ASSERT_DIMS_EQ(canonical_output_shape.get_shape(), expected_output_shape);
+TEST_F(CanonicalizationTests, smoke_Snippets_Canonicalization_0) {
+    m_input_shapes = {{2, 3, 10, 64}, {2, 3, 10, 64}};
+    m_input_layouts = {{0, 1, 2, 3}, {0, 1, 2, 3}};
+    prepare_functions(m_input_shapes);
+    run();
 }
 
 namespace CanonicalizationTestsInstantiation {
-using ngraph::snippets::op::Subgraph;
-std::vector<Shape> input_shapes;
-Shape expected_output_shape;
-Subgraph::BlockedShapeVector input_blocked_shapes;
+TEST_F(CanonicalizationTests, smoke_Snippets_Canonicalization_1) {
+    m_input_shapes = {{2,  3, 10, 64},
+                      {10, 64}};
+    m_input_layouts = {{0, 1, 2, 3},
+                       {0, 1}};
+    prepare_functions(m_input_shapes);
+    normalizeParameter(model_ref->get_parameters()[1], 2, 0);
+    run();
+}
 
-using ov::Shape;
-ov::element::Type_t prec = ov::element::f32;
-std::tuple<Shape, Subgraph::BlockedShape> blockedInput0{{1, 64, 2, 5},
-                                                        {{1, 4, 2, 5, 16}, {0, 1, 2, 3, 1}, prec}};
-Subgraph::BlockedShape output{{1, 4, 2, 5, 16}, {0, 1, 2, 3, 1}, prec};
-Shape canonical_shape{1, 4, 2, 5, 16};
+TEST_F(CanonicalizationTests, smoke_Snippets_Canonicalization_2) {
+    m_input_shapes = {{2, 3,  10, 64, 16},
+                      {1, 10, 64}};
+    m_input_layouts = {{0, 1, 2, 3, 1},
+                       {0, 1, 2}};
+    prepare_functions({{2, 48, 10, 64},
+                       {1, 10, 64}});
+    const auto& params = model_ref->get_parameters();
+    // Note: We can't create functions with mismatching input shapes,
+    // so we have to set Parameter shapes after the functions were created
+    // This reproduces Snippets pipeline well, since blocked shapes are set after the tokenization
+    params[0]->set_partial_shape(PartialShape(m_input_shapes[0]));
+    model->get_parameters()[0]->set_partial_shape(PartialShape(m_input_shapes[0]));
 
-std::vector<std::tuple<Shape, Subgraph::BlockedShape>> blockedInput1{{{1, 1,  2, 5}, {{1, 1, 2, 5, 1},  {0, 1, 2, 3, 1}, prec}},
-                                                                     {{1, 1,  2, 1}, {{1, 1, 2, 1, 1},  {0, 1, 2, 3, 1}, prec}},
-                                                                     {{1, 64, 1, 1}, {{1, 4, 1, 1, 16}, {0, 1, 2, 3, 1}, prec}}};
+    normalizeParameter(params[1], 1, 1);
+    // need to trigger validate..(...) manually to propagate new blocked shapes,
+    // this is correct since RankNormalization ops re-enables shape propagation for blocked shapes
+    model_ref->validate_nodes_and_infer_types();
+    run();
+}
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BroadcastBlocked, CanonicalizationTests,
-                         ::testing::Combine(
-                                 ::testing::Values(blockedInput0),
-                                 ::testing::ValuesIn(blockedInput1),
-                                 ::testing::Values(output),
-                                 ::testing::Values(canonical_shape)),
-                         CanonicalizationTests::getTestCaseName);
-
-std::vector<std::tuple<Shape, Subgraph::BlockedShape>> planarInput1{{{1, 1, 2, 5}, {{1, 2, 5}, {0, 1, 2}, prec}},
-                                                                    {{1, 1, 2, 5}, {{2, 5},    {0, 1},    prec}},
-                                                                    {{1, 2, 5},    {{2, 5},    {0, 1},    prec}},
-                                                                    {{2, 5},       {{2, 5},    {0, 1},    prec}},
-                                                                    {{5},          {{5},       {0},       prec}}};
-
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BroadcastPlanar, CanonicalizationTests,
-                         ::testing::Combine(
-                                 ::testing::Values(blockedInput0),
-                                 ::testing::ValuesIn(planarInput1),
-                                 ::testing::Values(output),
-                                 ::testing::Values(canonical_shape)),
-                         CanonicalizationTests::getTestCaseName);
 } // namespace CanonicalizationTestsInstantiation
 }  // namespace snippets
 }  // namespace test

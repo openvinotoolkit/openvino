@@ -8,9 +8,9 @@
 #include <openvino/opsets/opset10.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/test_common.hpp"
+#include "conversion_with_reference.hpp"
 #include "gtest/gtest.h"
-#include "test_common.hpp"
 #include "tf_utils.hpp"
 #include "utils.hpp"
 
@@ -107,7 +107,7 @@ TEST(FrontEndConvertTrickyModels, model_with_output_shapes) {
     }
 }
 
-TEST_F(TransformationTestsF, AssertAndStringTensors) {
+TEST_F(FrontEndConversionWithReferenceTestsF, AssertAndStringTensors) {
     {
         model = convert_model("string_tensors_model/string_tensors_model.pbtxt");
         // TODO: investigate - why we have redundant nodes after the conversion
@@ -123,12 +123,12 @@ TEST_F(TransformationTestsF, AssertAndStringTensors) {
     }
 }
 
-TEST_F(TransformationTestsF, UnsortedNodes) {
+TEST_F(FrontEndConversionWithReferenceTestsF, UnsortedNodes) {
     { model = convert_model("forward_edge_model_unsorted/forward_edge_model_unsorted.pbtxt"); }
     { model_ref = convert_model("forward_edge_model/forward_edge_model.pbtxt"); }
 }
 
-TEST_F(TransformationTestsF, ModelWithSwishF32BodyGraph) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithSwishF32BodyGraph) {
     {
         model = convert_model("swish_f32/swish_f32.pbtxt");
         // need to call shape inference since body graphs can be injected with undefined shapes
@@ -146,7 +146,7 @@ TEST_F(TransformationTestsF, ModelWithSwishF32BodyGraph) {
     }
 }
 
-TEST_F(TransformationTestsF, PartitionedCall) {
+TEST_F(FrontEndConversionWithReferenceTestsF, PartitionedCall) {
     {
         model = convert_model("partitioned_call/partitioned_call.pbtxt");
         // need to call shape inference since body graphs can be injected with undefined shapes
@@ -163,7 +163,7 @@ TEST_F(TransformationTestsF, PartitionedCall) {
     }
 }
 
-TEST_F(TransformationTestsF, ModelWithIf) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithIf) {
     { model = convert_model("model_with_if/model_with_if.pbtxt"); }
     {
         // create then branch body graph
@@ -196,7 +196,7 @@ TEST_F(TransformationTestsF, ModelWithIf) {
     }
 }
 
-TEST_F(TransformationTestsF, InjectedBodyAndIf) {
+TEST_F(FrontEndConversionWithReferenceTestsF, InjectedBodyAndIf) {
     {
         model = convert_model("injected_body_and_if/injected_body_and_if.pbtxt");
         // need to call shape inference since body graphs can be injected with undefined shapes
@@ -235,11 +235,15 @@ TEST_F(TransformationTestsF, InjectedBodyAndIf) {
     }
 }
 
-TEST_F(TransformationTestsF, ModelWithDilatedGroupConvolution) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithDilatedGroupConvolution) {
     {
         model = convert_model("dilated_gconv_model/dilated_gconv_model.pbtxt");
         // need to call MOC to fuse BatchToSpace/SpaceToBatch with GroupConvolution
         manager.register_pass<pass::MOCTransformations>(false);
+        // TODO: enable ATTRIBUTES, CONST_VALUES and ACCURACY checks, CVS-111900
+        comparator.disable(FunctionsComparator::CmpValues::ATTRIBUTES);
+        comparator.disable(FunctionsComparator::CmpValues::CONST_VALUES);
+        comparator.disable(FunctionsComparator::CmpValues::ACCURACY);
     }
     {
         auto x = make_shared<Parameter>(f32, Shape{1, 129, 257, 384});
@@ -259,7 +263,7 @@ TEST_F(TransformationTestsF, ModelWithDilatedGroupConvolution) {
     }
 }
 
-TEST_F(TransformationTestsF, ModelWithSaveV2) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithSaveV2) {
     {
         model = convert_model("model_savev2/model_savev2.pbtxt");
         // need to call shape inference since body graphs can be injected with undefined shapes
@@ -275,7 +279,7 @@ TEST_F(TransformationTestsF, ModelWithSaveV2) {
     }
 }
 
-TEST_F(TransformationTestsF, ModelWithConstResultSubgraphs) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithConstResultSubgraphs) {
     { model = convert_model("model_with_const_result/model_with_const_result.pbtxt"); }
     {
         // create a reference graph
@@ -298,7 +302,7 @@ TEST_F(TransformationTestsF, ModelWithConstResultSubgraphs) {
     }
 }
 
-TEST_F(TransformationTestsF, ModelWithIteratorGetNext) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithIteratorGetNext) {
     { model = convert_model("model_with_iterator_get_next/model_with_iterator_get_next.pbtxt"); }
     {
         // create a reference graph
@@ -310,7 +314,7 @@ TEST_F(TransformationTestsF, ModelWithIteratorGetNext) {
     }
 }
 
-TEST_F(TransformationTestsF, ModelWithQueueOperations) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithQueueOperations) {
     { model = convert_model("model_with_queue_ops/model_with_queue_ops.pbtxt"); }
     {
         // create a reference graph
@@ -322,7 +326,7 @@ TEST_F(TransformationTestsF, ModelWithQueueOperations) {
     }
 }
 
-TEST_F(TransformationTestsF, ModelWithQueueOperations2) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithQueueOperations2) {
     { model = convert_model("model_with_queue_ops2/model_with_queue_ops2.pbtxt"); }
     {
         // create a reference graph
@@ -336,7 +340,7 @@ TEST_F(TransformationTestsF, ModelWithQueueOperations2) {
     }
 }
 
-TEST_F(TransformationTestsF, ModelWithLookupTableOperations) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithLookupTableOperations) {
     { model = convert_model("model_with_lookup_table/model_with_lookup_table.pbtxt"); }
     {
         // create a reference graph
@@ -348,7 +352,7 @@ TEST_F(TransformationTestsF, ModelWithLookupTableOperations) {
     }
 }
 
-TEST_F(TransformationTestsF, ModelWithIteratorGetNextAndUnsupportedOp) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithIteratorGetNextAndUnsupportedOp) {
     { model = convert_model("unsupported_op_itergetnext/unsupported_op_itergetnext.pb"); }
     {
         // create then branch body graph
@@ -360,8 +364,12 @@ TEST_F(TransformationTestsF, ModelWithIteratorGetNextAndUnsupportedOp) {
     }
 }
 
-TEST_F(TransformationTestsF, ModelWithMultioutputBodyGraphNode) {
-    { model = convert_model("partitioned_call2/partitioned_call2.pbtxt"); }
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithMultioutputBodyGraphNode) {
+    {
+        model = convert_model("partitioned_call2/partitioned_call2.pbtxt");
+        // TODO: enable ATTRIBUTES check, CVS-111901
+        comparator.disable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    }
     {
         auto x = make_shared<Parameter>(i32, Shape{5});
         auto y = make_shared<Parameter>(i32, Shape{5});
@@ -375,7 +383,7 @@ TEST_F(TransformationTestsF, ModelWithMultioutputBodyGraphNode) {
     }
 }
 
-TEST_F(TransformationTestsF, ModelWithEmptyTensorListAndPushBack) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithEmptyTensorListAndPushBack) {
     { model = convert_model("empty_tensor_list/empty_tensor_list.pb"); }
     {
         auto x = make_shared<Parameter>(f32, Shape{2, 3, 5});
@@ -383,8 +391,7 @@ TEST_F(TransformationTestsF, ModelWithEmptyTensorListAndPushBack) {
         auto x_flatten = make_shared<Reshape>(x, minus_one_const, false);
         auto zero_const = make_shared<Constant>(i32, Shape{1}, 0);
         auto x_unsqueeze_flatten = make_shared<Unsqueeze>(x_flatten, zero_const);
-        auto empty_const = make_shared<Constant>(f32, Shape{0, 30}, vector<float>{});
-        auto list_push_back = make_shared<Concat>(OutputVector{empty_const, x_unsqueeze_flatten}, 0);
+        auto list_push_back = make_shared<Concat>(OutputVector{x_unsqueeze_flatten}, 0);
         auto list_push_back_shape = make_shared<ShapeOf>(list_push_back, element::i32);
         auto start = make_shared<Constant>(i32, Shape{1}, 0);
         auto stop = make_shared<Constant>(i32, Shape{1}, 1);
@@ -395,9 +402,10 @@ TEST_F(TransformationTestsF, ModelWithEmptyTensorListAndPushBack) {
         auto recover_item = make_shared<Reshape>(list_push_back, recover_item_shape, false);
         model_ref = make_shared<Model>(OutputVector{recover_item}, ParameterVector{x});
     }
+    comparator.disable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
-TEST_F(TransformationTestsF, ModelWithAssertNode) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithAssertNode) {
     { model = convert_model("model_with_assert/model_with_assert.pb"); }
     {
         auto x = make_shared<Parameter>(i32, PartialShape{Dimension::dynamic()});
@@ -407,7 +415,7 @@ TEST_F(TransformationTestsF, ModelWithAssertNode) {
     }
 }
 
-TEST_F(TransformationTestsF, PartitionedCallWithUnique) {
+TEST_F(FrontEndConversionWithReferenceTestsF, PartitionedCallWithUnique) {
     // This test aims to test named output ports for Unique operation
     { model = convert_model("partitioned_call_with_unique/partitioned_call_with_unique.pb"); }
     {
@@ -421,7 +429,7 @@ TEST_F(TransformationTestsF, PartitionedCallWithUnique) {
     }
 }
 
-TEST_F(TransformationTestsF, RaggedTensorToSparse) {
+TEST_F(FrontEndConversionWithReferenceTestsF, RaggedTensorToSparse) {
     // This test aims to test named output ports for RaggedTensorToSparse operation
     // also, it tests propagation of custom type (specified in the extension) to Parameter node in the parent graph
     {
@@ -451,7 +459,7 @@ TEST_F(TransformationTestsF, RaggedTensorToSparse) {
     }
 }
 
-TEST_F(TransformationTestsF, MetaGraphVariables) {
+TEST_F(FrontEndConversionWithReferenceTestsF, MetaGraphVariables) {
     {
         model = convert_model("metagraph_variables/graph.meta");
         model->validate_nodes_and_infer_types();
@@ -468,7 +476,7 @@ TEST_F(TransformationTestsF, MetaGraphVariables) {
     }
 }
 
-TEST_F(TransformationTestsF, MetaGraphCut) {
+TEST_F(FrontEndConversionWithReferenceTestsF, MetaGraphCut) {
     {
         model = convert_model("metagraph_variables/graph.meta", nullptr, {"y"});
         model->validate_nodes_and_infer_types();
@@ -485,7 +493,7 @@ TEST_F(TransformationTestsF, MetaGraphCut) {
     }
 }
 
-TEST_F(TransformationTestsF, MetaGraphCutInputTensor) {
+TEST_F(FrontEndConversionWithReferenceTestsF, MetaGraphCutInputTensor) {
     {
         model = convert_model("metagraph_variables/graph.meta",
                               nullptr,
@@ -504,7 +512,7 @@ TEST_F(TransformationTestsF, MetaGraphCutInputTensor) {
     }
 }
 
-TEST_F(TransformationTestsF, MetaGraphCutOutputTensor) {
+TEST_F(FrontEndConversionWithReferenceTestsF, MetaGraphCutOutputTensor) {
     {
         model = convert_model("metagraph_variables/graph.meta",
                               nullptr,
@@ -523,7 +531,7 @@ TEST_F(TransformationTestsF, MetaGraphCutOutputTensor) {
     }
 }
 
-TEST_F(TransformationTestsF, MetaGraphCutIdentity) {
+TEST_F(FrontEndConversionWithReferenceTestsF, MetaGraphCutIdentity) {
     {
         model = convert_model("metagraph_variables/graph.meta",
                               nullptr,
@@ -542,7 +550,12 @@ TEST_F(TransformationTestsF, MetaGraphCutIdentity) {
     }
 }
 
-TEST_F(TransformationTestsF, SplitInFunction) {
+TEST_F(FrontEndConversionWithReferenceTestsF, MetaGraphMMAPCompare) {
+    { model = convert_model("metagraph_variables/graph.meta"); }
+    { model_ref = convert_model("metagraph_variables/graph.meta", nullptr, {}, {}, {}, {}, {}, true); }
+}
+
+TEST_F(FrontEndConversionWithReferenceTestsF, SplitInFunction) {
     {
         // create FAKE conversion extension for Split using named ports, this is not required for Split, but it tests
         // how named ports will work if there is one name and many outputs associated with it
@@ -572,7 +585,7 @@ TEST_F(TransformationTestsF, SplitInFunction) {
     }
 }
 
-TEST_F(TransformationTestsF, ResourceGatherModel) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ResourceGatherModel) {
     // This test aims to check basic support of ResourceGather operation
     // and cutting an input model with specified shapes and types
     {
@@ -600,7 +613,7 @@ TEST_F(TransformationTestsF, ResourceGatherModel) {
     }
 }
 
-TEST_F(TransformationTestsF, NonMaxSuppressionWithNamedOutputs) {
+TEST_F(FrontEndConversionWithReferenceTestsF, NonMaxSuppressionWithNamedOutputs) {
     // The purpose of this test is to check that named output ports of TensorFlow NMS operation are connected correctly
     // to its consumers
     { model = convert_model("nms_named_outputs/nms_named_outputs.pb"); }
@@ -651,7 +664,8 @@ TEST_F(TransformationTestsF, NonMaxSuppressionWithNamedOutputs) {
         selected_scores = make_shared<Convert>(selected_scores, i32);
 
         // compute the third output - valid_outputs
-        Output<Node> valid_outputs = make_shared<Squeeze>(nms->output(2));
+        auto squeeze_axes = make_shared<Constant>(i64, Shape{1}, 0);
+        Output<Node> valid_outputs = make_shared<Squeeze>(nms->output(2), squeeze_axes);
 
         // make post-processing before the concatenation
         auto const_minus_one = make_shared<Constant>(i32, Shape{1}, -1);
@@ -668,7 +682,7 @@ TEST_F(TransformationTestsF, NonMaxSuppressionWithNamedOutputs) {
     }
 }
 
-TEST_F(TransformationTestsF, PartitionedCallsWithConvInBodyGraphs) {
+TEST_F(FrontEndConversionWithReferenceTestsF, PartitionedCallsWithConvInBodyGraphs) {
     // The test aims to check that the conversion for the body graphs is performed with set input shapes
     // that allows to get more optimized ov::Model for the body graphs.
     // In particular, we check that the resulted graph contains Convolution operations instead of GroupConvolution
@@ -690,5 +704,75 @@ TEST_F(TransformationTestsF, PartitionedCallsWithConvInBodyGraphs) {
                                              op::PadType::SAME_UPPER);
 
         model_ref = make_shared<Model>(OutputVector{conv}, ParameterVector{input1, filter});
+    }
+}
+
+TEST_F(FrontEndConversionWithReferenceTestsF, ControlDependencyNumberOutputs) {
+    // The test aims to check a number of outputs of the resulted model
+    // If the node has dependent nodes by conditional edge, it is not terminating
+    // and it should not go to the Result node
+    { model = convert_model("control_dependency/control_dependency.pb"); }
+    {
+        auto input1 = make_shared<Parameter>(f32, Shape{2, 3});
+        auto input2 = make_shared<Parameter>(f32, Shape{2, 3});
+
+        // AddV2 node is excluded since it is not terminating
+        auto sub = make_shared<Subtract>(input1, input2);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{input1, input2});
+    }
+}
+
+TEST_F(FrontEndConversionWithReferenceTestsF, TF1IfWithNonExistentOpInBranch) {
+    // This test aims to check conversion of a model with TF1 If operation that
+    // contains unsupported operation in one branch
+    // the conversion must avoid such branch in case proper condition freezing
+    {
+        bool cond_value = false;
+        model = convert_model("tf1_if_with_nonexistent_op/tf1_if_with_nonexistent_op.pb",
+                              nullptr,
+                              {},
+                              {},
+                              {},
+                              {"cond"},
+                              {&cond_value});
+    }
+    {
+        auto y = make_shared<Parameter>(f32, Shape{2, 3});
+        auto ind = make_shared<Parameter>(i32, Shape{3});
+
+        auto const_two = make_shared<Constant>(i32, Shape{}, 2);
+        auto sub = make_shared<Subtract>(ind, const_two);
+
+        auto convert = make_shared<Convert>(sub, f32);
+        auto mul = make_shared<Multiply>(convert, y);
+
+        model_ref = make_shared<Model>(OutputVector{mul}, ParameterVector{y, ind});
+    }
+}
+
+TEST_F(FrontEndConversionWithReferenceTestsF, ConvolutionWithDynamicInputChannel) {
+    // This test aims to check conversion of a model with convolution of dynamic input channel
+    // Namely, the resulted model must contain the regular convolution, not grouped convolution
+    { model = convert_model("conv_with_dynamic_input_channel"); }
+    {
+        auto input = make_shared<Parameter>(f32, PartialShape{Dimension::dynamic(), 10, 10, Dimension::dynamic()});
+
+        auto transpose_order = make_shared<Constant>(i64, Shape{4}, vector<int32_t>{0, 3, 1, 2});
+        auto transpose = make_shared<Transpose>(input, transpose_order);
+
+        auto filter = make_shared<Constant>(element::f32, Shape{6, 6, 3, 3}, vector<float>(6 * 6 * 3 * 3, 0.0f));
+        auto conv = make_shared<Convolution>(transpose,
+                                             filter,
+                                             Strides{1, 1},
+                                             CoordinateDiff{0, 0},
+                                             CoordinateDiff{0, 0},
+                                             Strides{1, 1},
+                                             op::PadType::SAME_UPPER);
+
+        auto transpose_order_back = make_shared<Constant>(i64, Shape{4}, vector<int32_t>{0, 2, 3, 1});
+        auto transpose_back = make_shared<Transpose>(conv, transpose_order_back);
+
+        model_ref = make_shared<Model>(OutputVector{transpose_back}, ParameterVector{input});
     }
 }

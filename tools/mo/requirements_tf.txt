@@ -1,6 +1,6 @@
 -c ../constraints.txt
-tensorflow>=1.15.5,<2.13.0
-numpy>=1.16.6,<1.25.0
+tensorflow>=1.15.5,<2.15.0
+numpy>=1.16.6,<1.26
 networkx
 defusedxml
 requests

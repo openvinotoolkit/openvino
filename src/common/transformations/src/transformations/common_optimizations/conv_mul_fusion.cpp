@@ -4,21 +4,24 @@
 
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
 
-#include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset4.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <transformations/utils/utils.hpp>
-
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
     MATCHER_SCOPE(ConvolutionMultiplyFusion);
     auto input = pattern::any_input();
     auto weights = pass::pattern::any_input(pattern::has_static_dim(0) /* has OIYX layout */);
-    auto conv = pattern::wrap_type<opset4::Convolution>({input, weights}, pattern::consumers_count(1));
-    auto mul_const = pattern::wrap_type<opset4::Constant>(pattern::has_static_shape());
-    auto mul = pattern::wrap_type<opset4::Multiply>({conv, mul_const});
+    auto conv = pattern::wrap_type<ov::op::v1::Convolution>({input, weights}, pattern::consumers_count(1));
+    auto mul_const = pattern::wrap_type<ov::op::v0::Constant>(pattern::has_static_shape());
+    auto mul = pattern::wrap_type<ov::op::v1::Multiply>({conv, mul_const});
 
     matcher_pass_callback callback = [conv, input, weights, mul, mul_const](pattern::Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -54,14 +57,14 @@ ov::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
         if (!is_scalar_multiplier) {
             auto final_const_shape = Shape(weights_rank, 1);
             final_const_shape[0] = channel_dim;
-            final_const = std::make_shared<opset4::Reshape>(
+            final_const = std::make_shared<ov::op::v1::Reshape>(
                 m_const,
-                opset4::Constant::create(element::i64, Shape{final_const_shape.size()}, final_const_shape),
+                ov::op::v0::Constant::create(element::i64, Shape{final_const_shape.size()}, final_const_shape),
                 true);
         }
 
         // Multiply convolution weights with aligned Constant values
-        auto weights_multiply = std::make_shared<opset4::Multiply>(m_weights, final_const);
+        auto weights_multiply = std::make_shared<ov::op::v1::Multiply>(m_weights, final_const);
 
         // Replace Convolution->Multiply with Convolution with new inputs
         auto new_conv = m_conv->clone_with_new_inputs({m_input, weights_multiply});
@@ -79,9 +82,9 @@ ov::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
     MATCHER_SCOPE(GroupConvolutionMultiplyFusion);
     auto input = pattern::any_input();
     auto weights = pass::pattern::any_input(pattern::has_static_dims({0, 1}) /* has GOIYX layout */);
-    auto conv = pattern::wrap_type<opset4::GroupConvolution>({input, weights}, pattern::consumers_count(1));
-    auto mul_const = pattern::wrap_type<opset4::Constant>();  // pattern::has_static_shape());
-    auto mul = pattern::wrap_type<opset4::Multiply>({conv, mul_const});
+    auto conv = pattern::wrap_type<ov::op::v1::GroupConvolution>({input, weights}, pattern::consumers_count(1));
+    auto mul_const = pattern::wrap_type<ov::op::v0::Constant>();  // pattern::has_static_shape());
+    auto mul = pattern::wrap_type<ov::op::v1::Multiply>({conv, mul_const});
 
     matcher_pass_callback callback = [conv, input, weights, mul, mul_const](pattern::Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -111,7 +114,7 @@ ov::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
             return false;
         }
 
-        auto reshape = std::dynamic_pointer_cast<opset4::Reshape>(m_weights.get_node_shared_ptr());
+        auto reshape = std::dynamic_pointer_cast<ov::op::v1::Reshape>(m_weights.get_node_shared_ptr());
         bool are_weights_reshaped = reshape != nullptr;
         if (are_weights_reshaped) {
             m_weights = reshape->input_value(0);
@@ -137,14 +140,14 @@ ov::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
                 final_const_shape[0] = G;
                 final_const_shape[1] = O;
             }
-            final_const = std::make_shared<opset4::Reshape>(
+            final_const = std::make_shared<ov::op::v1::Reshape>(
                 m_const,
-                opset4::Constant::create(element::i64, Shape{final_const_shape.size()}, final_const_shape),
+                ov::op::v0::Constant::create(element::i64, Shape{final_const_shape.size()}, final_const_shape),
                 true);
         }
 
         // Multiply convolution weights with aligned Constant values
-        auto new_weights = std::make_shared<opset4::Multiply>(m_weights, final_const);
+        auto new_weights = std::make_shared<ov::op::v1::Multiply>(m_weights, final_const);
         if (are_weights_reshaped) {
             reshape->input(0).replace_source_output(new_weights);
         } else {
@@ -166,12 +169,12 @@ ov::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMultiply
     auto input = pattern::any_input();
     auto weights = pass::pattern::any_input(pattern::has_static_dim(1) /* has IOYX layout */);
     auto conv_2_inputs =
-        pattern::wrap_type<opset4::ConvolutionBackpropData>({input, weights}, pattern::consumers_count(1));
-    auto conv_3_inputs = pattern::wrap_type<opset4::ConvolutionBackpropData>({input, weights, pattern::any_input()},
-                                                                             pattern::consumers_count(1));
+        pattern::wrap_type<ov::op::v1::ConvolutionBackpropData>({input, weights}, pattern::consumers_count(1));
+    auto conv_3_inputs = pattern::wrap_type<ov::op::v1::ConvolutionBackpropData>({input, weights, pattern::any_input()},
+                                                                                 pattern::consumers_count(1));
     auto conv = std::make_shared<pattern::op::Or>(OutputVector{conv_2_inputs, conv_3_inputs});
-    auto mul_const = pattern::wrap_type<opset4::Constant>(pattern::has_static_shape());
-    auto mul = pattern::wrap_type<opset4::Multiply>({conv, mul_const});
+    auto mul_const = pattern::wrap_type<ov::op::v0::Constant>(pattern::has_static_shape());
+    auto mul = pattern::wrap_type<ov::op::v1::Multiply>({conv, mul_const});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -206,14 +209,14 @@ ov::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMultiply
         if (!is_scalar_multiplier) {
             auto final_const_shape = Shape(weights_rank - 1, 1);
             final_const_shape[0] = channel_dim;
-            final_const = std::make_shared<opset4::Reshape>(
+            final_const = std::make_shared<ov::op::v1::Reshape>(
                 m_const,
-                opset4::Constant::create(element::i64, Shape{final_const_shape.size()}, final_const_shape),
+                ov::op::v0::Constant::create(element::i64, Shape{final_const_shape.size()}, final_const_shape),
                 true);
         }
 
         // Multiply convolution weights with aligned Constant values
-        auto weights_multiply = std::make_shared<opset4::Multiply>(m_weights, final_const);
+        auto weights_multiply = std::make_shared<ov::op::v1::Multiply>(m_weights, final_const);
 
         // Replace Convolution->Multiply with Convolution with new inputs
         std::shared_ptr<Node> new_conv;
@@ -241,13 +244,13 @@ ov::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpropDa
     auto input = pattern::any_input();
     auto weights = pass::pattern::any_input(pattern::has_static_dims({0, 2}) /* has GIOYX layout */);
     auto conv_2_inputs =
-        pattern::wrap_type<opset4::GroupConvolutionBackpropData>({input, weights}, pattern::consumers_count(1));
+        pattern::wrap_type<ov::op::v1::GroupConvolutionBackpropData>({input, weights}, pattern::consumers_count(1));
     auto conv_3_inputs =
-        pattern::wrap_type<opset4::GroupConvolutionBackpropData>({input, weights, pattern::any_input()},
-                                                                 pattern::consumers_count(1));
+        pattern::wrap_type<ov::op::v1::GroupConvolutionBackpropData>({input, weights, pattern::any_input()},
+                                                                     pattern::consumers_count(1));
     auto conv = std::make_shared<pattern::op::Or>(OutputVector{conv_2_inputs, conv_3_inputs});
-    auto mul_const = pattern::wrap_type<opset4::Constant>(pattern::has_static_shape());
-    auto mul = pattern::wrap_type<opset4::Multiply>({conv, mul_const});
+    auto mul_const = pattern::wrap_type<ov::op::v0::Constant>(pattern::has_static_shape());
+    auto mul = pattern::wrap_type<ov::op::v1::Multiply>({conv, mul_const});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -284,14 +287,14 @@ ov::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpropDa
             auto final_const_shape = Shape(weights_rank, 1);
             final_const_shape[0] = G;
             final_const_shape[2] = O;
-            final_const = std::make_shared<opset4::Reshape>(
+            final_const = std::make_shared<ov::op::v1::Reshape>(
                 m_const,
-                opset4::Constant::create(element::i64, Shape{final_const_shape.size()}, final_const_shape),
+                ov::op::v0::Constant::create(element::i64, Shape{final_const_shape.size()}, final_const_shape),
                 true);
         }
 
         // Multiply convolution weights with aligned Constant values
-        auto weights_multiply = std::make_shared<opset4::Multiply>(m_weights, final_const);
+        auto weights_multiply = std::make_shared<ov::op::v1::Multiply>(m_weights, final_const);
 
         // Replace Convolution->Multiply with Convolution with new inputs
         std::shared_ptr<Node> new_conv;

@@ -7,6 +7,7 @@
 #include <limits>
 
 #include "common_op_table.hpp"
+#include "helper_ops/complex_type_mark.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/op/str_ops.hpp"
 
@@ -43,6 +44,7 @@ PadType convert_tf_padding(const frontend::NodeContext& node, const string& tf_p
                                  "MaxPool",
                                  "MaxPoolV2",
                                  "MaxPool3D",
+                                 "MaxPoolWithArgmax",
                                  "ExtractImagePatches",
                                  "DepthwiseConv2dNative",
                                  "AvgPool",
@@ -69,8 +71,8 @@ PadType convert_tf_padding(const frontend::NodeContext& node, const string& tf_p
             return PadType::SAME_LOWER;
         }
     } else if (op_type == "Conv2D" || op_type == "Conv3D" || op_type == "MaxPool" || op_type == "MaxPoolV2" ||
-               op_type == "MaxPool3D" || op_type == "ExtractImagePatches" || op_type == "DepthwiseConv2dNative" ||
-               op_type == "AvgPool" || op_type == "AvgPool3D") {
+               op_type == "MaxPool3D" || op_type == "MaxPoolWithArgmax" || op_type == "ExtractImagePatches" ||
+               op_type == "DepthwiseConv2dNative" || op_type == "AvgPool" || op_type == "AvgPool3D") {
         if (tf_padding == "SAME") {
             // According to the formulas for calculating auto_pad values of the
             // Conv layer in the Operation specification,
@@ -208,11 +210,7 @@ OutputVector translate_convolution_op(const frontend::NodeContext& node, size_t 
     }
 
     Output<Node> conv;
-    if (input_channels_static && num_groups == 1) {
-        // regular convolutional operation
-        // we assume that input channel size will not be changed if they are already static
-        conv = make_shared<Convolution>(input, filter, strides, pads_begin, pads_end, dilations, auto_pad);
-    } else {
+    if (input_channels_static && num_groups > 1) {
         // grouped convolutional operation
         // compute input channels given from the input and the filter
         // and number of groups required to split the filter
@@ -233,6 +231,12 @@ OutputVector translate_convolution_op(const frontend::NodeContext& node, size_t 
         auto filter_new_shape = make_shared<Concat>(OutputVector{num_groups, filter_new_cout, shape_cin_xy}, 0);
         auto new_filter = make_shared<Reshape>(filter, filter_new_shape, false);
         conv = make_shared<GroupConvolution>(input, new_filter, strides, pads_begin, pads_end, dilations, auto_pad);
+    } else {
+        // assumption to use regular convolution for all other cases is taken from the legacy frontend
+        // this solution is sufficient for all observed models in the validation
+        // in general, it has limitation and it needs to use grouped convolution when num_groups is not static
+        // 118107: remove this assumtpion when it obtains complete shape propagation in the core
+        conv = make_shared<Convolution>(input, filter, strides, pads_begin, pads_end, dilations, auto_pad);
     }
 
     convert_nchw_to_nhwc(is_nhwc, conv, Rank(spatial_dims_num + 2));
@@ -240,7 +244,10 @@ OutputVector translate_convolution_op(const frontend::NodeContext& node, size_t 
     return {conv};
 }
 
-void default_op_checks(const frontend::NodeContext& node, size_t min_input_size, const vector<string>& supported_ops) {
+void default_op_checks(const frontend::NodeContext& node,
+                       size_t min_input_size,
+                       const vector<string>& supported_ops,
+                       bool supported_complex) {
     auto op_type = node.get_op_type();
     TENSORFLOW_OP_VALIDATION(node,
                              find(supported_ops.begin(), supported_ops.end(), op_type) != supported_ops.end(),
@@ -248,6 +255,21 @@ void default_op_checks(const frontend::NodeContext& node, size_t min_input_size,
     TENSORFLOW_OP_VALIDATION(node,
                              node.get_input_size() >= min_input_size,
                              op_type + " must have at least " + to_string(min_input_size) + " inputs.");
+
+    // check if it supports complex type in case complex type input
+    bool has_input_complex_type = false;
+    auto input_size = static_cast<int>(node.get_input_size());
+    for (int input_ind = 0; input_ind < input_size; ++input_ind) {
+        auto node_input = node.get_input(input_ind);
+        if (as_type_ptr<ComplexTypeMark>(node_input.get_node_shared_ptr())) {
+            has_input_complex_type = true;
+            break;
+        }
+    }
+    TENSORFLOW_OP_VALIDATION(
+        node,
+        !has_input_complex_type || supported_complex,
+        "[TensorFlow Frontend] internal error: translator for " + op_type + " does not support input complex type");
 }
 
 bool is_conditional_edge(const string& input_tensor_name) {
@@ -347,6 +369,31 @@ shared_ptr<Reshape> make_reshape(const Output<Node>& arg, const vector<int64_t>&
     return reshape;
 }
 
+Output<Node> get_data_slice(const Output<Node>& data, const int64_t& start, const int64_t& stop, const int64_t& step) {
+    auto start_const = make_shared<Constant>(element::i64, Shape{1}, start);
+    auto stop_const = make_shared<Constant>(element::i64, Shape{1}, stop);
+    auto step_const = make_shared<Constant>(element::i64, Shape{1}, step);
+    return make_shared<Slice>(data, start_const, stop_const, step_const)->output(0);
+}
+
+Output<Node> compute_broadcast_args(const Output<Node>& shape1, const Output<Node>& shape2) {
+    // compute a number of shape elements to append for broadcasting
+    auto size0 = make_shared<ShapeOf>(shape1);
+    auto size1 = make_shared<ShapeOf>(shape2);
+    auto max_size = make_shared<Maximum>(size0, size1);
+    auto diff1 = make_shared<Subtract>(max_size, size0);
+    auto diff2 = make_shared<Subtract>(max_size, size1);
+
+    // pad the shortest shape value with minus ones
+    // to take dynamic shapes into account
+    auto const_zero = create_same_type_const<int64_t>(diff1, std::vector<int64_t>{0}, Shape{1});
+    auto const_one = create_same_type_const_scalar<int64_t>(shape1, 1);
+    auto padded_s0 = make_shared<Pad>(shape1, diff1, const_zero, const_one, ov::op::PadMode::CONSTANT);
+    auto padded_s1 = make_shared<Pad>(shape2, diff2, const_zero, const_one, ov::op::PadMode::CONSTANT);
+
+    auto broadcasted_shape = make_shared<Maximum>(padded_s0, padded_s1);
+    return broadcasted_shape->output(0);
+}
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

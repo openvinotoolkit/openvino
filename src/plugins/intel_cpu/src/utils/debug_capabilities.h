@@ -62,6 +62,10 @@ public:
     int maxsize;
 };
 
+template<typename T>
+PrintableVector<T> printable(const std::vector<T>& values, int maxsize = 80) {
+    return PrintableVector<T>(values, maxsize);
+}
 struct PrintableDelta {
     uint64_t us_last;
     uint64_t us_all;
@@ -99,12 +103,14 @@ std::ostream & operator<<(std::ostream & os, const dnnl::memory::desc& desc);
 std::ostream & operator<<(std::ostream & os, const impl_desc_type impl_type);
 std::ostream & operator<<(std::ostream & os, const dnnl::memory::data_type dtype);
 std::ostream & operator<<(std::ostream & os, const dnnl::memory::format_tag dtype);
+std::ostream & operator<<(std::ostream & os, const dnnl::primitive_attr& attr);
+std::ostream & operator<<(std::ostream & os, const dnnl::algorithm& alg);
 
 template<typename T>
 std::ostream & operator<<(std::ostream & os, const PrintableVector<T>& vec) {
     std::stringstream ss;
     auto N = vec.values.size();
-    for (int i = 0; i < N; i++) {
+    for (size_t i = 0; i < N; i++) {
         if (i > 0)
             ss << ",";
         if (ss.tellp() > vec.maxsize) {
@@ -120,12 +126,12 @@ std::ostream & operator<<(std::ostream & os, const PrintableVector<T>& vec) {
     return os;
 }
 
-static inline std::ostream& write_all_to_stream(std::ostream& os) {
+static inline std::ostream& _write_all_to_stream(std::ostream& os) {
     return os;
 }
 template <typename T, typename... TS>
-static inline std::ostream& write_all_to_stream(std::ostream& os, const T& arg, TS&&... args) {
-    return ov::intel_cpu::write_all_to_stream(os << arg, std::forward<TS>(args)...);
+static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg, TS&&... args) {
+    return ov::intel_cpu::_write_all_to_stream(os << arg, std::forward<TS>(args)...);
 }
 
 }   // namespace intel_cpu
@@ -138,7 +144,7 @@ static inline std::ostream& write_all_to_stream(std::ostream& os, const T& arg, 
             static DebugLogEnabled DEBUG_ENABLE_NAME(__FILE__, __func__, __LINE__, name);                  \
             if (DEBUG_ENABLE_NAME) {                                                                       \
                 ::std::stringstream ss___;                                                                 \
-                ov::intel_cpu::write_all_to_stream(ss___, prefix, DEBUG_ENABLE_NAME.get_tag(), " ", __VA_ARGS__); \
+                ov::intel_cpu::_write_all_to_stream(ss___, prefix, DEBUG_ENABLE_NAME.get_tag(), " ", __VA_ARGS__); \
                 ostream << ss___.str() << std::endl;                                                     \
                 DEBUG_ENABLE_NAME.break_at(ss___.str());                                                   \
             }                                                                                              \
@@ -151,6 +157,44 @@ static inline std::ostream& write_all_to_stream(std::ostream& os, const T& arg, 
 #define ERROR_LOG(...) DEBUG_LOG_EXT(nullptr, std::cerr, "[ ERROR ] ", __VA_ARGS__)
 
 #define CREATE_DEBUG_TIMER(x) PrintableTimer x
+
+/*
+ * important debugging tools for accuracy issues
+ *   OV_CPU_INFER_PRC_TYPES : comma separated list of node types for which infer-precision is enforced
+ *   OV_CPU_INFER_PRC_CNT   : number of nodes totally allowed to enforced
+ * adjust these two settings until accuracy issue happens/disappears
+ * from the log we can spot the first node having issue when enabled f16
+ */
+struct EnforceInferPrcDebug {
+    std::string safe_getenv(const char* name, const char* default_value = "") {
+        std::string value = default_value;
+        const char* p = std::getenv(name);
+        if (p)
+            value = p;
+        return value;
+    }
+
+    std::string nodeTypes = safe_getenv("OV_CPU_INFER_PRC_TYPES", "");
+    int count_limit = atoi(safe_getenv("OV_CPU_INFER_PRC_CNT", "9999999").c_str());
+    int count = 0;
+
+    bool enabled(std::string type, std::string name) {
+        if (nodeTypes.size() == 0)
+            return true;
+        auto idx = nodeTypes.find(type + ",");
+        if (idx != std::string::npos) {
+            // negative pattern
+            if (idx > 0 && nodeTypes[idx-1] == '-')
+                return false;
+            if (count < count_limit) {
+                std::cout << " infer precision enforced: [" << count << "/" << count_limit << "] : " << type << " " << name << std::endl;
+                count++;
+                return true;
+            }
+        }
+        return false;
+    }
+};
 
 #else // !CPU_DEBUG_CAPS
 

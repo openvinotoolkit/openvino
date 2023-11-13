@@ -5,6 +5,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 namespace ov {
 namespace intel_cpu {
@@ -38,6 +39,8 @@ enum impl_desc_type {
     winograd = 1<<24,
     // sparse
     sparse = 1<<25,
+    //mlas backend
+    mlas = 1<<26,
 
     // real types
     ref_any             = ref  | any,
@@ -97,10 +100,12 @@ enum impl_desc_type {
     dw_acl             = _dw | acl,
     gemm_acl           = gemm | acl,
     winograd_acl       = winograd | acl,
+    gemm_mlas          = gemm | mlas
 };
 
 const char * impl_type_to_string(impl_desc_type type);
 impl_desc_type parse_impl_name(std::string impl_desc_name);
+bool contains(const std::vector<impl_desc_type>& priorities, const impl_desc_type impl_type_str);
 
 }   // namespace intel_cpu
 }   // namespace ov

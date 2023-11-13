@@ -4,7 +4,7 @@
 
 #include "subgraph_tests/matmul_const_transposes_extraction.hpp"
 
-using namespace SubgraphTestsDefinitions;
+using namespace ov::test;
 
 namespace {
 std::vector<MatMulConstTransposesExtractionTestShapeParams> shape_params = {
@@ -21,12 +21,12 @@ std::vector<MatMulConstTransposesExtractionTestShapeParams> shape_params = {
     {{2, 3, 5, 10}, {1, 1, 10, 1}, false},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_MatMulConstTransposesExtractionTest, MatMulConstTransposesExtractionTest,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(shape_params),
-                                ::testing::Values(true), // can be fused
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        MatMulConstTransposesExtractionTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulConstTransposesExtractionTest,
+                         MatMulConstTransposesExtractionTest,
+                         ::testing::Combine(::testing::ValuesIn(shape_params),
+                                            ::testing::Values(true),  // can be fused
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         MatMulConstTransposesExtractionTest::getTestCaseName);
 
 std::vector<MatMulConstTransposesExtractionTestShapeParams> negative_shape_params = {
     {{5}, {5}, false},
@@ -46,12 +46,12 @@ std::vector<MatMulConstTransposesExtractionTestShapeParams> negative_shape_param
     {{2, 3, 5, 10}, {2, 3, 10, 7}, false},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_NegativeMatMulConstTransposesExtractionTest, MatMulConstTransposesExtractionTest,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(negative_shape_params),
-                                ::testing::Values(false), // cannot be fused
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        MatMulConstTransposesExtractionTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_NegativeMatMulConstTransposesExtractionTest,
+                         MatMulConstTransposesExtractionTest,
+                         ::testing::Combine(::testing::ValuesIn(negative_shape_params),
+                                            ::testing::Values(false),  // cannot be fused
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         MatMulConstTransposesExtractionTest::getTestCaseName);
 
 std::vector<MatMulConstTransposesExtractionTestShapeParams> shape_params2 = {
     {{2, 2}, {2, 2}, false},
@@ -63,11 +63,11 @@ std::vector<MatMulConstTransposesExtractionTestShapeParams> shape_params2 = {
     {{2, 3, 5, 10}, {1, 1, 10, 7}, false},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_QuantizedMatMulConstTransposesExtractionTest, QuantizedMatMulConstTransposesExtractionTest,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(shape_params2),
-                                ::testing::Values(true), // can be fused
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        QuantizedMatMulConstTransposesExtractionTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_QuantizedMatMulConstTransposesExtractionTest,
+                         QuantizedMatMulConstTransposesExtractionTest,
+                         ::testing::Combine(::testing::ValuesIn(shape_params2),
+                                            ::testing::Values(true),  // can be fused
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         QuantizedMatMulConstTransposesExtractionTest::getTestCaseName);
 
-} // namespace
+}  // namespace

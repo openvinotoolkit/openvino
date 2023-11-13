@@ -33,7 +33,7 @@ except ImportError:
         'Nevergrad package could not be imported. If you are planning to use '
         'any hyperparameter optimization algo, consider installing it '
         'using pip. This implies advanced usage of the tool. '
-        'Note that nevergrad is compatible only with Python 3.7+'
+        'Note that nevergrad is compatible only with Python 3.8+'
     )
 
 try:

@@ -9,16 +9,27 @@
  */
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <memory>
 
 #include "ie_allocator.hpp"
 
+IE_SUPPRESS_DEPRECATED_START
 namespace InferenceEngine {
 namespace details {
 /*
  * @brief This is a helper class to wrap external memory
  */
-class PreAllocator final : public IAllocator {
+class INFERENCE_ENGINE_1_0_DEPRECATED PreAllocator final : public IAllocator {
     void* _actualData;
     size_t _sizeInBytes;
 
@@ -67,9 +78,10 @@ public:
  * @return A new allocator
  */
 template <class T>
-std::shared_ptr<IAllocator> make_pre_allocator(T* ptr, size_t size) {
+std::shared_ptr<IAllocator> INFERENCE_ENGINE_1_0_DEPRECATED make_pre_allocator(T* ptr, size_t size) {
     return std::make_shared<PreAllocator>(ptr, size * sizeof(T));
 }
 
 }  // namespace details
 }  // namespace InferenceEngine
+IE_SUPPRESS_DEPRECATED_END

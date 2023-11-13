@@ -1,22 +1,28 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <ngraph/pattern/matcher.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
+#include "snippets/pass/tokenization.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace pass {
 
-class CommonOptimizations : public ngraph::pass::MatcherPass {
+class CommonOptimizations : public ov::pass::MatcherPass {
+    class SubgraphPass;
+    class SubgraphManager;
+    friend class ExtractConstants;
+    friend class ExtractUnsupportedTransposes;
+    friend class SplitDimensionM;
+
 public:
-    NGRAPH_RTTI_DECLARATION;
-    CommonOptimizations();
+    OPENVINO_RTTI("CommonOptimizations", "0");
+    CommonOptimizations(const SnippetsTokenization::Config& config = {});
 };
 
 }  // namespace pass
 }  // namespace snippets
-}  // namespace ngraph
+}  // namespace ov

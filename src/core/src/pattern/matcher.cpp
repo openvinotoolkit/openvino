@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/pattern/matcher.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 
 #include <algorithm>
 #include <regex>
 
-#include "ngraph/graph_util.hpp"
-#include "ngraph/log.hpp"
-#include "ngraph/op/parameter.hpp"
-#include "ngraph/op/util/op_types.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/util/env_util.hpp"
+#include "openvino/util/log.hpp"
 
 namespace ov {
 namespace pass {
@@ -86,7 +84,7 @@ void Matcher::capture(const std::set<Node*>& static_nodes) {
     }
 }
 bool Matcher::is_contained_match(const NodeVector& exclusions, bool ignore_unused) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (exclusions.empty()) {
         NodeVector label_exclusions;
         for (const auto& entry : m_pattern_map) {
@@ -99,10 +97,10 @@ bool Matcher::is_contained_match(const NodeVector& exclusions, bool ignore_unuse
     }
 
     return ngraph::get_subgraph_outputs(get_matched_nodes(), exclusions).size() < 2;
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
-bool Matcher::match_value(const ngraph::Output<Node>& pattern_value, const ngraph::Output<Node>& graph_value) {
+bool Matcher::match_value(const ov::Output<Node>& pattern_value, const ov::Output<Node>& graph_value) {
     std::shared_ptr<Node> pattern_node = pattern_value.get_node_shared_ptr();
     std::shared_ptr<Node> graph_node = graph_value.get_node_shared_ptr();
 
@@ -119,22 +117,23 @@ bool Matcher::match_permutation(const OutputVector& pattern_args, const OutputVe
 }
 
 bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& graph_node) {
-    NGRAPH_DEBUG << "[MATCHER] Match arguments at " << *graph_node << " for pattern " << *pattern_node;
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    OPENVINO_DEBUG << "[MATCHER] Match arguments at " << *graph_node << " for pattern " << *pattern_node;
 
     auto args = graph_node->input_values();
     auto pattern_args = pattern_node->input_values();
 
     if (args.size() != pattern_args.size()) {
-        NGRAPH_DEBUG << "[MATCHER] Aborting at " << *graph_node << " for pattern " << *pattern_node;
+        OPENVINO_DEBUG << "[MATCHER] Aborting at " << *graph_node << " for pattern " << *pattern_node;
         return false;
     }
 
-    if (ngraph::op::is_commutative(graph_node)) {
+    if (ov::op::util::is_commutative(graph_node)) {
         // TODO: [nikolayk] we don't really have to use lexicographically-based perms,
         // heap's algo should be faster
         std::sort(begin(pattern_args),
                   end(pattern_args),
-                  [](const ngraph::Output<ngraph::Node>& n1, const ngraph::Output<ngraph::Node>& n2) {
+                  [](const ov::Output<ov::Node>& n1, const ov::Output<ov::Node>& n2) {
                       return n1 < n2;
                   });
         do {
@@ -142,17 +141,17 @@ bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& g
             if (match_permutation(pattern_args, args)) {
                 return saved.finish(true);
             }
-        } while (
-            std::next_permutation(begin(pattern_args),
-                                  end(pattern_args),
-                                  [](const ngraph::Output<ngraph::Node>& n1, const ngraph::Output<ngraph::Node>& n2) {
-                                      return n1 < n2;
-                                  }));
+        } while (std::next_permutation(begin(pattern_args),
+                                       end(pattern_args),
+                                       [](const ov::Output<ov::Node>& n1, const ov::Output<ov::Node>& n2) {
+                                           return n1 < n2;
+                                       }));
     } else {
         return match_permutation(pattern_args, args);
     }
 
-    NGRAPH_DEBUG << "[MATCHER] Aborting at " << *graph_node << " for pattern " << *pattern_node;
+    OPENVINO_DEBUG << "[MATCHER] Aborting at " << *graph_node << " for pattern " << *pattern_node;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return false;
 }
 
@@ -185,59 +184,6 @@ void Matcher::clear_state() {
     m_pattern_map.clear();
     m_pattern_value_maps.clear();
     m_matched_list.clear();
-}
-
-namespace {
-std::set<std::shared_ptr<Node>> as_node_set(const std::set<std::shared_ptr<op::Label>>& label_set) {
-    std::set<std::shared_ptr<Node>> result;
-    for (const auto& label : label_set) {
-        result.insert(label);
-    }
-    return result;
-}
-}  // namespace
-
-RecurrentMatcher::RecurrentMatcher(const Output<Node>& initial_pattern,
-                                   const Output<Node>& pattern,
-                                   const std::shared_ptr<Node>& rpattern,
-                                   const std::set<std::shared_ptr<op::Label>>& correlated_patterns)
-    : RecurrentMatcher(initial_pattern, pattern, rpattern, as_node_set(correlated_patterns)) {}
-
-bool RecurrentMatcher::match(Output<Node> graph) {
-    bool matched = false;
-    Matcher m_initial(m_initial_pattern);
-    Matcher m_repeat(m_pattern);
-    Matcher& m = m_initial;
-    PatternValueMap previous_matches;
-    m_matches.clear();
-    m_match_root = graph;
-
-    // try to match one cell (i.e. pattern)
-    while (m.match(graph, previous_matches)) {
-        matched = true;
-        // move to the next cell
-        graph = m.get_pattern_value_map()[m_recurrent_pattern];
-
-        // copy bound nodes for the current pattern graph into a global matches map
-        for (const auto& cur_match : m.get_pattern_value_map()) {
-            m_matches[cur_match.first].push_back(cur_match.second);
-        }
-
-        // pre-populate the pattern map for the next cell with the bound nodes
-        // from the current match. Only bound nodes whose labels are in
-        // correlated_patterns are pre-populated. Skip other labels are
-        // unbounded by default
-        for (const auto& cor_pat : m_correlated_patterns) {
-            previous_matches[cor_pat] = m.get_pattern_value_map()[cor_pat];
-        }
-        m = m_repeat;
-    }
-
-    if (!matched) {
-        m_match_root.reset();
-    }
-
-    return matched;
 }
 }  // namespace pattern
 }  // namespace pass

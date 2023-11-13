@@ -21,6 +21,7 @@
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -71,7 +72,7 @@ OutputVector instance_norm(const Node& node) {
     const auto reduction_axes = common::get_monotonic_range_along_node_rank(data, 2);
 
     auto mvn =
-        std::make_shared<default_opset::MVN>(data, reduction_axes, true, epsilon, ngraph::op::MVNEpsMode::INSIDE_SQRT);
+        std::make_shared<default_opset::MVN>(data, reduction_axes, true, epsilon, ov::op::MVNEpsMode::INSIDE_SQRT);
 
     const auto mvn_shape = std::make_shared<default_opset::ShapeOf>(mvn);
     const auto mvn_rank = std::make_shared<default_opset::ShapeOf>(mvn_shape);
@@ -91,3 +92,4 @@ OutputVector instance_norm(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

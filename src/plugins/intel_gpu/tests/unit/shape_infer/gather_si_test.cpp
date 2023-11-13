@@ -37,7 +37,7 @@ TEST_P(gather_test, shape_infer) {
 
     auto input0_layout_prim = std::make_shared<input_layout>("input0", p.in0_layout);
     auto input1_layout_prim = std::make_shared<input_layout>("input1", p.in1_layout);
-    auto gather_prim = std::make_shared<gather>("output", input_info("input0"), input_info("input1"), p.axis, ov::Shape{}, p.batch_dim);
+    auto gather_prim = std::make_shared<gather>("output", input_info("input0"), input_info("input1"), p.axis, 0, ov::Shape{}, p.batch_dim);
 
     cldnn::program prog(engine);
 
@@ -58,6 +58,15 @@ INSTANTIATE_TEST_SUITE_P(smoke, gather_test,
             layout{ov::PartialShape{1, 2, 3}, data_types::f32, format::bfyx}, layout{ov::PartialShape{4, 5}, data_types::f32, format::bfyx},
             1, 0,
             layout{ov::PartialShape{1, 4, 5, 3}, data_types::f32, format::bfyx}
+        },
+    }));
+
+INSTANTIATE_TEST_SUITE_P(optimized, gather_test,
+    testing::ValuesIn(std::vector<gather_test_params>{
+        {
+            layout{ov::PartialShape{3, 4, 2, 2}, data_types::f32, format::bfyx}, layout{ov::PartialShape{1}, data_types::f32, format::bfyx},
+            0, 0,
+            layout{ov::PartialShape{1, 4, 2, 2}, data_types::f32, format::bfyx}
         },
     }));
 

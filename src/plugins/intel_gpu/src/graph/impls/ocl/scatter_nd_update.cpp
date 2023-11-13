@@ -17,7 +17,7 @@ struct scatter_nd_update_impl : typed_primitive_impl_ocl<scatter_nd_update> {
     using kernel_selector_t = kernel_selector::scatter_nd_update_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::scatter_nd_update_params, kernel_selector::scatter_nd_update_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::scatter_nd_update_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<scatter_nd_update_impl>(*this);
@@ -90,3 +90,4 @@ attach_scatter_nd_update_impl::attach_scatter_nd_update_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::scatter_nd_update_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::scatter_nd_update)

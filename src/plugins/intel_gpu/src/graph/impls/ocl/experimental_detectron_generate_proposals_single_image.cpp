@@ -18,7 +18,7 @@ struct experimental_detectron_generate_proposals_single_image_impl
     using kernel_params_t = std::pair<kernel_selector::experimental_detectron_generate_proposals_single_image_params,
                                       kernel_selector::experimental_detectron_generate_proposals_single_image_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::experimental_detectron_generate_proposals_single_image_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<experimental_detectron_generate_proposals_single_image_impl>(*this);
@@ -82,3 +82,4 @@ attach_experimental_detectron_generate_proposals_single_image_impl::attach_exper
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::experimental_detectron_generate_proposals_single_image_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::experimental_detectron_generate_proposals_single_image)

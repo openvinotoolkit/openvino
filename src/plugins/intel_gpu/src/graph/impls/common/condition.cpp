@@ -13,7 +13,7 @@ namespace cldnn {
 namespace common {
 
 struct condition_impl : typed_primitive_impl<condition> {
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::common::condition_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<condition_impl>(*this);
@@ -24,7 +24,7 @@ struct condition_impl : typed_primitive_impl<condition> {
     }
 
     void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<condition>());
+        OPENVINO_ASSERT(arg.is_type<condition>());
         const auto& node = arg.as<condition>();
         _node_id = node.id();
     }
@@ -36,16 +36,39 @@ struct condition_impl : typed_primitive_impl<condition> {
         auto ev = instance.get_network().get_stream().create_user_event(false);
         set_node_params(instance.get_node());
 
-        bool exec_branch = choose_branch_to_exec(instance);
-        memory::ptr memory_to_copy;
-        if (exec_branch)
-            memory_to_copy = execute_branch(instance.get_net_true(), instance.result_id(), instance.input_memory_ptr());
-        else
-            memory_to_copy = execute_branch(instance.get_net_false(), instance.result_id(), instance.input_memory_ptr());
-        // just copy memory
-        mem_lock<float, mem_lock_type::read> inp_ptr{memory_to_copy, instance.get_network().get_stream()};
-        mem_lock<float, mem_lock_type::write> out_ptr{instance.output_memory_ptr(), instance.get_network().get_stream()};
-        std::copy(inp_ptr.begin(), inp_ptr.end(), out_ptr.begin());
+        auto pred = condition_inst::get_pred_from_memory(instance.pred_memory_ptr(), instance.get_network().get_stream());
+        network::ptr executed_net = pred? instance.get_net_true() : instance.get_net_false();
+        auto branch = pred? instance.get_branch_true() : instance.get_branch_false();
+        GPU_DEBUG_LOG << "predicate: " << (pred ? "True" : "False") << std::endl;
+
+        // Set input memory of inner network before its execution
+        for (size_t mem_idx = 0; mem_idx < instance.inputs_memory_count(); mem_idx++) {
+            const primitive_id& input_external_id = instance.dependencies().at(mem_idx).first->id();
+            auto iter = branch.input_map.find(input_external_id);
+            if (iter != branch.input_map.end()) {
+                const primitive_id& input_internal_id = iter->second;
+                auto mem_ptr = instance.input_memory_ptr(mem_idx);
+                if (mem_ptr) {
+                    auto dep = instance.dependencies()[mem_idx];
+                    auto layout = dep.first->get_impl_params()->get_output_layout(dep.second);
+                    GPU_DEBUG_LOG << "Reshape input from " << mem_ptr->get_layout().to_short_string()
+                                << " to " << layout.to_short_string() << std::endl;
+                    // Preallocation logic may allocate more memory than actually produced on current iteration, so we need to adjust input buffers layout
+                    mem_ptr = instance.get_network().get_engine().reinterpret_buffer(*mem_ptr, layout);
+                }
+                executed_net->set_input_data(input_internal_id, mem_ptr);
+                GPU_DEBUG_LOG << "Inner net - Inputs[" << mem_idx << "]" << mem_ptr->get_layout().to_short_string() << std::endl;
+            }
+        }
+
+        executed_net->execute({});
+
+        // Update output layout of impl_param in condition_inst
+        instance.update_output_layout();
+
+        // Set output memory of condition_inst to inner network output memory after inner network execution
+        instance.postprocess_output_memory(executed_net, branch);
+
         ev->set();
         return ev;
     }
@@ -58,85 +81,22 @@ struct condition_impl : typed_primitive_impl<condition> {
 
 private:
     primitive_id _node_id;
-
-    /*
-    Add functions here.
-    */
-    bool check_condition(const float value_1, const float value_2, const cond_functions& func) const {
-        switch (func) {
-            case cond_functions::EQUAL:
-                return value_1 == value_2;
-                break;
-            case cond_functions::GREATER:
-                return value_1 > value_2;
-                break;
-            case cond_functions::LESS:
-                return value_1 < value_2;
-                break;
-            default:
-                throw("Unknown comparision function for: " + _node_id);
-                break;
-        }
-    }
-
-    /*
-    Loop over memory and check condition.
-    Returns boolean flag, which says what branch should be executed.
-    */
-    bool choose_branch_to_exec(condition_inst& instance) const {
-        mem_lock<float, mem_lock_type::read> lock_compare_data{instance.compare_memory_ptr(), instance.get_network().get_stream()};
-        auto compare_layout = instance.compare_memory().get_layout();
-        auto compare_ptr = lock_compare_data.begin();
-
-        mem_lock<float, mem_lock_type::read> lock_input{instance.input_memory_ptr(), instance.get_network().get_stream()};
-        auto input_layout = instance.input_memory().get_layout();
-        auto input_ptr = lock_input.begin();
-
-        auto function = instance.argument->function;
-        auto& offset = instance.argument->offset;
-
-        for (auto b = 0; b < compare_layout.batch(); b++) {
-            for (auto f = 0; f < compare_layout.feature(); f++) {
-                for (auto z = 0; z < compare_layout.spatial(2); z++) {
-                    for (auto y = 0; y < compare_layout.spatial(1); y++) {
-                        for (auto x = 0; x < compare_layout.spatial(0); x++) {
-                            tensor input_tensor{
-                                batch(b + offset.batch[0]),
-                                feature(f + offset.feature[0]),
-                                spatial(x + offset.spatial[0], y + offset.spatial[1], z + offset.spatial[2], 0) };
-                            auto input_idx = input_layout.get_linear_offset(input_tensor);
-                            tensor compare_tensor{ batch(b), feature(f), spatial(x, y, z, 0) };
-                            auto compare_idx = compare_layout.get_linear_offset(compare_tensor);
-                            if (!check_condition(input_ptr[input_idx], compare_ptr[compare_idx], function))
-                                return false;
-                        }
-                    }
-                }
-            }
-        }
-        return true;
-    }
-
-    memory::ptr execute_branch(network::ptr branch,
-                           const primitive_id& input_id,
-                           memory::ptr input_memory) const {
-        branch->set_input_data(input_id, input_memory);
-        branch->execute({});
-        return branch->get_outputs().at(0)->output_memory_ptr();
-    }
 };
 
 namespace detail {
 
 attach_condition_common::attach_condition_common() {
-    implementation_map<condition>::add(impl_types::common, condition_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f32, format::yxfb),
-    });
+    implementation_map<condition>::add(impl_types::common,
+                                    shape_types::dynamic_shape,
+                                    condition_impl::create,
+                                    {},
+                                    {});
+    implementation_map<condition>::add(impl_types::common, condition_impl::create, {});
 }
 
 }  // namespace detail
 }  // namespace common
 }  // namespace cldnn
 
+// TODO: Change code like cldnn::loop
 ASSIGN_TYPE_NAME(cldnn::common::condition_impl)

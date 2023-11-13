@@ -14,8 +14,8 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
 
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/op/parameter.hpp"
@@ -188,7 +188,7 @@ void CompileModelCacheTestBase::SetUp() {
 }
 
 void CompileModelCacheTestBase::TearDown() {
-    CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "blob");
+    ov::test::utils::removeFilesWithExt(m_cacheFolderName, "blob");
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
     try {
@@ -219,7 +219,7 @@ void CompileModelCacheTestBase::run() {
         GTEST_FAIL() << "Plugin doesn't support import and export - skipping test" << std::endl;
     }
     if (importExportSupported(*core)) {
-        ASSERT_NO_THROW(core->get_property(targetDevice, ov::caching_properties));
+        ASSERT_NO_THROW(core->get_property(targetDevice, ov::internal::caching_properties));
     }
     configure_model();
     try {
@@ -249,7 +249,7 @@ void CompileModelCacheTestBase::run() {
             ASSERT_NO_THROW(infer());
         }
         // cache is created and reused
-        ASSERT_EQ(CommonTestUtils::listFilesWithExt(m_cacheFolderName, "blob").size(), 1);
+        ASSERT_EQ(ov::test::utils::listFilesWithExt(m_cacheFolderName, "blob").size(), 1);
         compare(originalOutputs, get_plugin_outputs());
     }
     if ((targetDevice.find("GPU") != std::string::npos)) {
@@ -282,7 +282,7 @@ void CompileModelLoadFromFileTestBase::SetUp() {
     target_device = targetDevice;
     APIBaseTest::SetUp();
     std::stringstream ss;
-    std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+    std::string filePrefix = ov::test::utils::generateTestFilePrefix();
     ss << "testCache_" << filePrefix;
     m_modelName = ss.str() + ".xml";
     m_weightsName = ss.str() + ".bin";
@@ -298,9 +298,9 @@ void CompileModelLoadFromFileTestBase::SetUp() {
 }
 
 void CompileModelLoadFromFileTestBase::TearDown() {
-    CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "blob");
-    CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "cl_cache");
-    CommonTestUtils::removeIRFiles(m_modelName, m_weightsName);
+    ov::test::utils::removeFilesWithExt(m_cacheFolderName, "blob");
+    ov::test::utils::removeFilesWithExt(m_cacheFolderName, "cl_cache");
+    ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
     APIBaseTest::TearDown();
@@ -409,9 +409,9 @@ void CompileModelLoadFromMemoryTestBase::SetUp() {
 }
 
 void CompileModelLoadFromMemoryTestBase::TearDown() {
-    CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "blob");
-    CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "cl_cache");
-    CommonTestUtils::removeIRFiles(m_modelName, m_weightsName);
+    ov::test::utils::removeFilesWithExt(m_cacheFolderName, "blob");
+    ov::test::utils::removeFilesWithExt(m_cacheFolderName, "cl_cache");
+    ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
     APIBaseTest::TearDown();
@@ -535,23 +535,23 @@ TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinaries) {
         auto execNet = core->compile_model(function, targetDevice, configuration);
         execNet = {};
         // Check that directory with cached kernels exists after loading network
-        ASSERT_TRUE(CommonTestUtils::directoryExists(cache_path)) << "Directory with cached kernels doesn't exist";
+        ASSERT_TRUE(ov::test::utils::directoryExists(cache_path)) << "Directory with cached kernels doesn't exist";
         // Check that folder contains cache files and remove them
         for (auto& ext : m_extList) {
             // Check that folder contains cache files and remove them
-            ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path, ext), 0);
+            ASSERT_GT(ov::test::utils::removeFilesWithExt(cache_path, ext), 0);
         }
         // Remove directory and check that it doesn't exist anymore
-        ASSERT_EQ(CommonTestUtils::removeDir(cache_path), 0);
-        ASSERT_FALSE(CommonTestUtils::directoryExists(cache_path));
+        ASSERT_EQ(ov::test::utils::removeDir(cache_path), 0);
+        ASSERT_FALSE(ov::test::utils::directoryExists(cache_path));
     } catch (std::exception& ex) {
         // Cleanup in case of any exception
-        if (CommonTestUtils::directoryExists(cache_path)) {
+        if (ov::test::utils::directoryExists(cache_path)) {
             for (auto& ext : m_extList) {
                 // Check that folder contains cache files and remove them
-                ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path, ext), 0);
+                ASSERT_GT(ov::test::utils::removeFilesWithExt(cache_path, ext), 0);
         }
-            ASSERT_EQ(CommonTestUtils::removeDir(cache_path), 0);
+            ASSERT_EQ(ov::test::utils::removeDir(cache_path), 0);
         }
         FAIL() << ex.what() << std::endl;
     }
@@ -566,11 +566,11 @@ TEST_P(CompiledKernelsCacheTest, TwoNetworksWithSameModelCreatesSameCache) {
         size_t n_cache_files = 0;
         for (auto& ext : m_extList) {
             // Check that folder contains cache files and remove them
-            n_cache_files += CommonTestUtils::listFilesWithExt(cache_path, ext).size();
+            n_cache_files += ov::test::utils::listFilesWithExt(cache_path, ext).size();
         }
 
         // Check that directory with cached kernels exists after loading network
-        ASSERT_TRUE(CommonTestUtils::directoryExists(cache_path)) << "Directory with cached kernels doesn't exist";
+        ASSERT_TRUE(ov::test::utils::directoryExists(cache_path)) << "Directory with cached kernels doesn't exist";
         // Load 2nd CNNNetwork
         auto execNet2 = core->compile_model(function, targetDevice, configuration);
         execNet2 = {};
@@ -578,22 +578,22 @@ TEST_P(CompiledKernelsCacheTest, TwoNetworksWithSameModelCreatesSameCache) {
         // Check that two loaded networks with same function creates same caches
         for (auto& ext : m_extList) {
             // Check that folder contains cache files and remove them
-            n_cache_files_compare += CommonTestUtils::listFilesWithExt(cache_path, ext).size();
-            ASSERT_TRUE(CommonTestUtils::removeFilesWithExt(cache_path, ext));
+            n_cache_files_compare += ov::test::utils::listFilesWithExt(cache_path, ext).size();
+            ASSERT_TRUE(ov::test::utils::removeFilesWithExt(cache_path, ext));
         }
         ASSERT_EQ(n_cache_files_compare, n_cache_files);
 
         // Remove directory and check that it doesn't exist anymore
-        ASSERT_EQ(CommonTestUtils::removeDir(cache_path), 0);
-        ASSERT_FALSE(CommonTestUtils::directoryExists(cache_path));
+        ASSERT_EQ(ov::test::utils::removeDir(cache_path), 0);
+        ASSERT_FALSE(ov::test::utils::directoryExists(cache_path));
     } catch (std::exception& ex) {
         // Cleanup in case of any exception
-        if (CommonTestUtils::directoryExists(cache_path)) {
+        if (ov::test::utils::directoryExists(cache_path)) {
             for (auto& ext : m_extList) {
                 // Check that folder contains cache files and remove them
-                ASSERT_GE(CommonTestUtils::removeFilesWithExt(cache_path, ext), 0);
+                ASSERT_GE(ov::test::utils::removeFilesWithExt(cache_path, ext), 0);
             }
-            ASSERT_EQ(CommonTestUtils::removeDir(cache_path), 0);
+            ASSERT_EQ(ov::test::utils::removeDir(cache_path), 0);
         }
         FAIL() << ex.what() << std::endl;
     }
@@ -603,9 +603,9 @@ TEST_P(CompiledKernelsCacheTest, TwoNetworksWithSameModelCreatesSameCache) {
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
-    for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
-        std::wstring postfix  = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
-        std::wstring cache_path_w = CommonTestUtils::stringToWString(cache_path) + postfix;
+    for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
+        std::wstring postfix  = L"_" + ov::test::utils::test_unicode_postfix_vector[testIndex];
+        std::wstring cache_path_w = ov::test::utils::stringToWString(cache_path) + postfix;
 
         try {
             auto cache_path_mb = ov::util::wstring_to_string(cache_path_w);
@@ -614,23 +614,23 @@ TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
             auto execNet = core->compile_model(function, targetDevice, configuration);
             execNet = {};
             // Check that directory with cached kernels exists after loading network
-            ASSERT_TRUE(CommonTestUtils::directoryExists(cache_path_w)) << "Directory with cached kernels doesn't exist";
+            ASSERT_TRUE(ov::test::utils::directoryExists(cache_path_w)) << "Directory with cached kernels doesn't exist";
             // Check that folder contains cache files and remove them
             for (auto& ext : m_extList) {
                 // Check that folder contains cache files and remove them
-                ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path_w, CommonTestUtils::stringToWString(ext)), 0);
+                ASSERT_GT(ov::test::utils::removeFilesWithExt(cache_path_w, ov::test::utils::stringToWString(ext)), 0);
             }
             // Remove directory and check that it doesn't exist anymore
-            ASSERT_EQ(CommonTestUtils::removeDir(cache_path_w), 0);
-            ASSERT_FALSE(CommonTestUtils::directoryExists(cache_path_w));
+            ASSERT_EQ(ov::test::utils::removeDir(cache_path_w), 0);
+            ASSERT_FALSE(ov::test::utils::directoryExists(cache_path_w));
         } catch (std::exception& ex) {
             // Cleanup in case of any exception
-            if (CommonTestUtils::directoryExists(cache_path_w)) {
+            if (ov::test::utils::directoryExists(cache_path_w)) {
                 for (auto& ext : m_extList) {
                     // Check that folder contains cache files and remove them
-                    ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path_w, CommonTestUtils::stringToWString(ext)), 0);
+                    ASSERT_GT(ov::test::utils::removeFilesWithExt(cache_path_w, ov::test::utils::stringToWString(ext)), 0);
                 }
-                ASSERT_EQ(CommonTestUtils::removeDir(cache_path_w), 0);
+                ASSERT_EQ(ov::test::utils::removeDir(cache_path_w), 0);
             }
             FAIL() << ex.what() << std::endl;
         }

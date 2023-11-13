@@ -4,36 +4,36 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/avg_pool.hpp>
-#include <low_precision/max_pool.hpp>
+#include "low_precision/avg_pool.hpp"
+#include "low_precision/max_pool.hpp"
 #include <memory>
 #include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/avg_pool_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/avg_pool.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
-using namespace ngraph::pass;
-using namespace ngraph;
+using namespace ov::pass;
+using namespace ov;
 
 class AvgPoolTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type inputPrecision;
+        ov::element::Type inputPrecision;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
-        ngraph::element::Type inputPrecision;
+        ov::element::Type inputPrecision;
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-        ngraph::element::Type preicsionAfterOperation;
+        ov::element::Type preicsionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
@@ -42,8 +42,8 @@ public:
     Expected expected;
 };
 
-typedef std::tuple<ngraph::element::Type,
-                   ngraph::PartialShape,
+typedef std::tuple<ov::element::Type,
+                   ov::PartialShape,
                    bool,         // additional FakeQuantize After
                    std::string,  // additional layer before FQ
                    AvgPoolTransformationTestValues>
@@ -53,8 +53,8 @@ class AvgPoolTransformation : public LayerTransformation,
                               public testing::WithParamInterface<AvgPoolTransformationParams> {
 public:
     void SetUp() override {
-        ngraph::element::Type precision;
-        ngraph::PartialShape shape;
+        ov::element::Type precision;
+        ov::PartialShape shape;
         bool addFakeQuantize;
         std::string additionalLayer;
         AvgPoolTransformationTestValues testValues;
@@ -67,8 +67,8 @@ public:
                                                                                  testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ngraph::opset1::AvgPool>(testValues.params);
-        transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(testValues.params);
+        transform.add<ov::pass::low_precision::AvgPoolTransformation, ov::op::v1::AvgPool>(testValues.params);
+        transform.add<ov::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction =
@@ -84,8 +84,8 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<AvgPoolTransformationParams> obj) {
-        ngraph::element::Type precision;
-        ngraph::PartialShape shape;
+        ov::element::Type precision;
+        ov::PartialShape shape;
         bool addFakeQuantize;
         std::string additionalLayer;
         AvgPoolTransformationTestValues testValues;
@@ -114,7 +114,7 @@ TEST_P(AvgPoolTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
-const std::vector<ngraph::element::Type> precisions = {ngraph::element::f32, ngraph::element::f16};
+const std::vector<ov::element::Type> precisions = {ov::element::f32, ov::element::f16};
 
 const std::vector<std::string> additionalLayer = {
     "",
@@ -123,67 +123,67 @@ const std::vector<std::string> additionalLayer = {
 
 const std::vector<bool> addFQ = {true, false};
 
-const std::vector<ngraph::PartialShape> shapes = {{1, 3, 72, 48}, {-1, -1, -1, -1}};
+const std::vector<ov::PartialShape> shapes = {{1, 3, 72, 48}, {-1, -1, -1, -1}};
 
 const std::vector<AvgPoolTransformationTestValues> testValues = {
     // U8 per tensor quantization
     {LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8, {{ngraph::element::f32}, {128.f}, {0.02f}}},
-     {ngraph::element::u8, {}, ngraph::element::f32, {{}, {128.f}, {0.02f}}}},
+     {ov::element::u8, {{ov::element::f32}, {128.f}, {0.02f}}},
+     {ov::element::u8, {}, ov::element::f32, {{}, {128.f}, {0.02f}}}},
     // U8 without subtract
     {LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8, {{ngraph::element::f32}, {}, {0.02f}}},
-     {ngraph::element::u8, {}, ngraph::element::f32, {{}, {}, {0.02f}}}},
+     {ov::element::u8, {{ov::element::f32}, {}, {0.02f}}},
+     {ov::element::u8, {}, ov::element::f32, {{}, {}, {0.02f}}}},
     // U8 per channel quantization with different values
     {LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8, {{ngraph::element::f32}, {{128.f, 0.f, 128.f / 2}}, {{3.f, 1.f, 2.f}}}},
+     {ov::element::u8, {{ov::element::f32}, {{128.f, 0.f, 128.f / 2}}, {{3.f, 1.f, 2.f}}}},
      {
-         ngraph::element::u8,
+         ov::element::u8,
          {{}, {}, {}},
-         ngraph::element::f32,
+         ov::element::f32,
          {{}, {{128.f, 0.f, 128.f / 2}}, {{3.f, 1.f, 2.f}}},
      }},
     // U8 per channel quantization with the same values
     {LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8, {{ngraph::element::f32}, {{128.f, 128.f, 128.f}}, {{3.f, 3.f, 3.f}}}},
+     {ov::element::u8, {{ov::element::f32}, {{128.f, 128.f, 128.f}}, {{3.f, 3.f, 3.f}}}},
      {
-         ngraph::element::u8,
+         ov::element::u8,
          {{}, {}, {}},
-         ngraph::element::f32,
+         ov::element::f32,
          {{}, {{128.f, 128.f, 128.f}}, {{3.f, 3.f, 3.f}}},
      }},
     // U8 without dequantization
     {LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8, {}},
-     {ngraph::element::u8, {}, ngraph::element::u8, {}}},
+     {ov::element::u8, {}},
+     {ov::element::u8, {}, ov::element::u8, {}}},
     // U8 not update precisions
     {LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
-     {ngraph::element::f32, {{}, {128.f}, {0.02f}}},
-     {ngraph::element::f32, {}, ngraph::element::f32, {{}, {128.f}, {0.02f}}}},
+     {ov::element::f32, {{}, {128.f}, {0.02f}}},
+     {ov::element::f32, {}, ov::element::f32, {{}, {128.f}, {0.02f}}}},
     // I8 per tensor quantization
     {LayerTransformation::createParamsI8I8(),
-     {ngraph::element::i8, {{ngraph::element::f32}, {128.f}, {0.02f}}},
-     {ngraph::element::i8, {}, ngraph::element::f32, {{}, {128.f}, {0.02f}}}},
+     {ov::element::i8, {{ov::element::f32}, {128.f}, {0.02f}}},
+     {ov::element::i8, {}, ov::element::f32, {{}, {128.f}, {0.02f}}}},
     // I8 without subtract
     {LayerTransformation::createParamsI8I8(),
-     {ngraph::element::i8, {{ngraph::element::f32}, {}, {0.02f}}},
-     {ngraph::element::i8, {}, ngraph::element::f32, {{}, {}, {0.02f}}}},
+     {ov::element::i8, {{ov::element::f32}, {}, {0.02f}}},
+     {ov::element::i8, {}, ov::element::f32, {{}, {}, {0.02f}}}},
     // I8 per channel quantization with different values
     {LayerTransformation::createParamsI8I8(),
-     {ngraph::element::i8, {{ngraph::element::f32}, {{64.f, 0.f, 32.f}}, {{3.f, 1.f, 2.f}}}},
+     {ov::element::i8, {{ov::element::f32}, {{64.f, 0.f, 32.f}}, {{3.f, 1.f, 2.f}}}},
      {
-         ngraph::element::i8,
+         ov::element::i8,
          {{}, {}, {}},
-         ngraph::element::f32,
+         ov::element::f32,
          {{}, {{64.f, 0.f, 32.f}}, {{3.f, 1.f, 2.f}}},
      }},
     // I8 per channel quantization with the same values
     {LayerTransformation::createParamsI8I8(),
-     {ngraph::element::i8, {{ngraph::element::f32}, {{64.f, 64.f, 64.f}}, {{3.f, 3.f, 3.f}}}},
+     {ov::element::i8, {{ov::element::f32}, {{64.f, 64.f, 64.f}}, {{3.f, 3.f, 3.f}}}},
      {
-         ngraph::element::i8,
+         ov::element::i8,
          {{}, {}, {}},
-         ngraph::element::f32,
+         ov::element::f32,
          {{}, {{64.f, 64.f, 64.f}}, {{3.f, 3.f, 3.f}}},
      }},
 };
@@ -199,19 +199,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> shapesWithDynamicChannel = {PartialShape::dynamic()};
+const std::vector<ov::PartialShape> shapesWithDynamicChannel = {PartialShape::dynamic()};
 
 const std::vector<AvgPoolTransformationTestValues> testValues = {
     // U8 per tensor quantization
     {LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8, {{ngraph::element::f32}, {128.f}, {0.02f}}},
-     {ngraph::element::u8, {}, ngraph::element::f32, {{}, {128.f}, {0.02f}}}},
+     {ov::element::u8, {{ov::element::f32}, {128.f}, {0.02f}}},
+     {ov::element::u8, {}, ov::element::f32, {{}, {128.f}, {0.02f}}}},
     // U8 per tensor quantization
     {LayerTransformation::createParamsU8I8(),
-     {ngraph::element::u8, {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, {{0.02f, 0.03f, 0.01f}}}},
-     {ngraph::element::u8,
-      {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, {{0.02f, 0.03f, 0.01f}}},
-      ngraph::element::f32,
+     {ov::element::u8, {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.02f, 0.03f, 0.01f}}}},
+     {ov::element::u8,
+      {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.02f, 0.03f, 0.01f}}},
+      ov::element::f32,
       {}}},
 };
 

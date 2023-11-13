@@ -19,33 +19,27 @@ namespace details {
  * @param modelPath path to IR file
  * @param binPath path to bin file, if path is empty, will try to read bin file with the same name as xml and
  * if bin file with the same name was not found, will load IR without weights.
- * @param exts vector with extensions
  * @param ov_exts vector with OpenVINO extensions
- * @param newAPI Whether this function is called from OpenVINO 2.0 API
  * @param enable_mmap boolean to enable/disable `mmap` use in Frontend
  * @return CNNNetwork
  */
 CNNNetwork ReadNetwork(const std::string& modelPath,
                        const std::string& binPath,
-                       const std::vector<IExtensionPtr>& exts,
                        const std::vector<ov::Extension::Ptr>& ov_exts,
-                       bool newAPI,
+                       bool is_new_api,
                        bool enable_mmap);
 /**
  * @brief Reads IR xml and bin (with the same name) files
  * @param model string with IR
  * @param weights shared pointer to constant blob with weights
- * @param exts vector with extensions
  * @param ov_exts vector with OpenVINO extensions
- * @param newAPI Whether this function is called from OpenVINO 2.0 API
  * @param frontendMode read network without post-processing or other transformations
  * @return CNNNetwork
  */
 CNNNetwork ReadNetwork(const std::string& model,
                        const Blob::CPtr& weights,
-                       const std::vector<IExtensionPtr>& exts,
                        const std::vector<ov::Extension::Ptr>& ov_exts,
-                       bool newAPI,
+                       bool is_new_api,
                        bool frontendMode = false);
 
 }  // namespace details

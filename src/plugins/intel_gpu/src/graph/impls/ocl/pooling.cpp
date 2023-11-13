@@ -48,7 +48,7 @@ struct pooling_impl : typed_primitive_impl_ocl<pooling> {
     using kernel_selector_t = kernel_selector::pooling_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::pooling_params, kernel_selector::pooling_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::pooling_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<pooling_impl>(*this);
@@ -131,7 +131,7 @@ public:
         // adjusted to that, to work properly this calculation must take pad_end into account.
         auto dynamic_mode = false;
         for (size_t i = 0; i < spatial_rank; i++) {
-            dynamic_mode |= (((output_layout.spatial(i) - 1) * stride[spatial_rank - i - 1]) + primitive->size[spatial_rank - i - 1]) >
+            dynamic_mode |= (((output_layout.spatial(i) - 1) * stride[spatial_rank - i - 1]) + kernel[spatial_rank - i - 1]) >
                                  static_cast<size_t>(pads_end[spatial_rank - i - 1] + pads_begin[spatial_rank - i - 1] + input_layout.spatial(i));
         }
 
@@ -199,3 +199,4 @@ attach_pooling_impl::attach_pooling_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::pooling_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::pooling)

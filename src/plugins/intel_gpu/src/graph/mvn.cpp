@@ -37,7 +37,7 @@ std::string mvn_inst::to_string(mvn_node const& node) {
     json_composite mvn_info;
     mvn_info.add("input id", input.id());
     mvn_info.add("epsilon", epsilon);
-    mvn_info.add("reduction axes", axes);
+    mvn_info.add("reduction axes", std::move(axes));
     mvn_info.add("normalize_variance region", normalize_variance);
     mvn_info.add("eps_inside_sqrt region", eps_inside_sqrt);
 

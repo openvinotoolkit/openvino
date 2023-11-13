@@ -1,8 +1,6 @@
 #include "check_network_batchable.hpp"
 
-#include "dimension_tracker.hpp"
-#include "ie_ngraph_utils.hpp"
-#include "ngraph/opsets/opset.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/detection_output.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/manager.hpp"
@@ -11,6 +9,24 @@
 
 namespace ov {
 namespace details {
+namespace {
+bool model_has_suitable_do(const std::shared_ptr<const ov::Model>& model) {
+    bool bDetectionOutput = false;
+    for (auto& result_node : model->get_results()) {
+        auto do_node = result_node->input_value(0).get_node_shared_ptr();
+        std::shared_ptr<ov::Node> convert_node;
+        if (ov::is_type<ov::opset1::Convert>(do_node)) {  // cases with do->convert->result
+            convert_node = do_node;
+            do_node = convert_node->get_input_node_shared_ptr(0);
+        }
+        auto detectionOutputBase = std::dynamic_pointer_cast<ov::op::util::DetectionOutputBase>(do_node);
+        if (detectionOutputBase) {
+            bDetectionOutput = true;
+        }
+    }
+    return bDetectionOutput;
+}
+}  // namespace
 
 NetworkBatchAbility is_model_batchable(const std::shared_ptr<const ov::Model>& model,
                                        const std::string& deviceNameWithoutBatch,
@@ -48,11 +64,16 @@ NetworkBatchAbility is_model_batchable(const std::shared_ptr<const ov::Model>& m
     if (!any_batched_inputs)
         return NetworkBatchAbility::NO;
 
+    return model_has_suitable_do(model) ? NetworkBatchAbility::WITH_HETERO : NetworkBatchAbility::AS_IS;
+}
+
+std::shared_ptr<const ov::Model> apply_batch_affinity(const std::shared_ptr<const ov::Model>& model_,
+                                                      const std::string& deviceNameWithoutBatch) {
+    auto model = model_->clone();
     for (auto&& node : model->get_ops())
         node->get_rt_info()["affinity"] = "BATCH";  // default affinity (ignored if HETERO is not triggered)
     // have to execute the DetectionOutput separately (without batching)
     // as this layer does mix-in the values from the different inputs (batch id)
-    bool bDetectionOutput = false;
     for (auto& result_node : model->get_results()) {
         auto do_node = result_node->input_value(0).get_node_shared_ptr();
         std::shared_ptr<ov::Node> convert_node;
@@ -68,10 +89,9 @@ NetworkBatchAbility is_model_batchable(const std::shared_ptr<const ov::Model>& m
             do_node->get_rt_info()["affinity"] = deviceNameWithoutBatch;
             if (convert_node)
                 convert_node->get_rt_info()["affinity"] = deviceNameWithoutBatch;
-            bDetectionOutput = true;
         }
     }
-    return bDetectionOutput ? NetworkBatchAbility::WITH_HETERO : NetworkBatchAbility::AS_IS;
+    return model;
 }
 
 }  // namespace details

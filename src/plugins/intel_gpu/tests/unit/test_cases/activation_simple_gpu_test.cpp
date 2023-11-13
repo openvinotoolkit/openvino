@@ -3,11 +3,14 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/reshape.hpp>
+#include <intel_gpu/primitives/concatenation.hpp>
 #include "activation_inst.h"
 
 #include <cmath>
@@ -84,6 +87,68 @@ TEST(activation_f32_fw_gpu, dynamic) {
                         ASSERT_FLOAT_EQ(std::sqrt(static_cast<float>(input_ptr[i])), output_ptr[i]);
                     }
                     break;
+            default:
+                break;
+            }
+        }
+    }
+}
+
+TEST(activation_f32_fw_cpu_impl, dynamic_8d) {
+    auto& engine = get_test_engine();
+
+    ov::PartialShape in_shape  = { 1, 1, 2, 1, 1, 1, 2, 2 };
+    layout in_layout { ov::PartialShape::dynamic(in_shape.size()), data_types::f32, format::bfvuwzyx };
+
+    auto input = engine.allocate_memory({ in_shape, data_types::f32, format::bfvuwzyx });
+    set_values(input, { -0.12f, 0.56f, 0.45f, -0.789f, 42.f, 0.999f, 0.7899f, 0.f});
+
+    std::vector<activation_func> funcs = {
+        activation_func::gelu,
+        activation_func::relu,
+        activation_func::hyperbolic_tan
+    };
+
+    for (auto func : funcs) {
+        topology topology(input_layout("input", in_layout));
+        topology.add(activation("activation", input_info("input"), func));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        auto forcing_map = ov::intel_gpu::ImplForcingMap{ {"activation", {format::bfvuwzyx, "", impl_types::cpu}} };
+        config.set_property(ov::intel_gpu::force_implementations(forcing_map));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        network network(engine, topology, config);
+
+        network.set_input_data("input", input);
+
+        auto inst = network.get_primitive("activation");
+        auto impl = inst->get_impl();
+        ASSERT_TRUE(impl != nullptr);
+        ASSERT_TRUE(impl->is_dynamic());
+
+        auto outputs = network.execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "activation");
+
+        auto output_memory = outputs.at("activation").get_memory();
+        auto output_layout = output_memory->get_layout();
+        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float> input_ptr(input, get_test_stream());
+
+        ASSERT_EQ(output_layout.format, format::bfvuwzyx);
+
+        for (size_t i = 0; i < output_layout.get_linear_size(); ++i) {
+            switch (func) {
+            case activation_func::gelu:
+                ASSERT_NEAR(0.5f * static_cast<float>(input_ptr[i]) * (1.f + std::erf(static_cast<float>((input_ptr[i])) / std::sqrt(2.0f))),
+                            output_ptr[i], 1e-5f);
+                break;
+            case activation_func::relu:
+                ASSERT_EQ(std::max(input_ptr[i], static_cast<float>(0)), output_ptr[i]);
+                break;
+            case activation_func::hyperbolic_tan:
+                    ASSERT_FLOAT_EQ(std::tanh(static_cast<float>(input_ptr[i])), output_ptr[i]);
+                break;
             default:
                 break;
             }
@@ -428,8 +493,8 @@ TEST(activation_f16_fw_gpu, softsign_basic_yxfb) {
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({data_types::f16, format::yxfb, {1, 1, 2, 2}});
-    set_values(input, {FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.5f)});
-    VF<FLOAT16> output_vec = {FLOAT16(0.5f), FLOAT16(0.66650391f), FLOAT16(0.75f), FLOAT16(0.81835938f)};
+    set_values(input, {ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f), ov::float16(4.5f)});
+    VF<ov::float16> output_vec = {ov::float16(0.5f), ov::float16(0.66650391f), ov::float16(0.75f), ov::float16(0.81835938f)};
 
     topology topology(input_layout("input", input->get_layout()),
                       activation("not", input_info("input"), activation_func::softsign));
@@ -441,8 +506,8 @@ TEST(activation_f16_fw_gpu, softsign_basic_yxfb) {
 
     auto output_memory = outputs.at("not").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<FLOAT16> output_ptr(output_memory, get_test_stream());
-    cldnn::mem_lock<FLOAT16> input_ptr(input, get_test_stream());
+    cldnn::mem_lock<ov::float16> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<ov::float16> input_ptr(input, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -546,12 +611,12 @@ TEST(activation_f16_fw_gpu, pow_basic_yxfb) {
 
     auto input = engine.allocate_memory({ data_types::f16, format::yxfb, { 1, 1, 2, 2 } });
     set_values(input,
-        { FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.5f) });
-    VF<FLOAT16> output_vec = { FLOAT16(1.0f), FLOAT16(8.0f), FLOAT16(27.0f), FLOAT16(91.125f) };
+        { ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f), ov::float16(4.5f) });
+    VF<ov::float16> output_vec = { ov::float16(1.0f), ov::float16(8.0f), ov::float16(27.0f), ov::float16(91.125f) };
 
     topology topology(
         input_layout("input", input->get_layout()),
-        activation("pow", input_info("input"), activation_func::pow, { FLOAT16(3.0f), FLOAT16(0.0f) }));
+        activation("pow", input_info("input"), activation_func::pow, { ov::float16(3.0f), ov::float16(0.0f) }));
     network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -560,7 +625,7 @@ TEST(activation_f16_fw_gpu, pow_basic_yxfb) {
 
     auto output_memory = outputs.at("pow").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<FLOAT16> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<ov::float16> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -906,8 +971,8 @@ TEST(activation_f16_fw_gpu, basic_bfyx_all_functions)
     auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 1, 2, 4 } });
     auto input_params = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 2, 1, 1 } });
 
-    set_values(input, { FLOAT16(-4.5f), FLOAT16(-2.5f), FLOAT16(-1.5f), FLOAT16(0.5f),
-                        FLOAT16(0.9f),  FLOAT16(1.5f),  FLOAT16(2.0f),  FLOAT16(2.5f) });
+    set_values(input, { ov::float16(-4.5f), ov::float16(-2.5f), ov::float16(-1.5f), ov::float16(0.5f),
+                        ov::float16(0.9f),  ov::float16(1.5f),  ov::float16(2.0f),  ov::float16(2.5f) });
 
     std::vector<activation_func> funcs = {
         activation_func::linear,
@@ -919,7 +984,7 @@ TEST(activation_f16_fw_gpu, basic_bfyx_all_functions)
     };
 
     activation_additional_params params = { 3.f, 2.f };
-    set_values(input_params, { FLOAT16(params.a), FLOAT16(params.b) });
+    set_values(input_params, { ov::float16(params.a), ov::float16(params.b) });
 
     for (uint8_t i = 0 ; i < 2 ; i++) {
         for (auto func : funcs) {
@@ -940,8 +1005,8 @@ TEST(activation_f16_fw_gpu, basic_bfyx_all_functions)
 
             auto output_memory = outputs.at("activation").get_memory();
             auto output_layout = output_memory->get_layout();
-            cldnn::mem_lock<FLOAT16> output_ptr(output_memory, get_test_stream());
-            cldnn::mem_lock<FLOAT16> input_ptr(input, get_test_stream());
+            cldnn::mem_lock<ov::float16> output_ptr(output_memory, get_test_stream());
+            cldnn::mem_lock<ov::float16> input_ptr(input, get_test_stream());
 
             int y_size = output_layout.spatial(1);
             int x_size = output_layout.spatial(0);
@@ -956,28 +1021,28 @@ TEST(activation_f16_fw_gpu, basic_bfyx_all_functions)
             for (size_t i = 0; i < output_layout.get_linear_size(); ++i) {
                 switch (func) {
                 case activation_func::linear: {
-                    VF<FLOAT16> output_vec = {FLOAT16(-11.5f), FLOAT16(-5.5f), FLOAT16(-2.5f), FLOAT16(3.5f),
-                                              FLOAT16(4.7f), FLOAT16(6.5f), FLOAT16(8.0f), FLOAT16(9.5f)};
+                    VF<ov::float16> output_vec = {ov::float16(-11.5f), ov::float16(-5.5f), ov::float16(-2.5f), ov::float16(3.5f),
+                                              ov::float16(4.7f), ov::float16(6.5f), ov::float16(8.0f), ov::float16(9.5f)};
                     ASSERT_FLOAT_EQ(output_vec[i], output_ptr[i]);
                     break;
                 }
                 case activation_func::mish:
-                    ASSERT_NEAR((FLOAT16)((float)input_ptr[i] * std::tanh(std::log(1.f + std::exp((float)input_ptr[i])))),
+                    ASSERT_NEAR((ov::float16)((float)input_ptr[i] * std::tanh(std::log(1.f + std::exp((float)input_ptr[i])))),
                         output_ptr[i], 1e-2f);
                     break;
                 case activation_func::hswish:
-                    ASSERT_NEAR((FLOAT16)((float)input_ptr[i] * std::fmin(std::fmax(0.f, (float)input_ptr[i] + 3.f), 6.f) / 6.f),
+                    ASSERT_NEAR((ov::float16)((float)input_ptr[i] * std::fmin(std::fmax(0.f, (float)input_ptr[i] + 3.f), 6.f) / 6.f),
                         output_ptr[i], 1e-3f);
                     break;
                 case activation_func::hard_sigmoid:
-                    ASSERT_NEAR((FLOAT16)(std::fmin(std::fmax(0.f, (float)input_ptr[i] + 3.f), 6.f) / 6.f),
+                    ASSERT_NEAR((ov::float16)(std::fmin(std::fmax(0.f, (float)input_ptr[i] + 3.f), 6.f) / 6.f),
                         output_ptr[i], 1e-3f);
                     break;
                 case activation_func::round_half_to_even:
-                    ASSERT_FLOAT_EQ((FLOAT16)std::rint((float)input_ptr[i]), output_ptr[i]);
+                    ASSERT_FLOAT_EQ((ov::float16)std::rint((float)input_ptr[i]), output_ptr[i]);
                     break;
                 case activation_func::round_half_away_from_zero:
-                    ASSERT_FLOAT_EQ((FLOAT16)std::round((float)input_ptr[i]), output_ptr[i]);
+                    ASSERT_FLOAT_EQ((ov::float16)std::round((float)input_ptr[i]), output_ptr[i]);
                     break;
                 default:
                     break;
@@ -1567,6 +1632,7 @@ TEST(activation_f32_fw_gpu, b_fs_yx_fsv16_prelu) {
     constexpr int x = 2;
     constexpr int y = 2;
 
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& eng = get_test_engine();
 
     auto in_lay = cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, cldnn::tensor(b, f, x, y));
@@ -1575,8 +1641,8 @@ TEST(activation_f32_fw_gpu, b_fs_yx_fsv16_prelu) {
     auto in_mem = eng.allocate_memory(in_lay);
     auto params_mem = eng.allocate_memory(params_lay);
 
-    auto in_data = generate_random_4d<float>(b, f, y, x, -1, 1);
-    auto params_data = generate_random_1d<float>(f, -1, 1);
+    auto in_data = rg.generate_random_4d<float>(b, f, y, x, -1, 1);
+    auto params_data = rg.generate_random_1d<float>(f, -1, 1);
 
     set_values(params_mem, params_data);
 
@@ -1610,17 +1676,95 @@ TEST(activation_f32_fw_gpu, b_fs_yx_fsv16_prelu) {
     }
 }
 
+TEST(activation_f32_fw_gpu, bfyx_prelu_dyn) {
+    constexpr int b = 1;
+    constexpr int f = 17;
+    constexpr int x = 2;
+    constexpr int y = 2;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& eng = get_test_engine();
+
+    ov::PartialShape in_shape = { b, f, y, x };
+    auto in_lay = cldnn::layout(ov::PartialShape::dynamic(in_shape.size()), cldnn::data_types::f32, cldnn::format::bfyx);
+    auto params_lay = cldnn::layout(ov::PartialShape{ 1, f, 1, 1 }, cldnn::data_types::f32, cldnn::format::bfyx);
+
+    auto in_mem = eng.allocate_memory({ in_shape, cldnn::data_types::f32, cldnn::format::bfyx });
+    auto params_mem = eng.allocate_memory(params_lay);
+
+    auto in_data = rg.generate_random_4d<float>(b, f, y, x, -1, 1);
+    auto params_data = rg.generate_random_1d<float>(f, -1, 1);
+
+    set_values(params_mem, params_data);
+
+    auto topo = cldnn::topology(
+        cldnn::input_layout("in", in_lay),
+        cldnn::data("actv_params", params_mem),
+        cldnn::activation("actv", input_info("in"), "actv_params", cldnn::activation_func::relu_negative_slope)
+    );
+
+    ExecutionConfig config = get_test_default_config(eng);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cldnn::network net(eng, topo, config);
+
+    set_values(in_mem, flatten_4d(format::bfyx, in_data));
+    net.set_input_data("in", in_mem);
+
+    auto inst = net.get_primitive("actv");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = net.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "actv");
+
+    auto out_mem = outputs.at("actv").get_memory();
+    auto out_layout = out_mem->get_layout();
+
+    int b_size = out_layout.batch();
+    int f_size = out_layout.feature();
+    int y_size = out_layout.spatial(1);
+    int x_size = out_layout.spatial(0);
+
+    ASSERT_EQ(out_layout.format, format::bfyx);
+    ASSERT_EQ(b_size, b);
+    ASSERT_EQ(f_size, f);
+    ASSERT_EQ(y_size, y);
+    ASSERT_EQ(x_size, x);
+
+    std::vector<float> expected = flatten_4d(format::bfyx, in_data);
+    for (size_t i = 0; i < expected.size(); ++i) {
+        if (expected[i] < 0.f) {
+            expected[i] = expected[i] * params_data[i / (x * y) % f];
+        }
+    }
+
+    cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+    ASSERT_EQ(expected.size(), out_ptr.size());
+
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(expected[i], out_ptr[i]) << "at i=" << i;
+    }
+}
+
 using activation_random_test_params = std::tuple<data_types,
                                                  format::type,                  // input_format
                                                  tensor,                        // input_size
                                                  activation_func,               // func_type
                                                  activation_additional_params,  // additional_params
                                                  padding,
+                                                 impl_types,
                                                  bool>;
 
 struct activation_random_test : testing::TestWithParam<activation_random_test_params>
 {
+    tests::random_generator rg;
     bool enable_profiling = false;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
 
     size_t get_x_pitch(layout& layout) {
         auto tensor_x0 = tensor(batch(0), feature(0), spatial(0, 0, 0, 0));
@@ -1638,7 +1782,7 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
         size_t x = l.spatial(0);
         size_t y = l.spatial(1);
 
-        auto data = generate_random_4d<T>(b, f, y, x, min, max, k);
+        auto data = rg.generate_random_4d<T>(b, f, y, x, min, max, k);
         mem_lock<T> ptr{mem, get_test_stream()};
         for (size_t bi = 0; bi < b; ++bi) {
             for (size_t fi = 0; fi < f; ++fi) {
@@ -1660,7 +1804,7 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
             fill_random_typed<float>(mem, -127, 127, 2);
             break;
         case data_types::f16:
-            fill_random_typed<FLOAT16>(mem, -127, 127, 2);
+            fill_random_typed<ov::float16>(mem, -127, 127, 2);
             break;
         case data_types::i8:
             fill_random_typed<int8_t>(mem, -127, 127, 1);
@@ -1714,8 +1858,9 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
         activation_func func_type;
         activation_additional_params additional_params;
         padding padd;
+        impl_types impl_type;
         bool is_caching_test;
-        std::tie(input_type, input_format, input_size, func_type, additional_params, padd, is_caching_test) = params;
+        std::tie(input_type, input_format, input_size, func_type, additional_params, padd, impl_type, is_caching_test) = params;
         auto in_layout = layout(input_type, format::bfyx, input_size);
 
         auto in_mem = engine.allocate_memory(in_layout);
@@ -1752,7 +1897,7 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
         activation_impl_desc.output_format = input_format;
         ExecutionConfig config_opt = get_test_default_config(engine,
                                         {ov::intel_gpu::custom_outputs(std::vector<std::string>{"activation_blocked", "res_to_input_format"}),
-                                        ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"activation_blocked", {input_format, "activation_ref"}}})});
+                                         ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"activation_blocked", {input_format, "activation_ref", impl_type}}})});
 
         network net_opt(engine, topo_opt, config_opt);
 
@@ -1768,7 +1913,7 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
             if (input_type == data_types::f32) {
                 compare_outputs<float>(output, output_opt);
             } else if (input_type == data_types::f16) {
-                compare_outputs<FLOAT16>(output, output_opt);
+                compare_outputs<ov::float16>(output, output_opt);
             } else if (input_type == data_types::i8) {
                 compare_outputs<int8_t>(output, output_opt);
             } else if (input_type == data_types::u8) {
@@ -1786,11 +1931,11 @@ TEST_P(activation_random_test, random) {
 }
 
 const auto reluParams = testing::ValuesIn(std::vector<activation_random_test_params>{
-    {data_types::i8, format::b_fs_yx_fsv32, {1, 32, 5, 5}, activation_func::relu, {}, {}, false},
-    {data_types::i8, format::bs_fs_yx_bsv32_fsv32, {32, 32, 5, 5}, activation_func::relu, {}, {}, false},
-    {data_types::f16, format::bs_fs_yx_bsv32_fsv16, {32, 32, 5, 5}, activation_func::relu, {}, {}, false},
-    {data_types::i8, format::bs_fs_yx_bsv32_fsv32, {16, 16, 5, 5}, activation_func::relu, {}, {}, false},
-    {data_types::f16, format::bs_fs_yx_bsv32_fsv16, {16, 16, 5, 5}, activation_func::relu, {}, {}, false},
+    {data_types::i8, format::b_fs_yx_fsv32, {1, 32, 5, 5}, activation_func::relu, {}, {}, impl_types::any, false},
+    {data_types::i8, format::bs_fs_yx_bsv32_fsv32, {32, 32, 5, 5}, activation_func::relu, {}, {}, impl_types::any, false},
+    {data_types::f16, format::bs_fs_yx_bsv32_fsv16, {32, 32, 5, 5}, activation_func::relu, {}, {}, impl_types::any, false},
+    {data_types::i8, format::bs_fs_yx_bsv32_fsv32, {16, 16, 5, 5}, activation_func::relu, {}, {}, impl_types::any, false},
+    {data_types::f16, format::bs_fs_yx_bsv32_fsv16, {16, 16, 5, 5}, activation_func::relu, {}, {}, impl_types::any, false},
 });
 
 INSTANTIATE_TEST_SUITE_P(relu_activation_blocked_tests, activation_random_test, reluParams);
@@ -1864,6 +2009,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(activationFunctions),
                        ::testing::Values(activation_additional_params{}),
                        ::testing::Values(padding{}),
+                       ::testing::Values(impl_types::any),
                        ::testing::Values(false)));
 INSTANTIATE_TEST_SUITE_P(
     fp_activation_blocked_tests1,
@@ -1874,6 +2020,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(activationFunctions),
                        ::testing::Values(activation_additional_params{}),
                        ::testing::Values(padding{}),
+                       ::testing::Values(impl_types::any),
                        ::testing::Values(false)));
 INSTANTIATE_TEST_SUITE_P(
     fp_activation_blocked_tests2,
@@ -1884,6 +2031,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(activationFunctions),
                        ::testing::Values(activation_additional_params{}),
                        ::testing::Values(padding{}),
+                       ::testing::Values(impl_types::any),
                        ::testing::Values(false)));
 INSTANTIATE_TEST_SUITE_P(
     fp_activation_blocked_tests3,
@@ -1894,6 +2042,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(activationFunctions.front()),
                        ::testing::Values(activation_additional_params{}),
                        ::testing::Values(padding{}),
+                       ::testing::Values(impl_types::any),
                        ::testing::Values(false)));
 INSTANTIATE_TEST_SUITE_P(
     fp_activation_blocked_tests4,
@@ -1904,6 +2053,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(activationFunctions.back()),
                        ::testing::Values(activation_additional_params{}),
                        ::testing::Values(padding{}),
+                       ::testing::Values(impl_types::any),
                        ::testing::Values(false)));
 INSTANTIATE_TEST_SUITE_P(
     export_import,
@@ -1914,4 +2064,76 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(activationFunctions.back()),
                        ::testing::Values(activation_additional_params{}),
                        ::testing::Values(padding{}),
+                       ::testing::Values(impl_types::any),
                        ::testing::Values(true)));
+
+INSTANTIATE_TEST_SUITE_P(
+    cpu_impls,
+    activation_random_test,
+    ::testing::Combine(::testing::Values(data_types::f16),
+                       ::testing::Values(format::bfyx),
+                       ::testing::Values(tensor{1, 3, 2, 4}),
+                       ::testing::ValuesIn({ activation_func::relu, activation_func::abs, activation_func::gelu,
+                                             activation_func::round_half_to_even, activation_func::clamp, activation_func::pow,
+                                             activation_func::negative, activation_func::swish }),
+                       ::testing::Values(activation_additional_params{2.0f, 3.5f}),
+                       ::testing::Values(padding{}),
+                       ::testing::Values(impl_types::cpu),
+                       ::testing::Values(true)));
+
+TEST(activation_gpu, has_proper_synchronization) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+    auto in_layout = layout({1, 2, 2, 4}, data_types::f32, format::bfyx);
+    auto input_mem = engine.allocate_memory(in_layout);
+    auto const_mem = engine.allocate_memory({{1, 2, 2, 4}, data_types::f32, format::bfyx});
+
+    auto in_data = rg.generate_random_4d<float>(1, 2, 2, 4, -1, 1);
+    auto const_data = rg.generate_random_4d<float>(1, 2, 2, 4, -1, 1);
+
+    set_values(input_mem, flatten_4d(format::bfyx, in_data));
+    set_values(const_mem, flatten_4d(format::bfyx, const_data));
+
+    auto create_topology =[&]() {
+        topology topology;
+        topology.add(input_layout("input1", in_layout));
+        topology.add(data("input2", const_mem));
+        topology.add(concatenation("concat", { input_info("input1"), input_info("input2") }, 1));
+        topology.add(reshape("reshape", input_info("concat"), false, {1, 2, 4, 4}, {1, 2, 4, 4}));
+        topology.add(reorder("reorder", input_info("reshape"), in_layout));
+        topology.add(activation("activation", input_info("reshape"), activation_func::relu));
+        return topology;
+    };
+
+    auto topology_ref = create_topology();
+    auto topology_test = create_topology();
+
+    auto impl_desc = ov::intel_gpu::ImplementationDesc{format::bfyx, "", impl_types::cpu};
+    auto impl_forcing_map = ov::intel_gpu::ImplForcingMap{{"activation", impl_desc}};
+
+    auto config_ref = get_test_default_config(engine);
+    config_ref.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    config_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    auto config_test = config_ref;
+    config_test.set_property(ov::intel_gpu::force_implementations(impl_forcing_map));
+
+    network net_test(engine, topology_test, config_test);
+    net_test.set_input_data("input1", input_mem);
+    auto outputs_test = net_test.execute();
+    auto res_test = outputs_test.at("activation").get_memory();
+
+    network net_ref(engine, topology_ref, config_ref);
+    net_ref.set_input_data("input1", input_mem);
+    auto outputs_ref = net_ref.execute();
+    auto res_ref = outputs_ref.at("activation").get_memory();
+
+    ASSERT_EQ(res_test->get_layout().get_linear_size(), res_ref->get_layout().get_linear_size());
+
+    cldnn::mem_lock<float> test_mem(res_test, get_test_stream());
+    cldnn::mem_lock<float> ref_mem(res_ref, get_test_stream());
+
+    for (size_t i = 0; i < res_ref->get_layout().get_linear_size(); ++i) {
+        ASSERT_EQ(test_mem[i], ref_mem[i]);
+    }
+}

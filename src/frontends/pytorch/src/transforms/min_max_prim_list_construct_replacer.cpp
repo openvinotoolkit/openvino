@@ -23,6 +23,8 @@ namespace frontend {
 namespace pytorch {
 namespace pass {
 
+using namespace ov::op;
+
 MinMaxPrimListConstructReplacer::MinMaxPrimListConstructReplacer() {
     auto op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
 
@@ -40,37 +42,38 @@ MinMaxPrimListConstructReplacer::MinMaxPrimListConstructReplacer() {
         } else {
             op = max_op;
         }
-        auto input_node = op->input_value(0).get_node_shared_ptr();
+        ov::pass::NodeRegistry rg;
+        auto input_node = op->input_value(0);
         auto num_inputs = op->inputs().size();
         auto input = concat_list_construct(input_node);
         std::shared_ptr<Node> reduce_op;
         if (num_inputs == 1) {
-            auto start = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 0);
-            auto step = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 1);
-            auto shape = std::make_shared<ov::op::v3::ShapeOf>(input, element::i32);
-            auto rank = std::make_shared<ov::op::v3::ShapeOf>(shape, element::i32);
-            auto axis_0 = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
-            auto reduced_rank = std::make_shared<ov::op::v0::Squeeze>(rank, axis_0);
-            auto axes = std::make_shared<ov::op::v4::Range>(start, reduced_rank, step, element::i32);
+            auto start = rg.make<v0::Constant>(element::i32, Shape{}, 0);
+            auto step = rg.make<v0::Constant>(element::i32, Shape{}, 1);
+            auto shape = rg.make<v3::ShapeOf>(input, element::i32);
+            auto rank = rg.make<v3::ShapeOf>(shape, element::i32);
+            auto axis_0 = v0::Constant::create(element::i32, Shape{}, {0});
+            auto reduced_rank = rg.make<v0::Squeeze>(rank, axis_0);
+            auto axes = rg.make<v4::Range>(start, reduced_rank, step, element::i32);
             std::shared_ptr<Node> reduce_op;
             if (!is_min) {
-                reduce_op = std::make_shared<ov::op::v1::ReduceMax>(input, axes);
+                reduce_op = rg.make<v1::ReduceMax>(input, axes);
             } else {
-                reduce_op = std::make_shared<ov::op::v1::ReduceMin>(input, axes);
+                reduce_op = rg.make<v1::ReduceMin>(input, axes);
             }
-            copy_runtime_info({op, input_node}, reduce_op);
+            copy_runtime_info_and_name(op, rg.get());
             replace_node(op, reduce_op);
             return true;
         }
-        auto second_input_node = op->input_value(1).get_node_shared_ptr();
+        auto second_input_node = op->input_value(1);
         auto second_input = concat_list_construct(second_input_node);
         std::shared_ptr<Node> min_or_max_op;
         if (!is_min) {
-            min_or_max_op = std::make_shared<ov::op::v1::Maximum>(input, second_input);
+            min_or_max_op = rg.make<v1::Maximum>(input, second_input);
         } else {
-            min_or_max_op = std::make_shared<ov::op::v1::Minimum>(input, second_input);
+            min_or_max_op = rg.make<v1::Minimum>(input, second_input);
         }
-        copy_runtime_info({op, input_node, second_input_node}, min_or_max_op);
+        copy_runtime_info_and_name(op, rg.get());
         replace_node(op, min_or_max_op);
         return true;
     };

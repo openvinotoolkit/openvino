@@ -102,7 +102,7 @@ void ov::IAsyncInferRequest::set_callback(std::function<void(std::exception_ptr)
     m_callback = std::move(callback);
 }
 
-std::vector<std::shared_ptr<ov::IVariableState>> ov::IAsyncInferRequest::query_state() const {
+std::vector<ov::SoPtr<ov::IVariableState>> ov::IAsyncInferRequest::query_state() const {
     check_state();
     return m_sync_request->query_state();
 }
@@ -201,28 +201,34 @@ void ov::IAsyncInferRequest::check_state() const {
     }
 }
 
+void ov::IAsyncInferRequest::check_cancelled_state() const {
+    std::lock_guard<std::mutex> lock{m_mutex};
+    if (m_state == InferState::CANCELLED)
+        ov::Cancelled::create("Infer Request was canceled");
+}
+
 std::vector<ov::ProfilingInfo> ov::IAsyncInferRequest::get_profiling_info() const {
     check_state();
     return m_sync_request->get_profiling_info();
 }
 
-ov::Tensor ov::IAsyncInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
+ov::SoPtr<ov::ITensor> ov::IAsyncInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
     check_state();
     return m_sync_request->get_tensor(port);
 }
 
-void ov::IAsyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) {
+void ov::IAsyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
     check_state();
     return m_sync_request->set_tensor(port, tensor);
 }
 
-std::vector<ov::Tensor> ov::IAsyncInferRequest::get_tensors(const ov::Output<const ov::Node>& port) const {
+std::vector<ov::SoPtr<ov::ITensor>> ov::IAsyncInferRequest::get_tensors(const ov::Output<const ov::Node>& port) const {
     check_state();
     return m_sync_request->get_tensors(port);
 }
 
 void ov::IAsyncInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
-                                         const std::vector<ov::Tensor>& tensors) {
+                                         const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
     check_state();
     return m_sync_request->set_tensors(port, tensors);
 }

@@ -3,7 +3,7 @@
 //
 
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <ngraph/opsets/opset8.hpp>
 
 using namespace ngraph;
@@ -13,17 +13,17 @@ namespace SubgraphTestsDefinitions {
 class SubgraphWithBlockedFormat : virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         auto type = element::f32;
         auto param = std::make_shared<opset8::Parameter>(type, Shape{1, 32, 64, 32});
         auto weights = builder::makeConstant(type, Shape{32, 32, 1, 1}, std::vector<float>{}, true);
         auto conv = std::make_shared<opset8::Convolution>(param, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
         auto mean = std::make_shared<opset8::ReduceMean>(conv, opset8::Constant::create(element::i32, Shape{2}, {2, 3}), true);
-        auto reshape_before = std::make_shared<opset8::Reshape>(mean, opset8::Constant::create(element::i32, Shape{3}, {0, 16, -1}), true);
+        auto reshape_before = std::make_shared<ov::op::v1::Reshape>(mean, opset8::Constant::create(element::i32, Shape{3}, {0, 16, -1}), true);
         auto mvn = std::make_shared<opset8::MVN>(reshape_before, opset8::Constant::create(element::i32, Shape{1}, {2}),
                 false, 0.1, op::MVNEpsMode::INSIDE_SQRT);
-        auto reshape_after = std::make_shared<opset8::Reshape>(mvn, std::make_shared<opset8::ShapeOf>(mean), false);
+        auto reshape_after = std::make_shared<ov::op::v1::Reshape>(mvn, std::make_shared<ov::op::v3::ShapeOf>(mean), false);
         auto mul = std::make_shared<opset8::Multiply>(reshape_after, builder::makeConstant(type, Shape{32, 1, 1}, std::vector<float>{}, true));
         auto add = std::make_shared<opset8::Add>(mul, builder::makeConstant(type, Shape{32, 1, 1}, std::vector<float>{}, true));
         auto sigmoid = std::make_shared<opset8::Sigmoid>(add);

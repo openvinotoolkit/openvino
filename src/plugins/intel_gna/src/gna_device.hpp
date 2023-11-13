@@ -67,7 +67,6 @@ class GNADeviceHelper : public GNADevice {
     uint64_t debugLogIndexRequestWait = 0;
     static constexpr const char* kDumpExt = ".bin";
     static constexpr const char* kDumpDelimiter = ".";
-    const size_t m_mem_alignment;
 
 public:
     explicit GNADeviceHelper(std::shared_ptr<target::Target> target = std::make_shared<target::Target>(),
@@ -124,12 +123,9 @@ public:
     void getGnaPerfCounters(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters);
     static std::string GetGnaLibraryVersion();
 
+    bool isHwAvailable();
     const GnaAllocations& getAllAllocations() const {
         return allAllocations;
-    }
-
-    size_t getMemAlignment() const {
-        return m_mem_alignment;
     }
 
     /**
@@ -176,7 +172,14 @@ private:
     static void enforceLegacyCnns(Gna2Model& gnaModel);
     static void enforceLegacyCnnsWhenNeeded(Gna2Model& gnaModel);
     static bool is_up_to_20_hw(const target::DeviceVersion device_version) {
-        return device_version <= target::DeviceVersion::GNA2_0 && is_hw_target(device_version);
+        switch (device_version) {
+        case target::DeviceVersion::GNA1_0:
+        case target::DeviceVersion::GNAEmbedded1_0:
+        case target::DeviceVersion::GNA2_0:
+            return true;
+        default:
+            return false;
+        }
     }
     void createVirtualDevice(const target::DeviceVersion& devVersion);
     void updateGnaDeviceVersion();

@@ -5,20 +5,20 @@
 #include "transformations/common_optimizations/eliminate_duplicate_ti_inputs.hpp"
 
 #include <memory>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/op/tensor_iterator.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace ov::op::util;
 
 ov::pass::EliminateDuplicateTIInputs::EliminateDuplicateTIInputs() {
     MATCHER_SCOPE(EliminateDuplicateTIInputs);
-    auto ti = pattern::wrap_type<ov::opset10::TensorIterator>();
+    auto ti = pattern::wrap_type<ov::op::v0::TensorIterator>();
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto ti = std::dynamic_pointer_cast<ov::opset10::TensorIterator>(m.get_match_root());
+        auto ti = std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(m.get_match_root());
         if (ti == nullptr) {
             return false;
         }
@@ -78,7 +78,7 @@ ov::pass::EliminateDuplicateTIInputs::EliminateDuplicateTIInputs() {
         }
 
         // Create new TI
-        auto new_ti = std::make_shared<opset10::TensorIterator>();
+        auto new_ti = std::make_shared<ov::op::v0::TensorIterator>();
         new_ti->set_output_descriptions(0, ti->get_output_descriptions());
         ov::ParameterVector new_params;
         for (const auto& remain : should_stay) {

@@ -113,16 +113,18 @@ namespace kernel_selector {
 
 std::string toCLType(WeightsType wType) {
     switch (wType) {
-        case WeightsType::BINARY:
-            return GetTypeName<uint32_t>();
+        case WeightsType::INT4:
         case WeightsType::INT8:
             return GetTypeName<int8_t>();
+        case WeightsType::UINT4:
         case WeightsType::UINT8:
             return GetTypeName<uint8_t>();
         case WeightsType::F16:
             return "half";
         case WeightsType::F32:
             return GetTypeName<float>();
+        case WeightsType::INT32:
+            return GetTypeName<int32_t>();
         default:
             return "";
     }
@@ -130,8 +132,6 @@ std::string toCLType(WeightsType wType) {
 
 std::string toCLType(Datatype dType) {
     switch (dType) {
-        case Datatype::BINARY:
-            return GetTypeName<uint32_t>();
         case Datatype::INT8:
             return GetTypeName<int8_t>();
         case Datatype::UINT8:
@@ -190,14 +190,14 @@ std::string toCodeString(size_t val) {
 std::string toCodeString(const Tensor::Dim& dim, size_t offset, bool padded, bool pad_is_dynamic, size_t pad_offset) {
     std::string pad_str = "";
     if (padded) {
-        if (dim.pad.is_dynamic) {
+        if (pad_is_dynamic) {
             pad_str = " + (shape_info[" + std::to_string(pad_offset) + "] + shape_info[" +
                       std::to_string(pad_offset + 1) + "])";
         } else {
             pad_str = " + " + std::to_string(dim.pad.Total());
         }
     }
-    if (dim.is_dynamic) {
+    if (dim.is_dynamic || pad_is_dynamic) {
         snprintf(buf, sizeof(buf), "(shape_info[%zu] %s)", offset, pad_str.c_str());
     } else {
         snprintf(buf, sizeof(buf), "%zu", dim.v + (padded ? dim.pad.Total() : 0));
@@ -265,7 +265,6 @@ public:
 
         if (!t.is_dynamic()) {
             definitions.push_back({_name + "_OFFSET", toCodeString(t.GetFirstElementOffset())});
-            definitions.push_back({_name + "_SIZE", toCodeString(t.GetDims().size())});
             definitions.push_back(
                 {_name + "_SIZES_DATA",
                 toVectorString(t.GetDims(), "", KERNEL_SELECTOR_TENSOR_DIM_MAX, 1, [](const Tensor::Dim& d) { return d.v; })});
@@ -359,7 +358,8 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
     };
     if (_tensor.is_dynamic()) {
         if (_tensor.GetLayout() == DataLayout::bf || _tensor.GetLayout() == DataLayout::bfyx ||
-            _tensor.GetLayout() == DataLayout::bfzyx || _tensor.GetLayout() == DataLayout::bfwzyx) {
+            _tensor.GetLayout() == DataLayout::bfzyx || _tensor.GetLayout() == DataLayout::bfwzyx ||
+            _tensor.GetLayout() == DataLayout::bfuwzyx || _tensor.GetLayout() == DataLayout::bfvuwzyx) {
             definitions.push_back({_name + "_X_PITCH", "1"});
             definitions.push_back({_name + "_Y_PITCH", dims_padded.x()});
             definitions.push_back({_name + "_Z_PITCH", toVectorMulString({dims_padded.x(), dims_padded.y()})});
@@ -438,10 +438,12 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                        layout == DataLayout::b_fs_yx_fsv32 ||
                        layout == DataLayout::b_fs_yx_fsv2 ||
                        layout == DataLayout::b_fs_yx_fsv4 ||
+                       layout == DataLayout::b_fs_yx_fsv8 ||
                        layout == DataLayout::fs_b_yx_fsv32 ||
                        layout == DataLayout::bs_fs_yx_bsv16_fsv16 ||
                        layout == DataLayout::bs_fs_yx_bsv16_fsv32 ||
                        layout == DataLayout::bs_fs_yx_bsv4_fsv4 ||
+                       layout == DataLayout::bs_fs_yx_bsv16_fsv8 ||
                        layout == DataLayout::bs_fs_yx_bsv16_fsv4 ||
                        layout == DataLayout::bs_fs_yx_bsv16_fsv2 ||
                        layout == DataLayout::bs_fs_yx_bsv8_fsv4 ||
@@ -506,6 +508,10 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                 index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV16_INDEX(" + _name + ", b, f, z, y, x)";
                 raw_index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV16_INDEX(" + _name + ", b, f, z, y, x)";
                 safe_index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV16_INDEX_SAFE(" + _name + ", b, f, z, y, x)";
+            } else if (layout == DataLayout::bs_fs_zyx_bsv16_fsv8) {
+                index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV8_INDEX(" + _name + ", b, f, z, y, x)";
+                raw_index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV8_INDEX(" + _name + ", b, f, z, y, x)";
+                safe_index_func_val = "GET_DATA_BS_FS_ZYX_BSV16_FSV8_INDEX_SAFE(" + _name + ", b, f, z, y, x)";
             } else if (layout == DataLayout::b_fs_zyx_fsv32) {
                 index_func_val = "GET_DATA_B_FS_ZYX_FSV32_INDEX(" + _name + ", b, f, z, y, x)";
                 raw_index_func_val = "GET_DATA_B_FS_ZYX_FSV32_INDEX(" + _name + ", b, f, z, y, x)";
@@ -534,6 +540,10 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                 index_func_val = "GET_DATA_B_FS_ZYX_FSV4_INDEX(" + _name + ", b, f, z, y, x)";
                 raw_index_func_val = "GET_DATA_B_FS_ZYX_FSV4_INDEX(" + _name + ", b, f, z, y, x)";
                 safe_index_func_val = "GET_DATA_B_FS_ZYX_FSV4_INDEX_SAFE(" + _name + ", b, f, z, y, x)";
+            } else if (layout == DataLayout::b_fs_zyx_fsv8) {
+                index_func_val = "GET_DATA_B_FS_ZYX_FSV8_INDEX(" + _name + ", b, f, z, y, x)";
+                raw_index_func_val = "GET_DATA_B_FS_ZYX_FSV8_INDEX(" + _name + ", b, f, z, y, x)";
+                safe_index_func_val = "GET_DATA_B_FS_ZYX_FSV8_INDEX_SAFE(" + _name + ", b, f, z, y, x)";
             } else {
                 index_func_val = "GET_DATA_INDEX_5D_RAW(" + _name + ", b, f, z, y, x)";
                 safe_index_func_val = "GET_DATA_INDEX_5D_RAW(" + _name + ", b, f, z, y, x)";
@@ -661,6 +671,11 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
             using args = std::initializer_list<std::string>;
             if (l == WeightsLayout::oiyx ||
                 l == WeightsLayout::ioyx ||
+                l == WeightsLayout::oyxi ||
+                l == WeightsLayout::oyix ||
+                l == WeightsLayout::oxiy ||
+                l == WeightsLayout::iyxo ||
+                l == WeightsLayout::yxio ||
                 l == WeightsLayout::iozyx ||
                 l == WeightsLayout::oizyx ||
                 l == WeightsLayout::goiyx ||
@@ -972,7 +987,10 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
             bool is_common_4d_layout = is_common_nd_layout(base_4d_channels, layout);
             if (is_common_4d_layout) {
                 index_macro_name = _name + "_GET_INDEX(o, i, y, x)";
-                if (layout == WeightsLayout::oiyx || layout == WeightsLayout::ioyx)
+                if (layout == WeightsLayout::oiyx || layout == WeightsLayout::ioyx ||
+                    layout == WeightsLayout::oyxi || layout == WeightsLayout::oyix ||
+                    layout == WeightsLayout::oxiy || layout == WeightsLayout::iyxo ||
+                    layout == WeightsLayout::yxio)
                     index_func_val = called_func_name + "(" + _name + ", 0, o, i, 0, y, x)";
                 else if (layout == WeightsLayout::os_is_yx_isv16_osv16)
                     index_func_val = called_func_name + "(" + _name + ", 0, o, i, 0, y, x, 16)";
@@ -1323,18 +1341,18 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
 }
 
 JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroName) {
-    std::string type;
-    std::string max_val;
-    std::string min_val;
-    std::string val_one;
-    std::string val_zero;
-    std::string to_type;
-    std::string to_type_sat;
-    std::string as_type;
-    std::string max_func;
-    std::string min_func;
-    std::string abs_func;
-    std::string type_size;
+    std::string type = "undefined";
+    std::string max_val = "undefined";
+    std::string min_val = "undefined";
+    std::string val_one = "undefined";
+    std::string val_zero = "undefined";
+    std::string to_type = "undefined";
+    std::string to_type_sat = "undefined";
+    std::string as_type = "undefined";
+    std::string max_func = "undefined";
+    std::string min_func = "undefined";
+    std::string abs_func = "undefined";
+    std::string type_size = "undefined";
     bool is_fp;
     switch (dataType) {
         case Datatype::INT8:
@@ -1413,7 +1431,6 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             is_fp = false;
             break;
         case Datatype::UINT32:
-        case Datatype::BINARY:
             type = "uint";
             max_val = "UINT_MAX";
             min_val = "0";
@@ -1457,6 +1474,16 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             abs_func = "fabs";
             type_size = "2";
             is_fp = true;
+            break;
+        case Datatype::INT4:
+            type = "char";
+            type_size = "0.5f";
+            is_fp = false;
+            break;
+        case Datatype::UINT4:
+            type = "uchar";
+            type_size = "0.5f";
+            is_fp = false;
             break;
         default:
             type = "float";
@@ -1503,12 +1530,27 @@ JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& ma
             return MakeTypeJitConstants(Datatype::INT8, macroName);
         case WeightsType::UINT8:
             return MakeTypeJitConstants(Datatype::UINT8, macroName);
-        case WeightsType::BINARY:
-            return MakeTypeJitConstants(Datatype::UINT32, macroName);
+        case WeightsType::INT4:
+            return MakeTypeJitConstants(Datatype::INT4, macroName);
+        case WeightsType::UINT4:
+            return MakeTypeJitConstants(Datatype::UINT4, macroName);
+        case WeightsType::INT32:
+            return MakeTypeJitConstants(Datatype::INT32, macroName);
     }
     assert(false || "Unreachable!");
     // FIXME: Is there some builtin_unreachable available?
     return MakeTypeJitConstants(Datatype::UNSUPPORTED, macroName);
+}
+
+JitConstants make_int4_packed_type_jit_constant(const std::string& macro_name, WeightsType wt, size_t pack_size) {
+    OPENVINO_ASSERT(pack_size % 2 == 0 && pack_size != 0 && pack_size <= 16);
+    std::string type_string = "";
+    switch (wt) {
+        case WeightsType::UINT4: type_string = "uint4x"; break;
+        case WeightsType::INT4: type_string = "int4x"; break;
+        default: OPENVINO_THROW("[GPU] Unsupported compressed type");
+    }
+    return { MakeJitConstant(macro_name, type_string + std::to_string(pack_size) + "_t") };
 }
 
 JitConstants MakeActivationJitConstants(const base_activation_params& params,
@@ -1541,11 +1583,11 @@ JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activa
         std::string nl_n = toCodeString(params[i].n);
         if (params[i].function == ActivationFunction::CLAMP) {
             if (out_dt == Datatype::INT8) {
-                nl_m = toCodeString(std::max(params[i].m, static_cast<float>(SCHAR_MIN)));
-                nl_n = toCodeString(std::min(params[i].n, static_cast<float>(SCHAR_MAX)));
+                nl_m = toCodeString(std::max<float>(params[i].m, std::numeric_limits<signed char>::min()));
+                nl_n = toCodeString(std::min<float>(params[i].n, std::numeric_limits<signed char>::max()));
             } else if (out_dt == Datatype::UINT8) {
                 nl_m = toCodeString(std::max(params[i].m, 0.0f));
-                nl_n = toCodeString(std::min(params[i].n, static_cast<float>(UCHAR_MAX)));
+                nl_n = toCodeString(std::min<float>(params[i].n, std::numeric_limits<unsigned char>::max()));
             }
         }
         auto jitConstants = JitConstants{MakeJitConstant("NL_M" + activation_suffix, nl_m),
@@ -1708,6 +1750,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
     auto vec_size = conf.vec_size;
     std::string shuffle_var = conf.shuffle_var_name;
     bool is_shuffled = false;
+    bool floor_integer_div = false;
 
     auto& dep_data = desc.dep_data;
     int first_fused_ops_idx = -1;
@@ -1739,14 +1782,39 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
         in_vars_converted.push_back(in_name);
     }
 
+    if (desc.GetType() == KernelType::ELTWISE) {
+        auto p = desc.GetOpParams<eltwise_fuse_params>();
+        OPENVINO_ASSERT(p != nullptr, "[GPU] Eltwise fuse params can't be nullptr");
+
+        if (p->mode == kernel_selector::EltwiseMode::DIV) {
+            if (p->m_pythondiv)
+                floor_integer_div = true;
+        }
+    }
+
     auto get_acc_t = [&]() -> Datatype {
         std::vector<Datatype> input_types = {desc.output_tensor.GetDType()};
         for (auto& dep : dep_data) {
             input_types.push_back(dep.data_type);
         }
 
-        std::vector<Datatype> types_prioritized = { Datatype::F32, Datatype::F16 };
+        std::vector<Datatype> types_prioritized = { };
+        if (floor_integer_div) {
+            if (std::all_of(input_types.begin(), input_types.end(),
+                            [=](const Datatype& t) -> bool { return (t != Datatype::F32 && t != Datatype::F16); })) {
+                types_prioritized = { Datatype::INT64, Datatype::INT32, Datatype::UINT32, Datatype::INT16, Datatype::UINT16, Datatype::INT8, Datatype::UINT8 };
+                for (auto& type : types_prioritized) {
+                    if (std::any_of(input_types.begin(), input_types.end(),
+                                [=](const Datatype& t) -> bool { return (t == type); })) {
+                        return type;
+                    }
+                }
+            }
+        }
 
+        floor_integer_div = false;
+        types_prioritized.clear();
+        types_prioritized = { Datatype::F32, Datatype::F16 };
         for (auto& type : types_prioritized) {
             if (std::any_of(input_types.begin(), input_types.end(), [=](const Datatype& t) -> bool { return t == type; })) {
                 return type;
@@ -1777,8 +1845,6 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
     switch (desc.GetType()) {
         case KernelType::ELTWISE: {
             auto p = desc.GetOpParams<eltwise_fuse_params>();
-            if (!p)
-                throw std::runtime_error("[clDNN] Eltwise fuse params can't be nullptr");
             std::string op = "";
             switch (p->mode) {
             case kernel_selector::EltwiseMode::ADD:
@@ -1798,7 +1864,13 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
             }
 
             auto tmp_var = out_var + "_tmp";
-            op_decls += "\\\n\t" + GetType(get_acc_t(), vec_size) + " " + tmp_var + " = " + input_vars[0] + op + input_vars[1] + ";";
+            auto acc_t_type = GetType(get_acc_t(), vec_size);
+            op_decls += "\\\n\t" + acc_t_type + " " + tmp_var + " = " + input_vars[0] + op + input_vars[1] + ";";
+            if (floor_integer_div) {
+                auto tmp_var_rem = tmp_var + "_rem";
+                op_decls += "\\\n\t" + acc_t_type + " " + tmp_var_rem + " = " + input_vars[0] + " % " + input_vars[1] + ";";
+                op_decls += "\\\n\t" + tmp_var + " -= " + "((" + tmp_var_rem + " != 0 && (" + input_vars[0] + " < 0) != (" + input_vars[1] + " < 0)) ? 1 : 0);";
+            }
             op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + ConvertToOutputType(tmp_var, vec_size) + ";";
             break;
         }
@@ -1920,11 +1992,11 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
 
                 if (activation_p.function == ActivationFunction::CLAMP) {
                     if (out_type == Datatype::INT8) {
-                        nl_m = toCodeString(std::max(activation_p.m, static_cast<float>(SCHAR_MIN)));
-                        nl_n = toCodeString(std::min(activation_p.n, static_cast<float>(SCHAR_MAX)));
+                        nl_m = toCodeString(std::max<float>(activation_p.m, std::numeric_limits<signed char>::min()));
+                        nl_n = toCodeString(std::min<float>(activation_p.n, std::numeric_limits<signed char>::max()));
                     } else if (out_type == Datatype::UINT8) {
                         nl_m = toCodeString(std::max(activation_p.m, 0.0f));
-                        nl_n = toCodeString(std::min(activation_p.n, static_cast<float>(UCHAR_MAX)));
+                        nl_n = toCodeString(std::min<float>(activation_p.n, std::numeric_limits<unsigned char>::max()));
                     }
                 }
 

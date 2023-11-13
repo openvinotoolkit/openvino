@@ -5,19 +5,19 @@
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/tile.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
     MATCHER_SCOPE(ConvertBroadcastToTiles);
-    auto broadcast = ngraph::pattern::wrap_type<ov::op::v1::Broadcast>();
+    auto broadcast = ov::pass::pattern::wrap_type<ov::op::v1::Broadcast>();
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto broadcast = std::dynamic_pointer_cast<ov::op::v1::Broadcast>(m.get_match_root());
@@ -97,11 +97,11 @@ ov::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
         new_ops.push_back(tile);
         tile->set_friendly_name(broadcast->get_friendly_name());
 
-        ngraph::copy_runtime_info(broadcast, new_ops);
-        ngraph::replace_node(broadcast, tile);
+        ov::copy_runtime_info(broadcast, new_ops);
+        ov::replace_node(broadcast, tile);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(broadcast, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(broadcast, matcher_name);
     this->register_matcher(m, callback);
 }

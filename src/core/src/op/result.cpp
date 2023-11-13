@@ -2,29 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/result.hpp"
+#include "openvino/op/result.hpp"
 
 #include <memory>
 #include <typeindex>
 #include <typeinfo>
 
 #include "itt.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 
-using namespace std;
-using namespace ngraph;
+using namespace ov;
 
-op::Result::Result(const Output<Node>& arg) : Op({arg}) {
+op::v0::Result::Result(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::Result::visit_attributes(AttributeVisitor& visitor) {
+bool op::v0::Result::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v0_Result_visit_attributes);
     return true;
 }
 
-void op::Result::validate_and_infer_types() {
+void op::v0::Result::validate_and_infer_types() {
     OV_OP_SCOPE(v0_Result_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this, get_input_size() == 1, "Argument has ", get_input_size(), " outputs (1 expected).");
 
@@ -34,38 +31,46 @@ void op::Result::validate_and_infer_types() {
     output.set_tensor_ptr(input.get_tensor_ptr());
 }
 
-shared_ptr<Node> op::Result::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v0::Result::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Result_clone_with_new_inputs);
     check_new_args_count(this, new_args);
 
-    auto res = make_shared<Result>(new_args.at(0));
+    auto res = std::make_shared<Result>(new_args.at(0));
     return std::move(res);
 }
 
-bool op::Result::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool op::v0::Result::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     OV_OP_SCOPE(v0_Result_evaluate);
-    outputs[0]->set_unary(inputs[0]);
-    void* output = outputs[0]->get_data_ptr();
-    void* input = inputs[0]->get_data_ptr();
-    memcpy(output, input, outputs[0]->get_size_in_bytes());
+    OPENVINO_ASSERT(inputs.size() == 1);
+    if (outputs.empty())
+        outputs.emplace_back(ov::Tensor(inputs[0].get_element_type(), inputs[0].get_shape()));
+    else
+        OPENVINO_ASSERT(outputs.size() == 1);
+    if (!outputs[0])
+        outputs[0] = ov::Tensor(inputs[0].get_element_type(), inputs[0].get_shape());
+    if (inputs[0].get_shape() != outputs[0].get_shape())
+        outputs[0].set_shape(inputs[0].get_shape());
+    void* output = outputs[0].data();
+    void* input = inputs[0].data();
+    memcpy(output, input, outputs[0].get_byte_size());
 
     return true;
 }
 
-bool op::Result::has_evaluate() const {
+bool op::v0::Result::has_evaluate() const {
     OV_OP_SCOPE(v0_Result_has_evaluate);
     return true;
 }
 
-bool op::Result::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
+bool op::v0::Result::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
     return false;
 }
 
-ov::Layout op::Result::get_layout() const {
+ov::Layout op::v0::Result::get_layout() const {
     return ov::layout::get_layout(output(0));
 }
 
-void op::Result::set_layout(const ov::Layout& layout) {
+void op::v0::Result::set_layout(const ov::Layout& layout) {
     ov::layout::set_layout(output(0), layout);
 }
 
@@ -77,17 +82,17 @@ bool ov::AttributeAdapter<ResultVector>::visit_attributes(AttributeVisitor& visi
     if (size != m_ref.size()) {
         m_ref.resize(size);
     }
-    ostringstream index;
+    std::ostringstream index;
     for (size_t i = 0; i < size; i++) {
         index.str("");
         index << i;
-        string id;
+        std::string id;
         if (m_ref[i]) {
             id = visitor.get_registered_node_id(m_ref[i]);
         }
         visitor.on_attribute(index.str(), id);
         if (!m_ref[i]) {
-            m_ref[i] = ov::as_type_ptr<ngraph::op::v0::Result>(visitor.get_registered_node(id));
+            m_ref[i] = ov::as_type_ptr<ov::op::v0::Result>(visitor.get_registered_node(id));
         }
     }
     return true;

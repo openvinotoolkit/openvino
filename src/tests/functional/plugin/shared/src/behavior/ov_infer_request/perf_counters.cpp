@@ -19,6 +19,23 @@ void OVInferRequestPerfCountersTest::SetUp() {
     req = execNet.create_infer_request();
 }
 
+std::string OVInferRequestPerfCountersTest::getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
+    std::string targetDevice;
+    ov::AnyMap configuration;
+    std::tie(targetDevice, configuration) = obj.param;
+    std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
+    std::ostringstream result;
+    result << "targetDevice=" << targetDevice << "_";
+    if (!configuration.empty()) {
+        using namespace ov::test::utils;
+        for (auto &configItem : configuration) {
+            result << "configItem=" << configItem.first << "_";
+            configItem.second.print(result);
+        }
+    }
+    return result.str();
+}
+
 TEST_P(OVInferRequestPerfCountersTest, NotEmptyAfterAsyncInfer) {
     OV_ASSERT_NO_THROW(req.start_async());
     OV_ASSERT_NO_THROW(req.wait());

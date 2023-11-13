@@ -56,7 +56,7 @@ public:
                        InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32)
         : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
             kind = dnnl_eltwise_elu;
-            alpha = ngraph::as_type_ptr<ngraph::opset1::Elu>(n)->get_alpha();
+            alpha = ngraph::as_type_ptr<ov::op::v0::Elu>(n)->get_alpha();
             beta = 0.f;
 
             set_injector();
@@ -95,7 +95,7 @@ public:
                        InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32)
         : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
             kind = dnnl_eltwise_clip;
-            auto op = ngraph::as_type_ptr<ngraph::opset1::Clamp>(n);
+            auto op = ngraph::as_type_ptr<ov::op::v0::Clamp>(n);
             alpha = op->get_min();
             beta = op->get_max();
 

@@ -24,6 +24,7 @@ enum ReduceLayoutType {
 struct jit_reduce_config_params {
     ReduceLayoutType layout;
     Algorithm reduce_mode;
+    bool fuse_low_precision;
     dnnl::memory::data_type src_dt;
     dnnl::memory::data_type dst_dt;
     int src_data_size;
@@ -38,6 +39,8 @@ struct jit_reduce_call_args {
     size_t work_batch;
     size_t reduce_w = 2;    // only used in planar layout  [1: reduce width dimension]   [0: reduce other dimension] [other value: N/A]
     size_t reduce_stride;   // only used in planar layout while reducing dimensions except for width
+    size_t can_divide;      // if apply division in reduce_kernel [1: Yes] [0: No]
+    const float *divisor;   // mean = sum / divisor
 };
 
 struct jit_reduce_post_call_args {
@@ -105,16 +108,20 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    void reduce_type(const uint8_t *in_ptr, uint8_t *out_ptr, size_t dst_size);
+    void reduce_type(const uint8_t *in_ptr, uint8_t *out_ptr);
     void reduce_PLN(const uint8_t *in_ptr, uint8_t *out_ptr);
     void reduce_BLK(const uint8_t *in_ptr, uint8_t *out_ptr);
     void reduce_BLK_concern_padding(const uint8_t *in_ptr, uint8_t *out_ptr);
     inline void reduce_kernel_process(const uint8_t *in_p, uint8_t *out_p, size_t work_amount,
                                       size_t reduce_w = 2, size_t work_batch = 1, const int *tab_idx = NULL);
     inline void reduce_kernel_post_process(uint8_t *out_ptr);
+    inline void reduce_kernel_reassign();
+    inline void reduce_kernel_restore();
+    inline void output_info_reassign(uint8_t **out_ptr);
+    inline void output_info_restore(uint8_t **out_ptr);
     inline void init_dst_data(uint8_t *out_ptr, size_t dst_size);
-    inline void create_working_memory();
-    inline void create_DH_working_memory();
+    inline void create_hybrid_working_memory();
+    inline void create_opt_working_memory();
     inline void calc_process_dst_dims(std::vector<int> &reduce_axes, const InferenceEngine::SizeVector &dst_dim);
     inline void set_reduce_dim_flags();
     inline void reduce_ref(const float *in_ptr, float *out_ptr);
@@ -129,8 +136,6 @@ private:
     bool canApplyJIT(const InferenceEngine::Precision &input_prec, const InferenceEngine::Precision &output_prec) const;
 
     size_t blk_size;
-    size_t dst_size;
-    size_t prc_size;
     static const size_t REDUCE_DATA = 0;
     static const size_t REDUCE_INDEXES = 1;
     bool jit_beyond_5D = false;
@@ -138,23 +143,31 @@ private:
     bool keep_dims = true;
     bool is_hybrid_layout = false;
     bool compile_post_kernel = true;
+    bool apply_post_kernel = true;
+    bool apply_division = false;
+    bool fuse_low_precision = false;
     bool support_split = false;
     bool precision_change = false;
     bool ReduceAll_opt = false;
     bool ReduceDH_opt = false;
+    bool ReduceCDW_opt = false;
     bool use_aux_kernel = false;
+    bool set_use_aux_kernel = false;
     bool ReduceN, ReduceC, ReduceD, ReduceH, ReduceW;
     size_t IB, IC, ID, IH, IW;
     size_t OB, OC, OD, OH, OW;
-    size_t PD, PW;
-    size_t src_data_size, dst_data_size, prc_data_size;
+    size_t PD, PH, PW;
+    size_t src_data_size, dst_data_size, prc_data_size, intermediate_data_size, tmp_data_size;
+    size_t dst_size, prc_size, intermediate_size, tmp_size;
     size_t reduce_stride;
+    uint8_t *tmp_ptr;
     ReduceLayoutType layout;
-    InferenceEngine::Precision input_prec, output_prec;
+    InferenceEngine::Precision input_prec, output_prec, intermediate_prec, tmp_prec;
     InferenceEngine::SizeVector src_dims;
     InferenceEngine::SizeVector process_dst_dims;
     InferenceEngine::SizeVector axes_for_reduction;
     std::vector<int> raw_axes;
+    std::vector<uint8_t> intermediate_buf;
 
     jit_reduce_config_params jcp;
     jit_reduce_config_params aux_jcp;
@@ -165,13 +178,14 @@ private:
 
     dnnl::memory prc_mem;
     std::vector<uint8_t> vec_reduceDH_prc;
+    std::vector<uint8_t> vec_reduceCDW_prc;
 
     std::shared_ptr<jit_uni_reduce_kernel> reduce_kernel;
     std::shared_ptr<jit_uni_reduce_kernel> reduce_aux_kernel;
     std::shared_ptr<jit_uni_reduce_kernel> reduce_tmp_kernel;
     std::shared_ptr<jit_uni_reduce_post_kernel> reduce_post_kernel;
 
-    static const std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>& op, Reduce& node)>> initializers;
+    static const std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>& op, Reduce& node)>>& getInitializers();
 
     std::string errorPrefix;
 

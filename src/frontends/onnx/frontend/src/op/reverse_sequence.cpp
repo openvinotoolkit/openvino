@@ -12,6 +12,7 @@
 #include "ngraph/validation_util.hpp"
 #include "onnx_import/core/node.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -59,3 +60,4 @@ OutputVector reverse_sequence(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

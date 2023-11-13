@@ -5,22 +5,22 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset9.hpp>
-#include <ngraph/pass/constant_folding.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <ov_ops/multiclass_nms_ie_internal.hpp>
 #include <queue>
 #include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp>
-#include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset9.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "ov_ops/multiclass_nms_ie_internal.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
-using namespace ngraph;
+using namespace ov;
 
 TEST_F(TransformationTestsF, ConvertMulticlassNmsToMulticlassNmsIE) {
     {
@@ -29,7 +29,7 @@ TEST_F(TransformationTestsF, ConvertMulticlassNmsToMulticlassNmsIE) {
 
         auto nms = std::make_shared<opset9::MulticlassNms>(boxes, scores, opset9::MulticlassNms::Attributes());
 
-        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ov::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
         manager.register_pass<ov::pass::ConstantFolding>();
@@ -42,6 +42,6 @@ TEST_F(TransformationTestsF, ConvertMulticlassNmsToMulticlassNmsIE) {
                                                                                scores,
                                                                                opset9::MulticlassNms::Attributes());
 
-        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
 }

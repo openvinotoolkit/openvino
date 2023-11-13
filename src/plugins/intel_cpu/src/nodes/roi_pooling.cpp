@@ -407,9 +407,6 @@ ROIPooling::ROIPooling(const std::shared_ptr<ngraph::Node>& op, const GraphConte
 }
 
 void ROIPooling::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-
     if (getParentEdges().size() != 2)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
     if (getChildEdges().empty())
@@ -437,13 +434,6 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    refParams.src_prc = getOriginalInputPrecisionAtPort(0);
-
-    if (!mayiuse(avx512_core)) {
-        if (refParams.src_prc == Precision::BF16)
-            refParams.src_prc = Precision::FP32;
-    }
-
     auto format = mayiuse(avx512_core) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
     impl_desc_type impl_type;
     if (mayiuse(cpu::x64::avx512_core)) {
@@ -454,6 +444,17 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
         impl_type = impl_desc_type::jit_sse42;
     } else {
         impl_type = impl_desc_type::ref;
+    }
+
+    refParams.src_prc = getOriginalInputPrecisionAtPort(0);
+
+    if (!mayiuse(avx512_core)) {
+        if (refParams.src_prc == Precision::BF16)
+            refParams.src_prc = Precision::FP32;
+    }
+
+    if (impl_type != impl_desc_type::ref && refParams.src_prc == Precision::FP16) {
+        refParams.src_prc = Precision::FP32;
     }
 
     addSupportedPrimDesc({{format, refParams.src_prc},
@@ -551,18 +552,18 @@ public:
     }
 
     void exec(
-        const Memory& srcData,
-        const Memory& srcRoi,
-        const Memory& dst) override {
+        const IMemory& srcData,
+        const IMemory& srcRoi,
+        const IMemory& dst) override {
         if (!roi_pooling_kernel)
             IE_THROW() << "Could not execute. Kernel for RoiPooling node was not compiled.";
 
-        auto src_strides = srcData.GetDescWithType<BlockedMemoryDesc>()->getStrides();
-        auto src_roi_step = srcRoi.GetDescWithType<BlockedMemoryDesc>()->getStrides()[0];
-        auto dst_strides = dst.GetDescWithType<BlockedMemoryDesc>()->getStrides();
-        const auto* src_ptr = reinterpret_cast<const T*>(srcData.GetPtr());
-        const auto* roi_ptr = reinterpret_cast<const T*>(srcRoi.GetPtr());
-        auto* dst_ptr = reinterpret_cast<T*>(dst.GetPtr());
+        auto src_strides = srcData.getDescWithType<BlockedMemoryDesc>()->getStrides();
+        auto src_roi_step = srcRoi.getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
+        auto dst_strides = dst.getDescWithType<BlockedMemoryDesc>()->getStrides();
+        const auto* src_ptr = reinterpret_cast<const T*>(srcData.getData());
+        const auto* roi_ptr = reinterpret_cast<const T*>(srcRoi.getData());
+        auto* dst_ptr = reinterpret_cast<T*>(dst.getData());
         executeOptimizedGeneric(src_ptr, roi_ptr, dst_ptr, src_strides, dst_strides, src_roi_step);
     }
 
@@ -674,15 +675,15 @@ class ROIPooling::ROIPoolingRefExecutor : public ROIPooling::ROIPoolingExecutor 
 public:
     ROIPoolingRefExecutor(const jit_roi_pooling_params &_jpp) : jpp(_jpp) {}
     void exec(
-        const Memory& srcData,
-        const Memory& srcRoi,
-        const Memory& dst) override {
-        auto src_strides = srcData.GetDescWithType<BlockedMemoryDesc>()->getStrides();
-        auto src_roi_step = srcRoi.GetDescWithType<BlockedMemoryDesc>()->getStrides()[0];
-        auto dst_strides = dst.GetDescWithType<BlockedMemoryDesc>()->getStrides();
-        const auto* src_ptr = reinterpret_cast<const T*>(srcData.GetPtr());
-        const auto* roi_ptr = reinterpret_cast<const T*>(srcRoi.GetPtr());
-        auto* dst_ptr = reinterpret_cast<T*>(dst.GetPtr());
+        const IMemory& srcData,
+        const IMemory& srcRoi,
+        const IMemory& dst) override {
+        auto src_strides = srcData.getDescWithType<BlockedMemoryDesc>()->getStrides();
+        auto src_roi_step = srcRoi.getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
+        auto dst_strides = dst.getDescWithType<BlockedMemoryDesc>()->getStrides();
+        const auto* src_ptr = reinterpret_cast<const T*>(srcData.getData());
+        const auto* roi_ptr = reinterpret_cast<const T*>(srcRoi.getData());
+        auto* dst_ptr = reinterpret_cast<T*>(dst.getData());
         executeReference(src_ptr, roi_ptr, dst_ptr, src_strides, dst_strides, src_roi_step);
     }
 
@@ -829,7 +830,8 @@ std::shared_ptr<ROIPooling::ROIPoolingExecutor> ROIPooling::ROIPoolingExecutor::
 
     OV_SWITCH(intel_cpu, ROIPoolingExecutorCreation, ctx, jpp.src_prc,
               OV_CASE(Precision::FP32, float),
-              OV_CASE(Precision::BF16, bfloat16_t))
+              OV_CASE(Precision::BF16, bfloat16_t),
+              OV_CASE(Precision::FP16, float16_t))
 
     return ctx.executor;
 }

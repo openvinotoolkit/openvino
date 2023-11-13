@@ -26,7 +26,7 @@ public:
         const auto& attributes = node_proto.attribute();
         m_attributes.reserve(attributes.size());
         for (const auto& attr_proto : attributes) {
-            m_attributes.emplace_back(attr_proto, m_graph->model_dir());
+            m_attributes.emplace_back(attr_proto, m_graph->model_dir(), m_graph->get_mmap_cache());
             const auto& attribute = m_attributes.back();
             if (attribute.is_graph())
                 m_subgraphs.insert({attribute.get_name(), std::make_shared<Subgraph>(attribute.get_subgraph(m_graph))});
@@ -43,7 +43,7 @@ public:
           m_output_names{std::begin(node_proto.output()), std::end(node_proto.output())},
           m_subgraphs(subgraphs) {
         for (const auto& attr_proto : node_proto.attribute()) {
-            m_attributes.emplace_back(attr_proto, m_graph->model_dir());
+            m_attributes.emplace_back(attr_proto, m_graph->model_dir(), m_graph->get_mmap_cache());
         }
     }
 
@@ -103,6 +103,7 @@ private:
     std::unordered_map<std::string, std::shared_ptr<Subgraph>> m_subgraphs;
 };
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 const ONNX_NAMESPACE::NodeProto& Node::Impl::node_proto() const {
     return *m_node_proto;
 }
@@ -204,7 +205,9 @@ OutputVector Node::Impl::get_ng_inputs() const {
         if (!name.empty()) {
             result.push_back(m_graph->get_ng_node_from_cache(name));
         } else {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             result.push_back(std::make_shared<NullNode>()->output(0));
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
     }
     return result;
@@ -226,7 +229,7 @@ const std::string& Node::Impl::description() const {
 template <typename T>
 std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(const std::string& name) const {
     const auto value = get_attribute_value<T>(name);
-    const element::Type type = element::from<T>();
+    const element::Type type = ov::element::from<T>();
     return std::make_shared<ov::op::v0::Constant>(type, Shape{}, value);
 }
 
@@ -234,7 +237,7 @@ template <typename T>
 std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(const std::string& name,
                                                                             T default_value) const {
     const auto value = get_attribute_value<T>(name, default_value);
-    const element::Type type = element::from<T>();
+    const element::Type type = ov::element::from<T>();
     return std::make_shared<ov::op::v0::Constant>(type, Shape{}, value);
 }
 
@@ -243,7 +246,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(cons
                                                                             T default_value,
                                                                             element::Type type) const {
     const auto value = get_attribute_value<T>(name, default_value);
-    return std::make_shared<ov::op::v0::Constant>(type == element::undefined ? element::from<T>() : type,
+    return std::make_shared<ov::op::v0::Constant>(type == element::undefined ? ov::element::from<T>() : type,
                                                   Shape{},
                                                   value);
 }
@@ -252,7 +255,7 @@ template <typename T>
 std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(const std::string& name,
                                                                             element::Type type) const {
     const auto value = get_attribute_value<T>(name);
-    return std::make_shared<ov::op::v0::Constant>(type == element::undefined ? element::from<T>() : type,
+    return std::make_shared<ov::op::v0::Constant>(type == element::undefined ? ov::element::from<T>() : type,
                                                   Shape{},
                                                   value);
 }
@@ -369,6 +372,7 @@ const Attribute& Node::get_attribute(const std::string& name) const {
     }
     return *found_attr;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <>
 float Node::get_attribute_value(const std::string& name, float default_value) const {

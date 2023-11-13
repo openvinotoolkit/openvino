@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/test_tools.hpp"
 #include "gtest/gtest.h"
-#include "ngraph/node.hpp"
-#include "util/all_close_f.hpp"
-#include "util/test_tools.hpp"
+#include "openvino/op/op.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
-class OpType : public ngraph::op::Op {
+class OpType : public ov::op::Op {
 public:
     OPENVINO_OP("OpType");
     OpType() = default;
@@ -20,7 +19,7 @@ public:
     }
 };
 
-class OpTypeVersion : public ngraph::op::Op {
+class OpTypeVersion : public ov::op::Op {
 public:
     OPENVINO_OP("OpTypeVersion", "my_version");
     OpTypeVersion() = default;
@@ -50,7 +49,6 @@ public:
     }
 };
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 TEST(rtti, op_with_type) {
     auto op = OpType();
     auto type_info = op.get_type_info();
@@ -58,7 +56,7 @@ TEST(rtti, op_with_type) {
     ASSERT_EQ(strcmp(type_info.name, "OpType"), 0);
     ASSERT_EQ(strcmp(type_info.version_id, "extension"), 0);
     ASSERT_NE(type_info.parent, nullptr);
-    ASSERT_EQ(*type_info.parent, ngraph::op::Op::get_type_info_static());
+    ASSERT_EQ(*type_info.parent, ov::op::Op::get_type_info_static());
 }
 
 TEST(rtti, op_with_type_version) {
@@ -68,7 +66,7 @@ TEST(rtti, op_with_type_version) {
     ASSERT_EQ(strcmp(type_info.name, "OpTypeVersion"), 0);
     ASSERT_EQ(strcmp(type_info.version_id, "my_version"), 0);
     ASSERT_NE(type_info.parent, nullptr);
-    ASSERT_EQ(*type_info.parent, ngraph::op::Op::get_type_info_static());
+    ASSERT_EQ(*type_info.parent, ov::op::Op::get_type_info_static());
 }
 
 TEST(rtti, op_with_type_version_parent) {

@@ -5,7 +5,7 @@
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/convolution_params.hpp"
 #include "snippets/op/subgraph.hpp"
 
@@ -27,7 +27,7 @@ TEST_F(SubgraphSnippetSerializationTest, smoke_SerializeSubgraph) {
         auto ininput1 = std::make_shared<Parameter>(ov::element::f32, shape);
         auto add = std::make_shared<Add>(ininput0, ininput1);
         auto subgraph_body = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{ininput0, ininput1});
-        auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(ov::NodeVector{input0, input1}, subgraph_body.get()->clone());
+        auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::NodeVector{input0, input1}, subgraph_body.get()->clone());
         return std::make_shared<ov::Model>(ov::NodeVector{subgraph}, ov::ParameterVector{input0, input1});
     })();
     ov::Core core;
@@ -75,7 +75,7 @@ TEST_F(SubgraphSnippetSerializationTest, smoke_SerializeSubgraphWithScalarConst)
         auto add = std::make_shared<Add>(input, constant);
         auto internal_add = std::make_shared<Add>(internal_input, internal_constant);
         auto subgraph_body = std::make_shared<ov::Model>(ov::NodeVector{internal_add}, ov::ParameterVector{internal_input});
-        auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(ov::NodeVector{add}, subgraph_body.get()->clone());
+        auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::NodeVector{add}, subgraph_body.get()->clone());
         return std::make_shared<ov::Model>(ov::NodeVector{subgraph}, ov::ParameterVector{input});
     })();
     ov::Core core;

@@ -15,6 +15,7 @@ macro(ov_cpack_settings)
             list(APPEND CPACK_COMPONENTS_ALL ${item})
         endif()
     endforeach()
+    unset(cpack_components_all)
 
     # restore the components settings
 

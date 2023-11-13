@@ -52,7 +52,7 @@ std::string MemoryFqConcatPrelu::getTestCaseName(const testing::TestParamInfo<Me
     std::tie(input, netPrecision, targetName, additional_config, strided_slice_params, fake_quantize_params) = obj.param;
     std::ostringstream results;
 
-    results << "IS=" << CommonTestUtils::vec2str(input[0]) << "_";
+    results << "IS=" << ov::test::utils::vec2str(input[0]) << "_";
     results << "netPRC=" << netPrecision.name() << "_";
     results << "targetDevice=" << targetName << "_";
     for (auto const &item : additional_config) {
@@ -93,7 +93,10 @@ void MemoryFqConcatPrelu::SetUp() {
     configuration.insert(additional_config.begin(), additional_config.end());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto input = ngraph::builder::makeParams(ngPrc, {inputs});
+    ov::ParameterVector input;
+    for (auto&& shape : inputs) {
+        input.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape)));
+    }
     auto memory_read = ngraph::builder::makeConstant<size_t>(ngPrc, {inputs[0]}, {0});
     auto read = std::make_shared<ngraph::opset3::ReadValue>(memory_read, "variable1");
     auto fake_constatnt = ngraph::builder::makeConstant<size_t>(ngPrc, {inputs[0]}, {0});

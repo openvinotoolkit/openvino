@@ -21,7 +21,7 @@ const std::vector<size_t> numOutChannels = {3, 24, 48};
 const std::vector<size_t> numGroups = {3};
 
 const std::vector<size_t > levels = {256};
-const std::vector<QuantizationGranularity> granularity = {Pertensor, Perchannel};
+const std::vector<QuantizationGranularity> granularity = {QuantizationGranularity::Pertensor, QuantizationGranularity::Perchannel};
 const std::vector<bool> quantizeWeights = {false, true};
 
 /* ============= 2D GroupConvolution ============= */
@@ -51,7 +51,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_QuantGroupConv2D, QuantGroupConvLayerTest,
                                 quantGroupConv2DParams,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(inputShapes2D),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         QuantGroupConvLayerTest::getTestCaseName);
 
 /* ============= 3D GroupConvolution ============= */
@@ -80,7 +80,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_QuantGroupConv3D, QuantGroupConvLayerTest,
                                 quantGroupConv3DParams,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(inputShapes3D),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         QuantGroupConvLayerTest::getTestCaseName);
 
 }  // namespace

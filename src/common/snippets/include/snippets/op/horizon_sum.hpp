@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
+#include "openvino/op/op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace op {
 
@@ -15,7 +15,7 @@ namespace op {
  * @brief The operation calculates a horizon sum of a vector register
  * @ingroup snippets
  */
-class HorizonSum : public ngraph::op::Op {
+class HorizonSum : public ov::op::Op {
 public:
     OPENVINO_OP("HorizonSum", "SnippetsOpset");
 
@@ -29,4 +29,4 @@ public:
 
 } // namespace op
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

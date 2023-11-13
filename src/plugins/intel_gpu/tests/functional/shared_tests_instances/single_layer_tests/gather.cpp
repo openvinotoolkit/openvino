@@ -4,40 +4,44 @@
 
 #include <vector>
 
-#include "single_layer_tests/gather.hpp"
+#include "single_op_tests/gather.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
-
 namespace {
+using ov::test::GatherLayerTest;
+using ov::test::Gather7LayerTest;
+using ov::test::Gather8LayerTest;
+using ov::test::gather7ParamsTuple;
+using ov::test::Gather8IndiceScalarLayerTest;
+using ov::test::Gather8withIndicesDataLayerTest;
 
-const std::vector<InferenceEngine::Precision> netPrecisionsFP32 = {
-        InferenceEngine::Precision::FP32,
+const std::vector<ov::element::Type> netPrecisionsFP32 = {
+        ov::element::f32,
 };
 
-const std::vector<InferenceEngine::Precision> netPrecisionsI32 = {
-        InferenceEngine::Precision::I32,
+const std::vector<ov::element::Type> netPrecisionsI32 = {
+        ov::element::i32,
 };
 
-const std::vector<InferenceEngine::Precision> netPrecisionsFP16 = {
-        InferenceEngine::Precision::FP16,
+const std::vector<ov::element::Type> netPrecisionsFP16 = {
+        ov::element::f16,
 };
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16,
-        InferenceEngine::Precision::I32,
+const std::vector<ov::element::Type> netPrecisions = {
+        ov::element::f32,
+        ov::element::f16,
+        ov::element::i32,
 };
 
-const std::vector<std::vector<size_t>> indicesShapes2 = {
-        std::vector<size_t>{2, 2},
-        std::vector<size_t>{2, 2, 2},
-        std::vector<size_t>{2, 4},
+const std::vector<ov::Shape> indicesShapes2 = {
+        {2, 2},
+        {2, 2, 2},
+        {2, 4},
 };
 
-const std::vector<std::vector<size_t>> indicesShapes23 = {
-        std::vector<size_t>{2, 3, 2},
-        std::vector<size_t>{2, 3, 4},
+const std::vector<ov::Shape> indicesShapes23 = {
+        {2, 3, 2},
+        {2, 3, 4},
 };
 
 const std::vector<std::tuple<int, int>> axis_batch41 = {
@@ -50,80 +54,64 @@ const std::vector<std::tuple<int, int>> axis_batch42 = {
         std::tuple<int, int>(4, 2),
 };
 
-const std::vector<std::vector<size_t>> inputShapesAxes4b1 = {
-        std::vector<size_t>{2, 6, 7, 8, 9},
-        std::vector<size_t>{2, 1, 7, 8, 9},
-        std::vector<size_t>{2, 1, 1, 8, 9},
-        std::vector<size_t>{2, 6, 1, 4, 9},
-        std::vector<size_t>{2, 6, 7, 4, 1},
-        std::vector<size_t>{2, 6, 1, 8, 9},
-        std::vector<size_t>{2, 1, 7, 1, 9},
-        std::vector<size_t>{2, 6, 1, 8, 4},
-        std::vector<size_t>{2, 6, 7, 4, 9},
-        std::vector<size_t>{2, 1, 7, 8, 4},
-        std::vector<size_t>{2, 6, 7, 8, 4},
+const std::vector<std::vector<ov::Shape>> inputShapesAxes4b1 = {
+        {{2, 6, 7, 8, 9}},
+        {{2, 1, 7, 8, 9}},
+        {{2, 1, 1, 8, 9}},
+        {{2, 6, 1, 4, 9}},
+        {{2, 6, 7, 4, 1}},
+        {{2, 6, 1, 8, 9}},
+        {{2, 1, 7, 1, 9}},
+        {{2, 6, 1, 8, 4}},
+        {{2, 6, 7, 4, 9}},
+        {{2, 1, 7, 8, 4}},
+        {{2, 6, 7, 8, 4}},
 };
 
-const std::vector<std::vector<size_t>> inputShapesAxes4b2 = {
-        std::vector<size_t>{2, 3, 7, 8, 9},
-        std::vector<size_t>{2, 3, 7, 6, 9},
-        std::vector<size_t>{2, 3, 9, 8, 9},
-        std::vector<size_t>{2, 3, 9, 4, 9},
-        std::vector<size_t>{2, 3, 7, 4, 2},
-        std::vector<size_t>{2, 3, 5, 8, 9},
-        std::vector<size_t>{2, 3, 7, 2, 9},
-        std::vector<size_t>{2, 3, 9, 8, 4},
-        std::vector<size_t>{2, 3, 7, 4, 9},
-        std::vector<size_t>{2, 3, 7, 5, 4},
-        std::vector<size_t>{2, 3, 7, 8, 4},
+const std::vector<std::vector<ov::Shape>> inputShapesAxes4b2 = {
+        {{2, 3, 7, 8, 9}},
+        {{2, 3, 7, 6, 9}},
+        {{2, 3, 9, 8, 9}},
+        {{2, 3, 9, 4, 9}},
+        {{2, 3, 7, 4, 2}},
+        {{2, 3, 5, 8, 9}},
+        {{2, 3, 7, 2, 9}},
+        {{2, 3, 9, 8, 4}},
+        {{2, 3, 7, 4, 9}},
+        {{2, 3, 7, 5, 4}},
+        {{2, 3, 7, 8, 4}},
 };
 
 const auto GatherIndiceScalar = []() {
-    return testing::Combine(testing::Values(std::vector<size_t>{1, 3, 4, 5}),
-                            testing::Values(std::vector<size_t>{}),
+    return testing::Combine(testing::Values(ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({{1, 3, 4, 5}}))),
+                            testing::Values(ov::Shape({})),
                             testing::Values(std::tuple<int, int>(2, 0)),
-                            testing::Values(InferenceEngine::Precision::FP32),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::Values(ov::element::f32),
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 const auto GatherAxes4i4b1 = []() {
-    return testing::Combine(testing::ValuesIn(inputShapesAxes4b1),
+    return testing::Combine(testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapesAxes4b1)),
                             testing::ValuesIn(indicesShapes2),
                             testing::ValuesIn(axis_batch41),
                             testing::ValuesIn(netPrecisions),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 const auto GatherAxes4i8b1 = []() {
-    return testing::Combine(testing::ValuesIn(inputShapesAxes4b1),
+    return testing::Combine(testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapesAxes4b1)),
                             testing::ValuesIn(indicesShapes2),
                             testing::ValuesIn(axis_batch41),
                             testing::ValuesIn(netPrecisions),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 const auto GatherAxes4i8b2 = []() {
-    return testing::Combine(testing::ValuesIn(inputShapesAxes4b2),
+    return testing::Combine(testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapesAxes4b2)),
                             testing::ValuesIn(indicesShapes23),
                             testing::ValuesIn(axis_batch42),
                             testing::ValuesIn(netPrecisions),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -190,53 +178,37 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 const std::vector<std::vector<int>> indices = {
-        std::vector<int>{0, 3, 2, 1},
+        {0, 3, 2, 1},
 };
-const std::vector<std::vector<size_t>> indicesShapes12 = {
-        std::vector<size_t>{4},
-        std::vector<size_t>{2, 2}
-};
-
-const std::vector<std::vector<size_t>> indicesShapes1 = {
-        std::vector<size_t>{4},
+const std::vector<ov::Shape> indicesShapes12 = {
+        {4},
+        {2, 2}
 };
 
-const std::vector<std::vector<size_t>> inputShapes6DAxes5 = {
-        std::vector<size_t>{5, 6, 7, 8, 9, 10},
-        std::vector<size_t>{1, 1, 7, 8, 9, 10},
-        std::vector<size_t>{5, 1, 1, 8, 9, 10},
-        std::vector<size_t>{5, 6, 1, 1, 9, 10},
-        std::vector<size_t>{5, 6, 7, 1, 1, 10},
-        std::vector<size_t>{1, 6, 1, 8, 9, 10},
-        std::vector<size_t>{5, 1, 7, 1, 9, 10},
-        std::vector<size_t>{5, 6, 1, 8, 1, 10},
-        std::vector<size_t>{1, 6, 7, 1, 9, 10},
-        std::vector<size_t>{5, 1, 7, 8, 1, 10},
-        std::vector<size_t>{1, 6, 7, 8, 1, 10},
+const std::vector<ov::Shape> indicesShapes1 = {
+        {4},
 };
 
-const std::vector<int> axes5 = {5};
-
-const std::vector<std::vector<size_t>> inputShapesAxes4 = {
-        std::vector<size_t>{5, 6, 7, 8, 9},
-        std::vector<size_t>{1, 6, 7, 8, 9},
-        std::vector<size_t>{5, 1, 7, 8, 9},
-        std::vector<size_t>{5, 6, 1, 8, 9},
-        std::vector<size_t>{5, 6, 7, 1, 9},
+const std::vector<std::vector<ov::Shape>> inputShapesAxes4 = {
+        {{5, 6, 7, 8, 9}},
+        {{1, 6, 7, 8, 9}},
+        {{5, 1, 7, 8, 9}},
+        {{5, 6, 1, 8, 9}},
+        {{5, 6, 7, 1, 9}},
 };
 
-const std::vector<std::vector<size_t>> inputShapes6DAxes4 = {
-        std::vector<size_t>{5, 6, 7, 8, 9, 10},
-        std::vector<size_t>{1, 1, 7, 8, 9, 10},
-        std::vector<size_t>{5, 1, 1, 8, 9, 10},
-        std::vector<size_t>{5, 6, 1, 1, 9, 10},
-        std::vector<size_t>{5, 6, 7, 1, 9, 1},
-        std::vector<size_t>{1, 6, 1, 8, 9, 10},
-        std::vector<size_t>{5, 1, 7, 1, 9, 10},
-        std::vector<size_t>{5, 6, 1, 8, 9, 1},
-        std::vector<size_t>{1, 6, 7, 1, 9, 10},
-        std::vector<size_t>{5, 1, 7, 8, 9, 1},
-        std::vector<size_t>{1, 6, 7, 8, 9, 1},
+const std::vector<std::vector<ov::Shape>> inputShapes6DAxes4 = {
+        {{5, 6, 7, 8, 9, 10}},
+        {{1, 1, 7, 8, 9, 10}},
+        {{5, 1, 1, 8, 9, 10}},
+        {{5, 6, 1, 1, 9, 10}},
+        {{5, 6, 7, 1, 9, 1}},
+        {{1, 6, 1, 8, 9, 10}},
+        {{5, 1, 7, 1, 9, 10}},
+        {{5, 6, 1, 8, 9, 1}},
+        {{1, 6, 7, 1, 9, 10}},
+        {{5, 1, 7, 8, 9, 1}},
+        {{1, 6, 7, 8, 9, 1}},
 };
 
 const std::vector<int> axes4 = {4};
@@ -245,13 +217,9 @@ const auto GatherAxes4 = []() {
     return testing::Combine(testing::ValuesIn(indices),
                             testing::ValuesIn(indicesShapes12),
                             testing::ValuesIn(axes4),
-                            testing::ValuesIn(inputShapesAxes4),
-                            testing::ValuesIn(netPrecisionsFP16),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapesAxes4)),
+                            testing::Values(ov::element::f16),
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -265,13 +233,9 @@ const auto Gather6dAxes4 = []() {
     return testing::Combine(testing::ValuesIn(indices),
                             testing::ValuesIn(indicesShapes1),
                             testing::ValuesIn(axes4),
-                            testing::ValuesIn(inputShapes6DAxes4),
-                            testing::ValuesIn(netPrecisionsFP32),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes6DAxes4)),
+                            testing::Values(ov::element::f32),
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -281,30 +245,30 @@ INSTANTIATE_TEST_SUITE_P(
         GatherLayerTest::getTestCaseName
 );
 
-const std::vector<std::vector<size_t>> inputShapesAxes3 = {
-        std::vector<size_t>{5, 6, 7, 8},
-        std::vector<size_t>{1, 6, 7, 8},
-        std::vector<size_t>{5, 1, 7, 8},
-        std::vector<size_t>{5, 6, 1, 8},
-        std::vector<size_t>{5, 6, 7, 8, 9},
-        std::vector<size_t>{1, 6, 7, 8, 9},
-        std::vector<size_t>{5, 1, 7, 8, 9},
-        std::vector<size_t>{5, 6, 1, 8, 9},
-        std::vector<size_t>{5, 6, 7, 8, 1},
+const std::vector<std::vector<ov::Shape>> inputShapesAxes3 = {
+        {{5, 6, 7, 8}},
+        {{1, 6, 7, 8}},
+        {{5, 1, 7, 8}},
+        {{5, 6, 1, 8}},
+        {{5, 6, 7, 8, 9}},
+        {{1, 6, 7, 8, 9}},
+        {{5, 1, 7, 8, 9}},
+        {{5, 6, 1, 8, 9}},
+        {{5, 6, 7, 8, 1}},
 };
 
-const std::vector<std::vector<size_t>> inputShapes6DAxes3 = {
-        std::vector<size_t>{5, 6, 7, 8, 9, 10},
-        std::vector<size_t>{1, 1, 7, 8, 9, 10},
-        std::vector<size_t>{5, 1, 1, 8, 9, 10},
-        std::vector<size_t>{5, 6, 1, 8, 1, 10},
-        std::vector<size_t>{5, 6, 7, 8, 1, 1},
-        std::vector<size_t>{1, 6, 1, 8, 9, 10},
-        std::vector<size_t>{5, 1, 7, 8, 1, 10},
-        std::vector<size_t>{5, 6, 1, 8, 9, 1},
-        std::vector<size_t>{1, 6, 7, 8, 1, 10},
-        std::vector<size_t>{5, 1, 7, 8, 9, 1},
-        std::vector<size_t>{1, 6, 7, 8, 9, 1},
+const std::vector<std::vector<ov::Shape>> inputShapes6DAxes3 = {
+        {{5, 6, 7, 8, 9, 10}},
+        {{1, 1, 7, 8, 9, 10}},
+        {{5, 1, 1, 8, 9, 10}},
+        {{5, 6, 1, 8, 1, 10}},
+        {{5, 6, 7, 8, 1, 1}},
+        {{1, 6, 1, 8, 9, 10}},
+        {{5, 1, 7, 8, 1, 10}},
+        {{5, 6, 1, 8, 9, 1}},
+        {{1, 6, 7, 8, 1, 10}},
+        {{5, 1, 7, 8, 9, 1}},
+        {{1, 6, 7, 8, 9, 1}},
 };
 
 const std::vector<int> axes3 = {3};
@@ -313,13 +277,9 @@ const auto GatherAxes3 = []() {
     return testing::Combine(testing::ValuesIn(indices),
                             testing::ValuesIn(indicesShapes12),
                             testing::ValuesIn(axes3),
-                            testing::ValuesIn(inputShapesAxes3),
-                            testing::ValuesIn(netPrecisionsFP32),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapesAxes3)),
+                            testing::Values(ov::element::f32),
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -333,13 +293,9 @@ const auto Gather6dAxes3 = []() {
     return testing::Combine(testing::ValuesIn(indices),
                             testing::ValuesIn(indicesShapes1),
                             testing::ValuesIn(axes3),
-                            testing::ValuesIn(inputShapes6DAxes3),
-                            testing::ValuesIn(netPrecisionsI32),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes6DAxes3)),
+                            testing::Values(ov::element::i32),
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -349,31 +305,31 @@ INSTANTIATE_TEST_SUITE_P(
         GatherLayerTest::getTestCaseName
 );
 
-const std::vector<std::vector<size_t>> inputShapesAxes2 = {
-        std::vector<size_t>{5, 6, 7},
-        std::vector<size_t>{5, 6, 7, 8},
-        std::vector<size_t>{1, 6, 7, 8},
-        std::vector<size_t>{5, 1, 7, 8},
-        std::vector<size_t>{5, 6, 7, 1},
-        std::vector<size_t>{5, 6, 7, 8, 9},
-        std::vector<size_t>{1, 6, 7, 8, 9},
-        std::vector<size_t>{5, 1, 7, 8, 9},
-        std::vector<size_t>{5, 6, 7, 1, 9},
-        std::vector<size_t>{5, 6, 7, 8, 1},
+const std::vector<std::vector<ov::Shape>> inputShapesAxes2 = {
+        {{5, 6, 7}},
+        {{5, 6, 7, 8}},
+        {{1, 6, 7, 8}},
+        {{5, 1, 7, 8}},
+        {{5, 6, 7, 1}},
+        {{5, 6, 7, 8, 9}},
+        {{1, 6, 7, 8, 9}},
+        {{5, 1, 7, 8, 9}},
+        {{5, 6, 7, 1, 9}},
+        {{5, 6, 7, 8, 1}},
 };
 
-const std::vector<std::vector<size_t>> inputShapes6DAxes2 = {
-        std::vector<size_t>{5, 6, 7, 8, 9, 10},
-        std::vector<size_t>{1, 1, 7, 8, 9, 10},
-        std::vector<size_t>{5, 1, 7, 1, 9, 10},
-        std::vector<size_t>{5, 6, 7, 1, 1, 10},
-        std::vector<size_t>{5, 6, 7, 8, 1, 1},
-        std::vector<size_t>{1, 6, 7, 1, 9, 10},
-        std::vector<size_t>{5, 1, 7, 8, 1, 10},
-        std::vector<size_t>{5, 6, 7, 1, 9, 1},
-        std::vector<size_t>{1, 6, 7, 8, 1, 10},
-        std::vector<size_t>{5, 1, 7, 8, 9, 1},
-        std::vector<size_t>{1, 6, 7, 8, 9, 1},
+const std::vector<std::vector<ov::Shape>> inputShapes6DAxes2 = {
+        {{5, 6, 7, 8, 9, 10}},
+        {{1, 1, 7, 8, 9, 10}},
+        {{5, 1, 7, 1, 9, 10}},
+        {{5, 6, 7, 1, 1, 10}},
+        {{5, 6, 7, 8, 1, 1}},
+        {{1, 6, 7, 1, 9, 10}},
+        {{5, 1, 7, 8, 1, 10}},
+        {{5, 6, 7, 1, 9, 1}},
+        {{1, 6, 7, 8, 1, 10}},
+        {{5, 1, 7, 8, 9, 1}},
+        {{1, 6, 7, 8, 9, 1}},
 };
 
 const std::vector<int> axes2 = {2};
@@ -382,13 +338,9 @@ const auto GatherAxes2 = []() {
     return testing::Combine(testing::ValuesIn(indices),
                             testing::ValuesIn(indicesShapes12),
                             testing::ValuesIn(axes2),
-                            testing::ValuesIn(inputShapesAxes2),
-                            testing::ValuesIn(netPrecisionsFP32),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapesAxes2)),
+                            testing::Values(ov::element::f32),
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -402,13 +354,9 @@ const auto Gather6dAxes2 = []() {
     return testing::Combine(testing::ValuesIn(indices),
                             testing::ValuesIn(indicesShapes1),
                             testing::ValuesIn(axes2),
-                            testing::ValuesIn(inputShapes6DAxes2),
-                            testing::ValuesIn(netPrecisionsFP16),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes6DAxes2)),
+                            testing::Values(ov::element::f16),
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -418,32 +366,32 @@ INSTANTIATE_TEST_SUITE_P(
         GatherLayerTest::getTestCaseName
 );
 
-const std::vector<std::vector<size_t>> inputShapesAxes1 = {
-        std::vector<size_t>{5, 6},
-        std::vector<size_t>{5, 6, 7},
-        std::vector<size_t>{5, 6, 7, 8},
-        std::vector<size_t>{1, 6, 7, 8},
-        std::vector<size_t>{5, 6, 1, 8},
-        std::vector<size_t>{5, 6, 7, 1},
-        std::vector<size_t>{5, 6, 7, 8, 9},
-        std::vector<size_t>{1, 6, 7, 8, 9},
-        std::vector<size_t>{5, 6, 1, 8, 9},
-        std::vector<size_t>{5, 6, 7, 1, 9},
-        std::vector<size_t>{5, 6, 7, 8, 1},
+const std::vector<std::vector<ov::Shape>> inputShapesAxes1 = {
+        {{5, 6}},
+        {{5, 6, 7}},
+        {{5, 6, 7, 8}},
+        {{1, 6, 7, 8}},
+        {{5, 6, 1, 8}},
+        {{5, 6, 7, 1}},
+        {{5, 6, 7, 8, 9}},
+        {{1, 6, 7, 8, 9}},
+        {{5, 6, 1, 8, 9}},
+        {{5, 6, 7, 1, 9}},
+        {{5, 6, 7, 8, 1}},
 };
 
-const std::vector<std::vector<size_t>> inputShapes6DAxes1 = {
-        std::vector<size_t>{5, 6, 7, 8, 9, 10},
-        std::vector<size_t>{1, 6, 1, 8, 9, 10},
-        std::vector<size_t>{5, 6, 1, 1, 9, 10},
-        std::vector<size_t>{5, 6, 7, 1, 1, 10},
-        std::vector<size_t>{5, 6, 7, 8, 1, 1},
-        std::vector<size_t>{1, 6, 7, 1, 9, 10},
-        std::vector<size_t>{5, 6, 1, 8, 1, 10},
-        std::vector<size_t>{5, 6, 1, 8, 9, 1},
-        std::vector<size_t>{1, 6, 7, 8, 1, 10},
-        std::vector<size_t>{1, 6, 7, 8, 9, 1},
-        std::vector<size_t>{5, 6, 7, 1, 9, 1},
+const std::vector<std::vector<ov::Shape>> inputShapes6DAxes1 = {
+        {{5, 6, 7, 8, 9, 10}},
+        {{1, 6, 1, 8, 9, 10}},
+        {{5, 6, 1, 1, 9, 10}},
+        {{5, 6, 7, 1, 1, 10}},
+        {{5, 6, 7, 8, 1, 1}},
+        {{1, 6, 7, 1, 9, 10}},
+        {{5, 6, 1, 8, 1, 10}},
+        {{5, 6, 1, 8, 9, 1}},
+        {{1, 6, 7, 8, 1, 10}},
+        {{1, 6, 7, 8, 9, 1}},
+        {{5, 6, 7, 1, 9, 1}},
 };
 
 const std::vector<int> axes1 = {1};
@@ -452,13 +400,9 @@ const auto GatherAxes1 = []() {
     return testing::Combine(testing::ValuesIn(indices),
                             testing::ValuesIn(indicesShapes12),
                             testing::ValuesIn(axes1),
-                            testing::ValuesIn(inputShapesAxes1),
-                            testing::ValuesIn(netPrecisionsI32),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapesAxes1)),
+                            testing::Values(ov::element::i32),
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -472,13 +416,9 @@ const auto Gather6dAxes1 = []() {
     return testing::Combine(testing::ValuesIn(indices),
                             testing::ValuesIn(indicesShapes1),
                             testing::ValuesIn(axes1),
-                            testing::ValuesIn(inputShapes6DAxes1),
-                            testing::ValuesIn(netPrecisionsFP32),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes6DAxes1)),
+                            testing::Values(ov::element::f32),
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -488,33 +428,33 @@ INSTANTIATE_TEST_SUITE_P(
         GatherLayerTest::getTestCaseName
 );
 
-const std::vector<std::vector<size_t>> inputShapesAxes0 = {
-        std::vector<size_t>{5},
-        std::vector<size_t>{5, 6},
-        std::vector<size_t>{5, 6, 7},
-        std::vector<size_t>{5, 6, 7, 8},
-        std::vector<size_t>{5, 1, 7, 8},
-        std::vector<size_t>{5, 6, 1, 8},
-        std::vector<size_t>{5, 6, 7, 1},
-        std::vector<size_t>{5, 6, 7, 8, 9},
-        std::vector<size_t>{5, 1, 7, 8, 9},
-        std::vector<size_t>{5, 6, 1, 8, 9},
-        std::vector<size_t>{5, 6, 7, 1, 9},
-        std::vector<size_t>{5, 6, 7, 8, 1},
+const std::vector<std::vector<ov::Shape>> inputShapesAxes0 = {
+        {{5}},
+        {{5, 6}},
+        {{5, 6, 7}},
+        {{5, 6, 7, 8}},
+        {{5, 1, 7, 8}},
+        {{5, 6, 1, 8}},
+        {{5, 6, 7, 1}},
+        {{5, 6, 7, 8, 9}},
+        {{5, 1, 7, 8, 9}},
+        {{5, 6, 1, 8, 9}},
+        {{5, 6, 7, 1, 9}},
+        {{5, 6, 7, 8, 1}},
 };
 
-const std::vector<std::vector<size_t>> inputShapes6DAxes0 = {
-        std::vector<size_t>{5, 6, 7, 8, 9, 10},
-        std::vector<size_t>{5, 1, 1, 8, 9, 10},
-        std::vector<size_t>{5, 6, 1, 1, 9, 10},
-        std::vector<size_t>{5, 6, 7, 1, 1, 10},
-        std::vector<size_t>{5, 6, 7, 8, 1, 1},
-        std::vector<size_t>{5, 1, 7, 1, 9, 10},
-        std::vector<size_t>{5, 6, 1, 8, 1, 10},
-        std::vector<size_t>{5, 6, 1, 8, 9, 1},
-        std::vector<size_t>{5, 1, 7, 8, 1, 10},
-        std::vector<size_t>{5, 1, 7, 8, 9, 1},
-        std::vector<size_t>{5, 6, 7, 1, 9, 1},
+const std::vector<std::vector<ov::Shape>> inputShapes6DAxes0 = {
+        {{5, 6, 7, 8, 9, 10}},
+        {{5, 1, 1, 8, 9, 10}},
+        {{5, 6, 1, 1, 9, 10}},
+        {{5, 6, 7, 1, 1, 10}},
+        {{5, 6, 7, 8, 1, 1}},
+        {{5, 1, 7, 1, 9, 10}},
+        {{5, 6, 1, 8, 1, 10}},
+        {{5, 6, 1, 8, 9, 1}},
+        {{5, 1, 7, 8, 1, 10}},
+        {{5, 1, 7, 8, 9, 1}},
+        {{5, 6, 7, 1, 9, 1}},
 };
 
 const std::vector<int> axes0 = {0};
@@ -523,13 +463,9 @@ const auto GatherAxes0 = []() {
     return testing::Combine(testing::ValuesIn(indices),
                             testing::ValuesIn(indicesShapes12),
                             testing::ValuesIn(axes0),
-                            testing::ValuesIn(inputShapesAxes0),
-                            testing::ValuesIn(netPrecisionsFP32),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapesAxes0)),
+                            testing::Values(ov::element::f32),
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -543,13 +479,9 @@ const auto Gather6dAxes0 = []() {
     return testing::Combine(testing::ValuesIn(indices),
                             testing::ValuesIn(indicesShapes1),
                             testing::ValuesIn(axes0),
-                            testing::ValuesIn(inputShapes6DAxes0),
-                            testing::ValuesIn(netPrecisionsFP32),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(InferenceEngine::Layout::ANY),
-                            testing::Values(CommonTestUtils::DEVICE_GPU));
+                            testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes6DAxes0)),
+                            testing::Values(ov::element::f32),
+                            testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -557,6 +489,49 @@ INSTANTIATE_TEST_SUITE_P(
         GatherLayerTest,
         Gather6dAxes0(),
         GatherLayerTest::getTestCaseName
+);
+
+const auto GatherAxes0Optimized = []() {
+    return testing::Combine(testing::ValuesIn(ov::test::static_shapes_to_test_representation(std::vector<std::vector<ov::Shape>>({{{4, 8, 2, 2}}}))),
+                            testing::Values(ov::Shape({})),
+                            testing::Values(std::tuple<int, int>(0, 0)),
+                            testing::Values(ov::element::f32),
+                            testing::Values(ov::test::utils::DEVICE_GPU));
+};
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Gather7Axes0Optimized,
+        Gather8IndiceScalarLayerTest,
+        GatherAxes0Optimized(),
+        Gather8IndiceScalarLayerTest::getTestCaseName
+);
+
+gather7ParamsTuple dummyParams = {
+        ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({{2, 3}})),
+        ov::Shape({2, 2}),
+        std::tuple<int, int>{1, 1},
+        ov::element::f32,
+        ov::test::utils::DEVICE_GPU,
+};
+
+std::vector<std::vector<int64_t>> indicesData = {
+        {0, 1, 2, 0},           // positive in bound
+        {-1, -2, -3, -1},       // negative in bound
+        {-1, 0, 1, 2},          // positive and negative in bound
+        {0, 1, 2, 3},           // positive out of bound
+        {-1, -2, -3, -4},       // negative out of bound
+        {0, 4, -4, 0},          // positive and negative out of bound
+};
+
+const auto gatherWithIndicesParams = testing::Combine(
+        testing::Values(dummyParams),
+        testing::ValuesIn(indicesData)
+);
+
+INSTANTIATE_TEST_CASE_P(smoke,
+        Gather8withIndicesDataLayerTest,
+        gatherWithIndicesParams,
+        Gather8withIndicesDataLayerTest::getTestCaseName
 );
 
 }  // namespace

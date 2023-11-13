@@ -3,21 +3,21 @@
 //
 
 #include "snippets/remarks.hpp"
-#include <snippets/itt.hpp>
+#include "snippets/itt.hpp"
 
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
+#include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/utils.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset5.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/op/loop.hpp>
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "transformations/utils/utils.hpp"
-#include "ngraph/op/util/attr_types.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/core/validation_util.hpp"
 
 #include <memory>
 #include <vector>
@@ -27,7 +27,7 @@
 #include <climits>
 
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace pass {
 
@@ -47,7 +47,7 @@ auto outputs_are_not_broadcastable(const std::shared_ptr<const Node>& node) -> b
 }
 
 auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::is_supported_op")
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::is_supported_op")
     auto is_supported_matmul = [](const std::shared_ptr<const Node>& n) -> bool {
         const auto& matmul = ov::as_type_ptr<const opset1::MatMul>(n);
         const auto& out_shape = n->get_output_partial_shape(0);
@@ -64,76 +64,80 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
         const auto& transpose = as_type_ptr<const opset1::Transpose>(n);
         const auto& out_shape = n->get_output_partial_shape(0);
         if (transpose && out_shape.is_static()) {
+            const auto parent = transpose->get_input_node_shared_ptr(0);
+            const auto child = transpose->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+            auto is_brgemm_case = ov::is_type<opset1::MatMul>(parent) || ov::is_type<opset1::MatMul>(child);
+            // Check for Transpose parent is MatMul inside Subgraph
+            if (const auto subgraph = ov::as_type_ptr<const op::Subgraph>(parent)) {
+                if (GetSnippetsSubgraphType(subgraph) != SnippetsSubgraphType::Completed) {
+                    const auto body = subgraph->body_ptr();
+                    const auto subgraph_output = body->get_results()[transpose->input_value(0).get_index()]->get_input_node_shared_ptr(0);
+                    is_brgemm_case = is_brgemm_case || ov::is_type<opset1::MatMul>(subgraph_output);
+                }
+            }
+
             const auto& order = as_type_ptr<const opset1::Constant>(n->get_input_node_shared_ptr(1));
             if (order) {
                 const auto order_value = order->cast_vector<int>();
-                return TransposeDecomposition::supported_cases.count(order_value) != 0 ||
-                       FuseTransposeBrgemm::supported_cases.count(order_value) != 0;
+                return (TransposeDecomposition::is_supported_transpose_order(order_value)) ||
+                       (is_brgemm_case && FuseTransposeBrgemm::is_supported_transpose_order(order_value));
             }
         }
         return false;
     };
 
     auto is_supported_fq_op = [](const std::shared_ptr<const Node>& n) -> bool {
-        // TODO [92179]: Add support of FakeQuantize with non-constants inputs and with binarization algorithm.
-        const auto fq = ov::as_type_ptr<const opset1::FakeQuantize>(n);
-        return fq && fq->get_levels() != 2 &&
-               is_type<opset1::Constant>(n->get_input_node_shared_ptr(1)) &&
-               is_type<opset1::Constant>(n->get_input_node_shared_ptr(2)) &&
-               is_type<opset1::Constant>(n->get_input_node_shared_ptr(3)) &&
-               is_type<opset1::Constant>(n->get_input_node_shared_ptr(4)) &&
-               (fq->get_auto_broadcast() == ov::op::AutoBroadcastType::NUMPY ||
-                fq->get_auto_broadcast() == ov::op::AutoBroadcastType::NONE);
+        return CommonFakeQuantizeDecomposition::is_supported_fq(ov::as_type_ptr<const opset1::FakeQuantize>(n));
     };
 
     auto is_supported_ternary_eltwise_op = [](const std::shared_ptr<const Node> &n) -> bool {
-        return ov::is_type<opset1::Select>(n);
+        return ov::is_type<ov::op::v1::Select>(n);
     };
 
     auto is_supported_binary_eltwise_op = [](const std::shared_ptr<const Node> &n) -> bool {
-        return ov::is_type<opset1::Add>(n)
-            || ov::is_type<opset1::Divide>(n)
-            || ov::is_type<opset1::Equal>(n)
-            || ov::is_type<opset1::FloorMod>(n)
-            || ov::is_type<opset1::Greater>(n)
-            || ov::is_type<opset1::GreaterEqual>(n)
-            || ov::is_type<opset1::Less>(n)
-            || ov::is_type<opset1::LessEqual>(n)
-            || ov::is_type<opset1::LogicalAnd>(n)
-            || ov::is_type<opset1::LogicalOr>(n)
-            || ov::is_type<opset1::LogicalXor>(n)
-            || ov::is_type<opset1::Maximum>(n)
-            || ov::is_type<opset1::Minimum>(n)
-            || ov::is_type<opset1::Mod>(n)
-            || ov::is_type<opset1::Multiply>(n)
-            || ov::is_type<opset1::NotEqual>(n)
-            || ov::is_type<opset1::PRelu>(n)
-            || ov::is_type<opset1::Power>(n)
-            || ov::is_type<opset1::SquaredDifference>(n)
-            || ov::is_type<opset1::Subtract>(n)
-            || ov::is_type<opset1::Xor>(n)
-            || ov::is_type<ngraph::op::v0::Convert>(n);
+        return ov::is_type<ov::op::v1::Add>(n)
+            || ov::is_type<ov::op::v1::Divide>(n)
+            || ov::is_type<ov::op::v1::Equal>(n)
+            || ov::is_type<ov::op::v1::FloorMod>(n)
+            || ov::is_type<ov::op::v1::Greater>(n)
+            || ov::is_type<ov::op::v1::GreaterEqual>(n)
+            || ov::is_type<ov::op::v1::Less>(n)
+            || ov::is_type<ov::op::v1::LessEqual>(n)
+            || ov::is_type<ov::op::v1::LogicalAnd>(n)
+            || ov::is_type<ov::op::v1::LogicalOr>(n)
+            || ov::is_type<ov::op::v1::LogicalXor>(n)
+            || ov::is_type<ov::op::v1::Maximum>(n)
+            || ov::is_type<ov::op::v1::Minimum>(n)
+            || ov::is_type<ov::op::v1::Mod>(n)
+            || ov::is_type<ov::op::v1::Multiply>(n)
+            || ov::is_type<ov::op::v1::NotEqual>(n)
+            || ov::is_type<ov::op::v0::PRelu>(n)
+            || ov::is_type<ov::op::v1::Power>(n)
+            || ov::is_type<ov::op::v0::SquaredDifference>(n)
+            || ov::is_type<ov::op::v1::Subtract>(n)
+            || ov::is_type<ov::op::v0::Xor>(n)
+            || ov::is_type<ov::op::v0::Convert>(n);
     };
 
     auto is_supported_unary_eltwise_op = [](const std::shared_ptr<const Node> &n) -> bool {
-        return ov::is_type<opset1::Abs>(n)
-            || ov::is_type<opset1::Clamp>(n)
-            || ov::is_type<opset1::Floor>(n)
-            || ov::is_type<opset1::Ceiling>(n)
-            || ov::is_type<opset1::Elu>(n)
-            || ov::is_type<opset1::Erf>(n)
-            || ov::is_type<opset1::Exp>(n)
-            || ov::is_type<opset1::LogicalNot>(n)
-            || ov::is_type<opset1::Negative>(n)
-            || ov::is_type<opset1::Relu>(n)
-            || ov::is_type<opset5::Round>(n)
-            || ov::is_type<opset1::Sigmoid>(n)
-            || ov::is_type<opset1::Sqrt>(n)
-            || ov::is_type<opset1::Tanh>(n)
-            || ov::is_type<ngraph::op::v0::Gelu>(n)
-            || ov::is_type<ngraph::op::v7::Gelu>(n)
-            || ov::is_type<ngraph::op::v4::Swish>(n)
-            || ov::is_type<ngraph::op::v4::HSwish>(n);
+        return ov::is_type<ov::op::v0::Abs>(n)
+            || ov::is_type<ov::op::v0::Clamp>(n)
+            || ov::is_type<ov::op::v0::Floor>(n)
+            || ov::is_type<ov::op::v0::Ceiling>(n)
+            || ov::is_type<ov::op::v0::Elu>(n)
+            || ov::is_type<ov::op::v0::Erf>(n)
+            || ov::is_type<ov::op::v0::Exp>(n)
+            || ov::is_type<ov::op::v1::LogicalNot>(n)
+            || ov::is_type<ov::op::v0::Negative>(n)
+            || ov::is_type<ov::op::v0::Relu>(n)
+            || ov::is_type<ov::op::v5::Round>(n)
+            || ov::is_type<ov::op::v0::Sigmoid>(n)
+            || ov::is_type<ov::op::v0::Sqrt>(n)
+            || ov::is_type<ov::op::v0::Tanh>(n)
+            || ov::is_type<ov::op::v0::Gelu>(n)
+            || ov::is_type<ov::op::v7::Gelu>(n)
+            || ov::is_type<ov::op::v4::Swish>(n)
+            || ov::is_type<ov::op::v4::HSwish>(n);
     };
 
     auto is_supported_softmax = [](const std::shared_ptr<const Node> &n) -> bool {
@@ -141,11 +145,11 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
             return false;
         int64_t axis = -1;
         const auto rank = n->get_input_partial_shape(0).rank();
-        if (const auto softmax_v8 = ngraph::as_type_ptr<const ov::op::v8::Softmax>(n)) {
+        if (const auto softmax_v8 = ov::as_type_ptr<const ov::op::v8::Softmax>(n)) {
             OPENVINO_SUPPRESS_DEPRECATED_START
-            axis = ngraph::normalize_axis(n->get_friendly_name(), softmax_v8->get_axis(), rank);
+            axis = ov::normalize_axis(n->get_friendly_name(), softmax_v8->get_axis(), rank);
             OPENVINO_SUPPRESS_DEPRECATED_END
-        } else if (const auto softmax_v1 = ngraph::as_type_ptr<const ov::op::v1::Softmax>(n)) {
+        } else if (const auto softmax_v1 = ov::as_type_ptr<const ov::op::v1::Softmax>(n)) {
             axis = softmax_v1->get_axis();
         } else {
             return false;
@@ -175,20 +179,22 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
 
 auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
     auto supported = [&n](descriptor::Tensor& t) -> bool {
-        // Todo: int32 isn't supported in general because i32 emitters are required for bit-exact i32 calculations in some cases
+        // TODO [122585] Need to add dynamic rank support
+        if (t.get_partial_shape().rank().is_dynamic())
+            return false;
+        // TODO [105804] int32 isn't supported in general because i32 emitters are required for bit-exact i32 calculations in some cases
         //  So i32 is supported exclusively for transposes and broadcast
-        return t.get_partial_shape().is_static() &&
-               (TokenizeSnippets::supported_element_types.count(t.get_element_type()) != 0 ||
-                (t.get_element_type() == ngraph::element::i32 &&
+        return TokenizeSnippets::get_supported_element_types().count(t.get_element_type()) != 0 ||
+                (t.get_element_type() == ov::element::i32 &&
                         (ov::is_type<const opset1::Transpose>(n) ||
-                         ov::is_type<const opset1::Broadcast>(n))));
+                         ov::is_type<const opset1::Broadcast>(n)));
     };
-    const auto & inputs = n->inputs();
-    const auto & outputs = n->outputs();
+    const auto&  inputs = n->inputs();
+    const auto&  outputs = n->outputs();
     // todo: Is this check necessary? Remove if not
     for (const auto& out : outputs) {
-        for (const auto &in_out : out.get_target_inputs()) {
-            if (ov::is_type<ngraph::op::v5::Loop>(in_out.get_node()->shared_from_this())) {
+        for (const auto& in_out : out.get_target_inputs()) {
+            if (ov::is_type<ov::op::v5::Loop>(in_out.get_node()->shared_from_this())) {
                 return false;
             }
         }
@@ -198,8 +204,8 @@ auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
 }
 
 auto has_result_child(const std::shared_ptr<const Node> &node) -> bool {
-    for (const auto &child : node->get_users()) {
-        if (ov::is_type<ngraph::opset1::Result>(child)) {
+    for (const auto& child : node->get_users()) {
+        if (ov::is_type<ov::opset1::Result>(child)) {
             return true;
         }
     }
@@ -208,8 +214,8 @@ auto has_result_child(const std::shared_ptr<const Node> &node) -> bool {
 
 auto get_num_result_children(const std::shared_ptr<const Node> &node) -> size_t {
     size_t result = 0;
-    for (const auto &child : node->get_users()) {
-        if (ov::is_type<ngraph::opset1::Result>(child)) {
+    for (const auto& child : node->get_users()) {
+        if (ov::is_type<ov::opset1::Result>(child)) {
             result++;
         }
     }
@@ -217,8 +223,11 @@ auto get_num_result_children(const std::shared_ptr<const Node> &node) -> size_t 
 }
 } // namespace
 
-const std::set<ngraph::element::Type> ngraph::snippets::pass::TokenizeSnippets::supported_element_types =
-        { ngraph::element::f32, ngraph::element::bf16, ngraph::element::i8, ngraph::element::u8 };
+const std::set<ov::element::Type>& ov::snippets::pass::TokenizeSnippets::get_supported_element_types() {
+    static const std::set<ov::element::Type> supported_element_types =
+        { ov::element::f32, ov::element::bf16, ov::element::i8, ov::element::u8 };
+    return supported_element_types;
+}
 
 bool TokenizeSnippets::AppropriateForSubgraph(const std::shared_ptr<const Node> &node) {
     return
@@ -236,17 +245,17 @@ TokenizeSnippets::TokenizeSnippets() {
     };
 
     continuation_strategy strategy = continuation_strategy::reset;
-    auto label = std::make_shared<pattern::op::Label>(pattern::any_input(),
+    auto label = std::make_shared<ov::pass::pattern::op::Label>(ov::pass::pattern::any_input(),
         [](const std::shared_ptr<const Node> &n) {
             // todo: MatMul and Transpose ops are always skipped by the SnippetsMarkSkipped pass.
             //  This is a temporary solution. Either modify SnippetsMarkSkipped
             //  or align this with the custom MHA tokenization pass.
             return (GetSnippetsNodeType(n) != SnippetsNodeType::SkippedByPlugin ||
-                    ov::is_type<opset1::MatMul>(n) || ov::is_type<opset1::Transpose>(n))
+                    ov::is_type<ov::op::v0::MatMul>(n) || ov::is_type<ov::op::v1::Transpose>(n))
                     && AppropriateForSubgraph(n);
         });
-    ngraph::graph_rewrite_callback callback = [&, strategy](ngraph::pattern::Matcher &m) -> bool {
-        OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::CreateSubgraph_callback")
+    ov::graph_rewrite_callback callback = [&, strategy](ov::pass::pattern::Matcher &m) -> bool {
+        OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::CreateSubgraph_callback")
         auto node = m.get_match_root();
         if (transformation_callback(node)) {
             return false;
@@ -266,7 +275,7 @@ TokenizeSnippets::TokenizeSnippets() {
         auto create_single_node_subgraph = [&](const std::shared_ptr<Node> &node) {
             auto subgraph = op::Subgraph::wrap_node_as_subgraph(node);
             subgraph->get_rt_info()["originalLayersNames"] = getFusedNames(node) + node->get_friendly_name();
-            ngraph::replace_node(node, subgraph);
+            ov::replace_node(node, subgraph);
             op::update_out_tensor_name(subgraph);
         };
 
@@ -304,7 +313,7 @@ TokenizeSnippets::TokenizeSnippets() {
         *        /   \
         *  subgraph--node
         */
-        auto is_recurrent = [&input_values](const ngraph::Output<ngraph::Node>& to_find) -> bool {
+        auto is_recurrent = [&input_values](const ov::Output<ov::Node>& to_find) -> bool {
             return std::any_of(input_values.begin(), input_values.end(),
                         [&](const ov::Output<ov::Node> &in) {return in == to_find;});
         };
@@ -314,14 +323,14 @@ TokenizeSnippets::TokenizeSnippets() {
         */
         const auto cyclicDependencyIsIntoduced = [&node](const std::shared_ptr<Node>& nodeToExamine, std::pair<int64_t, int64_t>& currentBounds) -> bool {
             assert(currentBounds.first < currentBounds.second && "Invalid currentBounds passed");
-            const auto &parentNodes = ngraph::as_node_vector(nodeToExamine->input_values());
+            const auto& parentNodes = ov::as_node_vector(nodeToExamine->input_values());
             const int64_t maxParentOrder = std::accumulate(parentNodes.begin(), parentNodes.end(), currentBounds.first,
                                                             [](int64_t maxOrder, std::shared_ptr<Node> n){
-                                                                if (ngraph::op::is_constant(n) || ngraph::op::is_parameter(n))
+                                                                if (ov::is_type<ov::op::v0::Constant>(n) || ov::is_type<ov::op::v0::Parameter>(n))
                                                                     return maxOrder;
                                                                 return std::max(maxOrder, GetTopologicalOrder(n));
                                                             });
-            const auto &childNodes = nodeToExamine->get_users();
+            const auto& childNodes = nodeToExamine->get_users();
             // Skip the node being attached, since it will be a part of subgraph and can't introduce loop dependency
             const int64_t minChildOrder = std::accumulate(childNodes.begin(), childNodes.end(), currentBounds.second,
                                                             [&node](int64_t minOrder, std::shared_ptr<Node> n){
@@ -336,9 +345,9 @@ TokenizeSnippets::TokenizeSnippets() {
             return true;
         };
 
-        for (const auto &input_node : ngraph::as_node_vector(input_values)) {
+        for (const auto& input_node : ov::as_node_vector(input_values)) {
             if (auto subgraph = ov::as_type_ptr<op::Subgraph>(input_node)) {
-                if (!clones.count(input_node)) {
+                if (!clones.count(input_node) && GetSnippetsSubgraphType(subgraph) != SnippetsSubgraphType::Completed) {
                     auto f = subgraph->body().clone();
                     f->set_friendly_name(subgraph->body_ptr()->get_friendly_name());
                     clones[input_node] = f;
@@ -388,7 +397,7 @@ TokenizeSnippets::TokenizeSnippets() {
                             // Todo: here we rely on friendly_name uniqueness. Propose a different algorithm.
                             size_t current_input_index = body_parameters.size();
                             for (size_t p_ind = 0; p_ind <  body_parameters.size(); p_ind++) {
-                                const auto & p = body_parameters[p_ind];
+                                const auto& p = body_parameters[p_ind];
                                 // unite two body parameters from two input subgraphs only if:
                                 // 1. two input subgraphs are connected to the same parent node/subgraph,
                                 // 2. and connected to the same output port of this parent node/subgraph.
@@ -465,14 +474,14 @@ TokenizeSnippets::TokenizeSnippets() {
                 // if there is Convert with input and output data types that aren't equal to supported exec type,
                 // we can get conversion math errors
                 const auto output_of_subgraph = source_result->get_input_node_shared_ptr(0);
-                if (!ov::is_type<ngraph::op::v0::Convert>(node) && ov::is_type<ngraph::op::v0::Convert>(output_of_subgraph)) {
+                if (!ov::is_type<ov::op::v0::Convert>(node) && ov::is_type<ov::op::v0::Convert>(output_of_subgraph)) {
                     // Also we can add new node after < Parameter -> Convert -> Convert -> Convert >
                     auto grandparent = output_of_subgraph->get_input_node_ptr(0);
-                    while (ov::is_type<ngraph::op::v0::Convert>(grandparent)) {
+                    while (ov::is_type<ov::op::v0::Convert>(grandparent)) {
                         grandparent = grandparent->get_input_node_ptr(0);
                     }
 
-                    if (!ov::is_type<ngraph::op::v0::Parameter>(grandparent)) {
+                    if (!ov::is_type<ov::op::v0::Parameter>(grandparent)) {
                         return abort_with_strategy("Convert supports only as Input and as Result of subgraph. Aborting");
                     }
                 }
@@ -484,14 +493,14 @@ TokenizeSnippets::TokenizeSnippets() {
                 //     After ConstantFolding we will move remaining non-scalar Constants from body using ConvertConstantsToParameters pass
                 // [*] We support Transpose with second Constant input (represents order). This Constant will not be scheduled
                 //     and will only be used to decompose Transpose into a proper Load, Store and Loop combination.
-                if (ov::is_type<ngraph::opset1::Constant>(input_node) &&
-                    (ngraph::shape_size(input_value.get_shape()) == 1 ||
+                if (ov::is_type<ov::opset1::Constant>(input_node) &&
+                    (ov::shape_size(input_value.get_shape()) == 1 ||
                      ov::is_type<ov::op::v0::FakeQuantize>(node) ||
                      op::Subgraph::constant_input_should_be_inside_body(node))) {
                     internal_inputs.push_back(input_node->output(0));
                 } else {
                     external_inputs.push_back(input_value);
-                    auto new_parameter = std::make_shared<opset1::Parameter>(input_value.get_element_type(), input_value.get_partial_shape());
+                    auto new_parameter = std::make_shared<ov::op::v0::Parameter>(input_value.get_element_type(), input_value.get_partial_shape());
                     new_parameter->set_friendly_name(input_node->get_friendly_name());
                     body_parameters.push_back(new_parameter);
                     internal_inputs.push_back(new_parameter->output(0));
@@ -518,23 +527,26 @@ TokenizeSnippets::TokenizeSnippets() {
         // To avoid unsupported number of non-scalar Constants in the future (plugin specific limitation)
         // we should calculate potentional number of non-scalar Constants that will be moved up from body.
         size_t hidden_data_count = 0;
-        bool need_buffer = false;
         if (const auto fq_node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node)) {
-            hidden_data_count += ngraph::snippets::utils::get_non_scalar_constant_count_for_fq(fq_node);
-        // Ops require a Buffer
-        } else if (ov::is_type<ov::op::v1::Softmax>(node) ||
-                   ov::is_type<ov::op::v8::Softmax>(node)) {
-            need_buffer |= true;
+            hidden_data_count += ov::snippets::utils::get_non_scalar_constant_count_for_fq(fq_node);
         }
 
         ResultVector body_results;
         std::vector<std::set<Input<Node>>> subgraph_result_inputs;
 
+        ov::NodeVector ops_for_buffer_count;
         for (auto subgraph : input_subgraphs) {
             // we should summurize additional needed data count (non-scalar Constants and Buffers) from all input subgraphs
             // because we will collapse them with our node and we should get total count
-            hidden_data_count += ov::as_type_ptr<ngraph::snippets::op::Subgraph>(subgraph)->get_virtual_port_count();
-            need_buffer |= ov::as_type_ptr<ngraph::snippets::op::Subgraph>(subgraph)->is_buffer_needed();
+            const auto subgraph_ptr = ov::as_type_ptr<ov::snippets::op::Subgraph>(subgraph);
+            hidden_data_count += subgraph_ptr->get_virtual_port_count();
+            // Buffers can be existed only in Subgraphs with domain sensetive ops which
+            // requires intermediate memory for data repacking
+            // To avoid load time regressions, we verify only these Subgraph with domain sensetive ops
+            if (subgraph_ptr->has_domain_sensitive_ops()) {
+                const auto ops = subgraph_ptr->body_ptr()->get_ordered_ops();
+                ops_for_buffer_count.insert(ops_for_buffer_count.end(), ops.begin(), ops.end());
+            }
 
             for (auto output : subgraph->outputs()) {
                 bool first_side_consumer = true;
@@ -549,7 +561,8 @@ TokenizeSnippets::TokenizeSnippets() {
                     if (!input_subgraphs.count(target_node) && target_node != node) {
                         if (first_side_consumer) {
                             auto& input_subgraph_body = clones[subgraph];
-                            body_results.push_back(std::make_shared<opset1::Result>(input_subgraph_body->get_results()[output.get_index()]->input_value(0)));
+                            body_results.push_back(std::make_shared<ov::op::v0::Result>(
+                                    input_subgraph_body->get_results()[output.get_index()]->input_value(0)));
                             subgraph_result_inputs.push_back({});
 
                             first_side_consumer = false;
@@ -565,8 +578,12 @@ TokenizeSnippets::TokenizeSnippets() {
             }
         }
 
+        if (op::Subgraph::is_domain_sensitive_op(node)) {
+            ops_for_buffer_count.push_back(node);
+        }
+
         for (auto output : node->outputs()) {
-            body_results.push_back(std::make_shared<opset1::Result>(body_node->output(output.get_index())));
+            body_results.push_back(std::make_shared<ov::op::v0::Result>(body_node->output(output.get_index())));
             subgraph_result_inputs.push_back(output.get_target_inputs());
         }
 
@@ -574,14 +591,18 @@ TokenizeSnippets::TokenizeSnippets() {
             OPENVINO_THROW("body results and node results size mismatch during subgraph collaps");
         }
 
-        // todo: move this plugin-specific constraint to the plugin callback
-        if (body_parameters.size() + body_results.size() + hidden_data_count + static_cast<size_t>(need_buffer) > 12) {
+        // The each data node (Parameter (and non-Scalar Constants), Result, Buffers with the same ID) requires the own unique GPR.
+        // At the moment, CPU Plugin has limitation for GPR registers: there are only 12 available registers.
+        // This limitation will be resolved once generator supports gprs spills [75622].
+        // TODO [75567]: move this plugin-specific constraint to the plugin callback
+        const auto unique_buffer_count = op::Subgraph::get_estimated_buffer_count(ops_for_buffer_count);
+        if (body_parameters.size() + body_results.size() + hidden_data_count + unique_buffer_count > 12) {
             const std::string message_reset = "new subgraph is created. Impossible to schedule subgraph with " +
             std::to_string(body_parameters.size()) + " inputs, " + std::to_string(body_results.size()) + " outputs and " +
-            std::to_string(hidden_data_count) + " non-scalar constants and " + std::to_string(need_buffer) + "buffers.";
+            std::to_string(hidden_data_count) + " non-scalar constants and " + std::to_string(unique_buffer_count) + "buffers.";
             const std::string message_abort = "failed to continue subgraph. Impossible to schedule subgraph with " +
             std::to_string(body_parameters.size()) + " inputs, " + std::to_string(body_results.size()) + " outputs and " +
-            std::to_string(hidden_data_count) + " non-scalar constants and " + std::to_string(need_buffer) + "buffers.";
+            std::to_string(hidden_data_count) + " non-scalar constants and " + std::to_string(unique_buffer_count) + "buffers.";
             return abort_with_strategy(message_reset, message_abort);
         }
 
@@ -618,7 +639,6 @@ TokenizeSnippets::TokenizeSnippets() {
         }
         subgraph->get_rt_info()["originalLayersNames"] = fusedNames;
         subgraph->set_virtual_port_count(hidden_data_count);
-        subgraph->set_buffer_needed(need_buffer);
 
         remark(1) << "Replacement (merge) done for: "
                     << subgraph->get_friendly_name()
@@ -628,9 +648,9 @@ TokenizeSnippets::TokenizeSnippets() {
 
         return true;
     };
-    auto matcher = std::make_shared<ngraph::pattern::Matcher>(label, matcher_name);
+    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(label, matcher_name);
     register_matcher(matcher, callback);
 }
 } // namespace pass
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

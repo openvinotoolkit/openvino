@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -8,7 +10,7 @@ import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
 
 
-class TestNonMaxSupression(CommonTFLayerTest):
+class TestNonMaxSuppression(CommonTFLayerTest):
 
     # overload inputs generation to suit NMS use case
     def _prepare_input(self, inputs_dict):
@@ -83,7 +85,9 @@ class TestNonMaxSupression(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_tf_fe
-    def test_NonMaxSupression(self, test_params, ie_device, precision, ir_version, temp_dir,
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122716')
+    def test_NonMaxSuppression(self, test_params, ie_device, precision, ir_version, temp_dir,
                               use_new_frontend, use_old_api):
         if ie_device == 'GPU':
             pytest.skip("Skip TF NonMaxSuppresion test on GPU")
@@ -96,7 +100,7 @@ class TestNonMaxSupression(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_tf_fe
-    def test_NonMaxSupressionWithScores(self, test_params, ie_device, precision, ir_version, temp_dir,
+    def test_NonMaxSuppressionWithScores(self, test_params, ie_device, precision, ir_version, temp_dir,
                                         use_new_frontend, use_old_api):
         if ie_device == 'GPU':
             pytest.skip("Skip TF NonMaxSuppresionWithScores test on GPU")

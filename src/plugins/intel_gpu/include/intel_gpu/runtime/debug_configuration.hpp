@@ -3,10 +3,11 @@
 //
 
 #pragma once
-#include <string>
+#include <cstring>
 #include <mutex>
 #include <vector>
 #include <set>
+#include <string>
 
 namespace ov {
 namespace intel_gpu {
@@ -94,33 +95,62 @@ private:
 
 public:
     static const char *prefix;
-    int help;                                   // Print help messages
-    int verbose;                                // Verbose execution
-    int verbose_color;                          // Print verbose color
-    int list_layers;                            // Print list layers
-    int print_multi_kernel_perf;                // Print execution time of each kernel in multi-kernel primitimive
-    int disable_usm;                            // Disable usm usage
-    int disable_onednn;                         // Disable onednn for discrete GPU (no effect for integrated GPU)
-    int disable_onednn_opt_post_ops;            // Disable onednn optimize post operators
-    std::string dump_profiling_data;            // Enables dump of extended performance profiling to specified dir
-    std::string dump_graphs;                    // Dump optimized graph
-    std::string dump_sources;                   // Dump opencl sources
-    std::string dump_layers_path;               // Enable dumping intermediate buffers and set the dest path
-    std::vector<std::string> dump_layers;       // Dump intermediate buffers of specified layers only
-    std::string dry_run_path;                   // Dry run and serialize execution graph into the specified path
-    int dump_layers_dst_only;                   // Dump only output of layers
-    int dump_layers_result;                     // Dump result layers
-    int dump_layers_limit_batch;                // Limit the size of batch to dump
-    int dump_layers_raw;                        // Dump raw data.
-    int base_batch_for_memory_estimation;       // Base batch size to be used in memory estimation
-    std::vector<std::string> after_proc;        // Start inference after the listed processes
-    int serialize_compile;                      // Serialize creating primitives and compiling kernels
-    std::vector<std::string> forced_impl_types; // Force implementation type either ocl or onednn
-    int max_kernels_per_batch;                  // Maximum number of kernels in a batch during compiling kernels
-    std::set<int64_t> dump_iteration;           // Dump n-th execution of network.
+    int help;                                                   // Print help messages
+    int verbose;                                                // Verbose execution
+    int verbose_color;                                          // Print verbose color
+    int list_layers;                                            // Print list layers
+    int print_multi_kernel_perf;                                // Print execution time of each kernel in multi-kernel primitimive
+    int print_input_data_shapes;                                  // Print the input data_shape for benchmark_app.
+    int disable_usm;                                            // Disable usm usage
+    int disable_onednn;                                         // Disable onednn for discrete GPU (no effect for integrated GPU)
+    int disable_onednn_opt_post_ops;                            // Disable onednn optimize post operators
+    std::string dump_profiling_data;                            // Enables dump of extended performance profiling to specified dir
+    int dump_profiling_data_per_iter;                           // Enables dump of extended performance profiling to specified dir for each iteration
+    std::string dump_graphs;                                    // Dump optimized graph
+    std::string dump_sources;                                   // Dump opencl sources
+    std::string dump_layers_path;                               // Enable dumping intermediate buffers and set the dest path
+    std::vector<std::string> dump_layers;                       // Dump intermediate buffers of specified layers only
+    std::string dry_run_path;                                   // Dry run and serialize execution graph into the specified path
+    int dump_layers_dst_only;                                   // Dump only output of layers
+    int dump_layers_result;                                     // Dump result layers
+    int dump_layers_input;                                      // Dump input layers
+    int dump_layers_limit_batch;                                // Limit the size of batch to dump
+    int dump_layers_raw;                                        // Dump raw data.
+    int dump_layers_binary;                                     // Dump binary data.
+    int dump_runtime_memory_pool;                               // Dump memory pool status at each iteration
+    int base_batch_for_memory_estimation;                       // Base batch size to be used in memory estimation
+    std::vector<std::string> after_proc;                        // Start inference after the listed processes
+    int serialize_compile;                                      // Serialize creating primitives and compiling kernels
+    std::vector<std::string> forced_impl_types;                 // Force implementation type either ocl or onednn
+    int max_kernels_per_batch;                                  // Maximum number of kernels in a batch during compiling kernels
+    int disable_async_compilation;                              // Disable async compilation
+    int disable_winograd_conv;                                  // Disable Winograd conv
+    int disable_dynamic_impl;                                   // Disable dynamic implementation
+    int disable_runtime_buffer_fusing;                          // Disable runtime buffer fusing
+    int disable_memory_reuse;                                   // Disable memmory reuse among layers
+    int disable_build_time_weight_reorder_for_dynamic_nodes;    // Disable build time weight reordering for dynamic nodes
+    int disable_runtime_skip_reorder;                           // Disable runtime skip reorder
+    int disable_primitive_fusing;                               // Disable primitive fusing
+    std::set<int64_t> dump_iteration;                           // Dump n-th execution of network.
+    std::vector<std::string> load_layers_raw_dump;              // List of layers to load dumped raw binary and filenames
     static const debug_configuration *get_instance();
-    bool is_dumped_layer(const std::string& layerName, bool is_output = false) const;
+    std::vector<std::string> get_filenames_for_matched_layer_loading_binaries(const std::string& id) const;
+    std::string get_name_for_dump(const std::string& file_name) const;
+    bool is_layer_for_dumping(const std::string& layerName, bool is_output = false, bool is_input = false) const;
     bool is_target_iteration(int64_t iteration) const;
+    std::string get_matched_from_filelist(const std::vector<std::string>& file_names, std::string pattern) const;
+
+    struct memory_preallocation_params {
+        bool is_initialized = false;
+
+        // Iterations mode preallocation
+        size_t next_iters_preallocation_count = 0;
+        size_t max_per_iter_size = 0;
+        size_t max_per_dim_diff = 0;
+
+        // Percentage mode preallocation
+        float buffers_preallocation_ratio = 0.0f;
+    } mem_preallocation_params;
 };
 
 }  // namespace cldnn

@@ -4,10 +4,10 @@
 <a name="fig1"></a>
 
 ```mermaid
-classDiagram 
+classDiagram
 direction LR
 pooling  --<| primitive_base
-convolution --<| primitive_base 
+convolution --<| primitive_base
 class primitive_base{<<PType>>}
 primitive_base --<| primitive
 primitive --o program_node
@@ -78,7 +78,7 @@ A more detailed description of each component is described in the sections below
 
 ## primitive
 ```cpp
-struct primitive { 
+struct primitive {
 ...
     const primitive_id id;
     const primitive_type* type;
@@ -96,7 +96,7 @@ An example creation of a `arg_max_min` primitive:
 cldnn::arg_max_min top_k_prim = cldnn::arg_max_min("top_k", { "input" }, arg_max_min::max, top_k, arg_max_min::y, arg_max_min::sort_by_values, false, "", padding(), data_types::f32);
 ```
 
-In GPU plugin, the *primitives* are converted from ngraph [operations](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_gpu/src/plugin/ops).
+In GPU plugin, the *primitives* are converted from OpenVINO [operations](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_gpu/src/plugin/ops).
 
 ## topology
 ```cpp
@@ -200,7 +200,7 @@ class primitive_inst {
     std::vector<memory::cptr> _intermediates_memory;
 
     event::ptr execute(const std::vector<event::ptr>& events);
-    memory::ptr allocate_output(); 
+    memory::ptr allocate_output();
 ...
 };
 ```

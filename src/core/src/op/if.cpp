@@ -2,20 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/if.hpp"
+#include "openvino/op/if.hpp"
 
 #include <algorithm>
 #include <iterator>
-#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
-#include "ngraph/factory.hpp"
-#include "ngraph/graph_util.hpp"
-#include "ngraph/op/util/multi_subgraph_base.hpp"
-#include "ngraph/runtime/reference/if.hpp"
-#include "ngraph/specialize_function.hpp"
-
-using namespace std;
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/reference/if.hpp"
 
 ov::op::v8::If::If() : MultiSubGraphOp(2) {}
 
@@ -107,8 +103,12 @@ void ov::op::v8::If::validate_and_infer_types() {
                               val.size() == 1,
                               "The number of values in the If condition constant is greater than 1");
 
-        validate_and_infer_type_body(get_then_body(), m_input_descriptions[THEN_BODY_INDEX]);
-        validate_and_infer_type_body(get_else_body(), m_input_descriptions[ELSE_BODY_INDEX]);
+        // Condition is constant we only need to validate one body
+        if (val[0]) {
+            validate_and_infer_type_body(get_then_body(), m_input_descriptions[THEN_BODY_INDEX]);
+        } else {
+            validate_and_infer_type_body(get_else_body(), m_input_descriptions[ELSE_BODY_INDEX]);
+        }
         auto output_nodes = outputs();
 
         auto cond_index = val[0] ? THEN_BODY_INDEX : ELSE_BODY_INDEX;
@@ -176,8 +176,13 @@ std::shared_ptr<ov::Node> ov::op::v8::If::clone_with_new_inputs(const OutputVect
     OV_OP_SCOPE(v8_If_clone_with_new_inputs);
 
     check_new_args_count(this, new_args);
-    auto op = make_shared<op::v8::If>();
-    NGRAPH_CHECK(op.get(), op != nullptr, "Cannot clone ", description(), " operation with name ", get_friendly_name());
+    auto op = std::make_shared<op::v8::If>();
+    OPENVINO_ASSERT(op.get(),
+                    op != nullptr,
+                    "Cannot clone ",
+                    description(),
+                    " operation with name ",
+                    get_friendly_name());
 
     op->set_arguments(new_args);
     op->set_output_size(m_output_descriptions[0].size());
@@ -200,30 +205,30 @@ std::shared_ptr<ov::Node> ov::op::v8::If::clone_with_new_inputs(const OutputVect
 void ov::op::v8::If::set_input(const Output<Node>& value,
                                const std::shared_ptr<v0::Parameter>& then_parameter,
                                const std::shared_ptr<v0::Parameter>& else_parameter) {
-    NGRAPH_CHECK(then_parameter != nullptr || else_parameter != nullptr,
-                 "Missing parameters! Both parameters are nullptr!");
+    OPENVINO_ASSERT(then_parameter != nullptr || else_parameter != nullptr,
+                    "Missing parameters! Both parameters are nullptr!");
     auto then_param_index = m_bodies[THEN_BODY_INDEX]->get_parameter_index(then_parameter);
     auto else_param_index = m_bodies[ELSE_BODY_INDEX]->get_parameter_index(else_parameter);
-    NGRAPH_CHECK(then_parameter == nullptr || then_param_index != -1,
-                 "Missing parameter ",
-                 then_parameter->get_friendly_name(),
-                 " for \'then_body\'!");
-    NGRAPH_CHECK(else_parameter == nullptr || else_param_index != -1,
-                 "Missing parameter ",
-                 else_parameter->get_friendly_name(),
-                 " for \'else_body\'!");
+    OPENVINO_ASSERT(then_parameter == nullptr || then_param_index != -1,
+                    "Missing parameter ",
+                    then_parameter->get_friendly_name(),
+                    " for \'then_body\'!");
+    OPENVINO_ASSERT(else_parameter == nullptr || else_param_index != -1,
+                    "Missing parameter ",
+                    else_parameter->get_friendly_name(),
+                    " for \'else_body\'!");
     set_invariant_inputs(value, {then_parameter, else_parameter});
 }
 
 ov::Output<ov::Node> ov::op::v8::If::set_output(const std::shared_ptr<v0::Result>& then_result,
                                                 const std::shared_ptr<v0::Result>& else_result) {
-    NGRAPH_CHECK(then_result != nullptr, "Incorrect result in \"then_body\"! Result cant be \'nullptr\'");
-    NGRAPH_CHECK(else_result != nullptr, "Incorrect result in \"else_body\"! Result cant be \'nullptr\'");
+    OPENVINO_ASSERT(then_result != nullptr, "Incorrect result in \"then_body\"! Result cant be \'nullptr\'");
+    OPENVINO_ASSERT(else_result != nullptr, "Incorrect result in \"else_body\"! Result cant be \'nullptr\'");
     auto then_result_id = m_bodies[THEN_BODY_INDEX]->get_result_index(then_result);
     auto else_result_id = m_bodies[ELSE_BODY_INDEX]->get_result_index(else_result);
 
-    NGRAPH_CHECK(then_result_id != -1, "Missing result ", then_result->get_friendly_name(), "in \'then_body\'!");
-    NGRAPH_CHECK(else_result_id != -1, "Missing result ", else_result->get_friendly_name(), "in \'then_body\'!");
+    OPENVINO_ASSERT(then_result_id != -1, "Missing result ", then_result->get_friendly_name(), "in \'then_body\'!");
+    OPENVINO_ASSERT(else_result_id != -1, "Missing result ", else_result->get_friendly_name(), "in \'then_body\'!");
 
     return set_body_outputs({then_result, else_result});
 }

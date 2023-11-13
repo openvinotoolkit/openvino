@@ -43,8 +43,8 @@ struct typed_comparator<float> {
 };
 
 template <>
-struct typed_comparator<FLOAT16> {
-    static ::testing::AssertionResult compare(const char* lhs_expr, const char* rhs_expr, FLOAT16 ref, FLOAT16 val) {
+struct typed_comparator<ov::float16> {
+    static ::testing::AssertionResult compare(const char* lhs_expr, const char* rhs_expr, ov::float16 ref, ov::float16 val) {
         double abs_error = std::abs(0.05 * (double)ref);
         return ::testing::internal::DoubleNearPredFormat(lhs_expr, rhs_expr, "5 percent", (double)ref, (double)val, abs_error);
     }
@@ -287,7 +287,7 @@ public:
                                                         typename reference_tensor_typed<T, N>::vector_type data) {
         auto output = reference_tensor_typed<T, N>(std::move(data));
         auto shape = output.get_shape();
-        auto lt = cldnn::layout(cldnn::type_to_data_type<T>::value, fmt, shape);
+        auto lt = cldnn::layout(ov::element::from<T>(), fmt, shape);
         topo.add(cldnn::input_layout(id, lt));
         auto mem = eng.allocate_memory(lt);
         output.fill_memory(mem);
@@ -301,7 +301,7 @@ public:
                                                 typename reference_tensor_typed<T, N>::vector_type data) {
         auto output = reference_tensor_typed<T, N>(std::move(data));
         auto shape = output.get_shape();
-        auto lt = cldnn::layout(cldnn::type_to_data_type<T>::value, fmt, shape);
+        auto lt = cldnn::layout(ov::element::from<T>(), fmt, shape);
         auto mem = eng.allocate_memory(lt);
         output.fill_memory(mem);
         topo.add(cldnn::data(id, mem));
@@ -314,7 +314,7 @@ public:
                                                            std::shared_ptr<reference_node<WeightsT, InputN>> weights,
                                                            std::shared_ptr<reference_node<BiasT, 2>> bias,
                                                            ov::intel_gpu::ImplementationDesc force = ov::intel_gpu::ImplementationDesc{ cldnn::format::any, "" }) {
-        topo.add(cldnn::fully_connected(id, input_info(input->id), weights->id, bias->id, cldnn::type_to_data_type<T>::value));
+        topo.add(cldnn::fully_connected(id, input_info(input->id), weights->id, bias->id, ov::element::from<T>()));
         if (force.output_format != cldnn::format::any || force.kernel_name != "")
             forced_impls[id] = force;
         VVF<T> output_data = fully_connected_reference_typed<T>(input->reference.reference,
@@ -330,7 +330,7 @@ public:
                                                            std::shared_ptr<reference_node<BiasT, 2>> bias,
                                                            ov::intel_gpu::ImplementationDesc force = ov::intel_gpu::ImplementationDesc{cldnn::format::any, ""},
                                                            size_t input_dim_size = 3) {
-        topo.add(cldnn::fully_connected(id, input_info(input->id), weights->id, bias->id, cldnn::type_to_data_type<T>::value, cldnn::padding(), input_dim_size));
+        topo.add(cldnn::fully_connected(id, input_info(input->id), weights->id, bias->id, ov::element::from<T>(), cldnn::padding(), input_dim_size));
         if (force.output_format != cldnn::format::any || force.kernel_name != "")
             forced_impls[id] = force;
         VVVVF<T> output_data = fully_connected_reference_typed_3d<T>(input->reference.reference,
@@ -420,20 +420,5 @@ struct type_test_ranges<int8_t> {
     static constexpr int max = 127;
     static constexpr int k = 1;
 };
-
-template <typename T>
-VF<T> generate_smart_random_1d(size_t a) {
-    return generate_random_1d<T>(a, type_test_ranges<T>::min, type_test_ranges<T>::max, type_test_ranges<T>::k);
-}
-
-template <typename T>
-VVF<T> generate_smart_random_2d(size_t a, size_t b) {
-    return generate_random_2d<T>(a, b, type_test_ranges<T>::min, type_test_ranges<T>::max, type_test_ranges<T>::k);
-}
-
-template <typename T>
-VVVVF<T> generate_smart_random_4d(size_t a, size_t b, size_t c, size_t d) {
-    return generate_random_4d<T>(a, b, c, d, type_test_ranges<T>::min, type_test_ranges<T>::max, type_test_ranges<T>::k);
-}
 
 }  // namespace tests

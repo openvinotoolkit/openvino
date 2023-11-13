@@ -17,7 +17,7 @@ struct deconvolution_impl : typed_primitive_impl_ocl<deconvolution> {
     using kernel_selector_t = kernel_selector::deconvolution_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::deconvolution_params, kernel_selector::deconvolution_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::deconvolution_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<deconvolution_impl>(*this);
@@ -106,3 +106,4 @@ attach_deconvolution_impl::attach_deconvolution_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::deconvolution_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::deconvolution)

@@ -133,6 +133,64 @@ void regclass_Tensor(py::module m) {
             py::arg("type"),
             py::arg("shape"));
 
+    cls.def(py::init<ov::Output<ov::Node>>(),
+            py::arg("port"),
+            R"(
+                Constructs Tensor using port from node.
+                Type and shape will be taken from the port.
+
+                :param port: Output port from a node.
+                :type param: openvino.runtime.Output
+             )");
+
+    cls.def(py::init([](ov::Output<ov::Node>& port, py::array& array) {
+                return Common::tensor_from_pointer(array, port);
+            }),
+            py::arg("port"),
+            py::arg("array"),
+            R"(
+                Constructs Tensor using port from node.
+                Type and shape will be taken from the port.
+
+                :param port: Output port from a node.
+                :type param: openvino.runtime.Output
+                :param array: C_CONTIGUOUS numpy array which will be wrapped in
+                              openvino.runtime.Tensor. Array's memory is being shared with
+                              a host, that means the responsibility of keeping host memory is
+                              on the side of a user. Any action performed on the host
+                              memory will be reflected on this Tensor's memory!
+                :type array: numpy.array
+             )");
+
+    cls.def(py::init<const ov::Output<const ov::Node>>(),
+            py::arg("port"),
+            R"(
+            Constructs Tensor using port from node.
+            Type and shape will be taken from the port.
+
+            :param port: Output port from a node.
+            :type param: openvino.runtime.ConstOutput
+            )");
+
+    cls.def(py::init([](const ov::Output<const ov::Node>& port, py::array& array) {
+                return Common::tensor_from_pointer(array, port);
+            }),
+            py::arg("port"),
+            py::arg("array"),
+            R"(
+                Constructs Tensor using port from node.
+                Type and shape will be taken from the port.
+
+                :param port: Output port from a node.
+                :type param: openvino.runtime.ConstOutput
+                :param array: C_CONTIGUOUS numpy array which will be wrapped in
+                              openvino.runtime.Tensor. Array's memory is being shared with
+                              a host, that means the responsibility of keeping host memory is
+                              on the side of a user. Any action performed on the host
+                              memory will be reflected on this Tensor's memory!
+                :type array: numpy.array
+             )");
+
     cls.def(py::init<ov::Tensor, ov::Coordinate, ov::Coordinate>(), py::arg("other"), py::arg("begin"), py::arg("end"));
 
     cls.def(py::init<ov::Tensor, std::vector<size_t>, std::vector<size_t>>(),
@@ -207,20 +265,7 @@ void regclass_Tensor(py::module m) {
     cls.def_property_readonly(
         "data",
         [](ov::Tensor& self) {
-            auto ov_type = self.get_element_type();
-            // if(ov_type == ov::element::string) {
-            //     std::cerr << "std::string in python data\n";
-            //     std::cerr << "shape " << self.get_shape() << "\n";
-            //     // pre-init strings
-            //     for(size_t i = 0; i < ov::shape_size(self.get_shape()); ++i) {
-            //         new(self.data<std::string>() + i)std::string("a");
-            //     }
-            // }
-            auto dtype = Common::ov_type_to_dtype().at(ov_type);
-            if (ov_type.bitwidth() < Common::values::min_bitwidth) {
-                return py::array(dtype, self.get_byte_size(), self.data(), py::cast(self));
-            }
-            return py::array(dtype, self.get_shape(), self.get_strides(), self.data(), py::cast(self));
+            return Common::array_helpers::array_from_tensor(std::forward<ov::Tensor>(self), true);
         },
         R"(
             Access to Tensor's data.
@@ -287,6 +332,23 @@ void regclass_Tensor(py::module m) {
             Sets Tensor's values to predefined stirngs, FOR DEBUGGING PURPOSES.
         )");
 
+    cls.def(
+        "copy_to",
+        [](ov::Tensor& self, ov::Tensor& dst) {
+            return self.copy_to(dst);
+        },
+        py::arg("target_tensor"),
+        R"(
+        Copy tensor's data to a destination tensor. The destination tensor should have the same element type and shape.
+    )");
+
+    cls.def("is_continuous",
+            &ov::Tensor::is_continuous,
+            R"(
+        Reports whether the tensor is continuous or not.
+        :return: True if the tensor is continuous, otherwise False.
+        :rtype: bool
+    )");
 
     cls.def_property("shape",
                      &ov::Tensor::get_shape,
@@ -310,6 +372,6 @@ void regclass_Tensor(py::module m) {
 
         ss << "shape" << self.get_shape() << " type: " << self.get_element_type();
 
-        return "<Tensor: " + ss.str() + ">";
+        return "<" + Common::get_class_name(self) + ": " + ss.str() + ">";
     });
 }

@@ -54,13 +54,14 @@ fi
 #  Selftest
 
 if [ -n "$selftest" ] ; then
-    for image in centos7 centos8 rhel8 rhel9.1 \
-                 almalinux8.7 amzn2 \
-                 fedora34 fedora35 fedora36 fedora37 fedora38 \
-                 raspbian9 debian9 ubuntu18.04 \
-                 raspbian10 debian10 ubuntu20.04 ubuntu20.10 ubuntu21.04 \
-                 raspbian11 debian11 ubuntu21.10 ubuntu22.04 \
-                 raspbian12 debian12 ubuntu22.10 ; do
+    for image in centos:7 centos:8 rhel:8 rhel:9.1 \
+                 almalinux:8.7 amazonlinux:2 \
+                 fedora:34 fedora:35 fedora:36 fedora:37 fedora:38 \
+                 opensuse/leap:15.3 \
+                 raspbian:9 debian:9 ubuntu:18.04 \
+                 raspbian:10 debian:10 ubuntu:20.04 ubuntu:20.10 ubuntu:21.04 \
+                 raspbian:11 debian:11 ubuntu:21.10 ubuntu:22.04 \
+                 raspbian:12 debian:12 ubuntu:22.10 ubuntu:23.04 ; do
         for opt in  "-h" "-p" "-e -p" "-n" "-n -e" "-y" "-y -e" ; do
             echo "||"
             echo "|| Test $image / '$opt'"
@@ -93,10 +94,16 @@ if [ "$os" == "auto" ] ; then
       os="rhel8"
     fi
     case $os in
-        centos7|centos8|rhel8|rhel9.1|\
-        almalinux8.7|amzn2|\
-        opensuse-leap15.3| \
-        fedora34|fedora35|fedora36|fedora37|fedora38|\
+        centos7|centos8|centos9|\
+        rhel8|rhel9.1|\
+        anolis8.6|anolis8.8|\
+        openEuler20.03|openEuler22.03|openEuler23.03|\
+        almalinux8.7|almalinux8.8|almalinux9.2|\
+        amzn2|amzn2022|amzn2023|\
+        ol8.7|ol8.8|ol9.2|\
+        rocky8.7|rocky8.8|rocky9.2|\
+        fedora29|fedora30|fedora31|fedora32|fedora33|fedora34|fedora35|fedora36|fedora37|fedora38|fedora39|fedora40|\
+        opensuse-leap15.3|\
         raspbian9|debian9|ubuntu18.04|\
         raspbian10|debian10|ubuntu20.04|ubuntu20.10|ubuntu21.04|\
         raspbian11|debian11|ubuntu21.10|ubuntu22.04|\
@@ -117,44 +124,59 @@ if [ "$os" == "raspbian9" ] || [ "$os" == "debian9" ] ; then
     # - cmake version is 3.7.2
     # which are not supported by OpenVINO
 
-    pkgs_core=(libpugixml1v5)
-    pkgs_gpu=()
+    pkgs_core=()
+    pkgs_gpu=(ocl-icd-libopencl1)
     pkgs_python=()
-    pkgs_dev=(pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json-dev make curl sudo)
+    pkgs_dev=(pkg-config g++ gcc libc6-dev make sudo)
 
 elif [ "$os" == "ubuntu18.04" ] ; then
 
-    pkgs_core=(libtbb2 libpugixml1v5)
-    pkgs_gpu=()
+    pkgs_core=(libtbb2)
+    pkgs_gpu=(ocl-icd-libopencl1)
     pkgs_python=(python3.8 libpython3.8 python3.8-venv python3-pip)
-    pkgs_dev=(cmake pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json-dev make curl sudo)
+    pkgs_dev=(cmake pkg-config g++ gcc libc6-dev make sudo)
 
 elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] ||
      [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubuntu22.04" ] || [ "$os" == "debian11" ] || [ "$os" == "raspbian11" ] ||
-     [ "$os" == "ubuntu22.10" ] || [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ]; then
+     [ "$os" == "ubuntu22.10" ] || [ "$os" == "ubuntu23.04" ] || [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ]; then
 
-    pkgs_core=(libpugixml1v5 libtbb2)
-    pkgs_gpu=()
+    pkgs_core=()
+    pkgs_gpu=(ocl-icd-libopencl1)
     pkgs_python=(python3 python3-venv python3-pip)
-    pkgs_dev=(cmake pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json3-dev make curl sudo)
+    pkgs_dev=(cmake pkg-config g++ gcc libc6-dev make sudo)
 
-    if [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] ; then
-        pkgs_python=("${pkgs_python[@]}" libpython3.7)
-    elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu20.10" ] || [ "$os" == "ubuntu21.04" ] ; then
-        pkgs_python=("${pkgs_python[@]}" libpython3.8)
-    elif [ "$os" == "ubuntu21.10" ] ||
-         [ "$os" == "debian11" ] || [ "$os" == "raspbian11" ] ; then
-        pkgs_python=("${pkgs_python[@]}" libpython3.9)
-    elif [ "$os" == "ubuntu22.04" ] || [ "$os" == "ubuntu22.10" ] ||
-         [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ] ; then
-        pkgs_python=("${pkgs_python[@]}" libpython3.10)
+    if [ "$os" == "ubuntu22.04" ] || [ "$os" == "ubuntu22.10" ] || [ "$os" == "ubuntu23.04" ] ||
+       [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ] ; then
+        pkgs_core+=(libtbb12)
+    else
+        pkgs_core+=(libtbb2)
     fi
 
-elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
+    if [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] ; then
+        pkgs_python+=(libpython3.7)
+    elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu20.10" ] || [ "$os" == "ubuntu21.04" ] ; then
+        pkgs_python+=(libpython3.8)
+    elif [ "$os" == "ubuntu21.10" ] ||
+         [ "$os" == "debian11" ] || [ "$os" == "raspbian11" ] ; then
+        pkgs_python+=(libpython3.9)
+    elif [ "$os" == "ubuntu22.04" ] || [ "$os" == "ubuntu22.10" ] ||
+         [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ] ; then
+        pkgs_python+=(libpython3.10)
+    elif [ "$os" == "ubuntu23.04" ] ; then
+        pkgs_python+=(libpython3.11)
+    fi
+
+elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] || [ "$os" == "centos9" ] ||
      [ "$os" == "rhel8" ] || [ "$os" == "rhel9.1" ] ||
-     [ "$os" == "fedora34" ] || [ "$os" == "fedora35" ] || [ "$os" == "fedora36" ] ||
-     [ "$os" == "fedora36" ] || [ "$os" == "fedora38" ] ||
-     [ "$os" == "almalinux8.7" ] || [ "$os" == "amzn2" ] ; then
+     [ "$os" == "anolis8.6" ] || [ "$os" == "anolis8.8" ] ||
+     [ "$os" == "openEuler20.03" ] || [ "$os" == "openEuler22.03" ] || [ "$os" == "openEuler23.03" ] ||
+     [ "$os" == "fedora29" ] || [ "$os" == "fedora30" ] || [ "$os" == "fedora31" ] || [ "$os" == "fedora32" ] ||
+     [ "$os" == "fedora33" ] || [ "$os" == "fedora34" ] || [ "$os" == "fedora35" ] || [ "$os" == "fedora36" ] ||
+     [ "$os" == "fedora37" ] || [ "$os" == "fedora38" ] || [ "$os" == "fedora39" ] || [ "$os" == "fedora40" ] ||
+     [ "$os" == "ol8.7" ] || [ "$os" == "ol8.8" ] || [ "$os" == "ol9.2" ] ||
+     [ "$os" == "rocky8.7" ] || [ "$os" == "rocky8.8" ] || [ "$os" == "rocky9.2" ] ||
+     [ "$os" == "almalinux8.7" ] || [ "$os" == "almalinux8.8" ] || [ "$os" == "almalinux9.2" ] ||
+     [ "$os" == "amzn2" ] || [ "$os" == "amzn2022" ] || [ "$os" == "amzn2023" ] ; then
 
     arch=$(uname -m)
 
@@ -162,8 +184,10 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
         amazon-linux-extras install epel python3.8
     fi
 
-    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake3 "json-devel.$arch" "zlib-devel.$arch" sudo)
+    pkgs_core=()
     pkgs_gpu=()
+    pkgs_python=()
+    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake3 sudo)
 
     if [ "$os" == "centos7" ] || [ "$os" == "amzn2" ] ; then
         pkgs_dev+=(pkgconfig)
@@ -171,53 +195,39 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
         pkgs_dev+=(pkgconf-pkg-config)
     fi
 
-    if [ "$os" == "rhel9.1" ] ; then
-        pkgs_dev+=(curl-minimal)
-    else
-        pkgs_dev+=(curl)
-    fi
-
-    if [ "$os" == "fedora35" ] || [ "$os" == "fedora35" ] || [ "$os" == "fedora36" ] ||
-       [ "$os" == "fedora36" ] || [ "$os" == "fedora38" ] ; then
-        pkgs_core=("tbb.$arch" "pugixml.$arch" "gflags.$arch")
-        pkgs_python=(python3 python3-pip)
-        pkgs_dev+=("gflags-devel.$arch")
+    if [ "$os" == "fedora29" ] || [ "$os" == "fedora30" ] || [ "$os" == "fedora31" ] || [ "$os" == "fedora32" ] ||
+       [ "$os" == "fedora33" ] || [ "$os" == "fedora34" ] || [ "$os" == "fedora35" ] || [ "$os" == "fedora36" ] ||
+       [ "$os" == "fedora37" ] || [ "$os" == "fedora38" ] || [ "$os" == "fedora39" ] || [ "$os" == "fedora40" ] ||
+       [ "$os" == "ol8.7" ] || [ "$os" == "ol8.8" ] || [ "$os" == "ol9.2" ] ||
+       [ "$os" == "rocky8.7" ] || [ "$os" == "rocky8.8" ] || [ "$os" == "rocky9.2" ] ||
+       [ "$os" == "almalinux8.7" ] || [ "$os" == "almalinux8.8" ] || [ "$os" == "almalinux9.2" ] ||
+       [ "$os" == "centos8" ] || [ "$os" == "centos9" ] ||
+       [ "$os" == "amzn2022" ] || [ "$os" == "amzn2023" ] ||
+       [ "$os" == "anolis8.6" ] || [ "$os" == "anolis8.8" ] ||
+       [ "$os" == "openEuler20.03" ] || [ "$os" == "openEuler22.03" ] || [ "$os" == "openEuler23.03" ] ; then
+        pkgs_core+=("tbb.$arch")
+        pkgs_python+=(python3 python3-pip)
     fi
 
     if [ "$os" == "centos7" ] || [ "$os" == "amzn2" ] ; then
-        pkgs_core=("tbb.$arch" "pugixml.$arch" "gflags.$arch")
-        pkgs_dev+=("gflags-devel.$arch")
+        pkgs_gpu+=("ocl-icd.$arch")
         extra_repos+=("https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm")
-    elif [ "$os" == "centos8" ] || [ "$os" == "rhel8" ] || [ "$os" == "almalinux8.7" ] ; then
-        pkgs_core+=(
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/tbb-2018.2-9.el8.$arch.rpm"
-            "https://download-ib01.fedoraproject.org/pub/epel/8/Everything/$arch/Packages/p/pugixml-1.13-1.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/PowerTools/$arch/os/Packages/gflags-2.1.2-6.el8.$arch.rpm"
-        )
-        pkgs_gpu+=(
-            "http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/ocl-icd-2.2.12-1.el8.x86_64.rpm"
-        )
+    elif [ "$os" == "rhel8" ] ; then
+        pkgs_core+=("https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/tbb-2018.2-9.el8.$arch.rpm")
+        pkgs_gpu+=("http://mirror.centos.org/centos/8-stream/AppStream/$arch/os/Packages/ocl-icd-2.2.12-1.el8.$arch.rpm")
         pkgs_python+=(python38 python38-pip)
-        pkgs_dev+=(
-            "https://vault.centos.org/centos/8/PowerTools/$arch/os/Packages/gflags-devel-2.1.2-6.el8.$arch.rpm"
-            "https://download-ib01.fedoraproject.org/pub/epel/8/Everything/$arch/Packages/j/json-devel-3.6.1-2.el8.$arch.rpm"
-        )
         extra_repos+=("https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm")
     elif [ "$os" == "rhel9.1" ] ; then
-        pkgs_core=(
-            "http://mirror.stream.centos.org/9-stream/AppStream/$arch/os/Packages/tbb-2020.3-8.el9.$arch.rpm"
-            "https://download-ib01.fedoraproject.org/pub/epel/9/Everything/$arch/Packages/p/pugixml-1.13-1.el9.$arch.rpm"
-            "https://download-ib01.fedoraproject.org/pub/epel/9/Everything/$arch/Packages/g/gflags-2.2.2-9.el9.$arch.rpm"
-        )
-        pkgs_python=(python3 python3-pip)
-        pkgs_dev+=("https://download-ib01.fedoraproject.org/pub/epel/9/Everything/$arch/Packages/g/gflags-devel-2.2.2-9.el9.$arch.rpm")
+        pkgs_core+=("http://mirror.stream.centos.org/9-stream/AppStream/$arch/os/Packages/tbb-2020.3-8.el9.$arch.rpm")
+        pkgs_gpu+=("https://mirror.stream.centos.org/9-stream/AppStream/$arch/os/Packages/ocl-icd-2.2.13-4.el9.$arch.rpm")
+        pkgs_python+=(python3 python3-pip)
         extra_repos+=("https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm")
     fi
 elif [ "$os" == "opensuse-leap15.3" ] ; then
-    pkgs_core=(libtbb2 libtbbmalloc2 libpugixml1)
-    pkgs_gpu=()
+    pkgs_core=(libtbb2 libtbbmalloc2)
+    pkgs_gpu=(libOpenCL1)
     pkgs_python=(python39-base python39 python39-venv python39-pip)
-    pkgs_dev=(cmake pkg-config gcc-c++ gcc gflags-devel-static zlib-devel nlohmann_json-devel make curl sudo)
+    pkgs_dev=(cmake pkg-config gcc-c++ gcc make sudo)
 else
     echo "Internal script error: invalid OS (${os}) after check (package selection)" >&2
     exit 3
@@ -269,11 +279,18 @@ if [ "$os" == "debian9" ] || [ "$os" == "raspbian9" ] || [ "$os" == "ubuntu18.04
 
     apt-get update && apt-get install --no-install-recommends "$iopt" "${pkgs[@]}"
 
-elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
+elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] || [ "$os" == "centos9" ] ||
      [ "$os" == "rhel8" ] || [ "$os" == "rhel9.1" ] ||
-     [ "$os" == "fedora34" ] || [ "$os" == "fedora35" ] || [ "$os" == "fedora36" ] ||
+     [ "$os" == "anolis8.6" ] || [ "$os" == "anolis8.8" ] ||
+     [ "$os" == "openEuler20.03" ] || [ "$os" == "openEuler22.03" ] || [ "$os" == "openEuler23.03" ] ||
+     [ "$os" == "fedora29" ] || [ "$os" == "fedora30" ] || [ "$os" == "fedora31" ] || [ "$os" == "fedora32" ] ||
+     [ "$os" == "fedora33" ] || [ "$os" == "fedora34" ] || [ "$os" == "fedora35" ] || [ "$os" == "fedora36" ] ||
+     [ "$os" == "fedora37" ] || [ "$os" == "fedora38" ] || [ "$os" == "fedora39" ] || [ "$os" == "fedora40" ] ||
      [ "$os" == "fedora36" ] || [ "$os" == "fedora38" ] ||
-     [ "$os" == "almalinux8.7" ] || [ "$os" == "amzn2" ] ; then
+     [ "$os" == "ol8.7" ] || [ "$os" == "ol8.8" ] || [ "$os" == "ol9.2" ] ||
+     [ "$os" == "rocky8.7" ] || [ "$os" == "rocky8.8" ] || [ "$os" == "rocky9.2" ] ||
+     [ "$os" == "almalinux8.7" ] || [ "$os" == "almalinux8.8" ] || [ "$os" == "almalinux9.2" ] ||
+     [ "$os" == "amzn2" ] || [ "$os" == "amzn2022" ] || [ "$os" == "amzn2023" ] ; then
 
     [ -z "$interactive" ] && iopt="--assumeyes"
     [ -n "$dry" ] && iopt="--downloadonly"

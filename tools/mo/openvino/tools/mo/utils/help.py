@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-
 def get_convert_model_help_specifics():
     from openvino.tools.mo.utils.cli_parser import CanonicalizeTransformationPathCheckExistenceAction, \
         CanonicalizePathCheckExistenceAction, CanonicalizeExtensionsPathCheckExistenceAction, \
@@ -127,7 +126,7 @@ def get_convert_model_help_specifics():
             {'action': CanonicalizePathCheckExistenceIfNeededAction},
         'version':
             {'action': 'version',
-             'version': 'Version of Model Optimizer is: {}'.format(VersionChecker().get_mo_version())},
+             'version': 'Version of Model Optimizer is: {}'.format(VersionChecker().get_ie_version())},
         'scale':
             {'type': float,
              'aliases': {'-s'}},

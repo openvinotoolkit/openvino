@@ -78,7 +78,6 @@ public:
         cldnn::network::ptr network0;
         cldnn::network::ptr network1;
         if (is_caching_test) {
-            std::cout << "cached" << std::endl;
             membuf mem_buf;
             {
                 auto prog = program::build_program(engine, topology, get_test_default_config(engine));
@@ -94,9 +93,9 @@ public:
                     std::istream in_mem(&mem_buf);
                     BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
                     auto pos = ib.tellg();
-                    network0 = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine, true);
+                    network0 = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine, true, 0);
                     ib.seekg(pos);
-                    network1 = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine, false);
+                    network1 = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine, false, 0);
                 }
             }
         } else {
@@ -172,7 +171,6 @@ public:
         cldnn::network::ptr network0;
         cldnn::network::ptr network1;
         if (is_caching_test) {
-            std::cout << "cached" << std::endl;
             membuf mem_buf0;
             membuf mem_buf1;
             {
@@ -194,12 +192,12 @@ public:
                 {
                     std::istream in_mem0(&mem_buf0);
                     BinaryInputBuffer ib0 = BinaryInputBuffer(in_mem0, engine);
-                    network0 = std::make_shared<cldnn::network>(ib0, get_test_stream_ptr(), engine, 0);
+                    network0 = std::make_shared<cldnn::network>(ib0, get_test_stream_ptr(), engine, false, 0);
                 }
                 {
                     std::istream in_mem1(&mem_buf1);
                     BinaryInputBuffer ib1 = BinaryInputBuffer(in_mem1, engine);
-                    network1 = std::make_shared<cldnn::network>(ib1, get_test_stream_ptr(), engine, 1);
+                    network1 = std::make_shared<cldnn::network>(ib1, get_test_stream_ptr(), engine, true, 0);
                 }
             }
         } else {

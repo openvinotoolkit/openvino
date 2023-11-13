@@ -5,14 +5,14 @@
 set(TARGET_NAME ie_docs_snippets)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
-    ie_add_compiler_flags(-Wall)
+    ov_add_compiler_flags(-Wall)
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-    ie_add_compiler_flags(-Wno-unused-variable)
+    ov_add_compiler_flags(-Wno-unused-variable)
 endif()
 if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)
-    ie_add_compiler_flags(-Wno-unused-but-set-variable)
+    ov_add_compiler_flags(-Wno-unused-but-set-variable)
 endif()
 
 file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
@@ -26,19 +26,17 @@ if(TARGET OpenCL::OpenCL)
 endif()
 
 # try to find VA libraries
-if(NOT ANDROID)
-    find_package(PkgConfig QUIET)
-    if(PkgConfig_FOUND)
-        pkg_search_module(libva QUIET IMPORTED_TARGET libva)
-        if(libva_FOUND)
-            message(STATUS "${PKG_CONFIG_EXECUTABLE}: libva (${libva_VERSION}) is found at ${libva_PREFIX}")
-        endif()
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+    pkg_search_module(libva QUIET IMPORTED_TARGET libva)
+    if(libva_FOUND)
+        message(STATUS "${PKG_CONFIG_EXECUTABLE}: libva (${libva_VERSION}) is found at ${libva_PREFIX}")
     endif()
 endif()
 
 # remove OpenCV related sources
 find_package(OpenCV QUIET COMPONENTS core imgcodecs)
-if(NOT OpenCV_FOUND)
+if(NOT OpenCV_FOUND OR NOT OpenCV_VERSION VERSION_GREATER_EQUAL 3)
     list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ShapeInference.cpp")
 endif()
 
@@ -62,7 +60,8 @@ target_include_directories(${TARGET_NAME} PRIVATE "${OpenVINO_SOURCE_DIR}/src/in
                                                   "${OpenVINO_SOURCE_DIR}/src/frontends/common/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/core/template_extension/new"
                                                   "${OpenVINO_SOURCE_DIR}/src/frontends/onnx/frontend/include"
-                                                  "${OpenVINO_SOURCE_DIR}/src/frontends/tensorflow/include")
+                                                  "${OpenVINO_SOURCE_DIR}/src/frontends/tensorflow/include"
+                                                  "${OpenVINO_SOURCE_DIR}/src/frontends/paddle/include")
 
 ov_mark_target_as_cc(${TARGET_NAME})
 

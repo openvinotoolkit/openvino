@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(SUGGEST_OVERRIDE_SUPPORTED)
-    ie_add_compiler_flags(-Wno-suggest-override)
-endif()
-
 set(TARGET_NAME ov_inference_functional_tests)
+
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+endif()
 
 set(DEPENDENCIES
     mock_engine
@@ -43,13 +43,15 @@ ov_add_test_target(
             ${DEPENDENCIES}
         LINK_LIBRARIES
             gmock
-            funcTestUtils
+            func_test_utils
+        DEFINES
+            ${COMPILE_DEFINITIONS}
         INCLUDES
             $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
+            ${CMAKE_CURRENT_SOURCE_DIR}
         ADD_CLANG_FORMAT
         LABELS
-            OV
+            OV UNIT RUNTIME
 )
 
-add_compile_definitions(${TARGET_NAME} ${COMPILE_DEFINITIONS})
-
+ov_set_threading_interface_for(${TARGET_NAME})

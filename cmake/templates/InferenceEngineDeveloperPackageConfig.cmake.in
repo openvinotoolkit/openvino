@@ -6,23 +6,39 @@
 
 include(CMakeFindDependencyMacro)
 
+message(WARNING "find_package(InferenceEngineDeveloperPackage) is deprecated and will be removed in 2024.0 release. Please, use find_package(OpenVINODeveloperPackage)")
+
 # TODO: remove after changing [private plugins]
-set_and_check(OpenVINO_SOURCE_DIR "@OpenVINO_SOURCE_DIR@") # KMB
-set_and_check(OpenVINO_MAIN_SOURCE_DIR "@OpenVINO_SOURCE_DIR@") # KMB
+set_and_check(OpenVINO_SOURCE_DIR "@OpenVINO_SOURCE_DIR@") # NPU
+set_and_check(OpenVINO_MAIN_SOURCE_DIR "@OpenVINO_SOURCE_DIR@") # NPU
 
 # Variables to export in plugin's projects
 
-set(ie_options "@IE_OPTIONS@")
-list(APPEND ie_options CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER
+set(ov_options "@OV_OPTIONS@")
+list(APPEND ov_options CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER
                        CMAKE_CXX_LINKER_LAUNCHER CMAKE_C_LINKER_LAUNCHER
-                       CMAKE_BUILD_TYPE CMAKE_SKIP_RPATH CMAKE_INSTALL_PREFIX
-                       CMAKE_OSX_ARCHITECTURES CMAKE_OSX_DEPLOYMENT_TARGET
-                       CMAKE_CONFIGURATION_TYPES CMAKE_DEFAULT_BUILD_TYPE)
+                       CMAKE_INSTALL_PREFIX CPACK_GENERATOR)
+
+if(APPLE)
+    list(APPEND ov_options CMAKE_OSX_ARCHITECTURES CMAKE_OSX_DEPLOYMENT_TARGET)
+endif()
+
+get_property(_OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+if(_OV_GENERATOR_MULTI_CONFIG)
+    list(APPEND ov_options CMAKE_CONFIGURATION_TYPES)
+    if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
+        list(APPEND ov_options CMAKE_DEFAULT_BUILD_TYPE)
+    endif()
+else()
+    list(APPEND ov_options CMAKE_BUILD_TYPE)
+endif()
+unset(_OV_GENERATOR_MULTI_CONFIG)
+
 file(TO_CMAKE_PATH "${CMAKE_CURRENT_LIST_DIR}" cache_path)
 
 message(STATUS "The following CMake options are exported from Inference Engine Developer package")
 message(" ")
-foreach(option IN LISTS ie_options)
+foreach(option IN LISTS ov_options)
     if(NOT DEFINED "${option}")
         load_cache("${cache_path}" READ_WITH_PREFIX "" ${option})
     endif()
@@ -35,16 +51,14 @@ if(ENABLE_SAMPLES)
     set_and_check(gflags_DIR "@gflags_BINARY_DIR@")
 endif()
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # Disable warning as error for private components
-    set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
-endif()
+# Disable warning as error for private components
+set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
 
 #
 # Content
 #
 
-find_dependency(IEDevScripts
+find_dependency(OpenVINODeveloperScripts
                 PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
                 NO_CMAKE_FIND_ROOT_PATH
                 NO_DEFAULT_PATH)
@@ -74,9 +88,7 @@ endif()
 
 _ov_find_tbb()
 
-foreach(component @openvino_export_components@)
-    include("${CMAKE_CURRENT_LIST_DIR}/${component}_dev_targets.cmake")
-endforeach()
+include("${CMAKE_CURRENT_LIST_DIR}/inference_engine_developer_package_targets.cmake")
 
 if(TARGET IE::ov_core_dev AND NOT TARGET openvino::core::dev)
     add_library(openvino::core::dev INTERFACE IMPORTED)
@@ -88,6 +100,12 @@ if(TARGET IE::runtime::dev AND NOT TARGET openvino::runtime::dev)
     add_library(openvino::runtime::dev INTERFACE IMPORTED)
     set_target_properties(openvino::runtime::dev PROPERTIES
         INTERFACE_LINK_LIBRARIES IE::runtime::dev)
+endif()
+
+if(TARGET IE::reference AND NOT TARGET IE::ngraph_reference)
+    add_library(IE::ngraph_reference INTERFACE IMPORTED)
+    set_target_properties(IE::ngraph_reference PROPERTIES
+        INTERFACE_LINK_LIBRARIES IE::reference)
 endif()
 
 if(ENABLE_SYSTEM_PUGIXML)
@@ -142,9 +160,20 @@ if(ENABLE_SYSTEM_PUGIXML)
     endif()
 endif()
 
+set(_ov_nlohmann_json_FOUND "@nlohmann_json_FOUND@")
+if(_ov_nlohmann_json_FOUND)
+    find_dependency(nlohmann_json)
+    set_target_properties(nlohmann_json::nlohmann_json PROPERTIES IMPORTED_GLOBAL ON)
+    add_library(IE::nlohmann_json ALIAS nlohmann_json::nlohmann_json)
+endif()
+unset(_ov_nlohmann_json_FOUND)
+
 # inherit OpenCV from main IE project if enabled
-if ("@OpenCV_FOUND@")
-    load_cache("${cache_path}" READ_WITH_PREFIX "" OpenCV_DIR)
+if("@OpenCV_FOUND@")
+    # Use OpenCV_DIR from cache only if user doesn't define OpenCV_DIR
+    if(NOT OpenCV_DIR)
+        load_cache("${cache_path}" READ_WITH_PREFIX "" OpenCV_DIR)
+    endif()
     find_dependency(OpenCV)
 endif()
 

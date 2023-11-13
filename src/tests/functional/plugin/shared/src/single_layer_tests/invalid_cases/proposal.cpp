@@ -16,7 +16,7 @@ std::string ProposalBehTest::getTestCaseName(testing::TestParamInfo<proposalBehT
 
     std::ostringstream result;
     result << "targetDevice=" << targetDevice;
-    result << "img_info = " << CommonTestUtils::vec2str(img_info) << "_";
+    result << "img_info = " << ov::test::utils::vec2str(img_info) << "_";
 
     return proposalPramString + result.str();
 }
@@ -69,11 +69,13 @@ void ProposalBehTest::SetUp() {
     std::vector<size_t> imageInfoShape = {3};
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(InferenceEngine::Precision::FP16);
-    auto params = ngraph::builder::makeParams(ngPrc, {{"scores", scoresShape}, {"boxes", boxesShape}});
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(scoresShape)),
+                               std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(boxesShape))};
+    params[0]->set_friendly_name("scores");
+    params[1]->set_friendly_name("boxes");
 
     auto proposal = std::dynamic_pointer_cast<ngraph::opset1::Proposal>(
-             ngraph::builder::makeProposal(paramOuts[0], paramOuts[1], img_info, ngPrc,
+             ngraph::builder::makeProposal(params[0], params[1], img_info, ngPrc,
                                            base_size,
                                            pre_nms_topn,
                                            post_nms_topn,

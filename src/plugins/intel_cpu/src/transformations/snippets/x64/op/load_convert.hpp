@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
 #include "snippets/op/load.hpp"
 
 namespace ov {
@@ -16,9 +15,9 @@ namespace intel_cpu {
  *        The operation is used for peephole optimization during subgraph lowering.
  * @ingroup snippets
  */
-class LoadConvertSaturation : public ngraph::snippets::op::Load {
+class LoadConvertSaturation : public snippets::op::Load {
 public:
-    OPENVINO_OP("LoadConvertSaturation", "SnippetsOpset", ngraph::snippets::op::Load);
+    OPENVINO_OP("LoadConvertSaturation", "SnippetsOpset", snippets::op::Load);
 
     LoadConvertSaturation(const Output<Node>& x, const ov::element::Type& destination_type, const size_t count = 1lu, const size_t offset = 0lu);
     LoadConvertSaturation() = default;
@@ -43,9 +42,9 @@ protected:
  *        The operation is used for peephole optimization during subgraph lowering.
  * @ingroup snippets
  */
-class LoadConvertTruncation : public ngraph::snippets::op::Load {
+class LoadConvertTruncation : public snippets::op::Load {
 public:
-    OPENVINO_OP("LoadConvertTruncation", "SnippetsOpset", ngraph::snippets::op::Load);
+    OPENVINO_OP("LoadConvertTruncation", "SnippetsOpset", snippets::op::Load);
 
     LoadConvertTruncation(const Output<Node>& x, const ov::element::Type& destination_type, const size_t count = 1lu, const size_t offset = 0lu);
     LoadConvertTruncation() = default;

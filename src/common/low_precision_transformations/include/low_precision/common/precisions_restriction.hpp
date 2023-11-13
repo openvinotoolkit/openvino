@@ -9,12 +9,10 @@
 #include <unordered_set>
 #include <vector>
 
-#include <ngraph/node.hpp>
+#include "low_precision/lpt_visibility.hpp"
+#include "openvino/core/node.hpp"
 
-#include <low_precision/lpt_visibility.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
-
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 /**
@@ -23,30 +21,30 @@ namespace low_precision {
 * the same precision for mentioned
 *
 * // One restriction for each port
-* PrecisionsRestriction::create<ngraph::opset1::Convolution>({
-*      {{0}, {ngraph::element::u8}},
-*      {{1}, {ngraph::element::i8}},
+* PrecisionsRestriction::create<ov::opset1::Convolution>({
+*      {{0}, {ov::element::u8}},
+*      {{1}, {ov::element::i8}},
 *  }),
 *
 * // Common precision restriction for several ports:
 * // both inputs will have the same precision
-* PrecisionsRestriction::create<ngraph::opset5::LSTMSequence>({
-*      {{0, 1}, {ngraph::element::u8, ngraph::element::i8}}
+* PrecisionsRestriction::create<ov::opset5::LSTMSequence>({
+*      {{0, 1}, {ov::element::u8, ov::element::i8}}
 *  }),
 */
 class PrecisionsRestriction {
 public:
-    using PrecisionsByPorts = std::vector<std::pair<std::vector<size_t>, std::vector<ngraph::element::Type>>>;
+    using PrecisionsByPorts = std::vector<std::pair<std::vector<size_t>, std::vector<ov::element::Type>>>;
     using PrecisionsByPortsFunction = std::function<PrecisionsByPorts(const std::shared_ptr<Node>&)>;
 
-    ngraph::Node::type_info_t operationType;
+    ov::Node::type_info_t operationType;
     bool specifyVersion;
     PrecisionsByPorts precisionsByPorts;
     PrecisionsByPortsFunction precisionsByPortsFunction;
 
     PrecisionsRestriction() = default;
     PrecisionsRestriction(
-        const ngraph::Node::type_info_t& operationType,
+        const ov::Node::type_info_t& operationType,
         const bool specifyVersion,
         const PrecisionsByPorts& precisionsByPorts) :
         operationType(operationType),
@@ -54,7 +52,7 @@ public:
         precisionsByPorts(precisionsByPorts) {}
 
     PrecisionsRestriction(
-        const ngraph::Node::type_info_t& operationType,
+        const ov::Node::type_info_t& operationType,
         const bool specifyVersion,
         const PrecisionsByPortsFunction& precisionsByPortsFunction) :
         operationType(operationType),
@@ -76,7 +74,7 @@ public:
     }
 
     template <typename T>
-    static PrecisionsByPorts getPrecisionsByOperationType(std::vector<PrecisionsRestriction>& restrictions) {
+    static PrecisionsByPorts getPrecisionsByOperationType(const std::vector<PrecisionsRestriction>& restrictions) {
         for (const auto& restriction : restrictions) {
             if (restriction.operationType == T::get_type_info_static()) {
                 return restriction.precisionsByPorts;
@@ -88,4 +86,4 @@ public:
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov

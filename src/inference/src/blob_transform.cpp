@@ -14,6 +14,8 @@
 
 //----------------------------------------------------------------------
 
+IE_SUPPRESS_DEPRECATED_START
+
 namespace InferenceEngine {
 
 template <InferenceEngine::Precision::ePrecision PRC>
@@ -361,7 +363,7 @@ void blob_copy(Blob::Ptr src, Blob::Ptr dst) {
 
     if (src->getTensorDesc().getPrecision() != dst->getTensorDesc().getPrecision())
         IE_THROW() << "Unimplemented blob transformation from precision " << src->getTensorDesc().getPrecision()
-                   << " to " << src->getTensorDesc().getPrecision();
+                   << " to " << dst->getTensorDesc().getPrecision();
 
     if (src->getTensorDesc().getDims() != dst->getTensorDesc().getDims())
         IE_THROW() << "Unimplemented blob transformation from different shapes ";

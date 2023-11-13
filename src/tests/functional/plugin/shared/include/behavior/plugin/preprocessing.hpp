@@ -65,11 +65,6 @@ public:
 
             inputs.push_back(blob);
         }
-        if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
-            configuration.count(InferenceEngine::PluginConfigParams::YES)) {
-            auto batchSize = executableNetwork.GetInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
-            inferRequest.SetBatch(static_cast<int>(batchSize));
-        }
         inferRequest.Infer();
     }
 
@@ -91,16 +86,15 @@ public:
 
         auto make_ngraph = [&](bool with_extra_conv) {
             auto in_prec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(with_extra_conv ? inPrc : decltype(inPrc)(InferenceEngine::Precision::FP32));
-            auto paramsIn = ngraph::builder::makeParams(in_prec, {inputShape});
-            auto paramIn = ngraph::helpers::convert2OutputVector(
-                    ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
+            ov::ParameterVector paramsIn {std::make_shared<ov::op::v0::Parameter>(in_prec, ov::Shape(inputShape))};
 
-            auto toF32 = std::make_shared<ngraph::opset1::Convert>(paramIn[0], ngraph::element::Type_t::f32);
+            auto toF32 = std::make_shared<ngraph::opset1::Convert>(paramsIn[0], ngraph::element::Type_t::f32);
 
             auto constNode = std::make_shared<ngraph::opset1::Constant>(
                     ngraph::element::Type_t::i64, ngraph::Shape{inputShape.size()}, inputShape);
+            std::shared_ptr<ov::Node> reshape_input = with_extra_conv ? toF32->shared_from_this() : paramsIn[0];
             auto reshape = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(
-                    std::make_shared<ngraph::opset1::Reshape>(with_extra_conv ? toF32 : paramIn[0], constNode, specialZero));
+                    std::make_shared<ngraph::opset1::Reshape>(reshape_input, constNode, specialZero));
             ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(reshape)};
             return std::make_shared<ngraph::Function>(results, paramsIn, "Reshape");
         };

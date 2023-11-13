@@ -10,6 +10,16 @@
 
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <memory>
 #include <string>
 
@@ -19,11 +29,12 @@
 namespace InferenceEngine {
 
 class IVariableStateInternal;
+IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @brief VariableState class
  */
-class INFERENCE_ENGINE_API_CLASS(VariableState) {
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(VariableState) {
     std::shared_ptr<IVariableStateInternal> _impl;
     std::shared_ptr<void> _so;
 
@@ -94,5 +105,7 @@ public:
  * @brief For compatibility reasons.
  */
 using MemoryState = VariableState;
+
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace InferenceEngine

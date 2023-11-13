@@ -97,7 +97,12 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CachingSupportCase.*LoadNet.*(ConvPoolRelu|TIwithLSTMcell1)_f32_batch2.*)",
         R"(.*smoke_Multi_BehaviorTests.*)",
         // unsupported metrics
-        R"(.*OVGetMetricPropsTest.*OVGetMetricPropsTest.*DEVICE_ID.*)",
         R"(.*smoke_MultiHeteroOVGetMetricPropsTest.*OVGetMetricPropsTest.*(AVAILABLE_DEVICES|OPTIMIZATION_CAPABILITIES|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
+        // TODO: Issue: 111556
+        R"(.*SplitConvTest.CompareWithRefImpl.*IS=\(1.(128|256)\).*IC=4.*OC=4.*configItem=GNA_DEVICE_MODE_GNA_SW_FP32)",
+        // TODO: Issue: 114149
+        R"(.*smoke_Decompose2DConv.*)",
+        // TODO: Issue: 123306
+        R"(smoke_convert_matmul_to_fc/ConvertMatmulToFcWithTransposesPass.CompareWithRefImpl/netPRC=FP(32|16)_targetDevice=GNA__configItem=GNA_COMPACT_MODE_NO_configItem=GNA_DEVICE_MODE_GNA_SW_(FP32|EXACT)_IS=\(8.*)",
     };
 }

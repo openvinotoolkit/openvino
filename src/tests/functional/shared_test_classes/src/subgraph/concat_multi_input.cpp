@@ -14,9 +14,12 @@ std::string ConcatMultiInput::getTestCaseName(const testing::TestParamInfo<conca
     std::tie(inputShapes, netPrecision, targetDevice, additional_config) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;
+    for (auto const& configItem : additional_config) {
+        result << "_configItem=" << configItem.first << "_" << configItem.second;
+    }
 
     return result.str();
 }
@@ -35,7 +38,7 @@ void ConcatMultiInput::SetUp() {
 }
 
 void ConcatMultiInput::GenerateStridedSliceModel() {
-    auto params = ngraph::builder::makeParams(ngPrc, { paramSize });
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(paramSize))};
     auto stride = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ 2 }, std::vector<int64_t>{ 1, 1 });
 
     std::vector<int64_t> newAxis = { 0, 0 };
@@ -81,14 +84,14 @@ void ConcatMultiInput::GenerateConstOnlyModel() {
 
         return res;
     };
-    ngraph::ParameterVector input_vector;
+    ov::ParameterVector input_vector;
     for (size_t i = 0; i < inputShapes.size(); ++i) {
         size_t total_size = 1;
         for (auto dim : inputShapes[i]) {
             total_size *= dim;
         }
         if (i == 0) {
-            input_vector = ngraph::builder::makeParams(ngPrc, {{1, total_size}});
+            input_vector = ov::ParameterVector{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, total_size})};
             auto relu = ngraph::builder::makeActivation(input_vector[0], ngPrc, ngraph::helpers::ActivationTypes::Relu);
             concatInputs.push_back(relu);
         } else {
@@ -107,9 +110,10 @@ void ConcatMultiInput::GenerateConstOnlyModel() {
 
 void ConcatMultiInput::GenerateMemoryModel() {
     int axis = 1;
-    auto input = ngraph::builder::makeParams(ngPrc, { inputShapes[0] });
+    ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0]))};
 
-    auto variable = std::make_shared<ngraph::Variable>(ngraph::VariableInfo{ngraph::PartialShape::dynamic(), ngraph::element::dynamic, "concat_input_memory"});
+    auto variable = std::make_shared<ngraph::Variable>(ngraph::VariableInfo{ngraph::PartialShape::dynamic(),
+                                                                            ngraph::element::dynamic, "concat_input_memory"});
     auto mem_i = std::make_shared<ngraph::opset8::Constant>(ngPrc, inputShapes[0]);
     auto mem_r = std::make_shared<ngraph::opset8::ReadValue>(mem_i, variable);
 

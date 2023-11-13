@@ -85,9 +85,9 @@
 #
 #   `OpenVINO_VERSION_MAJOR`
 #   Major version component
-# 
+#
 #   `OpenVINO_VERSION_MINOR`
-#   minor version component
+#   Minor version component
 #
 #   `OpenVINO_VERSION_PATCH`
 #   Patch version component
@@ -138,7 +138,7 @@ endmacro()
 
 macro(_ov_find_tbb)
     set(THREADING "@THREADING@")
-    if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND NOT TBB_FOUND)
+    if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
         set(enable_pkgconfig_tbb "@tbb_FOUND@")
 
         # try tbb.pc
@@ -153,10 +153,10 @@ macro(_ov_find_tbb)
                 endif()
 
                 pkg_search_module(tbb
-                                ${pkg_config_quiet_arg}
-                                ${pkg_config_required_arg}
-                                IMPORTED_TARGET
-                                tbb)
+                                  ${pkg_config_quiet_arg}
+                                  ${pkg_config_required_arg}
+                                  IMPORTED_TARGET
+                                  tbb)
                 unset(pkg_config_quiet_arg)
                 unset(pkg_config_required_arg)
 
@@ -176,7 +176,7 @@ macro(_ov_find_tbb)
 
             set(enable_system_tbb "@ENABLE_SYSTEM_TBB@")
             if(NOT enable_system_tbb)
-                set_and_check(_tbb_dir "@PACKAGE_IE_TBB_DIR@")
+                set_and_check(_tbb_dir "@PACKAGE_OV_TBB_DIR@")
 
                 # see https://stackoverflow.com/questions/28070810/cmake-generate-error-on-windows-as-it-uses-as-escape-seq
                 if(DEFINED ENV{TBBROOT})
@@ -218,43 +218,260 @@ macro(_ov_find_tbb)
 
         set(install_tbbbind "@install_tbbbind@")
         if(install_tbbbind)
-            set_and_check(_tbb_bind_dir "@PACKAGE_IE_TBBBIND_DIR@")
+            set_and_check(_tbb_bind_dir "@PACKAGE_OV_TBBBIND_DIR@")
             _ov_find_dependency(TBBBIND_2_5
                                 PATHS ${_tbb_bind_dir}
                                 NO_CMAKE_FIND_ROOT_PATH
                                 NO_DEFAULT_PATH)
-            set_target_properties(${TBBBIND_2_5_IMPORTED_TARGETS} PROPERTIES IMPORTED_GLOBAL ON)
+            if(TARGET TBBbind::tbbbind_2_5)
+                # To solve https://cmake.org/cmake/help/latest/policy/CMP0111.html warnings
+                set_property(TARGET TBBbind::tbbbind_2_5 PROPERTY IMPORTED_CONFIGURATIONS RELEASE DEBUG)
+            endif()
             unset(_tbb_bind_dir)
         endif()
         unset(install_tbbbind)
     endif()
 endmacro()
 
+macro(_ov_find_pugixml)
+    set(_OV_ENABLE_SYSTEM_PUGIXML "@ENABLE_SYSTEM_PUGIXML@")
+    if(_OV_ENABLE_SYSTEM_PUGIXML)
+        set(_ov_pugixml_pkgconfig_interface "@pugixml_FOUND@")
+        set(_ov_pugixml_cmake_interface "@PugiXML_FOUND@")
+
+        if(_ov_pugixml_pkgconfig_interface AND NOT ANDROID)
+            _ov_find_dependency(PkgConfig)
+        elseif(_ov_pugixml_cmake_interface)
+            _ov_find_dependency(PugiXML NAMES PugiXML pugixml)
+        endif()
+
+        # see https://cmake.org/cmake/help/latest/command/add_library.html#alias-libraries
+        # cmake older than 3.18 cannot create an alias for imported non-GLOBAL targets
+        # so, we have to use 'GLOBAL' property for cases when we call from OpenVINODeveloperPackage
+        # because the alias openvino::pugixml is created later
+        if(CMAKE_VERSION VERSION_LESS 3.18 AND OpenVINODeveloperPackage_DIR)
+            set(_ov_pugixml_visibility GLOBAL)
+        endif()
+
+        if(PugiXML_FOUND)
+            if(TARGET pugixml)
+                set(_ov_pugixml_target pugixml)
+            elseif(TARGET pugixml::pugixml)
+                set(_ov_pugixml_target pugixml::pugixml)
+            endif()
+            if(OpenVINODeveloperPackage_DIR)
+                # align with build tree and create alias
+                if(_ov_pugixml_visibility STREQUAL "GLOBAL")
+                    set_target_properties(${_ov_pugixml_target} PROPERTIES IMPORTED_GLOBAL TRUE)
+                endif()
+                # check whether openvino::pugixml is already defined in case of
+                # OpenVINODeveloperPackageConfig.cmake is found multiple times
+                if(NOT TARGET openvino::pugixml)
+                    add_library(openvino::pugixml ALIAS ${_ov_pugixml_target})
+                endif()
+            endif()
+            unset(_ov_pugixml_target)
+        elseif(PkgConfig_FOUND)
+            if(${CMAKE_FIND_PACKAGE_NAME}_FIND_QUIETLY)
+                set(pkg_config_quiet_arg QUIET)
+            endif()
+            if(${CMAKE_FIND_PACKAGE_NAME}_FIND_REQUIRED)
+                set(pkg_config_required_arg REQUIRED)
+            endif()
+
+            pkg_search_module(pugixml
+                              ${pkg_config_quiet_arg}
+                              ${pkg_config_required_arg}
+                              IMPORTED_TARGET
+                              ${_ov_pugixml_visibility}
+                              pugixml)
+
+            unset(pkg_config_quiet_arg)
+            unset(pkg_config_required_arg)
+
+            if(pugixml_FOUND)
+                if(OpenVINODeveloperPackage_DIR)
+                    # check whether openvino::pugixml is already defined in case of
+                    # OpenVINODeveloperPackageConfig.cmake is found multiple times
+                    if(NOT TARGET openvino::pugixml)
+                        add_library(openvino::pugixml ALIAS PkgConfig::pugixml)
+                    endif()
+                endif()
+
+                # PATCH: on Ubuntu 18.04 pugixml.pc contains incorrect include directories
+                get_target_property(interface_include_dir PkgConfig::pugixml INTERFACE_INCLUDE_DIRECTORIES)
+                if(interface_include_dir AND NOT EXISTS "${interface_include_dir}")
+                    set_target_properties(PkgConfig::pugixml PROPERTIES
+                        INTERFACE_INCLUDE_DIRECTORIES "")
+                endif()
+            endif()
+        endif()
+
+        # debian 9 case: no cmake, no pkg-config files
+        if(NOT TARGET openvino::pugixml)
+            find_library(PUGIXML_LIBRARY NAMES pugixml DOC "Path to pugixml library")
+            if(PUGIXML_LIBRARY)
+                add_library(openvino::pugixml INTERFACE IMPORTED)
+                set_target_properties(openvino::pugixml PROPERTIES INTERFACE_LINK_LIBRARIES "${PUGIXML_LIBRARY}")
+            else()
+                message(FATAL_ERROR "Failed to find system pugixml in OpenVINO Developer Package")
+            endif()
+        endif()
+
+        unset(_ov_pugixml_visibility)
+    endif()
+endmacro()
+
+macro(_ov_find_itt)
+    set(_ENABLE_PROFILING_ITT "@ENABLE_PROFILING_ITT@")
+    # whether 'ittapi' is found via find_package
+    set(_ENABLE_SYSTEM_ITTAPI "@ittapi_FOUND@")
+    if(_ENABLE_PROFILING_ITT AND _ENABLE_SYSTEM_ITTAPI)
+        _ov_find_dependency(ittapi)
+    endif()
+    unset(_ENABLE_PROFILING_ITT)
+    unset(_ENABLE_SYSTEM_ITTAPI)
+endmacro()
+
+macro(_ov_find_ade)
+    set(_OV_ENABLE_GAPI_PREPROCESSING "@ENABLE_GAPI_PREPROCESSING@")
+    # whether 'ade' is found via find_package
+    set(_ENABLE_SYSTEM_ADE "@ade_FOUND@")
+    if(_OV_ENABLE_GAPI_PREPROCESSING AND _ENABLE_SYSTEM_ADE)
+        _ov_find_dependency(ade @ade_VERSION@)
+    endif()
+    unset(_OV_ENABLE_GAPI_PREPROCESSING)
+    unset(_ENABLE_SYSTEM_ADE)
+endmacro()
+
+macro(_ov_find_intel_cpu_dependencies)
+    set(_OV_ENABLE_CPU_ACL "@DNNL_USE_ACL@")
+    if(_OV_ENABLE_CPU_ACL)
+        set(_ov_in_install_tree "@PACKAGE_OPENVINO_LIB_DIR@")
+        if(_ov_in_install_tree)
+            set_and_check(ARM_COMPUTE_LIB_DIR "@PACKAGE_OPENVINO_LIB_DIR@")
+            set(ACL_DIR "${CMAKE_CURRENT_LIST_DIR}")
+        else()
+            if(NOT TARGET arm_compute::arm_compute)
+                # for case when build tree is used separately, e.g. OpenVINODeveloperPackageConfig.cmake
+                set_and_check(ARM_COMPUTE_LIB_DIR "@PACKAGE_CMAKE_ARCHIVE_OUTPUT_DIRECTORY@")
+            endif()
+            set_and_check(ACL_DIR "@PACKAGE_FIND_ACL_PATH@")
+        endif()
+
+        _ov_find_dependency(ACL)
+
+        unset(_ov_in_install_tree)
+        unset(ARM_COMPUTE_LIB_DIR)
+    endif()
+    unset(_OV_ENABLE_CPU_ACL)
+endmacro()
+
+macro(_ov_find_intel_gpu_dependencies)
+    set(_OV_ENABLE_INTEL_GPU "@ENABLE_INTEL_GPU@")
+    set(_OV_ENABLE_SYSTEM_OPENCL "@ENABLE_SYSTEM_OPENCL@")
+    if(_OV_ENABLE_INTEL_GPU AND _OV_ENABLE_SYSTEM_OPENCL)
+        _ov_find_dependency(OpenCL)
+    endif()
+    unset(_OV_ENABLE_INTEL_GPU)
+    unset(_OV_ENABLE_SYSTEM_OPENCL)
+
+    set(_OV_ENABLE_ONEDNN_FOR_GPU "@ENABLE_ONEDNN_FOR_GPU@")
+    if(_OV_ENABLE_ONEDNN_FOR_GPU AND NOT TARGET onednn_gpu_tgt)
+        set(_OV_DNNL_GPU_LIBRARY_NAME "@DNNL_GPU_LIBRARY_NAME@")
+
+        set(_ov_in_install_tree "@PACKAGE_OPENVINO_LIB_DIR@")
+        if(_ov_in_install_tree)
+            set(onednn_gpu_lib "${CMAKE_STATIC_LIBRARY_PREFIX}${_OV_DNNL_GPU_LIBRARY_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
+            set_and_check(onednn_gpu_lib_root "@PACKAGE_OPENVINO_LIB_DIR@")
+            if(WIN32)
+                if(OV_GENERATOR_MULTI_CONFIG)
+                    set(extra_args PATH_SUFFIXES ${CMAKE_CONFIGURATION_TYPES})
+                else()
+                    set(extra_args PATH_SUFFIXES ${CMAKE_BUILD_TYPE})
+                endif()
+            endif()
+
+            find_library(onednn_gpu_lib_path
+                         NAMES ${_OV_DNNL_GPU_LIBRARY_NAME}
+                         PATHS ${onednn_gpu_lib_root}
+                         ${extra_args})
+
+            if(NOT onednn_gpu_lib_path)
+                message(FATAL_ERROR "Internal error: failed to find '${_OV_DNNL_GPU_LIBRARY_NAME}' in '${onednn_gpu_lib_root}'")
+            endif()
+
+            unset(extra_args)
+            unset(onednn_gpu_lib)
+        else()
+            set_and_check(onednn_gpu_lib_path "@PACKAGE_ONEDNN_GPU_LIB_PATH@")
+        endif()
+
+        set_target_properties(openvino::onednn_gpu_tgt PROPERTIES
+            INTERFACE_LINK_LIBRARIES "${onednn_gpu_lib_path}")
+
+        unset(onednn_gpu_lib_path)
+        unset(_ov_in_install_tree)
+        unset(_OV_DNNL_GPU_LIBRARY_NAME)
+    endif()
+    unset(_OV_ENABLE_ONEDNN_FOR_GPU)
+endmacro()
+
 macro(_ov_find_intel_gna_dependencies)
     set(_OV_ENABLE_INTEL_GNA "@ENABLE_INTEL_GNA@")
-    if(_OV_ENABLE_INTEL_GNA AND NOT libGNA_FOUND)
+    if(_OV_ENABLE_INTEL_GNA)
         set_and_check(GNA_PATH "@PACKAGE_GNA_PATH@")
         _ov_find_dependency(libGNA
                             COMPONENTS KERNEL
                             CONFIG
                             PATHS "${CMAKE_CURRENT_LIST_DIR}"
-                            NO_CMAKE_FIND_ROOT_PATH
                             NO_DEFAULT_PATH)
         unset(GNA_PATH)
     endif()
     unset(_OV_ENABLE_INTEL_GNA)
 endmacro()
 
+macro(_ov_find_protobuf_frontend_dependency)
+    set(_OV_ENABLE_SYSTEM_PROTOBUF "@ENABLE_SYSTEM_PROTOBUF@")
+    set(_OV_PROTOBUF_PACKAGE_CONFIG "@protobuf_config@")
+    if(_OV_ENABLE_SYSTEM_PROTOBUF)
+        _ov_find_dependency(Protobuf @Protobuf_VERSION@ EXACT ${_OV_PROTOBUF_PACKAGE_CONFIG})
+    endif()
+    unset(_OV_PROTOBUF_PACKAGE_CONFIG)
+    unset(_OV_ENABLE_SYSTEM_PROTOBUF)
+endmacro()
+
+macro(_ov_find_tensorflow_frontend_dependencies)
+    set(_OV_ENABLE_SYSTEM_SNAPPY "@ENABLE_SYSTEM_SNAPPY@")
+    set(_ov_snappy_lib "@ov_snappy_lib@")
+    if(_OV_ENABLE_SYSTEM_SNAPPY)
+        _ov_find_dependency(Snappy @Snappy_VERSION@ EXACT)
+    endif()
+    unset(_OV_ENABLE_SYSTEM_SNAPPY)
+    unset(_ov_snappy_lib)
+    set(PACKAGE_PREFIX_DIR ${_ov_package_prefix_dir})
+endmacro()
+
+macro(_ov_find_onnx_frontend_dependencies)
+    set(_OV_ENABLE_SYSTEM_ONNX "@ONNX_FOUND@")
+    if(_OV_ENABLE_SYSTEM_ONNX)
+        _ov_find_dependency(ONNX @ONNX_VERSION@ EXACT)
+    endif()
+    unset(_OV_ENABLE_SYSTEM_ONNX)
+endmacro()
+
 function(_ov_target_no_deprecation_error)
-    if(NOT MSVC)
+    if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        # older macOS x86_64 does not support this linker option
+        if(CMAKE_CROSSCOMPILING AND NOT APPLE)
+            set_target_properties(${ARGV} PROPERTIES
+                                  INTERFACE_LINK_OPTIONS "-Wl,--allow-shlib-undefined")
+        endif()
+
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
             set(flags "-diag-warning=1786")
         else()
             set(flags "-Wno-error=deprecated-declarations")
-        endif()
-        if(CMAKE_CROSSCOMPILING)
-            set_target_properties(${ARGV} PROPERTIES
-                                  INTERFACE_LINK_OPTIONS "-Wl,--allow-shlib-undefined")
         endif()
 
         set_target_properties(${ARGV} PROPERTIES INTERFACE_COMPILE_OPTIONS ${flags})
@@ -265,13 +482,42 @@ endfunction()
 # OpenVINO config
 #
 
+cmake_policy(PUSH)
+# we need CMP0057 to allow IN_LIST in if() command
+if(POLICY CMP0057)
+    cmake_policy(SET CMP0057 NEW)
+else()
+    message(FATAL_ERROR "OpenVINO requires CMake 3.3 or newer")
+endif()
+
 # need to store current PACKAGE_PREFIX_DIR, because it's overwritten by sub-package one
 set(_ov_package_prefix_dir "${PACKAGE_PREFIX_DIR}")
 
 set(_OV_ENABLE_OPENVINO_BUILD_SHARED "@BUILD_SHARED_LIBS@")
 
+if(NOT TARGET openvino)
+    set(_ov_as_external_package ON)
+    include("${CMAKE_CURRENT_LIST_DIR}/OpenVINOTargets.cmake")
+endif()
+
 if(NOT _OV_ENABLE_OPENVINO_BUILD_SHARED)
+    # common openvino dependencies
     _ov_find_tbb()
+
+    _ov_find_itt()
+    _ov_find_pugixml()
+
+    # preprocessing dependencies
+    _ov_find_ade()
+
+    # frontend dependencies
+    _ov_find_protobuf_frontend_dependency()
+    _ov_find_tensorflow_frontend_dependencies()
+    _ov_find_onnx_frontend_dependencies()
+
+    # plugin dependencies
+    _ov_find_intel_cpu_dependencies()
+    _ov_find_intel_gpu_dependencies()
     _ov_find_intel_gna_dependencies()
 endif()
 
@@ -279,33 +525,24 @@ _ov_find_dependency(Threads)
 
 unset(_OV_ENABLE_OPENVINO_BUILD_SHARED)
 
-set (RUNTIME_AND_FRONTEND_TARGETS openvino::runtime openvino::runtime::c
+set(_ov_imported_libs openvino::runtime openvino::runtime::c
    openvino::frontend::onnx openvino::frontend::paddle openvino::frontend::tensorflow
    openvino::frontend::pytorch openvino::frontend::tensorflow_lite)
 
-if(NOT TARGET openvino)
-    set(_ov_as_external_package ON)
-    include("${CMAKE_CURRENT_LIST_DIR}/OpenVINOTargets.cmake")
-
-    foreach(target ${RUNTIME_AND_FRONTEND_TARGETS})
+if(_ov_as_external_package)
+    foreach(target IN LISTS _ov_imported_libs)
         if(TARGET ${target})
-            get_target_property(ORIGINAL_NAME ${target} ALIASED_TARGET)
-            if (ORIGINAL_NAME MATCHES "ORIGINAL_NAME-NOTFOUND")
-                set (ORIGINAL_NAME ${target})
-            endif()
             get_target_property(imported_configs ${target} IMPORTED_CONFIGURATIONS)
-            if(RELWITHDEBINFO IN_LIST imported_configs)
-                set (MAP_CONFIG RELWITHDEBINFO)
-            else()
-                set (MAP_CONFIG RELEASE)
+            if(NOT RELWITHDEBINFO IN_LIST imported_configs)
+                set_property(TARGET ${target} PROPERTY MAP_IMPORTED_CONFIG_RELWITHDEBINFO RELEASE)
             endif()
-            set_property(TARGET ${ORIGINAL_NAME} PROPERTY MAP_IMPORTED_CONFIG_RELWITHDEBINFO ${MAP_CONFIG})
+            unset(imported_configs)
         endif()
     endforeach()
 
     # WA for cmake version < 3.16 which does not export
     # IMPORTED_LINK_DEPENDENT_LIBRARIES_** properties if no PUBLIC dependencies for the library
-    if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBB_FOUND)
+    if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
         foreach(type RELEASE DEBUG RELWITHDEBINFO MINSIZEREL)
             foreach(tbb_target TBB::tbb TBB::tbbmalloc PkgConfig::tbb)
                 if(TARGET ${tbb_target})
@@ -346,11 +583,12 @@ endif()
 # Apply common functions
 #
 
-foreach(target ${RUNTIME_AND_FRONTEND_TARGETS})
+foreach(target IN LISTS _ov_imported_libs)
     if(TARGET ${target} AND _ov_as_external_package)
         _ov_target_no_deprecation_error(${target})
     endif()
 endforeach()
+unset(_ov_imported_libs)
 unset(_ov_as_external_package)
 
 # restore PACKAGE_PREFIX_DIR
@@ -364,10 +602,11 @@ if(_need_package_name_reset)
     unset(_need_package_name_reset)
 endif()
 
-unset(RUNTIME_AND_FRONTEND_TARGETS)
 unset(${CMAKE_FIND_PACKAGE_NAME}_IR_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_Paddle_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_ONNX_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_TensorFlow_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_TensorFlowLite_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_PyTorch_FOUND)
+
+cmake_policy(POP)

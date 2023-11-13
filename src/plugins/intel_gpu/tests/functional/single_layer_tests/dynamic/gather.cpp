@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/gather.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include <string>
 
@@ -42,17 +42,17 @@ public:
 
         std::ostringstream result;
         result << "IS=(";
-        result << CommonTestUtils::partialShape2str({Shapes.inputShapes.first}) << "_";
+        result << ov::test::utils::partialShape2str({Shapes.inputShapes.first}) << "_";
         for (size_t i = 0lu; i < Shapes.inputShapes.second.size(); i++) {
             result << "{";
-            result << CommonTestUtils::vec2str(Shapes.inputShapes.second[i]) << "_";
+            result << ov::test::utils::vec2str(Shapes.inputShapes.second[i]) << "_";
             result << "}_";
         }
         result << "TS=(";
-        result << CommonTestUtils::partialShape2str({Shapes.targetShapes.first}) << "_";
+        result << ov::test::utils::partialShape2str({Shapes.targetShapes.first}) << "_";
         for (size_t i = 0lu; i < Shapes.targetShapes.second.size(); i++) {
             result << "{";
-            result << CommonTestUtils::vec2str(Shapes.targetShapes.second[i]) << "_";
+            result << ov::test::utils::vec2str(Shapes.targetShapes.second[i]) << "_";
             result << "}_";
         }
         result << "axis=" << Shapes.axis << "_";
@@ -75,7 +75,7 @@ protected:
         std::tie(Shapes, netPrecision, isIndicesConstant, isAxisConstant) = this->GetParam();
         const int axis = Shapes.axis;
         const int batchDims = Shapes.batch_dims;
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
         std::shared_ptr<ov::Node> indicesNode;
         std::shared_ptr<ov::Node> gatherNode;
         std::shared_ptr<ov::Node> axisNode;
@@ -119,14 +119,11 @@ protected:
             params.back()->set_friendly_name("axis");
         }
 
-        auto paramOuts =
-            ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
-
-        gatherNode = std::make_shared<ov::op::v7::Gather>(paramOuts[0],
-                                                          isIndicesConstant ? indicesNode : paramOuts[1],
+        gatherNode = std::make_shared<ov::op::v7::Gather>(params[0],
+                                                          isIndicesConstant ? indicesNode : params[1],
                                                           isAxisConstant    ? axisNode
-                                                                            : isIndicesConstant ? paramOuts[1]
-                                                                            : paramOuts[2],
+                                                                            : isIndicesConstant ? params[1]
+                                                                            : params[2],
                                                           batchDims);
         ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(gatherNode)};
         function = std::make_shared<ngraph::Function>(results, params, "Gather");

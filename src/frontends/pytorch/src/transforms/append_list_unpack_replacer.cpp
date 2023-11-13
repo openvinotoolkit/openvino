@@ -21,6 +21,8 @@ namespace frontend {
 namespace pytorch {
 namespace pass {
 
+using namespace ov::op;
+
 AppendListUnpackReplacer::AppendListUnpackReplacer() {
     auto list_unpack = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
 
@@ -30,7 +32,7 @@ AppendListUnpackReplacer::AppendListUnpackReplacer() {
             return false;
 
         OutputVector tmp_inputs;
-        NodeVector rt_copy_from{list_unpack};
+        NodeVector rt_copy_from;
         auto input_node = list_unpack->input_value(0).get_node_shared_ptr();
 
         // Optional aten::__getitem__ node.
@@ -60,25 +62,26 @@ AppendListUnpackReplacer::AppendListUnpackReplacer() {
             // If aten::__getitem__, expect inputs to be equivalent of pytorch Tensor[][].
             // Tensor selected by aten::__getitem__ index needs to be splitted in axis 0.
             auto getitem_index_ptr = getitem_node->input_value(1).get_node_shared_ptr();
-            auto getitem_index_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(getitem_index_ptr);
+            auto getitem_index_const = std::dynamic_pointer_cast<v0::Constant>(getitem_index_ptr);
             auto index_val = getitem_index_const->cast_vector<int64_t>();
             if (index_val.size() != 1) {
+                add_exception_to_fw_node(list_unpack, "prim::ListUnpack: index of aten::__getitem__ is not scalar.");
                 return false;
             }
             auto index = index_val[0];
             if (index_val[0] < 0) {
                 index = inputs.size() + index;
             }
-            auto axis_0 = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
-            auto split = std::make_shared<ov::op::v1::Split>(inputs[index], axis_0, list_unpack->get_output_size());
+            auto axis_0 = v0::Constant::create(element::i32, Shape{}, {0});
+            auto split = std::make_shared<v1::Split>(inputs[index], axis_0, list_unpack->get_output_size());
             NodeVector to_copy_rt{axis_0, split};
             OutputVector res;
-            for (auto output : split->outputs()) {
-                auto squeeze = std::make_shared<ov::op::v0::Squeeze>(output, axis_0);
+            for (auto& output : split->outputs()) {
+                auto squeeze = std::make_shared<v0::Squeeze>(output, axis_0);
                 to_copy_rt.push_back(squeeze);
                 res.push_back(squeeze);
             }
-            copy_runtime_info(rt_copy_from, to_copy_rt);
+            copy_runtime_info_and_name(list_unpack, to_copy_rt, rt_copy_from);
             replace_node(list_unpack, res);
             return true;
         } else {

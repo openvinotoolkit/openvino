@@ -9,13 +9,12 @@
 #include <pybind11/stl.h>
 #include <pybind11/iostream.h>
 
-#include <openvino/core/type/element_type.hpp>
-#include <ngraph/runtime/shared_buffer.hpp>
 #include <string>
 #include <iterator>
 #include <climits>
 
 #include "Python.h"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -58,7 +57,7 @@ std::vector<size_t> get_strides(const py::array& array);
 
 py::array as_contiguous(py::array& array, ov::element::Type type);
 
-py::array array_from_tensor(ov::Tensor&& t);
+py::array array_from_tensor(ov::Tensor&& t, bool is_shared);
 
 }; // namespace array_helpers
 
@@ -84,6 +83,8 @@ T object_from_data(D& data, bool shared_memory) {
 
 ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const ov::element::Type& ov_type);
 
+ov::Tensor tensor_from_pointer(py::array& array, const ov::Output<const ov::Node>& port);
+
 ov::PartialShape partial_shape_from_list(const py::list& shape);
 
 const ov::Tensor& cast_to_tensor(const py::handle& tensor);
@@ -92,9 +93,20 @@ void set_request_tensors(ov::InferRequest& request, const py::dict& inputs);
 
 uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual);
 
-py::dict outputs_to_dict(InferRequestWrapper& request);
+py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs);
 
 ov::pass::Serialize::Version convert_to_version(const std::string& version);
+
+template <typename T>
+std::string get_class_name(const T& obj) {
+    return py::str(py::cast(obj).get_type().attr("__name__"));
+}
+
+template <typename T>
+std::string get_simple_repr(const T& obj) {
+    std::string class_name = get_class_name(obj);
+    return "<" + class_name + ">";
+}
 
 // Use only with classes that are not creatable by users on Python's side, because
 // Objects created in Python that are wrapped with such wrapper will cause memory leaks.

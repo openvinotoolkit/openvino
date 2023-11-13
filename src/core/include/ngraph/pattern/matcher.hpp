@@ -4,6 +4,16 @@
 
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(NGRAPH_LEGACY_HEADER_INCLUDED)
+#    define NGRAPH_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <memory.h>
 
 #include <algorithm>
@@ -31,6 +41,5 @@ using ov::pass::GraphRewrite;
 namespace pattern {
 using ov::pass::pattern::Matcher;
 using ov::pass::pattern::MatcherState;
-using ov::pass::pattern::RecurrentMatcher;
 }  // namespace pattern
 }  // namespace ngraph

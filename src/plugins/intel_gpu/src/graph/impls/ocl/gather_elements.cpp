@@ -38,7 +38,7 @@ static inline kernel_selector::gather_elements_axis convert_axis(int64_t axis, s
             else
                 return kernel_selector::gather_elements_axis::X;
         case 5: return kernel_selector::gather_elements_axis::X;
-        default: IE_THROW() << "Incorrect gather_elements axis.";
+        default: OPENVINO_THROW("Incorrect gather_elements axis.");
     }
 }
 
@@ -48,7 +48,7 @@ struct gather_elements_impl : typed_primitive_impl_ocl<gather_elements> {
     using kernel_selector_t = kernel_selector::gather_elements_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::gather_elements_params, kernel_selector::gather_elements_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::gather_elements_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<gather_elements_impl>(*this);
@@ -101,3 +101,4 @@ attach_gather_elements_impl::attach_gather_elements_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_elements_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::gather_elements)

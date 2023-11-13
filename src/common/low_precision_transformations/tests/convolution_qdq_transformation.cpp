@@ -10,28 +10,28 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <low_precision/convolution.hpp>
+#include "transformations/utils/utils.hpp"
+#include "transformations/init_node_info.hpp"
+#include "low_precision/convolution.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/fake_quantize_and_convolution_function.hpp"
+#include "ov_lpt_models/fake_quantize_and_convolution.hpp"
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 class ConvolutionQDqTransformationTestValues {
 public:
     class Values {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
         ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
         ngraph::builder::subgraph::Constant weights;
-        builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
-        ngraph::element::Type precisionAfterOperation;
+        ngraph:: builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+        ov::element::Type precisionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
@@ -41,7 +41,7 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::PartialShape,
+    ov::PartialShape,
     ConvolutionQDqTransformationTestValues> ConvolutionQDqTransformationParams;
 
 class ConvolutionQDqTransformation : public LayerTransformation, public testing::WithParamInterface<ConvolutionQDqTransformationParams> {
@@ -63,7 +63,7 @@ public:
             testValues.actual.dequantizationAfter);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(testValues.params);
+        transform.add<ov::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
@@ -106,11 +106,11 @@ TEST_P(ConvolutionQDqTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> suitablePartialShapes = {
-    ngraph::PartialShape({ 1, 3, 72, 48 }),
-    ngraph::PartialShape({ 4, 3, 72, 48 }),
-    ngraph::PartialShape({ -1, 3, 72, 48 }),
-    ngraph::PartialShape({ -1, -1, -1, -1 }),
+const std::vector<ov::PartialShape> suitablePartialShapes = {
+    ov::PartialShape({ 1, 3, 72, 48 }),
+    ov::PartialShape({ 4, 3, 72, 48 }),
+    ov::PartialShape({ -1, 3, 72, 48 }),
+    ov::PartialShape({ -1, -1, -1, -1 }),
 };
 
 const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
@@ -148,40 +148,40 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
         // ActualValues
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
+                {ov::element::f32},
                 { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
                 { {0.02f}, element::f32, {}, false }
             },
             {
-                { ngraph::element::f32, false },
+                { ov::element::f32, false },
                 { {127.f}, element::f32, {}, false, 1ul, element::i8, true },
                 { {0.03f}, element::f32, {}, false }
             },
-            { std::vector<float>{ 1.f }, ngraph::element::f32},
+            { std::vector<float>{ 1.f }, ov::element::f32},
             { 255ul, Shape({ 1, 1, 1, 1 }), { -1.28f }, { 1.27f }, { -128.f }, { 127.f }, element::i8 },
-            ngraph::element::f32,
+            ov::element::f32,
             {}
         },
         // ExpectedValues
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
                 {},
-                { { 127.f }, ngraph::element::f32, { 1, 3, 1, 1 }, false },
+                { { 127.f }, ov::element::f32, { 1, 3, 1, 1 }, false },
                 {}
             },
             {
                 {},
-                { { 127.f }, ngraph::element::f32, { 6, 1, 1, 1 }, false, 1ul, element::i8, false,
+                { { 127.f }, ov::element::f32, { 6, 1, 1, 1 }, false, 1ul, element::i8, false,
                   { {ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()} } },
                 {}
             },
-            { std::vector<float>{ 100.f }, ngraph::element::i8},
+            { std::vector<float>{ 100.f }, ov::element::i8},
             {},
-            ngraph::element::f32,
-            {{}, {}, {{ 0.0006f }, ngraph::element::f32, {}}}
+            ov::element::f32,
+            {{}, {}, {{ 0.0006f }, ov::element::f32, {}}}
         }
     },
 
@@ -217,23 +217,23 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
         // ActualValues
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, { {127.f}, element::f32, {}, false, 1ul, element::u8, true }, { 0.02f }},
+            ov::element::u8,
+            {{ov::element::f32}, { {127.f}, element::f32, {}, false, 1ul, element::u8, true }, { 0.02f }},
             {},
-            { std::vector<float>{ 2.f }, ngraph::element::f32},
+            { std::vector<float>{ 2.f }, ov::element::f32},
             { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
-            ngraph::element::f32,
+            ov::element::f32,
             {}
         },
         // ExpectedValues
         {
-            ngraph::element::u8,
-            {{}, { { 127.f }, ngraph::element::f32, { 1, 3, 1, 1 }, false }, {}},
+            ov::element::u8,
+            {{}, { { 127.f }, ov::element::f32, { 1, 3, 1, 1 }, false }, {}},
             {},
-            { std::vector<float>{ -125.f }, ngraph::element::i8},
+            { std::vector<float>{ -125.f }, ov::element::i8},
             {},
-            ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}}
+            ov::element::f32,
+            {{}, {}, {{ 0.0002f }, ov::element::f32, {}}}
         }
     },
 
@@ -272,22 +272,22 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
         // ActualValues
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, { {127.f}, element::f32, {}, false, 1ul, element::u8, true }, { 0.02f }},
-            {{ngraph::element::f32}, { {127.f}, element::f32, {}, false, 1ul, element::i8, true }, { 0.03f }},
-            { std::vector<float>{ 2.f }, ngraph::element::f32},
+            ov::element::u8,
+            {{ov::element::f32}, { {127.f}, element::f32, {}, false, 1ul, element::u8, true }, { 0.02f }},
+            {{ov::element::f32}, { {127.f}, element::f32, {}, false, 1ul, element::i8, true }, { 0.03f }},
+            { std::vector<float>{ 2.f }, ov::element::f32},
             {},
-            ngraph::element::f32,
+            ov::element::f32,
             {}
         },
         // ExpectedValues
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, { {127.f}, element::f32, {}, false, 1ul, element::u8, true }, { 0.02f }},
+            ov::element::u8,
+            {{ov::element::f32}, { {127.f}, element::f32, {}, false, 1ul, element::u8, true }, { 0.02f }},
             {},
-            { std::vector<float>{ -3.75f }, ngraph::element::f32},
+            { std::vector<float>{ -3.75f }, ov::element::f32},
             {},
-            ngraph::element::f32,
+            ov::element::f32,
             {}
         }
     },
@@ -324,40 +324,40 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
         // ActualValues
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                { ngraph::element::f32, false },
+                { ov::element::f32, false },
                 { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
                 { {0.02f}, element::f32, {}, false }
             },
             {
-                { ngraph::element::f32, false },
+                { ov::element::f32, false },
                 { {127.f}, element::f32, {}, false, 1ul, element::i8, true },
                 { {0.03f}, element::f32, {}, false }
             },
-            { std::vector<float>{ 2.f }, ngraph::element::i8},
+            { std::vector<float>{ 2.f }, ov::element::i8},
             {},
-            ngraph::element::f32,
+            ov::element::f32,
             {}
         },
         // ExpectedValues
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
                 {},
-                { { 127.f }, ngraph::element::f32, { 1, 3, 1, 1 }, false },
+                { { 127.f }, ov::element::f32, { 1, 3, 1, 1 }, false },
                 {}
             },
             {
                 {},
-                { { 127.f }, ngraph::element::f32, { 6, 1, 1, 1 }, false, 1ul, element::i8, false,
+                { { 127.f }, ov::element::f32, { 6, 1, 1, 1 }, false, 1ul, element::i8, false,
                   { {ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()} } },
                 {}
             },
-            { std::vector<float>{ 2.f }, ngraph::element::i8},
+            { std::vector<float>{ 2.f }, ov::element::i8},
             {},
-            ngraph::element::f32,
-            {{}, {}, {{ 0.0006f }, ngraph::element::f32, {}}}
+            ov::element::f32,
+            {{}, {}, {{ 0.0006f }, ov::element::f32, {}}}
         }
     },
 
@@ -393,40 +393,40 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
         // ActualValues
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                { ngraph::element::f32, false },
+                { ov::element::f32, false },
                 { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
                 { {0.02f}, element::f32, {}, false }
             },
             {
-                { ngraph::element::f32, false },
+                { ov::element::f32, false },
                 { {127.f}, element::f32, {}, false },
                 { {0.03f}, element::f32, {}, false }
             },
-            { std::vector<float>{ 2.f }, ngraph::element::i8},
+            { std::vector<float>{ 2.f }, ov::element::i8},
             {},
-            ngraph::element::f32,
+            ov::element::f32,
             {}
         },
         // ExpectedValues
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
                 {},
-                { { 127.f }, ngraph::element::f32, { 1, 3, 1, 1 }, false },
+                { { 127.f }, ov::element::f32, { 1, 3, 1, 1 }, false },
                 {}
             },
             {
                 {},
-                { { 127.f }, ngraph::element::f32, { 6, 1, 1, 1 }, false, 1ul, element::i8, false,
+                { { 127.f }, ov::element::f32, { 6, 1, 1, 1 }, false, 1ul, element::i8, false,
                   { {ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()} } },
                 {}
             },
-            { std::vector<float>{ 2.f }, ngraph::element::i8},
+            { std::vector<float>{ 2.f }, ov::element::i8},
             {},
-            ngraph::element::f32,
-            {{}, {}, {{ 0.0006f }, ngraph::element::f32, {}}}
+            ov::element::f32,
+            {{}, {}, {{ 0.0006f }, ov::element::f32, {}}}
         }
     },
     // incorrect zero point on activations [not transformed]
@@ -434,34 +434,34 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
         // ActualValues
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                { ngraph::element::f32, false },
+                { ov::element::f32, false },
                 { {1000.f}, element::f32, {}, false },
                 { {0.02f}, element::f32, {}, false }
             },
             {
-                { ngraph::element::f32, false },
+                { ov::element::f32, false },
                 { {127.f}, element::f32, {}, false },
                 { {0.03f}, element::f32, {}, false }
             },
-            { std::vector<float>{ 2.f }, ngraph::element::i8},
+            { std::vector<float>{ 2.f }, ov::element::i8},
             {},
-            ngraph::element::f32,
+            ov::element::f32,
             {}
         },
         // ExpectedValues
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                { ngraph::element::f32, false },
+                { ov::element::f32, false },
                 { {1000.f}, element::f32, {}, false },
                 { {0.02f}, element::f32, {}, false }
             },
             {},
-            { std::vector<float>{ -3.75f }, ngraph::element::f32},
+            { std::vector<float>{ -3.75f }, ov::element::f32},
             {},
-            ngraph::element::f32,
+            ov::element::f32,
             {}
         }
     },
@@ -470,34 +470,34 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
         // ActualValues
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                { ngraph::element::f32, false },
+                { ov::element::f32, false },
                 { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
                 { {0.02f}, element::f32, {}, false }
             },
             {
-                { ngraph::element::f32, false },
+                { ov::element::f32, false },
                 { {1000.f}, element::f32, {}, false },
                 { {0.03f}, element::f32, {}, false }
             },
-            { std::vector<float>{ 2.f }, ngraph::element::i8},
+            { std::vector<float>{ 2.f }, ov::element::i8},
             {},
-            ngraph::element::f32,
+            ov::element::f32,
             {}
         },
         // ExpectedValues
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                { ngraph::element::f32, false },
+                { ov::element::f32, false },
                 { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
                 { {0.02f}, element::f32, {}, false }
             },
             {},
-            { std::vector<float>{ -29.94f }, ngraph::element::f32},
+            { std::vector<float>{ -29.94f }, ov::element::f32},
             {},
-            ngraph::element::f32,
+            ov::element::f32,
             {}
         }
     },
@@ -513,7 +513,7 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> unsuitablePartialShapes = {
+const std::vector<ov::PartialShape> unsuitablePartialShapes = {
     PartialShape::dynamic(),
 };
 
@@ -522,34 +522,34 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
         // ActualValues
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                { ngraph::element::f32, false },
+                { ov::element::f32, false },
                 { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
                 { {0.02f}, element::f32, {}, false }
             },
             {
-                { ngraph::element::f32, false },
+                { ov::element::f32, false },
                 { {127.f}, element::f32, {}, false, 1ul, element::i8, true },
                 { {0.03f}, element::f32, {}, false }
             },
-            { std::vector<float>{ 2.f }, ngraph::element::i8},
+            { std::vector<float>{ 2.f }, ov::element::i8},
             {},
-            ngraph::element::f32,
+            ov::element::f32,
             {}
         },
         // ExpectedValues
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                { ngraph::element::f32, false },
+                { ov::element::f32, false },
                 { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
                 { {0.02f}, element::f32, {}, false }
             },
             {},
-            { std::vector<float>{ -3.75 }, ngraph::element::f32},
+            { std::vector<float>{ -3.75 }, ov::element::f32},
             {},
-            ngraph::element::f32,
+            ov::element::f32,
             {}
         }
     }

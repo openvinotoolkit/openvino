@@ -4,7 +4,7 @@
 
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/common_utils.hpp"
 
 #include <algorithm>
@@ -29,8 +29,8 @@ public:
         SizeVector inputShapeA = supportedInputShapes.first; SizeVector inputShapeB = supportedInputShapes.second;
 
         std::ostringstream result;
-        result << "IS_A=" << CommonTestUtils::vec2str(inputShapeA) << "_";
-        result << "IS_B=" << CommonTestUtils::vec2str(inputShapeB) << "_";
+        result << "IS_A=" << ov::test::utils::vec2str(inputShapeA) << "_";
+        result << "IS_B=" << ov::test::utils::vec2str(inputShapeB) << "_";
         result << CpuTestWithFusing::getTestCaseName(fusingParams);
 
         return result.str();
@@ -38,7 +38,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         std::pair<SizeVector, SizeVector> inShapes;
         fusingSpecificParams fusingParams;
         std::tie(inShapes, fusingParams) = this->GetParam();
@@ -54,9 +54,9 @@ protected:
             std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
         const auto ngPrec = element::f32;
-        auto inputParams = builder::makeParams(ngPrec, {inShapes.first, inShapes.second});
-        const auto outputNodes = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(inputParams));
-        const auto matMul = builder::makeMatMul(outputNodes[0], outputNodes[1], false, false);
+        ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ngPrec, ov::Shape(inShapes.first)),
+                                        std::make_shared<ov::op::v0::Parameter>(ngPrec, ov::Shape(inShapes.second))};
+        const auto matMul = builder::makeMatMul(inputParams[0], inputParams[1], false, false);
 
         selectedType = makeSelectedTypeStr(with_cpu_x86_avx512_core() ? "brgemm_avx512" : "jit_gemm", ngPrec);
 

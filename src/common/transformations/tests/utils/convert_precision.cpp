@@ -2,28 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/convert_precision.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/opsets/opset4.hpp>
-#include <openvino/opsets/opset5.hpp>
-#include <openvino/opsets/opset8.hpp>
-#include <openvino/pass/manager.hpp>
-#include <openvino/pass/visualize_tree.hpp>
-#include <ov_ops/type_relaxed.hpp>
 #include <queue>
 #include <string>
-#include <transformations/common_optimizations/disable_shapeof_constant_folding.hpp>
-#include <transformations/convert_precision.hpp>
-#include <transformations/utils/utils.hpp>
 #include <vector>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset4.hpp"
+#include "openvino/opsets/opset5.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset9.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/visualize_tree.hpp"
+#include "ov_ops/type_relaxed.hpp"
+#include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -98,10 +100,11 @@ TEST(TransformationTests, ConvertPrecision_NMS4) {
 
         static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-
+    ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
 }
@@ -130,8 +133,78 @@ TEST(TransformationTests, ConvertPrecision_NMS5) {
 
     pass::Manager manager;
     static const precisions_map precisions = {{element::i64, element::i32}, {element::f32, element::f16}};
+    manager.register_pass<pass::InitNodeInfo>();
     manager.register_pass<pass::ConvertPrecision>(precisions);
     manager.run_passes(f);
+    ASSERT_NO_THROW(check_rt_info(f));
+    ASSERT_FALSE(has_type<element::Type_t::i64>(f));
+    ASSERT_FALSE(has_type<element::Type_t::f32>(f));
+}
+
+TEST(TransformationTests, DoubleConvertPrecision_NMS5) {
+    std::shared_ptr<Model> f;
+    {
+        auto boxes = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1000, 4});
+        auto scores = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1000});
+        auto max_output_boxes_per_class = opset5::Constant::create(element::i64, Shape{}, {10});
+        auto iou_threshold = opset5::Constant::create(element::f32, Shape{}, {0.75});
+        auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.7});
+        auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes,
+                                                               scores,
+                                                               max_output_boxes_per_class,
+                                                               iou_threshold,
+                                                               score_threshold,
+                                                               opset5::NonMaxSuppression::BoxEncodingType::CORNER,
+                                                               true);
+
+        auto result1 = std::make_shared<opset5::Result>(nms->output(0));
+        auto result2 = std::make_shared<opset5::Result>(nms->output(1));
+        auto result3 = std::make_shared<opset5::Result>(nms->output(2));
+        f = std::make_shared<Model>(ResultVector{result1, result2, result3}, ParameterVector{boxes, scores});
+    }
+
+    pass::Manager manager;
+    static const precisions_map precisions1 = {{element::f32, element::f16}};
+    static const precisions_map precisions2 = {{element::i64, element::i32}};
+    manager.register_pass<pass::InitNodeInfo>();
+    manager.register_pass<pass::ConvertPrecision>(precisions1);
+    manager.register_pass<pass::ConvertPrecision>(precisions2);
+    manager.run_passes(f);
+    ASSERT_NO_THROW(check_rt_info(f));
+    ASSERT_FALSE(has_type<element::Type_t::i64>(f));
+    ASSERT_FALSE(has_type<element::Type_t::f32>(f));
+}
+
+TEST(TransformationTests, DoubleConvertPrecision_NMS9) {
+    std::shared_ptr<Model> f;
+    {
+        auto boxes = std::make_shared<opset9::Parameter>(element::f32, Shape{1, 1000, 4});
+        auto scores = std::make_shared<opset9::Parameter>(element::f32, Shape{1, 1, 1000});
+        auto max_output_boxes_per_class = opset9::Constant::create(element::i64, Shape{}, {10});
+        auto iou_threshold = opset9::Constant::create(element::f32, Shape{}, {0.75});
+        auto score_threshold = opset9::Constant::create(element::f32, Shape{}, {0.7});
+        auto nms = std::make_shared<opset9::NonMaxSuppression>(boxes,
+                                                               scores,
+                                                               max_output_boxes_per_class,
+                                                               iou_threshold,
+                                                               score_threshold,
+                                                               opset9::NonMaxSuppression::BoxEncodingType::CORNER,
+                                                               true);
+
+        auto result1 = std::make_shared<opset9::Result>(nms->output(0));
+        auto result2 = std::make_shared<opset9::Result>(nms->output(1));
+        auto result3 = std::make_shared<opset9::Result>(nms->output(2));
+        f = std::make_shared<Model>(ResultVector{result1, result2, result3}, ParameterVector{boxes, scores});
+    }
+
+    pass::Manager manager;
+    static const precisions_map precisions1 = {{element::f32, element::f16}};
+    static const precisions_map precisions2 = {{element::i64, element::i32}};
+    manager.register_pass<pass::InitNodeInfo>();
+    manager.register_pass<pass::ConvertPrecision>(precisions1);
+    manager.register_pass<pass::ConvertPrecision>(precisions2);
+    manager.run_passes(f);
+    ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
     ASSERT_FALSE(has_type<element::Type_t::f32>(f));
 }
@@ -153,8 +226,10 @@ TEST(TransformationTests, ConvertPrecision_MatrixNms) {
 
     pass::Manager manager;
     static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+    manager.register_pass<pass::InitNodeInfo>();
     manager.register_pass<pass::ConvertPrecision>(precisions);
     manager.run_passes(f);
+    ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
 }
@@ -176,8 +251,10 @@ TEST(TransformationTests, ConvertPrecision_MulticlassNms) {
 
     pass::Manager manager;
     static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+    manager.register_pass<pass::InitNodeInfo>();
     manager.register_pass<pass::ConvertPrecision>(precisions);
     manager.run_passes(f);
+    ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
 }
@@ -194,10 +271,11 @@ TEST(TransformationTests, ConvertPrecision_ShapeOf) {
 
         static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-
+    ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
 }
@@ -216,10 +294,11 @@ TEST(TransformationTests, ConvertPrecision_Range) {
 
         static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-
+    ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
 }
@@ -237,10 +316,11 @@ TEST(TransformationTests, ConvertPrecision_ConstantRelu) {
 
         static const precisions_map precisions = {{element::f16, element::f32}};
 
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-
+    ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
 }
@@ -257,10 +337,11 @@ TEST(TransformationTests, ConvertPrecision_Convert) {
 
         static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-
+    ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
 }
@@ -275,6 +356,7 @@ TEST(TransformationTests, ConvertPrecision_ConvertElimination) {
         f = std::make_shared<Model>(NodeVector{convert}, ParameterVector{input});
 
         pass::Manager manager;
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f16, element::f32}});
         manager.run_passes(f);
         ASSERT_FALSE(has_type<element::Type_t::f16>(f));
@@ -286,7 +368,7 @@ TEST(TransformationTests, ConvertPrecision_ConvertElimination) {
 
         f_ref = std::make_shared<Model>(NodeVector{relu}, ParameterVector{input});
     }
-
+    ASSERT_NO_THROW(check_rt_info(f));
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
@@ -304,10 +386,11 @@ TEST(TransformationTests, ConvertPrecision_TopK) {
 
         static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-
+    ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
 }
@@ -324,10 +407,11 @@ TEST(TransformationTests, ConvertPrecision_Unique10) {
 
         static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<ov::pass::ConvertPrecision>(precisions);
         manager.run_passes(model);
     }
-
+    ASSERT_NO_THROW(check_rt_info(model));
     ASSERT_EQ(model->outputs().size(), 4);
     EXPECT_EQ(model->outputs()[0].get_element_type(), element::f32);
     EXPECT_EQ(model->outputs()[1].get_element_type(), element::i32);
@@ -352,10 +436,11 @@ TEST(TransformationTests, ConvertPrecision_NonZero) {
 
         static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-
+    ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
 }
@@ -373,10 +458,11 @@ TEST(TransformationTests, ConvertPrecision_Bucketize) {
 
         static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-
+    ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
 }
@@ -403,6 +489,7 @@ TEST(TransformationTests, ConvertPrecision_Roundings) {
 
         static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
 
@@ -412,7 +499,7 @@ TEST(TransformationTests, ConvertPrecision_Roundings) {
         ASSERT_EQ(casted_end->cast_vector<int32_t>(),
                   std::vector<int32_t>({max_int32, max_int32, max_int32, max_int32}));
     }
-
+    ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
 }
@@ -460,9 +547,11 @@ TEST(TransformationTests, ConvertPrecision_TIBody) {
 
         static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
 
+        ASSERT_NO_THROW(check_rt_info(f));
         ASSERT_FALSE(has_type<element::Type_t::f16>(f));
         ASSERT_FALSE(has_type<element::Type_t::i64>(f));
         ASSERT_FALSE(has_type<element::Type_t::f16>(tensor_iterator->get_body()));
@@ -483,10 +572,11 @@ TEST(TransformationTests, ConvertPrecision_Equal) {
 
         static const precisions_map precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
 
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-
+    ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
@@ -505,10 +595,11 @@ TEST(TransformationTests, ConvertPrecision_NotEqual) {
 
         static const precisions_map precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
 
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-
+    ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
@@ -527,10 +618,11 @@ TEST(TransformationTests, ConvertPrecision_Greater) {
 
         static const precisions_map precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
 
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-
+    ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
@@ -549,10 +641,11 @@ TEST(TransformationTests, ConvertPrecision_GreaterEqual) {
 
         static const precisions_map precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
 
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-
+    ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
@@ -571,10 +664,11 @@ TEST(TransformationTests, ConvertPrecision_Less) {
 
         static const precisions_map precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
 
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-
+    ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
@@ -593,10 +687,11 @@ TEST(TransformationTests, ConvertPrecision_LessEqual) {
 
         static const precisions_map precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
 
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-
+    ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
@@ -612,10 +707,11 @@ TEST(TransformationTests, ConvertPrecision_LogicalAnd) {
         f = std::make_shared<Model>(OutputVector{node}, ParameterVector{input1, input2});
 
         pass::Manager manager;
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::u8}});
         manager.run_passes(f);
     }
-
+    ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
 }
@@ -630,10 +726,11 @@ TEST(TransformationTests, ConvertPrecision_LogicalOr) {
         f = std::make_shared<Model>(OutputVector{node}, ParameterVector{input1, input2});
 
         pass::Manager manager;
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::u8}});
         manager.run_passes(f);
     }
-
+    ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
 }
@@ -648,10 +745,11 @@ TEST(TransformationTests, ConvertPrecision_LogicalXor) {
         f = std::make_shared<Model>(OutputVector{node}, ParameterVector{input1, input2});
 
         pass::Manager manager;
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::u8}});
         manager.run_passes(f);
     }
-
+    ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
 }
@@ -665,10 +763,11 @@ TEST(TransformationTests, ConvertPrecision_LogicalNot) {
         f = std::make_shared<Model>(OutputVector{node}, ParameterVector{input1});
 
         pass::Manager manager;
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::u8}});
         manager.run_passes(f);
     }
-
+    ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
 
@@ -691,10 +790,11 @@ TEST(TransformationTests, ConvertPrecision_Select) {
         f = std::make_shared<Model>(OutputVector{select}, ParameterVector{input1});
 
         pass::Manager manager;
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::u8}});
         manager.run_passes(f);
     }
-
+    ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
 }
@@ -709,11 +809,12 @@ TEST(TransformationTests, ConvertPrecision_TypeRelaxedWithSelect) {
         f = std::make_shared<Model>(OutputVector{select}, ParameterVector{input1});
 
         pass::Manager manager;
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::i32}});
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::i32, element::i64}});
         manager.run_passes(f);
     }
-
+    ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_FALSE(has_type<element::Type_t::i32>(f));
     ASSERT_TRUE(has_type<element::Type_t::i64>(f));
@@ -731,10 +832,12 @@ TEST(TransformationTests, ConvertPrecision_TypeRelaxed) {
         f = std::make_shared<Model>(OutputVector{type_relaxed}, ParameterVector{input1});
 
         pass::Manager manager;
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::i32}});
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::i32, element::i64}});
         manager.run_passes(f);
 
+        ASSERT_NO_THROW(check_rt_info(f));
         ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
         ASSERT_FALSE(has_type<element::Type_t::i32>(f));
         ASSERT_TRUE(has_type<element::Type_t::i64>(f));
@@ -757,10 +860,11 @@ TEST(TransformationTests, ConvertPrecision_Variables) {
         f = std::make_shared<Model>(NodeVector{mul}, ParameterVector{inp});
 
         pass::Manager manager;
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f16, element::f32}});
         manager.run_passes(f);
     }
-
+    ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
 }
 
@@ -788,12 +892,13 @@ TEST(TransformationTests, ConvertPrecision_skip_precision_sensitive) {
         pass::Manager manager;
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = true;
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
                                                       empty_type_to_fuse_map,
                                                       keep_precision_sensitive_in_fp32);
         manager.run_passes(model);
     }
-
+    ASSERT_NO_THROW(check_rt_info(model));
     ASSERT_TRUE(has_type<element::Type_t::f32>(model));
     ASSERT_TRUE(interpolate->input_value(2).get_element_type() == element::Type_t::f32);
 }
@@ -822,12 +927,13 @@ TEST(TransformationTests, ConvertPrecision_without_keep_precision_sensitive_in_f
         pass::Manager manager;
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = false;
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
                                                       empty_type_to_fuse_map,
                                                       keep_precision_sensitive_in_fp32);
         manager.run_passes(model);
     }
-
+    ASSERT_NO_THROW(check_rt_info(model));
     ASSERT_FALSE(has_type<element::Type_t::f32>(model));
     ASSERT_TRUE(interpolate->input_value(2).get_element_type() == element::Type_t::f16);
 }
@@ -846,6 +952,7 @@ TEST(TransformationTests, ConvertPrecision_check_marking_does_not_leak_in_trivia
 
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = true;
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
                                                       empty_type_to_fuse_map,
                                                       keep_precision_sensitive_in_fp32);
@@ -862,7 +969,8 @@ TEST(TransformationTests, ConvertPrecision_check_marking_does_not_leak_in_trivia
 
     const auto fc = FunctionsComparator::with_default()
                         .enable(FunctionsComparator::PRECISIONS)
-                        .enable(FunctionsComparator::CONST_VALUES);
+                        .enable(FunctionsComparator::CONST_VALUES)
+                        .enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
     const auto res = fc.compare(model, model_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
@@ -887,6 +995,7 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_1) {
 
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = true;
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
                                                       empty_type_to_fuse_map,
                                                       keep_precision_sensitive_in_fp32);
@@ -908,7 +1017,8 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_1) {
 
     const auto fc = FunctionsComparator::with_default()
                         .enable(FunctionsComparator::PRECISIONS)
-                        .enable(FunctionsComparator::CONST_VALUES);
+                        .enable(FunctionsComparator::CONST_VALUES)
+                        .enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
     const auto res = fc.compare(model, model_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
@@ -942,6 +1052,7 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_2) {
 
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = true;
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
                                                       empty_type_to_fuse_map,
                                                       keep_precision_sensitive_in_fp32);
@@ -972,7 +1083,8 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_2) {
 
     const auto fc = FunctionsComparator::with_default()
                         .enable(FunctionsComparator::PRECISIONS)
-                        .enable(FunctionsComparator::CONST_VALUES);
+                        .enable(FunctionsComparator::CONST_VALUES)
+                        .enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
     const auto res = fc.compare(model, model_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
@@ -1023,6 +1135,7 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_3) {
 
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = true;
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
                                                       empty_type_to_fuse_map,
                                                       keep_precision_sensitive_in_fp32);
@@ -1070,7 +1183,8 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_3) {
 
     const auto fc = FunctionsComparator::with_default()
                         .enable(FunctionsComparator::PRECISIONS)
-                        .enable(FunctionsComparator::CONST_VALUES);
+                        .enable(FunctionsComparator::CONST_VALUES)
+                        .enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
     const auto res = fc.compare(model, model_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
@@ -1101,12 +1215,13 @@ TEST(TransformationTests, ConvertCompressedToMixedPrecission_do_not_keep_in_fp32
         pass::Manager manager;
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = false;  // didn't keep in FP32 intentionally
+        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
                                                       empty_type_to_fuse_map,
                                                       keep_precision_sensitive_in_fp32);
         manager.run_passes(model);
     }
-
+    ASSERT_NO_THROW(check_rt_info(model));
     ASSERT_FALSE(has_type<element::Type_t::f32>(model));
     ASSERT_TRUE(interpolate->input_value(2).get_element_type() == element::Type_t::f16);
     ASSERT_TRUE(interpolate->output(0).get_partial_shape() == PartialShape({1, 3, 287, 511}));
@@ -1142,7 +1257,7 @@ void constant_convert_test(element::Type type_from,
     }
     ASSERT_TRUE(actual.size() >= expected.size());
     for (size_t i = 0; i < expected.size(); i++) {
-        ASSERT_EQ(expected[i], actual[i]);
+        EXPECT_EQ(expected[i], actual[i]) << "Elements with index " << i << " are not equal.";
     }
 }
 
@@ -1332,7 +1447,7 @@ TEST(TransformationTests, ConvertPrecision_ConstantConversion_U1ToU4) {
     constant_convert_test<uint8_t, uint8_t>(element::u1,
                                             element::u4,
                                             std::vector<uint8_t>{171},
-                                            {1, 0, 1, 0, 1, 0, 1, 1});
+                                            {0, 1, 0, 1, 0, 1, 1, 1});
 }
 
 TEST(TransformationTests, ConvertPrecision_keep_precission_sensitive_fp32_with_exp) {
@@ -1836,6 +1951,391 @@ TEST(TransformationTests, ConvertPrecision_disable_for_quantized_nodes_2) {
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
     }
 
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, ConvertPrecisionExplicitConvertsForParameterAndResult) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto param_1 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto sin = make_shared<opset10::Sin>(param_1);
+        sin->set_friendly_name("sine");
+        sin->get_output_tensor(0).add_names({"sine:0"});
+        auto result_sin = make_shared<opset10::Result>(sin);
+        model = make_shared<Model>(result_sin, ParameterVector{param_1});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = false;
+        bool convert_input_output_precision = false;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f64, element::f32}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32,
+                                                      convert_input_output_precision);
+        manager.run_passes(model);
+    }
+
+    {
+        auto param_1 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto converted_param = make_shared<opset10::Convert>(param_1, element::f32);
+        auto sin = make_shared<opset10::Sin>(converted_param);
+        auto converted_sin = make_shared<opset10::Convert>(sin, element::f64);
+        converted_sin->get_output_tensor(0).add_names({"sine:0"});
+        auto result_sin = make_shared<opset10::Result>(converted_sin);
+        model_ref = make_shared<Model>(result_sin, ParameterVector{param_1});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+
+    const auto& results = model->get_results();
+    ASSERT_EQ("sine", results[0]->get_input_node_ptr(0)->get_friendly_name());
+}
+
+TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiParam) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto param_1 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto convert_1 = make_shared<opset10::Convert>(param_1, element::f32);
+
+        auto param_2 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto convert_2 = make_shared<opset10::Convert>(param_2, element::i64);
+
+        auto param_3 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto param_4 = make_shared<opset10::Parameter>(element::i64, Shape{3});
+
+        auto add = make_shared<opset10::Add>(convert_2, param_4);
+        auto mul = make_shared<opset10::Multiply>(param_1, param_3);
+        auto sin = make_shared<opset10::Sin>(convert_1);
+
+        add->set_friendly_name("add");
+        add->get_output_tensor(0).add_names({"add:0"});
+        mul->set_friendly_name("mul");
+        mul->get_output_tensor(0).add_names({"mul:0"});
+        sin->set_friendly_name("sine");
+        sin->get_output_tensor(0).add_names({"sine:0"});
+
+        auto result_add = make_shared<opset10::Result>(add);
+        auto result_mul = make_shared<opset10::Result>(mul);
+        auto result_sin = make_shared<opset10::Result>(sin);
+
+        model = make_shared<Model>(ResultVector{result_add, result_mul, result_sin},
+                                   ParameterVector{param_1, param_2, param_3, param_4});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = false;
+        bool convert_input_output_precision = false;
+        manager.register_pass<pass::ConvertPrecision>(
+            precisions_map{{element::f64, element::f32}, {element::i64, element::i32}},
+            empty_type_to_fuse_map,
+            keep_precision_sensitive_in_fp32,
+            convert_input_output_precision);
+        manager.run_passes(model);
+    }
+
+    {
+        auto param_1 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto convert_1 = make_shared<opset10::Convert>(param_1, element::f32);
+
+        auto param_2 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto convert_2 = make_shared<opset10::Convert>(param_2, element::i32);
+
+        auto param_3 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto convert_3 = make_shared<opset10::Convert>(param_3, element::f32);
+        auto param_4 = make_shared<opset10::Parameter>(element::i64, Shape{3});
+        auto convert_4 = make_shared<opset10::Convert>(param_4, element::i32);
+
+        auto add = make_shared<opset10::Add>(convert_2, convert_4);
+        auto converted_add = make_shared<opset10::Convert>(add, element::i64);
+        auto convert_1_2 = make_shared<opset10::Convert>(param_1, element::f32);
+        auto mul = make_shared<opset10::Multiply>(convert_1_2, convert_3);
+        auto converted_mul = make_shared<opset10::Convert>(mul, element::f64);
+        auto sin = make_shared<opset10::Sin>(convert_1);
+
+        converted_add->get_output_tensor(0).add_names({"add:0"});
+        converted_mul->get_output_tensor(0).add_names({"mul:0"});
+        sin->get_output_tensor(0).add_names({"sine:0"});
+
+        auto result_add = make_shared<opset10::Result>(converted_add);
+        auto result_mul = make_shared<opset10::Result>(converted_mul);
+        auto result_sin = make_shared<opset10::Result>(sin);
+
+        model_ref = make_shared<Model>(ResultVector{result_add, result_mul, result_sin},
+                                       ParameterVector{param_1, param_2, param_3, param_4});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+
+    const auto& results = model->get_results();
+    ASSERT_EQ("add", results[0]->get_input_node_ptr(0)->get_friendly_name());
+    ASSERT_EQ("mul", results[1]->get_input_node_ptr(0)->get_friendly_name());
+    ASSERT_EQ("sine", results[2]->get_input_node_ptr(0)->get_friendly_name());
+}
+
+TEST(TransformationTests, ConvertPrecisionExplicitConvertsSingleNodeMultipleOutputs) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto param_1 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto axis = opset10::Constant::create(element::i32, Shape{}, {0});
+        auto split = make_shared<opset10::Split>(param_1, axis, 3);
+        split->set_friendly_name("split");
+        split->get_output_tensor(0).add_names({"split:0"});
+        split->get_output_tensor(1).add_names({"split:1"});
+        split->get_output_tensor(2).add_names({"split:2"});
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        ov::descriptor::set_ov_tensor_legacy_name(split->get_output_tensor(0), "legacy_split:0");
+        ov::descriptor::set_ov_tensor_legacy_name(split->get_output_tensor(1), "legacy_split:1");
+        ov::descriptor::set_ov_tensor_legacy_name(split->get_output_tensor(2), "legacy_split:2");
+        OPENVINO_SUPPRESS_DEPRECATED_END
+        model = make_shared<Model>(split->outputs(), ParameterVector{param_1});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = false;
+        bool convert_input_output_precision = false;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f64, element::f32}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32,
+                                                      convert_input_output_precision);
+        manager.run_passes(model);
+    }
+
+    {
+        auto param_1 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto convert_1 = make_shared<opset10::Convert>(param_1, element::f32);
+        auto axis = opset10::Constant::create(element::i32, Shape{}, {0});
+        auto split = make_shared<opset10::Split>(convert_1, axis, 3);
+
+        auto convert_split_0 = make_shared<opset10::Convert>(split->output(0), element::f64);
+        auto convert_split_1 = make_shared<opset10::Convert>(split->output(1), element::f64);
+        auto convert_split_2 = make_shared<opset10::Convert>(split->output(2), element::f64);
+        convert_split_0->get_output_tensor(0).add_names({"split:0"});
+        convert_split_1->get_output_tensor(0).add_names({"split:1"});
+        convert_split_2->get_output_tensor(0).add_names({"split:2"});
+        model_ref =
+            make_shared<Model>(NodeVector{convert_split_0, convert_split_1, convert_split_2}, ParameterVector{param_1});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+
+    const auto& results = model->get_results();
+    ASSERT_EQ("split.0", results[0]->get_input_node_ptr(0)->get_friendly_name());
+    ASSERT_EQ("split.1", results[1]->get_input_node_ptr(0)->get_friendly_name());
+    ASSERT_EQ("split.2", results[2]->get_input_node_ptr(0)->get_friendly_name());
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    ASSERT_EQ("legacy_split:0", ov::descriptor::get_ov_tensor_legacy_name(results[0]->get_input_tensor(0)));
+    ASSERT_EQ("legacy_split:1", ov::descriptor::get_ov_tensor_legacy_name(results[1]->get_input_tensor(0)));
+    ASSERT_EQ("legacy_split:2", ov::descriptor::get_ov_tensor_legacy_name(results[2]->get_input_tensor(0)));
+    OPENVINO_SUPPRESS_DEPRECATED_END
+}
+
+TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiSubgraphs) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto cond = make_shared<opset10::Parameter>(element::boolean, Shape{});
+        auto param_1 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto param_2 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+
+        auto if_op = make_shared<opset10::If>(cond);
+
+        auto param_1_then = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto param_2_then = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto add = make_shared<opset10::Add>(param_1_then, param_2_then);
+        auto result_then = make_shared<opset10::Result>(add);
+        auto then_body = make_shared<Model>(result_then, ParameterVector{param_1_then, param_2_then});
+
+        auto param_1_else = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto param_2_else = make_shared<opset10::Parameter>(element::f64, Shape{3});
+
+        auto trip_count = op::v0::Constant::create(element::i32, Shape{}, {2});
+        auto term_cond = op::v0::Constant::create(element::boolean, Shape{}, {true});
+        auto loop = make_shared<opset10::Loop>(trip_count, term_cond);
+
+        auto param_1_loop = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto param_2_loop = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto mul = make_shared<opset10::Multiply>(param_1_loop, param_2_loop);
+        auto result_mul = make_shared<opset10::Result>(mul);
+        auto result_cond = make_shared<opset10::Result>(term_cond);
+        auto loop_body =
+            make_shared<Model>(ResultVector{result_cond, result_mul}, ParameterVector{param_1_loop, param_2_loop});
+
+        loop->set_function(loop_body);
+        loop->set_special_body_ports({-1, 0});
+        loop->set_merged_input(param_1_loop, param_1_else, result_mul);
+
+        auto result_else = make_shared<opset10::Result>(loop->get_iter_value(result_mul));
+        auto else_body = make_shared<Model>(result_else, ParameterVector{param_1_else, param_2_else});
+
+        if_op->set_then_body(then_body);
+        if_op->set_else_body(else_body);
+        if_op->set_input(param_1, param_1_then, param_1_else);
+        if_op->set_input(param_2, param_2_then, param_2_else);
+        auto result = if_op->set_output(result_then, result_else);
+
+        result.get_node()->set_friendly_name("if_result");
+        result.add_names({"if_result:0"});
+        model = make_shared<Model>(OutputVector{result}, ParameterVector{cond, param_1, param_2});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = false;
+        bool convert_input_output_precision = false;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f64, element::f32}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32,
+                                                      convert_input_output_precision);
+        manager.run_passes(model);
+    }
+
+    {
+        auto cond = make_shared<opset10::Parameter>(element::boolean, Shape{});
+        auto param_1 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+        auto param_2 = make_shared<opset10::Parameter>(element::f64, Shape{3});
+
+        auto if_op = make_shared<opset10::If>(cond);
+
+        auto param_1_then = make_shared<opset10::Parameter>(element::f32, Shape{3});
+        auto param_2_then = make_shared<opset10::Parameter>(element::f32, Shape{3});
+        auto add = make_shared<opset10::Add>(param_1_then, param_2_then);
+        auto result_then = make_shared<opset10::Result>(add);
+        auto then_body = make_shared<Model>(result_then, ParameterVector{param_1_then, param_2_then});
+
+        auto param_1_else = make_shared<opset10::Parameter>(element::f32, Shape{3});
+        auto param_2_else = make_shared<opset10::Parameter>(element::f32, Shape{3});
+
+        auto trip_count = op::v0::Constant::create(element::i32, Shape{}, {2});
+        auto term_cond = op::v0::Constant::create(element::boolean, Shape{}, {true});
+        auto loop = make_shared<opset10::Loop>(trip_count, term_cond);
+
+        auto param_1_loop = make_shared<opset10::Parameter>(element::f32, Shape{3});
+        auto param_2_loop = make_shared<opset10::Parameter>(element::f32, Shape{3});
+        auto mul = make_shared<opset10::Multiply>(param_1_loop, param_2_loop);
+        auto result_mul = make_shared<opset10::Result>(mul);
+        auto result_cond = make_shared<opset10::Result>(term_cond);
+        auto loop_body =
+            make_shared<Model>(ResultVector{result_cond, result_mul}, ParameterVector{param_1_loop, param_2_loop});
+
+        loop->set_function(loop_body);
+        loop->set_special_body_ports({-1, 0});
+        loop->set_merged_input(param_1_loop, param_1_else, result_mul);
+
+        auto result_else = make_shared<opset10::Result>(loop->get_iter_value(result_mul));
+        auto else_body = make_shared<Model>(result_else, ParameterVector{param_1_else, param_2_else});
+
+        if_op->set_then_body(then_body);
+        if_op->set_else_body(else_body);
+        auto convert_1 = make_shared<opset10::Convert>(param_1, element::f32);
+        auto convert_2 = make_shared<opset10::Convert>(param_2, element::f32);
+        if_op->set_input(convert_1, param_1_then, param_1_else);
+        if_op->set_input(convert_2, param_2_then, param_2_else);
+        auto result = if_op->set_output(result_then, result_else);
+        auto converted_result = make_shared<opset10::Convert>(result, element::f64);
+        converted_result->get_output_tensor(0).add_names({"if_result:0"});
+
+        model_ref = make_shared<Model>(converted_result, ParameterVector{cond, param_1, param_2});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+
+    const auto& results = model->get_results();
+    ASSERT_EQ("if_result", results[0]->get_input_node_ptr(0)->get_friendly_name());
+}
+
+TEST(TransformationTests, align_mixed_fp16_fp32_with_parameter_for_shape_1) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto input_1 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto shape_input = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2});
+
+        auto upscale_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {2.0f});
+        auto mul_1 = make_shared<ov::op::v1::Multiply>(shape_input, upscale_const);
+        auto axis_const = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
+        auto final_float_shape = make_shared<ov::op::v1::ReduceProd>(mul_1, axis_const, true);
+        auto final_int_shape = make_shared<ov::op::v0::Convert>(final_float_shape, element::i64);
+        auto reshape_1 = make_shared<ov::op::v1::Reshape>(input_1, final_int_shape, false);
+
+        model = make_shared<Model>(NodeVector{reshape_1}, ParameterVector{input_1, shape_input});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = true;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32);
+        manager.run_passes(model);
+    }
+
+    {
+        auto input_1 = make_shared<ov::op::v0::Parameter>(element::f16, Shape{1, 3, 224, 224});
+        auto shape_input = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2});
+
+        // even for FP16 compressed model shape subgraph should be kept in fp32
+        auto upscale_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {2.0f});
+        auto mul_1 = make_shared<ov::op::v1::Multiply>(shape_input, upscale_const);
+        auto axis_const = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
+        auto final_float_shape = make_shared<ov::op::v1::ReduceProd>(mul_1, axis_const, true);
+        auto final_int_shape = make_shared<ov::op::v0::Convert>(final_float_shape, element::i64);
+        auto reshape_1 = make_shared<ov::op::v1::Reshape>(input_1, final_int_shape, false);
+
+        model_ref = make_shared<Model>(NodeVector{reshape_1}, ParameterVector{input_1, shape_input});
+    }
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, align_mixed_fp16_fp32_with_parameter_for_shape_2) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto input_1 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto shape_input = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2});
+
+        auto upscale_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {2.0f});
+        auto mul_1 = make_shared<ov::op::v1::Multiply>(shape_input, upscale_const);
+        auto axis_const = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
+        auto final_float_shape = make_shared<ov::op::v1::ReduceProd>(mul_1, axis_const, true);
+        auto final_int_shape = make_shared<ov::op::v0::Convert>(final_float_shape, element::i64);
+        auto reshape_1 = make_shared<ov::op::v1::Reshape>(input_1, final_int_shape, false);
+
+        model = make_shared<Model>(NodeVector{reshape_1}, ParameterVector{input_1, shape_input});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = true;
+        const bool convert_input_output_precision = false;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32,
+                                                      convert_input_output_precision);
+        manager.run_passes(model);
+    }
+
+    {
+        auto input_1 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto convert_to_f16 = make_shared<ov::op::v0::Convert>(input_1, element::f16);
+        auto shape_input = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2});
+
+        // even for FP16 compressed model shape subgraph should be kept in fp32
+        auto upscale_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {2.0f});
+        auto mul_1 = make_shared<ov::op::v1::Multiply>(shape_input, upscale_const);
+        auto axis_const = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
+        auto final_float_shape = make_shared<ov::op::v1::ReduceProd>(mul_1, axis_const, true);
+        auto final_int_shape = make_shared<ov::op::v0::Convert>(final_float_shape, element::i64);
+        auto reshape_1 = make_shared<ov::op::v1::Reshape>(convert_to_f16, final_int_shape, false);
+        auto convert_to_f32 = make_shared<ov::op::v0::Convert>(reshape_1, element::f32);
+
+        model_ref = make_shared<Model>(NodeVector{convert_to_f32}, ParameterVector{input_1, shape_input});
+    }
     const FunctionsComparator func_comparator = FunctionsComparator::with_default();
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid) << result.message;

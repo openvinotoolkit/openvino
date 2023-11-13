@@ -14,33 +14,11 @@ bool QuantizeKernelBase::Validate(const Params& p, const optional_params&) const
     if (params.inputs.size() != 5)
         return false;
 
-    // Binary packed output is possible only with bfyx input and b_fs_yx_32fp output
-    if (params.outputs[0].GetDType() == Datatype::BINARY &&
-        (params.outputs[0].GetLayout() != DataLayout::b_fs_yx_32fp || params.inputs[0].GetLayout() != DataLayout::bfyx))
-        return false;
-
     return true;
 }
 
 JitConstants QuantizeKernelBase::GetJitConstants(const quantize_params& params, const CommonDispatchData& dispatchData) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
-
-    if (params.packed_binary_output) {
-        jit.AddConstant(MakeJitConstant("PACKED_BINARY_OUTPUT", params.packed_binary_output));
-        jit.AddConstant(MakeJitConstant("OUTPUT_FEATURE_NUM_PACKED", CeilDiv(params.outputs[0].Feature().v, 32)));
-        jit.AddConstant(MakeJitConstant("OC_BLOCK_SIZE", 32));
-        if ((params.inputs[3].LogicalSize() == 1 && params.inputs[4].LogicalSize() == 1) ||
-            (params.inputs[3].LogicalSize() == params.inputs[3].Batch().v &&
-             params.inputs[4].LogicalSize() == params.inputs[4].Batch().v)) {
-            jit.AddConstant(MakeJitConstant("SINGLE_OUT_VAL", 1));
-
-        } else if (params.inputs[3].LogicalSize() == params.outputs[0].Feature().v &&
-                   params.inputs[4].LogicalSize() == params.outputs[0].Feature().v) {
-            jit.AddConstant(MakeJitConstant("PER_CHANNEL_OUT_VAL", 1));
-        } else {
-            throw std::runtime_error("Unsupported const blob shape in node " + params.layerID);
-        }
-    }
 
     jit.AddConstant(MakeJitConstant("LEVELS", static_cast<float>(params.levels)));
 
@@ -80,7 +58,7 @@ KernelsData QuantizeKernelBase::GetKernelsData(const Params& params, const optio
     kernel.params.workGroups.global = dispatchData.gws;
     kernel.params.workGroups.local = dispatchData.lws;
     kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, EXE_MODE_DEFAULT);
-    kernel.params.arguments = GetArgsDesc(static_cast<int>(newParams.inputs.size()), false, false, 0, 1, newParams.outputs[0].is_dynamic());
+    kernel.params.arguments = GetArgsDesc(static_cast<int>(newParams.inputs.size()), false, false, 0, 1, newParams.has_dynamic_tensors());
 
     return {kd};
 }

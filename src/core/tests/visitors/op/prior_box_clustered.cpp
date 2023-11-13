@@ -2,22 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "util/visitor.hpp"
+#include "openvino/op/prior_box_clustered.hpp"
+
+#include <gtest/gtest.h>
+
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, prior_box_clustered_op) {
-    NodeBuilder::get_ops().register_factory<opset1::PriorBoxClustered>();
-    const auto layer_shape = make_shared<op::Parameter>(element::i64, Shape{2});
-    const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{2});
+    NodeBuilder::get_ops().register_factory<ov::op::v0::PriorBoxClustered>();
+    const auto layer_shape = make_shared<ov::op::v0::Parameter>(element::i64, Shape{2});
+    const auto image_shape = make_shared<ov::op::v0::Parameter>(element::i64, Shape{2});
 
-    op::PriorBoxClusteredAttrs attrs;
+    ov::op::v0::PriorBoxClustered::Attributes attrs;
     attrs.heights = {2.0f, 3.0f};
     attrs.widths = {2.0f, 3.0f};
     attrs.clip = true;
@@ -27,9 +27,9 @@ TEST(attributes, prior_box_clustered_op) {
     attrs.offset = 0.0f;
     attrs.variances = {0.1f};
 
-    auto pbc = make_shared<opset1::PriorBoxClustered>(layer_shape, image_shape, attrs);
+    auto pbc = make_shared<ov::op::v0::PriorBoxClustered>(layer_shape, image_shape, attrs);
     NodeBuilder builder(pbc, {layer_shape, image_shape});
-    auto g_pbc = ov::as_type_ptr<opset1::PriorBoxClustered>(builder.create());
+    auto g_pbc = ov::as_type_ptr<ov::op::v0::PriorBoxClustered>(builder.create());
     const auto pbc_attrs = pbc->get_attrs();
     const auto g_pbc_attrs = g_pbc->get_attrs();
     const auto expected_attr_count = 8;
@@ -47,11 +47,11 @@ TEST(attributes, prior_box_clustered_op) {
 }
 
 TEST(attributes, prior_box_clustered_op2) {
-    NodeBuilder::get_ops().register_factory<opset1::PriorBoxClustered>();
-    const auto layer_shape = make_shared<op::Parameter>(element::i64, Shape{2});
-    const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{2});
+    NodeBuilder::get_ops().register_factory<ov::op::v0::PriorBoxClustered>();
+    const auto layer_shape = make_shared<ov::op::v0::Parameter>(element::i64, Shape{2});
+    const auto image_shape = make_shared<ov::op::v0::Parameter>(element::i64, Shape{2});
 
-    op::PriorBoxClusteredAttrs attrs;
+    ov::op::v0::PriorBoxClustered::Attributes attrs;
     attrs.heights = {44.0f, 10.0f, 30.0f, 19.0f, 94.0f, 32.0f, 61.0f, 53.0f, 17.0f};
     attrs.widths = {86.0f, 13.0f, 57.0f, 39.0f, 68.0f, 34.0f, 142.0f, 50.0f, 23.0f};
     attrs.clip = false;
@@ -61,9 +61,9 @@ TEST(attributes, prior_box_clustered_op2) {
     attrs.offset = 0.5f;
     attrs.variances = {0.1f, 0.1f, 0.2f, 0.2f};
 
-    auto pbc = make_shared<opset1::PriorBoxClustered>(layer_shape, image_shape, attrs);
+    auto pbc = make_shared<ov::op::v0::PriorBoxClustered>(layer_shape, image_shape, attrs);
     NodeBuilder builder(pbc, {layer_shape, image_shape});
-    auto g_pbc = ov::as_type_ptr<opset1::PriorBoxClustered>(builder.create());
+    auto g_pbc = ov::as_type_ptr<ov::op::v0::PriorBoxClustered>(builder.create());
     const auto pbc_attrs = pbc->get_attrs();
     const auto g_pbc_attrs = g_pbc->get_attrs();
     const auto expected_attr_count = 8;

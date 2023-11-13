@@ -17,7 +17,7 @@ namespace AutoBatchingTests {
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_GPU, AutoBatching_Test,
                          ::testing::Combine(
-                                 ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                 ::testing::Values(ov::test::utils::DEVICE_GPU),
                                  ::testing::ValuesIn(get_vs_set),
                                  ::testing::ValuesIn(num_streams),
                                  ::testing::ValuesIn(num_requests),
@@ -26,7 +26,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_GPU, AutoBatching_Test,
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_GPU, AutoBatching_Test_DetectionOutput,
                          ::testing::Combine(
-                                 ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                 ::testing::Values(ov::test::utils::DEVICE_GPU),
                                  ::testing::ValuesIn(get_vs_set),
                                  ::testing::ValuesIn(num_streams),
                                  ::testing::ValuesIn(num_requests),
@@ -37,7 +37,7 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_AutoBatching_GPU,
         DefaultConfigurationTest,
         ::testing::Combine(
-                ::testing::Values(std::string(CommonTestUtils::DEVICE_BATCH) + ":" + CommonTestUtils::DEVICE_GPU),
+                ::testing::Values(std::string(ov::test::utils::DEVICE_BATCH) + ":" + ov::test::utils::DEVICE_GPU),
                 ::testing::Values(DefaultParameter{CONFIG_KEY(AUTO_BATCH_TIMEOUT),
                                                    InferenceEngine::Parameter{"1000"}})),
         DefaultConfigurationTest::getTestCaseName);
@@ -46,7 +46,7 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_AutoBatching_GPU_2_0_string,
         DefaultConfigurationTest,
         ::testing::Combine(
-                ::testing::Values(std::string(CommonTestUtils::DEVICE_BATCH) + ":" + CommonTestUtils::DEVICE_GPU),
+                ::testing::Values(std::string(ov::test::utils::DEVICE_BATCH) + ":" + ov::test::utils::DEVICE_GPU),
                 ::testing::Values(DefaultParameter{ov::auto_batch_timeout.name(),
                                                    InferenceEngine::Parameter{"1000"}})),
         DefaultConfigurationTest::getTestCaseName);
@@ -55,8 +55,8 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_AutoBatching_GPU_2_0_uint,
         DefaultConfigurationTest,
         ::testing::Combine(
-                ::testing::Values(std::string(CommonTestUtils::DEVICE_BATCH) + ":" + CommonTestUtils::DEVICE_GPU),
+                ::testing::Values(std::string(ov::test::utils::DEVICE_BATCH) + ":" + ov::test::utils::DEVICE_GPU),
                 ::testing::Values(DefaultParameter{ov::auto_batch_timeout.name(),
-                                                   InferenceEngine::Parameter{1000}})),
+                                                   InferenceEngine::Parameter{uint32_t(1000)}})),
         DefaultConfigurationTest::getTestCaseName);
 }  // namespace AutoBatchingTests

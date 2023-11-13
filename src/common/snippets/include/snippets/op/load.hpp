@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include <ngraph/op/op.hpp>
+#include "openvino/op/op.hpp"
 #include "snippets/op/memory_access.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace op {
 
@@ -33,6 +34,9 @@ public:
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+protected:
+    void validate_memory_access_params() const;
 };
 
 /**
@@ -55,9 +59,17 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
 
-private:
+    class ShapeInfer : public IShapeInferSnippets {
+        std::vector<size_t> m_order;
+    public:
+        explicit ShapeInfer(const std::shared_ptr<ov::Node>& n);
+        Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
+    };
+
+
+protected:
     std::vector<size_t> m_order;
 };
 } // namespace op
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

@@ -2,21 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/exp.hpp"
+
 #include <gtest/gtest.h>
 
-#include "openvino/op/exp.hpp"
 #include "base_reference_test.hpp"
-
 #include "functional_test_utils/skip_tests_config.hpp"
 
 using namespace reference_tests;
 using namespace ov;
-using namespace InferenceEngine;
 
 namespace {
 struct ExpParams {
     template <class IT>
-    ExpParams(const ov::PartialShape& shape, const ov::element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues)
+    ExpParams(const ov::PartialShape& shape,
+              const ov::element::Type& iType,
+              const std::vector<IT>& iValues,
+              const std::vector<IT>& oValues)
         : pshape(shape),
           inType(iType),
           outType(iType),
@@ -49,11 +51,12 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
-                                                    const element::Type& expected_output_type) {
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape,
+                                                 const element::Type& input_type,
+                                                 const element::Type& expected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto Exp = std::make_shared<op::v0::Exp>(in);
-        return std::make_shared<ov::Model>(NodeVector {Exp}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector{Exp}, ParameterVector{in});
     }
 };
 
@@ -75,12 +78,13 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
-                                                    const element::Type& expected_output_type) {
+    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape,
+                                                 const element::Type& input_type,
+                                                 const element::Type& expected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto Exp = std::make_shared<op::v0::Exp>(in);
         const auto ExpInPlace = std::make_shared<op::v0::Exp>(Exp);
-        return std::make_shared<ov::Model>(NodeVector {ExpInPlace}, ParameterVector {in});
+        return std::make_shared<ov::Model>(NodeVector{ExpInPlace}, ParameterVector{in});
     }
 };
 
@@ -96,16 +100,12 @@ template <element::Type_t IN_ET>
 std::vector<ExpParams> generateExpFloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<ExpParams> expParams {
-        ExpParams(ov::PartialShape {8},
-                    IN_ET,
-                    std::vector<T>{-4, -3, -2, -1, 0, 1, 2, 3},
-                    std::vector<T>{expf(-4), expf(-3), expf(-2), expf(-1), expf(0), expf(1), expf(2), expf(3)}),
-        ExpParams(ov::PartialShape {1},
-                    IN_ET,
-                    std::vector<T>{13},
-                    std::vector<T>{expf(13)})
-    };
+    std::vector<ExpParams> expParams{
+        ExpParams(ov::PartialShape{8},
+                  IN_ET,
+                  std::vector<T>{-4, -3, -2, -1, 0, 1, 2, 3},
+                  std::vector<T>{expf(-4), expf(-3), expf(-2), expf(-1), expf(0), expf(1), expf(2), expf(3)}),
+        ExpParams(ov::PartialShape{1}, IN_ET, std::vector<T>{13}, std::vector<T>{expf(13)})};
     return expParams;
 }
 
@@ -113,17 +113,19 @@ template <element::Type_t IN_ET>
 std::vector<ExpParams> generateExpIntParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<ExpParams> expParams {
-        ExpParams(ov::PartialShape {8},
-                    IN_ET,
-                    std::vector<T>{-4, -3, -2, -1, 0, 1, 2, 3},
-                    std::vector<T>{static_cast<T>(expf(-4)), static_cast<T>(expf(-3)), static_cast<T>(expf(-2)), static_cast<T>(expf(-1)),
-                                   static_cast<T>(expf(0)), static_cast<T>(expf(1)), static_cast<T>(expf(2)), static_cast<T>(expf(3))}),
-        ExpParams(ov::PartialShape {1},
-                    IN_ET,
-                    std::vector<T>{13},
-                    std::vector<T>{static_cast<T>(expf(13))})
-    };
+    std::vector<ExpParams> expParams{
+        ExpParams(ov::PartialShape{8},
+                  IN_ET,
+                  std::vector<T>{-4, -3, -2, -1, 0, 1, 2, 3},
+                  std::vector<T>{static_cast<T>(expf(-4)),
+                                 static_cast<T>(expf(-3)),
+                                 static_cast<T>(expf(-2)),
+                                 static_cast<T>(expf(-1)),
+                                 static_cast<T>(expf(0)),
+                                 static_cast<T>(expf(1)),
+                                 static_cast<T>(expf(2)),
+                                 static_cast<T>(expf(3))}),
+        ExpParams(ov::PartialShape{1}, IN_ET, std::vector<T>{13}, std::vector<T>{static_cast<T>(expf(13))})};
     return expParams;
 }
 
@@ -131,17 +133,19 @@ template <element::Type_t IN_ET>
 std::vector<ExpParams> generateExpUintParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<ExpParams> expParams {
-        ExpParams(ov::PartialShape {8},
-                    IN_ET,
-                    std::vector<T>{0, 1, 2, 3, 4, 5, 10, 100},
-                    std::vector<T>{static_cast<T>(expf(0)), static_cast<T>(expf(1)), static_cast<T>(expf(2)), static_cast<T>(expf(3)),
-                                   static_cast<T>(expf(4)), static_cast<T>(expf(5)), static_cast<T>(expf(10)), static_cast<T>(expf(100))}),
-        ExpParams(ov::PartialShape {1},
-                    IN_ET,
-                    std::vector<T>{13},
-                    std::vector<T>{static_cast<T>(expf(13))})
-    };
+    std::vector<ExpParams> expParams{
+        ExpParams(ov::PartialShape{8},
+                  IN_ET,
+                  std::vector<T>{0, 1, 2, 3, 4, 5, 10, 100},
+                  std::vector<T>{static_cast<T>(expf(0)),
+                                 static_cast<T>(expf(1)),
+                                 static_cast<T>(expf(2)),
+                                 static_cast<T>(expf(3)),
+                                 static_cast<T>(expf(4)),
+                                 static_cast<T>(expf(5)),
+                                 static_cast<T>(expf(10)),
+                                 static_cast<T>(expf(100))}),
+        ExpParams(ov::PartialShape{1}, IN_ET, std::vector<T>{13}, std::vector<T>{static_cast<T>(expf(13))})};
     return expParams;
 }
 
@@ -149,22 +153,16 @@ template <element::Type_t IN_ET>
 std::vector<ExpParams> generateExpInPlaceFloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<ExpParams> expParams {
-        ExpParams(ov::PartialShape {2},
-                    IN_ET,
-                    std::vector<T>{1, 3},
-                    std::vector<T>{expf(expf(1)), expf(expf(3))})
-    };
+    std::vector<ExpParams> expParams{
+        ExpParams(ov::PartialShape{2}, IN_ET, std::vector<T>{1, 3}, std::vector<T>{expf(expf(1)), expf(expf(3))})};
     return expParams;
 }
 
 std::vector<ExpParams> generateExpCombinedParams() {
-    const std::vector<std::vector<ExpParams>> expTypeParams {
-        generateExpFloatParams<element::Type_t::f32>(),
-        generateExpFloatParams<element::Type_t::f16>(),
-        generateExpIntParams<element::Type_t::i32>(),
-        generateExpIntParams<element::Type_t::i64>()
-        };
+    const std::vector<std::vector<ExpParams>> expTypeParams{generateExpFloatParams<element::Type_t::f32>(),
+                                                            generateExpFloatParams<element::Type_t::f16>(),
+                                                            generateExpIntParams<element::Type_t::i32>(),
+                                                            generateExpIntParams<element::Type_t::i64>()};
     std::vector<ExpParams> combinedParams;
 
     for (const auto& params : expTypeParams) {
@@ -174,10 +172,8 @@ std::vector<ExpParams> generateExpCombinedParams() {
 }
 
 std::vector<ExpParams> generateExpInPlaceCombinedParams() {
-    const std::vector<std::vector<ExpParams>> expTypeParams {
-        generateExpInPlaceFloatParams<element::Type_t::f16>(),
-        generateExpInPlaceFloatParams<element::Type_t::f32>()
-        };
+    const std::vector<std::vector<ExpParams>> expTypeParams{generateExpInPlaceFloatParams<element::Type_t::f16>(),
+                                                            generateExpInPlaceFloatParams<element::Type_t::f32>()};
     std::vector<ExpParams> combinedParams;
 
     for (const auto& params : expTypeParams) {
@@ -186,10 +182,14 @@ std::vector<ExpParams> generateExpInPlaceCombinedParams() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Exp_With_Hardcoded_Refs, ReferenceExpLayerTest,
-    testing::ValuesIn(generateExpCombinedParams()), ReferenceExpLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Exp_With_Hardcoded_Refs,
+                         ReferenceExpLayerTest,
+                         testing::ValuesIn(generateExpCombinedParams()),
+                         ReferenceExpLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Exp_In_Place_With_Hardcoded_Refs, ReferenceExpInPlaceLayerTest,
-    testing::ValuesIn(generateExpInPlaceCombinedParams()), ReferenceExpInPlaceLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Exp_In_Place_With_Hardcoded_Refs,
+                         ReferenceExpInPlaceLayerTest,
+                         testing::ValuesIn(generateExpInPlaceCombinedParams()),
+                         ReferenceExpInPlaceLayerTest::getTestCaseName);
 
-} // namespace
+}  // namespace

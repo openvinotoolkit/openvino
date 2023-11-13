@@ -13,9 +13,9 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
@@ -51,7 +51,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_inputShape=" << CommonTestUtils::vec2str(inputShape);
+        result << "_inputShape=" << ov::test::utils::vec2str(inputShape);
         return result.str();
     }
 
@@ -60,7 +60,7 @@ public:
         blob->allocate();
 
         auto* rawBlobDataPtr = blob->buffer().as<float*>();
-        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
+        std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
         for (size_t i = 0; i < blob->size(); i++) {
             rawBlobDataPtr[i] = values[i];
         }
@@ -74,11 +74,11 @@ protected:
         std::tie(netPrecision, targetDevice, configuration, inputShape) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
         size_t batch = inputShape[inputShape.size() - 2];
         size_t elemNum = inputShape[inputShape.size() - 1];
-        std::vector<float> weights = CommonTestUtils::generate_float_numbers(elemNum * elemNum, -0.1f, 0.1f);
+        std::vector<float> weights = ov::test::utils::generate_float_numbers(elemNum * elemNum, -0.1f, 0.1f);
         auto weightsNode = std::make_shared<ngraph::opset7::Constant>(ngPrc, ngraph::Shape{elemNum, elemNum}, weights);
         auto matmul = ngraph::builder::makeMatMul(params[0], weightsNode, false, true);
 
@@ -118,7 +118,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_inputShape=" << CommonTestUtils::vec2str(inputShape);
+        result << "_inputShape=" << ov::test::utils::vec2str(inputShape);
         result << "_inputMinMax=(" << inputMinMax.first << ".." << inputMinMax.second << ")";
         return result.str();
     }
@@ -139,7 +139,7 @@ protected:
         std::tie(inputDataMin, inputDataMax) = inputMinMax;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
         auto inputLowNode =
             ngraph::builder::makeConstant(ngPrc, std::vector<size_t>{1}, std::vector<float>{inputDataMin});
@@ -156,7 +156,7 @@ protected:
 
         const float weightsMin = -0.2f;
         const float weightsMax = 0.2f;
-        std::vector<float> weights = CommonTestUtils::generate_float_numbers(elemNum * elemNum, weightsMin, weightsMax);
+        std::vector<float> weights = ov::test::utils::generate_float_numbers(elemNum * elemNum, weightsMin, weightsMax);
         auto weightsNode = std::make_shared<ngraph::opset7::Constant>(ngPrc, ngraph::Shape{elemNum, elemNum}, weights);
         auto weightsLowNode =
             ngraph::builder::makeConstant(ngPrc, std::vector<size_t>{1}, std::vector<float>{weightsMin});
@@ -230,7 +230,7 @@ const std::vector<std::pair<float, float>> fqStats = {{-0.5, 0.5}};
 INSTANTIATE_TEST_SUITE_P(smoke_ConvertMatmulToPointwiseConvTest,
                          ConvertMatmulToPointwiseConv,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShape)),
                          ConvertMatmulToPointwiseConv::getTestCaseName);
@@ -238,7 +238,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertMatmulToPointwiseConvTest,
 INSTANTIATE_TEST_SUITE_P(smoke_ConvertMatmulToPointwiseConvTest,
                          ConvertMatmulToPointwiseConvWithFqNeg,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs_neg),
                                             ::testing::ValuesIn(inputShape),
                                             ::testing::ValuesIn(fqStats)),

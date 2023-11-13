@@ -6,6 +6,7 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
+#include "transformations/transpose_sinking/ts_base.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -19,7 +20,7 @@ class TRANSFORMATIONS_API TSSliceBackward;
 }  // namespace pass
 }  // namespace ov
 
-class ov::pass::transpose_sinking::TSSliceForward : public ov::pass::MatcherPass {
+class ov::pass::transpose_sinking::TSSliceForward : public ov::pass::transpose_sinking::TSForwardBase {
 public:
     OPENVINO_RTTI("ov::pass::TSSliceForward", "0");
     TSSliceForward();

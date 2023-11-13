@@ -27,9 +27,9 @@ namespace LayerTestsDefinitions {
 
         std::ostringstream result;
 
-        result << "data_shape=" << CommonTestUtils::vec2str(dataShape) << "_";
-        result << "rois_shape=" << CommonTestUtils::vec2str(roisShape) << "_";
-        result << "offsets_shape=" << CommonTestUtils::vec2str(offsetsShape) << "_";
+        result << "data_shape=" << ov::test::utils::vec2str(dataShape) << "_";
+        result << "rois_shape=" << ov::test::utils::vec2str(roisShape) << "_";
+        result << "offsets_shape=" << ov::test::utils::vec2str(offsetsShape) << "_";
         result << "out_dim=" << outputDim << "_";
         result << "group_size=" << groupSize << "_";
         result << "scale=" << spatialScale << "_";
@@ -58,13 +58,13 @@ namespace LayerTestsDefinitions {
             } else if (it == 1) {
                 blob = make_blob_with_precision(info->getTensorDesc());
                 blob->allocate();
-                CommonTestUtils::fill_data_roi<InferenceEngine::Precision::FP32>(blob, batch_distrib,
+                ov::test::utils::fill_data_roi<InferenceEngine::Precision::FP32>(blob, batch_distrib,
                                                height, width, 1.0f, true);
             } else {
                 blob = make_blob_with_precision(info->getTensorDesc());
                 blob->allocate();
-                std::vector<float> offset_data = CommonTestUtils::generate_float_numbers(blob->size(), -0.9, 0.9);
-                CommonTestUtils::fill_data_float_array<InferenceEngine::Precision::FP32>(blob, &offset_data[0], blob->size());
+                std::vector<float> offset_data = ov::test::utils::generate_float_numbers(blob->size(), -0.9, 0.9);
+                ov::test::utils::fill_data_float_array<InferenceEngine::Precision::FP32>(blob, &offset_data[0], blob->size());
             }
             inputs.push_back(blob);
             it++;
@@ -90,12 +90,13 @@ namespace LayerTestsDefinitions {
 
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        ngraph::ParameterVector params;
+        ov::ParameterVector params;
         ngraph::OutputVector inputs;
         std::shared_ptr<ngraph::Node> defomablePSROIPooling;
 
         if (offsetsShape.empty()) { // Test without optional third input (offsets)
-            params = ngraph::builder::makeParams(ngPrc, {dataShape, roisShape});
+            params = ov::ParameterVector{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(dataShape)),
+                                         std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(roisShape))};
             inputs = ngraph::helpers::convert2OutputVector(
                     ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
             defomablePSROIPooling = std::make_shared<ngraph::op::v1::DeformablePSROIPooling>(inputs[0],
@@ -109,7 +110,9 @@ namespace LayerTestsDefinitions {
                                                                                                 trans_std,
                                                                                                 part_size);
         } else {
-            params = ngraph::builder::makeParams(ngPrc, {dataShape, roisShape, offsetsShape});
+            params = ov::ParameterVector{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(dataShape)),
+                                         std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(roisShape)),
+                                         std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(offsetsShape))};
             inputs = ngraph::helpers::convert2OutputVector(
                     ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
             defomablePSROIPooling = std::make_shared<ngraph::op::v1::DeformablePSROIPooling>(inputs[0],

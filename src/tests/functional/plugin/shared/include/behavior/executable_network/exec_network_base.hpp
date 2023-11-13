@@ -4,9 +4,10 @@
 
 #include <exec_graph_info.hpp>
 #include "base/behavior_test_utils.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/relu.hpp"
 
 namespace BehaviorTestsDefinitions {
 class ExecutableNetworkBaseTest : public BehaviorTestsUtils::IEExecutableNetworkTestBase,
@@ -20,7 +21,7 @@ public:
         std::replace(target_device.begin(), target_device.end(), ':', '.');
         result << "target_device=" << target_device << "_";
         if (!configuration.empty()) {
-            using namespace CommonTestUtils;
+            using namespace ov::test::utils;
             result << "config=" << configuration;
         }
         return result.str();
@@ -188,7 +189,7 @@ TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoBeforeExecution) {
         if (origFromExecLayer.empty()) {
             constCnt++;
         } else {
-            auto origFromExecLayerSep = CommonTestUtils::splitStringByDelimiter(origFromExecLayer);
+            auto origFromExecLayerSep = ov::test::utils::splitStringByDelimiter(origFromExecLayer);
             std::for_each(origFromExecLayerSep.begin(), origFromExecLayerSep.end(), [&](const std::string &op) {
                 auto origLayer = originalLayersMap.find(op);
                 ASSERT_NE(originalLayersMap.end(), origLayer) << op;
@@ -243,7 +244,7 @@ TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
         // Parse origin layer names (fused/merged layers) from the executable graph
         // and compare with layers from the original model
         auto origFromExecLayer = getExecValue(ExecGraphInfoSerialization::ORIGINAL_NAMES);
-        std::vector<std::string> origFromExecLayerSep = CommonTestUtils::splitStringByDelimiter(origFromExecLayer);
+        std::vector<std::string> origFromExecLayerSep = ov::test::utils::splitStringByDelimiter(origFromExecLayer);
         if (origFromExecLayer.empty()) {
             constCnt++;
         } else {
@@ -268,7 +269,7 @@ TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
 }
 
 TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoSerialization) {
-    auto filePrefix = CommonTestUtils::generateTestFilePrefix();
+    auto filePrefix = ov::test::utils::generateTestFilePrefix();
     std::string out_xml_path = filePrefix + ".xml";
     std::string out_bin_path = filePrefix + ".bin";
 
@@ -277,16 +278,16 @@ TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoSerialization) {
     auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     ASSERT_NO_THROW(execGraph = execNet.GetExecGraphInfo());
     ASSERT_NO_THROW(execGraph.serialize(out_xml_path, out_bin_path));
-    CommonTestUtils::removeIRFiles(out_xml_path, out_bin_path);
+    ov::test::utils::removeIRFiles(out_xml_path, out_bin_path);
 }
 
 TEST_P(ExecutableNetworkBaseTest, canExport) {
-    auto filePrefix = CommonTestUtils::generateTestFilePrefix();
+    auto filePrefix = ov::test::utils::generateTestFilePrefix();
     std::string modelName = filePrefix;
     auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     ASSERT_NO_THROW(execNet.Export(modelName));
-    ASSERT_TRUE(CommonTestUtils::fileExists(modelName));
-    CommonTestUtils::removeFile(modelName);
+    ASSERT_TRUE(ov::test::utils::fileExists(modelName));
+    ov::test::utils::removeFile(modelName);
 }
 
 TEST_P(ExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
@@ -334,13 +335,13 @@ TEST_P(ExecutableNetworkBaseTest, loadIncorrectV10Model) {
 
     // Create simple function
     {
-        auto param1 = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
+        auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
         param1->set_friendly_name("param1");
         param1->output(0).get_tensor().set_names({"data1"});
-        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param1);
         relu->set_friendly_name("data1");
         relu->output(0).get_tensor().set_names({"relu"});
-        auto result = std::make_shared<ov::opset8::Result>(relu);
+        auto result = std::make_shared<ov::op::v0::Result>(relu);
         result->set_friendly_name("result");
         function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1});
         function->get_rt_info()["version"] = int64_t(10);
@@ -357,13 +358,13 @@ TEST_P(ExecutableNetworkBaseTest, loadIncorrectV11Model) {
 
     // Create simple function
     {
-        auto param1 = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
+        auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
         param1->set_friendly_name("param1");
         param1->output(0).get_tensor().set_names({"data1"});
-        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param1);
         relu->set_friendly_name("data1");
         relu->output(0).get_tensor().set_names({"relu"});
-        auto result = std::make_shared<ov::opset8::Result>(relu);
+        auto result = std::make_shared<ov::op::v0::Result>(relu);
         result->set_friendly_name("result");
         function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1});
         function->get_rt_info()["version"] = int64_t(11);

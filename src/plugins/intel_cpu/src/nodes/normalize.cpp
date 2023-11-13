@@ -23,7 +23,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/cpu_utils.hpp"
 #include <common/primitive_hashing_utils.hpp>
-#include <utils/shape_inference/shape_inference_pass_through.hpp>
+#include <shape_inference/shape_inference_pass_through.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -644,9 +644,9 @@ private:
     // is_broadcast for broadcasting param for depth_wise and quantize, for fusion with plain layout.
     void apply_post_ops(memory::data_type dst_dt, bool is_broadcast) {
         const auto &p = attr_.post_ops_;
-        int eltwise_inj_idx = 0;
-        int depthwise_inj_idx = 0;
-        int quantization_inj_idx = 0;
+        size_t eltwise_inj_idx = 0;
+        size_t depthwise_inj_idx = 0;
+        size_t quantization_inj_idx = 0;
         int post_ops_data_offset = 0;
         for (int i = 0; i < p.len(); i++) {
             auto& post_op = p.entry_[i];
@@ -796,10 +796,14 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
             inputPrecision = outputPrecision = Precision::BF16;
     }
 
-    if (!one_of(inputPrecision, Precision::FP32, Precision::BF16, Precision::I8, Precision::U8)) {
+    if (one_of(Precision::FP16, inputPrecision, outputPrecision) && mayiuse(cpu::x64::sse41)) {
+        inputPrecision = outputPrecision = Precision::FP32;
+    }
+
+    if (!one_of(inputPrecision, Precision::FP32, Precision::BF16, Precision::FP16, Precision::I8, Precision::U8)) {
         THROW_ERROR << "has unsupported input precision: " << inputPrecision;
     }
-    if (!one_of(outputPrecision, Precision::FP32, Precision::BF16, Precision::I8, Precision::U8)) {
+    if (!one_of(outputPrecision, Precision::FP32, Precision::BF16, Precision::FP16, Precision::I8, Precision::U8)) {
         THROW_ERROR << "has unsupported output precision: " << outputPrecision;
     }
 
@@ -874,8 +878,8 @@ void NormalizeL2::setPostOps(dnnl::primitive_attr& kernel_attrs, const VectorDim
 }
 
 void NormalizeL2::createPrimitive() {
-    auto& dstMemPtr = getChildEdgeAt(DATA)->getMemoryPtr();
-    auto& srcMemPtr = getParentEdgeAt(DATA)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(DATA)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(DATA)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         THROW_ERROR << "can't get destination memory";
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -937,8 +941,8 @@ void NormalizeL2::execute(dnnl::stream strm) {
     if (!execPtr)
         THROW_ERROR << "doesn't have a compiled executor.";
 
-    const uint8_t *src_ptr = reinterpret_cast<const uint8_t *>(getParentEdgeAt(DATA)->getMemoryPtr()->GetPtr());
-    uint8_t *dst_ptr = reinterpret_cast<uint8_t *>(getChildEdgeAt(DATA)->getMemoryPtr()->GetPtr());
+    const uint8_t *src_ptr = reinterpret_cast<const uint8_t *>(getParentEdgeAt(DATA)->getMemoryPtr()->getData());
+    uint8_t *dst_ptr = reinterpret_cast<uint8_t *>(getChildEdgeAt(DATA)->getMemoryPtr()->getData());
     execPtr->exec(src_ptr, dst_ptr, postOpsDataPtrs.data());
 }
 
@@ -1483,7 +1487,8 @@ std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Execut
               OV_CASE2(Precision::U8, Precision::FP32, uint8_t, float),
               OV_CASE2(Precision::I8, Precision::FP32, int8_t, float),
               OV_CASE2(Precision::FP32, Precision::FP32, float, float),
-              OV_CASE2(Precision::BF16, Precision::BF16, bfloat16_t, bfloat16_t));
+              OV_CASE2(Precision::BF16, Precision::BF16, bfloat16_t, bfloat16_t),
+              OV_CASE2(Precision::FP16, Precision::FP16, float16_t, float16_t));
 
     return ctx.executor;
 }

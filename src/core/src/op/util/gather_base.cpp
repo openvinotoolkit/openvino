@@ -2,19 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/gather_base.hpp"
+#include "openvino/op/util/gather_base.hpp"
 
 #include "bound_evaluate.hpp"
 #include "gather_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/op/concat.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/squeeze.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/gather.hpp"
-#include "ngraph/shape.hpp"
-
-using namespace std;
+#include "ngraph/validation_util.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/reference/gather.hpp"
 
 ov::op::util::GatherBase::GatherBase(const Output<Node>& data,
                                      const Output<Node>& indices,
@@ -32,9 +29,8 @@ void ov::op::util::GatherBase::validate_and_infer_types() {
     const auto& data_pshape = get_input_partial_shape(0);
     const auto& indices_pshape = get_input_partial_shape(1);
     const auto& axis_pshape = get_input_partial_shape(2);
-    std::vector<PartialShape> input_shapes = {data_pshape, indices_pshape, axis_pshape},
-                              output_shapes = {PartialShape{}};
-    shape_infer(this, input_shapes, output_shapes, {});
+    std::vector<PartialShape> input_shapes = {data_pshape, indices_pshape, axis_pshape};
+    const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, data_type, output_shapes[0]);
 }
 
@@ -62,6 +58,7 @@ void ov::op::util::GatherBase::set_batch_dims(int64_t batch_dims) {
     m_batch_dims = batch_dims;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace gather {
 namespace {
 template <ov::element::Type_t ET>
@@ -88,23 +85,23 @@ bool evaluate(const ngraph::HostTensorPtr& arg0,
     out->set_shape(out_shape);
 
     if (arg1->get_element_type() == ov::element::i64) {
-        ngraph::runtime::reference::gather<T, int64_t>(arg0->get_data_ptr<ET>(),
-                                                       arg1->get_data_ptr<int64_t>(),
-                                                       out->get_data_ptr<ET>(),
-                                                       arg0->get_shape(),
-                                                       arg1->get_shape(),
-                                                       out->get_shape(),
-                                                       axis,
-                                                       batch_dims);
+        ov::reference::gather<T, int64_t>(arg0->get_data_ptr<ET>(),
+                                          arg1->get_data_ptr<int64_t>(),
+                                          out->get_data_ptr<ET>(),
+                                          arg0->get_shape(),
+                                          arg1->get_shape(),
+                                          out->get_shape(),
+                                          axis,
+                                          batch_dims);
     } else if (arg1->get_element_type() == ov::element::i32) {
-        ngraph::runtime::reference::gather<T, int32_t>(arg0->get_data_ptr<ET>(),
-                                                       arg1->get_data_ptr<int32_t>(),
-                                                       out->get_data_ptr<ET>(),
-                                                       arg0->get_shape(),
-                                                       arg1->get_shape(),
-                                                       out->get_shape(),
-                                                       axis,
-                                                       batch_dims);
+        ov::reference::gather<T, int32_t>(arg0->get_data_ptr<ET>(),
+                                          arg1->get_data_ptr<int32_t>(),
+                                          out->get_data_ptr<ET>(),
+                                          arg0->get_shape(),
+                                          arg1->get_shape(),
+                                          out->get_shape(),
+                                          axis,
+                                          batch_dims);
     } else {
         OPENVINO_THROW("Unexpected type ", arg1->get_element_type().c_type_string(), " for Gather evaluate method.");
     }
@@ -119,16 +116,17 @@ bool evaluate_gather(const ngraph::HostTensorPtr& arg0,
                      int64_t batch_dims = 0) {
     bool rc = true;
 
+    using ov::element::Type_t;
     switch (out->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_gather, i32, arg0, arg1, out, axis, batch_dims);
-        NGRAPH_TYPE_CASE(evaluate_gather, i64, arg0, arg1, out, axis, batch_dims);
-        NGRAPH_TYPE_CASE(evaluate_gather, i8, arg0, arg1, out, axis, batch_dims);
-        NGRAPH_TYPE_CASE(evaluate_gather, u8, arg0, arg1, out, axis, batch_dims);
-        NGRAPH_TYPE_CASE(evaluate_gather, u32, arg0, arg1, out, axis, batch_dims);
-        NGRAPH_TYPE_CASE(evaluate_gather, u64, arg0, arg1, out, axis, batch_dims);
-        NGRAPH_TYPE_CASE(evaluate_gather, f16, arg0, arg1, out, axis, batch_dims);
-        NGRAPH_TYPE_CASE(evaluate_gather, f32, arg0, arg1, out, axis, batch_dims);
-        NGRAPH_TYPE_CASE(evaluate_gather, boolean, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, i32, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, i64, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, i8, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, u8, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, u32, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, u64, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, f16, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, f32, arg0, arg1, out, axis, batch_dims);
+        OPENVINO_TYPE_CASE(evaluate_gather, boolean, arg0, arg1, out, axis, batch_dims);
     default:
         rc = false;
         break;
@@ -143,9 +141,9 @@ bool cf_gather_with_subgraph(ov::OutputVector& output_values,
         return false;
     }
 
-    const auto concat = std::dynamic_pointer_cast<ngraph::op::Concat>(input_values[0].get_node_shared_ptr());
-    const auto indices = std::dynamic_pointer_cast<ngraph::op::Constant>(input_values[1].get_node_shared_ptr());
-    const auto axis = std::dynamic_pointer_cast<ngraph::op::Constant>(input_values[2].get_node_shared_ptr());
+    const auto concat = std::dynamic_pointer_cast<ov::op::v0::Concat>(input_values[0].get_node_shared_ptr());
+    const auto indices = std::dynamic_pointer_cast<ov::op::v0::Constant>(input_values[1].get_node_shared_ptr());
+    const auto axis = std::dynamic_pointer_cast<ov::op::v0::Constant>(input_values[2].get_node_shared_ptr());
 
     if (!concat || !indices || !axis) {
         return false;
@@ -173,7 +171,7 @@ bool cf_gather_with_subgraph(ov::OutputVector& output_values,
     const int64_t rank = concat->get_shape()[0];
     const int64_t raw_index = indices->cast_vector<int64_t>()[0];
     const int64_t positive_index = raw_index < 0 ? rank + raw_index : raw_index;
-    NGRAPH_CHECK(positive_index >= 0 && positive_index < rank);
+    OPENVINO_ASSERT(positive_index >= 0 && positive_index < rank);
 
     // gather takes exactly one element out of the Concat output
     const auto gathered_concat_input = concat_inputs[positive_index].get_source_output().get_node_shared_ptr();
@@ -181,8 +179,8 @@ bool cf_gather_with_subgraph(ov::OutputVector& output_values,
     auto gathered = gathered_concat_input;
     if (indices_shape.empty()) {
         // gathering a scalar
-        const auto axis_const = ngraph::op::Constant::create(ov::element::i64, ov::Shape{1}, {0});
-        gathered = make_shared<ngraph::op::v0::Squeeze>(gathered_concat_input, axis_const);
+        const auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+        gathered = std::make_shared<ov::op::v0::Squeeze>(gathered_concat_input, axis_const);
     }
 
     output_values[0] = gathered;
@@ -195,8 +193,8 @@ bool cf_gather_with_subgraph(ov::OutputVector& output_values,
 bool ov::op::util::GatherBase::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(util_GatherBase_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(ngraph::validate_host_tensor_vector(inputs, 3));
-    NGRAPH_CHECK(ngraph::validate_host_tensor_vector(outputs, 1));
+    OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(inputs, 3));
+    OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(outputs, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
     int64_t axis = 0;
     switch (inputs[2]->get_element_type()) {
@@ -229,16 +227,15 @@ bool ov::op::util::GatherBase::evaluate(const HostTensorVector& outputs, const H
     }
 
     if (axis < 0) {
-        const auto& input_rank = get_input_partial_shape(0).rank();
-        if (input_rank.is_static()) {
-            axis += input_rank.get_length();
-        }
+        const auto input_rank = inputs[0]->get_shape().size();
+        axis += input_rank;
     }
 
     int64_t batch_dims = m_batch_dims;
-    const auto& indices_rank = get_input_partial_shape(1).rank();
-    if (batch_dims < 0 && indices_rank.is_static())
-        batch_dims += indices_rank.get_length();
+    if (batch_dims < 0) {
+        const auto indices_rank = inputs[1]->get_shape().size();
+        batch_dims += indices_rank;
+    }
 
     return gather::evaluate_gather(inputs[0], inputs[1], outputs[0], axis, batch_dims);
 }

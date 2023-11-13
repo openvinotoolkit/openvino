@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gtest/gtest.h>
+
 #include "common_test_utils/test_assertions.hpp"
-#include "dimension_tracker.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "eye_shape_inference.hpp"
-#include "gtest/gtest.h"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/opsets/opset10.hpp"
-#include "type_prop.hpp"
 
 using namespace std;
 using namespace ov;
@@ -361,12 +362,13 @@ TEST_F(TypePropEyeV9Test, default_ctor_no_arguments) {
 
     int64_t rows = 8, cols = 5;
     auto batch = std::array<int32_t, 3>{2, 4, 1};
-    const auto constant_map = std::map<size_t, HostTensorPtr>{
-        {0, std::make_shared<HostTensor>(element::i64, Shape{}, &rows)},
-        {1, std::make_shared<HostTensor>(element::i64, Shape{}, &cols)},
-        {3, std::make_shared<HostTensor>(element::i32, Shape{batch.size()}, batch.data())}};
+    const auto constant_map =
+        std::unordered_map<size_t, ov::Tensor>{{0, {element::i64, Shape{}, &rows}},
+                                               {1, {element::i64, Shape{}, &cols}},
+                                               {3, {element::i32, Shape{batch.size()}, batch.data()}}};
 
-    const auto output_shapes = op::v9::shape_infer(op.get(), PartialShapes{{}, {}, {}, {3}}, constant_map);
+    const auto output_shapes =
+        op::v9::shape_infer(op.get(), PartialShapes{{}, {}, {}, {3}}, make_tensor_accessor(constant_map));
 
     EXPECT_EQ(op->get_out_type(), element::i32);
     EXPECT_EQ(output_shapes.front(), PartialShape({2, 4, 1, 8, 5}));

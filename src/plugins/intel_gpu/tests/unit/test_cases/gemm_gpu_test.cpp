@@ -3,13 +3,14 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/gemm.hpp>
 #include <intel_gpu/primitives/crop.hpp>
-#include "ngraph/runtime/reference/matmul.hpp"
+#include "openvino/reference/matmul.hpp"
 
-#include "compilation_context.hpp"
+#include "intel_gpu/runtime/compilation_context.hpp"
 #include "gemm_inst.h"
 
 #include <cstddef>
@@ -127,7 +128,6 @@ public:
 
         cldnn::network::ptr network;
         if (is_caching_test) {
-            std::cout << "cached" << std::endl;
             membuf mem_buf;
             {
                 cldnn::network _network(engine, tp, get_test_default_config(engine));
@@ -139,7 +139,7 @@ public:
             {
                 std::istream in_mem(&mem_buf);
                 BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine, true, 0);
             }
         } else {
             network = std::make_shared<cldnn::network>(engine, tp, get_test_default_config(engine));
@@ -167,21 +167,16 @@ class GemmGPUTestRandom : public GemmGPUTest {
     ov::Shape input1_shape;
     ov::Shape output_shape;
 
-    float generate_random_value() {
-        static std::default_random_engine generator(random_seed);
-        std::uniform_int_distribution<int> distribution(-10, 10);
-        float val = distribution(generator);
-        return val;
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
     }
 
     void generated_inputs() {
         for (size_t i = 0; i < shapes.size(); ++i) {
             size_t size = ngraph::shape_size(shapes[i]);
-            auto &v = input_data[i];
-            v.resize(size);
-            for(size_t i = 0; i < size; ++i) {
-                v[i] = generate_random_value() / 20.f;
-            }
+            input_data[i] = rg.generate_random_1d<float>(size, -1, 1, 10);
         }
     }
 
@@ -199,15 +194,14 @@ class GemmGPUTestRandom : public GemmGPUTest {
     }
 
     void calculate_output_data() {
-        ngraph::runtime::reference::matmul<float>(
-                input_data[0].data(),
-                input_data[1].data(),
-                out_data.data(),
-                input0_shape,
-                input1_shape,
-                output_shape,
-                transpose_input0,
-                transpose_input1);
+        ov::reference::matmul<float>(input_data[0].data(),
+                                     input_data[1].data(),
+                                     out_data.data(),
+                                     input0_shape,
+                                     input1_shape,
+                                     output_shape,
+                                     transpose_input0,
+                                     transpose_input1);
     }
 
 protected:
@@ -1043,7 +1037,7 @@ struct gemm_base_test_params {
 #define CASE_GEMM_FP32_COMBO_ONEDNN_4 61, 1, 99, 1, 1, 2, 2, 2, 2, 2, 2, true, true, \
 1.0f, 1.0f, data_types::f32, data_types::f32, data_types::f32, data_types::f32, { -128, 127, 1 }, { -128, 127, 1 }, { -10, 10, 8 }
 
-#else // ENABLE_ONEDNN_FOR_GPU
+#endif  // ENABLE_ONEDNN_FOR_GPU
 
 #define CASE_GEMM_INT8_NN_TRANSPOSITION 64, 64, 64, 1, 2, 1, 2, 1, 2, 1, 2, false, false, \
 1.5f, 2.0f, data_types::i8, data_types::u8, data_types::f32, data_types::f32, { -128, 127, 1 }, { 0, 255, 1 }, { -10, 10, 8 }
@@ -1196,11 +1190,18 @@ struct gemm_base_test_params {
 #define CASE_GEMM_FP16_TILED_NN_BROADCAST_4 8, 8, 8, 1, 1, 2, 2, 2, 2, 2, 2, false, false, \
 1.0f, 4.0f, data_types::f16, data_types::f16, data_types::f16, data_types::f16, { -1, 1, 1 }, { -1, 1, 1 }, { -1, 1, 1 }
 
-#endif // ENABLE_ONEDNN_FOR_GPU
-
 template <typename gemm_params, typename input0_type, typename input1_type, typename input2_type, typename output_type, typename accumulator_type>
 class GemmBaseTest : public ::testing::TestWithParam<gemm_params> {
 public:
+    virtual ov::intel_gpu::ImplementationDesc getImplementationDesc(gemm_params& p) {
+         return { format::bfyx, p.kernel_name };
+    }
+
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
 
     inline size_t getGemmIndex(size_t x, size_t y, size_t f, size_t b, size_t x_size, size_t y_size, size_t f_num, size_t b_num,
                                size_t x_pitch, size_t y_pitch, size_t f_pitch, size_t b_pitch) {
@@ -1208,9 +1209,6 @@ public:
     }
 
     void execute(gemm_params& p, bool is_caching_test = false) {
-        auto& engine = get_test_engine();
-        if (!engine.get_device_info().supports_immad)
-            return;
         auto y0_size = p.m_size;
         auto y0_pitch = p.k_size;
         auto x0_size = p.k_size;
@@ -1253,20 +1251,21 @@ public:
             x1_pitch = 1;
         }
 
+        auto& engine = get_test_engine();
         auto input0_size = tensor((int)p.b0_num, (int)p.f0_num, (int)x0_size, (int)y0_size);
-        VVVVF<input0_type> input0_data = generate_random_4d<input0_type>(p.b0_num, p.f0_num, x0_size, y0_size, p.range0[0], p.range0[1], p.range0[2]);
+        VVVVF<input0_type> input0_data = rg.generate_random_4d<input0_type>(p.b0_num, p.f0_num, x0_size, y0_size, p.range0[0], p.range0[1], p.range0[2]);
         auto input0_data_bfyx = flatten_4d(format::bfyx, input0_data);
         auto input0_mem = engine.allocate_memory({ p.allocate0_type, format::bfyx, input0_size });
         set_values(input0_mem, input0_data_bfyx);
 
         auto input1_size = tensor((int)p.b1_num, (int)p.f1_num, (int)x1_size, (int)y1_size);
-        VVVVF<input1_type> input1_data = generate_random_4d<input1_type>(p.b1_num, p.f1_num, x1_size, y1_size, p.range1[0], p.range1[1], p.range1[2]);
+        VVVVF<input1_type> input1_data = rg.generate_random_4d<input1_type>(p.b1_num, p.f1_num, x1_size, y1_size, p.range1[0], p.range1[1], p.range1[2]);
         auto input1_data_bfyx = flatten_4d(format::bfyx, input1_data);
         auto input1_mem = engine.allocate_memory({ p.allocate1_type, format::bfyx, input1_size });
         set_values(input1_mem, input1_data_bfyx);
 
         auto input2_size = tensor((int)p.b2_num, (int)p.f2_num, (int)x2_size, (int)y2_size);
-        VVVVF<input2_type> input2_data = generate_random_4d<input2_type>(p.b2_num, p.f2_num, x2_size, y2_size, p.range2[0], p.range2[1], p.range2[2]);
+        VVVVF<input2_type> input2_data = rg.generate_random_4d<input2_type>(p.b2_num, p.f2_num, x2_size, y2_size, p.range2[0], p.range2[1], p.range2[2]);
         auto input2_data_bfyx = flatten_4d(format::bfyx, input2_data);
         auto input2_mem = engine.allocate_memory({ p.allocate2_type, format::bfyx, input2_size });
         set_values(input2_mem, input2_data_bfyx);
@@ -1310,11 +1309,7 @@ public:
         }
         topology.add(reorder("reorder_bfyx", input_info("gemm_bfyx"), format::bfyx, data_types::f32));
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
-        ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, "", impl_types::onednn };
-#else
-        ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, p.kernel_name };
-#endif
+        ov::intel_gpu::ImplementationDesc gemm_impl = getImplementationDesc(p);
 
         ExecutionConfig cfg = get_test_default_config(engine);
         cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_bfyx", gemm_impl} }));
@@ -1367,6 +1362,7 @@ struct gemm_onednn_test_params {
 template <typename T>
 class GemmOneDNNTest : public ::testing::TestWithParam<T> {
 public:
+    tests::random_generator rg;
     cldnn::engine& engine = get_test_engine();
     topology topology_ocl;
     topology topology_onednn;
@@ -1377,6 +1373,7 @@ public:
     float tolerance = 0.0f;
 
     void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
         config_ocl.set_property(ov::intel_gpu::optimize_data(true));
         config_ocl.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
         if (engine.get_device_info().supports_immad) {
@@ -1407,8 +1404,8 @@ public:
         ASSERT_EQ(outputs_ocl.size(), outputs_onednn.size());
         ASSERT_EQ(outputs_ocl.size(), size_t(1));
 
-        auto val_ocl = get_output_values_to_float(network_ocl, outputs_ocl.begin()->first);
-        auto val_onednn = get_output_values_to_float(network_onednn, outputs_onednn.begin()->first);
+        auto val_ocl = get_output_values_to_float(network_ocl, outputs_ocl.begin()->second);
+        auto val_onednn = get_output_values_to_float(network_onednn, outputs_onednn.begin()->second);
 
         ASSERT_EQ(val_ocl.size(), val_onednn.size());
 
@@ -1430,6 +1427,23 @@ public:
             return layout{ p.data_type_in1, p.input_format, p.in_shapes.at(1), padding{ pad_ } };
         else
             return layout{ p.data_type_in2, p.input_format, p.in_shapes.at(2), padding{ pad_ } };
+    }
+
+    cldnn::memory::ptr get_generated_random_1d_mem(cldnn::engine& engine, cldnn::layout l) {
+        auto prim = engine.allocate_memory(l);
+        cldnn::tensor s = l.get_tensor();
+        if (l.data_type == cldnn::data_types::i8 || l.data_type == cldnn::data_types::u8) {
+            VF<uint8_t> rnd_vec = rg.generate_random_1d<uint8_t>(s.count(), -200, 200);
+            set_values(prim, rnd_vec);
+        } else if (l.data_type == cldnn::data_types::f16) {
+            VF<ov::float16> rnd_vec = rg.generate_random_1d<ov::float16>(s.count(), -1, 1);
+            set_values(prim, rnd_vec);
+        } else {
+            VF<float> rnd_vec = rg.generate_random_1d<float>(s.count(), -1, 1);
+            set_values(prim, rnd_vec);
+        }
+
+        return prim;
     }
 };
 
@@ -1544,8 +1558,8 @@ TEST(gemm_onednn, impl_replacement_with_cldnn) {
         ASSERT_FLOAT_EQ(output_ptr[i], out_data[i]);
     }
 
-    // WA: Call cancel() to wait for all queued kernels compilation finish
-    network.get_program()->get_compilation_context().cancel();
+    // WA: Call wait_all() to wait for all queued kernels compilation finish
+    network.get_program()->get_compilation_context().wait_all();
 
     // Check if OneDNN's impl is used for the next execute() call
     network.execute();
@@ -1555,7 +1569,22 @@ TEST(gemm_onednn, impl_replacement_with_cldnn) {
     ASSERT_FALSE(impl->is_dynamic());
 }
 
-class gemm_int8_simple_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, int8_t, int8_t, float, float, int32_t> {};
+template <typename gemm_params, typename input0_type, typename input1_type, typename input2_type, typename output_type, typename accumulator_type>
+class GemmBaseOneDNNTest : public ::GemmBaseTest<gemm_params, input0_type, input1_type, input2_type, output_type, accumulator_type> {
+public:
+    virtual ov::intel_gpu::ImplementationDesc getImplementationDesc(gemm_params& p) {
+        return { format::bfyx, "", impl_types::onednn };
+    }
+
+    void execute(gemm_params& p, bool is_caching_test = false) {
+        auto& engine = get_test_engine();
+        if (!engine.get_device_info().supports_immad)
+            return;
+        GemmBaseTest<gemm_params, input0_type, input1_type, input2_type, output_type, accumulator_type>::execute(p, is_caching_test);
+    }
+};
+
+class gemm_int8_simple_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, int8_t, int8_t, float, float, int32_t> {};
 TEST_P(gemm_int8_simple_tests_onednn, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_int8_simple_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1565,7 +1594,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_int8_simple_tests_onednn, ::testing::Val
     gemm_base_test_params{ CASE_GEMM_INT8_ONEDNN_4, "" },
 }));
 
-class gemm_uint8_simple_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, uint8_t, int8_t, float, float, int32_t> {};
+class gemm_uint8_simple_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, uint8_t, int8_t, float, float, int32_t> {};
 TEST_P(gemm_uint8_simple_tests_onednn, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_uint8_simple_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1575,7 +1604,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_uint8_simple_tests_onednn, ::testing::Va
     gemm_base_test_params{ CASE_GEMM_UINT8_ONEDNN_4, "" },
 }));
 
-class gemm_fp16_simple_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
+class gemm_fp16_simple_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, ov::float16, ov::float16, ov::float16, ov::float16, ov::float16> {};
 TEST_P(gemm_fp16_simple_tests_onednn, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_simple_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1585,7 +1614,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_simple_tests_onednn, ::testing::Val
     gemm_base_test_params{ CASE_GEMM_FP16_ONEDNN_4, "" },
 }));
 
-class gemm_fp32_simple_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, float, float, float, float, float> {};
+class gemm_fp32_simple_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, float, float, float, float, float> {};
 TEST_P(gemm_fp32_simple_tests_onednn, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_simple_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1595,7 +1624,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_simple_tests_onednn, ::testing::Val
     gemm_base_test_params{ CASE_GEMM_FP32_ONEDNN_4, "" },
 }));
 
-class gemm_int8_transposition_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, int8_t, int8_t, float, float, int32_t> {};
+class gemm_int8_transposition_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, int8_t, int8_t, float, float, int32_t> {};
 TEST_P(gemm_int8_transposition_tests_onednn, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_int8_transposition_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1610,7 +1639,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_int8_transposition_tests_onednn, ::testi
     gemm_base_test_params{ CASE_GEMM_INT8_TT_TRANSPOSITION_LEFTOVERS_ONEDNN, "" },
 }));
 
-class gemm_uint8_transposition_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, uint8_t, int8_t, float, float, int32_t> {};
+class gemm_uint8_transposition_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, uint8_t, int8_t, float, float, int32_t> {};
 TEST_P(gemm_uint8_transposition_tests_onednn, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_uint8_transposition_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1625,7 +1654,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_uint8_transposition_tests_onednn, ::test
     gemm_base_test_params{ CASE_GEMM_UINT8_TT_TRANSPOSITION_LEFTOVERS_ONEDNN, "" },
 }));
 
-class gemm_fp16_transposition_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
+class gemm_fp16_transposition_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, ov::float16, ov::float16, ov::float16, ov::float16, ov::float16> {};
 TEST_P(gemm_fp16_transposition_tests_onednn, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_transposition_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1635,7 +1664,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_transposition_tests_onednn, ::testi
     gemm_base_test_params{ CASE_GEMM_FP16_TT_TRANSPOSITION_ONEDNN, "" },
 }));
 
-class gemm_fp32_transposition_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, float, float, float, float, float> {};
+class gemm_fp32_transposition_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, float, float, float, float, float> {};
 TEST_P(gemm_fp32_transposition_tests_onednn, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_transposition_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1645,7 +1674,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_transposition_tests_onednn, ::testi
     gemm_base_test_params{ CASE_GEMM_FP32_TT_TRANSPOSITION_ONEDNN, "" },
 }));
 
-class gemm_int8_broadcasting_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, int8_t, int8_t, float, float, int32_t> {};
+class gemm_int8_broadcasting_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, int8_t, int8_t, float, float, int32_t> {};
 TEST_P(gemm_int8_broadcasting_tests_onednn, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_int8_broadcasting_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1655,7 +1684,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_int8_broadcasting_tests_onednn, ::testin
     gemm_base_test_params{ CASE_GEMM_INT8_BROADCASTING_ONEDNN_4, "" },
 }));
 
-class gemm_fp16_broadcasting_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
+class gemm_fp16_broadcasting_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, ov::float16, ov::float16, ov::float16, ov::float16, ov::float16> {};
 TEST_P(gemm_fp16_broadcasting_tests_onednn, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_broadcasting_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1665,7 +1694,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_broadcasting_tests_onednn, ::testin
     gemm_base_test_params{ CASE_GEMM_FP16_BROADCASTING_ONEDNN_4, "" },
 }));
 
-class gemm_fp32_broadcasting_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, float, float, float, float, int32_t> {};
+class gemm_fp32_broadcasting_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, float, float, float, float, int32_t> {};
 TEST_P(gemm_fp32_broadcasting_tests_onednn, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_broadcasting_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1675,7 +1704,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_broadcasting_tests_onednn, ::testin
     gemm_base_test_params{ CASE_GEMM_FP32_BROADCASTING_ONEDNN_4, "" },
 }));
 
-class gemm_int8_combo_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, int8_t, int8_t, float, float, int32_t> {};
+class gemm_int8_combo_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, int8_t, int8_t, float, float, int32_t> {};
 TEST_P(gemm_int8_combo_tests_onednn, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_int8_combo_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1685,7 +1714,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_int8_combo_tests_onednn, ::testing::Valu
     gemm_base_test_params{ CASE_GEMM_INT8_COMBO_ONEDNN_4, "" },
 }));
 
-class gemm_uint8_combo_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, uint8_t, int8_t, float, float, int32_t> {};
+class gemm_uint8_combo_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, uint8_t, int8_t, float, float, int32_t> {};
 TEST_P(gemm_uint8_combo_tests_onednn, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_uint8_combo_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1695,7 +1724,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_uint8_combo_tests_onednn, ::testing::Val
     gemm_base_test_params{ CASE_GEMM_UINT8_COMBO_ONEDNN_4, "" },
 }));
 
-class gemm_fp16_combo_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
+class gemm_fp16_combo_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, ov::float16, ov::float16, ov::float16, ov::float16, ov::float16> {};
 TEST_P(gemm_fp16_combo_tests_onednn, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_combo_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1705,7 +1734,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_combo_tests_onednn, ::testing::Valu
     gemm_base_test_params{ CASE_GEMM_FP16_COMBO_ONEDNN_4, "" },
 }));
 
-class gemm_fp32_combo_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, float, float, float, float, float> {};
+class gemm_fp32_combo_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, float, float, float, float, float> {};
 TEST_P(gemm_fp32_combo_tests_onednn, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_combo_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1715,7 +1744,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_combo_tests_onednn, ::testing::Valu
     gemm_base_test_params{ CASE_GEMM_FP32_COMBO_ONEDNN_4, "" },
 }));
 
-#else // ENABLE_ONEDNN_FOR_GPU
+#endif // ENABLE_ONEDNN_FOR_GPU
 
 class gemm_int8_transposition_tests : public ::GemmBaseTest<gemm_base_test_params, int8_t, uint8_t, float, float, int32_t> {};
 TEST_P(gemm_int8_transposition_tests, basic) { auto p = GetParam(); execute(p); }
@@ -1825,7 +1854,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_tiled_nn_broadcast_tests, ::testing
     gemm_base_test_params{ CASE_GEMM_FP32_TILED_NN_BROADCAST_4, "gemm_tiled_opt" },
 }));
 
-class gemm_fp16_tiled_nn_tests : public ::GemmBaseTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
+class gemm_fp16_tiled_nn_tests : public ::GemmBaseTest<gemm_base_test_params, ov::float16, ov::float16, ov::float16, ov::float16, ov::float16> {};
 TEST_P(gemm_fp16_tiled_nn_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_nn_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1835,7 +1864,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_nn_tests, ::testing::ValuesIn
     gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_4, "gemm_tiled_opt" },
 }));
 
-class gemm_fp16_tiled_nt_tests : public ::GemmBaseTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
+class gemm_fp16_tiled_nt_tests : public ::GemmBaseTest<gemm_base_test_params, ov::float16, ov::float16, ov::float16, ov::float16, ov::float16> {};
 TEST_P(gemm_fp16_tiled_nt_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_nt_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1845,7 +1874,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_nt_tests, ::testing::ValuesIn
     gemm_base_test_params{ CASE_GEMM_FP16_TILED_NT_4, "gemm_tiled_opt" },
 }));
 
-class gemm_fp16_tiled_tn_tests : public ::GemmBaseTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
+class gemm_fp16_tiled_tn_tests : public ::GemmBaseTest<gemm_base_test_params, ov::float16, ov::float16, ov::float16, ov::float16, ov::float16> {};
 TEST_P(gemm_fp16_tiled_tn_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_tn_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1855,7 +1884,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_tn_tests, ::testing::ValuesIn
     gemm_base_test_params{ CASE_GEMM_FP16_TILED_TN_4, "gemm_tiled_opt" },
 }));
 
-class gemm_fp16_tiled_tt_tests : public ::GemmBaseTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
+class gemm_fp16_tiled_tt_tests : public ::GemmBaseTest<gemm_base_test_params, ov::float16, ov::float16, ov::float16, ov::float16, ov::float16> {};
 TEST_P(gemm_fp16_tiled_tt_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_tt_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1865,7 +1894,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_tt_tests, ::testing::ValuesIn
     gemm_base_test_params{ CASE_GEMM_FP16_TILED_TT_4, "gemm_tiled_opt" },
 }));
 
-class gemm_fp16_tiled_nn_broadcast_tests : public ::GemmBaseTest<gemm_base_test_params, FLOAT16, FLOAT16, FLOAT16, FLOAT16, FLOAT16> {};
+class gemm_fp16_tiled_nn_broadcast_tests : public ::GemmBaseTest<gemm_base_test_params, ov::float16, ov::float16, ov::float16, ov::float16, ov::float16> {};
 TEST_P(gemm_fp16_tiled_nn_broadcast_tests, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_nn_broadcast_tests, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
@@ -1874,8 +1903,6 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_tiled_nn_broadcast_tests, ::testing
     gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_BROADCAST_3, "gemm_tiled_opt" },
     gemm_base_test_params{ CASE_GEMM_FP16_TILED_NN_BROADCAST_4, "gemm_tiled_opt" },
 }));
-
-#endif // ENABLE_ONEDNN_FOR_GPU
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
 TEST_P(GemmGPUTest, basic_cached) {
@@ -1902,7 +1929,8 @@ TEST_P(gemm_int8_combo_tests_onednn, basic_cached) { auto p = GetParam(); execut
 TEST_P(gemm_uint8_combo_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp16_combo_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp32_combo_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
-#else
+#endif // ENABLE_ONEDNN_FOR_GPU
+
 TEST_P(gemm_int8_transposition_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_int8_broadcast_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_int8_leftovers_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
@@ -1918,7 +1946,7 @@ TEST_P(gemm_fp16_tiled_nt_tests, basic_cached) { auto p = GetParam(); execute(p,
 TEST_P(gemm_fp16_tiled_tn_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp16_tiled_tt_tests, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp16_tiled_nn_broadcast_tests, basic_cached) { auto p = GetParam(); execute(p); }
-#endif // ENABLE_ONEDNN_FOR_GPU
+
 #endif // RUN_ALL_MODEL_CACHING_TESTS
 TEST(gemm_gpu, basic_bfyx_t2_inplace_crop_with_pad_cached) {
     test_basic_bfyx_t2_inplace_crop_with_pad<float>(true);

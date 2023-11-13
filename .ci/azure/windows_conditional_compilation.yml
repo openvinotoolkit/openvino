@@ -35,6 +35,7 @@ resources:
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/testdata
+    ref: master
 
 variables:
   - group: github
@@ -63,15 +64,6 @@ jobs:
     SETUPVARS: $(INSTALL_DIR)\setupvars.bat
 
   steps:
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: '3.11.2'
-      addToPath: true
-      architecture: 'x64'
-      githubToken: $(auth_token)
-    displayName: Setup Python 3.11
-    name: setupPython
-
   - script: |
       powershell -command "Invoke-RestMethod -Headers @{\"Metadata\"=\"true\"} -Method GET -Uri http://169.254.169.254/metadata/instance/compute?api-version=2019-06-01 | format-custom"
       where python
@@ -117,7 +109,6 @@ jobs:
         -DENABLE_CPPLINT=OFF ^
         -DENABLE_GAPI_PREPROCESSING=OFF ^
         -DENABLE_PLUGINS_XML=ON ^
-        -DENABLE_FASTER_BUILD=ON ^
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
         -DENABLE_PROFILING_ITT=ON ^
@@ -151,10 +142,9 @@ jobs:
   - script: |
       call "$(MSVS_VARS_PATH)" && cmake ^
         -G "Visual Studio 16 2019" ^
-        -DVERBOSE_BUILD=ON ^
+        -DCMAKE_VERBOSE_MAKEFILE=ON ^
         -DENABLE_CPPLINT=OFF ^
         -DENABLE_GAPI_PREPROCESSING=OFF ^
-        -DENABLE_FASTER_BUILD=ON ^
         -DENABLE_PROFILING_ITT=OFF ^
         -DSELECTIVE_BUILD=ON ^
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^

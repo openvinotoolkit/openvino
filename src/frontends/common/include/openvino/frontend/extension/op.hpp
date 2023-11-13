@@ -25,7 +25,7 @@ inline const ov::OpSet& get_opset_by_name(const std::string& opset_name) {
     if (opsets.find(opset_name) != opsets.end())
         return opsets.at(opset_name)();
     if (opset_name.empty() || opset_name == "latest") {
-        return ov::get_opset11();
+        return ov::get_opset13();
     } else {
         FRONT_END_GENERAL_CHECK(false, "Unsupported opset name: ", opset_name);
     }
@@ -94,7 +94,7 @@ inline std::shared_ptr<ov::Node> create_ov_node_by_name(const std::string& ov_ty
                                 "name ",
                                 op_name);
     }
-    return std::shared_ptr<ngraph::Node>(opset.create(op_name));
+    return std::shared_ptr<ov::Node>(opset.create(op_name));
 }
 
 // One-to-one operation mapping for OVOpType != void which means OV type is specified by OVOpType

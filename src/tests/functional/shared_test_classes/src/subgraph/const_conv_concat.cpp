@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/const_conv_concat.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -21,8 +21,8 @@ std::string ConstConvConcatTest::getTestCaseName(const testing::TestParamInfo<Co
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "KS=" << CommonTestUtils::vec2str(kernelShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "KS=" << ov::test::utils::vec2str(kernelShape) << "_";
     result << "S=" << stride << "_";
     result << "IC=" << inputChannels << "_";
     result << "OC=" << outputChannels << "_";
@@ -39,7 +39,7 @@ InferenceEngine::Blob::Ptr ConstConvConcatTest::GenerateInput(const InferenceEng
     blob->allocate();
 
     auto* rawBlobDataPtr = blob->buffer().as<float*>();
-    std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
+    std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
     for (size_t i = 0; i < blob->size(); i++) {
         rawBlobDataPtr[i] = values[i];
     }
@@ -61,13 +61,13 @@ void ConstConvConcatTest::SetUp() {
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     std::vector<size_t> convInputShape = {inputShape[0], inputChannels, 1,  inputShape[1] / inputChannels};
     auto reshapePattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
     auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], reshapePattern1, false);
 
-    auto filterWeights = CommonTestUtils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
+    auto filterWeights = ov::test::utils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  0.0f, 0.1f);
     auto conv = ngraph::builder::makeConvolution(reshape1,
                                                  ngPrc,
@@ -79,7 +79,7 @@ void ConstConvConcatTest::SetUp() {
     auto widthAfterConv = (convInputShape[3] - kernelShape[1]) / stride + 1;
     std::vector<size_t> outFormShapes =  {1,  outputChannels * widthAfterConv };
 
-    auto const_values = CommonTestUtils::generate_float_numbers(outputChannels * widthAfterConv, -0.2f, 0.2f);
+    auto const_values = ov::test::utils::generate_float_numbers(outputChannels * widthAfterConv, -0.2f, 0.2f);
     auto constant = ngraph::builder::makeConstant(ngPrc, {1, outputChannels, 1, widthAfterConv}, const_values);
     auto concat = ngraph::builder::makeConcat({constant, conv}, 3);
 

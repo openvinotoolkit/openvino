@@ -3,7 +3,7 @@
 //
 
 #include "behavior/infer_request/set_io_blob_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace InferenceEngine;
 
@@ -42,7 +42,7 @@ std::string SetBlobTest::getTestCaseName(testing::TestParamInfo<SetBlobParams> o
 
 inline void fillBlob(Blob::Ptr &blob) {
     switch (blob->getTensorDesc().getPrecision()) {
-#define CASE(X) case X: CommonTestUtils::fill_data_random<X>(blob); break;
+#define CASE(X) case X: ov::test::utils::fill_data_random<X>(blob); break;
         CASE(Precision::U8)
         CASE(Precision::I8)
         CASE(Precision::U16)
@@ -104,10 +104,9 @@ void SetBlobTest::SetUp() {
         outPrc = precNet;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(precNg);
-    auto params = ngraph::builder::makeParams(ngPrc, {IS});
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(IS))};
     auto axisNode = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, std::vector<int64_t>{-1})->output(0);
-    auto cumSum = std::dynamic_pointer_cast<ngraph::opset4::CumSum>(ngraph::builder::makeCumSum(paramOuts[0], axisNode, false, false));
+    auto cumSum = std::dynamic_pointer_cast<ngraph::opset4::CumSum>(ngraph::builder::makeCumSum(params[0], axisNode, false, false));
     ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(cumSum)};
     function = std::make_shared<ngraph::Function>(results, params, "InferSetBlob");
 }

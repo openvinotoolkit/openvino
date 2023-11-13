@@ -50,4 +50,8 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
     return make_default_multi_threaded(initial);
 }
 
+IStreamsExecutor::Config IStreamsExecutor::Config::ReserveCpuThreads(const Config& initial) {
+    return reserve_cpu_threads(initial);
+}
+
 }  //  namespace InferenceEngine

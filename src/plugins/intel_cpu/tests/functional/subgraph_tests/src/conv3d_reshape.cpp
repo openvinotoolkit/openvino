@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace ngraph;
@@ -34,15 +34,14 @@ protected:
      std::string cpuNodeType;
 
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         nodeType convType;
         size_t numOut;
         std::tie(convType, numOut) = this->GetParam();
 
         cpuNodeType = nodeType2PluginType(convType);
 
-        auto inputParams = builder::makeParams(element::f32, {Shape{1, 1024, 64}});
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(inputParams));
+        ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1024, 64})};
 
         std::shared_ptr<Node> conv;
         const std::vector<size_t> kernelSize = {1};
@@ -55,11 +54,11 @@ protected:
         const op::PadType paddingType = op::PadType::EXPLICIT;
         switch (convType) {
             case nodeType::convolution : {
-                conv = builder::makeConvolution(paramOuts[0], element::f32, kernelSize, strides, padBegin, padEnd, dilation, paddingType, numOutChannels);
+                conv = builder::makeConvolution(inputParams[0], element::f32, kernelSize, strides, padBegin, padEnd, dilation, paddingType, numOutChannels);
                 break;
             }
             case nodeType::groupConvolution : {
-                conv = builder::makeGroupConvolution(paramOuts[0], element::f32, kernelSize, strides, padBegin, padEnd, dilation, paddingType, numOutChannels,
+                conv = builder::makeGroupConvolution(inputParams[0], element::f32, kernelSize, strides, padBegin, padEnd, dilation, paddingType, numOutChannels,
                                                      numOfGroups);
                 break;
             }
@@ -69,7 +68,7 @@ protected:
         }
 
         ResultVector results;
-        for (int i = 0; i < numOut; i++) {
+        for (size_t i = 0; i < numOut; i++) {
             auto mockNode = std::make_shared<opset5::Multiply>(conv->output(0), opset5::Constant::create(element::f32, Shape{1}, {1}));
             results.push_back(std::make_shared<opset5::Result>(mockNode));
         }

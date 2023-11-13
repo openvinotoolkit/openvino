@@ -2,13 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+from utils import get_dynamic_model
+
 #! [import]
-import openvino.runtime as ov
+import openvino as ov
 #! [import]
 
+model = get_dynamic_model()
+
 #! [reshape_undefined]
-Core = ov.Core()
-model = core.read_model(“model.xml”)
+core = ov.Core()
 
 # Set first dimension to be dynamic while keeping others static
 model.reshape([-1, 3, 224, 224])
@@ -25,7 +28,7 @@ model.reshape([-1, 3, (112, 448), (112, 448)])
 model.reshape([(1, 8), 3, (112, 448), (112, 448)])
 #! [reshape_bounds]
 
-model = core.read_model("model.xml")
+model = get_dynamic_model()
 
 #! [print_dynamic]
 # Print output partial shape
@@ -35,41 +38,43 @@ print(model.output().partial_shape)
 print(model.input().partial_shape)
 #! [print_dynamic]
 
-#! [detect_dynamic]
-model = core.read_model("model.xml")
+model = get_dynamic_model()
 
-if model.input(0).partial_shape.is_dynamic():
+#! [detect_dynamic]
+
+if model.input(0).partial_shape.is_dynamic:
     # input is dynamic
     pass
 
-if model.output(0).partial_shape.is_dynamic():
+if model.output(0).partial_shape.is_dynamic:
     # output is dynamic
     pass
 
-if model.output(0).partial_shape[1].is_dynamic():
+if model.output(0).partial_shape[1].is_dynamic:
     # 1-st dimension of output is dynamic
     pass
 #! [detect_dynamic]
 
 executable = core.compile_model(model)
 infer_request = executable.create_infer_request()
+input_tensor_name = "input"
 
 #! [set_input_tensor]
 # For first inference call, prepare an input tensor with 1x128 shape and run inference request
-Input_data1 = np.ones(shape=[1,128])
-infer_request.infer([input_data1])
+input_data1 = np.ones(shape=[1,128])
+infer_request.infer({input_tensor_name: input_data1})
 
 # Get resulting outputs
-Output_tensor1 = infer_request.get_output_tensor()
-Output_data1 = output_tensor.data[:]
+output_tensor1 = infer_request.get_output_tensor()
+output_data1 = output_tensor1.data[:]
 
 # For second inference call, prepare a 1x200 input tensor and run inference request
-Input_data2 = np.ones(shape=[1,200])
-infer_request.infer([input_data2])
+input_data2 = np.ones(shape=[1,200])
+infer_request.infer({input_tensor_name: input_data2})
 
 # Get resulting outputs
-Output_tensor2 = infer_request.get_output_tensor()
-Output_data2 = output_tensor.data[:]
+output_tensor2 = infer_request.get_output_tensor()
+output_data2 = output_tensor2.data[:]
 #! [set_input_tensor]
 
 infer_request = executable.create_infer_request()
@@ -96,10 +101,9 @@ infer_request.infer()
 data2 = output_tensor.data[:]
 #! [get_input_tensor]
 
-#! [check_inputs]
-core = ov.Core()
-model = core.read_model("model.xml")
+model = get_dynamic_model()
 
+#! [check_inputs]
 # Print model input layer info
 for input_layer in model.inputs:
     print(input_layer.names, input_layer.partial_shape)

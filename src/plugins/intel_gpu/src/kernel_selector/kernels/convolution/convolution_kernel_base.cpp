@@ -28,7 +28,7 @@ bool ConvolutionKernelBase::Validate(const Params& p, const optional_params& o) 
 JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
     JitConstants mem_consts = WeightBiasKernelBase::GetJitConstants(params);
     mem_consts.Merge(GetFusedPrimitivesJitConstants(params, dispatchData));
-    const auto& padding = params.padding;
+    const auto& padding = params.padding_begin;
     const auto& input = params.inputs[0];
 
     int64_t input_offset_with_padding =
@@ -37,7 +37,7 @@ JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& pa
 
     mem_consts.AddConstants({
         MakeJitConstant("STRIDE", params.stride),
-        MakeJitConstant("PADDING", params.padding),
+        MakeJitConstant("PADDING", padding),
         MakeJitConstant("DILATION", params.dilation),
         MakeJitConstant("FILTER_ARRAY_NUM", params.groups),
         MakeJitConstant("INPUT0_OFFSET_WITH_PADDING", input_offset_with_padding),
@@ -75,6 +75,12 @@ JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& pa
             mem_consts.AddConstants({MakeJitConstant("DEFORMABLE_MASK_ENABLED", params.deformable_mask_enabled)});
         if (params.bilinear_interpolation_pad)
             mem_consts.AddConstants({MakeJitConstant("BILINEAR_INTERPOLATION_PAD", params.bilinear_interpolation_pad)});
+    }
+
+    if (!params.is_shape_agnostic) {
+        if (params.outputs[0].Batch().v == 1) {
+            mem_consts.AddConstant(MakeJitConstant("SKIP_BATCH", 1));
+        }
     }
 
     std::vector<uint32_t> unrollLoopParams{params.filterSize.x,
@@ -177,14 +183,20 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
     }
 
     if (NeedPaddedInput()) {
-        kd.reorderInput = ConvolutionUpdateInputParams(newParams);
+        if (newParams.has_dynamic_inputs()) {
+            if (!CheckConvolutionExplicitPaddings(newParams))
+                return {};
+        } else {
+            kd.reorderInput = ConvolutionUpdateInputParams(newParams);
 
-        if (kd.reorderInput && !options.allowInputReordering)
-            return {};
+            if (kd.reorderInput && !options.allowInputReordering)
+                return {};
+        }
     }
+
     DispatchData dispatchData = SetDefault(newParams, autoTuneIndex);
 
-    if (!CheckWorkGroups(dispatchData)) {
+    if (!params.is_shape_agnostic && !CheckWorkGroups(dispatchData)) {
         // Internal Error - wrong calculation of global/local work group sizes
         return {};
     }
@@ -193,6 +205,19 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
     auto cldnnJit = GetJitConstants(newParams, dispatchData);
     auto entryPoint = GetEntryPoint(finalKernelName, newParams.layerID, params, options);
     auto jit = CreateJit(finalKernelName, cldnnJit, entryPoint);
+
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const convolution_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+
+        kd.internalBufferSizes.clear();
+        kd.internalBufferSizes.push_back(prim_params.inputs[0].PhysicalSizeInBytes());
+        kd.internalBufferDataType = prim_params.inputs[0].GetDType();
+    };
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
@@ -204,7 +229,8 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
                      exeMode,
                      true,
                      !newParams.bias.empty(),
-                     1);
+                     1, 0, 1,
+                     newParams.inputs[0].is_dynamic() || newParams.outputs[0].is_dynamic());
 
     if (newParams.deformable_mode) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
@@ -244,7 +270,7 @@ bool CheckConvolutionPaddedInputDesc(const convolution_params& params, const Dat
                      reqDesc.Feature().pad.after <= params.inputs[0].Feature().pad.after &&
                      reqDesc.Batch().pad.after <= params.inputs[0].Batch().pad.after;
 
-    properPadding &= ((params.padding.x == 0 && params.padding.y == 0) || params.inputs[0].GetPaddedVal() == 0.f);
+    properPadding &= ((params.padding_begin.x == 0 && params.padding_begin.y == 0) || params.inputs[0].GetPaddedVal() == 0.f);
 
     return properPadding;
 }
@@ -256,15 +282,13 @@ static DataTensor GetConvolutionBFYXPaddedTensor(const convolution_params& cp) {
     DataTensor t = cp.inputs[0];
     std::vector<Tensor::Pad> pad{{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0} };
 
-    pad[0].before = cp.padding.x;
-    pad[1].before = cp.padding.y;
-    pad[2].before = cp.padding.z;
-
+    pad[0].before = cp.padding_begin.x;
+    pad[1].before = cp.padding_begin.y;
+    pad[2].before = cp.padding_begin.z;
 
     const auto inputLimitX = (cp.outputs[0].X().v - 1) * cp.stride.x + (cp.filterSize.x - 1) * cp.dilation.x + 1;
     const auto inputLimitY = (cp.outputs[0].Y().v - 1) * cp.stride.y + (cp.filterSize.y - 1) * cp.dilation.y + 1;
     const auto inputLimitZ = (cp.outputs[0].Z().v - 1) * cp.stride.z + (cp.filterSize.z - 1) * cp.dilation.z + 1;
-
 
     pad[0].after = (size_t)std::max(static_cast<int>(inputLimitX) - static_cast<int>(t.X().v) - static_cast<int>(pad[0].before), static_cast<int>(0));
     pad[1].after = (size_t)std::max(static_cast<int>(inputLimitY) - static_cast<int>(t.Y().v) - static_cast<int>(pad[1].before), static_cast<int>(0));
@@ -283,9 +307,28 @@ static DataTensor GetConvolutionBFYXPaddedTensor(const convolution_params& cp) {
     return {dims, t.GetDType(), t.GetLayout()};
 }
 
+bool CheckConvolutionExplicitPaddings(const convolution_params& conv_params) {
+    if (!conv_params.has_explicit_paddings)
+        return false;
+
+    bool proper_padding = true;
+    proper_padding &= conv_params.padding_begin.x == conv_params.inputs[0].X().pad.before &&
+                      conv_params.padding_begin.y == conv_params.inputs[0].Y().pad.before &&
+                      conv_params.padding_begin.z == conv_params.inputs[0].Z().pad.before;
+
+    proper_padding &= conv_params.padding_end.x == conv_params.inputs[0].X().pad.after &&
+                      conv_params.padding_end.y == conv_params.inputs[0].Y().pad.after &&
+                      conv_params.padding_end.z == conv_params.inputs[0].Z().pad.after;
+
+    return proper_padding;
+}
+
 bool ConvolutionCheckInput(const Params& p, const optional_params& o) {
     const convolution_params& params = static_cast<const convolution_params&>(p);
     const convolution_optional_params& optParams = static_cast<const convolution_optional_params&>(o);
+
+    if (params.has_dynamic_inputs())
+        return CheckConvolutionExplicitPaddings(params);
 
     const auto req_input = GetConvolutionBFYXPaddedTensor(params);
     const bool bProperInputDesc = CheckConvolutionPaddedInputDesc(params, req_input);

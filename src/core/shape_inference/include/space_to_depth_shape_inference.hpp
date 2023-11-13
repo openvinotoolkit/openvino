@@ -14,8 +14,8 @@ namespace ov {
 namespace op {
 namespace v0 {
 
-template <class TShape>
-std::vector<TShape> shape_infer(const ov::op::v0::SpaceToDepth* op, const std::vector<TShape>& input_shapes) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const ov::op::v0::SpaceToDepth* op, const std::vector<TShape>& input_shapes) {
     using TVal = typename TShape::value_type::value_type;
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1);
 
@@ -31,7 +31,7 @@ std::vector<TShape> shape_infer(const ov::op::v0::SpaceToDepth* op, const std::v
         const auto& block_size = op->get_block_size();
         NODE_VALIDATION_CHECK(op, block_size > 0, "The block size must be greater than 0 ", block_size);
 
-        auto out_shape = data_shape;
+        TRShape out_shape = data_shape;
         out_shape[1] *= static_cast<TVal>(std::pow(block_size, data_shape.size() - spatial_dim_offset));
         const auto divisor = static_cast<TVal>(block_size);
 
@@ -44,14 +44,6 @@ std::vector<TShape> shape_infer(const ov::op::v0::SpaceToDepth* op, const std::v
         return {PartialShape::dynamic()};
     }
 }
-
-template <class TShape>
-void shape_infer(const ov::op::v0::SpaceToDepth* op,
-                 const std::vector<TShape>& input_shapes,
-                 std::vector<TShape>& output_shapes) {
-    output_shapes = shape_infer(op, input_shapes);
-}
-
 }  // namespace v0
 }  // namespace op
 }  // namespace ov

@@ -41,7 +41,7 @@ struct reduction_onednn : typed_primitive_onednn_impl<reduce> {
     using parent = typed_primitive_onednn_impl<reduce>;
     using parent::parent;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::reduction_onednn)
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
@@ -142,6 +142,8 @@ public:
 
         std::vector<uint8_t> prim_cache;
         ib >> prim_cache;
+
+        _scratchpad_md = _pd.scratchpad_desc();
 
         _prim = dnnl::primitive(_pd, prim_cache);
 #endif

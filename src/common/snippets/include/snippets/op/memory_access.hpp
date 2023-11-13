@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <ngraph/op/op.hpp>
+#include "openvino/op/op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace op {
 
@@ -14,12 +14,12 @@ namespace op {
  * @interface MemoryAccess
  * @brief This is a base class for memory access operations (like Load and Store).
  *        It provides universal interface to manipulate with memory: load/store.
- * @param m_input_ports - vector of input descriptors: variables of PortDescriptor class
- * @param m_output_ports - vector of output descriptors: variables of PortDescriptor class
+ * @param m_input_ports - map of input descriptors: variables of PortDescriptor class
+ * @param m_output_ports - map of output descriptors: variables of PortDescriptor class
  * @ingroup snippets
  */
 
-class MemoryAccess : public ngraph::op::Op {
+class MemoryAccess : public ov::op::Op {
 public:
     OPENVINO_OP("MemoryAccess", "SnippetsOpset");
 
@@ -44,6 +44,7 @@ public:
 
         friend class MemoryAccess;
     };
+    using PortMap = std::map<size_t, PortDescriptor>;
 
     void set_input_count(size_t count, size_t idx = 0);
     void set_output_count(size_t count, size_t idx = 0);
@@ -55,24 +56,36 @@ public:
     size_t get_input_offset(size_t idx = 0) const;
     size_t get_output_offset(size_t idx = 0) const;
 
-    size_t get_input_port_count() const { return m_input_ports.size(); }
-    size_t get_output_port_count() const { return m_output_ports.size(); }
+    PortMap get_memory_access_input_ports() const { return m_input_ports; }
+    PortMap get_memory_access_output_ports() const { return m_output_ports; }
+
+    bool is_memory_access_input_port(size_t idx) const;
+    bool is_memory_access_output_port(size_t idx) const;
+
+    // All input and output ports are MemoryAccess
+    bool is_full_memory_access_op() const;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
 protected:
     explicit MemoryAccess(const OutputVector& arguments, size_t input_count = 0, size_t output_count = 0);
+    explicit MemoryAccess(const OutputVector& arguments, const std::set<size_t>& input_ports, const std::set<size_t>& output_ports);
+    explicit MemoryAccess(const OutputVector& arguments, const PortMap& input_ports, const PortMap& output_ports);
     MemoryAccess() = default;
+
+    // This method can be called only in ctors
+    void ctor_initialize(const std::set<size_t>& input_ports, const std::set<size_t>& output_ports);
 
     void set_input_port_descriptor(const PortDescriptor& desc, const size_t i);
     void set_output_port_descriptor(const PortDescriptor& desc, const size_t i);
     const PortDescriptor& get_input_port_descriptor(const size_t i) const;
     const PortDescriptor& get_output_port_descriptor(const size_t i) const;
 
-    std::vector<PortDescriptor> m_input_ports;
-    std::vector<PortDescriptor> m_output_ports;
+    // [port_num, port_desc]
+    PortMap m_input_ports;
+    PortMap m_output_ports;
 };
 
 } // namespace op
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

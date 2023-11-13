@@ -1,5 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
+import platform
+
 import numpy as np
 import pytest
 
@@ -104,31 +107,123 @@ class TestFull(PytorchLayerTest):
                    ir_version, kwargs_to_prepare_input={'value': value})
 
 class TestFill(PytorchLayerTest):
-    def _prepare_input(self, value, shape, input_dtype, value_dtype):
-        return (np.random.randn(*shape).astype(input_dtype), np.array(value, dtype=value_dtype),)
+    def _prepare_input(self, value, shape, input_dtype, value_dtype, out=False):
+        if not out:
+            return (np.random.randn(*shape).astype(input_dtype), np.array(value, dtype=value_dtype),)
+        return (np.random.randn(*shape).astype(input_dtype), np.array(value, dtype=value_dtype), np.zeros(shape, dtype=input_dtype))
 
-    def create_model(self):
+
+    def create_model(self, mode):
         import torch
 
         class aten_fill(torch.nn.Module):
+            def __init__(self, mode) -> None:
+                super().__init__()
+                if mode == "inplace":
+                    self.forward = self.forward_inplace
+                if mode == "out":
+                    self.forward = self.forward_out
 
-            def forward(self, input_t: torch.Tensor, x: float):
+
+            def forward_inplace(self, input_t: torch.Tensor, x: float):
                 return input_t.fill_(x)
+        
+            def forward_out(self, input_t: torch.Tensor, x: float, out: torch.Tensor):
+                return input_t.fill(x, out=out), out
+            
+            def forward(self, input_t: torch.Tensor, x:float):
+                return input_t.fill(x)
+    
         ref_net = None
 
-        model = aten_fill()
+        model = aten_fill(mode)
 
-        return model, ref_net, "aten::fill_"
+        return model, ref_net, "aten::fill_" if mode == "inplace" else "aten::fill"
 
     @pytest.mark.parametrize("shape", [[1], [1, 2], [1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5, 6]])
     @pytest.mark.parametrize("value", [0, 1, -1, 0.5])
     @pytest.mark.parametrize("input_dtype", ["int8", "int32", "int64", "float32", "float64"])
     @pytest.mark.parametrize("value_dtype", ["int8", "int32", "int64", "float32", "float64"])
+    @pytest.mark.parametrize("mode", ["", "inplace", "out"])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_fill(self, shape, value, input_dtype, value_dtype, ie_device, precision, ir_version):
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
+    def test_fill(self, shape, value, input_dtype, value_dtype, mode, ie_device, precision, ir_version):
+        self._test(*self.create_model(mode), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={
+                       'value': value, 
+                       'shape': shape, 
+                       "input_dtype": input_dtype, 
+                       "value_dtype": value_dtype,
+                       "out": mode == "out"
+                       })
+
+class TestFillDiagonal(PytorchLayerTest):
+    def _prepare_input(self, shape, input_dtype, value, value_dtype):
+        return np.zeros(shape).astype(input_dtype), np.array(value, dtype=value_dtype)
+
+    def create_model(self, shape, wrap):
+        import torch
+
+        class aten_fill_diagonal(torch.nn.Module):
+            def __init__(self, input_shape, wrap=False) -> None:
+                super().__init__()
+                self.wrap = wrap
+                self.input_shape = input_shape
+
+            def forward(self, x:torch.Tensor, y:float):
+                x = x.reshape(self.input_shape)
+                return x.fill_diagonal_(y, wrap=self.wrap), x
+        
+        ref_net = None
+
+        model = aten_fill_diagonal(shape, wrap)
+        return model, "aten::fill_diagonal_", ref_net
+
+    @pytest.mark.parametrize("shape", ([4, 4], [5, 4], [8, 4], [4, 3],  [5, 5, 5], [3, 3, 3, 3], [4, 4, 4, 4, 4]))
+    @pytest.mark.parametrize("value", [0, 1, -1, 2.5])
+    @pytest.mark.parametrize("input_dtype", ["int8", "int32", "int64", "float32", "float64"])
+    @pytest.mark.parametrize("value_dtype", ["int8", "int32", "int64", "float32", "float64"])
+    @pytest.mark.parametrize("wrap", [True, False])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
+    def test_fill_diagonal(self, shape, value, input_dtype, value_dtype, wrap, ie_device, precision, ir_version):
+        self._test(*self.create_model(shape, wrap), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={
+                       'value': value, 
+                       'shape': shape, 
+                       "input_dtype": input_dtype, 
+                       "value_dtype": value_dtype
+                       })
+
+
+class TestZero(PytorchLayerTest):
+    def _prepare_input(self, shape, input_dtype):
+        return (np.random.randn(*shape).astype(input_dtype),)
+
+    def create_model(self):
+        import torch
+
+        class aten_zero(torch.nn.Module):
+
+            def forward(self, input_t: torch.Tensor):
+                return input_t.zero_()
+        ref_net = None
+
+        model = aten_zero()
+
+        return model, ref_net, "aten::zero_"
+
+    @pytest.mark.parametrize("shape", [[1], [1, 2], [1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5, 6]])
+    @pytest.mark.parametrize("input_dtype", ["int8", "int32", "int64", "float32", "float64"])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_zero(self, shape, input_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={'value': value, 'shape': shape, "input_dtype": input_dtype, "value_dtype": value_dtype})
+                   kwargs_to_prepare_input={'shape': shape, "input_dtype": input_dtype})
 
 class TestFullLike(PytorchLayerTest):
     def _prepare_input(self, value, shape):
@@ -252,7 +347,7 @@ class TestNewFull(PytorchLayerTest):
     @pytest.mark.precommit
     def test_new_full(self, shape, value, input_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(shape), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={'value': value, 'input_dtype': input_dtype})
+                   kwargs_to_prepare_input={'value': value, 'input_dtype': input_dtype}, use_convert_model=True)
 
     @pytest.mark.parametrize("shape", [[1], [1, 2], [1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5, 6]])
     @pytest.mark.parametrize("value,input_dtype", [(0, np.uint8), (1, np.int32), (-1, np.float32), (0.5, np.float64)])
@@ -260,7 +355,7 @@ class TestNewFull(PytorchLayerTest):
     @pytest.mark.nightly
     def test_new_full_with_dtype(self, value, shape, dtype, input_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(shape, dtype=dtype, used_dtype=True), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={'value': value, 'input_dtype': input_dtype})
+                   kwargs_to_prepare_input={'value': value, 'input_dtype': input_dtype}, use_convert_model=True)
 
 
 class TestZerosAndOnes(PytorchLayerTest):
@@ -467,7 +562,7 @@ class TestNewZeros(PytorchLayerTest):
     @pytest.mark.precommit
     def test_new_zeros(self, shape, input_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(shape), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={'input_dtype': input_dtype})
+                   kwargs_to_prepare_input={'input_dtype': input_dtype}, use_convert_model=True)
 
     @pytest.mark.parametrize("shape", [[1], [1, 2], [1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5, 6]])
     @pytest.mark.parametrize("input_dtype", [bool, np.uint8, np.int8, np.int32, np.int64, np.float32, np.float64])
@@ -475,7 +570,7 @@ class TestNewZeros(PytorchLayerTest):
     @pytest.mark.nightly
     def test_new_zeros_with_dtype(self, shape, dtype, input_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(shape, dtype=dtype, used_dtype=True), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={'input_dtype': input_dtype})
+                   kwargs_to_prepare_input={'input_dtype': input_dtype}, use_convert_model=True)
 
 
 class TestNewOnes(PytorchLayerTest):
@@ -526,7 +621,7 @@ class TestNewOnes(PytorchLayerTest):
     @pytest.mark.precommit
     def test_new_ones(self, shape, input_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(shape), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={'input_dtype': input_dtype})
+                   kwargs_to_prepare_input={'input_dtype': input_dtype}, use_convert_model=True)
 
     @pytest.mark.parametrize("shape", [[1], [1, 2], [1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5, 6]])
     @pytest.mark.parametrize("input_dtype", [bool, np.uint8, np.int8, np.int32, np.int64, np.float32, np.float64])
@@ -534,4 +629,4 @@ class TestNewOnes(PytorchLayerTest):
     @pytest.mark.nightly
     def test_new_ones_with_dtype(self, shape, dtype, input_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(shape, dtype=dtype, used_dtype=True), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={'input_dtype': input_dtype})
+                   kwargs_to_prepare_input={'input_dtype': input_dtype}, use_convert_model=True)

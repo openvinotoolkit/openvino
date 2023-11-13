@@ -27,7 +27,7 @@ private:
 
 public:
     typed_program_node(std::shared_ptr<primitive> prim, program& prog)
-        : parent(prim, prog) {
+        : parent(std::move(prim), prog) {
         init_params_list();
         can_share_buffer(false);
     }

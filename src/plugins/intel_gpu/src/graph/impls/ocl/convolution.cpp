@@ -7,6 +7,8 @@
 #include "convolution_inst.h"
 #include "convolution/convolution_kernel_selector.h"
 #include "convolution/convolution_params.h"
+#include "ngraph/validation_util.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -17,7 +19,7 @@ struct convolution_impl : typed_primitive_impl_ocl<convolution> {
     using kernel_selector_t = kernel_selector::convolution_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::convolution_params, kernel_selector::convolution_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::convolution_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<convolution_impl>(*this);
@@ -41,8 +43,7 @@ public:
         const auto& primitive = impl_param.typed_desc<convolution>();
 
         auto stride = primitive->stride;
-        const auto& dilation = primitive->dilation;
-        const auto& pad = primitive->padding_begin;
+        auto dilation = primitive->dilation;
         const auto& groups = primitive->groups;
         const auto& deformable_groups = primitive->deformable_groups;
         const auto transposed = primitive->transposed;
@@ -73,25 +74,60 @@ public:
             deform_conv_dep_offset++;
 
         const auto& weights_layout = impl_param.input_layouts[1 + 0 + deform_conv_dep_offset]
-                                                                .convert_to_weights_layout(primitive->grouped_weights_shape);
+                                               .convert_to_weights_layout(primitive->grouped_weights_shape);
+
+        ov::CoordinateDiff pads_begin(primitive->padding_begin.begin(), primitive->padding_begin.end());
+        ov::CoordinateDiff pads_end(primitive->padding_end.begin(), primitive->padding_end.end());
+        const auto auto_pad = primitive->auto_pad;
+        conv_params.has_explicit_paddings = primitive->auto_pad == ov::op::PadType::EXPLICIT;
+        if (auto_pad == ov::op::PadType::SAME_UPPER || auto_pad == ov::op::PadType::SAME_LOWER) {
+            const auto& input_layout = impl_param.get_input_layout();
+            auto spatial_rank = input_layout.get_spatial_rank();
+            std::vector<int32_t> dims;
+            for (size_t i = 0; i < spatial_rank; i++) {
+                dims.push_back(static_cast<int32_t>(weights_layout.spatial(i)));
+            }
+            ov::Shape kernel(dims.begin(), dims.end());
+            pads_begin.clear();
+            pads_end.clear();
+
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            ngraph::try_apply_auto_padding(input_layout.get_partial_shape(),
+                                           kernel,
+                                           stride,
+                                           dilation,
+                                           auto_pad,
+                                           pads_end,
+                                           pads_begin);
+            OPENVINO_SUPPRESS_DEPRECATED_END
+
+            pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
+            pads_end.resize(std::max<size_t>(2, pads_end.size()), 0);
+        }
+        if (auto_pad == ov::op::PadType::VALID) {
+            pads_begin = ov::CoordinateDiff(pads_begin.size(), 0);
+            pads_end = ov::CoordinateDiff(pads_end.size(), 0);
+        }
+
         uint32_t kx = weights_layout.spatial(0);
         uint32_t ky = weights_layout.spatial(1);
         uint32_t kz = weights_layout.spatial(2);
         conv_params.filterSize = { kx, ky, kz };
 
-        uint32_t pad_z = std::max<std::ptrdiff_t>(pad.size() >= 3 ? pad[pad.size() - 3] : 0, 0);
-        uint32_t pad_y = std::max<std::ptrdiff_t>(pad.size() >= 2 ? pad[pad.size() - 2] : 0, 0);
-        uint32_t pad_x = std::max<std::ptrdiff_t>(pad.size() >= 1 ? pad[pad.size() - 1] : 0, 0);
-        conv_params.padding = {pad_x, pad_y, pad_z};
+        uint32_t pad_begin_x, pad_begin_y, pad_begin_z;
+        std::tie(pad_begin_x, pad_begin_y, pad_begin_z) = ov::intel_gpu::get_xyz<ov::CoordinateDiff, uint32_t>(pads_begin, 0);
+        conv_params.padding_begin = {pad_begin_x, pad_begin_y, pad_begin_z};
 
-        uint32_t stride_z = stride.size() >= 3 ? static_cast<uint32_t>(stride[stride.size() - 3]) : 1;
-        uint32_t stride_y = stride.size() >= 2 ? static_cast<uint32_t>(stride[stride.size() - 2]) : 1;
-        uint32_t stride_x = stride.size() >= 1 ? static_cast<uint32_t>(stride[stride.size() - 1]) : 1;
+        uint32_t pad_end_x, pad_end_y, pad_end_z;
+        std::tie(pad_end_x, pad_end_y, pad_end_z) = ov::intel_gpu::get_xyz<ov::CoordinateDiff, uint32_t>(pads_end, 0);
+        conv_params.padding_end = {pad_end_x, pad_end_y, pad_end_z};
+
+        uint32_t stride_x, stride_y, stride_z;
+        std::tie(stride_x, stride_y, stride_z) = ov::intel_gpu::get_xyz<ov::Strides, uint32_t>(stride, 1);
         conv_params.stride = {stride_x, stride_y, stride_z};
 
-        uint32_t dilation_z = dilation.size() >= 3 ? static_cast<uint32_t>(dilation[dilation.size() - 3]) : 1;
-        uint32_t dilation_y = dilation.size() >= 2 ? static_cast<uint32_t>(dilation[dilation.size() - 2]) : 1;
-        uint32_t dilation_x = dilation.size() >= 1 ? static_cast<uint32_t>(dilation[dilation.size() - 1]) : 1;
+        uint32_t dilation_x, dilation_y, dilation_z;
+        std::tie(dilation_x, dilation_y, dilation_z) = ov::intel_gpu::get_xyz<ov::Strides, uint32_t>(dilation, 1);
         conv_params.dilation = {dilation_x, dilation_y, dilation_z};
 
         if ((impl_param.input_layouts[0].data_type == data_types::u8 ||
@@ -119,8 +155,8 @@ public:
                 && cp.weights.X().v == 1 && cp.weights.Y().v > 1
                 && !(cp.groups == cp.inputs[0].Feature().v && cp.inputs[0].Feature().v == cp.outputs[0].Feature().v)) {
                 auto can_swap = [](const kernel_selector::Tensor::DataTensor& dt) -> bool {
-                    auto x_channel_idx = kernel_selector::Tensor::DataTensor::Channelndex(dt.GetLayout(),
-                                                    kernel_selector::Tensor::DataChannelName::X);
+                    auto x_channel_idx = static_cast<uint32_t>(kernel_selector::Tensor::DataTensor::Channelndex(dt.GetLayout(),
+                                                    kernel_selector::Tensor::DataChannelName::X));
                     auto x_axis_dim = dt.GetDims()[x_channel_idx];
                     return (x_axis_dim.pad.Total() == 0 && x_axis_dim.v == 1);
                 };
@@ -152,7 +188,7 @@ public:
                 }
             }
             conv_params.filterSize = { ky, kx, kz };
-            conv_params.padding = {pad_y, pad_x, pad_z};
+            conv_params.padding_begin = {pad_begin_y, pad_begin_x, pad_begin_z};
             conv_params.stride = {stride_y, stride_x, stride_z};
             conv_params.dilation = {dilation_y, dilation_x, dilation_z};
         }
@@ -288,6 +324,23 @@ attach_convolution_impl::attach_convolution_impl() {
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv4_fsv2),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv4_fsv2),
     });
+
+    auto types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i8,
+        data_types::u8
+    };
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx
+    };
+
+    implementation_map<convolution>::add(impl_types::ocl,
+                                         shape_types::dynamic_shape,
+                                         typed_primitive_impl_ocl<convolution>::create<convolution_impl>,
+                                         types,
+                                         dyn_formats);
 }
 
 }  // namespace detail
@@ -295,3 +348,4 @@ attach_convolution_impl::attach_convolution_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::convolution_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::convolution)

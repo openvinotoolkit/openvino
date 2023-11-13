@@ -43,7 +43,9 @@ public:
     }
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
-        return std::make_shared<FrameworkNode>(m_decoder, inputs, get_output_size());
+        auto fw_node = std::make_shared<FrameworkNode>(m_decoder, inputs, get_output_size());
+        fw_node->set_attrs(get_attrs());
+        return fw_node;
     }
 
     std::string get_op_type() const {

@@ -26,8 +26,7 @@ public:
     bool created() const override;
     void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
-
-    bool isOptimized() const;
+    void resolveInPlaceEdges(Edge::LOOK look) override;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 

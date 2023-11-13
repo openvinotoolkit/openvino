@@ -2,13 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/binary_elementwise_comparison.hpp"
+#include "openvino/op/util/binary_elementwise_comparison.hpp"
 
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/util/elementwise_args.hpp"
-
-using namespace std;
+#include "openvino/op/util/elementwise_args.hpp"
 
 ov::op::util::BinaryElementwiseComparison::BinaryElementwiseComparison(const AutoBroadcastSpec& autob)
     : m_autob(autob) {}

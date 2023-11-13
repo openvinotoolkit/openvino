@@ -4,8 +4,6 @@
 
 #include "ngraph/op/read_value.hpp"
 
-#include <read_value_shape_inference.hpp>
-
 #include "itt.hpp"
 #include "ngraph/op/util/variable_context.hpp"
 #include "ngraph/ops.hpp"
@@ -22,19 +20,14 @@ op::v3::ReadValue::ReadValue(const Output<Node>& init_value, const std::string& 
 void op::v3::ReadValue::validate_and_infer_types() {
     OV_OP_SCOPE(v3_ReadValue_validate_and_infer_types);
     auto arg_t = get_input_element_type(0);
-    auto input_shape = get_input_partial_shape(0);
+    const auto& input_shape = get_input_partial_shape(0);
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    std::vector<ov::PartialShape> input_shapes = {input_shape};
-    shape_infer(this, input_shapes, output_shapes);
-
-    const auto& output_shape = output_shapes[0];
-    VariableInfo info = {output_shape, arg_t, m_variable_id};
+    VariableInfo info = {input_shape, arg_t, m_variable_id};
     if (m_variable == nullptr)
         m_variable = std::make_shared<Variable>(info);
     else
         m_variable->update(info);
-    set_output_type(0, arg_t, output_shape);
+    set_output_type(0, arg_t, input_shape);
 }
 
 shared_ptr<Node> op::v3::ReadValue::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -58,13 +51,10 @@ op::v6::ReadValue::ReadValue(const Output<Node>& init_value, const shared_ptr<Va
 void op::v6::ReadValue::validate_and_infer_types() {
     OV_OP_SCOPE(v6_ReadValue_validate_and_infer_types);
     const auto arg_t = get_input_element_type(0);
-    auto input_shape = get_input_partial_shape(0);
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    std::vector<ov::PartialShape> input_shapes = {input_shape};
-    shape_infer(this, input_shapes, output_shapes);
-    const auto& output_shape = output_shapes[0];
-    NGRAPH_CHECK(m_variable, "Variable is not initialized.");
-    VariableInfo var_info = {output_shape, element::dynamic, m_variable->get_info().variable_id};
+    const auto& input_shape = get_input_partial_shape(0);
+
+    OPENVINO_ASSERT(m_variable, "Variable is not initialized.");
+    VariableInfo var_info = {input_shape, element::dynamic, m_variable->get_info().variable_id};
     NODE_VALIDATION_CHECK(this,
                           element::Type::merge(var_info.data_type, m_variable->get_info().data_type, arg_t),
                           "Variables types are inconsistent.");
@@ -72,7 +62,7 @@ void op::v6::ReadValue::validate_and_infer_types() {
                           ov::PartialShape::merge_into(var_info.data_shape, m_variable->get_info().data_shape),
                           "Variable shape and output shape are inconsistent.");
     m_variable->update(var_info);
-    set_output_type(0, arg_t, output_shape);
+    set_output_type(0, arg_t, input_shape);
 }
 
 shared_ptr<Node> op::v6::ReadValue::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -93,6 +83,7 @@ void op::v6::ReadValue::revalidate_and_infer_types() {
     Node::revalidate_and_infer_types();
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs,
                                  const EvaluationContext& evaluation_context) const {
@@ -107,8 +98,8 @@ bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs,
 
     // initial value (inputs[0]) is not supported, use zeros
     auto zero_const = make_shared<v0::Constant>(inputs[0]->get_element_type(), inputs[0]->get_shape(), 0);
-    auto zero_tensor = make_shared<HostTensor>(zero_const);
     OPENVINO_SUPPRESS_DEPRECATED_START
+    auto zero_tensor = make_shared<HostTensor>(zero_const);
     const auto& input_tensor = use_context ? var_value->second->get_value() : zero_tensor;
     OPENVINO_SUPPRESS_DEPRECATED_END
     outputs[0]->set_unary(input_tensor);
@@ -117,6 +108,7 @@ bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs,
     outputs[0]->write(input, outputs[0]->get_size_in_bytes());
     return true;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::v6::ReadValue::has_evaluate() const {
     OV_OP_SCOPE(v6_ReadValue_has_evaluate);

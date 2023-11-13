@@ -6,8 +6,6 @@
 
 #include "load_convert.hpp"
 
-#include "ngraph/runtime/host_tensor.hpp"
-
 using namespace std;
 using namespace ov;
 
@@ -19,7 +17,7 @@ intel_cpu::LoadConvertSaturation::LoadConvertSaturation(const Output<Node>& x, c
 
 bool intel_cpu::LoadConvertSaturation::visit_attributes(AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(LoadConvert_visit_attributes);
-    MemoryAccess::visit_attributes(visitor);
+    Load::visit_attributes(visitor);
     visitor.on_attribute("destination_type", m_destination_type);
     return true;
 }

@@ -4,52 +4,52 @@
 
 #include <gtest/gtest.h>
 
-#include <low_precision/fake_quantize.hpp>
-#include <low_precision/fake_quantize_decomposition.hpp>
+#include "low_precision/fake_quantize.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
-#include "lpt_ngraph_functions/common/add.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/fuse_fake_quantize_function.hpp"
+#include "ov_lpt_models/common/add.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/fuse_fake_quantize.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 class FuseDequantizeToFakeQuantizeTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type precisionBeforeAdd;
+        ov::element::Type precisionBeforeAdd;
         ngraph::builder::subgraph::Add add;
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
-        ngraph::element::Type precisionAfterDequantization;
+        ov::element::Type precisionAfterDequantization;
         ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
     };
 
     class Expected {
     public:
-        ngraph::element::Type precisionBeforeAdd;
+        ov::element::Type precisionBeforeAdd;
         ngraph::builder::subgraph::Add add;
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
-        ngraph::element::Type precisionAfterDequantization;
-        ngraph::element::Type precisionFakeQuantizeOnData;
+        ov::element::Type precisionAfterDequantization;
+        ov::element::Type precisionFakeQuantizeOnData;
         ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
     };
 
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     TestTransformationParams params;
     Actual actual;
     Expected expected;
@@ -73,12 +73,11 @@ public:
             testValues.actual.fakeQuantizeOnData);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer
-            .add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(
-                testValues.params);
+        transformer.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
+            testValues.params);
         transformer.transform(actualFunction);
 
-        transformer.add<ngraph::pass::low_precision::FakeQuantizeTransformation, ngraph::opset1::FakeQuantize>(
+        transformer.add<ov::pass::low_precision::FakeQuantizeTransformation, ov::op::v0::FakeQuantize>(
             testValues.params);
         transformer.transform(actualFunction);
 
@@ -122,7 +121,7 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
     // Convert: U8 -> FP32, updatePrecisions = true
     {
         {1, 3, 16, 16},
-        TestTransformationParams(true, {ngraph::element::u8}, {ngraph::element::i8}),
+        TestTransformationParams(true, {ov::element::u8}, {ov::element::i8}),
         {
             element::f32,
             {},
@@ -144,7 +143,7 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
     // Convert: U8 -> FP32, updatePrecisions = false
     {
         {1, 3, 16, 16},
-        TestTransformationParams(false, {ngraph::element::u8}, {ngraph::element::i8}),
+        TestTransformationParams(false, {ov::element::u8}, {ov::element::i8}),
         {
             element::f32,
             {},
@@ -259,7 +258,7 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
             element::f32,
             {},
             element::f32,
-            {{}, {}, {{0.01f, 0.1f, 1.f}, ngraph::element::f32, {1, 3}}},
+            {{}, {}, {{0.01f, 0.1f, 1.f}, ov::element::f32, {1, 3}}},
             element::f32,
             {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}
         },
@@ -267,7 +266,7 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
             element::f32,
             {},
             element::f32,
-            {{}, {}, {{0.01f, 0.1f, 1.f}, ngraph::element::f32, {1, 3}}},
+            {{}, {}, {{0.01f, 0.1f, 1.f}, ov::element::f32, {1, 3}}},
             element::f32,
             element::f32,
             {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}
@@ -281,7 +280,7 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
             element::f32,
             {},
             element::f32,
-            {{}, {}, {{0.01f, 0.1f, 1.f}, ngraph::element::f32, {1, 3}}},
+            {{}, {}, {{0.01f, 0.1f, 1.f}, ov::element::f32, {1, 3}}},
             element::f32,
             {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}
         },
@@ -289,7 +288,7 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
             element::f32,
             {},
             element::f32,
-            {{}, {}, {{0.01f, 0.1f, 1.f}, ngraph::element::f32, {1, 3}}},
+            {{}, {}, {{0.01f, 0.1f, 1.f}, ov::element::f32, {1, 3}}},
             element::f32,
             element::f32,
             {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}
@@ -456,16 +455,16 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
         {
             {},
             {},
-            ngraph::element::i32,
-            {{ngraph::element::f32}, {}, {}},
-            ngraph::element::f32,
+            ov::element::i32,
+            {{ov::element::f32}, {}, {}},
+            ov::element::f32,
             {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}
         },
         {
             {},
             {},
-            ngraph::element::i32,
-            {{ngraph::element::f32}, {}, {}},
+            ov::element::i32,
+            {{ov::element::f32}, {}, {}},
             element::f32,
             element::f32,
             {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}
@@ -478,16 +477,16 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
         {
             {},
             {},
-            ngraph::element::i32,
-            {{ngraph::element::f16}, {}, {}},
-            ngraph::element::f16,
+            ov::element::i32,
+            {{ov::element::f16}, {}, {}},
+            ov::element::f16,
             {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}
         },
         {
             {},
             {},
-            ngraph::element::i32,
-            {{ngraph::element::f16}, {}, {}},
+            ov::element::i32,
+            {{ov::element::f16}, {}, {}},
             element::f16,
             element::f16,
             {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}
@@ -525,8 +524,8 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
             element::u8,
             {
                 {element::f32},
-                {{-128, -128, -128, -128}, ngraph::element::f32, {1, 1, 4}},
-                {{0.01f, 0.02f, 0.03f, 0.04f}, ngraph::element::f32, {1, 1, 4}}
+                {{-128, -128, -128, -128}, ov::element::f32, {1, 1, 4}},
+                {{0.01f, 0.02f, 0.03f, 0.04f}, ov::element::f32, {1, 1, 4}}
             },
             element::f32,
             {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}
@@ -537,8 +536,8 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
             element::u8,
             {
                 {element::f32},
-                {{-128, -128, -128, -128}, ngraph::element::f32, {1, 1, 4}},
-                {{0.01f, 0.02f, 0.03f, 0.04f}, ngraph::element::f32, {1, 1, 4}}
+                {{-128, -128, -128, -128}, ov::element::f32, {1, 1, 4}},
+                {{0.01f, 0.02f, 0.03f, 0.04f}, ov::element::f32, {1, 1, 4}}
             },
             element::f32,
             element::f32,

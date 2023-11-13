@@ -84,7 +84,7 @@ struct GnaAllocation {
     }
 
     uint32_t sizeForExport() const {
-        return ALIGN64(sizeRequested);
+        return ALIGN64(static_cast<uint32_t>(sizeRequested));
     }
 
 private:

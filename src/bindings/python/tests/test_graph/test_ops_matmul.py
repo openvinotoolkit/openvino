@@ -24,7 +24,6 @@ import openvino.runtime.opset8 as ov
         ([2, 2, 4], [2, 4, 2], False, False, [2, 2, 2]),
     ],
 )
-@pytest.mark.skip(reason="Sporadically failed. Need further investigation. Ticket - 95970")
 def test_matmul(shape_a, shape_b, transpose_a, transpose_b, output_shape):
     np.random.seed(133391)
     left_input = -100.0 + np.random.rand(*shape_a).astype(np.float32) * 200.0

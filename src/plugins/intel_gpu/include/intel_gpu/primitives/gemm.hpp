@@ -25,6 +25,8 @@ namespace cldnn {
 struct gemm : public primitive_base<gemm> {
     CLDNN_DECLARE_PRIMITIVE(gemm)
 
+    gemm() : primitive_base("", {}) {}
+
     /// @brief Constructs gemm layer.
     /// @brief Primitive id containing first matrix
     /// @brief Primitive id containing second matrix
@@ -56,17 +58,17 @@ struct gemm : public primitive_base<gemm> {
     }
 
     /// @brief Flag for transposing first input matrix
-    bool transpose_input0;
+    bool transpose_input0 = false;
     /// @brief Flag for transposing second input matrix
-    bool transpose_input1;
+    bool transpose_input1 = false;
     /// @brief Variable containing ALPHA parameter
-    float alpha;
+    float alpha = 1.0f;
     /// @brief Variable containing BETA parameter
-    float beta;
+    float beta = 1.0f;
     /// @brief First matrix rank
-    size_t input_rank;
+    size_t input_rank = 4;
      /// @brief Second matrix rank
-    size_t weight_rank;
+    size_t weight_rank = 4;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -89,6 +91,26 @@ struct gemm : public primitive_base<gemm> {
                beta == rhs_casted.beta &&
                input_rank == rhs_casted.input_rank &&
                weight_rank == rhs_casted.weight_rank;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<gemm>::save(ob);
+        ob << transpose_input0;
+        ob << transpose_input1;
+        ob << alpha;
+        ob << beta;
+        ob << input_rank;
+        ob << weight_rank;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<gemm>::load(ib);
+        ib >> transpose_input0;
+        ib >> transpose_input1;
+        ib >> alpha;
+        ib >> beta;
+        ib >> input_rank;
+        ib >> weight_rank;
     }
 };
 

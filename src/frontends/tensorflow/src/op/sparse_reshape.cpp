@@ -5,20 +5,18 @@
 #include "common_op_table.hpp"
 #include "helper_ops/sparse_fill_empty_rows.hpp"
 #include "helper_ops/sparse_segment_ops.hpp"
-#include "ngraph/validation_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/opsets/opset8.hpp"
 
 using namespace std;
 using namespace ov::opset8;
-using namespace ngraph;
 
 namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
-OutputVector translate_sparse_reshape_op(const ov::frontend::tensorflow::NodeContext& node) {
+NamedOutputVector translate_sparse_reshape_op(const ov::frontend::tensorflow::NodeContext& node) {
     // Currently, the translation for SparseReshape is possible only if new shape value is the same as the input shape
     // value or it is different just by one dynamic dimension of the new shape that can be replace with the
     // corresponding static dimension of the input shape.
@@ -69,23 +67,37 @@ OutputVector translate_sparse_reshape_op(const ov::frontend::tensorflow::NodeCon
                              "This case with SparseReshape is not possible to translate to OpenVINO opset. The number "
                              "of dynamic shapes in new shape must be 1 at most.");
     */
-    return {input_indices, input_shape};
+    auto output_indices = input_indices;
+    auto output_shape = input_shape;
+    set_out_name(node.get_name() + ":0", output_indices);
+    set_out_name(node.get_name() + ":1", output_shape);
+
+    return {{"output_indices", output_indices}, {"output_shape", output_shape}};
 }
 
-OutputVector translate_sparse_fill_empty_rows_op(const ov::frontend::tensorflow::NodeContext& node) {
+NamedOutputVector translate_sparse_fill_empty_rows_op(const ov::frontend::tensorflow::NodeContext& node) {
     default_op_checks(node, 3, {"SparseFillEmptyRows"});
     auto input_indices = node.get_input(0);
     auto input_values = node.get_input(1);
     auto dense_shape = node.get_input(2);
     auto default_value = node.get_input(3);
+    auto node_name = node.get_name();
 
     auto sparse_fill_empty_rows = make_shared<ov::frontend::tensorflow::SparseFillEmptyRows>(input_indices,
                                                                                              input_values,
                                                                                              dense_shape,
                                                                                              default_value,
                                                                                              node.get_decoder());
-    set_node_name(node.get_name(), sparse_fill_empty_rows);
-    return sparse_fill_empty_rows->outputs();
+    sparse_fill_empty_rows->set_friendly_name(node_name);
+    set_out_name(node_name + ":0", sparse_fill_empty_rows->output(0));
+    set_out_name(node_name + ":1", sparse_fill_empty_rows->output(1));
+    set_out_name(node_name + ":2", sparse_fill_empty_rows->output(2));
+    set_out_name(node_name + ":3", sparse_fill_empty_rows->output(3));
+
+    return {{"output_indices", sparse_fill_empty_rows->output(0)},
+            {"output_values", sparse_fill_empty_rows->output(1)},
+            {"empty_row_indicator", sparse_fill_empty_rows->output(2)},
+            {"reverse_index_map", sparse_fill_empty_rows->output(3)}};
 }
 
 OutputVector translate_sparse_segment_sum_op(const ov::frontend::tensorflow::NodeContext& node) {

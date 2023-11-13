@@ -4,15 +4,12 @@
 
 #include "pyopenvino/core/core.hpp"
 
-#include <ie_extension.h>
 #include <pybind11/stl.h>
 
 #include <openvino/core/any.hpp>
 #include <openvino/runtime/core.hpp>
 #include <openvino/core/op_extension.hpp>
 #include <pyopenvino/core/tensor.hpp>
-
-#include "so_extension.hpp"
 
 #include "common.hpp"
 #include "pyopenvino/utils/utils.hpp"
@@ -523,11 +520,14 @@ void regclass_Core(py::module m) {
                 new_compiled = core.import_model(user_stream, "CPU")
         )");
 
-    cls.def("register_plugin",
-            &ov::Core::register_plugin,
-            py::arg("plugin_name"),
-            py::arg("device_name"),
-            R"(
+    cls.def(
+        "register_plugin",
+        [](ov::Core& self, const std::string& plugin_name, const std::string& device_name) {
+            self.register_plugin(plugin_name, device_name);
+        },
+        py::arg("plugin_name"),
+        py::arg("device_name"),
+        R"(
                 Register a new device and plugin which enable this device inside OpenVINO Runtime.
 
                 :param plugin_name: A path (absolute or relative) or name of a plugin. Depending on platform,
@@ -537,6 +537,32 @@ void regclass_Core(py::module m) {
                 :type plugin_name: str
                 :param device_name: A device name to register plugin for.
                 :type device_name: str
+            )");
+
+    cls.def(
+        "register_plugin",
+        [](ov::Core& self,
+           const std::string& plugin_name,
+           const std::string& device_name,
+           const std::map<std::string, py::object>& config) {
+            auto properties = Common::utils::properties_to_any_map(config);
+            self.register_plugin(plugin_name, device_name, properties);
+        },
+        py::arg("plugin_name"),
+        py::arg("device_name"),
+        py::arg("config"),
+        R"(
+                Register a new device and plugin which enable this device inside OpenVINO Runtime.
+
+                :param plugin_name: A path (absolute or relative) or name of a plugin. Depending on platform,
+                                    `plugin_name` is wrapped with shared library suffix and prefix to identify
+                                    library full name E.g. on Linux platform plugin name specified as `plugin_name`
+                                    will be wrapped as `libplugin_name.so`.
+                :type plugin_name: str
+                :param device_name: A device name to register plugin for.
+                :type device_name: str
+                :param config: Plugin default configuration
+                :type config: dict, optional
             )");
 
     cls.def("register_plugins",
@@ -621,54 +647,6 @@ void regclass_Core(py::module m) {
             :type extensions: list[openvino.runtime.Extension]
         )");
 
-    cls.def(
-        "make_node",
-        [](ov::Core& self,
-            const std::string& op_type,
-            //const std::string& op_version,
-            const ov::OutputVector& inputs,
-            const std::map<std::string, py::object>& py_attributes) {
-                // TODO: Make the search more efficient via caching a map of available operation extensions
-                for(auto extension : self.get_extensions()) {
-                    ov::Extension::Ptr extension_extracted = extension;
-                    if(auto so_extension = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
-                        extension_extracted = so_extension->extension();
-                    }
-                    if(auto op_extension = std::dynamic_pointer_cast<ov::BaseOpExtension>(extension_extracted)) {
-                        if(op_extension->get_type_info().name == op_type) {
-
-                            std::map<std::string, ov::Any> attributes;
-                            for (const auto& it : py_attributes) {
-                                attributes[it.first] = Common::utils::py_object_to_any(it.second);
-                            }
-
-                            AnyMapAttributeVisitor visitor(attributes);
-                            auto node = op_extension->create(inputs, visitor)[0].get_node_shared_ptr();
-
-                            const auto& unused_attributes = visitor.get_unused_attributes();
-                            if(unused_attributes.size()) {
-                                std::ostringstream message;
-                                message << "While creating operation " + op_type + " unknown attributes are provided: ";
-                                std::copy(
-                                    unused_attributes.begin(),
-                                    unused_attributes.end(),
-                                    std::ostream_iterator<std::string>(message, ", ")
-                                );
-                                message << ". Consult with operation class definition on supported attribute names.";
-                                throw py::value_error(message.str());
-                            }
-
-                            return node;
-                        }
-                    }
-                }
-                throw py::value_error("Operation with type " + op_type + " was not found");
-            },
-            py::arg("op_type"),
-            py::arg("inputs"),
-            py::arg("attributes") = std::map<std::string, py::object>()
-    );
-
     cls.def("get_available_devices",
             &ov::Core::get_available_devices,
             py::call_guard<py::gil_scoped_release>(),
@@ -698,4 +676,9 @@ void regclass_Core(py::module m) {
                                         compile_model, query_model, set_property and so on.
                                     :rtype: list
                                 )");
+
+    cls.def("__repr__", [](const ov::Core& self) {
+        auto devices = Common::docs::container_to_string(self.get_available_devices(), ", ");
+        return "<" + Common::get_class_name(self) + ": available plugins[" + devices + "]>";
+    });
 }

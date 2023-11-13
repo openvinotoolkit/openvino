@@ -526,7 +526,7 @@ private:
 
             uni_vmovups(xmm_weights, ptr[reg_weights]);
             if (jcp_.alg == Algorithm::ROIAlignAvg) {
-                // as vex instruction will zero upper bit for xmm version, store result in seperate xmm_dst_tail
+                // as vex instruction will zero upper bit for xmm version, store result in separate xmm_dst_tail
                 uni_vfmadd231ps(xmm_dst_tail, xmm_src, xmm_weights);
             } else {
                 uni_vmulps(xmm_src, xmm_src, xmm_weights);
@@ -705,9 +705,6 @@ ROIAlign::ROIAlign(const std::shared_ptr<ngraph::Node>& op, const GraphContext::
 }
 
 void ROIAlign::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-
     if (getParentEdges().size() != 3)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
     if (getChildEdges().empty())
@@ -814,8 +811,8 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
 }
 
 void ROIAlign::createPrimitive() {
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate input memory";
     if (!dstMemPtr || !dstMemPtr->isAllocated())
@@ -850,8 +847,8 @@ struct ROIAlign::ROIAlignExecute {
     }
 };
 void ROIAlign::execute(dnnl::stream strm) {
-    auto inputPrec = getParentEdgeAt(0)->getMemory().GetDataType();
-    auto outputPrec = getChildEdgeAt(0)->getMemory().GetDataType();
+    auto inputPrec = getParentEdgeAt(0)->getMemory().getDataType();
+    auto outputPrec = getChildEdgeAt(0)->getMemory().getDataType();
     if (!((inputPrec == dnnl_bf16 && outputPrec == dnnl_bf16) ||
           (inputPrec == dnnl_f32 && outputPrec == dnnl_f32)))
         IE_THROW() <<"ROIAlign doesn't support demanded precisions";
@@ -871,15 +868,15 @@ void ROIAlign::executeSpecified() {
     auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
     auto &dstMemory = getChildEdgeAt(0)->getMemory();
 
-    auto srcBlockDesc = srcMemory0.GetDescWithType<BlockedMemoryDesc>();
-    auto dstBlockDesc = dstMemory.GetDescWithType<BlockedMemoryDesc>();
+    auto srcBlockDesc = srcMemory0.getDescWithType<BlockedMemoryDesc>();
+    auto dstBlockDesc = dstMemory.getDescWithType<BlockedMemoryDesc>();
 
     auto isPlainFmt = srcBlockDesc->hasLayoutType(LayoutType::ncsp);
 
-    const auto *srcData = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    const auto *srcRoi = reinterpret_cast<const float *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
-    const auto *srcRoiIdx = reinterpret_cast<const int *>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
-    auto *dst = reinterpret_cast<outputType *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto *srcData = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    const auto *srcRoi = reinterpret_cast<const float *>(getParentEdgeAt(1)->getMemoryPtr()->getData());
+    const auto *srcRoiIdx = reinterpret_cast<const int *>(getParentEdgeAt(2)->getMemoryPtr()->getData());
+    auto *dst = reinterpret_cast<outputType *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     auto nominalRoiCount = static_cast<int>(srcMemory1.getStaticDims()[0]);
     int realRois = 0;
@@ -943,7 +940,7 @@ void ROIAlign::executeSpecified() {
         int roiBatchInd = srcRoiIdx[n];
         if (roiBatchInd < -1) {  // -1 means switched off region
             IE_THROW() << "Batch index cannot be less, than -1";
-        } else if (roiBatchInd >= inputDimVector[0]) {
+        } else if (static_cast<size_t>(roiBatchInd) >= inputDimVector[0]) {
             IE_THROW() << "Demanded batch (id = " << roiBatchInd << ") doesn't exist";
         }
 

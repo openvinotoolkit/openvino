@@ -2,147 +2,136 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "infer_request.hpp"
-#include <ngraph/node.hpp>
-#include <transformations/utils/utils.hpp>
-#include <ie_input_info.hpp>
-#include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
-#include <blob_factory.hpp>
-#include <debug.h>
 
-namespace MultiDevicePlugin {
+#include <algorithm>
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
 
-using namespace InferenceEngine;
+#include "itt.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/runtime/iremote_tensor.hpp"
+#include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/tensor.hpp"
+#include "plugin.hpp"
 
-// ------------------------------MultiDeviceInferRequest----------------------------
-MultiDeviceInferRequest::MultiDeviceInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-                                                 const std::vector<std::shared_ptr<const ov::Node>>& outputs,
-                                                 const InferenceEngine::SoIInferRequestInternal & request_to_share_blobs_with,
-                                                 InferenceEngine::RemoteContext::Ptr ctx)
-        : IInferRequestInternal(inputs, outputs),
-          _sharedRequest(request_to_share_blobs_with)  {
-    for (const std::shared_ptr<const ov::Node>& in : inputs) {
-        modelInputsMap[ov::op::util::get_ie_output_name(ngraph::Output<const ngraph::Node>(in))] = in;
+using Time = std::chrono::high_resolution_clock;
+
+namespace {
+
+void allocate_tensor_impl(ov::SoPtr<ov::ITensor>& tensor, const ov::element::Type& element_type, const ov::Shape& shape) {
+    if (!tensor || tensor->get_element_type() != element_type) {
+        tensor = ov::make_tensor(element_type, shape);
+    } else {
+        tensor->set_shape(shape);
     }
-    for (const std::shared_ptr<const ov::Node>& out : outputs) {
-        modelOutputsMap[ov::op::util::get_ie_output_name(out->input_value(0))] = out;
-    }
-    CreateInferRequest(request_to_share_blobs_with, ctx);
 }
 
-MultiDeviceInferRequest::MultiDeviceInferRequest(const InputsDataMap&   networkInputs,
-                                                 const OutputsDataMap&  networkOutputs,
-                                                 const SoIInferRequestInternal & request_to_share_blobs_with,
-                                                 InferenceEngine::RemoteContext::Ptr ctx)
-        : IInferRequestInternal(networkInputs, networkOutputs),
-          _sharedRequest(request_to_share_blobs_with) {
-    CreateInferRequest(request_to_share_blobs_with, ctx);
-}
+}  // namespace
 
-void MultiDeviceInferRequest::CreateInferRequest(const InferenceEngine::SoIInferRequestInternal& request_to_share_blobs_with,
-            InferenceEngine::RemoteContext::Ptr ctx) {
-    if (request_to_share_blobs_with) {
-        // do not need to touch multi memory blobs
-        return;
-    }
-    // Allocate all input blobs
-    for (const auto &it : _networkInputs) {
-        auto l = it.second->getLayout();
-        auto p = it.second->getPrecision();
-        auto dims = it.second->getTensorDesc().getDims();
-
-        TensorDesc desc = TensorDesc(p, dims, l);
-        if (ctx) {
-            _inputs[it.first] = ctx->CreateHostBlob(desc);
-        } else {
-            _inputs[it.first] = make_blob_with_precision(desc);
+ov::auto_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::auto_plugin::CompiledModel>& model,
+                                            const SoAsyncInferRequest& request_to_share_tensors_with)
+    : ov::ISyncInferRequest(model),
+      m_shared_request(request_to_share_tensors_with) {
+    if (!m_shared_request) {
+        // Allocate input/output tensors
+        for (const auto& input : get_inputs()) {
+            allocate_tensor(input, [input](ov::SoPtr<ov::ITensor>& tensor) {
+                // Can add a check to avoid double work in case of shared tensors
+                allocate_tensor_impl(tensor,
+                                    input.get_element_type(),
+                                    input.get_partial_shape().is_dynamic() ? ov::Shape{0} : input.get_shape());
+            });
         }
-        _inputs[it.first]->allocate();
+        for (const auto& output : get_outputs()) {
+            allocate_tensor(output, [output](ov::SoPtr<ov::ITensor>& tensor) {
+                // Can add a check to avoid double work in case of shared tensors
+                allocate_tensor_impl(tensor,
+                                    output.get_element_type(),
+                                    output.get_partial_shape().is_dynamic() ? ov::Shape{0} : output.get_shape());
+            });
+        }
+    } else {
+        for (const auto& input : get_inputs()) {
+            auto tensor = m_shared_request->get_tensor(input);
+            if (!tensor._so) {
+                tensor._so = m_shared_request._so;
+            }
+            ov::ISyncInferRequest::set_tensor(input, tensor);
+        }
+        for (const auto& output : get_outputs()) {
+            auto tensor = m_shared_request->get_tensor(output);
+            if (!tensor._so) {
+                tensor._so = m_shared_request._so;
+            }
+            ov::ISyncInferRequest::set_tensor(output, tensor);
+        }
     }
-    // Allocate all output blobs
-    for (const auto &it : _networkOutputs) {
-        auto l = it.second->getLayout();
-        auto p = it.second->getPrecision();
-        auto dims = it.second->getTensorDesc().getDims();
-        // for 1.0 API, dims is not dynamic anyway
-        if (InferenceEngine::details::product(dims) == 0 && !modelOutputsMap.empty()) {
-            // replace the dims with one from dynamic shape
-            const auto outputNodeItr = modelOutputsMap.find(it.first);
-            if (outputNodeItr != modelOutputsMap.end()) {
-                const auto shape = outputNodeItr->second->get_input_partial_shape(0);
-                // update dims
-                dims = shape.get_max_shape();
+}
+
+
+const ov::auto_plugin::SoAsyncInferRequest& ov::auto_plugin::InferRequest::get_shared_request() {
+    return m_shared_request;
+}
+
+void ov::auto_plugin::InferRequest::set_scheduled_request(SoAsyncInferRequest request) {
+    m_scheduled_request = request;
+}
+
+void ov::auto_plugin::InferRequest::set_tensors_to_another_request(const SoAsyncInferRequest& req) {
+    for (const auto &it : get_inputs()) {
+        // this request is already in BUSY state, so using the internal functions safely
+        auto tensor = get_tensor(it);
+        auto type = tensor->get_element_type();
+        bool is_remote  = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) ||
+            std::dynamic_pointer_cast<ov::IRemoteTensor>(req->get_tensor(it)._ptr);
+        if (is_remote || req->get_tensor(it)->data(type) != tensor->data(type))
+            req->set_tensor(it, tensor);
+    }
+    for (const auto &it : get_outputs()) {
+        // this request is already in BUSY state, so using the internal functions safely
+        auto tensor = get_tensor(it);
+        auto type = tensor->get_element_type();
+        bool is_remote  = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) ||
+            std::dynamic_pointer_cast<ov::IRemoteTensor>(req->get_tensor(it)._ptr);
+        if (is_remote || req->get_tensor(it)->data(type) != tensor->data(type))
+            req->set_tensor(it, tensor);
+    }
+}
+
+void ov::auto_plugin::InferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
+    if (m_shared_request)
+        m_shared_request->set_tensor(port, tensor);
+    ov::ISyncInferRequest::set_tensor(port, tensor);
+}
+
+
+void ov::auto_plugin::InferRequest::infer() {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+std::vector<ov::ProfilingInfo> ov::auto_plugin::InferRequest::get_profiling_info() const {
+    if (m_shared_request)
+        return m_shared_request->get_profiling_info();
+    if (m_scheduled_request)
+        return m_scheduled_request->get_profiling_info();
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+ov::auto_plugin::InferRequest::~InferRequest() = default;
+
+std::vector<ov::SoPtr<ov::IVariableState>> ov::auto_plugin::InferRequest::query_state() const {
+    if (m_shared_request) {
+        auto states = m_shared_request->query_state();
+        for (auto&& state : states) {
+            if (!state._so) {
+                state._so = m_shared_request._so;
             }
         }
-
-        TensorDesc desc = TensorDesc(p, dims, l);
-        if (ctx) {
-            _outputs[it.first] = ctx->CreateHostBlob(desc);
-        } else {
-            _outputs[it.first] = make_blob_with_precision(desc);
-        }
-        _outputs[it.first]->allocate();
+        return states;
     }
+    OPENVINO_NOT_IMPLEMENTED;
 }
-void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInternal& req) {
-    for (const auto &it : _networkInputs) {
-        auto &name = it.first;
-        // this request is already in BUSY state, so using the internal functions safely
-        auto blob = GetBlob(name);
-        if (req->GetBlob(name) != blob)
-            req->SetBlob(name, blob);
-    }
-    for (const auto &it : _networkOutputs) {
-        auto &name = it.first;
-        // this request is already in BUSY state, so using the internal functions safely
-        auto blob = GetBlob(name);
-        if (req->GetBlob(name) != blob)
-            req->SetBlob(name, blob);
-    }
-}
-
-void MultiDeviceInferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& blob) {
-    if (_sharedRequest)
-        _sharedRequest->SetBlob(name, blob);
-    else
-        IInferRequestInternal::SetBlob(name, blob);
-}
-
-IE_SUPPRESS_DEPRECATED_START
-void MultiDeviceInferRequest::SetBlob(const std::string& name, const Blob::Ptr& blob, const PreProcessInfo& info) {
-    if (_sharedRequest)
-        _sharedRequest->SetBlob(name, blob, info);
-    else
-        IInferRequestInternal::SetBlob(name, blob, info);
-}
-IE_SUPPRESS_DEPRECATED_END
-
-InferenceEngine::Blob::Ptr MultiDeviceInferRequest::GetBlob(const std::string& name) {
-    if (_sharedRequest)
-        return _sharedRequest->GetBlob(name);
-    else
-        return IInferRequestInternal::GetBlob(name);
-}
-
-std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> MultiDeviceInferRequest::GetPerformanceCounts() const {
-    if (_sharedRequest) {
-        return _sharedRequest->GetPerformanceCounts();
-    } else {
-        // get the profiling info directly from target infer request
-        // not thread-safe for plugin like GPU, see CVS-86034
-        if (_scheduledRequest)
-            return _scheduledRequest->GetPerformanceCounts();
-        else
-            IE_THROW() << "Performance counters were not enabled";
-    }
-}
-
-std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> MultiDeviceInferRequest::QueryState() {
-    if (_sharedRequest)
-        return _sharedRequest->QueryState();
-    IE_THROW(NotImplemented);
-}
-
-}  // namespace MultiDevicePlugin

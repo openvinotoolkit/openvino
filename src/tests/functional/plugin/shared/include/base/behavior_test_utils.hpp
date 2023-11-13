@@ -13,8 +13,6 @@
 
 namespace BehaviorTestsUtils {
 
-using namespace CommonTestUtils;
-
 class IEInferRequestTestBase :  public ov::test::behavior::APIBaseTest {
 private:
     void set_api_entity() override {
@@ -89,9 +87,9 @@ inline InferenceEngine::Core createIECoreWithTemplate() {
     PluginCache::get().reset();
     InferenceEngine::Core ie;
 #ifndef OPENVINO_STATIC_LIBRARY
-    std::string pluginName = "openvino_template_plugin" IE_BUILD_POSTFIX;
-    ie.RegisterPlugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), pluginName),
-        CommonTestUtils::DEVICE_TEMPLATE);
+    std::string pluginName = "openvino_template_plugin" OV_BUILD_POSTFIX;
+    ie.RegisterPlugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(), pluginName),
+        ov::test::utils::DEVICE_TEMPLATE);
 #endif // !OPENVINO_STATIC_LIBRARY
     return ie;
 }
@@ -147,6 +145,8 @@ typedef std::tuple<
 class BehaviorTestsBasicBase : public testing::WithParamInterface<BehaviorBasicParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<BehaviorBasicParams> obj) {
+        using namespace ov::test::utils;
+
         InferenceEngine::Precision  netPrecision;
         std::string targetDevice;
         std::map<std::string, std::string> configuration;

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/single_layer/matrix_nms.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
@@ -44,12 +44,12 @@ std::string MatrixNmsLayerTest::getTestCaseName(const testing::TestParamInfo<Nms
     std::ostringstream result;
     result << "IS=(";
     for (const auto& shape : shapes) {
-        result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+        result << ov::test::utils::partialShape2str({shape.first}) << "_";
     }
     result << ")_TS=(";
     for (const auto& shape : shapes) {
         for (const auto& item : shape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
     }
 
@@ -315,7 +315,10 @@ void MatrixNmsLayerTest::SetUp() {
 
     ElementType paramsPrec, maxBoxPrec, thrPrec;
     std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
-    const auto params = ngraph::builder::makeDynamicParams(paramsPrec, inputDynamicShapes);
+    ov::ParameterVector params;
+    for (auto&& shape : inputDynamicShapes) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(paramsPrec, shape));
+    }
     const auto paramOuts =
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto nms = std::make_shared<opset8::MatrixNms>(paramOuts[0], paramOuts[1], m_attrs);

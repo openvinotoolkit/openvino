@@ -15,9 +15,9 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
-#include "lpt_ngraph_functions/mat_mul_function.hpp"
+#include "ov_lpt_models/mat_mul.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -25,7 +25,7 @@ std::string GemmTransformation::getTestCaseName(const testing::TestParamInfo<Gem
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = obj.param;
 
     return getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params);
@@ -34,7 +34,7 @@ std::string GemmTransformation::getTestCaseName(const testing::TestParamInfo<Gem
 void GemmTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
     const float low = 0.f; // params.precisionsOnActivations[0] == ngraph::element::u8 ? 0.f : -128.f;

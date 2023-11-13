@@ -16,6 +16,8 @@ namespace cldnn {
 struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
     CLDNN_DECLARE_PRIMITIVE(custom_gpu_primitive)
 
+    custom_gpu_primitive() : primitive_base("", {}) {}
+
     /// @brief Custom primitive kernel argument type
     enum arg_type {
         arg_input,
@@ -32,6 +34,16 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
 
         bool operator==(const arg_desc& rhs) const {
             return (type == rhs.type && index == rhs.index);
+        }
+
+        void save(BinaryOutputBuffer& ob) const {
+            ob << make_data(&type, sizeof(arg_type));
+            ob << index;
+        }
+
+        void load(BinaryInputBuffer& ib) {
+            ib >> make_data(&type, sizeof(arg_type));
+            ib >> index;
         }
     };
 
@@ -117,6 +129,28 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
             return false;
 
         return true;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<custom_gpu_primitive>::save(ob);
+        ob << kernel_entry_point;
+        ob << kernel_arguments;
+        ob << build_options;
+        ob << output_layout;
+        ob << gws;
+        ob << lws;
+        ob << kernels_code;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<custom_gpu_primitive>::load(ib);
+        ib >> *const_cast<std::string*>(&kernel_entry_point);
+        ib >> *const_cast<std::vector<arg_desc>*>(&kernel_arguments);
+        ib >> *const_cast<std::string*>(&build_options);
+        ib >> *const_cast<layout*>(&output_layout);
+        ib >> *const_cast<std::vector<size_t>*>(&gws);
+        ib >> *const_cast<std::vector<size_t>*>(&lws);
+        ib >> *const_cast<primitive_id_arr*>(&kernels_code);
     }
 };
 }  // namespace cldnn

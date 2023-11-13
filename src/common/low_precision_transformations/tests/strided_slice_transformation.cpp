@@ -11,34 +11,34 @@
 #include <gtest/gtest.h>
 
 #include <utility>
-#include <transformations/utils/utils.hpp>
+#include "transformations/utils/utils.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
 #include "low_precision/strided_slice.hpp"
 
-#include "lpt_ngraph_functions/strided_slice_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/strided_slice.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 namespace {
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 using namespace ngraph::builder::subgraph;
 
 class StridedSliceTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type inputPrecision;
+        ov::element::Type inputPrecision;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
-        ngraph::element::Type inputPrecision;
+        ov::element::Type inputPrecision;
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-        ngraph::element::Type preicsionAfterOperation;
+        ov::element::Type preicsionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
@@ -60,13 +60,13 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::PartialShape,
+    ov::PartialShape,
     StridedSliceTransformationTestValues> StridedSliceTransformationParams;
 
 class StridedSliceTransformation : public LayerTransformation, public testing::WithParamInterface<StridedSliceTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::PartialShape inputShape = std::get<0>(GetParam());
+        const ov::PartialShape inputShape = std::get<0>(GetParam());
         const StridedSliceTransformationTestValues testValues = std::get<1>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::StridedSliceFunction::getOriginal(
@@ -83,7 +83,7 @@ public:
             testValues.layerParams.elipsisMask);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::StridedSliceTransformation, ngraph::opset1::StridedSlice>(testValues.params);
+        transformer.add<ov::pass::low_precision::StridedSliceTransformation, ov::op::v1::StridedSlice>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::StridedSliceFunction::getReference(
@@ -103,7 +103,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<StridedSliceTransformationParams> obj) {
-        const ngraph::PartialShape inputShape = std::get<0>(obj.param);
+        const ov::PartialShape inputShape = std::get<0>(obj.param);
         const StridedSliceTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
@@ -135,6 +135,8 @@ StridedSliceTransformationTestValues::LayerParams channelSlice = {
     {}, // shrinkAxisMask
     {} // elipsisMask
 };
+
+namespace inputs_4d {
 
 StridedSliceTransformationTestValues::LayerParams channelSlice2D = {
     {0, 0},  // begin
@@ -177,7 +179,7 @@ StridedSliceTransformationTestValues::LayerParams sliceWithRemovedAxis = {
     { 1, 0, 1, 1 }, // endMask
     { 0, 0, 0, 0 }, // newAxisMask
     { 0, 1, 0, 0 }, // shrinkAxisMask
-    { 0, 0, 0, 0 } // elipsisMask
+    { 0, 0, 0, 0 }  // elipsisMask
 };
 
 StridedSliceTransformationTestValues::LayerParams sliceWithAdditionalAxis = {
@@ -191,8 +193,7 @@ StridedSliceTransformationTestValues::LayerParams sliceWithAdditionalAxis = {
     { 0, 0, 0, 0 } // elipsisMask
 };
 
-namespace testValues1 {
-const std::vector<ngraph::PartialShape> inputShapes = {
+const std::vector<ov::PartialShape> inputShapes = {
     {1, 3, 24, 24},
     {-1, -1, -1, -1}
 };
@@ -203,14 +204,14 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
         LayerTransformation::createParamsU8I8(),
         channelSlice,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, { 128.f }, { 0.1f }}
+            ov::element::u8,
+            {{ov::element::f32}, { 128.f }, { 0.1f }}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, { 128.f }, { 0.1f }}
+            ov::element::u8,
+            {{ov::element::f32}, { 128.f }, { 0.1f }}
         }
     },
     // U8: channel slice, per-channel quantization with the same values
@@ -218,14 +219,14 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
         LayerTransformation::createParamsU8I8(),
         channelSlice,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{ 128.f, 128.f, 128.f }}, {{ 0.1f, 0.1f, 0.1f }}}
+            ov::element::u8,
+            {{ov::element::f32}, {{ 128.f, 128.f, 128.f }}, {{ 0.1f, 0.1f, 0.1f }}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, { 128.f }, { 0.1f }}
+            ov::element::u8,
+            {{ov::element::f32}, { 128.f }, { 0.1f }}
         }
     },
     // U8: channel slice, per-channel quantization with the same values, subtraction with Convert from u8 to fp32
@@ -233,19 +234,19 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
         LayerTransformation::createParamsU8I8(),
         channelSlice,
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
+                {ov::element::f32},
                 {{128.f}, element::undefined, {1, 3, 1, 1}, false, 1ul, element::u8, true},
                 {3.f}
             }
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
+                {ov::element::f32},
                 {{128.f}, element::undefined, {}, false, 1ul, element::u8, true},
                 {3.f}
             }
@@ -256,14 +257,14 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
         LayerTransformation::createParamsU8I8(),
         channelSlice,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{ 128.f, 64.f, 128.f }}, {{ 0.1f, 0.01f, 1.f }}}
+            ov::element::u8,
+            {{ov::element::f32}, {{ 128.f, 64.f, 128.f }}, {{ 0.1f, 0.01f, 1.f }}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{ 128.f, 64.f }}, {{ 0.1f, 0.01f }}}
+            ov::element::u8,
+            {{ov::element::f32}, {{ 128.f, 64.f }}, {{ 0.1f, 0.01f }}}
         }
     },
     // U8: channel slice, per-channel quantization with different values
@@ -271,14 +272,14 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
         LayerTransformation::createParamsU8I8(),
         channelSlice2D,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{ 128.f, 64.f, 128.f }}, {{ 0.1f, 0.01f, 1.f }}}
+            ov::element::u8,
+            {{ov::element::f32}, {{ 128.f, 64.f, 128.f }}, {{ 0.1f, 0.01f, 1.f }}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{ 128.f, 64.f }}, {{ 0.1f, 0.01f }}}
+            ov::element::u8,
+            {{ov::element::f32}, {{ 128.f, 64.f }}, {{ 0.1f, 0.01f }}}
         }
     },
     // U8: without subtract
@@ -286,14 +287,14 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
         LayerTransformation::createParamsU8I8(),
         channelSlice,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, { 0.1f }}
+            ov::element::u8,
+            {{ov::element::f32}, {}, { 0.1f }}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, { 0.1f }}
+            ov::element::u8,
+            {{ov::element::f32}, {}, { 0.1f }}
         }
     },
     // I8: channel slice, per-tensor quantization
@@ -301,14 +302,14 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
         LayerTransformation::createParamsI8I8(),
         channelSlice,
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, { 32.f }, { 0.1f }}
+            ov::element::i8,
+            {{ov::element::f32}, { 32.f }, { 0.1f }}
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {},
-            ngraph::element::i8,
-            {{ngraph::element::f32}, { 32.f }, { 0.1f }}
+            ov::element::i8,
+            {{ov::element::f32}, { 32.f }, { 0.1f }}
         }
     },
     // I8: channel slice, per-channel quantization with the same values
@@ -316,14 +317,14 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
         LayerTransformation::createParamsI8I8(),
         channelSlice,
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {{ 32.f, 32.f, 32.f }}, {{ 0.1f, 0.1f, 0.1f }}}
+            ov::element::i8,
+            {{ov::element::f32}, {{ 32.f, 32.f, 32.f }}, {{ 0.1f, 0.1f, 0.1f }}}
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {},
-            ngraph::element::i8,
-            {{ngraph::element::f32}, { 32.f }, { 0.1f }}
+            ov::element::i8,
+            {{ov::element::f32}, { 32.f }, { 0.1f }}
         }
     },
     // I8: channel slice, per-channel quantization with different values
@@ -331,14 +332,14 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
         LayerTransformation::createParamsI8I8(),
         channelSlice,
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {{ 32.f, 64.f, 32.f }}, {{ 0.1f, 0.01f, 1.f }}}
+            ov::element::i8,
+            {{ov::element::f32}, {{ 32.f, 64.f, 32.f }}, {{ 0.1f, 0.01f, 1.f }}}
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {},
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {{ 32.f, 64.f }}, {{ 0.1f, 0.01f }}}
+            ov::element::i8,
+            {{ov::element::f32}, {{ 32.f, 64.f }}, {{ 0.1f, 0.01f }}}
         }
     },
     // channel slice, not update precisions
@@ -346,13 +347,13 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
         LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
         channelSlice,
         {
-            ngraph::element::f32,
+            ov::element::f32,
             {{}, { 128.f }, { 0.1f }}
         },
         {
-            ngraph::element::f32,
+            ov::element::f32,
             {},
-            ngraph::element::f32,
+            ov::element::f32,
             {{}, { 128.f }, { 0.1f }}
         }
     },
@@ -361,13 +362,13 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
         LayerTransformation::createParamsU8I8(),
         channelSlice,
         {
-            ngraph::element::f32,
+            ov::element::f32,
             {}
         },
         {
-            ngraph::element::f32,
+            ov::element::f32,
             {},
-            ngraph::element::f32,
+            ov::element::f32,
             {}
         }
     },
@@ -376,14 +377,14 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
         LayerTransformation::createParamsU8I8(),
         spatialDimensionSlice,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, { {0.1f, 0.01f, 1.f}, ngraph::element::f32, {3, 1, 1} }}
+            ov::element::u8,
+            {{ov::element::f32}, {}, { {0.1f, 0.01f, 1.f}, ov::element::f32, {3, 1, 1} }}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, { {0.1f, 0.01f, 1.f}, ngraph::element::f32, {1, 3, 1, 1} }}
+            ov::element::u8,
+            {{ov::element::f32}, {}, { {0.1f, 0.01f, 1.f}, ov::element::f32, {1, 3, 1, 1} }}
         }
     },
     // quantization after convolution
@@ -391,14 +392,14 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
         LayerTransformation::createParamsU8I8(),
         channelSlice,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, { {0.1f, 0.01f, 1.f}, ngraph::element::f32, {3, 1, 1} }}
+            ov::element::u8,
+            {{ov::element::f32}, {}, { {0.1f, 0.01f, 1.f}, ov::element::f32, {3, 1, 1} }}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, { {0.1f, 0.01f}, ngraph::element::f32, {1, 2, 1, 1} }}
+            ov::element::u8,
+            {{ov::element::f32}, {}, { {0.1f, 0.01f}, ov::element::f32, {1, 2, 1, 1} }}
         }
     },
     // U8: special dimension slice, per-channel quantization with different values
@@ -406,14 +407,14 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
         LayerTransformation::createParamsU8I8(),
         spatialDimensionSlice,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{ 128.f, 64.f, 128.f }}, {{ 0.1f, 0.01f, 1.f }}}
+            ov::element::u8,
+            {{ov::element::f32}, {{ 128.f, 64.f, 128.f }}, {{ 0.1f, 0.01f, 1.f }}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{ 128.f, 64.f, 128.f }}, {{ 0.1f, 0.01f, 1.f }}}
+            ov::element::u8,
+            {{ov::element::f32}, {{ 128.f, 64.f, 128.f }}, {{ 0.1f, 0.01f, 1.f }}}
         }
     },
     // U8: without convert
@@ -421,13 +422,13 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
         LayerTransformation::createParamsU8I8(),
         spatialDimensionSlice,
         {
-            ngraph::element::f32,
+            ov::element::f32,
             {{}, { 128.f }, { 0.1f }}
         },
         {
-            ngraph::element::f32,
+            ov::element::f32,
             {},
-            ngraph::element::f32,
+            ov::element::f32,
             {{}, { 128.f }, { 0.1f }}
         }
     },
@@ -436,14 +437,14 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
         LayerTransformation::createParamsI8I8(),
         spatialDimensionSlice,
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {{ 32.f, 64.f, 32.f }}, {{ 0.1f, 0.01f, 1.f }}}
+            ov::element::i8,
+            {{ov::element::f32}, {{ 32.f, 64.f, 32.f }}, {{ 0.1f, 0.01f, 1.f }}}
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {},
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {{ 32.f, 64.f, 32.f }}, {{ 0.1f, 0.01f, 1.f }}}
+            ov::element::i8,
+            {{ov::element::f32}, {{ 32.f, 64.f, 32.f }}, {{ 0.1f, 0.01f, 1.f }}}
         }
     },
     // I8: special dimension end slice, per-channel quantization with different values
@@ -451,14 +452,14 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
         LayerTransformation::createParamsI8I8(),
         spatialDimensionEndSlice,
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {{ 32.f, 64.f, 32.f }}, {{ 0.1f, 0.01f, 1.f }}}
+            ov::element::i8,
+            {{ov::element::f32}, {{ 32.f, 64.f, 32.f }}, {{ 0.1f, 0.01f, 1.f }}}
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {},
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {{ 32.f, 64.f, 32.f }}, {{ 0.1f, 0.01f, 1.f }}}
+            ov::element::i8,
+            {{ov::element::f32}, {{ 32.f, 64.f, 32.f }}, {{ 0.1f, 0.01f, 1.f }}}
         }
     },
     // I8: special dimension end slice, per-tensor quantization with different values
@@ -466,14 +467,14 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
         LayerTransformation::createParamsI8I8(),
         spatialDimensionEndSlice,
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, { 32.f }, { 0.1f }}
+            ov::element::i8,
+            {{ov::element::f32}, { 32.f }, { 0.1f }}
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {},
-            ngraph::element::i8,
-            {{ngraph::element::f32}, { 32.f }, { 0.1f }}
+            ov::element::i8,
+            {{ov::element::f32}, { 32.f }, { 0.1f }}
         }
     },
     // U8: channel slice, per-tensor quantization
@@ -481,14 +482,14 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
         LayerTransformation::createParamsU8I8(),
         sliceWithRemovedAxis,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128.f}, {0.1f}}
+            ov::element::u8,
+            {{ov::element::f32}, {128.f}, {0.1f}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128.f}, {0.1f}}
+            ov::element::u8,
+            {{ov::element::f32}, {128.f}, {0.1f}}
         }
     },
     // U8: channel slice, per-channel quantization
@@ -496,14 +497,14 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
         LayerTransformation::createParamsU8I8(),
         sliceWithRemovedAxis,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, { {128.f, 64.f, 32.f} }, { {0.1f, 0.2f, 0.3f} }}
+            ov::element::u8,
+            {{ov::element::f32}, { {128.f, 64.f, 32.f} }, { {0.1f, 0.2f, 0.3f} }}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {64.f}, {0.2f}},
+            ov::element::u8,
+            {{ov::element::f32}, {64.f}, {0.2f}},
         }
     },
     // U8: channel slice, per-tensor quantization
@@ -511,14 +512,14 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
         LayerTransformation::createParamsU8I8(),
         sliceWithAdditionalAxis,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128.f}, {0.1f}}
+            ov::element::u8,
+            {{ov::element::f32}, {128.f}, {0.1f}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128.f}, {0.1f}}
+            ov::element::u8,
+            {{ov::element::f32}, {128.f}, {0.1f}}
         }
     },
     // U8: channel slice, per-channel quantization
@@ -526,17 +527,17 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
         LayerTransformation::createParamsU8I8(),
         sliceWithAdditionalAxis,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, { {128.f, 64.f, 32.f} }, { {0.1f, 0.2f, 0.3f} }}
+            ov::element::u8,
+            {{ov::element::f32}, { {128.f, 64.f, 32.f} }, { {0.1f, 0.2f, 0.3f} }}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
-                { {128.f, 64.f, 32.f}, ngraph::element::f32, {1, 1, 3, 1, 1} },
-                { {0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 1, 3, 1, 1} }
+                {ov::element::f32},
+                { {128.f, 64.f, 32.f}, ov::element::f32, {1, 1, 3, 1, 1} },
+                { {0.1f, 0.2f, 0.3f}, ov::element::f32, {1, 1, 3, 1, 1} }
             },
         }
     },
@@ -549,10 +550,10 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(stridedSliceTransformationTestValues)),
     StridedSliceTransformation::getTestCaseName);
-} // namespace testValues1
+} // namespace inputs_4d
 
-namespace testValues2 {
-const std::vector<ngraph::PartialShape> inputShapes = {
+namespace inputs_4d_spatial {
+const std::vector<ov::PartialShape> inputShapes = {
     { -1, -1, -1, -1 },
     { 1, 3, 4, 4 }
 };
@@ -563,21 +564,21 @@ const std::vector<StridedSliceTransformationTestValues> testValuesWithDQBySpatia
         LayerTransformation::createParamsU8I8(),
         channelSlice,
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {
-                {ngraph::element::f32},
-                {{32.f, 64.f, 32.f, 64.f}, ngraph::element::f32, {1, 1, 4, 1}},
-                {{3.f, 2.f, 1.f, 3.f}, ngraph::element::f32, {1, 1, 4, 1}}
+                {ov::element::f32},
+                {{32.f, 64.f, 32.f, 64.f}, ov::element::f32, {1, 1, 4, 1}},
+                {{3.f, 2.f, 1.f, 3.f}, ov::element::f32, {1, 1, 4, 1}}
             }
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {},
-            ngraph::element::i8,
+            ov::element::i8,
             {
-                {ngraph::element::f32},
-                {{32.f, 64.f, 32.f, 64.f}, ngraph::element::f32, {1, 1, 4, 1}},
-                {{3.f, 2.f, 1.f, 3.f}, ngraph::element::f32, {1, 1, 4, 1}}
+                {ov::element::f32},
+                {{32.f, 64.f, 32.f, 64.f}, ov::element::f32, {1, 1, 4, 1}},
+                {{3.f, 2.f, 1.f, 3.f}, ov::element::f32, {1, 1, 4, 1}}
             }
         }
     },
@@ -590,10 +591,10 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(testValuesWithDQBySpatialDimension)),
     StridedSliceTransformation::getTestCaseName);
-} // namespace testValues2
+} // namespace inputs_4d_spatial
 
-namespace testValues3 {
-const std::vector<ngraph::PartialShape> inputShapesWithDynamicChannels = {
+namespace dynamic_inputs {
+const std::vector<ov::PartialShape> inputShapesWithDynamicChannels = {
     PartialShape::dynamic()
 };
 
@@ -603,14 +604,14 @@ const std::vector<StridedSliceTransformationTestValues> testValues = {
         LayerTransformation::createParamsU8I8(),
         channelSlice,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, { 128.f }, { 0.1f }}
+            ov::element::u8,
+            {{ov::element::f32}, { 128.f }, { 0.1f }}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, { 128.f }, { 0.1f }}
+            ov::element::u8,
+            {{ov::element::f32}, { 128.f }, { 0.1f }}
         }
     },
     // U8: channel slice, per-channel quantization with different values
@@ -618,13 +619,13 @@ const std::vector<StridedSliceTransformationTestValues> testValues = {
         LayerTransformation::createParamsU8I8(),
         channelSlice,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{ 128.f, 64.f, 128.f }}, {{ 0.1f, 0.01f, 1.f }}}
+            ov::element::u8,
+            {{ov::element::f32}, {{ 128.f, 64.f, 128.f }}, {{ 0.1f, 0.01f, 1.f }}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{ 128.f, 64.f, 128.f }}, {{ 0.1f, 0.01f, 1.f }}},
-            ngraph::element::f32,
+            ov::element::u8,
+            {{ov::element::f32}, {{ 128.f, 64.f, 128.f }}, {{ 0.1f, 0.01f, 1.f }}},
+            ov::element::f32,
             {}
         }
     },
@@ -637,5 +638,92 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(inputShapesWithDynamicChannels),
         ::testing::ValuesIn(testValues)),
     StridedSliceTransformation::getTestCaseName);
-} // namespace testValues3
+} // namespace dynamic_inputs
+
+namespace inputs_3d {
+const std::vector<ov::PartialShape> inputShapes = {
+    { 1, 3, 4 },
+    { 1, -1, 4 }
+};
+
+StridedSliceTransformationTestValues::LayerParams slice = {
+    { 0, 1 }, // begin
+    { 0, 2 }, // end
+    { 1, 1 }, // strided
+    { 1, 0 }, // beginMask
+    { 1, 0 }, // endMask
+    { 0, 0 }, // newAxisMask
+    { 0, 1 }, // shrinkAxisMask
+    { 0, 0 }  // elipsisMask
+};
+
+StridedSliceTransformationTestValues::LayerParams slice2 = {
+    { 0, 1 }, // begin
+    { 0, 2 }, // end
+    { 1, 1 }, // strided
+    { 1, 0 }, // beginMask
+    { 1, 0 }, // endMask
+    { 0, 0 }, // newAxisMask
+    { 0, 1 }, // shrinkAxisMask
+    { 0, 0 }  // elipsisMask
+};
+
+const std::vector<StridedSliceTransformationTestValues> testValuesWithDQBySpatialDimension = {
+    // U8: channel slice, quantization by spatial dimension
+    {
+        LayerTransformation::createParamsU8I8(),
+        slice,
+        {
+            ov::element::u8,
+            {
+                {ov::element::f32},
+                {{1.f, 2.f, 3.f, 4.f}, ov::element::f32, {1, 1, 4}},
+                {{1.f, 2.f, 3.f, 4.f}, ov::element::f32, {1, 1, 4}}
+            }
+        },
+        {
+            ov::element::u8,
+            {},
+            ov::element::u8,
+            {
+                {ov::element::f32},
+                {{1.f, 2.f, 3.f, 4.f}, ov::element::f32, {1, 4}},
+                {{1.f, 2.f, 3.f, 4.f}, ov::element::f32, {1, 4}}
+            }
+        }
+    },
+    // U8: channel slice, quantization by spatial dimension
+    {
+        LayerTransformation::createParamsU8I8(),
+        slice2,
+        {
+            ov::element::u8,
+            {
+                {ov::element::f32},
+                {{1.f, 2.f, 3.f}, ov::element::f32, {1, 3, 1}},
+                {{1.f, 2.f, 3.f}, ov::element::f32, {1, 3, 1}}
+            }
+        },
+        {
+            ov::element::u8,
+            {},
+            ov::element::u8,
+            {
+                {ov::element::f32},
+                {{2.f}, ov::element::f32, {}},
+                {{2.f}, ov::element::f32, {}}
+            }
+        }
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    StridedSliceTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapes),
+        ::testing::ValuesIn(testValuesWithDQBySpatialDimension)),
+    StridedSliceTransformation::getTestCaseName);
+} // namespace inputs_3d
+
 } // namespace

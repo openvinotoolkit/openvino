@@ -9,6 +9,6 @@ namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_CustomLocaleTest, CustomLocaleTest,
                             ::testing::Combine(
                                 ::testing::Values("ru_RU.UTF-8"),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                             CustomLocaleTest::getTestCaseName);
 }  // namespace

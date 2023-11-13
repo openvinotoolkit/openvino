@@ -129,7 +129,7 @@ TEST_P(gather_quantize, basic) {
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        gather("gather_prim", input_info("input"), input_info("gather_indices"), p.axis, p.out_shape),
+        gather("gather_prim", input_info("input"), input_info("gather_indices"), p.axis, p.dictionary_shape.size(), p.out_shape),
         quantize("quantize", input_info("gather_prim"), input_info("in_lo"), input_info("in_hi"),
                  input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
         reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
@@ -172,7 +172,7 @@ TEST_P(gather_eltwise_activation, basic) {
         input_layout("input", get_input_layout(p)),
         data("gather_indices", get_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p) - 1))),
         data("eltwise_data", get_mem(get_per_channel_layout(p), -10, 10)),
-        gather("gather_prim", input_info("input"), input_info("gather_indices"), p.axis, p.out_shape),
+        gather("gather_prim", input_info("input"), input_info("gather_indices"), p.axis, p.dictionary_shape.size(), p.out_shape),
         activation("activation", input_info("gather_prim"), activation_func::abs),
         eltwise("eltwise", { input_info("activation"), input_info("eltwise_data") }, eltwise_mode::prod),
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
@@ -211,11 +211,16 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gather_eltwise_activation, ::testing::Valu
 class gather_eltwise_activation_dynamic : public GatherPrimitiveFusingTest {};
 TEST_P(gather_eltwise_activation_dynamic, basic) {
     auto p = GetParam();
+    // Currently, eltwise fusion for dynamic shape + onednn is prevented
+    // To be removed once dynamic shape fusion is allowed for onednn
+    if (engine.get_device_info().supports_immad)
+        return;
+
     create_topologies(
         input_layout("input", get_input_layout(p, true)),
         input_layout("gather_indices", layout{ ov::PartialShape::dynamic(p.indices_shape.size()), p.data_type, format::bfyx }),
         input_layout("eltwise_data", get_per_channel_layout(p, true)),
-        gather("gather_prim", input_info("input"), input_info("gather_indices"), p.axis, p.out_shape),
+        gather("gather_prim", input_info("input"), input_info("gather_indices"), p.axis, p.dictionary_shape.size(), p.out_shape),
         activation("activation", input_info("gather_prim"), activation_func::abs),
         eltwise("eltwise", { input_info("activation"), input_info("eltwise_data") }, eltwise_mode::prod),
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)

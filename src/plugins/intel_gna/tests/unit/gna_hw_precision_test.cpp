@@ -8,7 +8,7 @@
 #include "gna_data_types.hpp"
 #include "gna_plugin.hpp"
 #include "memory/gna_memory.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace InferenceEngine;
 namespace testing {
@@ -17,7 +17,7 @@ class GNAPluginForPrecisionTest : public GNAPlugin {
 public:
     GNAPluginForPrecisionTest(const std::map<std::string, std::string>& configMap) : GNAPlugin(configMap) {
         gnamem.reset(new gna_memory_float(memory::GNAFloatAllocator{}));
-        graphCompiler.setGNAMemoryPtr(gnamem);
+        m_graph_compiler->setGNAMemoryPtr(gnamem);
         gnadevice.reset();
     }
     std::vector<intel_dnn_component_t> get_components() {

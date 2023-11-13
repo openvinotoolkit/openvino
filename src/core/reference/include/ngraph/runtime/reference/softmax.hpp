@@ -4,42 +4,15 @@
 
 #pragma once
 
-#include <cmath>
+#include "openvino/reference/softmax.hpp"
 
-#include "ngraph/coordinate_transform.hpp"
-#include "ngraph/runtime/reference/max.hpp"
-#include "ngraph/runtime/reference/sum.hpp"
-#include "ngraph/shape_util.hpp"
-
+// Proxy call for dependant components transition to ov::reference namespace
 namespace ngraph {
 namespace runtime {
 namespace reference {
 template <typename T>
 void softmax(const T* arg, T* out, const Shape& shape, const AxisSet& axes) {
-    auto temp_shape = reduce(shape, axes, true);
-    auto temp_elements = shape_size(temp_shape);
-    auto temp_ptr = new T[temp_elements];
-
-    max(arg, temp_ptr, shape, axes);
-
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    CoordinateTransform transform(shape);
-    CoordinateTransform temp_transform(temp_shape);
-    for (const Coordinate& coord : transform) {
-        Coordinate temp_coord = reduce(coord, axes, true);
-        out[transform.index(coord)] =
-            std::exp(arg[transform.index(coord)] - temp_ptr[temp_transform.index(temp_coord)]);
-    }
-
-    sum(out, temp_ptr, shape, axes);
-
-    for (const Coordinate& coord : transform) {
-        Coordinate temp_coord = reduce(coord, axes, true);
-        out[transform.index(coord)] /= temp_ptr[temp_transform.index(temp_coord)];
-    }
-
-    delete[] temp_ptr;
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    ov::reference::softmax(arg, out, shape, axes);
 }
 }  // namespace reference
 }  // namespace runtime

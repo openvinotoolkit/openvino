@@ -4,12 +4,15 @@
 
 #include "bound_evaluate.hpp"
 
-#include "dimension_tracker.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/shape_util.hpp"
+#include "openvino/op/util/symbolic_info.hpp"
 #include "openvino/opsets/opset10.hpp"
-#include "shape_util.hpp"
 #include "tensor_conversion_util.hpp"
+#include "transformations/rt_info/decompression.hpp"
+#include "transformations/rt_info/is_shape_subgraph.hpp"
 
 namespace {
 using namespace ov;
@@ -110,9 +113,16 @@ ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invali
                     }
                 }
 
-                if (node->evaluate_label(output_labels))
-                    for (size_t i = 0; i < outputs.size(); ++i)
-                        node->get_output_tensor(i).set_value_label(output_labels[i]);
+                bool labels_evaluated = node->evaluate_label(output_labels);
+                for (size_t i = 0; i < outputs.size(); ++i) {
+                    auto& out_tensor = node->get_output_tensor(i);
+                    if (!out_tensor.get_value_label().empty())
+                        continue;
+                    if (labels_evaluated)
+                        out_tensor.set_value_label(output_labels[i]);
+                    if (outputs[i])
+                        ov::populate_tensor_with_missing_labels(out_tensor);
+                }
 
                 for (const auto& input : input_values) {
                     auto& tensor = input.get_tensor();
@@ -247,7 +257,9 @@ bool ov::could_propagate(const Output<Node>& output, std::vector<Node*>& result)
             bool can_add = true;
             size_t arg_count = node->get_input_size();
 
-            if (arg_count == 0 && !is_type<op::v0::Constant>(node)) {
+            auto node_shared_ptr = node->shared_from_this();
+            bool is_decompress_data_path = is_decompression(node_shared_ptr) && !is_shape_subgraph(node_shared_ptr);
+            if ((arg_count == 0 && !is_type<op::v0::Constant>(node)) || is_decompress_data_path) {
                 status = false;
                 continue;
             } else if (is_type<op::v0::ShapeOf>(node) || is_type<op::v3::ShapeOf>(node)) {
@@ -325,8 +337,11 @@ std::pair<ov::Tensor, ov::Tensor> ov::evaluate_both_bounds(const Output<Node>& o
                     out_tensor.set_upper_value(outputs_upper[i]);
                 }
 
+                if (!out_tensor.get_value_label().empty())
+                    continue;
                 if (labels_evaluated)
-                    node->get_output_tensor(i).set_value_label(output_labels[i]);
+                    out_tensor.set_value_label(output_labels[i]);
+                ov::populate_tensor_with_missing_labels(node->get_output_tensor(i));
             }
             for (const auto& input : node->input_values()) {
                 auto& tensor = input.get_tensor();
@@ -464,13 +479,13 @@ bool ov::interval_bound_evaluator(const Node* node,
     return fully_defined;
 }
 
-bool ov::tensor_is_positive(const Tensor& bound) {
+bool ov::tensor_is_non_negative(const Tensor& bound) {
     const auto bound_constant =
         std::make_shared<op::v0::Constant>(bound.get_element_type(), bound.get_shape(), bound.data());
     const auto zero_constant = op::v0::Constant::create(bound.get_element_type(), {1}, {0});
     OutputVector greater(1);
 
-    bool folded = std::make_shared<op::v1::Greater>(bound_constant, zero_constant)
+    bool folded = std::make_shared<op::v1::GreaterEqual>(bound_constant, zero_constant)
                       ->constant_fold(greater, {bound_constant, zero_constant});
     OPENVINO_ASSERT(folded);
 
@@ -485,6 +500,50 @@ bool ov::tensor_is_positive(const Tensor& bound) {
     return std::dynamic_pointer_cast<op::v0::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
 }
 
+bool ov::tensor_has_max_value(const Tensor& bound) {
+    const auto bound_constant =
+        std::make_shared<op::v0::Constant>(bound.get_element_type(), bound.get_shape(), bound.data());
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    auto max_constant = ngraph::get_constant_max_of_type(bound.get_element_type());
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    OutputVector equal(1);
+
+    bool folded = std::make_shared<op::v1::Equal>(bound_constant, max_constant)
+                      ->constant_fold(equal, {bound_constant, max_constant});
+    OPENVINO_ASSERT(folded);
+
+    auto axes_vector = std::vector<int64_t>(equal[0].get_shape().size());
+    std::iota(axes_vector.begin(), axes_vector.end(), 0);
+    const auto axes = op::v0::Constant::create(element::i64, {axes_vector.size()}, axes_vector);
+
+    OutputVector all(1);
+    folded = std::make_shared<op::v1::ReduceLogicalOr>(equal[0], axes)->constant_fold(all, {equal[0], axes});
+    OPENVINO_ASSERT(folded && ov::is_type<op::v0::Constant>(all[0].get_node_shared_ptr()));
+    OPENVINO_ASSERT(all[0].get_shape() == Shape{});
+    return std::dynamic_pointer_cast<op::v0::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
+}
+
+bool ov::tensor_has_zero_value(const Tensor& bound) {
+    const auto bound_constant =
+        std::make_shared<op::v0::Constant>(bound.get_element_type(), bound.get_shape(), bound.data());
+    const auto zero_constant = op::v0::Constant::create(bound.get_element_type(), {1}, {0});
+    OutputVector equal(1);
+
+    bool folded = std::make_shared<op::v1::Equal>(bound_constant, zero_constant)
+                      ->constant_fold(equal, {bound_constant, zero_constant});
+    OPENVINO_ASSERT(folded);
+
+    auto axes_vector = std::vector<int64_t>(equal[0].get_shape().size());
+    std::iota(axes_vector.begin(), axes_vector.end(), 0);
+    const auto axes = op::v0::Constant::create(element::i64, {axes_vector.size()}, axes_vector);
+
+    OutputVector all(1);
+    folded = std::make_shared<op::v1::ReduceLogicalOr>(equal[0], axes)->constant_fold(all, {equal[0], axes});
+    OPENVINO_ASSERT(folded && ov::is_type<op::v0::Constant>(all[0].get_node_shared_ptr()));
+    OPENVINO_ASSERT(all[0].get_shape() == Shape{});
+    return std::dynamic_pointer_cast<op::v0::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
+}
+
 bool ov::has_and_set_equal_bounds(const Output<Node>& source) {
     if (op::util::is_constant(source.get_node_shared_ptr()))
         return true;
@@ -494,7 +553,7 @@ bool ov::has_and_set_equal_bounds(const Output<Node>& source) {
 }
 
 bool ov::have_node_inputs_bounds_set(const Node* const node, const size_t first_idx, const size_t last_idx) {
-    bool have_bound_set = last_idx <= node->get_input_size();
+    bool have_bound_set = last_idx < node->get_input_size();
     for (size_t i = first_idx; have_bound_set && (i <= last_idx); ++i) {
         have_bound_set = node->get_input_tensor(i).has_and_set_bound();
     }

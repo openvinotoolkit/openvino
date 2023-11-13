@@ -3,11 +3,12 @@
 //
 #include "plugin_config.hpp"
 
-namespace MultiDevicePlugin {
+namespace ov {
+namespace auto_plugin {
 // AUTO will enable the blocklist if
 // 1.No device priority passed to AUTO/MULTI.(eg. core.compile_model(model, "AUTO", configs);)
 // 2.No valid device parsed out from device priority (eg. core.compile_model(model, "AUTO:-CPU,-GPU", configs);).
-const std::set<std::string> PluginConfig::_deviceBlocklist = {"VPUX", "GNA", "notIntelGPU"};
+const std::set<std::string> PluginConfig::device_block_list = {"NPU", "GNA", "notIntelGPU"};
 
 PluginConfig::PluginConfig() {
     set_default();
@@ -51,6 +52,11 @@ void PluginConfig::set_property(const ov::AnyMap& properties) {
             internal_properties[name] = val;
             // when user call set_property to set some config to plugin, we also respect this and pass through the config in this case
             user_properties[name] = val;
+            if (kv.first == ov::log::level.name()) {
+                if (!set_log_level(kv.second)) {
+                    OPENVINO_THROW("Unsupported log level: ", kv.second.as<std::string>());
+                }
+            }
         } else {
             OPENVINO_ASSERT(false, "property: ", name,  ": not supported");
         }
@@ -99,12 +105,19 @@ void PluginConfig::set_user_property(const ov::AnyMap& config) {
 
 void PluginConfig::apply_user_properties() {
     full_properties = internal_properties;
-    for (auto& kv : user_properties)
+    for (auto& kv : user_properties) {
         full_properties[kv.first] = kv.second;
+        if (kv.first == ov::log::level.name()) {
+            if (!set_log_level(kv.second)) {
+                OPENVINO_THROW("Unsupported log level: ", kv.second.as<std::string>());
+            }
+        }
+    }
 }
 
 ov::AnyMap PluginConfig::get_full_properties() {
     return full_properties;
 }
 
-} // namespace MultiDevicePlugin
+} // namespace auto_plugin
+} // namespace ov

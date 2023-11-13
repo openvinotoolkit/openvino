@@ -11,7 +11,6 @@
 #include "layout.hpp"
 #include "execution_config.hpp"
 #include "engine_configuration.hpp"
-#include <threading/ie_cpu_streams_executor.hpp>
 
 #include <memory>
 #include <set>
@@ -80,6 +79,8 @@ public:
     /// Checks whether two memory objects represents the same physical memory
     virtual bool is_the_same_buffer(const memory& mem1, const memory& mem2) = 0;
 
+    virtual bool check_allocatable(const layout& layout, allocation_type type) = 0;
+
     /// Returns basic allocation type which will be used as a fallback when allocation type is not specified or device doesn't support some features.
     virtual allocation_type get_default_allocation_type() const = 0;
 
@@ -126,6 +127,9 @@ public:
     /// Returns the size of the larger of the GPU memory and CPU memory.
     uint64_t get_max_memory_size() const;
 
+    /// Returns the size of CPU memory.
+    uint64_t get_host_memory_size() const;
+
     /// Create stream object for current engine
     virtual stream_ptr create_stream(const ExecutionConfig& config) const = 0;
 
@@ -147,7 +151,6 @@ public:
 
     /// Factory method which creates engine object with impl configured by @p engine_type
     /// @param engine_type requested engine type
-    /// @param task_executor GPU plugin internal task executor
     /// @param runtime_type requested execution runtime for the engine. @note some runtime/engine types configurations might be unsupported
     /// @param device specifies the device which the engine is created for
     /// @param configuration options for the engine
@@ -156,7 +159,6 @@ public:
     /// Factory method which creates engine object with impl configured by @p engine_type
     /// @param engine_type requested engine type
     /// @param runtime_type requested execution runtime for the engine. @note some runtime/engine types configurations might be unsupported
-    /// @param task_executor GPU plugin internal task executor
     /// @param configuration options for the engine
     /// @note engine is created for the first device returned by devices query
     static std::shared_ptr<cldnn::engine> create(engine_types engine_type, runtime_types runtime_type);

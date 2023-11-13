@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: In OpenVINO™ Runtime a model is represented by special classes to work with model data types and shapes.
+
+
 In OpenVINO™ Runtime, a model is represented by the ``:ref:`ov::Model <doxid-classov_1_1_model>```  class.
 
 The ``:ref:`ov::Model <doxid-classov_1_1_model>``` object stores shared pointers to ``:ref:`ov::op::v0::Parameter <doxid-classov_1_1op_1_1v0_1_1_parameter>```, ``:ref:`ov::op::v0::Result <doxid-classov_1_1op_1_1v0_1_1_result>```, and ``:ref:`ov::op::Sink <doxid-classov_1_1op_1_1_sink>``` operations, which are inputs, outputs, and sinks of the graph. Sinks of the graph have no consumers and are not included in the results vector. All other operations hold each other via shared pointers, in which a child operation holds its parent via a hard link. If an operation has no consumers and is neither the ``Result`` nor the ``Sink`` operation whose shared pointer counter is zero, the operation will be destructed and not be accessible anymore.
@@ -23,17 +27,17 @@ OpenVINO™ Runtime enables you to use different approaches to work with model i
 
 .. tab-set::
 
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+         :language: cpp
+         :fragment: [all_inputs_ouputs]
+
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-         :language: cpp
-         :fragment: [all_inputs_ouputs]
-
-   .. tab-item:: Python
-      :sync: python
-
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
          :language: cpp
          :fragment: [all_inputs_ouputs]
 
@@ -55,17 +59,17 @@ OpenVINO™ Runtime provides two types for shape representation:
 
 .. tab-set::
 
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+         :language: cpp
+         :fragment: [ov:partial_shape]
+
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-         :language: cpp
-         :fragment: [ov:partial_shape]
-
-   .. tab-item:: Python
-      :sync: python
-
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
          :language: cpp
          :fragment: [ov:partial_shape]
 
@@ -100,6 +104,13 @@ To build an ``:ref:`ov::Model <doxid-classov_1_1_model>``` instance from ``opset
 
 .. tab-set::
 
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+         :language: cpp
+         :fragment: [import]
+
    .. tab-item:: C++
       :sync: cpp
 
@@ -107,29 +118,22 @@ To build an ``:ref:`ov::Model <doxid-classov_1_1_model>``` instance from ``opset
          :language: cpp
          :fragment: [ov:include]
 
-   .. tab-item:: Python
-      :sync: python
-
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-         :language: cpp
-         :fragment: [import]
-
 
 The following code demonstrates how to create a simple model:
 
 .. tab-set::
 
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+         :language: cpp
+         :fragment: [ov:create_simple_model]
+
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-         :language: cpp
-         :fragment: [ov:create_simple_model]
-
-   .. tab-item:: Python
-      :sync: python
-
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
          :language: cpp
          :fragment: [ov:create_simple_model]
 
@@ -138,17 +142,17 @@ The following code creates a model with several outputs:
 
 .. tab-set::
 
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+         :language: cpp
+         :fragment: [ov:create_advanced_model]
+
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-         :language: cpp
-         :fragment: [ov:create_advanced_model]
-
-   .. tab-item:: Python
-      :sync: python
-
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
          :language: cpp
          :fragment: [ov:create_advanced_model]
 
@@ -164,17 +168,17 @@ OpenVINO™ provides several debug capabilities:
 
 .. tab-set::
 
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+         :language: cpp
+         :fragment: [ov:visualize]
+
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-         :language: cpp
-         :fragment: [ov:visualize]
-      
-   .. tab-item:: Python
-      :sync: python
-
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
          :language: cpp
          :fragment: [ov:visualize]
 
@@ -200,17 +204,17 @@ OpenVINO™ provides several debug capabilities:
 
 .. tab-set::
 
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+         :language: cpp
+         :fragment: [ov:serialize]
+
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-         :language: cpp
-         :fragment: [ov:serialize]
-
-   .. tab-item:: Python
-      :sync: python
-
-      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
          :language: cpp
          :fragment: [ov:serialize]
 

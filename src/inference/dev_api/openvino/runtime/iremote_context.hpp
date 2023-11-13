@@ -16,11 +16,14 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 
 namespace ov {
 
 class OPENVINO_RUNTIME_API IRemoteContext : public std::enable_shared_from_this<IRemoteContext> {
 public:
+    virtual ~IRemoteContext() = default;
+
     /**
      * @brief Returns name of a device on which underlying object is allocated.
      * Abstract method.
@@ -48,9 +51,9 @@ public:
      * @param params Map of the low-level tensor object parameters.
      * @return Pointer to a plugin object that implements the RemoteTensor interface.
      */
-    virtual std::shared_ptr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
-                                                             const ov::Shape& shape,
-                                                             const ov::AnyMap& params = {}) = 0;
+    virtual ov::SoPtr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
+                                                       const ov::Shape& shape,
+                                                       const ov::AnyMap& params = {}) = 0;
 
     /**
      * @brief This method is used to create a host tensor object friendly for the device in current context.
@@ -60,7 +63,7 @@ public:
      * @param shape Tensor shape.
      * @return A tensor instance with device friendly memory.
      */
-    virtual std::shared_ptr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape);
+    virtual ov::SoPtr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape);
 };
 
 }  // namespace ov

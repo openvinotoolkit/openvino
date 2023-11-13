@@ -23,6 +23,7 @@ class IELauncher:
         self.infer_request = None
 
         self._ie = Core()
+        self._ie.set_property({"ENABLE_MMAP": "NO"})
 
     def set_model(self, model, output_names=None, md_shapes=None):
         """ Set/reset model to instance of engine class

@@ -16,7 +16,7 @@
 namespace InferenceEngine {
 namespace details {
 
-inline ::ngraph::element::Type convertPrecision(const Precision& precision) {
+INFERENCE_ENGINE_1_0_DEPRECATED inline ::ngraph::element::Type convertPrecision(const Precision& precision) {
     Precision::ePrecision pType = precision;
     switch (pType) {
     case Precision::UNSPECIFIED:
@@ -53,8 +53,10 @@ inline ::ngraph::element::Type convertPrecision(const Precision& precision) {
         return ::ngraph::element::Type(::ngraph::element::Type_t::boolean);
     case Precision::BIN:
         return ::ngraph::element::Type(::ngraph::element::Type_t::u1);
-    case Precision::STRING:
-        return ::ngraph::element::Type(::ngraph::element::Type_t::string);
+    case Precision::NF4:
+        return ::ngraph::element::Type(::ngraph::element::Type_t::nf4);
+    // case Precision::STRING:
+    //     return ::ngraph::element::Type(::ngraph::element::Type_t::string);
     case Precision::Q78:
     case Precision::MIXED:
     case Precision::CUSTOM:
@@ -63,11 +65,11 @@ inline ::ngraph::element::Type convertPrecision(const Precision& precision) {
     }
 }
 
-inline ::ngraph::element::Type convertPrecision(const std::string& precision) {
+INFERENCE_ENGINE_1_0_DEPRECATED inline ::ngraph::element::Type convertPrecision(const std::string& precision) {
     return ::ov::element::Type(precision);
 }
 
-inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
+INFERENCE_ENGINE_1_0_DEPRECATED inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
     switch (precision) {
     case ::ngraph::element::Type_t::undefined:
         return Precision(Precision::UNSPECIFIED);
@@ -103,12 +105,14 @@ inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
         return Precision(Precision::BIN);
     case ::ngraph::element::Type_t::boolean:
         return Precision(Precision::BOOL);
+    case ::ngraph::element::Type_t::nf4:
+        return Precision(Precision::NF4);
     case ::ngraph::element::Type_t::string:
         return Precision(Precision::STRING);
     case ::ngraph::element::Type_t::dynamic:
         return Precision(Precision::UNSPECIFIED);
     default:
-        IE_THROW() << "Incorrect precision " << precision.get_type_name() << "!";
+        IE_THROW() << "Incorrect precision " << precision.to_string() << "!";
         return {};
     }
 }
@@ -119,7 +123,7 @@ inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
  * @param network A network to clone
  * @return A cloned object
  */
-INFERENCE_ENGINE_API_CPP(CNNNetwork) cloneNetwork(const CNNNetwork& network);
+INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CPP(CNNNetwork) cloneNetwork(const CNNNetwork& network);
 
 }  // namespace details
 }  // namespace InferenceEngine

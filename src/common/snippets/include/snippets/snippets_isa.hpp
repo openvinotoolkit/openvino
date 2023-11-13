@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "ngraph/ops.hpp"
-#include <ngraph/opsets/opset1.hpp>
+#include "openvino/core/node.hpp"
+#include "openvino/opsets/opset1.hpp"
 
 #include "op/broadcastload.hpp"
 #include "op/broadcastmove.hpp"
@@ -24,13 +24,14 @@
 #include "op/loop.hpp"
 #include "op/brgemm.hpp"
 #include "op/vector_buffer.hpp"
+#include "op/rank_normalization.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace isa {
-#define NGRAPH_OP(a, b) using b::a;
+#define OV_OP(a, b) using b::a;
 #include "snippets_isa_tbl.hpp"
-#undef NGRAPH_OP
+#undef OV_OP
 } // namespace isa
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

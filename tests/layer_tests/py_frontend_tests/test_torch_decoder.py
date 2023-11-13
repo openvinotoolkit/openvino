@@ -24,6 +24,7 @@ def get_scripted_model(model):
         print(model.inlined_graph)  # will help debugging
         return model
 
+
 def get_traced_model(model, inputs=[], frozen=True):
     with torch.no_grad():
         model = torch.jit.trace(model, example_inputs=inputs)
@@ -36,7 +37,7 @@ def get_traced_model(model, inputs=[], frozen=True):
 
 @pytest.mark.precommit
 def test_pytorch_decoder_get_output_type_str():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 
     model = get_scripted_model(AtenDiv("trunc"))
@@ -52,7 +53,7 @@ def test_pytorch_decoder_get_output_type_str():
 
 @pytest.mark.precommit
 def test_pytorch_decoder_get_output_type_none():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 
     model = get_scripted_model(AtenDiv(None))
@@ -68,7 +69,7 @@ def test_pytorch_decoder_get_output_type_none():
 
 @pytest.mark.precommit
 def test_pytorch_decoder_get_input_type_str():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 
     model = get_scripted_model(AtenDiv("trunc"))
@@ -82,7 +83,7 @@ def test_pytorch_decoder_get_input_type_str():
 
 @pytest.mark.precommit
 def test_pytorch_decoder_get_input_type_none():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 
     model = get_scripted_model(AtenDiv(None))
@@ -96,7 +97,7 @@ def test_pytorch_decoder_get_input_type_none():
 
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_fp16_tensor():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.runtime import PartialShape, Type
 
     class SomeTensor(torch.nn.Module):
@@ -117,8 +118,30 @@ def test_pytorch_decoder_can_convert_fp16_tensor():
 
 
 @pytest.mark.precommit
+def test_pytorch_decoder_can_convert_bf16_tensor():
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+    from openvino.runtime import PartialShape, Type
+
+    class SomeTensor(torch.nn.Module):
+        def forward(self):
+            return torch.tensor([1, 2], dtype=torch.bfloat16)
+
+    model = get_scripted_model(SomeTensor())
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
+              "prim::Constant"]
+    assert len(consts) > 0
+    some_const = consts[0]
+    nc_decoder = TorchScriptPythonDecoder(model, some_const)
+    ov_const = nc_decoder.as_constant()
+    assert ov_const is not None
+    assert len(ov_const) == 1
+    assert ov_const[0].get_element_type() == Type.bf16
+    assert ov_const[0].get_partial_shape() == PartialShape([2])
+
+
+@pytest.mark.precommit
 def test_pytorch_decoder_can_convert_fp32_tensor():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.runtime import PartialShape, Type
 
     class SomeTensor(torch.nn.Module):
@@ -140,7 +163,7 @@ def test_pytorch_decoder_can_convert_fp32_tensor():
 
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_fp64_tensor():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.runtime import PartialShape, Type
 
     class SomeTensor(torch.nn.Module):
@@ -162,7 +185,7 @@ def test_pytorch_decoder_can_convert_fp64_tensor():
 
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_bool_tensor():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.runtime import PartialShape, Type
 
     class SomeTensor(torch.nn.Module):
@@ -184,7 +207,7 @@ def test_pytorch_decoder_can_convert_bool_tensor():
 
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_u8_tensor():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.runtime import PartialShape, Type
 
     class SomeTensor(torch.nn.Module):
@@ -206,7 +229,7 @@ def test_pytorch_decoder_can_convert_u8_tensor():
 
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_i8_tensor():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.runtime import PartialShape, Type
 
     class SomeTensor(torch.nn.Module):
@@ -227,8 +250,30 @@ def test_pytorch_decoder_can_convert_i8_tensor():
 
 
 @pytest.mark.precommit
+def test_pytorch_decoder_can_convert_i16_tensor():
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+    from openvino.runtime import PartialShape, Type
+
+    class SomeTensor(torch.nn.Module):
+        def forward(self):
+            return torch.tensor([1, 2], dtype=torch.int16)
+
+    model = get_scripted_model(SomeTensor())
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
+              "prim::Constant"]
+    assert len(consts) > 0
+    some_const = consts[0]
+    nc_decoder = TorchScriptPythonDecoder(model, some_const)
+    ov_const = nc_decoder.as_constant()
+    assert ov_const is not None
+    assert len(ov_const) == 1
+    assert ov_const[0].get_element_type() == Type.i16
+    assert ov_const[0].get_partial_shape() == PartialShape([2])
+
+
+@pytest.mark.precommit
 def test_pytorch_decoder_can_convert_i32_tensor():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.runtime import PartialShape, Type
 
     class SomeTensor(torch.nn.Module):
@@ -250,7 +295,7 @@ def test_pytorch_decoder_can_convert_i32_tensor():
 
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_i64_tensor():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.runtime import PartialShape, Type
 
     class SomeTensor(torch.nn.Module):
@@ -272,7 +317,7 @@ def test_pytorch_decoder_can_convert_i64_tensor():
 
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_int64_max():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
     class I64MaxConst(torch.nn.Module):
         def forward(self):
@@ -290,7 +335,7 @@ def test_pytorch_decoder_can_convert_int64_max():
 
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_int_list():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.runtime import PartialShape, Type
 
     class ListConst(torch.nn.Module):
@@ -313,7 +358,7 @@ def test_pytorch_decoder_can_convert_int_list():
 
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_float_list():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.runtime import PartialShape, Type
 
     class ListConst(torch.nn.Module):
@@ -336,7 +381,7 @@ def test_pytorch_decoder_can_convert_float_list():
 
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_bool_list():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.runtime import PartialShape, Type
 
     class ListConst(torch.nn.Module):
@@ -359,7 +404,7 @@ def test_pytorch_decoder_can_convert_bool_list():
 
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_int_tuple():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.runtime import PartialShape, Type
 
     class ListConst(torch.nn.Module):
@@ -382,7 +427,7 @@ def test_pytorch_decoder_can_convert_int_tuple():
 
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_float_tuple():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.runtime import PartialShape, Type
 
     class ListConst(torch.nn.Module):
@@ -405,7 +450,7 @@ def test_pytorch_decoder_can_convert_float_tuple():
 
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_bool_tuple():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.runtime import PartialShape, Type
 
     class ListConst(torch.nn.Module):
@@ -428,7 +473,7 @@ def test_pytorch_decoder_can_convert_bool_tuple():
 
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_empty_list():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.runtime import PartialShape, Type
 
     class aten_roll(torch.nn.Module):
@@ -453,9 +498,10 @@ def test_pytorch_decoder_can_convert_empty_list():
     assert ov_const[0].get_element_type() == Type.i32
     assert ov_const[0].get_partial_shape() == PartialShape([0])
 
+
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_int_scalar_tensor():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.runtime import PartialShape, Type
 
     class SomeTensor(torch.nn.Module):
@@ -483,9 +529,10 @@ def test_pytorch_decoder_can_convert_int_scalar_tensor():
     assert ov_const[0].get_element_type() == Type.i32
     assert ov_const[0].get_partial_shape() == PartialShape([])
 
+
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_float_scalar_tensor():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.runtime import PartialShape, Type
 
     class SomeTensor(torch.nn.Module):
@@ -498,10 +545,9 @@ def test_pytorch_decoder_can_convert_float_scalar_tensor():
             # would create nore with output being Tensor with IValue  of type float.
             return torch.add(torch.tensor([1.], dtype=torch.float), self.value + 1)
 
-
     model = get_traced_model(SomeTensor(), frozen=False)
     consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
-            "prim::Constant"]
+              "prim::Constant"]
     assert len(consts) > 0
     some_const = consts[6]
     node_output = list(some_const.outputs())[0]
@@ -514,15 +560,17 @@ def test_pytorch_decoder_can_convert_float_scalar_tensor():
     assert ov_const[0].get_element_type() == Type.f32
     assert ov_const[0].get_partial_shape() == PartialShape([])
 
+
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_tensor_list():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.runtime import PartialShape, Type
     from typing import List, Optional
 
     class SomeTensor(torch.nn.Module):
         def forward(self):
-            l = torch.jit.annotate(List[Optional[torch.Tensor]], [torch.ones((1, 3, 3), dtype=torch.float),])
+            l = torch.jit.annotate(List[Optional[torch.Tensor]], [
+                                   torch.ones((1, 3, 3), dtype=torch.float),])
             return l
 
     model = get_scripted_model(SomeTensor())
@@ -531,10 +579,12 @@ def test_pytorch_decoder_can_convert_tensor_list():
     nc_decoder = TorchScriptPythonDecoder(model)
     graph = nc_decoder.graph_element
     converted_const_nodes = list(graph.findAllNodes("prim::Constant"))
-    converted_listconstruct_nodes = list(graph.findAllNodes("prim::ListConstruct"))
+    converted_listconstruct_nodes = list(
+        graph.findAllNodes("prim::ListConstruct"))
     # # Assert that replaced const exist and is not used
     assert len(converted_const_nodes) == 2
-    assert len([node for node in converted_const_nodes if not node.hasUses()]) == 1
+    assert len(
+        [node for node in converted_const_nodes if not node.hasUses()]) == 1
     # Assert that prim::ListConstruct exist and has uses
     assert len(converted_listconstruct_nodes) == 1
     assert converted_listconstruct_nodes[0].kind() == "prim::ListConstruct"
@@ -542,13 +592,16 @@ def test_pytorch_decoder_can_convert_tensor_list():
     assert len(list(converted_listconstruct_nodes[0].inputs())) == 1
     created_const = converted_listconstruct_nodes[0].input().node()
     assert created_const in converted_const_nodes
-    created_const_decoder = TorchScriptPythonDecoder(model, created_const).as_constant()
+    created_const_decoder = TorchScriptPythonDecoder(
+        model, created_const).as_constant()
     assert created_const_decoder[0].get_element_type() == Type.f32
-    assert created_const_decoder[0].get_partial_shape() == PartialShape([1, 3, 3])
+    assert created_const_decoder[0].get_partial_shape() == PartialShape([
+        1, 3, 3])
+
 
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_tensor_list_empty():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from typing import List, Optional
 
     class SomeTensor(torch.nn.Module):
@@ -562,7 +615,8 @@ def test_pytorch_decoder_can_convert_tensor_list_empty():
     nc_decoder = TorchScriptPythonDecoder(model)
     graph = nc_decoder.graph_element
     converted_const_nodes = list(graph.findAllNodes("prim::Constant"))
-    converted_listconstruct_nodes = list(graph.findAllNodes("prim::ListConstruct"))
+    converted_listconstruct_nodes = list(
+        graph.findAllNodes("prim::ListConstruct"))
     # Assert that replaced const exist and is not used
     assert len(converted_const_nodes) == 1
     assert not converted_const_nodes[0].hasUses()
@@ -572,10 +626,12 @@ def test_pytorch_decoder_can_convert_tensor_list_empty():
     assert converted_listconstruct_nodes[0].hasUses()
     assert len(list(converted_listconstruct_nodes[0].inputs())) == 0
 
+
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_optional_tensor_none():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from typing import Optional
+
     class SomeTensor(torch.nn.Module):
         def forward(self):
             l = torch.jit.annotate(Optional[torch.Tensor], None)
@@ -587,7 +643,8 @@ def test_pytorch_decoder_can_convert_optional_tensor_none():
     nc_decoder = TorchScriptPythonDecoder(model)
     graph = nc_decoder.graph_element
     converted_const_nodes = list(graph.findAllNodes("prim::Constant"))
-    removed_consts = [node for node in converted_const_nodes if not node.hasUses()]
+    removed_consts = [
+        node for node in converted_const_nodes if not node.hasUses()]
     created_consts = [node for node in converted_const_nodes if node.hasUses()]
     assert len(removed_consts) == len(created_consts) == 1
     # Assert that unused const has torch.OptionalType dtype
@@ -606,7 +663,7 @@ def f(x, y):
 
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_scripted_function():
-    from openvino.tools.mo import convert_model
+    from openvino import convert_model, Type
     scripted = torch.jit.script(f)
-    model = convert_model(scripted)
+    model = convert_model(scripted, input=[Type.f32, Type.f32])
     assert model is not None

@@ -1,0 +1,413 @@
+# List of models obtained from huggingface_hub api as one model per architecture with highest likes and downloads
+abcp4/mymodel-test,mymodel,skip,Load problem
+abeja/gpt-neox-japanese-2.7b,gpt_neox_japanese
+acl-submission-anonym/EAM-spectral,examuse,skip,Load problem
+adalbertojunior/modular-test,modular,skip,Load problem
+aerner/lm-v2,open-llama,xfail,Example input problem
+afonsosamarques/ardt-vanilla-combo_train_hopper_v2-2508_1336-33,decision_transformer,xfail,Tracing problem
+aihijo/gec-zh-gector-bert-large,gector,skip,Load problem
+albert-base-v2,albert
+AlekseyKorshuk/test_reward_model,reward_model,skip,Load problem
+alibaba-damo/mgp-str-base,mgp-str,xfail,Compile error: unsupported Einsum
+allenai/hvila-block-layoutlm-finetuned-docbank,hierarchical_model,skip,Load problem
+allenai/longformer-base-4096,longformer
+ameya772/sentence-t5-base-atis-fine-tuned,T5,skip,Load problem
+andreasmadsen/efficient_mlm_m0.40,roberta-prelayernorm
+anton-l/emformer-base-librispeech,emformer,skip,Load problem
+anugunj/omnivore-swinL-in21k,omnivore,skip,Load problem
+apple/mobilevitv2-1.0-imagenet1k-256,mobilevitv2,xfail,Unsupported op aten::col2im
+ArthurZ/jukebox_prior_0,jukebox_prior,skip,Load problem
+ArthurZ/jukebox-vqvae,jukebox_vqvae,skip,Load problem
+ArthurZ/persimmon-8b-base,persimmon,skip,Load problem
+ashishpatel26/span-marker-bert-base-fewnerd-coarse-super,span-marker,skip,Load problem
+asi/albert-act-tiny,albert_act,skip,Load problem
+BAAI/AltCLIP,altclip
+BAAI/AquilaCode-py,aquila,skip,Load problem
+bana513/opennmt-translator-en-hu,opennmt-translator,skip,Load problem
+benjamin/wtp-bert-mini,bert-char,skip,Load problem
+benjamin/wtp-canine-s-1l,la-canine,skip,Load problem
+beomi/exKcBERT-kowiki,exbert,skip,Load problem
+bert-base-uncased,bert
+bigscience/bloom-560m,bloom
+Bono93/basic-cnn-example,simplecnn,skip,Load problem
+caidas/swin2SR-realworld-sr-x4-64-bsrgan-psnr,swin2sr,xfail,Unsupported op prim::Constant
+camembert-base,camembert
+CarlCochet/trajectory-transformer-ant-expert-v2,trajectory_transformer,xfail,Tracing problem
+CEBaB/bert-base-uncased.CEBaB.causalm.ambiance.2-class.exclusive.seed_42,bert_causalm,skip,Load problem
+CEBaB/gpt2.CEBaB.causalm.None__None.2-class.exclusive.seed_42,gpt2_causalm,skip,Load problem
+CEBaB/lstm.CEBaB.causalm.ambiance__food.2-class.exclusive.seed_42,lstm_causalm,skip,Load problem
+CEBaB/roberta-base.CEBaB.causalm.None__None.2-class.exclusive.seed_42,roberta_causalm,skip,Load problem
+cestwc/lava-small-gigaword,lava,skip,Load problem
+chlab/efficientnet_61_planet_detection,efficientnet_61_planet_detection,skip,Load problem
+CIDAS/clipseg-rd64-refined,clipseg
+clefourrier/graphormer-base-pcqm4mv2,graphormer,xfail,Tracing problem
+cliang1453/deberta-v3-base-rte-teacher-stage1,ted-deberta-v2,skip,Load problem
+clip-italian/clip-italian,vision-text-dual-encoder,xfail,Tracing problem
+Clyde013/deqbert-base,deqbert,skip,Load problem
+connor-henderson/fastspeech2_conformer,fastspeech2_conformer,skip,Load problem
+connor-henderson/fastspeech2_conformer_with_hifigan,fastspeech2_conformer_with_hifigan,skip,Load problem
+csarron/meter-vqa2-ft,meter,skip,Load problem
+ctrl,ctrl
+cwkeam/mctc-large,mctc,skip,Load problem
+dandelin/vilt-b32-finetuned-vqa,vilt,xfail,Unsupported op aten::_unique2 aten::multinomial
+dangkhoadl/custom_CNN_1D,cnn,skip,Load problem
+declare-lab/segue-w2v2-base,segue,skip,Load problem
+deepesh0x/autotrain-mlsec-1013333726,julien,skip,Load problem
+Dewa/Dog_Model_From_Scratch_v2,simple_image_classification,skip,Load problem
+dg845/univnet-dev,univnet,skip,Load problem
+distilbert-base-uncased,distilbert
+DiViorg/REC-Transformer,rec_transformer,skip,Load problem
+dreamerlin/chatbind-7b-delta,llava_image_bind_select,skip,Load problem
+edugp/data2vec-nlp-base,data2vec,skip,Load problem
+EleutherAI/enformer-official-rough,enformer,skip,Load problem
+EleutherAI/gpt-neo-125m,gpt_neo
+EleutherAI/pythia-6.9b,gpt_neox
+facebook/bart-large-mnli,bart
+facebook/convnextv2-tiny-22k-384,convnextv2
+facebook/detr-resnet-50,detr
+facebook/dinov2-base,dinov2,skip,Load problem
+facebook/dpr-question_encoder-single-nq-base,dpr
+facebook/encodec_24khz,encodec,xfail,Unsupported op aten::lstm
+facebook/esm2_t6_8M_UR50D,esm
+facebook/flava-full,flava,xfail,Tracing problem
+facebook/flava-image-codebook,flava_image_codebook,skip,Load problem
+facebook/m2m100_418M,m2m_100
+facebook/mask2former-swin-base-coco-panoptic,mask2former
+facebook/maskformer-swin-base-coco,maskformer
+facebook/mms-tts-eng,vits,skip,Load problem
+facebook/musicgen-small,musicgen,skip,Load problem
+facebook/opt-125m,opt
+facebook/rag-token-nq,rag,skip,Load problem
+facebook/sam-vit-large,sam,xfail,No node with name original_sizes
+facebook/timesformer-base-finetuned-k400,timesformer
+facebook/vit-mae-base,vit_mae,xfail,Accuracy validation failed
+facebook/wmt19-ru-en,fsmt,xfail,Tracing problem
+facebook/xlm-roberta-xl,xlm-roberta-xl
+facebook/xmod-base,xmod
+flax-community/ft5-cnn-dm,f_t5,skip,Load problem
+fnlp/elasticbert-base,elasticbert,skip,Load problem
+FranzStrauss/ponet-base-uncased,ponet,skip,Load problem
+funnel-transformer/small,funnel
+fusing/latent-diffusion-text2im-large,ldmbert,skip,Load problem
+Geor111y/flair-ner-addresses-extractor,flair,skip,Load problem
+gia-project/gia,gia,skip,Load problem
+gokuls/bert_12_layer_model_v1,hybridbert,skip,Load problem
+google/bigbird-roberta-base,big_bird
+google/bigbird-pegasus-large-arxiv,bigbird-pegasus
+google/bit-50,bit
+google/canine-s,canine,xfail,aten::slice: Parameter axis 3 out of the tensor rank range
+google/efficientnet-b2,efficientnet,xfail,Compile error: AvgPool: Kernel after dilation has size (dim: 1408) larger than the data shape after padding (dim: 9) at axis 0.
+google/electra-base-discriminator,electra
+google/flan-t5-base,t5
+google/fnet-base,fnet,xfail,Unsupported op aten::fft_fftn aten::real
+google/mobilebert-uncased,mobilebert
+google/mobilenet_v1_0.75_192,mobilenet_v1
+google/mt5-base,mt5
+google/owlvit-base-patch32,owlvit
+google/pix2struct-docvqa-base,pix2struct,skip,Load problem
+google/realm-orqa-nq-openqa,realm,skip,Load problem
+google/reformer-crime-and-punishment,reformer,xfail,Tracing problem
+google/tapas-large-finetuned-wtq,tapas
+google/vit-hybrid-base-bit-384,vit-hybrid,skip,Load problem
+google/vivit-b-16x2-kinetics400,vivit
+Goutham-Vignesh/ContributionSentClassification-scibert,scibert,skip,Load problem
+gpt2,gpt2
+Graphcore/groupbert-base-uncased,groupbert,skip,Load problem
+haoranzhao419/saffu-100M-0.1,saffu-100M-0.1,skip,Load problem
+Helsinki-NLP/opus-mt-fr-en,marian
+#hf-internal-testing/random-nllb-moe-2-experts,nllb-moe,skip,Load problem
+hf-internal-testing/tiny-random-BlenderbotModel,blenderbot,skip,Load problem
+hf-internal-testing/tiny-random-CodeGenModel,codegen
+hf-internal-testing/tiny-random-convnext,convnext
+hf-internal-testing/tiny-random-CvtModel,cvt
+hf-internal-testing/tiny-random-Data2VecAudioModel,data2vec-audio,skip,Load problem
+hf-internal-testing/tiny-random-Data2VecTextModel,data2vec-text
+hf-internal-testing/tiny-random-Data2VecVisionModel,data2vec-vision
+hf-internal-testing/tiny-random-DeiTModel,deit
+hf-internal-testing/tiny-random-DonutSwinModel,donut-swin
+hf-internal-testing/tiny-random-EfficientFormerForImageClassification,efficientformer
+hf-internal-testing/tiny-random-flaubert,flaubert
+hf-internal-testing/tiny-random-FocalNetModel,focalnet
+hf-internal-testing/tiny-random-GPTBigCodeForCausalLM,gpt_bigcode,xfail,Conversion is failed for: aten::mul
+hf-internal-testing/tiny-random-GPTJModel,gptj
+hf-internal-testing/tiny-random-groupvit,groupvit
+hf-internal-testing/tiny-random-IBertModel,ibert
+hf-internal-testing/tiny-random-ImageGPTModel,imagegpt
+hf-internal-testing/tiny-random-LevitModel,levit,skip,Load problem
+hf-internal-testing/tiny-random-LiltModel,lilt
+hf-internal-testing/tiny-random-LongT5Model,longt5,skip,Load problem
+hf-internal-testing/tiny-random-mbart,mbart,xfail,Compile error: CPU plug-in doesnt support Squeeze operation with dynamic rank
+hf-internal-testing/tiny-random-MobileNetV2Model,mobilenet_v2
+hf-internal-testing/tiny-random-mobilevit,mobilevit
+hf-internal-testing/tiny-random-MPNetModel,mpnet
+hf-internal-testing/tiny-random-MptForCausalLM,mpt,skip,Load problem
+hf-internal-testing/tiny-random-NllbMoeForConditionalGeneration,nllb_moe,skip,Load problem
+hf-internal-testing/tiny-random-NystromformerModel,nystromformer
+hf-internal-testing/tiny-random-PegasusModel,pegasus,skip,Load problem
+hf-internal-testing/tiny-random-PoolFormerModel,poolformer,skip,Load problem
+hf-internal-testing/tiny-random-RegNetModel,regnet
+hf-internal-testing/tiny-random-RemBertModel,rembert
+hf-internal-testing/tiny-random-RoCBertModel,roc_bert,skip,Load problem
+hf-internal-testing/tiny-random-RoFormerModel,roformer
+hf-internal-testing/tiny-random-SegformerModel,segformer
+hf-internal-testing/tiny-random-SEWDModel,sew-d,skip,Load problem
+hf-internal-testing/tiny-random-SEWModel,sew,skip,Load problem
+hf-internal-testing/tiny-random-Speech2TextModel,speech_to_text,skip,Load problem
+hf-internal-testing/tiny-random-speech-encoder-decoder,speech-encoder-decoder,skip,Load problem
+hf-internal-testing/tiny-random-SplinterModel,splinter
+hf-internal-testing/tiny-random-SqueezeBertModel,squeezebert
+hf-internal-testing/tiny-random-SwinModel,swin
+hf-internal-testing/tiny-random-unispeech,unispeech,skip,Load problem
+hf-internal-testing/tiny-random-UniSpeechSatModel,unispeech-sat,skip,Load problem
+hf-internal-testing/tiny-random-vision_perceiver_conv,perceiver
+hf-internal-testing/tiny-random-ViTMSNModel,vit_msn
+hf-internal-testing/tiny-random-wav2vec2-conformer,wav2vec2-conformer
+hf-internal-testing/tiny-random-XLMModel,xlm
+hfl/vle-base,vle,skip,Load problem
+HJHGJGHHG/GAU-Base-Full,gau,skip,Load problem
+huggingface/autoformer-tourism-monthly,autoformer,skip,Load problem
+huggingface/informer-tourism-monthly,informer,skip,Load problem
+huggingface/time-series-transformer-tourism-monthly,time_series_transformer,skip,Load problem
+HuggingFaceM4/tiny-random-idefics,idefics,skip,Load problem
+HuggingFaceM4/tiny-random-vllama-clip,vllama,skip,Load problem
+HuggingFaceM4/tiny-random-vopt-clip,vopt,skip,Load problem
+HuiHuang/gpt3-damo-base-zh,gpt3,skip,Load problem
+hustvl/yolos-tiny,yolos
+iakarshu/tilt_base,tilt_base_configuration,skip,Load problem
+ibm/MoLM-350M-4B,moduleformer,skip,Load problem
+IDEA-CCNL/Randeng-Deltalm-362M-En-Zh,Deltalm,skip,Load problem
+Inderpreet01/seaformer-semantic-segmentation-large,seaformer,skip,Load problem
+Intel/dpt-hybrid-midas,dpt
+Intel/tvp-base,tvp,skip,Load problem
+isemmanuelolowe/code-embedder,instruct-codebert,skip,Load problem
+isemmanuelolowe/instruct-codet5-5,instruct-codet5,skip,Load problem
+jaketae/fastspeech2-ljspeech,fastspeech2,skip,Load problem
+jambran/depression-classification,DepressionDetection,skip,Load problem
+Jellywibble/dalio-reward-charlie-v1,reward-model,skip,Load problem
+JonasGeiping/crammed-bert-legacy,crammedBERT,skip,Load problem
+jonatasgrosman/wav2vec2-large-xlsr-53-english,wav2vec2,xfail,Unsupported op aten::index_put_ prim::TupleConstruct
+facebook/mms-lid-126,wav2vec2
+Joqsan/test-my-fnet,my_fnet,skip,Load problem
+jozhang97/deta-swin-large,deta,skip,Load problem
+jploski/retnet-mini-shakespeare,retnet,skip,Load problem
+juhi7ag/idea-model2,,skip,Load problem
+junnyu/autobert-small-light,autobert,skip,Load problem
+junnyu/chinese_GAU-alpha-char_L-24_H-768,gau_alpha,skip,Load problem
+junnyu/flash_small_wwm_cluecorpussmall,flash,skip,Load problem
+junnyu/flashquad_small_wwm_cluecorpussmall,flash_quad,skip,Load problem
+kakaobrain/align-base,align,xfail,Compile error: AvgPool: Kernel after dilation has size (dim: 640) larger than the data shape after padding (dim: 9) at axis 0.
+KBLab/megatron-bert-large-swedish-cased-110k,megatron-bert
+kiddothe2b/hierarchical-transformer-base-4096-v2,hat,skip,Load problem
+k-l-lambda/clip-text-generator,clip_text_generator,skip,Load problem
+k-l-lambda/stable-diffusion-v1-4-inv-embed,inv_word_embed,skip,Load problem
+KoboldAI/fairseq-dense-13B-Janeway,xglm,skip,Large Model
+konverner/qdq-camembert-apolliner,qdqbert,xfail,Repository not found
+krasserm/perceiver-ar-clm-base,perceiver-ar-causal-language-model,skip,Load problem
+krasserm/perceiver-ar-sam-giant-midi,perceiver-ar-symbolic-audio-model,skip,Load problem
+krasserm/perceiver-io-img-clf,perceiver-io-image-classifier,skip,Load problem
+krasserm/perceiver-io-mlm,perceiver-io-masked-language-model,skip,Load problem
+krasserm/perceiver-io-optical-flow,perceiver-io-optical-flow,skip,Load problem
+krasserm/perceiver-io-txt-clf-imdb,perceiver-io-text-classifier,skip,Load problem
+ksmcg/fan_small_12_p16_224,fan,skip,Load problem
+laion/clap-htsat-unfused,clap,skip,Load problem
+Langboat/ReGPT-125M-200G,re_gpt,skip,Load problem
+lengyue233/content-vec-best,hubert
+Lewislou/cellseg_sribd,cell_sribd,skip,Load problem
+liamcripwell/o-conbart,context-bart,skip,Load problem
+liamcripwell/pgdyn-plan,context-roberta,skip,Load problem
+linhdo/graphdoc,graphdoc,skip,Load problem
+LinkSoul/Chinese-LLaVA-Baichuan,llava,skip,Load problem
+LinkSoul/LLaSM-Cllama2,llaaa,skip,Load problem
+lintang/t5-v2-xl-flan,umt5
+liuhaotian/LLaVA-Lightning-MPT-7B-preview,llava_mpt,skip,Load problem
+liya0121/my_finetune_0121,progen,skip,Load problem
+lucadiliello/BLEURT-20,bleurt,skip,Load problem
+lum-ai/metal,metal,skip,Load problem
+luodian/OTTER-MPT1B-RPJama-Init,otter,skip,Load problem
+luoruipu1/valley-13b-v1-delta,Valley,skip,Load problem
+luoruipu1/Valley2-7b,valley,skip,Load problem
+Lutech-AI/I-SPIn,I-SPIn,skip,Load problem
+MAGAer13/mplug-owl-llama-7b,mplug-owl,skip,Load problem
+manu/contrastive_zeroner,contrastive_zeroner,skip,Load problem
+manu/lilt-infoxlm-base,liltrobertalike,skip,Load problem
+manu/mplt_untrained,mplt,skip,Load problem
+matheusntg/character-bert-pt-normal,character_bert,skip,Load problem
+MBZUAI/swiftformer-xs,swiftformer
+MCG-NJU/videomae-base-finetuned-kinetics,videomae
+M-CLIP/XLM-Roberta-Large-Vit-B-32,M-CLIP,skip,Load problem
+medhabi/distilbert-base-uncased-score-pred,text-to-rating,skip,Load problem
+meta-llama/Llama-2-7b-hf,llama,skip,Load problem
+microsoft/beit-base-patch16-224-pt22k-ft22k,beit
+microsoft/biogpt,biogpt
+microsoft/conditional-detr-resnet-50,conditional_detr
+microsoft/deberta-base,deberta
+microsoft/git-large-coco,git,skip,Load problem
+microsoft/layoutlm-base-uncased,layoutlm
+microsoft/layoutlmv2-base-uncased,layoutlmv2,skip,Load problem
+microsoft/layoutlmv3-base,layoutlmv3
+microsoft/markuplm-base,markuplm
+microsoft/resnet-50,resnet
+microsoft/speecht5_hifigan,hifigan,skip,Load problem
+microsoft/speecht5_tts,speecht5,skip,Load problem
+microsoft/swinv2-tiny-patch4-window8-256,swinv2
+microsoft/table-transformer-detection,table-transformer
+microsoft/wavlm-large,wavlm,skip,Load problem
+microsoft/xclip-base-patch32,xclip,skip,Load problem
+microsoft/xprophetnet-large-wiki100-cased,xlm-prophetnet
+miguelvictor/python-fromzero-lstmlm,lstmlm,skip,Load problem
+mingzi151/test-hf-wav2vec2bert,wav2vec2bert,skip,Load problem
+MIT/ast-finetuned-audioset-10-10-0.4593,audio-spectrogram-transformer,skip,Load problem
+Mizuiro-sakura/luke-japanese-large-sentiment-analysis-wrime,luke
+mlml-chip/thyme2_colon_e2e,cnlpt,skip,Load problem
+mnaylor/mega-base-wikitext,mega,skip,Load problem
+mohitsha/tiny-random-testing-bert2gpt2,encoder-decoder
+MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli,deberta-v2
+MoritzLaurer/ernie-m-large-mnli-xnli,ernie_m
+mrm8488/prunebert-base-uncased-finepruned-topK-squadv2,masked_bert,skip,Load problem
+muditb/headline_classifier,BertModel,skip,Load problem
+nanashi161382/clip-text-deprojector,clip_text_deprojector_model,skip,Load problem
+nateraw/vit-age-classifier,vit
+naver-clova-ocr/bros-base-uncased,bros,skip,Load problem
+navervision/CompoDiff-Aesthetic,CompoDiff,skip,Load problem
+navervision/KELIP,kelip,skip,Load problem
+NCAI/NCAI-BERT,lean_albert,skip,Load problem
+nglaura/skimformer,skimformer,skip,Load problem
+nguyenvulebinh/robustspeech-asr,robustspeech,skip,Load problem
+nguyenvulebinh/voice-filter,voicefilter,skip,Load problem
+NiCy/seg-ment-tation,seg-ment-tation,skip,Load problem
+nielsr/audio-spectogram-transformer-finetuned-audioset-10-10-0.4593,audio-spectogram-transformer,skip,Load problem
+nielsr/convnext-tiny-maskrcnn,maskrcnn,skip,Load problem
+nielsr/H3-125m,h3,skip,Load problem
+nielsr/layoutreader-readingbank,layoutreader,skip,Load problem
+nielsr/pix2seq-base,pix2seq,skip,Load problem
+nielsr/tapex-large,tapex,skip,Load problem
+nielsr/udop-large,udop,skip,Load problem
+nielsr/vitmatte-small-composition-1k,vitmatte,skip,Load problem
+nllg/poetry-bygpt5-small-en,bygpt5,skip,Load problem
+nlpconnect/vit-gpt2-image-captioning,vision-encoder-decoder
+OATML-Markslab/Tranception_Small,tranception,skip,Load problem
+OFA-Sys/chinese-clip-vit-base-patch16,chinese_clip
+openai/clip-vit-large-patch14,clip
+openai/jukebox-1b-lyrics,jukebox,skip,Load problem
+openai/whisper-medium,whisper,skip,Load problem
+openai-gpt,openai-gpt
+OpenAssistant/oasst-rm-2-pythia-6.9b-epoch-1,gpt_neox_reward_model,skip,Load problem
+openmmlab/upernet-convnext-small,upernet,skip,Load problem
+openMUSE/clip-vit-large-patch14-text-enc,clip_text_model,skip,Load problem
+PatrickHaller/ngme-llama-264M,ngme,skip,Load problem
+patrickvonplaten/bert2gpt2-cnn_dailymail-fp16,encoder_decoder,skip,Load problem
+paulhindemith/test-zeroshot,test-zeroshot,skip,Load problem
+PGT/orig-nystromformer-s-artificial-balanced-max500-490000-0,graph_nystromformer,skip,Load problem
+pie/example-ner-spanclf-conll03,TransformerSpanClassificationModel,skip,Load problem
+pie/example-re-textclf-tacred,TransformerTextClassificationModel,skip,Load problem
+pleisto/yuren-baichuan-7b,multimodal_llama,skip,Load problem
+predictia/europe_reanalysis_downscaler_convbaseline,convbilinear,skip,Load problem
+predictia/europe_reanalysis_downscaler_convswin2sr,conv_swin2sr,skip,Load problem
+pszemraj/led-large-book-summary,led
+qmeeus/whisper-small-ner-combined,whisper_for_slu,skip,Load problem
+raman-ai/pcqv2-tokengt-lap16,tokengt,skip,Load problem
+range3/pegasus-gpt2-medium,pegasusgpt2,skip,Load problem
+regisss/bridgetower-newyorker-a100-8x,bridgetower
+rinna/japanese-cloob-vit-b-16,cloob,skip,Load problem
+Rocketknight1/tiny-random-falcon-7b,falcon
+RUCAIBox/mass-base-uncased,mass,skip,Load problem
+RWKV/rwkv-4-169m-pile,rwkv
+sahasrarjn/interbert,BERT,skip,Load problem
+saibo/genkalm-medium-gpt2,genkalm,skip,Load problem
+SajjadAyoubi/clip-fa-vision,clip_vision_model
+Salesforce/blip2-flan-t5-xl,blip-2,skip,Load problem
+Salesforce/blip-image-captioning-large,blip,skip,Load problem
+Salesforce/instructblip-vicuna-7b,instructblip,skip,Load problem
+SamLowe/roberta-base-go_emotions,roberta
+sanchit-gandhi/enhanced_direct_s2st_en_to_es,speech-to-speech,skip,Load problem
+sciki/finetune_tinybert,finetune-tinybert,skip,Load problem
+sebastian-hofstaetter/colbert-distilbert-margin_mse-T2-msmarco,ColBERT,skip,Load problem
+sebastian-hofstaetter/distilbert-cat-margin_mse-T2-msmarco,BERT_Cat,skip,Load problem
+sebastian-hofstaetter/idcm-distilbert-msmarco_doc,IDCM,skip,Load problem
+SenseTime/deformable-detr,deformable_detr,skip,Load problem
+shahules786/Reward-model-gptneox-410M,rm_gptneox_config,skip,Load problem
+shauray/Llava-Llama-2-7B-hf,llavallama,skip,Load problem
+shauray/ViTPose,vitpose,skip,Load problem
+sheonhan/ict-imagenet-256,ict,skip,Load problem
+shibing624/text2vec-base-chinese-paraphrase,ernie
+shikhartuli/flexibert-mini,flexibert,skip,Load problem
+shikras/shikra-7b-delta-v1-0708,shikra,skip,Load problem
+shi-labs/dinat-mini-in1k-224,dinat,xfail,Accuracy validation failed
+shi-labs/nat-mini-in1k-224,nat,xfail,Accuracy validation failed
+shi-labs/oneformer_ade20k_swin_large,oneformer,skip,Load problem
+shuqi/seed-encoder,seed_encoder,skip,Load problem
+sijunhe/nezha-cn-base,nezha
+sjiang1/codecse,roberta_for_cl,skip,Load problem
+slh/fcnet-base-cased,fcnet,skip,Load problem
+snoop2head/Deep-Shallow-Ko2En,transformer,skip,Load problem
+Solomonik/SeqTokenModelMultiple,SeqToken,skip,Load problem
+solotimes/lavibe_base,donut,skip,Load problem
+songlab/gpn-brassicales,ConvNet,skip,Load problem
+speechbrain/m-ctc-t-large,mctct
+Splend1dchan/wav2vec2-large-lv60_t5lephone-small_lna_bs64,speechmix,skip,Load problem
+stefan-it/bort-full,bort,skip,Load problem
+SteveZhan/my-resnet50d,resnet_steve,skip,Load problem
+suno/bark,bark,skip,Load problem
+surajnair/r3m-50,r3m,skip,Load problem
+susnato/clvp_dev,clvp,skip,Load problem
+Tanrei/GPTSAN-japanese,gptsan-japanese,xfail,Unsupported op aten::index_put_ prim::TupleConstruct
+tau/bart-large-sled-govreport,tau/sled,skip,Load problem
+taufeeque/best-cb-model,codebook,skip,Load problem
+Team-PIXEL/pixel-base,pixel,skip,Load problem
+tensorpro/clip_vip_pretrained_base_16,clip_vip,skip,Load problem
+thomwolf/vqgan_imagenet_f16_1024,vqgan_model,skip,Load problem
+thu-ml/zh-clip-vit-roberta-large-patch14,zhclip,skip,Load problem
+tifa-benchmark/promptcap-coco-vqa,ofa,skip,Load problem
+tli8hf/robertabase_snli,transformerfornli,skip,Load problem
+transfo-xl-wt103,transfo-xl,xfail,Unsupported op aten::index_copy_
+transZ/BART_shared_clean,shared_bart,skip,Load problem
+transZ/BART_shared_v2,shared_bart_v2,skip,Load problem
+transZ/misecom,misecom,skip,Load problem
+transZ/parex,parex,skip,Load problem
+transZ/phrext,phrext,skip,Load problem
+transZ/reword,reword,skip,Load problem
+transZ/roberta_texid,roberta_texid,skip,Load problem
+transZ/tforge_v1.9,Transformer_Forge,skip,Load problem
+trl-internal-testing/tiny-random-BigBirdPegasusForConditionalGeneration,bigbird_pegasus
+trl-internal-testing/tiny-random-BlenderbotSmallForConditionalGeneration,blenderbot-small,skip,Load problem
+trl-internal-testing/tiny-random-MvpForConditionalGeneration,mvp
+trl-internal-testing/tiny-random-PegasusXForConditionalGeneration,pegasus_x,skip,Load problem
+trl-internal-testing/tiny-random-PLBartForConditionalGeneration,plbart,xfail,Compile error: CPU plug-in doesnt support Squeeze operation with dynamic rank
+trl-internal-testing/tiny-random-ProphetNetForConditionalGeneration,prophetnet,skip,Load problem
+trl-internal-testing/tiny-random-SwitchTransformersForConditionalGeneration,switch_transformers,skip,Load problem
+turing-motors/heron-chat-blip-ja-stablelm-base-7b-v0,video_blip,skip,Load problem
+turing-motors/heron-chat-git-ELYZA-fast-7b-v0,git_llama,skip,Load problem
+uclanlp/visualbert-vqa-coco-pre,visual_bert
+ummagumm-a/samolet_room_classifier,AirModelHF,skip,Load problem
+ummagumm-a/samolet-room-classifier,gru,skip,Load problem
+UNCANNY69/Misinfo-BERT-LSTM,BertLSTMForSequenceClassification,skip,Load problem
+UNCANNY69/Miss-BERT-CNN,BertCNNForSequenceClassification,skip,Load problem
+unc-nlp/lxmert-base-uncased,lxmert,skip,Load problem
+uw-madison/mra-base-512-4,mra
+uw-madison/yoso-4096,yoso,xfail,Compile error: CPU plug-in doesnt support Squeeze operation with dynamic rank
+valhalla/cogview-gpt2-test,cog_view,skip,Load problem
+valhalla/s2t_mustc_multilinguial_medium,speech_to_text_transformer,skip,Load problem
+vblagoje/greaselm-csqa,greaselm,skip,Load problem
+vinvino02/glpn-nyu,glpn
+Visual-Attention-Network/van-base,van
+visualjoyce/transformers4vl-uniter-base,uniter,skip,Load problem
+visualjoyce/transformers4vl-vilbert-mt,vilbert,skip,Load problem
+vumichien/nonsemantic-speech-trillsson3,trillsson_efficientnet,skip,Load problem
+vumichien/trillsson3-ft-keyword-spotting-12,trillsson_efficient,skip,Load problem
+wangruiai2023/nougat,nougat,skip,Load problem
+WENGSYX/CoNN_Parity,conn,skip,Load problem
+xlm-roberta-base,xlm-roberta
+xlnet-base-cased,xlnet
+ybelkada/focusondepth,focusondepth,skip,Load problem
+ybelkada/random-tiny-BertGenerationModel,bert-generation
+ydshieh/temp-testing-kosmos-2,kosmos-2,skip,Load problem
+YituTech/conv-bert-base,convbert
+yjernite/retribert-base-uncased,retribert,xfail,Unsupported op aten::cross_entropy_loss
+ylacombe/hf-seamless-m4t-medium,seamless_m4t,skip,Load problem
+youzanai/clip-product-title-chinese,clip_chinese_model,skip,Load problem
+Yova/SmallCapOPT7M,smallcap,skip,Load problem
+yusufani/trclip-vitl14-e10,trclip,skip,Load problem
+yysung53/dpr,text_similarity,skip,Load problem
+Zetatech/pvt-tiny-224,pvt,skip,Load problem
+ZinengTang/tvlt-base,tvlt,skip,Load problem
+zuppif/resnetd-18,resnetd,skip,Load problem

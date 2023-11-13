@@ -15,7 +15,8 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::
                                                                InferenceEngine::Precision::FP16};
 
 const std::vector<std::map<std::string, std::string>> configs = {
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "3276.7"}, {"GNA_COMPACT_MODE", "NO"}}};
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "3276.7"}, {"GNA_COMPACT_MODE", "NO"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};
 
 std::vector<std::vector<size_t>> input_shapes =
     {{1, 8}, {1, 42}, {1, 100}, {1, 128}, {1, 1, 64}, {1, 1, 1, 64}, {1, 1, 1, 100}};
@@ -23,7 +24,7 @@ std::vector<std::vector<size_t>> input_shapes =
 INSTANTIATE_TEST_SUITE_P(smoke_Softsign,
                          SoftsignTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(input_shapes)),
                          SoftsignTest::getTestCaseName);

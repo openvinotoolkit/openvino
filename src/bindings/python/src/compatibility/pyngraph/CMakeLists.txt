@@ -7,27 +7,24 @@ cmake_minimum_required (VERSION 3.13)
 project (pyngraph)
 
 if(NOT DEFINED OpenVINO_SOURCE_DIR)
+    find_package(OpenVINO REQUIRED)
     find_package(OpenVINODeveloperPackage QUIET
                  PATHS "${InferenceEngineDeveloperPackage_DIR}")
-    find_package(OpenVINO REQUIRED)
 endif()
 
-# PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
-set(pyversion python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-message(STATUS "Python version=${pyversion}")
+# Python3_VERSION_MAJOR and Python3_VERSION_MINOR are defined in FindPython3
+set(pyversion python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR})
 
-if(OpenVINO_SOURCE_DIR)
-    if(OV_GENERATOR_MULTI_CONFIG)
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${pyversion}/)
-    else()
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${pyversion}/)
-    endif()
-
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
-    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
-    set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
-    set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
+if(OV_GENERATOR_MULTI_CONFIG)
+    set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python/)
+else()
+    set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python/)
 endif()
+
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
+set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
+set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 
 # compile options
 
@@ -55,38 +52,39 @@ file(GLOB_RECURSE SOURCES *.cpp)
 
 pybind11_add_module(_${PROJECT_NAME} MODULE NO_EXTRAS ${SOURCES})
 
-target_include_directories(_${PROJECT_NAME} PRIVATE "../" "${OpenVINO_SOURCE_DIR}/src/common/transformations/include")
+target_include_directories(_${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../")
 
-target_link_libraries(_${PROJECT_NAME} PRIVATE openvino::runtime)
+target_link_libraries(_${PROJECT_NAME} PRIVATE openvino::runtime openvino::core::dev)
 
 set_target_properties(_${PROJECT_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # perform copy
-if(OpenVINO_SOURCE_DIR)
-    add_custom_command(TARGET _${PROJECT_NAME}
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../ngraph ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/ngraph
-    )
-endif()
+add_custom_command(TARGET _${PROJECT_NAME}
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../ngraph ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/ngraph
+)
+
+ov_set_apple_rpath(_${PROJECT_NAME} ${OV_CPACK_PYTHONDIR} ${OV_CPACK_RUNTIMEDIR})
 
 # Install
 
-if(OpenVINO_SOURCE_DIR OR OpenVINODeveloperPackage_FOUND)
-    ie_python_minimal_api(_${PROJECT_NAME})
-    add_clang_format_target(_${PROJECT_NAME}_clang FOR_TARGETS _${PROJECT_NAME})
+ov_python_minimal_api(_${PROJECT_NAME})
+ov_add_clang_format_target(_${PROJECT_NAME}_clang FOR_TARGETS _${PROJECT_NAME})
 
-    ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_NGRAPH}_${pyversion} HIDDEN)
+ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion} HIDDEN)
 
-    install(TARGETS _${PROJECT_NAME}
-            DESTINATION ${OV_CPACK_PYTHONDIR}
-            COMPONENT ${OV_CPACK_COMP_PYTHON_NGRAPH}_${pyversion})
+install(TARGETS _${PROJECT_NAME}
+        DESTINATION ${OV_CPACK_PYTHONDIR}
+        COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
+        ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
 
-    install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../ngraph
-            DESTINATION ${OV_CPACK_PYTHONDIR}
-            COMPONENT ${OV_CPACK_COMP_PYTHON_NGRAPH}_${pyversion}
-            USE_SOURCE_PERMISSIONS)
+install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../ngraph
+        DESTINATION ${OV_CPACK_PYTHONDIR}
+        COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
+        ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL}
+        USE_SOURCE_PERMISSIONS)
 
-    install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/tests_compatibility
-            DESTINATION tests/${PROJECT_NAME}
-            COMPONENT tests EXCLUDE_FROM_ALL)
-endif()
+install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/tests_compatibility
+        DESTINATION tests/${PROJECT_NAME}
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)

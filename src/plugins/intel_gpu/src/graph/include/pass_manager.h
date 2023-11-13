@@ -57,20 +57,12 @@ public:
 
 private:
     void run(program& p) override;
-    void add_reorder(program& p, program_node* node, program_node* usr);
+    void add_reorder(program& p, program_node* node, program_node* usr, bool keep_original_dt = false);
 };
 
 class add_reshape_to_primitives : public base_pass {
 public:
     add_reshape_to_primitives() : base_pass("add_reshape_to_primitives_pass") {}
-
-private:
-    void run(program& p) override;
-};
-
-class calculate_prior_boxes : public base_pass {
-public:
-    calculate_prior_boxes() : base_pass("calculated_prior_boxes") {}
 
 private:
     void run(program& p) override;
@@ -82,23 +74,6 @@ public:
 
 private:
     void run(program& p) override;
-};
-
-class eltwise_shrinking : public base_pass {
-public:
-    eltwise_shrinking() : base_pass("eltwise_shrinking") {}
-
-private:
-    void run(program& p) override;
-};
-
-class eltwise_remove_stride : public base_pass {
-public:
-    eltwise_remove_stride() : base_pass("eltwise_remove_stride") {}
-
-private:
-    void run(program& p) override;
-    void conv_stride_extend(program& p, program_node& node, cldnn::tensor& tensor);
 };
 
 class graph_initializations : public base_pass {
@@ -129,6 +104,36 @@ private:
     void run(program& p) override;
 };
 
+class clamp_fp16_output : public base_pass {
+public:
+    clamp_fp16_output() : base_pass("clamp_fp16_output") {}
+
+private:
+    void run(program& p) override;
+};
+
+class mark_shape_of_subgraphs : public base_pass {
+    // This optimization pass aggregates nodes into shape_of subgraphs for further optimizations.
+    // There are few key requirements to decide if node belongs to shape_of subgraph or not:
+    // - Node type is shape_of OR
+    // - All node's dependencies are marked as members of shape_of subgraphs OR
+    // - Node is a shape infer dependency of any user
+    // Also, there is some additional requirement:
+    // - Primitive must have CPU implementation (this requirement is ignored for reshape
+    //   primitives, since currently ocl optimized_out implementation is used for reshape execution in such subgraphs)
+public:
+    mark_shape_of_subgraphs(bool update_impls = false) :
+        base_pass("mark_shape_of_subgraphs"), _update_impls(update_impls) {}
+
+private:
+    void run(program& p) override;
+    void look_for_shape_of_subgraph(program_node& node);
+    bool can_mark_node(const program_node& node);
+    void mark_node(program_node& node);
+
+    bool _update_impls;
+};
+
 class prepare_buffer_fusing : public base_pass {
 public:
     prepare_buffer_fusing() : base_pass("prepare_buffer_fusing") {}
@@ -144,7 +149,6 @@ public:
 private:
     void run(program& p) override;
     void handle_quantize_node(program& p, quantize_node& quantize_node);
-    void prepare_packed_quantize(program& p, quantize_node& quantize_node);
     void prepare_dequantize_merge(program& p, eltwise_node& eltwise_node);
     void remove_fake_reorders(program& p, reorder_node& reorder_node);
     void prepare_asymmetric_quantization(program& p, convolution_node& convolution_node);
@@ -191,6 +195,7 @@ private:
     void fuse_bias(program &p);
     void fuse_reorders(program& p);
     void fuse_simple_primitives(program &p);
+    void fuse_constant_transposes(program &p);
     void optimize_fused_ops(program &p);
     void remove_redundant_reshape(program &p);
     layout_optimizer& _lo;
@@ -204,18 +209,6 @@ public:
 private:
     void run(program& p) override;
     layout_optimizer& _lo;
-};
-
-class pre_optimize_bias : public base_pass {
-public:
-    explicit pre_optimize_bias(reorder_factory& rf_ref);
-
-private:
-    void run(program& p) override;
-    virtual void run(program& p, reorder_factory& rf);
-    template <typename T>
-    bool optimize_bias(T& node, reorder_factory& rf, program& p);
-    reorder_factory& _rf;
 };
 
 class prepare_padding : public base_pass {
@@ -269,7 +262,7 @@ private:
     void run(program& p) override;
     std::list<std::pair<primitive_id, memory::ptr>> calculate(engine& engine,
                                                               const ExecutionConfig& config,
-                                                              std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor);
+                                                              std::shared_ptr<ov::threading::IStreamsExecutor> task_executor);
     bool has_non_const_user(program_node& node) const;
     void handle_constant(program& prog, program_node& node);
     void add_constant(program& prog, program_node& node);
@@ -393,9 +386,9 @@ public:
     void run(program& p) override;
 };
 
-class update_loop_primitive_map : public base_pass {
+class update_inner_program_io_map : public base_pass {
 public:
-    update_loop_primitive_map() : base_pass("update_loop_primitive_map") {}
+    update_inner_program_io_map() : base_pass("update_inner_program_io_map") {}
 
 private:
     void run(program& p) override;
@@ -410,6 +403,14 @@ public:
 class build_implementations : public base_pass {
 public:
     build_implementations() : base_pass("build_implementations") {}
+    void run(program& p) override;
+};
+
+class reorder_transfer : public base_pass {
+public:
+    reorder_transfer() : base_pass("reorder_transfer") {}
+
+private:
     void run(program& p) override;
 };
 

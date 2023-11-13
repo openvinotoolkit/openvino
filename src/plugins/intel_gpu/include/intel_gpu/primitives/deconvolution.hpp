@@ -17,6 +17,9 @@ namespace cldnn {
 /// and stride and input padding parameters used in opposite sense as in convolution.
 struct deconvolution : public primitive_base<deconvolution> {
     CLDNN_DECLARE_PRIMITIVE(deconvolution)
+
+    deconvolution() : primitive_base("", {}) {}
+
     /// @brief Constructs deconvolution primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -353,11 +356,11 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @brief Defines the distance in width and height between elements in the filter.
     ov::Strides dilations;
     /// @brief Indicates that the primitive has user-defined output size (non-zero value).
-    bool with_output_size;
+    bool with_output_size = true;
     /// @brief User-defined output data size of the primitive (w/o padding).
     tensor output_size;
     /// @brief Number of feature groups (grouped convolution). If more than 1 then weights/bias count needs to be 1.
-    uint32_t groups;
+    uint32_t groups = 1;
     /// @brief Defines a padding added to input image on left (x axis) and top (y axis).
     ov::CoordinateDiff pads_begin;
     /// @brief Defines a padding added to input image on right (x axis) and bottom (y axis).
@@ -365,7 +368,7 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @brief Defines additional amount of paddings per each spatial axis added to output tensor.
     ov::CoordinateDiff out_padding;
     /// @param grouped_weights_shape Defines if weights tensor has explicit group dimension.
-    bool grouped_weights_shape;
+    bool grouped_weights_shape = false;
     /// @brief Defines spatial shape of the output.
     ov::PartialShape output_partial_shape;
     /// @brief Data primitive id containing spatial shape of the output.
@@ -406,6 +409,42 @@ struct deconvolution : public primitive_base<deconvolution> {
                cmp_fields(bias.size()) &&
                cmp_fields(output_shape_id.empty());
         #undef cmp_fields
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<deconvolution>::save(ob);
+        ob << pad;
+        ob << stride;
+        ob << dilations;
+        ob << with_output_size;
+        ob << output_size;
+        ob << groups;
+        ob << pads_begin;
+        ob << pads_end;
+        ob << out_padding;
+        ob << grouped_weights_shape;
+        ob << output_partial_shape;
+        ob << output_shape_id;
+        ob << weights;
+        ob << bias;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<deconvolution>::load(ib);
+        ib >> pad;
+        ib >> stride;
+        ib >> dilations;
+        ib >> with_output_size;
+        ib >> output_size;
+        ib >> groups;
+        ib >> pads_begin;
+        ib >> pads_end;
+        ib >> out_padding;
+        ib >> grouped_weights_shape;
+        ib >> output_partial_shape;
+        ib >> output_shape_id;
+        ib >> *const_cast<primitive_id_arr*>(&weights);
+        ib >> *const_cast<primitive_id_arr*>(&bias);
     }
 
 protected:

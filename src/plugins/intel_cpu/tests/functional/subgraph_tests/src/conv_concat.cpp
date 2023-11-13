@@ -3,6 +3,7 @@
 //
 
 #include "test_utils/convolution_params.hpp"
+#include "test_utils/filter_cpu_info.hpp"
 #include "subgraph_tests/include/conv_concat.hpp"
 
 using namespace InferenceEngine;
@@ -27,12 +28,12 @@ std::string ConvConcatSubgraphTest::getTestCaseName(testing::TestParamInfo<convC
     ngraph::op::PadType paddingType;
     std::tie(kernelSize, strides, padBegin, padEnd, dilation, numOutChannels, paddingType, numOfGroups) = convParams;
 
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "K" << CommonTestUtils::vec2str(kernelSize) << "_";
-    result << "S" << CommonTestUtils::vec2str(strides) << "_";
-    result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
-    result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
-    result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "K" << ov::test::utils::vec2str(kernelSize) << "_";
+    result << "S" << ov::test::utils::vec2str(strides) << "_";
+    result << "PB" << ov::test::utils::vec2str(padBegin) << "_";
+    result << "PE" << ov::test::utils::vec2str(padEnd) << "_";
+    result << "D=" << ov::test::utils::vec2str(dilation) << "_";
     result << "O=" << numOutChannels << "_";
     result << "G=" << numOfGroups << "_";
     result << "AP=" << paddingType << "_";
@@ -45,7 +46,7 @@ std::string ConvConcatSubgraphTest::getTestCaseName(testing::TestParamInfo<convC
 }
 
 void ConvConcatSubgraphTest::SetUp() {
-    targetDevice = CommonTestUtils::DEVICE_CPU;
+    targetDevice = ov::test::utils::DEVICE_CPU;
     nodeType type;
     commonConvParams convParams;
     CPUSpecificParams cpuParams;
@@ -64,36 +65,37 @@ void ConvConcatSubgraphTest::SetUp() {
 
     selectedType += "_FP32";
 
-    auto inputParams = ngraph::builder::makeParams(ngraph::element::f32, {inputShapes, inputShapes});
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
+    ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(inputShapes)),
+                                    std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(inputShapes))};
 
     std::vector<std::shared_ptr<ngraph::Node>> convolutionNodes(2);
     switch (type) {
         case nodeType::convolution : {
             for (size_t conv = 0; conv < convolutionNodes.size(); conv++) {
-                convolutionNodes[conv] = ngraph::builder::makeConvolution(paramOuts[conv], ngraph::element::f32, kernelSize, strides, padBegin,
+                convolutionNodes[conv] = ngraph::builder::makeConvolution(inputParams[conv], ngraph::element::f32, kernelSize, strides, padBegin,
                                                                           padEnd, dilation, paddingType, numOutChannels);
             }
             break;
         }
         case nodeType::convolutionBackpropData : {
             for (size_t conv = 0; conv < convolutionNodes.size(); conv++) {
-                convolutionNodes[conv] = ngraph::builder::makeConvolutionBackpropData(paramOuts[conv], ngraph::element::f32, kernelSize, strides, padBegin,
+                convolutionNodes[conv] = ngraph::builder::makeConvolutionBackpropData(inputParams[conv], ngraph::element::f32, kernelSize, strides, padBegin,
                                                                                       padEnd, dilation, paddingType, numOutChannels);
             }
             break;
         }
         case nodeType::groupConvolution : {
             for (size_t conv = 0; conv < convolutionNodes.size(); conv++) {
-                convolutionNodes[conv] = ngraph::builder::makeGroupConvolution(paramOuts[conv], ngraph::element::f32, kernelSize, strides, padBegin,
+                convolutionNodes[conv] = ngraph::builder::makeGroupConvolution(inputParams[conv], ngraph::element::f32, kernelSize, strides, padBegin,
                                                                                            padEnd, dilation, paddingType, numOutChannels, numOfGroups);
             }
             break;
         }
         case nodeType::groupConvolutionBackpropData : {
             for (size_t conv = 0; conv < convolutionNodes.size(); conv++) {
-                convolutionNodes[conv] = ngraph::builder::makeGroupConvolutionBackpropData(paramOuts[conv], ngraph::element::f32, kernelSize, strides, padBegin,
-                                                                                           padEnd, dilation, paddingType, numOutChannels, numOfGroups);
+                convolutionNodes[conv] = ngraph::builder::makeGroupConvolutionBackpropData(inputParams[conv], ngraph::element::f32, kernelSize,
+                                                                                           strides, padBegin, padEnd, dilation, paddingType,
+                                                                                           numOutChannels, numOfGroups);
             }
             break;
         }

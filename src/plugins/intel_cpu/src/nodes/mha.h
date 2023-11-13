@@ -168,6 +168,7 @@ private:
     }
 
     std::vector<InferenceEngine::Precision> inputPrecisions;
+    InferenceEngine::Precision outputPrecision;
     InferenceEngine::Precision accPrecision0;
     InferenceEngine::Precision accPrecision1;
 

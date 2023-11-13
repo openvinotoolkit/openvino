@@ -6,18 +6,88 @@
 #include "register.hpp"
 #include "mutable_data_inst.h"
 #include "input_layout_inst.h"
-#include "intel_gpu/graph/serialization/loop_serializer.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include <vector>
 #include <algorithm>
 
 namespace cldnn {
 namespace common {
+
+// read scala value from data primitive
+static int64_t read_scalar_value(memory::ptr mem, stream& stream) {
+    int64_t trip_count = 0;
+    const layout& prim_layout = mem->get_layout();
+
+    switch (prim_layout.data_type) {
+    case data_types::u8: {
+        mem_lock<uint8_t> lock_prim_output{mem, stream};
+        trip_count = *lock_prim_output.data();
+        break;
+    }
+    case data_types::i8: {
+        mem_lock<int8_t> lock_prim_output{mem, stream};
+        trip_count = *lock_prim_output.data();
+        break;
+    }
+    case data_types::i32: {
+        mem_lock<int32_t> lock_prim_output{mem, stream};
+        trip_count = *lock_prim_output.data();
+        break;
+    }
+    case data_types::i64: {
+        mem_lock<int64_t> lock_prim_output{mem, stream};
+        trip_count = *lock_prim_output.data();
+        break;
+    }
+    default:
+        OPENVINO_THROW("Invalid data type : ",  ov::element::Type(prim_layout.data_type).get_type_name());
+    }
+    return trip_count;
+}
+
+template<typename T>
+static inline void validate_input_value(int64_t input) {
+    OPENVINO_ASSERT((input >= std::numeric_limits<T>::min() && input <= std::numeric_limits<T>::max()),
+                "Invalid data value : ", input);
+}
+
+static void write_scalar_value(memory::ptr mem, stream& stream, int64_t input) {
+    const layout& prim_layout = mem->get_layout();
+
+    switch (prim_layout.data_type) {
+    case data_types::u8: {
+        validate_input_value<uint8_t>(input);
+        mem_lock<uint8_t> lock_prim_output{mem, stream};
+        lock_prim_output[0] = static_cast<uint8_t>(input);
+        break;
+    }
+    case data_types::i8: {
+        validate_input_value<int8_t>(input);
+        mem_lock<int8_t> lock_prim_output{mem, stream};
+        lock_prim_output[0] = static_cast<int8_t>(input);
+        break;
+    }
+    case data_types::i32: {
+        validate_input_value<int32_t>(input);
+        mem_lock<int32_t> lock_prim_output{mem, stream};
+        lock_prim_output[0] = static_cast<int32_t>(input);
+        break;
+    }
+    case data_types::i64: {
+        mem_lock<int64_t> lock_prim_output{mem, stream};
+        lock_prim_output[0] = input;
+        break;
+    }
+    default:
+        OPENVINO_THROW("Invalid data type : ",  ov::element::Type(prim_layout.data_type).get_type_name());
+    }
+}
+
 struct loop_impl : typed_primitive_impl<loop> {
     using parent = typed_primitive_impl<loop>;
     using parent::parent;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::common::loop_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<loop_impl>(*this);
@@ -28,7 +98,6 @@ struct loop_impl : typed_primitive_impl<loop> {
     loop_impl() : parent() {}
 
     loop_impl(const loop_impl& other) : typed_primitive_impl<loop>(other),
-        _max_iteration(other._max_iteration),
         _back_edges(other._back_edges) {}
 
     explicit loop_impl(const loop_node& node) {
@@ -36,95 +105,123 @@ struct loop_impl : typed_primitive_impl<loop> {
     }
 
     void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<loop>());
+        OPENVINO_ASSERT(arg.is_type<loop>());
         const auto& node = arg.as<loop>();
-        _max_iteration = node.get_max_iteration();
         _back_edges = node.get_back_edges();
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, loop_inst& instance) override {
-        const auto& primitive = instance.get_typed_desc<loop>();
+        const auto& impl_params = instance.get_impl_params();
+        const auto& primitive = impl_params->typed_desc<loop>();
         auto& outer_network = instance.get_network();
         auto& stream = outer_network.get_stream();
 
         auto body_network = instance.get_body_network();
+        int64_t current_iteration_idx = 0;
 
         auto ev = stream.create_user_event(false);
 
-        if (!instance.preproc_memories_done) {
-            instance.preprocess_output_memory();
-            instance.preprocess_input_memory();
-            instance.preprocess_backedge_memory();
+        OPENVINO_ASSERT(!primitive->num_iteration_id.empty(), "loop operation should have num_iteration_id");
 
-            // set input data for current_iteration primitive if current_it`eration is used
-            if (!primitive->current_iteration_id.empty()) {
-                auto current_iteration_prim = body_network->get_primitive(primitive->current_iteration_id);
-                auto input_layout_prim = std::dynamic_pointer_cast<input_layout_inst>(current_iteration_prim);
-                if (input_layout_prim == nullptr) {
-                    CLDNN_ERROR_MESSAGE(instance.id(), "current_iteration primitive is not input_layout");
-                }
+        auto num_iterations = instance.get_num_iterations();
+        GPU_DEBUG_LOG << "num_iterations : " << num_iterations << std::endl;
 
-                const auto& backedge_mapping = instance.get_current_iteration_backedge_mapping();
-                input_layout_prim->set_data(backedge_mapping.initial_mem);
+        //////////////////////////////////////////
+        // memory pointers for outer network
+        //////////////////////////////////////////
+        // read trip_count from outer network
+        int64_t trip_count = -1;
+        if (!primitive->trip_count_id.empty()) {
+            memory::ptr trip_count_mem = outer_network.get_primitive(primitive->trip_count_id)->output_memory_ptr();
+            trip_count = read_scalar_value(std::move(trip_count_mem), stream);
+        } else {
+            OPENVINO_ASSERT(!primitive->body_execution_condition_id.empty()
+                            || num_iterations > 0 || primitive->max_num_iterations > 0,
+                            "num_iterations should be positive when trip_count_id is not existed");
+            // If trip_count_id is not existed, the original ngraph operation is TensorIterator.
+            // If num_iterations is negative, it means that TensorIterator has no concat input / output memory.
+            // When it has no body_exeuction_conditio_id and num_iterations and primtive->max_num_iteartion,
+            // TensorIterator has no ending condition. So it cannot terminate inner body execution loop.
+            trip_count = num_iterations > 0 ? num_iterations : primitive->max_num_iterations;
+        }
+        GPU_DEBUG_LOG << "trip_count : " << trip_count << std::endl;
+
+        // read initial execution condition from outer network
+        int64_t execution_condition = 1;
+        if (!primitive->first_execution_condition_id.empty()) {
+            memory::ptr first_execution_condition_mem = outer_network.get_primitive(primitive->first_execution_condition_id)->output_memory_ptr();
+            execution_condition = read_scalar_value(first_execution_condition_mem, stream);
+        }
+        GPU_DEBUG_LOG << "execution_condition: " << execution_condition << std::endl;
+
+        // When execution_condition is false or trip_count is zero, return execute_impl without any body_network execution.
+        if (!execution_condition || trip_count == 0) {
+            // Update num_iterations (actual number of iterations)
+            memory::ptr num_actual_iterations_mem = outer_network.get_primitive(primitive->num_iteration_id)->output_memory_ptr();
+            write_scalar_value(num_actual_iterations_mem, stream, current_iteration_idx);
+
+            instance.update_output_layout();
+            ev->set();
+            return ev;
+        }
+
+        //////////////////////////////////////////
+        // memory pointers for body network
+        //////////////////////////////////////////
+        // shortcut of execution_condition memory in body network
+        memory::ptr body_execution_condition_mem = nullptr;
+        if (!primitive->body_execution_condition_id.empty()) {
+            body_execution_condition_mem = body_network->get_primitive(primitive->body_execution_condition_id)->output_memory_ptr();
+        }
+
+        // shortcut of current_iteration memory in body network
+        if (!primitive->body_current_iteration_id.empty()) {
+            memory::ptr body_current_iteration_mem = body_network->get_primitive(primitive->body_current_iteration_id)->output_memory_ptr();
+            write_scalar_value(body_current_iteration_mem, body_network->get_stream(), 0);
+        }
+
+        const auto is_dynamic = instance.is_dynamic();
+        if (is_dynamic) {
+            instance.update_shape();
+            if (instance.shape_changed()) {
+                instance.preproc_memories_done = false;
+                instance.reset_memory();
             }
+        }
+
+        if (!instance.preproc_memories_done) {
+            instance.preprocess_output_memory(num_iterations);
+            instance.preprocess_input_memory(num_iterations);
+            instance.preprocess_backedge_memory();
             instance.preproc_memories_done = true;
         }
 
-        // read trip_count from outer network
-        bool update_num_iterations = false;
-        memory::ptr trip_count_mem = outer_network.get_primitive(primitive->trip_count_id)->output_memory_ptr();
-        int64_t trip_count = loop_node::read_scalar_value(trip_count_mem, stream);
-        if (trip_count < 0) {
-            trip_count = _max_iteration;
-            update_num_iterations = true;
-        }
-
-        // read initial execution condition from outer network
-        memory::ptr initial_execution_mem = outer_network.get_primitive(primitive->initial_execution_id)->output_memory_ptr();
-        int64_t execution_condition = loop_node::read_scalar_value(initial_execution_mem, stream);
-
-        // shortcut of execution_condition memory in body network
-        memory::ptr execution_condition_mem = nullptr;
-        if (!primitive->condition_id.empty()) {
-            execution_condition_mem = body_network->get_primitive(primitive->condition_id)->output_memory_ptr();
-        }
-
         const auto& concatenated_input_mem_mappings = instance.concatenated_input_mem_mappings;
-        const auto& concatenated_output_mem_mappings = instance.concatenated_output_mem_mappings;
+        const auto& backedge_memory_mappings = instance.backedge_memory_mappings;
+
+        // If there are concatenated_input_mem_mappings or backedge_memory_mappings we need to wait for
+        // previous tasks before accessing memory in get_sliced_mem() and setup_iteration() functions
+        if (!concatenated_input_mem_mappings.empty() || !backedge_memory_mappings.empty()) {
+            for (auto& e : events) {
+                e->wait();
+            }
+        }
 
         // Set sliced input data
         for (size_t i = 0; i < concatenated_input_mem_mappings.size(); ++i) {
             const auto& concatenated_input = concatenated_input_mem_mappings.at(i);
-            memory::ptr mem = concatenated_input.get_sliced_mem(0);
-            if (mem) {
-                body_network->set_input_data(concatenated_input.sliced_data_prim->id(), mem);
-            } else {
-                CLDNN_ERROR_MESSAGE(instance.id(), "sliced input memory of loop is not allocated properly");
-            }
+            concatenated_input->slice_mem(num_iterations);
+            memory::ptr mem = concatenated_input->get_sliced_mem(0);
+            OPENVINO_ASSERT(mem != nullptr, instance.id(), "sliced input memory of loop is not allocated properly");
+            body_network->set_input_data(concatenated_input->get_sliced_data_prim_id(), mem);
         }
 
+        std::vector<event::ptr> all_events;
         std::vector<event::ptr> loop_carried_dep(events.begin(), events.end());
-        int64_t current_iteration_idx = 0;
-        while (current_iteration_idx < trip_count && execution_condition) {
-            // Copy & Set sliced input memory
-            for (size_t i = 0; i < concatenated_input_mem_mappings.size(); ++i) {
-                const auto& concatenated_input = concatenated_input_mem_mappings.at(i);
-                memory::ptr mem = concatenated_input.get_sliced_mem(current_iteration_idx);
-                if (mem) {
-                    concatenated_input.sliced_data_prim->set_output_memory(mem);
-                } else {
-                    CLDNN_ERROR_MESSAGE(instance.id(), "sliced input memory of loop is not allocated properly");
-                }
-            }
-
-            // Set backedges
-            for (const auto& backedge_memory_mapping : instance.backedge_memory_mappings) {
-                backedge_memory_mapping.setup_iteration(current_iteration_idx);
-            }
-
-            // Set sliced output memory
-            for (const auto& concat_output_mem_mapping : concatenated_output_mem_mappings) {
-                concat_output_mem_mapping.setup_sliced_output_memory(current_iteration_idx);
+        while (((trip_count < 0) || (current_iteration_idx < trip_count)) && execution_condition) {
+            auto prev_events = instance.preprocess_memory_for_body_network(current_iteration_idx);
+            for (auto& ev : prev_events) {
+                loop_carried_dep.push_back(ev);
             }
 
             // execute body network
@@ -133,45 +230,62 @@ struct loop_impl : typed_primitive_impl<loop> {
             loop_carried_dep.clear();
             for (const auto& backedge : _back_edges) {
                 event::ptr body_event;
-                if (body_network->has_event(backedge.from))
+                if (body_network->has_event(backedge.from)) {
                     body_event = body_network->get_primitive_event(backedge.from);
-                loop_carried_dep.emplace_back(body_event);
+                    loop_carried_dep.emplace_back(body_event);
+                }
             }
 
-            //TODO: execution_condition is prepared as they are presented in the
-            //      ngraph opset document for loop operation.
-            // However they are not being used yet and only TensorIterator which
-            // has fixed sequence length is being validated.
-            if (!primitive->condition_id.empty()) {
-                execution_condition = loop_node::read_scalar_value(execution_condition_mem, stream);
+            // Collect output events for waiting for all iterations finishing
+            for (auto& out : body_network->get_outputs()) {
+                auto output_id = out->id();
+                if (body_network->has_event(output_id)) {
+                    auto output_event = body_network->get_primitive_event(output_id);
+                    all_events.push_back(output_event);
+                }
             }
 
-            // update index & execution condition for the next iteration
-            ++current_iteration_idx;
-        }
-
-        body_network->reset_execution();
-
-        // Concatenate sliced output to the outer network
-        for (size_t i = 0; i < concatenated_output_mem_mappings.size(); ++i) {
-            const auto& concat_output = concatenated_output_mem_mappings.at(i);
-            concat_output.restore_concatenated_mem();
-        }
-
-        if (update_num_iterations) {
-            // update num_iterations (actual number of iterations)
-            int64_t actual_iterations = 0;
-            if (!primitive->current_iteration_id.empty()) {
-                const auto& backedge_mapping = instance.get_current_iteration_backedge_mapping();
-                auto current_iteration_mem = backedge_mapping.from_primitive->output_memory_ptr();
-                actual_iterations = loop_node::read_scalar_value(current_iteration_mem, stream);
-            } else {
-                actual_iterations = current_iteration_idx;
+            // Store output of sliced_data_prim to sliced mems vector
+            // After execution of body network, sliced_data_prim will has output memory buffer
+            // current memory buffer move to sliced_mems and new memory buffer will be allocated in sliced_data_prim
+            if (is_dynamic) {
+                auto post_events = instance.postprocess_memory_for_body_network(current_iteration_idx);
+                for (auto& ev : post_events) {
+                    loop_carried_dep.push_back(ev);
+                    all_events.push_back(ev);
+                }
             }
 
-            memory::ptr num_actual_iterations_mem = outer_network.get_primitive(primitive->num_iteration_id)->output_memory_ptr();
-            loop_node::write_scalar_value(num_actual_iterations_mem, stream, actual_iterations);
+            // execution condition is the result of body network execution
+            if (body_execution_condition_mem != nullptr) {
+                auto execution_id = primitive->body_execution_condition_id;
+                if (body_network->has_event(execution_id)) {
+                    auto ev = body_network->get_primitive_event(execution_id);
+                    if (ev) ev->wait();
+                }
+                execution_condition = read_scalar_value(body_execution_condition_mem, body_network->get_stream());
+            }
+            GPU_DEBUG_IF(!execution_condition) {
+                GPU_DEBUG_LOG << "body_exec_condition is false at "<< current_iteration_idx << " iteration idx" << std::endl;
+            }
+
+            current_iteration_idx++;
         }
+
+        // Reset network and wait for all collected events
+        body_network->reset_execution(false);
+        stream.wait_for_events(all_events);
+
+        // Update actual num iteration
+        // update num_iterations (actual number of iterations)
+        memory::ptr num_actual_iterations_mem = outer_network.get_primitive(primitive->num_iteration_id)->output_memory_ptr();
+        write_scalar_value(num_actual_iterations_mem, stream, current_iteration_idx);
+        GPU_DEBUG_LOG << "current_iteration_idx(" << primitive->num_iteration_id << ", "
+                        << num_actual_iterations_mem << ")  : " << current_iteration_idx << std::endl;
+
+        if (is_dynamic)
+            instance.update_output_layout();
+        instance.postprocess_output_memory(is_dynamic, current_iteration_idx);
 
         ev->set();
         return ev;
@@ -183,23 +297,25 @@ struct loop_impl : typed_primitive_impl<loop> {
 
     void save(BinaryOutputBuffer& ob) const override {
         parent::save(ob);
-        ob << _max_iteration;
         ob << _back_edges;
     }
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        ib >> _max_iteration;
         ib >> _back_edges;
     }
 
 private:
-    int64_t _max_iteration;
     std::vector<cldnn::loop::backedge_mapping> _back_edges;
 };
 
 namespace detail {
 attach_loop_common::attach_loop_common() {
+    implementation_map<loop>::add(impl_types::common,
+                                    shape_types::dynamic_shape,
+                                    loop_impl::create,
+                                    {},
+                                    {});
     implementation_map<loop>::add(impl_types::common, loop_impl::create, {});
 }
 }  // namespace detail

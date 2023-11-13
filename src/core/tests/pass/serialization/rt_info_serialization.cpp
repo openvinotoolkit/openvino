@@ -4,27 +4,27 @@
 
 #include <gtest/gtest.h>
 
-#include <common_test_utils/file_utils.hpp>
-
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph/pass/serialize.hpp"
+#include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_common.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/manager.hpp"
 #include "transformations/rt_info/attributes.hpp"
 
-class RTInfoSerializationTest : public CommonTestUtils::TestsCommon {
+class RTInfoSerializationTest : public ov::test::TestsCommon {
 protected:
     std::string m_out_xml_path;
     std::string m_out_bin_path;
 
     void SetUp() override {
-        std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+        std::string filePrefix = ov::test::utils::generateTestFilePrefix();
         m_out_xml_path = filePrefix + ".xml";
         m_out_bin_path = filePrefix + ".bin";
     }
 
     void TearDown() override {
-        CommonTestUtils::removeIRFiles(m_out_xml_path, m_out_bin_path);
+        ov::test::utils::removeIRFiles(m_out_xml_path, m_out_bin_path);
     }
 
     std::shared_ptr<ov::Model> getWithIRFrontend(const std::string& model_path, const std::string& weights_path) {
@@ -110,6 +110,34 @@ TEST_F(RTInfoSerializationTest, all_attributes_latest) {
     check_info(add->input(0).get_rt_info());
     check_info(add->input(1).get_rt_info());
     check_info(add->output(0).get_rt_info());
+}
+
+TEST_F(RTInfoSerializationTest, rt_info_precise_test) {
+    auto init_info = [](ov::RTMap& info) {
+        info[ov::DisableFP16Compression::get_type_info_static()] = ov::DisableFP16Compression{};
+    };
+    auto check_info = [](const ov::RTMap& info) {
+        const std::string& key = ov::DisableFP16Compression::get_type_info_static();
+        ASSERT_TRUE(info.count(key));
+    };
+
+    std::shared_ptr<ov::Model> function;
+    {
+        auto data_1 = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ov::Shape{1, 10});
+        auto data_2 = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ov::Shape{10, 1});
+        auto matmul_1 = std::make_shared<ov::opset8::MatMul>(data_1, data_2);
+        init_info(matmul_1->get_rt_info());
+        auto result = std::make_shared<ov::opset8::Result>(matmul_1);
+        function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{data_1, data_2});
+    }
+    ov::pass::Manager m;
+    m.register_pass<ov::pass::Serialize>(m_out_xml_path, m_out_bin_path);
+    m.run_passes(function);
+    auto f = getWithIRFrontend(m_out_xml_path, m_out_bin_path);
+    ASSERT_NE(nullptr, f);
+
+    auto matmul = f->get_results()[0]->get_input_node_ptr(0);
+    check_info(matmul->get_rt_info());
 }
 
 TEST_F(RTInfoSerializationTest, all_attributes_v10) {

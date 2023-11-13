@@ -10,70 +10,80 @@
 #include <string>
 #include <list>
 
-#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
-#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
+#include "openvino/runtime/iplugin.hpp"
 #include "utils/log_util.hpp"
 #include "common.hpp"
 #include "plugin_config.hpp"
+#include "compiled_model.hpp"
 
-#ifdef  MULTIUNITTEST
-#define MOCKTESTMACRO virtual
-#define MultiDevicePlugin MockMultiDevicePlugin
-#else
-#define MOCKTESTMACRO
-#endif
+namespace ov {
+namespace auto_plugin {
 
-namespace MultiDevicePlugin {
-
-class MultiDeviceInferencePlugin : public InferenceEngine::IInferencePlugin {
+class Plugin : public ov::IPlugin {
 public:
-    MultiDeviceInferencePlugin();
-    ~MultiDeviceInferencePlugin() = default;
+    Plugin();
+    ~Plugin() = default;
 
-    InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork&        network,
-                                                                       const std::map<std::string, std::string>& config) override;
+    void set_property(const ov::AnyMap& properties) override;
 
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> LoadNetwork(const std::string& modelPath,
-                                                                 const std::map<std::string, std::string>& config) override;
+    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
 
-    void SetConfig(const std::map<std::string, std::string>& config) override;
-    InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter> & options) const override;
-    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork&        network,
-                                                     const std::map<std::string, std::string>& config) const override;
-    InferenceEngine::Parameter GetMetric(const std::string& name,
-                                         const std::map<std::string, InferenceEngine::Parameter>& options) const override;
+    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
+                                    const ov::AnyMap& properties) const override;
 
-    MOCKTESTMACRO std::vector<MultiDevicePlugin::DeviceInformation> ParseMetaDevices(const std::string & devicesRequestsCfg,
-                                                                       const std::map<std::string, std::string> & config) const;
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                      const ov::AnyMap& properties) const override;
 
-    MOCKTESTMACRO std::string GetDeviceList(const std::map<std::string, std::string>& config) const;
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                              const ov::AnyMap& properties,
+                                                              const ov::SoPtr<ov::IRemoteContext>& context) const override;
 
-    MOCKTESTMACRO std::list<DeviceInformation> GetValidDevice(const std::vector<DeviceInformation>& metaDevices,
-                                                   const std::string& networkPrecision = METRIC_VALUE(FP32));
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::string& model_path,
+                                                      const ov::AnyMap& properties) const override;
 
-    MOCKTESTMACRO DeviceInformation SelectDevice(const std::vector<DeviceInformation>& metaDevices,
-                                                 const std::string& networkPrecision = METRIC_VALUE(FP32),
+    MOCKTESTMACRO std::vector<auto_plugin::DeviceInformation> parse_meta_devices(const std::string & devices_requests_cfg,
+                                                                                 const ov::AnyMap& properties) const;
+
+    MOCKTESTMACRO std::string get_device_list(const ov::AnyMap& properties) const;
+
+    MOCKTESTMACRO std::list<DeviceInformation> get_valid_device(const std::vector<DeviceInformation>& meta_devices,
+                                                   const std::string& model_precision = "FP32") const;
+
+    MOCKTESTMACRO DeviceInformation select_device(const std::vector<DeviceInformation>& meta_devices,
+                                                 const std::string& model_precision = "FP32",
                                                  unsigned int priority = 0);
-    void UnregisterPriority(const unsigned int& priority, const std::string& deviceName);
-    void RegisterPriority(const unsigned int& priority, const std::string& deviceName);
+    void unregister_priority(const unsigned int& priority, const std::string& device_name);
+    void register_priority(const unsigned int& priority, const std::string& device_name);
+
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override;
+
+
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override;
+
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                             const ov::AnyMap& properties) const override;
+
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                             const ov::SoPtr<ov::IRemoteContext>& context,
+                                                             const ov::AnyMap& properties) const override;
 
 protected:
-    ov::AnyMap PreProcessConfig(const std::map<std::string, std::string>& orig_config) const;
+    ov::AnyMap pre_process_config(const ov::AnyMap& orig_config) const;
 
 private:
-    InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetworkImpl(const std::string& modelPath,
-                                                                       InferenceEngine::CNNNetwork network,
-                                                                       const std::map<std::string, std::string>& config,
-                                                                       const std::string &networkPrecision = METRIC_VALUE(FP32));
-    std::vector<DeviceInformation> FilterDevice(const std::vector<DeviceInformation>& metaDevices,
-                                                const std::map<std::string, std::string>& config);
-    std::vector<DeviceInformation> FilterDeviceByNetwork(const std::vector<DeviceInformation>& metaDevices,
-                                                         InferenceEngine::CNNNetwork network);
-    std::string GetLogTag() const noexcept;
-    static std::mutex _mtx;
-    static std::map<unsigned int, std::list<std::string>> _priorityMap;
-    std::string _LogTag;
-    PluginConfig _pluginConfig;
+    std::shared_ptr<ov::ICompiledModel> compile_model_impl(const std::string& model_path,
+                                                           const std::shared_ptr<const ov::Model>& model,
+                                                           const ov::AnyMap& properties,
+                                                           const std::string& model_precision = "FP32") const;
+    std::vector<DeviceInformation> filter_device(const std::vector<DeviceInformation>& meta_devices,
+                                                 const ov::AnyMap& properties) const;
+    std::vector<DeviceInformation> filter_device_by_model(const std::vector<DeviceInformation>& meta_devices,
+                                                            const std::shared_ptr<const ov::Model>& model) const;
+    std::string get_log_tag() const noexcept;
+    static std::mutex m_mtx;
+    static std::map<unsigned int, std::list<std::string>> m_priority_map;
+    PluginConfig m_plugin_config;
 };
 
-}  // namespace MultiDevicePlugin
+}  // namespace auto_plugin
+}  // namespace ov

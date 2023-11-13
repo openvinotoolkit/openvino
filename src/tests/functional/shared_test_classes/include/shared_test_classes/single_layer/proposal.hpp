@@ -10,8 +10,8 @@
 #include <memory>
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -69,7 +69,7 @@ public:
 
             // verify until first -1 appears in the 1st output.
             if (output_index == 0 &&
-                CommonTestUtils::ie_abs(ref - static_cast<T>(-1)) <= threshold) {
+                ov::test::utils::ie_abs(ref - static_cast<T>(-1)) <= threshold) {
                 // output0 shape = {x, 5}
                 // output1 shape = {x}
                 // setting the new_size for output1 verification
@@ -77,13 +77,13 @@ public:
                 return;
             }
 
-            const auto absoluteDifference = CommonTestUtils::ie_abs(res - ref);
+            const auto absoluteDifference = ov::test::utils::ie_abs(res - ref);
             if (absoluteDifference <= threshold) {
                 continue;
             }
 
-            const auto max = std::max(CommonTestUtils::ie_abs(res),
-                                    CommonTestUtils::ie_abs(ref));
+            const auto max = std::max(ov::test::utils::ie_abs(res),
+                                    ov::test::utils::ie_abs(ref));
             float diff =
                 static_cast<float>(absoluteDifference) / static_cast<float>(max);
             ASSERT_TRUE(max != 0 && (diff <= static_cast<float>(threshold)))

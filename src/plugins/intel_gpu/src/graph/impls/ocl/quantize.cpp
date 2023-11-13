@@ -17,7 +17,7 @@ struct quantize_impl : typed_primitive_impl_ocl<quantize> {
     using kernel_selector_t = kernel_selector::quantize_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::quantize_params, kernel_selector::quantize_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::quantize_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<quantize_impl>(*this);
@@ -51,7 +51,6 @@ public:
             get_default_optional_params<kernel_selector::quantize_optional_params>(impl_param.get_program());
 
         quantize_params.levels = arg.get_levels();
-        quantize_params.packed_binary_output = arg.get_packed_binary_output();
         quantize_params.scale_shift_opt = arg.get_scale_shift_opt();
         quantize_params.has_post_scale = arg.get_need_post_scale();
         quantize_params.has_post_shift = arg.get_need_post_shift();
@@ -76,7 +75,7 @@ public:
         quantize_params.out_scale = arg.get_output_scale_val();
         quantize_params.out_shift = arg.get_output_shift_val();
 
-        for (size_t i = 1; i < arg.inputs_count(); i++) {
+        for (size_t i = 1; i < arg.get_inputs_count(); i++) {
             quantize_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
         }
 
@@ -90,8 +89,6 @@ public:
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto quantize_params = get_default_params<kernel_selector::quantize_params>(impl_param);
-        const auto& output_layout = impl_param.get_output_layout();
-        quantize_params.packed_binary_output = output_layout.data_type == data_types::bin;
         (_kernel_data.update_dispatch_data_func)(quantize_params, _kernel_data);
     }
 };

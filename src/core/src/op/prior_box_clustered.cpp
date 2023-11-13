@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/prior_box_clustered.hpp"
+#include "openvino/reference/prior_box_clustered.hpp"
 
 #include "itt.hpp"
 #include "openvino/op/prior_box_clustered.hpp"
@@ -62,11 +62,7 @@ namespace {
 template <element::Type_t ET>
 bool evaluate(const Tensor& arg0, const Tensor& arg1, Tensor& out, op::v0::PriorBoxClustered::Attributes attrs) {
     using T = fundamental_type_for<ET>;
-    ngraph::runtime::reference::prior_box_clustered(arg0.data<T>(),
-                                                    arg1.data<T>(),
-                                                    out.data<float>(),
-                                                    out.get_shape(),
-                                                    attrs);
+    ov::reference::prior_box_clustered(arg0.data<T>(), arg1.data<T>(), out.data<float>(), out.get_shape(), attrs);
     return true;
 }
 
@@ -76,14 +72,14 @@ bool evaluate_prior_box(const Tensor& arg0,
                         const op::v0::PriorBoxClustered::Attributes& attrs) {
     bool rc = true;
     switch (arg0.get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_prior_box, i8, arg0, arg1, out, attrs);
-        NGRAPH_TYPE_CASE(evaluate_prior_box, i16, arg0, arg1, out, attrs);
-        NGRAPH_TYPE_CASE(evaluate_prior_box, i32, arg0, arg1, out, attrs);
-        NGRAPH_TYPE_CASE(evaluate_prior_box, i64, arg0, arg1, out, attrs);
-        NGRAPH_TYPE_CASE(evaluate_prior_box, u8, arg0, arg1, out, attrs);
-        NGRAPH_TYPE_CASE(evaluate_prior_box, u16, arg0, arg1, out, attrs);
-        NGRAPH_TYPE_CASE(evaluate_prior_box, u32, arg0, arg1, out, attrs);
-        NGRAPH_TYPE_CASE(evaluate_prior_box, u64, arg0, arg1, out, attrs);
+        OPENVINO_TYPE_CASE(evaluate_prior_box, i8, arg0, arg1, out, attrs);
+        OPENVINO_TYPE_CASE(evaluate_prior_box, i16, arg0, arg1, out, attrs);
+        OPENVINO_TYPE_CASE(evaluate_prior_box, i32, arg0, arg1, out, attrs);
+        OPENVINO_TYPE_CASE(evaluate_prior_box, i64, arg0, arg1, out, attrs);
+        OPENVINO_TYPE_CASE(evaluate_prior_box, u8, arg0, arg1, out, attrs);
+        OPENVINO_TYPE_CASE(evaluate_prior_box, u16, arg0, arg1, out, attrs);
+        OPENVINO_TYPE_CASE(evaluate_prior_box, u32, arg0, arg1, out, attrs);
+        OPENVINO_TYPE_CASE(evaluate_prior_box, u64, arg0, arg1, out, attrs);
     default:
         rc = false;
         break;

@@ -268,22 +268,6 @@ INSTANTIATE_TEST_SUITE_P(ColorConvertFluid_4ch, ColorConvertTestIE,
                                 Values(TEST_SIZES),
                                 Values(0)));
 
-IE_SUPPRESS_DEPRECATED_START
-INSTANTIATE_TEST_SUITE_P(ColorConvertYUV420Fluid, ColorConvertYUV420TestIE,
-                        Combine(Values(InferenceEngine::NV12, InferenceEngine::I420),
-                                Values(InferenceEngine::NHWC, InferenceEngine::NCHW),
-                                Values(cv::Size(3840, 2160),
-                                       cv::Size(1920, 1080),
-                                       cv::Size(1280,  720),
-                                       cv::Size(1280,  960),
-                                       cv::Size( 960,  720),
-                                       cv::Size( 640,  480),
-                                       cv::Size( 320,  200),
-                                       cv::Size( 300,  300),
-                                       cv::Size( 150,  150)),
-                                Values(1)));
-IE_SUPPRESS_DEPRECATED_END
-
 INSTANTIATE_TEST_SUITE_P(Reorder_HWC2CHW, ColorConvertTestIE,
                         Combine(Values(CV_8U, CV_32F, CV_16S, CV_16F),
                                 Values(InferenceEngine::ColorFormat::BGR),
@@ -403,18 +387,6 @@ INSTANTIATE_TEST_SUITE_P(ColorFormats_4ch, PreprocTest,
                                 Values(IE::Layout::NHWC, IE::Layout::NCHW),
                                 Values(std::make_pair(4, 3)),
                                 Values(TEST_SIZES_PREPROC)));
-
-IE_SUPPRESS_DEPRECATED_START
-INSTANTIATE_TEST_SUITE_P(ColorFormat_NV12, PreprocTest,
-                        Combine(Values(U8toU8),
-                                Values(IE::ResizeAlgorithm::RESIZE_BILINEAR, IE::ResizeAlgorithm::RESIZE_AREA),
-                                Values(IE::ColorFormat::NV12),
-                                Values(IE::Layout::NCHW),
-                                Values(IE::Layout::NHWC, IE::Layout::NCHW),
-                                Values(std::make_pair(1, 3)),
-                                Values(TEST_SIZES_PREPROC)));
-IE_SUPPRESS_DEPRECATED_END
-
 
 INSTANTIATE_TEST_SUITE_P(PlainPrecisionConversions, PreprocTest,
                         Combine(Values(std::make_pair(IE::Precision::U16,IE::Precision::FP32),

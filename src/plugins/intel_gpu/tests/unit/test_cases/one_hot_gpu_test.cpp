@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/one_hot.hpp>
@@ -67,17 +68,18 @@ VVVVF<T> one_hot_cpu(VVVVF<T> &input, uint16_t axis,
 template <typename T>
 void generic_one_hot_test_int(cldnn::format test_input_fmt, int input_b, int input_f, int input_y, int input_x, tensor shape,
     uint16_t one_hot_axis, int input_padding_y, int input_padding_x, int output_padding_y, int output_padding_x, bool is_caching_test) {
+    tests::random_generator rg(GET_SUITE_NAME);
     std::vector<tensor::value_type> output_dims = { shape.batch[0], shape.feature[0],
         shape.spatial[1], shape.spatial[0] };
     int32_t one_hot_limit = output_dims[one_hot_axis];
 
     int min_random = 0, max_random = one_hot_limit + 2;
-    VVVVF<T> input_rnd = generate_random_4d<T>(input_b, input_f, input_y, input_x, min_random, max_random);
+    VVVVF<T> input_rnd = rg.generate_random_4d<T>(input_b, input_f, input_y, input_x, min_random, max_random);
     VF<T> input_rnd_vec = flatten_4d<T>(test_input_fmt, input_rnd);
 
     auto& engine = get_test_engine();
     tensor input_tensor(input_b, input_f, input_x, input_y);
-    auto input = engine.allocate_memory({ type_to_data_type<T>::value, test_input_fmt, input_tensor });
+    auto input = engine.allocate_memory({ ov::element::from<T>(), test_input_fmt, input_tensor });
     set_values(input, input_rnd_vec);
 
     topology topology;

@@ -4,15 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
-#include <openvino/core/preprocess/pre_post_process.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
 #include <vector>
 
-#include "../op_reference/base_reference_test.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "base_reference_test.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace ov;
 using namespace ov::preprocess;
@@ -20,7 +16,7 @@ using namespace reference_tests;
 namespace {
 
 struct RefPreprocessParams {
-    RefPreprocessParams(const std::string& val): name(val) {}
+    RefPreprocessParams(const std::string& val) : name(val) {}
     std::function<std::shared_ptr<ov::Model>()> function;
     std::vector<reference_tests::Tensor> inputs;
     std::vector<reference_tests::Tensor> expected;
@@ -52,11 +48,10 @@ public:
     }
 };
 
-
 TEST_P(ReferencePreprocessTest, CompareWithHardcodedRefs) {
     Exec();
 }
-} // namespace
+}  // namespace
 
 static std::shared_ptr<Model> create_simple_function(element::Type type, const PartialShape& shape) {
     auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
@@ -71,8 +66,7 @@ static std::shared_ptr<Model> create_simple_function(element::Type type, const P
     return std::make_shared<ov::Model>(ResultVector{res}, ParameterVector{data1});
 }
 
-template <int N>
-static std::shared_ptr<Model> create_n_inputs(element::Type type, const PartialShape& shape) {
+static std::shared_ptr<Model> create_n_inputs(const int N, const element::Type& type, const PartialShape& shape) {
     auto params = ParameterVector();
     auto results = ResultVector();
     for (int i = 1; i <= N; i++) {
@@ -96,11 +90,16 @@ static RefPreprocessParams simple_mean_scale() {
     res.function = []() {
         auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
         auto p = PrePostProcessor(f);
-        p.input().preprocess().mean(1.f).scale(2.f); p.build();
+        p.input().preprocess().mean(1.f).scale(2.f);
+        p.build();
         return f;
     };
-    res.inputs.emplace_back(Shape{1, 3, 2, 2}, element::f32, std::vector<float>{1., 3., 5., 7., 9., 11., 13., 15., 17., 19., 21., 23.});
-    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::f32, std::vector<float>{0., 1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11.});
+    res.inputs.emplace_back(Shape{1, 3, 2, 2},
+                            element::f32,
+                            std::vector<float>{1., 3., 5., 7., 9., 11., 13., 15., 17., 19., 21., 23.});
+    res.expected.emplace_back(Shape{1, 3, 2, 2},
+                              element::f32,
+                              std::vector<float>{0., 1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11.});
     return res;
 }
 
@@ -109,12 +108,17 @@ static RefPreprocessParams scale_then_mean() {
     res.function = []() {
         auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
         auto p = PrePostProcessor(f);
-        p.input().preprocess().scale(2.0f).mean(2.0f); p.build();
+        p.input().preprocess().scale(2.0f).mean(2.0f);
+        p.build();
         return f;
     };
 
-    res.inputs.emplace_back(Shape{1, 3, 2, 2}, element::f32, std::vector<float>{2., 4., 6., 8., 10., 12., 14., 16., 18., 20., 100., 200.});
-    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::f32, std::vector<float>{-1., 0, 1., 2., 3., 4., 5., 6., 7., 8., 48., 98.});
+    res.inputs.emplace_back(Shape{1, 3, 2, 2},
+                            element::f32,
+                            std::vector<float>{2., 4., 6., 8., 10., 12., 14., 16., 18., 20., 100., 200.});
+    res.expected.emplace_back(Shape{1, 3, 2, 2},
+                              element::f32,
+                              std::vector<float>{-1., 0, 1., 2., 3., 4., 5., 6., 7., 8., 48., 98.});
     return res;
 }
 
@@ -123,13 +127,13 @@ static RefPreprocessParams convert_only() {
     res.function = []() {
         auto f = create_simple_function(element::f32, Shape{1, 1, 2, 2});
         auto p = PrePostProcessor(f);
+        p.input().tensor().set_element_type(element::i16);
         p.input()
-                .tensor().set_element_type(element::i16);
-        p.input().preprocess()
-                .convert_element_type(element::f32)
-                .scale(3.f)
-                .convert_element_type(element::u8)
-                .convert_element_type(element::f32);
+            .preprocess()
+            .convert_element_type(element::f32)
+            .scale(3.f)
+            .convert_element_type(element::u8)
+            .convert_element_type(element::f32);
         p.build();
         return f;
     };
@@ -143,19 +147,17 @@ static RefPreprocessParams convert_element_type_and_scale() {
     res.function = []() {
         auto f = create_simple_function(element::u8, Shape{1, 3, 2, 2});
         auto p = PrePostProcessor(f);
-        p.input()
-                .tensor().set_element_type(element::i16);
-        p.input().preprocess()
-                .convert_element_type(element::f32)
-                .scale(2.f)
-                .convert_element_type(element::u8);
+        p.input().tensor().set_element_type(element::i16);
+        p.input().preprocess().convert_element_type(element::f32).scale(2.f).convert_element_type(element::u8);
         p.build();
         return f;
     };
 
-    res.inputs.emplace_back(Shape{1, 3, 2, 2}, element::i16,
+    res.inputs.emplace_back(Shape{1, 3, 2, 2},
+                            element::i16,
                             std::vector<int16_t>{2, 3, 6, 8, 10, 12, 14, 16, 18, 20, 10000, 200});
-    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::u8,
+    res.expected.emplace_back(Shape{1, 3, 2, 2},
+                              element::u8,
                               std::vector<uint8_t>{1, 1, 3, 4, 5, 6, 7, 8, 9, 10, (uint8_t)5000, 100});
     return res;
 }
@@ -165,8 +167,7 @@ static RefPreprocessParams tensor_element_type_and_scale() {
     res.function = []() {
         auto f = create_simple_function(element::i8, Shape{1, 3, 1, 1});
         auto p = PrePostProcessor(f);
-        p.input()
-                .tensor().set_element_type(element::f32);
+        p.input().tensor().set_element_type(element::f32);
         p.input().preprocess().scale(2.0f).convert_element_type(element::i8);
         p.build();
         return f;
@@ -207,7 +208,7 @@ static RefPreprocessParams test_multiple() {
         p1.input().preprocess().scale(2.f);
         p1.input().preprocess().mean({1.f, 2.f, 3.f});
         p1.input().preprocess().scale({2.f, 3.f, 4.f});
-        p1.input().preprocess().custom([](const Output<Node> &node) {
+        p1.input().preprocess().custom([](const Output<Node>& node) {
             auto abs = std::make_shared<op::v0::Abs>(node);
             abs->set_friendly_name(node.get_node_shared_ptr()->get_friendly_name() + "/abs");
             return abs;
@@ -225,12 +226,10 @@ static RefPreprocessParams test_multiple() {
 static RefPreprocessParams test_2_inputs_basic() {
     RefPreprocessParams res("test_2_inputs_basic");
     res.function = []() {
-        auto f = create_n_inputs<2>(element::f32, Shape{1, 3, 1, 1});
+        auto f = create_n_inputs(2, element::f32, Shape{1, 3, 1, 1});
         auto p = PrePostProcessor(f);
         p.input(0).preprocess().mean(1.f);
-        p.input("tensor_input2").preprocess()
-                .mean(1.f)
-                .scale(2.0f);
+        p.input("tensor_input2").preprocess().mean(1.f).scale(2.0f);
         p.build();
         return f;
     };
@@ -247,8 +246,7 @@ static RefPreprocessParams mean_scale_vector_tensor_layout() {
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 3, 2, 1});
         auto p = PrePostProcessor(f);
-        p.input()
-                .tensor().set_layout("NC??");
+        p.input().tensor().set_layout("NC??");
         p.input().preprocess().mean({1.f, 2.f, 3.f}).scale({2.f, 3.f, 4.f});
         p.build();
         return f;
@@ -264,8 +262,7 @@ static RefPreprocessParams mean_scale_dynamic_layout() {
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 2, 1, 3});
         auto p = PrePostProcessor(f);
-        p.input()
-                .tensor().set_layout("N...C");
+        p.input().tensor().set_layout("N...C");
         p.input().preprocess().mean({1.f, 2.f, 3.f}).scale({2.f, 3.f, 4.f});
         p.build();
         return f;
@@ -281,8 +278,7 @@ static RefPreprocessParams resize_to_network_height() {
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 2, 1, 1});
         auto p = PrePostProcessor(f);
-        p.input()
-                .tensor().set_spatial_dynamic_shape();
+        p.input().tensor().set_spatial_dynamic_shape();
         p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
         p.input().model().set_layout("NHWC");
         p.build();
@@ -298,15 +294,15 @@ static RefPreprocessParams resize_to_network_width() {
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 1, 2, 2});
         auto p = PrePostProcessor(f);
-        p.input()
-                .tensor().set_spatial_dynamic_shape();
+        p.input().tensor().set_spatial_dynamic_shape();
         p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
         p.input().model().set_layout("NCHW");
         p.build();
         return f;
     };
-    res.inputs.emplace_back(element::f32, Shape{1, 1, 2, 6}, std::vector<float>{0., 1., 2., 3., 4., 5.,
-                                                                                0., 1., 2., 3., 4., 5.});
+    res.inputs.emplace_back(element::f32,
+                            Shape{1, 1, 2, 6},
+                            std::vector<float>{0., 1., 2., 3., 4., 5., 0., 1., 2., 3., 4., 5.});
     res.expected.emplace_back(Shape{1, 1, 2, 2}, element::f32, std::vector<float>{1., 4., 1., 4.});
     return res;
 }
@@ -316,8 +312,7 @@ static RefPreprocessParams resize_from_spatial_dims() {
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 1, 1, 1});
         auto p = PrePostProcessor(f);
-        p.input()
-                .tensor().set_spatial_static_shape(1, 4);
+        p.input().tensor().set_spatial_static_shape(1, 4);
         p.input().preprocess().resize(ResizeAlgorithm::RESIZE_CUBIC);
         p.input().model().set_layout("NCHW");
         p.build();
@@ -333,17 +328,13 @@ static RefPreprocessParams resize_i8() {
     res.function = []() {
         auto f = create_simple_function(element::i8, PartialShape{1, 3, 1, 1});
         auto p = PrePostProcessor(f);
-        p.input()
-                .tensor()
-                .set_spatial_dynamic_shape();
+        p.input().tensor().set_spatial_dynamic_shape();
         p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
         p.input().model().set_layout("NCHW");
         p.build();
         return f;
     };
-    res.inputs.emplace_back(element::i8, Shape{1, 3, 2, 2}, std::vector<int8_t>{0, 0, 0, 0,
-                                                                                1, 1, 1, 1,
-                                                                                2, 2, 2, 2});
+    res.inputs.emplace_back(element::i8, Shape{1, 3, 2, 2}, std::vector<int8_t>{0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2});
     res.expected.emplace_back(Shape{1, 3, 1, 1}, element::i8, std::vector<int8_t>{0, 1, 2});
     return res;
 }
@@ -353,15 +344,13 @@ static RefPreprocessParams resize_to_network_width_height() {
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 1, 4, 4});
         auto p = PrePostProcessor(f);
-        p.input()
-                .tensor().set_spatial_static_shape(5, 5);
+        p.input().tensor().set_spatial_static_shape(5, 5);
         p.input().preprocess().resize(ResizeAlgorithm::RESIZE_NEAREST);
         p.input().model().set_layout("...HW");
         p.build();
         return f;
     };
 
-    auto result = std::make_shared<HostTensor>();
     // clang-format off
     std::vector<float> input = {0., 1., 2., 3., 4.,
                                 1., 2., 3., 4., 5.,
@@ -383,15 +372,13 @@ static RefPreprocessParams resize_to_specified_width_height() {
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 1, Dimension::dynamic(), Dimension::dynamic()});
         auto p = PrePostProcessor(f);
-        p.input()
-                .tensor().set_spatial_dynamic_shape();
+        p.input().tensor().set_spatial_dynamic_shape();
         p.input().preprocess().resize(ResizeAlgorithm::RESIZE_NEAREST, 4, 4);
         p.input().model().set_layout("...HW");
         p.build();
         return f;
     };
 
-    auto result = std::make_shared<HostTensor>();
     // clang-format off
     std::vector<float> input = {0., 1., 2., 3., 4.,
                                 1., 2., 3., 4., 5.,
@@ -420,13 +407,34 @@ static RefPreprocessParams convert_layout_nhwc_to_nchw() {
         p.build();
         return f;
     };
-    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::u8, std::vector<uint8_t>{1,  2,  3,       // [H=0, W=0, RGB]
-                                                                                 4,  5,  6,       // [H=0, W=1]
-                                                                                 7,  8,  9,       // [H=1, W=0]
-                                                                                 10, 11, 12});    // [H=1, W=1]
-    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::u8, std::vector<uint8_t>{1, 4, 7, 10,    // R
-                                                                                   2, 5, 8, 11,    // G
-                                                                                   3, 6, 9, 12});  // B
+    res.inputs.emplace_back(Shape{1, 2, 2, 3},
+                            element::u8,
+                            std::vector<uint8_t>{1,
+                                                 2,
+                                                 3,  // [H=0, W=0, RGB]
+                                                 4,
+                                                 5,
+                                                 6,  // [H=0, W=1]
+                                                 7,
+                                                 8,
+                                                 9,  // [H=1, W=0]
+                                                 10,
+                                                 11,
+                                                 12});  // [H=1, W=1]
+    res.expected.emplace_back(Shape{1, 3, 2, 2},
+                              element::u8,
+                              std::vector<uint8_t>{1,
+                                                   4,
+                                                   7,
+                                                   10,  // R
+                                                   2,
+                                                   5,
+                                                   8,
+                                                   11,  // G
+                                                   3,
+                                                   6,
+                                                   9,
+                                                   12});  // B
     return res;
 }
 
@@ -442,13 +450,34 @@ static RefPreprocessParams convert_layout_nhwc_to_nchw_fully_dynamic() {
         p.build();
         return f;
     };
-    res.inputs.emplace_back(element::u8, Shape{1, 2, 2, 3}, std::vector<uint8_t>{1,  2,  3,       // [H=0, W=0, RGB]
-                                                                                 4,  5,  6,       // [H=0, W=1]
-                                                                                 7,  8,  9,       // [H=1, W=0]
-                                                                                 10, 11, 12});    // [H=1, W=1]
-    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::u8, std::vector<uint8_t>{1, 4, 7, 10,    // R
-                                                                                   2, 5, 8, 11,    // G
-                                                                                   3, 6, 9, 12});  // B
+    res.inputs.emplace_back(element::u8,
+                            Shape{1, 2, 2, 3},
+                            std::vector<uint8_t>{1,
+                                                 2,
+                                                 3,  // [H=0, W=0, RGB]
+                                                 4,
+                                                 5,
+                                                 6,  // [H=0, W=1]
+                                                 7,
+                                                 8,
+                                                 9,  // [H=1, W=0]
+                                                 10,
+                                                 11,
+                                                 12});  // [H=1, W=1]
+    res.expected.emplace_back(Shape{1, 3, 2, 2},
+                              element::u8,
+                              std::vector<uint8_t>{1,
+                                                   4,
+                                                   7,
+                                                   10,  // R
+                                                   2,
+                                                   5,
+                                                   8,
+                                                   11,  // G
+                                                   3,
+                                                   6,
+                                                   9,
+                                                   12});  // B
     return res;
 }
 
@@ -462,13 +491,34 @@ static RefPreprocessParams convert_layout_hwc_to_nchw() {
         p.build();
         return f;
     };
-    res.inputs.emplace_back(Shape{2, 2, 3}, element::u8, std::vector<uint8_t>{1,  2,  3,       // [H=0, W=0, RGB]
-                                                                              4,  5,  6,       // [H=0, W=1]
-                                                                              7,  8,  9,       // [H=1, W=0]
-                                                                              10, 11, 12});    // [H=1, W=1]
-    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::f32, std::vector<float>{1, 4, 7, 10,    // R
-                                                                                  2, 5, 8, 11,    // G
-                                                                                  3, 6, 9, 12});  // B
+    res.inputs.emplace_back(Shape{2, 2, 3},
+                            element::u8,
+                            std::vector<uint8_t>{1,
+                                                 2,
+                                                 3,  // [H=0, W=0, RGB]
+                                                 4,
+                                                 5,
+                                                 6,  // [H=0, W=1]
+                                                 7,
+                                                 8,
+                                                 9,  // [H=1, W=0]
+                                                 10,
+                                                 11,
+                                                 12});  // [H=1, W=1]
+    res.expected.emplace_back(Shape{1, 3, 2, 2},
+                              element::f32,
+                              std::vector<float>{1,
+                                                 4,
+                                                 7,
+                                                 10,  // R
+                                                 2,
+                                                 5,
+                                                 8,
+                                                 11,  // G
+                                                 3,
+                                                 6,
+                                                 9,
+                                                 12});  // B
     return res;
 }
 
@@ -482,13 +532,34 @@ static RefPreprocessParams convert_layout_hwc_to_nchw_fully_dynamic() {
         p.build();
         return f;
     };
-    res.inputs.emplace_back(element::u8, Shape{2, 2, 3}, std::vector<uint8_t>{1,  2,  3,       // [H=0, W=0, RGB]
-                                                                              4,  5,  6,       // [H=0, W=1]
-                                                                              7,  8,  9,       // [H=1, W=0]
-                                                                              10, 11, 12});    // [H=1, W=1]
-    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::f32, std::vector<float>{1, 4, 7, 10,    // R
-                                                                                  2, 5, 8, 11,    // G
-                                                                                  3, 6, 9, 12});  // B
+    res.inputs.emplace_back(element::u8,
+                            Shape{2, 2, 3},
+                            std::vector<uint8_t>{1,
+                                                 2,
+                                                 3,  // [H=0, W=0, RGB]
+                                                 4,
+                                                 5,
+                                                 6,  // [H=0, W=1]
+                                                 7,
+                                                 8,
+                                                 9,  // [H=1, W=0]
+                                                 10,
+                                                 11,
+                                                 12});  // [H=1, W=1]
+    res.expected.emplace_back(Shape{1, 3, 2, 2},
+                              element::f32,
+                              std::vector<float>{1,
+                                                 4,
+                                                 7,
+                                                 10,  // R
+                                                 2,
+                                                 5,
+                                                 8,
+                                                 11,  // G
+                                                 3,
+                                                 6,
+                                                 9,
+                                                 12});  // B
     return res;
 }
 
@@ -503,13 +574,34 @@ static RefPreprocessParams convert_layout_nhwc_to_net_no_tensor_shape() {
         p.build();
         return f;
     };
-    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::u8, std::vector<uint8_t>{1,  2,  3,       // [H=0, W=0, RGB]
-                                                                                 4,  5,  6,       // [H=0, W=1]
-                                                                                 7,  8,  9,       // [H=1, W=0]
-                                                                                 10, 11, 12});    // [H=1, W=1]
-    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::u8, std::vector<uint8_t>{1, 4, 7, 10,    // R
-                                                                                   2, 5, 8, 11,    // G
-                                                                                   3, 6, 9, 12});  // B
+    res.inputs.emplace_back(Shape{1, 2, 2, 3},
+                            element::u8,
+                            std::vector<uint8_t>{1,
+                                                 2,
+                                                 3,  // [H=0, W=0, RGB]
+                                                 4,
+                                                 5,
+                                                 6,  // [H=0, W=1]
+                                                 7,
+                                                 8,
+                                                 9,  // [H=1, W=0]
+                                                 10,
+                                                 11,
+                                                 12});  // [H=1, W=1]
+    res.expected.emplace_back(Shape{1, 3, 2, 2},
+                              element::u8,
+                              std::vector<uint8_t>{1,
+                                                   4,
+                                                   7,
+                                                   10,  // R
+                                                   2,
+                                                   5,
+                                                   8,
+                                                   11,  // G
+                                                   3,
+                                                   6,
+                                                   9,
+                                                   12});  // B
     return res;
 }
 
@@ -522,13 +614,34 @@ static RefPreprocessParams convert_layout_by_dims() {
         p.build();
         return f;
     };
-    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::u8, std::vector<uint8_t>{1,  2,  3,       // [H=0, W=0, RGB]
-                                                                                 4,  5,  6,       // [H=0, W=1]
-                                                                                 7,  8,  9,       // [H=1, W=0]
-                                                                                 10, 11, 12});    // [H=1, W=1]
-    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::u8, std::vector<uint8_t>{1, 4, 7, 10,    // R
-                                                                                   2, 5, 8, 11,    // G
-                                                                                   3, 6, 9, 12});  // B
+    res.inputs.emplace_back(Shape{1, 2, 2, 3},
+                            element::u8,
+                            std::vector<uint8_t>{1,
+                                                 2,
+                                                 3,  // [H=0, W=0, RGB]
+                                                 4,
+                                                 5,
+                                                 6,  // [H=0, W=1]
+                                                 7,
+                                                 8,
+                                                 9,  // [H=1, W=0]
+                                                 10,
+                                                 11,
+                                                 12});  // [H=1, W=1]
+    res.expected.emplace_back(Shape{1, 3, 2, 2},
+                              element::u8,
+                              std::vector<uint8_t>{1,
+                                                   4,
+                                                   7,
+                                                   10,  // R
+                                                   2,
+                                                   5,
+                                                   8,
+                                                   11,  // G
+                                                   3,
+                                                   6,
+                                                   9,
+                                                   12});  // B
     return res;
 }
 
@@ -537,18 +650,41 @@ static RefPreprocessParams convert_layout_by_dims_multi() {
     res.function = []() {
         auto f = create_simple_function(element::f32, {1, 3, 2, 2});
         auto p = PrePostProcessor(f);
-        p.input().preprocess().convert_layout({0, 1, 3, 2}) // NHWC->NHCW
-                .convert_layout({0, 2, 1, 3});                      // NHCW->NCHW
+        p.input()
+            .preprocess()
+            .convert_layout({0, 1, 3, 2})   // NHWC->NHCW
+            .convert_layout({0, 2, 1, 3});  // NHCW->NCHW
         p.build();
         return f;
     };
-    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::f32, std::vector<float>{1,  2,  3,       // [H=0, W=0]
-                                                                                4,  5,  6,       // [H=0, W=1]
-                                                                                7,  8,  9,       // [H=1, W=0]
-                                                                                10, 11, 12});    // [H=1, W=1]
-    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::f32, std::vector<float>{1, 4, 7, 10,    // R
-                                                                                  2, 5, 8, 11,    // G
-                                                                                  3, 6, 9, 12});  // B
+    res.inputs.emplace_back(Shape{1, 2, 2, 3},
+                            element::f32,
+                            std::vector<float>{1,
+                                               2,
+                                               3,  // [H=0, W=0]
+                                               4,
+                                               5,
+                                               6,  // [H=0, W=1]
+                                               7,
+                                               8,
+                                               9,  // [H=1, W=0]
+                                               10,
+                                               11,
+                                               12});  // [H=1, W=1]
+    res.expected.emplace_back(Shape{1, 3, 2, 2},
+                              element::f32,
+                              std::vector<float>{1,
+                                                 4,
+                                                 7,
+                                                 10,  // R
+                                                 2,
+                                                 5,
+                                                 8,
+                                                 11,  // G
+                                                 3,
+                                                 6,
+                                                 9,
+                                                 12});  // B
     return res;
 }
 
@@ -558,19 +694,42 @@ static RefPreprocessParams convert_layout_by_dims_multi_layout() {
         auto f = create_simple_function(element::f32, {1, 3, 2, 2});
         auto p = PrePostProcessor(f);
         p.input().tensor().set_layout("N??C");
-        p.input().preprocess().convert_layout({0, 1, 3, 2}) // NHWC->NHCW
-                .mean({1, 2, 2})              // Apply means to 'C' channel
-                .convert_layout({0, 2, 1, 3}); // NHCW->NCHW
+        p.input()
+            .preprocess()
+            .convert_layout({0, 1, 3, 2})   // NHWC->NHCW
+            .mean({1, 2, 2})                // Apply means to 'C' channel
+            .convert_layout({0, 2, 1, 3});  // NHCW->NCHW
         p.build();
         return f;
     };
-    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::f32, std::vector<float>{1,  2,  3,       // [H=0, W=0, RGB]
-                                                                                4,  5,  6,       // [H=0, W=1]
-                                                                                7,  8,  9,       // [H=1, W=0]
-                                                                                10, 11, 12});    // [H=1, W=1]
-    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::f32, std::vector<float>{1-1, 4-1, 7-1, 10-1,     // R
-                                                                                  2-2, 5-2, 8-2, 11-2,    // G
-                                                                                  3-2, 6-2, 9-2, 12-2});  // B
+    res.inputs.emplace_back(Shape{1, 2, 2, 3},
+                            element::f32,
+                            std::vector<float>{1,
+                                               2,
+                                               3,  // [H=0, W=0, RGB]
+                                               4,
+                                               5,
+                                               6,  // [H=0, W=1]
+                                               7,
+                                               8,
+                                               9,  // [H=1, W=0]
+                                               10,
+                                               11,
+                                               12});  // [H=1, W=1]
+    res.expected.emplace_back(Shape{1, 3, 2, 2},
+                              element::f32,
+                              std::vector<float>{1 - 1,
+                                                 4 - 1,
+                                                 7 - 1,
+                                                 10 - 1,  // R
+                                                 2 - 2,
+                                                 5 - 2,
+                                                 8 - 2,
+                                                 11 - 2,  // G
+                                                 3 - 2,
+                                                 6 - 2,
+                                                 9 - 2,
+                                                 12 - 2});  // B
     return res;
 }
 
@@ -579,19 +738,13 @@ static RefPreprocessParams resize_and_convert_layout() {
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 2, 2, 2});
         auto p = PrePostProcessor(f);
-        p.input()
-                .tensor()
-                .set_layout("NCHW")
-                .set_spatial_dynamic_shape();
-        p.input().preprocess()
-                .resize(ResizeAlgorithm::RESIZE_LINEAR)
-                .convert_layout();
+        p.input().tensor().set_layout("NCHW").set_spatial_dynamic_shape();
+        p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR).convert_layout();
         p.input().model().set_layout("NHWC");
         p.build();
         return f;
     };
 
-    auto result = std::make_shared<HostTensor>();
     // clang-format off
     std::vector<float> input = {
             1., 1., 1., 1., // channel 1
@@ -612,16 +765,13 @@ static RefPreprocessParams resize_and_convert_layout() {
 
 static RefPreprocessParams convert_color_nv12_to_bgr_two_planes() {
     RefPreprocessParams res("convert_color_nv12_to_bgr_two_planes");
-    res.abs_threshold = 1.f; // Allow small color conversion deviations
-    res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
+    res.abs_threshold = 1.f;  // Allow small color conversion deviations
+    res.rel_threshold = 1.f;  // Ignore relative pixel values comparison (100%)
     res.function = []() {
         auto f = create_simple_function(element::u8, PartialShape{1, 4, 4, 3});
         auto p = PrePostProcessor(f);
-        p.input()
-                .tensor()
-                .set_color_format(ColorFormat::NV12_TWO_PLANES);
-        p.input().preprocess()
-                .convert_color(ColorFormat::BGR);
+        p.input().tensor().set_color_format(ColorFormat::NV12_TWO_PLANES);
+        p.input().preprocess().convert_color(ColorFormat::BGR);
         p.build();
         return f;
     };
@@ -651,16 +801,13 @@ static RefPreprocessParams convert_color_nv12_to_bgr_two_planes() {
 
 static RefPreprocessParams convert_color_nv12_single_plane() {
     RefPreprocessParams res("convert_color_nv12_single_plane");
-    res.abs_threshold = 1.f; // Allow small color conversion deviations
-    res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
+    res.abs_threshold = 1.f;  // Allow small color conversion deviations
+    res.rel_threshold = 1.f;  // Ignore relative pixel values comparison (100%)
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 4, 4, 3});
         auto p = PrePostProcessor(f);
-        p.input()
-                .tensor()
-                .set_color_format(ColorFormat::NV12_SINGLE_PLANE);
-        p.input().preprocess()
-                .convert_color(ColorFormat::RGB);
+        p.input().tensor().set_color_format(ColorFormat::NV12_SINGLE_PLANE);
+        p.input().preprocess().convert_color(ColorFormat::RGB);
         p.build();
         return f;
     };
@@ -686,27 +833,27 @@ static RefPreprocessParams convert_color_nv12_single_plane() {
 
 static RefPreprocessParams convert_color_nv12_layout_resize() {
     RefPreprocessParams res("convert_color_nv12_layout_resize");
-    res.abs_threshold = 1.f; // Allow small color conversion deviations
-    res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
+    res.abs_threshold = 1.f;  // Allow small color conversion deviations
+    res.rel_threshold = 1.f;  // Ignore relative pixel values comparison (100%)
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 3, 2, 2});
         auto p = PrePostProcessor(f);
         p.input()
-                .tensor()
-                .set_color_format(ColorFormat::NV12_SINGLE_PLANE)
-                .set_element_type(element::u8)
-                .set_spatial_dynamic_shape();
-        p.input().preprocess()
-                .convert_color(ColorFormat::RGB)
-                .convert_layout()
-                .convert_element_type(element::f32)
-                .resize(ResizeAlgorithm::RESIZE_NEAREST);
+            .tensor()
+            .set_color_format(ColorFormat::NV12_SINGLE_PLANE)
+            .set_element_type(element::u8)
+            .set_spatial_dynamic_shape();
+        p.input()
+            .preprocess()
+            .convert_color(ColorFormat::RGB)
+            .convert_layout()
+            .convert_element_type(element::f32)
+            .resize(ResizeAlgorithm::RESIZE_NEAREST);
         p.input().model().set_layout("NCHW");
         p.build();
         return f;
     };
 
-    auto result = std::make_shared<HostTensor>();
     // clang-format off
     auto input = std::vector<uint8_t> {81, 81, 145, 145,      // RRGG
                                        81, 81, 145, 145,      // RRGG
@@ -726,18 +873,13 @@ static RefPreprocessParams convert_color_nv12_layout_resize() {
 
 static RefPreprocessParams element_type_before_convert_color_nv12() {
     RefPreprocessParams res("element_type_before_convert_color_nv12");
-    res.abs_threshold = 1.f; // Allow small color conversion deviations
-    res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
+    res.abs_threshold = 1.f;  // Allow small color conversion deviations
+    res.rel_threshold = 1.f;  // Ignore relative pixel values comparison (100%)
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 2, 2, 3});
         auto p = PrePostProcessor(f);
-        p.input()
-                .tensor()
-                .set_element_type(element::u8)
-                .set_color_format(ColorFormat::NV12_TWO_PLANES);
-        p.input().preprocess()
-                .convert_element_type(element::f32)
-                .convert_color(ColorFormat::RGB);
+        p.input().tensor().set_element_type(element::u8).set_color_format(ColorFormat::NV12_TWO_PLANES);
+        p.input().preprocess().convert_element_type(element::f32).convert_color(ColorFormat::RGB);
         p.input().model().set_layout("NHWC");
         p.build();
         return f;
@@ -759,8 +901,8 @@ static RefPreprocessParams element_type_before_convert_color_nv12() {
 
 static RefPreprocessParams convert_color_i420_to_bgr_three_planes() {
     RefPreprocessParams res("convert_color_i420_to_bgr_three_planes");
-    res.abs_threshold = 1.f; // Allow small color conversion deviations
-    res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
+    res.abs_threshold = 1.f;  // Allow small color conversion deviations
+    res.rel_threshold = 1.f;  // Ignore relative pixel values comparison (100%)
     res.function = []() {
         auto f = create_simple_function(element::u8, PartialShape{1, 4, 4, 3});
         auto p = PrePostProcessor(f);
@@ -799,8 +941,8 @@ static RefPreprocessParams convert_color_i420_to_bgr_three_planes() {
 
 static RefPreprocessParams convert_color_i420_single_plane() {
     RefPreprocessParams res("convert_color_i420_single_plane");
-    res.abs_threshold = 1.f; // Allow small color conversion deviations
-    res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
+    res.abs_threshold = 1.f;  // Allow small color conversion deviations
+    res.rel_threshold = 1.f;  // Ignore relative pixel values comparison (100%)
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 4, 4, 3});
         auto p = PrePostProcessor(f);
@@ -837,11 +979,11 @@ static RefPreprocessParams set_shape_custom_crop() {
         p.input().preprocess().custom([](const Output<Node>& node) {
             // Add custom crop to model's dimensions using 'Slice' operation
             // Middle part 2x2x2x2 of original user's 4x4x4x4 input tensor will be extracted
-            auto start = opset8::Constant::create(element::i32, {4}, {1, 1, 1, 1});
-            auto stop = opset8::Constant::create(element::i32, {4}, {3, 3, 3, 3});
-            auto step = opset8::Constant::create(element::i32, {4}, {1, 1, 1, 1});
-            auto axis = opset8::Constant::create(element::i32, {4}, {0, 1, 2, 3});
-            auto slice = std::make_shared<opset8::Slice>(node, start, stop, step, axis);
+            auto start = ov::op::v0::Constant::create(element::i32, {4}, {1, 1, 1, 1});
+            auto stop = ov::op::v0::Constant::create(element::i32, {4}, {3, 3, 3, 3});
+            auto step = ov::op::v0::Constant::create(element::i32, {4}, {1, 1, 1, 1});
+            auto axis = ov::op::v0::Constant::create(element::i32, {4}, {0, 1, 2, 3});
+            auto slice = std::make_shared<ov::op::v8::Slice>(node, start, stop, step, axis);
             return slice;
         });
         p.build();
@@ -851,10 +993,10 @@ static RefPreprocessParams set_shape_custom_crop() {
     std::vector<float> input_values(shape_size(input_shape));
     std::iota(input_values.begin(), input_values.end(), 0.f);
     res.inputs.emplace_back(element::f32, input_shape, input_values);
-    res.expected.emplace_back(Shape{2, 2, 2, 2}, element::f32, std::vector<float>{ 85,  86,  89,  90,
-                                                                                  101, 102, 105, 106,
-                                                                                  149, 150, 153, 154,
-                                                                                  165, 166, 169, 170});
+    res.expected.emplace_back(
+        Shape{2, 2, 2, 2},
+        element::f32,
+        std::vector<float>{85, 86, 89, 90, 101, 102, 105, 106, 149, 150, 153, 154, 165, 166, 169, 170});
     return res;
 }
 
@@ -872,11 +1014,8 @@ static RefPreprocessParams set_shape_with_resize() {
     auto input_size = 1 * 2 * 2 * 3;
     std::vector<float> input_values(input_size);
     std::iota(input_values.begin(), input_values.end(), 0.f);
-    res.inputs.emplace_back(element::f32, Shape{1, 2, 2, 3}, std::vector<float> {1, 2, 3,
-                                                                                 1, 2, 3,
-                                                                                 1, 2, 3,
-                                                                                 1, 2, 3});
-    res.expected.emplace_back(Shape{1, 3, 1, 1}, element::f32, std::vector<float>{ 1,  2,  3});
+    res.inputs.emplace_back(element::f32, Shape{1, 2, 2, 3}, std::vector<float>{1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3});
+    res.expected.emplace_back(Shape{1, 3, 1, 1}, element::f32, std::vector<float>{1, 2, 3});
     return res;
 }
 
@@ -894,10 +1033,10 @@ static RefPreprocessParams preprocess_crop_basic() {
     std::vector<float> input_values(shape_size(input_shape));
     std::iota(input_values.begin(), input_values.end(), 0.f);
     res.inputs.emplace_back(element::f32, input_shape, input_values);
-    res.expected.emplace_back(Shape{2, 2, 2, 2}, element::f32, std::vector<float>{ 85,  86,  89,  90,
-                                                                                   101, 102, 105, 106,
-                                                                                   149, 150, 153, 154,
-                                                                                   165, 166, 169, 170});
+    res.expected.emplace_back(
+        Shape{2, 2, 2, 2},
+        element::f32,
+        std::vector<float>{85, 86, 89, 90, 101, 102, 105, 106, 149, 150, 153, 154, 165, 166, 169, 170});
     return res;
 }
 
@@ -922,14 +1061,12 @@ static RefPreprocessParams preprocess_crop_2axis_dynamic() {
 static RefPreprocessParams postprocess_2_inputs_basic() {
     RefPreprocessParams res("postprocess_2_inputs_basic");
     res.function = []() {
-        auto f = create_n_inputs<2>(element::f32, Shape{1, 3, 1, 2});
+        auto f = create_n_inputs(2, element::f32, Shape{1, 3, 1, 2});
         auto p = PrePostProcessor(f);
-        p.output("tensor_output1")
-                .model().set_layout("NCHW");
+        p.output("tensor_output1").model().set_layout("NCHW");
         p.output("tensor_output1").postprocess().convert_layout();
         p.output("tensor_output1").tensor().set_layout("NHWC");
-        p.output("tensor_output2")
-                .postprocess().convert_element_type();
+        p.output("tensor_output2").postprocess().convert_element_type();
         p.output("tensor_output2").tensor().set_element_type(element::u8);
         p.build();
         return f;
@@ -946,18 +1083,38 @@ static RefPreprocessParams post_convert_layout_by_dims() {
     res.function = []() {
         auto f = create_simple_function(element::u8, {1, 2, 2, 3});
         auto p = PrePostProcessor(f);
-        p.output()
-                .postprocess().convert_layout({0, 3, 1, 2});
+        p.output().postprocess().convert_layout({0, 3, 1, 2});
         p.build();
         return f;
     };
-    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::u8, std::vector<uint8_t>{1,  2,  3,       // [H=0, W=0, RGB]
-                                                                                 4,  5,  6,       // [H=0, W=1]
-                                                                                 7,  8,  9,       // [H=1, W=0]
-                                                                                 10, 11, 12});    // [H=1, W=1]
-    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::u8, std::vector<uint8_t>{1, 4, 7, 10,    // R
-                                                                                   2, 5, 8, 11,    // G
-                                                                                   3, 6, 9, 12});  // B
+    res.inputs.emplace_back(Shape{1, 2, 2, 3},
+                            element::u8,
+                            std::vector<uint8_t>{1,
+                                                 2,
+                                                 3,  // [H=0, W=0, RGB]
+                                                 4,
+                                                 5,
+                                                 6,  // [H=0, W=1]
+                                                 7,
+                                                 8,
+                                                 9,  // [H=1, W=0]
+                                                 10,
+                                                 11,
+                                                 12});  // [H=1, W=1]
+    res.expected.emplace_back(Shape{1, 3, 2, 2},
+                              element::u8,
+                              std::vector<uint8_t>{1,
+                                                   4,
+                                                   7,
+                                                   10,  // R
+                                                   2,
+                                                   5,
+                                                   8,
+                                                   11,  // G
+                                                   3,
+                                                   6,
+                                                   9,
+                                                   12});  // B
     return res;
 }
 
@@ -966,36 +1123,54 @@ static RefPreprocessParams post_convert_layout_by_dims_multi() {
     res.function = []() {
         auto f = create_simple_function(element::f32, {1, 2, 2, 3});
         auto p = PrePostProcessor(f);
-        p.output().postprocess().convert_layout({0, 1, 3, 2}); // NHWC->NHCW;
-        p.output().postprocess().convert_layout({0, 2, 1, 3}); // NHCW->NCHW;
+        p.output().postprocess().convert_layout({0, 1, 3, 2});  // NHWC->NHCW;
+        p.output().postprocess().convert_layout({0, 2, 1, 3});  // NHCW->NCHW;
         p.build();
         return f;
     };
-    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::f32, std::vector<float>{1,  2,  3,       // [H=0, W=0]
-                                                                                4,  5,  6,       // [H=0, W=1]
-                                                                                7,  8,  9,       // [H=1, W=0]
-                                                                                10, 11, 12});    // [H=1, W=1]
-    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::f32, std::vector<float>{1, 4, 7, 10,    // R
-                                                                                  2, 5, 8, 11,    // G
-                                                                                  3, 6, 9, 12});  // B
+    res.inputs.emplace_back(Shape{1, 2, 2, 3},
+                            element::f32,
+                            std::vector<float>{1,
+                                               2,
+                                               3,  // [H=0, W=0]
+                                               4,
+                                               5,
+                                               6,  // [H=0, W=1]
+                                               7,
+                                               8,
+                                               9,  // [H=1, W=0]
+                                               10,
+                                               11,
+                                               12});  // [H=1, W=1]
+    res.expected.emplace_back(Shape{1, 3, 2, 2},
+                              element::f32,
+                              std::vector<float>{1,
+                                                 4,
+                                                 7,
+                                                 10,  // R
+                                                 2,
+                                                 5,
+                                                 8,
+                                                 11,  // G
+                                                 3,
+                                                 6,
+                                                 9,
+                                                 12});  // B
     return res;
 }
 
 static RefPreprocessParams pre_and_post_processing() {
     RefPreprocessParams res("pre_and_post_processing");
     res.function = []() {
-        auto f = create_n_inputs<2>(element::f32, Shape{1, 3, 1, 2});
+        auto f = create_n_inputs(2, element::f32, Shape{1, 3, 1, 2});
         auto p = PrePostProcessor(f);
-        p.input(0)
-                .tensor().set_element_type(element::u8);
+        p.input(0).tensor().set_element_type(element::u8);
         p.input(0).preprocess().convert_element_type(element::f32).mean(1.f);
         p.input(1).preprocess().scale(2.f);
-        p.output("tensor_output1")
-                .model().set_layout("NCHW");
+        p.output("tensor_output1").model().set_layout("NCHW");
         p.output("tensor_output1").postprocess().convert_layout();
         p.output("tensor_output1").tensor().set_layout("NHWC");
-        p.output("tensor_output2")
-                .postprocess().convert_element_type();
+        p.output("tensor_output2").postprocess().convert_element_type();
         p.output("tensor_output2").tensor().set_element_type(element::u8);
         p.build();
         return f;
@@ -1057,20 +1232,17 @@ static RefPreprocessParams reverse_channels_nchw() {
 
 static RefPreprocessParams color_cut_last_channel() {
     RefPreprocessParams res("color_cut_last_channel");
-    auto input_tensor = reference_tests::Tensor(Shape{1, 2, 2, 4}, element::f32, std::vector<float>{1, 2, 3, 4,
-                                                                                   5, 6, 7, 8,
-                                                                                   3, 4, 5, 6,
-                                                                                   6, 7, 8, 9});
-    auto exp_3_channels = reference_tests::Tensor(Shape{1, 2, 2, 3}, element::f32, std::vector<float>{1, 2, 3,
-                                                                                     5, 6, 7,
-                                                                                     3, 4, 5,
-                                                                                     6, 7, 8});
-    auto inv_3_channels = reference_tests::Tensor(Shape{1, 2, 2, 3}, element::f32, std::vector<float>{3, 2, 1,
-                                                                                     7, 6, 5,
-                                                                                     5, 4, 3,
-                                                                                     8, 7, 6});
+    auto input_tensor = reference_tests::Tensor(Shape{1, 2, 2, 4},
+                                                element::f32,
+                                                std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 3, 4, 5, 6, 6, 7, 8, 9});
+    auto exp_3_channels = reference_tests::Tensor(Shape{1, 2, 2, 3},
+                                                  element::f32,
+                                                  std::vector<float>{1, 2, 3, 5, 6, 7, 3, 4, 5, 6, 7, 8});
+    auto inv_3_channels = reference_tests::Tensor(Shape{1, 2, 2, 3},
+                                                  element::f32,
+                                                  std::vector<float>{3, 2, 1, 7, 6, 5, 5, 4, 3, 8, 7, 6});
     res.function = []() {
-        auto f = create_n_inputs<4>(element::f32, Shape{1, 2, 2, 3});
+        auto f = create_n_inputs(4, element::f32, Shape{1, 2, 2, 3});
         auto prep = PrePostProcessor(f);
         prep.input(0).tensor().set_color_format(ColorFormat::RGBX);
         prep.input(0).preprocess().convert_color(ColorFormat::RGB);
@@ -1097,7 +1269,8 @@ static RefPreprocessParams reverse_channels_dyn_layout() {
         auto f = create_simple_function(element::f32, PartialShape{1, 1, 3, 2});
         auto p = PrePostProcessor(f);
         p.input().tensor().set_color_format(ColorFormat::BGR).set_layout("...CN");
-        p.input().preprocess().convert_color(ColorFormat::RGB); p.build();
+        p.input().preprocess().convert_color(ColorFormat::RGB);
+        p.build();
         return f;
     };
 
@@ -1109,10 +1282,9 @@ static RefPreprocessParams reverse_channels_dyn_layout() {
 static RefPreprocessParams reverse_dyn_shape() {
     RefPreprocessParams res("reverse_dyn_shape");
     res.function = []() {
-        auto f = create_simple_function(element::u8, PartialShape{Dimension::dynamic(),
-                                                                  Dimension::dynamic(),
-                                                                  Dimension::dynamic(),
-                                                                  Dimension::dynamic()});
+        auto f = create_simple_function(
+            element::u8,
+            PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()});
         auto p = PrePostProcessor(f);
         p.input().tensor().set_layout("NCHW");
         p.input().preprocess().reverse_channels();
@@ -1120,18 +1292,21 @@ static RefPreprocessParams reverse_dyn_shape() {
         return f;
     };
 
-    res.inputs.emplace_back(element::u8, Shape{2, 2, 1, 3}, std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
-    res.expected.emplace_back(Shape{2, 2, 1, 3}, element::u8, std::vector<uint8_t>{4, 5, 6, 1, 2, 3, 10, 11, 12, 7, 8, 9});
+    res.inputs.emplace_back(element::u8,
+                            Shape{2, 2, 1, 3},
+                            std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+    res.expected.emplace_back(Shape{2, 2, 1, 3},
+                              element::u8,
+                              std::vector<uint8_t>{4, 5, 6, 1, 2, 3, 10, 11, 12, 7, 8, 9});
     return res;
 }
 
 static RefPreprocessParams reverse_dyn_channels() {
     RefPreprocessParams res("reverse_dyn_channels");
     res.function = []() {
-        auto f = create_simple_function(element::u8, PartialShape{Dimension::dynamic(),
-                                                                  2,
-                                                                  Dimension::dynamic(),
-                                                                  Dimension::dynamic()});
+        auto f =
+            create_simple_function(element::u8,
+                                   PartialShape{Dimension::dynamic(), 2, Dimension::dynamic(), Dimension::dynamic()});
         auto p = PrePostProcessor(f);
         p.input().tensor().set_layout("NCHW");
         p.input().preprocess().reverse_channels();
@@ -1139,8 +1314,12 @@ static RefPreprocessParams reverse_dyn_channels() {
         return f;
     };
 
-    res.inputs.emplace_back(element::u8, Shape{2, 2, 1, 3}, std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
-    res.expected.emplace_back(Shape{2, 2, 1, 3}, element::u8, std::vector<uint8_t>{4, 5, 6, 1, 2, 3, 10, 11, 12, 7, 8, 9});
+    res.inputs.emplace_back(element::u8,
+                            Shape{2, 2, 1, 3},
+                            std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+    res.expected.emplace_back(Shape{2, 2, 1, 3},
+                              element::u8,
+                              std::vector<uint8_t>{4, 5, 6, 1, 2, 3, 10, 11, 12, 7, 8, 9});
     return res;
 }
 
@@ -1155,63 +1334,66 @@ static RefPreprocessParams reverse_fully_dyn_shape() {
         return f;
     };
 
-    res.inputs.emplace_back(element::u8, Shape{2, 2, 1, 3}, std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
-    res.expected.emplace_back(Shape{2, 2, 1, 3}, element::u8, std::vector<uint8_t>{4, 5, 6, 1, 2, 3, 10, 11, 12, 7, 8, 9});
+    res.inputs.emplace_back(element::u8,
+                            Shape{2, 2, 1, 3},
+                            std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+    res.expected.emplace_back(Shape{2, 2, 1, 3},
+                              element::u8,
+                              std::vector<uint8_t>{4, 5, 6, 1, 2, 3, 10, 11, 12, 7, 8, 9});
     return res;
 }
 
 std::vector<RefPreprocessParams> allPreprocessTests() {
-    return std::vector<RefPreprocessParams> {
-            simple_mean_scale(),
-            scale_then_mean(),
-            convert_only(),
-            convert_element_type_and_scale(),
-            tensor_element_type_and_scale(),
-            custom_preprocessing(),
-            test_multiple(),
-            test_2_inputs_basic(),
-            mean_scale_vector_tensor_layout(),
-            mean_scale_dynamic_layout(),
-            resize_to_network_height(),
-            resize_to_network_width(),
-            resize_from_spatial_dims(),
-            resize_i8(),
-            resize_to_network_width_height(),
-            resize_to_specified_width_height(),
-            convert_layout_nhwc_to_nchw(),
-            convert_layout_nhwc_to_nchw_fully_dynamic(),
-            convert_layout_nhwc_to_net_no_tensor_shape(),
-            convert_layout_by_dims(),
-            convert_layout_by_dims_multi(),
-            convert_layout_by_dims_multi_layout(),
-            convert_layout_hwc_to_nchw(),
-            convert_layout_hwc_to_nchw_fully_dynamic(),
-            resize_and_convert_layout(),
-            convert_color_nv12_to_bgr_two_planes(),
-            convert_color_nv12_single_plane(),
-            convert_color_nv12_layout_resize(),
-            element_type_before_convert_color_nv12(),
-            convert_color_i420_to_bgr_three_planes(),
-            convert_color_i420_single_plane(),
-            preprocess_crop_basic(),
-            preprocess_crop_2axis_dynamic(),
-            set_shape_custom_crop(),
-            set_shape_with_resize(),
-            postprocess_2_inputs_basic(),
-            post_convert_layout_by_dims(),
-            post_convert_layout_by_dims_multi(),
-            pre_and_post_processing(),
-            rgb_to_bgr(),
-            bgr_to_rgb(),
-            color_cut_last_channel(),
-            reverse_channels_nchw(),
-            reverse_channels_dyn_layout(),
-            reverse_dyn_shape(),
-            reverse_dyn_channels(),
-            reverse_fully_dyn_shape()
-    };
+    return std::vector<RefPreprocessParams>{simple_mean_scale(),
+                                            scale_then_mean(),
+                                            convert_only(),
+                                            convert_element_type_and_scale(),
+                                            tensor_element_type_and_scale(),
+                                            custom_preprocessing(),
+                                            test_multiple(),
+                                            test_2_inputs_basic(),
+                                            mean_scale_vector_tensor_layout(),
+                                            mean_scale_dynamic_layout(),
+                                            resize_to_network_height(),
+                                            resize_to_network_width(),
+                                            resize_from_spatial_dims(),
+                                            resize_i8(),
+                                            resize_to_network_width_height(),
+                                            resize_to_specified_width_height(),
+                                            convert_layout_nhwc_to_nchw(),
+                                            convert_layout_nhwc_to_nchw_fully_dynamic(),
+                                            convert_layout_nhwc_to_net_no_tensor_shape(),
+                                            convert_layout_by_dims(),
+                                            convert_layout_by_dims_multi(),
+                                            convert_layout_by_dims_multi_layout(),
+                                            convert_layout_hwc_to_nchw(),
+                                            convert_layout_hwc_to_nchw_fully_dynamic(),
+                                            resize_and_convert_layout(),
+                                            convert_color_nv12_to_bgr_two_planes(),
+                                            convert_color_nv12_single_plane(),
+                                            convert_color_nv12_layout_resize(),
+                                            element_type_before_convert_color_nv12(),
+                                            convert_color_i420_to_bgr_three_planes(),
+                                            convert_color_i420_single_plane(),
+                                            preprocess_crop_basic(),
+                                            preprocess_crop_2axis_dynamic(),
+                                            set_shape_custom_crop(),
+                                            set_shape_with_resize(),
+                                            postprocess_2_inputs_basic(),
+                                            post_convert_layout_by_dims(),
+                                            post_convert_layout_by_dims_multi(),
+                                            pre_and_post_processing(),
+                                            rgb_to_bgr(),
+                                            bgr_to_rgb(),
+                                            color_cut_last_channel(),
+                                            reverse_channels_nchw(),
+                                            reverse_channels_dyn_layout(),
+                                            reverse_dyn_shape(),
+                                            reverse_dyn_channels(),
+                                            reverse_fully_dyn_shape()};
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Comparison_With_Hardcoded_Refs, ReferencePreprocessTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Comparison_With_Hardcoded_Refs,
+                         ReferencePreprocessTest,
                          ::testing::ValuesIn(allPreprocessTests()),
                          ReferencePreprocessTest::getTestCaseName);

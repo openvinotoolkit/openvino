@@ -2,22 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/multiclass_nms.hpp"
+#include "openvino/op/multiclass_nms.hpp"
 
 #include "itt.hpp"
 #include "multiclass_nms_shape_inference.hpp"
+#include "openvino/core/validation_util.hpp"
 
-using namespace ngraph;
-using namespace op::util;
-
+namespace ov {
+namespace op {
 // ------------------------------ V8 ------------------------------
+namespace v8 {
 
-op::v8::MulticlassNms::MulticlassNms(const Output<Node>& boxes, const Output<Node>& scores, const Attributes& attrs)
+MulticlassNms::MulticlassNms(const Output<Node>& boxes, const Output<Node>& scores, const Attributes& attrs)
     : MulticlassNmsBase({boxes, scores}, attrs) {
     constructor_validate_and_infer_types();
 }
 
-std::shared_ptr<Node> op::v8::MulticlassNms::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> MulticlassNms::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(MulticlassNms_v8_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this, new_args.size() >= 2, "Number of inputs must be 2 at least");
@@ -25,40 +26,39 @@ std::shared_ptr<Node> op::v8::MulticlassNms::clone_with_new_inputs(const OutputV
     return std::make_shared<MulticlassNms>(new_args.at(0), new_args.at(1), m_attrs);
 }
 
-void op::v8::MulticlassNms::validate_and_infer_types() {
+void MulticlassNms::validate_and_infer_types() {
     OV_OP_SCOPE(MulticlassNms_v9_validate_and_infer_types);
-    const auto output_type = get_attrs().output_type;
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
+    const auto output_shapes = shape_infer(this, input_shapes, false);
 
     validate();
 
-    const auto& boxes_ps = get_input_partial_shape(0);
-    const auto& scores_ps = get_input_partial_shape(1);
-    std::vector<PartialShape> input_shapes = {boxes_ps, scores_ps};
-    std::vector<PartialShape> output_shapes = {{Dimension::dynamic(), 6},
-                                               {Dimension::dynamic(), 1},
-                                               {Dimension::dynamic()}};
-    shape_infer(this, input_shapes, output_shapes, false, false);
+    const auto& output_type = get_attrs().output_type;
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
     set_output_type(1, output_type, output_shapes[1]);
     set_output_type(2, output_type, output_shapes[2]);
 }
+}  // namespace v8
 
 // ------------------------------ V9 ------------------------------
-
-op::v9::MulticlassNms::MulticlassNms(const Output<Node>& boxes, const Output<Node>& scores, const Attributes& attrs)
+namespace v9 {
+MulticlassNms::MulticlassNms(const Output<Node>& boxes, const Output<Node>& scores, const Attributes& attrs)
     : MulticlassNmsBase({boxes, scores}, attrs) {
     constructor_validate_and_infer_types();
 }
 
-op::v9::MulticlassNms::MulticlassNms(const Output<Node>& boxes,
-                                     const Output<Node>& scores,
-                                     const Output<Node>& roisnum,
-                                     const Attributes& attrs)
+MulticlassNms::MulticlassNms(const Output<Node>& boxes,
+                             const Output<Node>& scores,
+                             const Output<Node>& roisnum,
+                             const Attributes& attrs)
     : MulticlassNmsBase({boxes, scores, roisnum}, attrs) {
     constructor_validate_and_infer_types();
 }
 
-std::shared_ptr<Node> op::v9::MulticlassNms::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> MulticlassNms::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(MulticlassNms_v9_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this, new_args.size() == 2 || new_args.size() == 3, "Number of inputs must be 2 or 3");
@@ -71,25 +71,22 @@ std::shared_ptr<Node> op::v9::MulticlassNms::clone_with_new_inputs(const OutputV
     }
 }
 
-void op::v9::MulticlassNms::validate_and_infer_types() {
+void MulticlassNms::validate_and_infer_types() {
     OV_OP_SCOPE(MulticlassNms_v9_validate_and_infer_types);
-    const auto output_type = get_attrs().output_type;
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
+    const auto output_shapes = shape_infer(this, input_shapes, false);
 
     validate();
 
-    const auto& boxes_ps = get_input_partial_shape(0);
-    const auto& scores_ps = get_input_partial_shape(1);
-    std::vector<PartialShape> input_shapes = {boxes_ps, scores_ps};
-    if (get_input_size() == 3) {
-        const auto& roisnum_ps = get_input_partial_shape(2);
-        input_shapes.push_back(roisnum_ps);
-    }
-
-    std::vector<PartialShape> output_shapes = {{Dimension::dynamic(), 6},
-                                               {Dimension::dynamic(), 1},
-                                               {Dimension::dynamic()}};
-    shape_infer(this, input_shapes, output_shapes, false, false);
+    const auto& output_type = get_attrs().output_type;
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
     set_output_type(1, output_type, output_shapes[1]);
     set_output_type(2, output_type, output_shapes[2]);
 }
+}  // namespace v9
+}  // namespace op
+}  // namespace ov

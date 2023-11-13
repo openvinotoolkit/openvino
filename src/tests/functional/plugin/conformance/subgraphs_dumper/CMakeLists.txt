@@ -6,50 +6,44 @@ set(TARGET_NAME subgraphsDumper)
 
 list(APPEND LIBRARIES
         gflags
-        inference_engine
-        funcTestUtils
+        openvino::runtime
+        func_test_utils
         openvino::pugixml
 )
 
-list(APPEND DEFINITIONS)
-
-if(TARGET openvino_ir_frontend)
-    list(APPEND DEPENDENCIES openvino_ir_frontend)
-    list(APPEND DEFINITIONS ENABLE_OV_IR_FRONTEND)
-endif()
-
-if(TARGET openvino_onnx_frontend)
-    list(APPEND DEPENDENCIES openvino_onnx_frontend)
-    list(APPEND DEFINITIONS ENABLE_OV_ONNX_FRONTEND)
-endif()
-
-if(TARGET openvino_paddle_frontend)
-    list(APPEND DEPENDENCIES openvino_paddle_frontend)
-    list(APPEND DEFINITIONS ENABLE_OV_PADDLE_FRONTEND)
-endif()
-
-if(TARGET openvino_pytorch_frontend)
-    list(APPEND DEPENDENCIES openvino_pytorch_frontend)
-    list(APPEND DEFINITIONS ENABLE_OV_PYTORCH_FRONTEND)
-endif()
-
-if(TARGET openvino_tensorflow_frontend)
-    list(APPEND DEPENDENCIES openvino_tensorflow_frontend)
-    list(APPEND DEFINITIONS ENABLE_OV_TF_FRONTEND)
-endif()
-
-addIeTargetTest(
+# add subgraphs_dumpers tool
+ov_add_test_target(
         NAME ${TARGET_NAME}
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        TYPE EXECUTABLE
+        ROOT ${CMAKE_CURRENT_SOURCE_DIR}/src
         INCLUDES
-            ${CMAKE_CURRENT_SOURCE_DIR}/include
+            PRIVATE
+                "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
         LINK_LIBRARIES
             PRIVATE
                 ${LIBRARIES}
         DEPENDENCIES
-            ${DEPENDENCIES}
+            ov_frontends
         ADD_CPPLINT
 )
 
-target_compile_definitions(${TARGET_NAME} PRIVATE ${DEFINITIONS})
-ie_faster_build(${TARGET_NAME} UNITY)
+# add subgraphs_dumpers lib to get API
+ov_add_target(
+        NAME "${TARGET_NAME}Util"
+        TYPE STATIC
+        ROOT "${CMAKE_CURRENT_SOURCE_DIR}/src"
+        INCLUDES
+            PUBLIC
+                "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+        LINK_LIBRARIES
+            PUBLIC
+                ${LIBRARIES}
+        EXCLUDED_SOURCE_PATHS
+            ${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper/src/main.cpp
+            ${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper/include/gflag_config.hpp
+        DEPENDENCIES
+            ov_frontends
+        ADD_CPPLINT
+)
+
+ov_build_target_faster(${TARGET_NAME} UNITY)

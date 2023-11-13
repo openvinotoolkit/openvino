@@ -42,7 +42,7 @@ public:
     static std::string to_string(mutable_data_node const& node);
 
     typed_primitive_inst(network& network, mutable_data_node const& node);
-    void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
+    event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
     const std::list<primitive_id>& get_user_ids() const { return _user_ids; }
     void save(BinaryOutputBuffer& ob) const override;
     void load(BinaryInputBuffer& ib) override;

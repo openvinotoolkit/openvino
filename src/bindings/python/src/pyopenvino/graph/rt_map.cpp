@@ -10,7 +10,7 @@
 #include <pybind11/stl_bind.h>
 
 #include "dict_attribute_visitor.hpp"
-#include "meta_data.hpp"
+#include "openvino/core/meta_data.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 #include "openvino/op/add.hpp"
@@ -124,4 +124,8 @@ void regclass_graph_PyRTMap(py::module m) {
     });
 
     py_map.def("__len__", &PyRTMap::size);
+
+    py_map.def("__repr__", [](const PyRTMap& self) {
+        return Common::get_simple_repr(self);
+    });
 }

@@ -23,9 +23,9 @@ std::string FakeQuantizeSubgraphTest::getTestCaseName(const testing::TestParamIn
     std::tie(levels, constShape, fqDirectArgs, inputArg) = fqParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "CS=" << CommonTestUtils::vec2str(constShape) << "_";
-    result << "LEVELS=" << CommonTestUtils::vec2str(levels) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "CS=" << ov::test::utils::vec2str(constShape) << "_";
+    result << "LEVELS=" << ov::test::utils::vec2str(levels) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";
     result << "outPRC=" << outPrc.name() << "_";
@@ -64,8 +64,7 @@ void FakeQuantizeSubgraphTest::SetUp() {
         inputDataResolution = inputArg[2];
     }
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     const int seed = 0;
     std::mt19937 gen(seed);
@@ -114,7 +113,7 @@ void FakeQuantizeSubgraphTest::SetUp() {
     auto lowNode = ngraph::builder::makeConstant(ngraph::element::f32, channelDataSize, inputMinRange, false);
     auto highNode = ngraph::builder::makeConstant(ngraph::element::f32, channelDataSize, inputMaxRange, false);
 
-    auto inputFQNode = ngraph::builder::makeFakeQuantize(paramOuts[0], ngraph::element::f32, levels[0], constShape[0],
+    auto inputFQNode = ngraph::builder::makeFakeQuantize(params[0], ngraph::element::f32, levels[0], constShape[0],
         { inputDataMin }, { inputDataMax }, { inputDataMin }, { inputDataMax });
 
     auto weightsFQNode = std::make_shared<ngraph::opset1::FakeQuantize>(const_param,

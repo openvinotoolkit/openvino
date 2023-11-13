@@ -97,7 +97,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, select_test,
             layout{ov::PartialShape{3, 2}, data_types::f32, format::bfyx}
         },
         {
-            layout{ov::PartialShape{2, 3      }, data_types::f32, format::bfyx}, 
+            layout{ov::PartialShape{      4, 5}, data_types::f32, format::bfyx},
             layout{ov::PartialShape{2, 3, 4, 5}, data_types::f32, format::bfyx},
             layout{ov::PartialShape{          }, data_types::f32, format::bfyx},
             ov::op::AutoBroadcastType::PDPD,
@@ -153,11 +153,11 @@ INSTANTIATE_TEST_SUITE_P(smoke, select_test,
             layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx}
         },
         {
-            layout{ov::PartialShape{2, 3      }, data_types::f32, format::bfyx}, 
-            layout{ov::PartialShape{2, 3, 4, 1}, data_types::f32, format::bfyx},
+            layout{ov::PartialShape{      4, 5}, data_types::f32, format::bfyx},
+            layout{ov::PartialShape{2, 3, 4, 5}, data_types::f32, format::bfyx},
             layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
             ov::op::AutoBroadcastType::PDPD,
-            layout{ov::PartialShape{2, 3, 4, 1}, data_types::f32, format::bfyx}
+            layout{ov::PartialShape{2, 3, 4, 5}, data_types::f32, format::bfyx}
         },
         {
             layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx}, 

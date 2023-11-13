@@ -10,7 +10,6 @@
 #include "common_test_utils/common_utils.hpp"
 
 namespace BehaviorTestsDefinitions {
-using namespace CommonTestUtils;
 
 using InferRequestSetBlobByTypeParams = std::tuple<
         FuncTestUtils::BlobType,           // Blob type
@@ -22,6 +21,8 @@ class InferRequestSetBlobByType : public testing::WithParamInterface<InferReques
                                   public BehaviorTestsUtils::IEInferRequestTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestSetBlobByTypeParams> obj) {
+        using namespace ov::test::utils;
+
         FuncTestUtils::BlobType BlobType;
         std::string targetDevice;
         std::map<std::string, std::string> configuration;
@@ -53,9 +54,7 @@ protected:
             case FuncTestUtils::BlobType::Memory:
                 return true;
             case FuncTestUtils::BlobType::Compound:
-            case FuncTestUtils::BlobType::I420:
             case FuncTestUtils::BlobType::Remote:
-            case FuncTestUtils::BlobType::NV12:
                 return false;
             case FuncTestUtils::BlobType::Batched: {
                 auto supported_metrics = ie->GetMetric(target_device, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();

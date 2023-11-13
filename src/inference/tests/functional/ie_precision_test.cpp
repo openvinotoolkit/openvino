@@ -8,6 +8,8 @@
 #include <ie_precision.hpp>
 #include <string>
 
+IE_SUPPRESS_DEPRECATED_START
+
 using Precision = InferenceEngine::Precision;
 
 using PrecisionTests = ::testing::Test;

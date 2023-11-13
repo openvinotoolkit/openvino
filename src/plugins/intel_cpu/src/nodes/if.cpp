@@ -8,7 +8,7 @@
 #include "ie_ngraph_utils.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common/cpu_memcpy.h"
-#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
+#include <shape_inference/shape_inference_internal_dyn.hpp>
 
 #include <string>
 #include <vector>
@@ -21,7 +21,7 @@ If::PortMapHelper::PortMapHelper(const MemoryPtr &from, const std::deque<MemoryP
                                            const dnnl::engine& eng) : srcMemPtr(from), dstMemPtrs(to) {
     size = 0;
     if (srcMemPtr->getDesc().isDefined())
-        size = srcMemPtr->GetSize();
+        size = srcMemPtr->getSize();
 }
 
 void If::PortMapHelper::execute(dnnl::stream& strm) {
@@ -29,7 +29,7 @@ void If::PortMapHelper::execute(dnnl::stream& strm) {
     // after subgraph inference we should redefine out memory of 'If'
     redefineTo();
 
-    cpu_memcpy(dstMemPtrs.front()->GetPtr(), srcMemPtr->GetPtr(), size);
+    cpu_memcpy(dstMemPtrs.front()->getData(), srcMemPtr->getData(), size);
 }
 
 void If::PortMapHelper::redefineTo() {
@@ -41,7 +41,7 @@ void If::PortMapHelper::redefineTo() {
             dstMemPtrs[j]->redefineDesc(memDesc);
         }
 
-        size = srcMemPtr->GetSize();
+        size = srcMemPtr->getSize();
     }
 }
 
@@ -190,7 +190,7 @@ void If::prepareBeforeMappers(const bool isThen, const dnnl::engine& eng) {
     auto &inputMems = isThen ? inputMemThen : inputMemElse;
     auto &beforeMappers = isThen ? beforeThenMappers : beforeElseMappers;
     for (auto& map_rule : inputPortMap) {
-        auto &fromMem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
+        auto fromMem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
         auto &toMems = inputMems[map_rule.to];
 
         beforeMappers.emplace_back(std::make_shared<PortMapHelper>(fromMem, toMems, eng));
@@ -217,7 +217,7 @@ std::deque<MemoryPtr> If::getToMemories(const Node* node, const size_t port) con
 }
 
 void If::execute(dnnl::stream strm) {
-    const bool condition = static_cast<const bool>((reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr()))[0]);
+    const bool condition = static_cast<const bool>((reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->getData()))[0]);
 
     auto& beforeMappers = condition ? beforeThenMappers : beforeElseMappers;
     auto& afterMappers = condition ? afterThenMappers : afterElseMappers;

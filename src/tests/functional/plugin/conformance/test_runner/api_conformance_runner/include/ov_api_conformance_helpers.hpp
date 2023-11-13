@@ -4,34 +4,51 @@
 
 #pragma once
 
-#include "api_conformance_helpers.hpp"
+#include "conformance.hpp"
+#include "common_test_utils/test_constants.hpp"
 
 namespace ov {
 namespace test {
 namespace conformance {
 
-inline const std::vector<ov::AnyMap> generate_ov_configs(const std::string& target_plugin,
-                                                         const std::vector<ov::AnyMap>& config = {}) {
-    std::pair<std::string, ov::Any> default_config;
-    if (target_plugin ==  std::string(CommonTestUtils::DEVICE_MULTI) ||
-        target_plugin ==  std::string(CommonTestUtils::DEVICE_AUTO) ||
-        target_plugin ==  std::string(CommonTestUtils::DEVICE_HETERO)) {
-        default_config = ov::device::priorities(ov::test::conformance::targetDevice);
-    } else if (target_plugin ==  std::string(CommonTestUtils::DEVICE_BATCH)) {
-        default_config = { CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , std::string(ov::test::conformance::targetDevice)};
-    } else {
-        throw std::runtime_error("Incorrect target device: " + target_plugin);
-    }
-
+inline const std::vector<ov::AnyMap> generate_ov_configs(const std::vector<ov::AnyMap>& config = {}) {
     std::vector<ov::AnyMap> resultConfig;
-    if (config.empty()) {
-        return {{default_config}};
-    }
     for (auto configItem : config) {
-        configItem.insert(default_config);
+        configItem.insert(ov::test::conformance::pluginConfig.begin(), ov::test::conformance::pluginConfig.end());
         resultConfig.push_back(configItem);
     }
     return resultConfig;
+}
+
+inline const std::string get_plugin_lib_name_by_device(const std::string& deviceName) {
+    const std::map<std::string, std::string> devices{
+            { "AUTO", "openvino_auto_plugin" },
+            { "HETERO", "openvino_hetero_plugin" },
+            { "BATCH", "openvino_auto_batch_plugin" },
+            { "MULTI", "openvino_auto_plugin" },
+            { "NPU", "openvino_intel_npu_plugin" },
+            { "CPU", "openvino_intel_cpu_plugin" },
+            { "GNA", "openvino_intel_gna_plugin" },
+            { "GPU", "openvino_intel_gpu_plugin" },
+            { "TEMPLATE", "openvino_template_plugin" },
+            { "NVIDIA", "openvino_nvidia_gpu_plugin" },
+    };
+    if (devices.find(deviceName) == devices.end()) {
+        if (std::string(targetPluginName) != "") {
+            return targetPluginName;
+        }
+        throw std::runtime_error("Incorrect device name");
+    }
+    return devices.at(deviceName);
+}
+
+inline std::vector<std::pair<std::string, std::string>> generate_ov_pairs_plugin_name_by_device() {
+    std::vector<std::pair<std::string, std::string>> res;
+    std::string device(ov::test::conformance::targetDevice);
+    std::string real_device = device.substr(0, device.find(':'));
+    res.push_back(std::make_pair(get_plugin_lib_name_by_device(real_device),
+                                    real_device));
+    return res;
 }
 
 }  // namespace conformance

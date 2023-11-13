@@ -5,7 +5,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "snippets/edge_replace.hpp"
 #include "subgraph_simple.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
 namespace ov {
@@ -20,7 +20,7 @@ std::string EdgeReplace::getTestCaseName(testing::TestParamInfo<ov::test::snippe
     std::tie(inputShape, type, num_nodes, num_subgraphs, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::partialShape2str({inputShape}) << "_";
+    result << "IS=" << ov::test::utils::partialShape2str({inputShape}) << "_";
     result << "T=" << type << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";

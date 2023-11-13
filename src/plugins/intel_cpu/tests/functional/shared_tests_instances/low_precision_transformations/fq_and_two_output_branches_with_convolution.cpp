@@ -8,7 +8,7 @@
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {
@@ -16,7 +16,7 @@ const std::vector<ngraph::element::Type> netPrecisions = {
     // ngraph::element::f16
 };
 
-const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
@@ -32,7 +32,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, FakeQuantizeAndTwoOutputBranchesWithConvolut
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::PartialShape({ 1, 32, 72, 48 })),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(testValues)),
     FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::getTestCaseName);

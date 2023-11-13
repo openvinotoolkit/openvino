@@ -4,7 +4,7 @@
 
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace InferenceEngine;
@@ -38,7 +38,7 @@ public:
         if (inputShapes.front().first.size() != 0) {
             result << "IS=(";
             for (const auto &shape : inputShapes) {
-                result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+                result << ov::test::utils::partialShape2str({shape.first}) << "_";
             }
             result.seekp(-1, result.cur);
             result << ")_";
@@ -46,12 +46,12 @@ public:
         result << "TS=";
         for (const auto& shape : inputShapes) {
             for (const auto& item : shape.second) {
-                result << CommonTestUtils::vec2str(item) << "_";
+                result << ov::test::utils::vec2str(item) << "_";
             }
         }
-        result << "blockShape=" << CommonTestUtils::vec2str(blockShape) << "_";
-        result << "padsBegin=" << CommonTestUtils::vec2str(padsBegin) << "_";
-        result << "padsEnd=" << CommonTestUtils::vec2str(padsEnd) << "_";
+        result << "blockShape=" << ov::test::utils::vec2str(blockShape) << "_";
+        result << "padsBegin=" << ov::test::utils::vec2str(padsBegin) << "_";
+        result << "padsEnd=" << ov::test::utils::vec2str(padsEnd) << "_";
         result << "netPRC=" << netPrecision.name() << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams);
         return result.str();
@@ -60,24 +60,24 @@ public:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); i++) {
+        for (size_t i = 0; i < funcInputs.size(); i++) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
-            if (i == 0) {
+            if (i == 0U) {
                 tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 2560, 0, 256);
-            } else if (i == 1) {
+            } else if (i == 1U) {
                 tensor = ov::Tensor(funcInput.get_element_type(), paramShape);
                 auto *dataPtr = tensor.data<int64_t>();
                 for (size_t j = 0; j < blockShape.size(); j++) {
                     dataPtr[j] = blockShape[j];
                 }
-            } else if (i == 2) {
+            } else if (i == 2U) {
                 tensor = ov::Tensor(funcInput.get_element_type(), paramShape);
                 auto *dataPtr = tensor.data<int64_t>();
                 for (size_t j = 0; j < padsBegin.size(); j++) {
                     dataPtr[j] = padsBegin[j];
                 }
-            } else if (i == 3) {
+            } else if (i == 3U) {
                 tensor = ov::Tensor(funcInput.get_element_type(), paramShape);
                 auto *dataPtr = tensor.data<int64_t>();
                 for (size_t j = 0; j < padsEnd.size(); j++) {
@@ -90,7 +90,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         std::vector<InputShape> inputShapes;
         Precision netPrecision;
         CPUSpecificParams cpuParams;
@@ -106,9 +106,8 @@ protected:
         else
             selectedType = std::string("ref_any_") + netPrecision.name();
 
-        auto params = ngraph::builder::makeDynamicParams(ngPrec, {inputDynamicShapes.front()});
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
-        paramShape = {paramOuts[0].get_partial_shape().size()};
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrec, inputDynamicShapes.front())};
+        paramShape = {params[0]->get_partial_shape().size()};
 
         std::shared_ptr<ov::Node> in2, in3, in4;
         auto blockShapeParam = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, paramShape);
@@ -121,7 +120,7 @@ protected:
         in4 = padsEndParam;
         params.push_back(padsEndParam);
 
-        auto s2b = std::make_shared<ov::op::v1::SpaceToBatch>(paramOuts[0], in2, in3, in4);
+        auto s2b = std::make_shared<ov::op::v1::SpaceToBatch>(params[0], in2, in3, in4);
         function = makeNgraphFunction(inType, params, s2b, "SpaceToBatchCPU");
     }
 };

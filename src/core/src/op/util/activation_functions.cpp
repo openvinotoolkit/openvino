@@ -2,38 +2,36 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/activation_functions.hpp"
+#include "openvino/op/util/activation_functions.hpp"
 
 #include <cmath>
 #include <functional>
 #include <memory>
 #include <unordered_map>
 
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/hard_sigmoid.hpp"
-#include "ngraph/op/relu.hpp"
-#include "ngraph/op/sigmoid.hpp"
-#include "ngraph/op/tanh.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/hard_sigmoid.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/tanh.hpp"
 
-using namespace std;
-
-static shared_ptr<ov::Node> sigmoid(const shared_ptr<ov::Node>& arg, float /* alpha */, float /* beta */) {
-    return make_shared<ngraph::op::Sigmoid>(arg);
+static std::shared_ptr<ov::Node> sigmoid(const std::shared_ptr<ov::Node>& arg, float /* alpha */, float /* beta */) {
+    return std::make_shared<ov::op::v0::Sigmoid>(arg);
 }
 
-static shared_ptr<ov::Node> tanh(const shared_ptr<ov::Node>& arg, float /* alpha */, float /* beta */) {
-    return make_shared<ngraph::op::Tanh>(arg);
+static std::shared_ptr<ov::Node> tanh(const std::shared_ptr<ov::Node>& arg, float /* alpha */, float /* beta */) {
+    return std::make_shared<ov::op::v0::Tanh>(arg);
 }
 
-static shared_ptr<ov::Node> relu(const shared_ptr<ov::Node>& arg, float /* alpha */, float /* beta */) {
-    return make_shared<ngraph::op::Relu>(arg);
+static std::shared_ptr<ov::Node> relu(const std::shared_ptr<ov::Node>& arg, float /* alpha */, float /* beta */) {
+    return std::make_shared<ov::op::v0::Relu>(arg);
 }
 
-static shared_ptr<ov::Node> hardsigmoid(const shared_ptr<ov::Node>& arg, float alpha, float beta) {
-    const auto alpha_node = ngraph::op::Constant::create<float>(arg->get_element_type(), ngraph::Shape{}, {alpha});
-    const auto beta_node = ngraph::op::Constant::create<float>(arg->get_element_type(), ngraph::Shape{}, {beta});
+static std::shared_ptr<ov::Node> hardsigmoid(const std::shared_ptr<ov::Node>& arg, float alpha, float beta) {
+    const auto alpha_node = ov::op::v0::Constant::create<float>(arg->get_element_type(), ov::Shape{}, {alpha});
+    const auto beta_node = ov::op::v0::Constant::create<float>(arg->get_element_type(), ov::Shape{}, {beta});
 
-    return make_shared<ngraph::op::HardSigmoid>(arg, alpha_node, beta_node);
+    return std::make_shared<ov::op::v0::HardSigmoid>(arg, alpha_node, beta_node);
 }
 
 ov::op::util::ActivationFunction::ActivationFunction(ActivationFunctionType f, float alpha, float beta)
@@ -47,18 +45,18 @@ ov::op::util::ActivationFunction::ActivationFunction(ActivationFunctionType f, f
 ov::op::util::ActivationFunction::ActivationFunction(ActivationFunctionType f)
     : ActivationFunction(f, nanf(""), nanf("")) {}
 
-shared_ptr<ov::Node> ov::op::util::ActivationFunction::operator()(const shared_ptr<Node>& arg) const {
+std::shared_ptr<ov::Node> ov::op::util::ActivationFunction::operator()(const std::shared_ptr<Node>& arg) const {
     return m_function(arg, m_alpha, m_beta);
 }
 
-ov::op::util::ActivationFunction ov::op::util::get_activation_func_by_name(const string& func_name) {
-    using ActivationFunctionMap = unordered_map<string, op::util::ActivationFunction>;
+ov::op::util::ActivationFunction ov::op::util::get_activation_func_by_name(const std::string& func_name) {
+    using ActivationFunctionMap = std::unordered_map<std::string, op::util::ActivationFunction>;
 
     static ActivationFunctionMap func_map{
-        {"sigmoid", op::util::ActivationFunction{sigmoid}},
-        {"tanh", op::util::ActivationFunction{tanh}},
-        {"relu", op::util::ActivationFunction{relu}},
-        {"hardsigmoid", op::util::ActivationFunction{hardsigmoid, 0.2f, 0.5f}},
+        {"sigmoid", op::util::ActivationFunction{::sigmoid}},
+        {"tanh", op::util::ActivationFunction{::tanh}},
+        {"relu", op::util::ActivationFunction{::relu}},
+        {"hardsigmoid", op::util::ActivationFunction{::hardsigmoid, 0.2f, 0.5f}},
     };
 
     auto func_it = func_map.find(func_name);

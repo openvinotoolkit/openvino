@@ -3,13 +3,14 @@
 //
 #pragma once
 #include "openvino/op/ctc_greedy_decoder_seq_len.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace op {
 namespace v6 {
 
-template <class TShape>
-std::vector<TShape> shape_infer(const CTCGreedyDecoderSeqLen* op, const std::vector<TShape>& input_shapes) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const CTCGreedyDecoderSeqLen* op, const std::vector<TShape>& input_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 || input_shapes.size() == 3);
     using DimType = typename TShape::value_type;
 
@@ -41,14 +42,7 @@ std::vector<TShape> shape_infer(const CTCGreedyDecoderSeqLen* op, const std::vec
                               "The first dimensions of input tensors must match.");
     }
 
-    return {TShape{batch_size, time_size}, TShape{batch_size}};
-}
-
-template <class TShape>
-void shape_infer(const CTCGreedyDecoderSeqLen* op,
-                 const std::vector<TShape>& input_shapes,
-                 std::vector<TShape>& output_shapes) {
-    output_shapes = shape_infer(op, input_shapes);
+    return {TRShape{batch_size, time_size}, TRShape{batch_size}};
 }
 }  // namespace v6
 }  // namespace op

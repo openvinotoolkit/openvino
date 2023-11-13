@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/depth_to_space.hpp>
@@ -27,8 +28,8 @@ TEST(depth_to_space_fp16_gpu, d1411_bs2) {
     size_t block_size = 2;
 
     set_values(input1, {
-        FLOAT16(0.0f), FLOAT16(1.0f),
-        FLOAT16(2.0f), FLOAT16(3.0f)
+        ov::float16(0.0f), ov::float16(1.0f),
+        ov::float16(2.0f), ov::float16(3.0f)
     });
 
     topology topology;
@@ -67,10 +68,10 @@ TEST(depth_to_space_fp16_gpu, d1421_bs2) {
     size_t block_size = 2;
 
     set_values(input1, {
-        FLOAT16(0.0f), FLOAT16(1.0f),
-        FLOAT16(2.0f), FLOAT16(3.0f),
-        FLOAT16(4.0f), FLOAT16(5.0f),
-        FLOAT16(6.0f), FLOAT16(7.0f)
+        ov::float16(0.0f), ov::float16(1.0f),
+        ov::float16(2.0f), ov::float16(3.0f),
+        ov::float16(4.0f), ov::float16(5.0f),
+        ov::float16(6.0f), ov::float16(7.0f)
     });
 
     topology topology;
@@ -109,23 +110,23 @@ TEST(depth_to_space_fp16_gpu, d1933_bs3) {
     size_t block_size = 3;
 
     set_values(input1, {
-        FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f), FLOAT16(9.0f),
-        FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f), FLOAT16(13.0f), FLOAT16(14.0f),
-        FLOAT16(15.0f), FLOAT16(16.0f), FLOAT16(17.0f), FLOAT16(18.0f), FLOAT16(19.0f),
-        FLOAT16(20.0f), FLOAT16(21.0f), FLOAT16(22.0f), FLOAT16(23.0f), FLOAT16(24.0f),
-        FLOAT16(25.0f), FLOAT16(26.0f), FLOAT16(27.0f), FLOAT16(28.0f), FLOAT16(29.0f),
-        FLOAT16(30.0f), FLOAT16(31.0f), FLOAT16(32.0f), FLOAT16(33.0f), FLOAT16(34.0f),
-        FLOAT16(35.0f), FLOAT16(36.0f), FLOAT16(37.0f), FLOAT16(38.0f), FLOAT16(39.0f),
-        FLOAT16(40.0f), FLOAT16(41.0f), FLOAT16(42.0f), FLOAT16(43.0f), FLOAT16(44.0f),
-        FLOAT16(45.0f), FLOAT16(46.0f), FLOAT16(47.0f), FLOAT16(48.0f), FLOAT16(49.0f),
-        FLOAT16(50.0f), FLOAT16(51.0f), FLOAT16(52.0f), FLOAT16(53.0f), FLOAT16(54.0f),
-        FLOAT16(55.0f), FLOAT16(56.0f), FLOAT16(57.0f), FLOAT16(58.0f), FLOAT16(59.0f),
-        FLOAT16(60.0f), FLOAT16(61.0f), FLOAT16(62.0f), FLOAT16(63.0f), FLOAT16(64.0f),
-        FLOAT16(65.0f), FLOAT16(66.0f), FLOAT16(67.0f), FLOAT16(68.0f), FLOAT16(69.0f),
-        FLOAT16(70.0f), FLOAT16(71.0f), FLOAT16(72.0f), FLOAT16(73.0f), FLOAT16(74.0f),
-        FLOAT16(75.0f), FLOAT16(76.0f), FLOAT16(77.0f), FLOAT16(78.0f), FLOAT16(79.0f),
-        FLOAT16(80.0f)
+        ov::float16(0.0f), ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f), ov::float16(4.0f),
+        ov::float16(5.0f), ov::float16(6.0f), ov::float16(7.0f), ov::float16(8.0f), ov::float16(9.0f),
+        ov::float16(10.0f), ov::float16(11.0f), ov::float16(12.0f), ov::float16(13.0f), ov::float16(14.0f),
+        ov::float16(15.0f), ov::float16(16.0f), ov::float16(17.0f), ov::float16(18.0f), ov::float16(19.0f),
+        ov::float16(20.0f), ov::float16(21.0f), ov::float16(22.0f), ov::float16(23.0f), ov::float16(24.0f),
+        ov::float16(25.0f), ov::float16(26.0f), ov::float16(27.0f), ov::float16(28.0f), ov::float16(29.0f),
+        ov::float16(30.0f), ov::float16(31.0f), ov::float16(32.0f), ov::float16(33.0f), ov::float16(34.0f),
+        ov::float16(35.0f), ov::float16(36.0f), ov::float16(37.0f), ov::float16(38.0f), ov::float16(39.0f),
+        ov::float16(40.0f), ov::float16(41.0f), ov::float16(42.0f), ov::float16(43.0f), ov::float16(44.0f),
+        ov::float16(45.0f), ov::float16(46.0f), ov::float16(47.0f), ov::float16(48.0f), ov::float16(49.0f),
+        ov::float16(50.0f), ov::float16(51.0f), ov::float16(52.0f), ov::float16(53.0f), ov::float16(54.0f),
+        ov::float16(55.0f), ov::float16(56.0f), ov::float16(57.0f), ov::float16(58.0f), ov::float16(59.0f),
+        ov::float16(60.0f), ov::float16(61.0f), ov::float16(62.0f), ov::float16(63.0f), ov::float16(64.0f),
+        ov::float16(65.0f), ov::float16(66.0f), ov::float16(67.0f), ov::float16(68.0f), ov::float16(69.0f),
+        ov::float16(70.0f), ov::float16(71.0f), ov::float16(72.0f), ov::float16(73.0f), ov::float16(74.0f),
+        ov::float16(75.0f), ov::float16(76.0f), ov::float16(77.0f), ov::float16(78.0f), ov::float16(79.0f),
+        ov::float16(80.0f)
     });
 
     topology topology;
@@ -205,13 +206,14 @@ TEST(depth_to_space_fp32_gpu, d112960540_bs2) {
     //  Output : 1x3x1920x1080
     //  Input values in fp16
 
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 12, 960, 540 } });
     size_t block_size = 2;
 
-    auto random_input = generate_random_4d<FLOAT16>(1, 12, 540, 960, -1, 1);
-    auto input_rnd_vec = flatten_4d<FLOAT16>(format::bfyx, random_input);
+    auto random_input = rg.generate_random_4d<ov::float16>(1, 12, 540, 960, -1, 1);
+    auto input_rnd_vec = flatten_4d<ov::float16>(format::bfyx, random_input);
     set_values(input1, input_rnd_vec);
 
     topology topology_act;
@@ -227,7 +229,7 @@ TEST(depth_to_space_fp32_gpu, d112960540_bs2) {
     auto outputs = network_act.execute();
 
     auto output = outputs.at("depth_to_space").get_memory();
-    cldnn::mem_lock<FLOAT16> output_ptr (output, get_test_stream());
+    cldnn::mem_lock<ov::float16> output_ptr (output, get_test_stream());
 
     std::vector<uint16_t> perm = { 0,3,4,1,5,2 };
 
@@ -252,7 +254,7 @@ TEST(depth_to_space_fp32_gpu, d112960540_bs2) {
     auto outputs_ref = network_ref.execute();
 
     auto output_ref = outputs_ref.at("reshape2").get_memory();
-    cldnn::mem_lock<FLOAT16> output_ptr_ref(output_ref, get_test_stream());
+    cldnn::mem_lock<ov::float16> output_ptr_ref(output_ref, get_test_stream());
 
     for (size_t i = 0; i < output->get_layout().count(); ++i) {
         ASSERT_EQ(output_ptr_ref[i], output_ptr[i]);

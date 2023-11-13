@@ -3,7 +3,7 @@
 //
 
 #include "base/import_export_base.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -16,7 +16,7 @@ protected:
             this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
         std::vector<size_t> outFormShapes1 = {1, 1, 168, 2};
         auto pattern1 =
@@ -124,7 +124,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkGNA,
                          ImportExportGNAModelUnchanged,
                          ::testing::Combine(::testing::ValuesIn(inputShapes),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(exportConfigs),
                                             ::testing::ValuesIn(importConfigsUnchanged),
                                             ::testing::ValuesIn(appHeaders)),
@@ -134,7 +134,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkGNA,
                          ImportExportGNAModelChanged,
                          ::testing::Combine(::testing::ValuesIn(inputShapes),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(exportConfigs),
                                             ::testing::ValuesIn(importConfigsChanged),
                                             ::testing::ValuesIn(appHeaders)),

@@ -6,6 +6,8 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
 ov_try_use_gold_linker()
 
+ov_deprecated_no_errors()
+
 message(STATUS "ONNX frontend test enabled")
 
 add_compile_definitions(
@@ -13,13 +15,12 @@ add_compile_definitions(
     ONNX_MODELS_DIR="${TEST_MODEL_ZOO}/onnx"
     ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx/"
     TEST_ONNX_MODELS_DIRNAME="${TEST_MODEL_ZOO}/onnx/"
-    MANIFEST="${CMAKE_CURRENT_SOURCE_DIR}/unit_test.manifest"
+    MANIFEST="${TEST_MODEL_ZOO}/onnx/unit_test.manifest"
     SERIALIZED_ZOO="${TEST_MODEL_ZOO}")
 
 list(APPEND ONNX_TESTS_DEPENDENCIES openvino_template_extension)
 
 if (ENABLE_INTEL_CPU)
-    message(STATUS "ONNX frontend test: IE:CPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
     if (ENABLE_STRICT_DEPENDENCIES)
         # For convinience add a runtime dependency to build along with this target.
@@ -29,7 +30,6 @@ if (ENABLE_INTEL_CPU)
 endif()
 
 if (ENABLE_INTEL_GPU)
-    message(STATUS "ONNX frontend test: IE:GPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:GPU")
     if (ENABLE_STRICT_DEPENDENCIES)
         # For convinience add a runtime dependency to build along with this target.
@@ -39,7 +39,6 @@ if (ENABLE_INTEL_GPU)
 endif()
 
 if (ENABLE_TEMPLATE)
-    message(STATUS "ONNX frontend test: INTERPRETER enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
     if (ENABLE_STRICT_DEPENDENCIES)
         list(APPEND ONNX_TESTS_DEPENDENCIES openvino_template_plugin)
@@ -63,7 +62,6 @@ set(MULTI_TEST_SRC
     onnx_import_convpool.in.cpp
     onnx_import_deprecated.in.cpp
     onnx_import_dyn_shapes.in.cpp
-    onnx_import_external_data.in.cpp
     onnx_import_org_openvino.in.cpp
     onnx_import_org_pytorch.in.cpp
     onnx_import_reshape.in.cpp
@@ -74,6 +72,8 @@ set(MULTI_TEST_SRC
     onnx_import_with_editor.in.cpp)
 set(SRC
     conversion.cpp
+    convert_tests.cpp
+    convert_partially_tests.cpp
     library_extension.cpp
     load_from.cpp
     onnx_editor.cpp
@@ -99,14 +99,20 @@ foreach(src IN LISTS SRC MULTI_TEST_SRC)
         list(APPEND full_src_names "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
     endif()
 endforeach()
-add_clang_format_target(ov_onnx_frontend_tests_clang FOR_SOURCES ${full_src_names})
+ov_add_clang_format_target(ov_onnx_frontend_tests_clang FOR_SOURCES ${full_src_names})
 
-foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
+foreach(BACKEND_NAME IN LISTS ACTIVE_BACKEND_LIST)
     string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)
     string(REGEX REPLACE "([a-z0-9]+):(.*)" "\\1" BACKEND_DIR ${BACKEND_DIR})
-    set(MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/runtime/${BACKEND_DIR}/unit_test.manifest)
+    set(SRC_MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/runtime/${BACKEND_DIR}/unit_test.manifest)
+    set(MANIFEST_RENAME "${BACKEND_DIR}_unit_test.manifest")
+    set(MANIFEST "${TEST_MODEL_ZOO}/onnx/${MANIFEST_RENAME}")
 
-    foreach(TEST_SRC ${MULTI_TEST_SRC})
+    list(APPEND custom_commands
+         COMMAND ${CMAKE_COMMAND} -E copy "${SRC_MANIFEST}"
+                                          "${TEST_MODEL_ZOO_OUTPUT_DIR}/onnx/${MANIFEST_RENAME}")
+
+    foreach(TEST_SRC IN LISTS MULTI_TEST_SRC)
         string(REPLACE ":" "_" BACKEND_NAME ${BACKEND_NAME})
         string(REPLACE ".in." "_${BACKEND_NAME}." TARGET_NAME ${TEST_SRC})
         configure_file(${TEST_SRC} ${TARGET_NAME})
@@ -117,17 +123,17 @@ foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
 endforeach()
 
 add_executable(ov_onnx_frontend_tests ${SRC})
-add_test(NAME ov_onnx_frontend_tests COMMAND ov_onnx_frontend_tests)
-set_property(TEST ov_onnx_frontend_tests PROPERTY LABELS OV ONNX_FE)
+add_test(NAME ov_onnx_frontend_tests COMMAND ov_onnx_frontend_tests --gtest_filter=-*IE_GPU*)
+set_property(TEST ov_onnx_frontend_tests PROPERTY LABELS OV UNIT ONNX_FE)
 
 add_dependencies(ov_onnx_frontend_tests template_extension)
 
-target_include_directories(ov_onnx_frontend_tests PRIVATE ".")
+target_include_directories(ov_onnx_frontend_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 
 target_compile_definitions(ov_onnx_frontend_tests
     PRIVATE
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
-        SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
+        SHARED_LIB_SUFFIX="${OV_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
 set(ONNX_OPSET_VERSION 17 CACHE INTERNAL "Supported version of ONNX operator set")
 target_compile_definitions(ov_onnx_frontend_tests PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
@@ -136,8 +142,8 @@ if(ONNX_TESTS_DEPENDENCIES)
     add_dependencies(ov_onnx_frontend_tests ${ONNX_TESTS_DEPENDENCIES})
 endif()
 
-target_link_libraries(ov_onnx_frontend_tests PRIVATE engines_test_util gtest_main_manifest openvino::runtime::dev
-    openvino_onnx_frontend onnx_common funcTestUtils)
+target_link_libraries(ov_onnx_frontend_tests PRIVATE gtest_main_manifest openvino::runtime::dev
+    openvino_onnx_frontend openvino_onnx_common func_test_utils)
 
 # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
 # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.
@@ -145,7 +151,7 @@ target_include_directories(ov_onnx_frontend_tests
     SYSTEM PRIVATE
         $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
-        ${Protobuf_INCLUDE_DIRS})
+        $<TARGET_PROPERTY:protobuf::libprotobuf,INTERFACE_INCLUDE_DIRECTORIES>)
 target_compile_definitions(ov_onnx_frontend_tests PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
 target_compile_definitions(ov_onnx_frontend_tests PRIVATE ENABLE_OV_ONNX_FRONTEND)
 
@@ -157,9 +163,21 @@ target_include_directories(ov_onnx_frontend_tests PRIVATE
     $<TARGET_PROPERTY:openvino_onnx_frontend,INCLUDE_DIRECTORIES>)
 
 install(TARGETS ov_onnx_frontend_tests
-        RUNTIME DESTINATION tests
-        COMPONENT tests
-        EXCLUDE_FROM_ALL)
+        RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        DESTINATION tests/onnx
+        COMPONENT tests EXCLUDE_FROM_ALL
+        FILES_MATCHING
+        PATTERN "*.py"
+        PATTERN "*.onnx"
+        PATTERN "*.data")
+
+add_custom_command(TARGET ov_onnx_frontend_tests POST_BUILD
+                   COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/unit_test.manifest"
+                                                    "${TEST_MODEL_ZOO_OUTPUT_DIR}/onnx/unit_test.manifest"
+                   ${custom_commands}
+                   COMMENT "Copy test manifest files to ${TEST_MODEL_ZOO}/onnx")
 
 # process models
 add_dependencies(ov_onnx_frontend_tests test_model_zoo)

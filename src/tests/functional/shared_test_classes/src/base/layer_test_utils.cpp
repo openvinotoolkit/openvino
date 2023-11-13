@@ -19,12 +19,37 @@
 
 namespace LayerTestsUtils {
 
+namespace {
+std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> getConstData(
+    const std::shared_ptr<ov::Model>& function) {
+    size_t numOutputs = function->get_output_size();
+    std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> outputs(numOutputs);
+    auto funcResults = function->get_results();
+    for (size_t i = 0; i < numOutputs; i++) {
+        outputs[i].first = funcResults[i]->get_element_type();
+        const auto& output = function->output(i).get_node_shared_ptr();
+        OPENVINO_ASSERT(output->inputs().size() == 1);
+        auto parrentNode = output->input_value(0).get_node_shared_ptr();
+        OPENVINO_ASSERT(ov::op::util::is_constant(parrentNode),
+                        "Function was not fully folded to constant state!\n",
+                        "Parent node of one of results is not constant and has type ",
+                        parrentNode->get_type_name());
+
+        const auto data = std::dynamic_pointer_cast<ov::op::v0::Constant>(parrentNode)->get_data_ptr<std::uint8_t>();
+        const auto dataSize = ov::shape_size(parrentNode->get_shape()) * parrentNode->get_element_type().size();
+        outputs[i].second.resize(dataSize);
+        std::copy(data, data + dataSize, outputs[i].second.data());
+    }
+    return outputs;
+}
+}  // namespace
+
 LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f), abs_threshold(-1.f) {
     core = PluginCache::get().ie(targetDevice);
 }
 
 void LayerTestsCommon::Run() {
-    bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
+    bool isCurrentTestDisabled = ov::test::utils::current_test_is_disabled();
 
     ov::test::utils::PassRate::Statuses status = isCurrentTestDisabled ?
          ov::test::utils::PassRate::Statuses::SKIPPED :
@@ -43,16 +68,16 @@ void LayerTestsCommon::Run() {
     }
 
     // in case of crash jump will be made and work will be continued
-    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+    auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
 
     // place to jump in case of a crash
     int jmpRes = 0;
 #ifdef _WIN32
-    jmpRes = setjmp(CommonTestUtils::env);
+    jmpRes = setjmp(ov::test::utils::env);
 #else
-    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
+    jmpRes = sigsetjmp(ov::test::utils::env, 1);
 #endif
-    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
+    if (jmpRes == ov::test::utils::JMP_STATUS::ok) {
         crashHandler->StartTimer();
         try {
             LoadNetwork();
@@ -71,9 +96,9 @@ void LayerTestsCommon::Run() {
             s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_("Unknown failure occurred.");
         }
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
         IE_THROW() << "Crash happens";
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
         s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::HANGED);
         IE_THROW() << "Crash happens";
     }
@@ -82,7 +107,7 @@ void LayerTestsCommon::Run() {
 void LayerTestsCommon::Serialize(ngraph::pass::Serialize::Version ir_version) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    std::string output_name = CommonTestUtils::generateTestFilePrefix();
+    std::string output_name = ov::test::utils::generateTestFilePrefix();
 
     std::string out_xml_path = output_name + ".xml";
     std::string out_bin_path = output_name + ".bin";
@@ -103,7 +128,7 @@ void LayerTestsCommon::Serialize(ngraph::pass::Serialize::Version ir_version) {
 
     EXPECT_TRUE(success) << message;
 
-    CommonTestUtils::removeIRFiles(out_xml_path, out_bin_path);
+    ov::test::utils::removeIRFiles(out_xml_path, out_bin_path);
 }
 
 void LayerTestsCommon::QueryNetwork() {
@@ -406,11 +431,6 @@ void LayerTestsCommon::ConfigureInferRequest() {
         auto blob = inputs[i];
         inferRequest.SetBlob(info->name(), blob);
     }
-    if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
-        configuration.count(InferenceEngine::PluginConfigParams::YES)) {
-        auto batchSize = executableNetwork.GetInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
-        inferRequest.SetBatch(batchSize);
-    }
 }
 
 void LayerTestsCommon::Infer() {
@@ -465,7 +485,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTe
         }
         case CONSTANT_FOLDING: {
             const auto &foldedFunc = ngraph::helpers::foldFunction(functionRefs, referenceInputs, refInputsTypes);
-            expectedOutputs = ngraph::helpers::getConstData(foldedFunc);
+            expectedOutputs = getConstData(foldedFunc);
             break;
         }
         case IE: {

@@ -49,11 +49,11 @@ struct proposal_t {
 
 inline float float_read_helper(const float* mem) { return *mem; }
 
-inline float float_read_helper(const half_t* mem) { return static_cast<float>(*mem); }
+inline float float_read_helper(const ov::float16* mem) { return static_cast<float>(*mem); }
 
 inline void float_write_helper(float* mem, float f) { *mem = f; }
 
-inline void float_write_helper(half_t* mem, float f) { *mem = static_cast<half_t>(f); }
+inline void float_write_helper(ov::float16* mem, float f) { *mem = static_cast<ov::float16>(f); }
 
 /****************************************************************************
  *                                                                          *
@@ -191,7 +191,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
 
     explicit proposal_impl(const proposal_node& arg) {}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::proposal_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<proposal_impl>(*this);
@@ -284,7 +284,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         int fm_sz = fm_w * fm_h;
 
         mem_lock<dtype, mem_lock_type::read> cls_scores_ptr{cls_scores, stream};
-        mem_lock<dtype, mem_lock_type::read> bbox_pred_ptr{bbox_pred, stream};
+        mem_lock<dtype, mem_lock_type::read> bbox_pred_ptr{std::move(bbox_pred), stream};
         const dtype* cls_scores_mem = cls_scores_ptr.data();
         const dtype* bbox_pred_mem = bbox_pred_ptr.data();
 
@@ -396,9 +396,9 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         auto ev = instance.get_network().get_stream().create_user_event(false);
         im_info_t im_info;
         if (instance.dep_memory(proposal_inst::image_info_index).get_layout().data_type == data_types::f16) {
-            read_image_info<data_type_to_type<data_types::f16>::type>(stream, instance, im_info);
+            read_image_info<ov::element_type_traits<data_types::f16>::value_type>(stream, instance, im_info);
         } else {
-            read_image_info<data_type_to_type<data_types::f32>::type>(stream, instance, im_info);
+            read_image_info<ov::element_type_traits<data_types::f32>::value_type>(stream, instance, im_info);
         }
 
         if (instance.dep_memory(proposal_inst::cls_scores_index).get_layout().data_type !=
@@ -408,17 +408,26 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         if (instance.dependencies().size() == 4) {
             auto proposal_probabilities = instance.dep_memory_ptr(proposal_inst::proposal_probabilities_out);
             if (instance.dep_memory(proposal_inst::cls_scores_index).get_layout().data_type == data_types::f16) {
-                mem_lock<data_type_to_type<data_types::f16>::type, mem_lock_type::read> proposal_prob_ptr{proposal_probabilities, stream};
-                execute<data_type_to_type<data_types::f16>::type>(stream, instance, im_info, proposal_prob_ptr.data());
+                mem_lock<ov::element_type_traits<data_types::f16>::value_type, mem_lock_type::read> proposal_prob_ptr{proposal_probabilities, stream};
+                execute<ov::element_type_traits<data_types::f16>::value_type>(stream, instance, im_info, proposal_prob_ptr.data());
             } else {
-                mem_lock<data_type_to_type<data_types::f32>::type, mem_lock_type::read> proposal_prob_ptr{proposal_probabilities, stream};
-                execute<data_type_to_type<data_types::f32>::type>(stream, instance, im_info, proposal_prob_ptr.data());
+                mem_lock<ov::element_type_traits<data_types::f32>::value_type, mem_lock_type::read> proposal_prob_ptr{proposal_probabilities, stream};
+                execute<ov::element_type_traits<data_types::f32>::value_type>(stream, instance, im_info, proposal_prob_ptr.data());
+            }
+        } else if (instance.outputs_memory_count() == 2) {
+            auto proposal_probabilities = instance.output_memory_ptr(1);
+            if (instance.dep_memory(proposal_inst::cls_scores_index).get_layout().data_type == data_types::f16) {
+                mem_lock<ov::element_type_traits<data_types::f16>::value_type, mem_lock_type::write> proposal_prob_ptr{proposal_probabilities, stream};
+                execute<ov::element_type_traits<data_types::f16>::value_type>(stream, instance, im_info, proposal_prob_ptr.data());
+            } else {
+                mem_lock<ov::element_type_traits<data_types::f32>::value_type, mem_lock_type::write> proposal_prob_ptr{proposal_probabilities, stream};
+                execute<ov::element_type_traits<data_types::f32>::value_type>(stream, instance, im_info, proposal_prob_ptr.data());
             }
         } else {
             if (instance.dep_memory(proposal_inst::cls_scores_index).get_layout().data_type == data_types::f16) {
-                execute<data_type_to_type<data_types::f16>::type>(stream, instance, im_info);
+                execute<ov::element_type_traits<data_types::f16>::value_type>(stream, instance, im_info);
             } else {
-                execute<data_type_to_type<data_types::f32>::type>(stream, instance, im_info);
+                execute<ov::element_type_traits<data_types::f32>::value_type>(stream, instance, im_info);
             }
         }
 
@@ -430,14 +439,17 @@ struct proposal_impl : typed_primitive_impl<proposal> {
 
     static std::unique_ptr<primitive_impl> create(const proposal_node& arg, const kernel_impl_params& impl_param) {
         const layout& l = impl_param.input_layouts[2];
-        const size_t count = l.feature() == 1 ? static_cast<size_t>(l.batch()) : static_cast<size_t>(l.feature());
+        if (l.is_static() && l.get_partial_shape().size() >= 2) {
+            const size_t count = l.get_partial_shape()[1].get_length() == 1 ? l.get_partial_shape()[0].get_length() :
+                                 l.get_partial_shape()[1].get_length();
 
-        // Supported image_info sizes and components meaning:
-        // - image_info[3] = { img_height, img_width, img_depth }
-        // - image_info[4] = { img_height, img_width, scale_min_bbox_y, scale_min_bbox_x }
-        // - image_info[6] = { img_height, img_width, img_depth, scale_min_bbox_y, scale_min_bbox_x, scale_depth_index }
-        if (count != 3 && count != 4 && count != 6) {
-            CLDNN_ERROR_MESSAGE(arg.id(), "image_info must have either 3, 4 or 6 items");
+            // Supported image_info sizes and components meaning:
+            // - image_info[3] = { img_height, img_width, img_depth }
+            // - image_info[4] = { img_height, img_width, scale_min_bbox_y, scale_min_bbox_x }
+            // - image_info[6] = { img_height, img_width, img_depth, scale_min_bbox_y, scale_min_bbox_x, scale_depth_index }
+            if (count != 3 && count != 4 && count != 6) {
+                CLDNN_ERROR_MESSAGE(arg.id(), "image_info must have either 3, 4 or 6 items");
+            }
         }
 
         return make_unique<proposal_impl>(arg);
@@ -447,10 +459,17 @@ struct proposal_impl : typed_primitive_impl<proposal> {
 namespace detail {
 
 attach_proposal_impl::attach_proposal_impl() {
-    implementation_map<proposal>::add(impl_types::cpu, proposal_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx)
-    });
+    auto formats = {
+        format::bfyx
+    };
+
+    auto types = {
+        data_types::f32,
+        data_types::f16
+    };
+
+    implementation_map<proposal>::add(impl_types::cpu, shape_types::static_shape, proposal_impl::create, types, formats);
+    implementation_map<proposal>::add(impl_types::cpu, shape_types::dynamic_shape, proposal_impl::create, types, formats);
 }
 
 }  // namespace detail

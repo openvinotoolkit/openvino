@@ -27,6 +27,7 @@
 #include "gna_plugin_config.hpp"
 #include "log/debug.hpp"
 #include "log/log.hpp"
+#include "pre_post_process/input_output_data_handler.hpp"
 #include "pre_post_process/transposition_info.hpp"
 
 namespace ov {
@@ -36,6 +37,8 @@ class ModelWrapper;
 class WorkerPool;
 class Worker;
 }  // namespace request
+
+using namespace ov::intel_gna::pre_post_processing;
 
 class GNAPlugin : public InferenceEngine::IInferencePlugin {
 protected:
@@ -47,8 +50,8 @@ protected:
     std::shared_ptr<gna_memory_type> gnamem;
     std::shared_ptr<GnaInputs> inputs_ptr_;
     GnaOutputs outputs_;
-
-    GNAGraphCompiler graphCompiler;
+    std::shared_ptr<GNAGraphCompiler> m_graph_compiler;
+    pre_post_processing::InputOutputDataHandler m_input_output_handler;
 
     uint32_t activeLayerIndex = 0xffffffff;
     // TODO: transpose_inputs_info and transpose_outputs_info should be moved to GNAModelSerial class when ngraph
@@ -67,7 +70,7 @@ protected:
     /**
      * @brief size of RW segment without extra memory for parallel execution
      */
-    uint32_t rwSegmentSize = 0;
+    size_t rwSegmentSize = 0;
 
     InferenceEngine::InputsDataMap inputs_data_map_;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap outputs_data_map_;  //!< Holds information about network outputs data
@@ -189,6 +192,8 @@ protected:
     void Init();
 
     void InitGNADevice();
+    void InitGNAMemory();
+    void InitGraphCompiler();
 
     void DumpXNNToFile() const;
     /**
@@ -203,37 +208,12 @@ protected:
                         InferenceEngine::Blob::Ptr output_blob,
                         std::shared_ptr<ov::Model> model);
 
-    void ImportFrames(void* ptr_dst,
-                      const void* ptr_src,
-                      InferenceEngine::Precision input_precision,
-                      float scaleFactor,
-                      intel_dnn_orientation_t orientation,
-                      uint32_t num_frames,
-                      uint32_t num_group,
-                      uint32_t num_vector_elements,
-                      uint32_t num_vector_stride);
-
-    void ExportScores(void* ptr_dst,
-                      const void* ptr_src,
-                      intel_dnn_orientation_t orientation,
-                      uint32_t num_frames,
-                      uint32_t num_group,
-                      uint32_t num_vector_elements,
-                      uint32_t num_active_elements,
-                      uint32_t num_vector_stride,
-                      InferenceEngine::Precision precision_in,
-                      InferenceEngine::Precision precision_out);
-
-    template <typename T, typename U>
-    void copyInputData(T* dst,
-                       const U* src,
-                       uint32_t num_frames,
-                       uint32_t num_group,
-                       uint32_t num_vector_elements,
-                       uint32_t num_vector_stride,
-                       intel_dnn_orientation_t orientation,
-                       float scaleFactor);
-
+    /**
+     * Run ngraph model on CPU to modify inputs/outputs
+     */
+    void pre_post_process(InferenceEngine::Blob::Ptr input_blob,
+                          InferenceEngine::Blob::Ptr output_blob,
+                          std::shared_ptr<ov::Model> model);
     void UpdateFieldsFromConfig();
     void UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network);
     void UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwork&);
@@ -245,14 +225,6 @@ protected:
      * @return true if the output is initiated, false otherwise
      */
     bool TryToInitOutput(const std::string& portName, InferenceEngine::CNNLayerPtr layer);
-
-    /**
-     * @brief Fills inputs and outputs transposition info for model convertion from NCHW to NHWC.
-     *        Information for transposition is found from convolution/pooling input or output dimensions.
-     * @param layers model sorted layers
-     */
-    void FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNNNetwork& net);
-
     bool isFP32ModeActive() const;
     std::shared_ptr<request::ModelWrapper> createModelWrapperForLoadNetwork(bool trivial);
     std::shared_ptr<request::ModelWrapper> createModelWrapperForImportNetwork(uint32_t numberOfOperations);

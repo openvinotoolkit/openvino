@@ -30,18 +30,6 @@ std::vector<int32_t> convert_dimensions(const std::vector<int32_t>& sizes, std::
 
 }  // namespace
 
-// The definitions below are needed to follow ODR
-// Otherwise statements like
-//     optional_value ov = type_to_data_type<float>::value;
-//     optional_value ov(type_to_data_type<float>::value);
-// violate ODR and leads to undefined behavior
-const data_types type_to_data_type<int8_t>::value;
-const data_types type_to_data_type<uint8_t>::value;
-const data_types type_to_data_type<int32_t>::value;
-const data_types type_to_data_type<int64_t>::value;
-const data_types type_to_data_type<half_t>::value;
-const data_types type_to_data_type<float>::value;
-
 size_t layout::get_rank() const {
     return format.dimension();
 }
@@ -138,10 +126,16 @@ static format to_weights_format(format f, bool is_grouped) {
     switch (f) {
         case format::bfyx:
             return format::oiyx;
+        case format::fbyx:
+            return format::ioyx;
         case format::fyxb:
             return format::iyxo;
         case format::byxf:
             return format::oyxi;
+        case format::byfx:
+            return format::oyix;
+        case format::bxfy:
+            return format::oxiy;
         case format::yxfb:
             return format::yxio;
         case format::bfzyx:
@@ -151,12 +145,12 @@ static format to_weights_format(format f, bool is_grouped) {
                 throw std::runtime_error("Invalid conversion of data format to weights format. bfwzyx can't be non-grouped as 4D spatials are not supported");
             return format::goizyx;
         }
+        case format::b_fs_yx_fsv4:
+            return format::o_is_yx_isv4;
         case format::b_fs_yx_fsv16:
             return format::o_is_yx_isv16;
         case format::bs_fs_fsv8_bsv8:
             return format::os_i_osv8__ai8;
-        case format::b_fs_yx_32fp:
-            return format::os_is_yx_osv32_isv32p;
         default:
             throw std::invalid_argument("Unable to convert data format " + f.to_string() + " to weights format");
     }
@@ -183,7 +177,7 @@ std::vector<size_t> layout::get_dims_order() const {
 std::string layout::to_string() const {
     std::stringstream s;
     s << "\n{\n"
-      << "\tdata_type=" << data_type_traits::name(data_type) << ";\n"
+      << "\tdata_type=" << ov::element::Type(data_type) << ";\n"
       << "\tformat=" << format.to_string() << ";\n"
       << "\tshape=" << size << ";\n"
       << "\tpad_l=" << data_padding.lower_size().to_string() << ";\n"
@@ -207,12 +201,18 @@ std::string layout::to_short_string() const {
         }
     };
 
-    s << data_type_traits::name(data_type) << ":" << format.to_string() << ":";
+    s << ov::element::Type(data_type) << ":" << format.to_string() << ":";
     dump_shape(s, size);
-    if (data_padding)
-        s << ":pad";
-    else
-        s << ":nopad";
+
+    if (data_padding.get_dynamic_pad_dims() != tensor(0)) {
+        s << ":dyn_pad_dims";
+    } else {
+        if (data_padding)
+            s << ":pad";
+        else
+            s << ":nopad";
+    }
+
     return s.str();
 }
 
@@ -375,11 +375,6 @@ size_t layout::get_linear_size() const {
         sizes[1] = align_to(sizes[1], 4);
         sizes[0] = align_to(sizes[0], 8);
         sizes[2] = align_to(sizes[2], 8);
-    } else if (this->format == cldnn::format::b_fs_yx_32fp) {
-        sizes[1] = align_to(sizes[1], 32);
-    } else if (this->format == cldnn::format::os_is_yx_osv32_isv32p) {
-        sizes[0] = align_to(sizes[0], 32);
-        sizes[1] = align_to(sizes[1], 32);
     } else if (this->format == cldnn::format::image_2d_rgba) {
         sizes[1] = 4;
     } else if (this->format == cldnn::format::gs_oi_yxs_gsv4_yxsv4 ||
@@ -409,7 +404,7 @@ size_t layout::get_linear_size() const {
         static_cast<size_t>(1),
         std::multiplies<size_t>());
 
-    return (this->data_type == data_types::bin) ? ceil_div(total, 32) : total;
+    return total;
 }
 
 layout layout::with_padding(padding const& padd) const {

@@ -12,30 +12,48 @@ class TestSub(PytorchLayerTest):
     def _prepare_input(self):
         return self.input_data
 
-    def create_model(self):
+    def create_model(self, inplace):
 
         class aten_sub(torch.nn.Module):
+            def __init__(self, inplace) -> None:
+                super().__init__()
+                if inplace:
+                    self.forward = self._forward_inplace
+                else:
+                    self.forward = self._forward_out_of_place
 
-            def forward(self, x, y, alpha: float):
+            def _forward_out_of_place(self, x, y, alpha: float):
                 return torch.sub(x, y, alpha=alpha)
+
+            def _forward_inplace(self, x, y, alpha: float):
+                return x.sub_(y, alpha=alpha)
 
         ref_net = None
 
-        return aten_sub(), ref_net, "aten::sub"
+        if inplace:
+            op_name = "aten::sub_"
+        else:
+            op_name = "aten::sub"
 
-    @pytest.mark.parametrize('input_data', [(np.random.randn(2, 3, 4).astype(np.float32),
-                                             np.random.randn(
-                                                 2, 3, 4).astype(np.float32),
-                                             np.random.randn(1)),
-                                            (np.random.randn(4, 2, 3).astype(np.float32),
-                                             np.random.randn(
-                                                 1, 2, 3).astype(np.float32),
-                                             np.random.randn(1)), ])
+        return aten_sub(inplace), ref_net, op_name
+
+    @pytest.mark.parametrize('input_shapes',
+    [
+        [
+            [2, 3, 4], [2, 3, 4], [1]
+        ],
+        [
+            [4, 2, 3], [1, 2, 3], [1]
+        ]
+    ])
+    @pytest.mark.parametrize("inplace", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_sub(self, ie_device, precision, ir_version, input_data):
-        self.input_data = input_data
-        self._test(*self.create_model(), ie_device, precision, ir_version)
+    def test_sub(self, ie_device, precision, ir_version, input_shapes, inplace):
+        self.input_data = []
+        for input_shape in input_shapes:
+            self.input_data.append(np.random.randn(*input_shape).astype(np.float32))
+        self._test(*self.create_model(inplace), ie_device, precision, ir_version, use_convert_model=True)
 
 
 class TestSubTypes(PytorchLayerTest):

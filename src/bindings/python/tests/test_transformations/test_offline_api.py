@@ -16,10 +16,10 @@ from openvino._offline_transformations import (
     apply_fused_names_cleanup,
 )
 
-from openvino.runtime import Model, PartialShape, Core, serialize
+from openvino.runtime import Model, PartialShape, Core, serialize, save_model
 import openvino.runtime as ov
 
-from tests.test_utils.test_utils import create_filename_for_test, compare_models
+from tests.utils.helpers import create_filename_for_test, compare_models, _compare_models
 
 
 def get_relu_model():
@@ -165,6 +165,32 @@ def test_fused_names_cleanup():
         assert len(node.get_rt_info()) == 0
 
 
+def prepare_test_model_for_serialize(request, tmp_path, is_path_xml, is_path_bin):
+    xml_path, bin_path = create_filename_for_test(request.node.name,
+                                                  tmp_path,
+                                                  is_path_xml,
+                                                  is_path_bin)
+    shape = [100, 100, 2]
+    parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
+    parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
+    node_floor = ov.opset8.floor(ov.opset8.minimum(ov.opset8.abs(parameter_a), parameter_b))
+    node_constant = ov.opset8.constant(np.array(0.1, dtype=np.float32))
+    node_ceil = ov.opset8.ceiling(node_constant)
+    node_add = ov.opset8.add(node_ceil, node_floor)
+    return Model([node_add], [parameter_a, parameter_b], "Model"), xml_path, bin_path
+
+
+def compare_models_and_finalize_after_test(model, xml_path, bin_path):
+    assert model is not None
+    core = Core()
+    res_model = core.read_model(model=xml_path, weights=bin_path)
+    assert compare_models(model, res_model)
+    del res_model
+    del model
+    os.remove(xml_path)
+    os.remove(bin_path)
+
+
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 @pytest.mark.parametrize("is_path_xml, is_path_bin", [  # noqa: PT006
     (True, True),
@@ -174,27 +200,41 @@ def test_fused_names_cleanup():
 ],
 )
 def test_serialize_pass_v2(request, tmp_path, is_path_xml, is_path_bin):
-    core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name,
-                                                  tmp_path,
-                                                  is_path_xml,
-                                                  is_path_bin)
-    shape = [100, 100, 2]
-    parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
-    parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
-    _model = ov.opset8.floor(ov.opset8.minimum(ov.opset8.abs(parameter_a), parameter_b))
-    model = Model(_model, [parameter_a, parameter_b], "Model")
-
+    model, xml_path, bin_path = prepare_test_model_for_serialize(request, tmp_path, is_path_xml, is_path_bin)
     serialize(model, xml_path, bin_path)
+    compare_models_and_finalize_after_test(model, xml_path, bin_path)
 
+
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+@pytest.mark.parametrize("is_path_xml", [  # noqa: PT006
+    (True),
+    (False),
+],
+)
+def test_save_model(request, tmp_path, is_path_xml):
+    model, xml_path, bin_path = prepare_test_model_for_serialize(request, tmp_path, is_path_xml, False)
+    save_model(model, xml_path, compress_to_fp16=False)
+    compare_models_and_finalize_after_test(model, xml_path, bin_path)
+
+
+def test_save_model_fp16(request, tmp_path):
+    model, xml_path, bin_path = prepare_test_model_for_serialize(request, tmp_path, False, False)
+    save_model(model, xml_path)
     assert model is not None
-
+    core = Core()
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
+    # number of operations are different due to an extra Convert op
+    # test model has only single constant that can be compressed, so
+    # only a single extra op is expected
+    assert len(model.get_ops()) + 1 == len(res_model.get_ops())
+
+    # after compression of original modlel to fp16, they should match
+    compress_model_transformation(model)
     assert compare_models(model, res_model)
 
     del res_model
-
+    del model
     os.remove(xml_path)
     os.remove(bin_path)
 
@@ -203,12 +243,12 @@ def test_compress_model_transformation():
     node_constant = ov.opset8.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
     node_ceil = ov.opset8.ceiling(node_constant)
     model = Model(node_ceil, [], "TestModel")
-    elem_type = model.get_ordered_ops()[0].get_element_type().get_type_name()
+    elem_type = model.get_ordered_ops()[0].get_element_type().to_string()
     assert elem_type == "f32"
     compress_model_transformation(model)
 
     assert model is not None
-    elem_type = model.get_ordered_ops()[0].get_element_type().get_type_name()
+    elem_type = model.get_ordered_ops()[0].get_element_type().to_string()
     assert elem_type == "f16"
 
 

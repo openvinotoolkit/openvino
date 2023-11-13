@@ -12,8 +12,8 @@
 #include <vector>
 
 #include "functional_test_utils/blob_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 typedef std::tuple<std::vector<size_t>,                 // Input shape
@@ -46,7 +46,7 @@ public:
         for (auto const& configItem : importConfiguration) {
             result << "_importConfigItem=" << configItem.first << "_" << configItem.second;
         }
-        result << CommonTestUtils::vec2str(inputShape);
+        result << ov::test::utils::vec2str(inputShape);
         return result.str();
     }
 
@@ -118,13 +118,13 @@ protected:
         std::tie(inputShape, netPrecision, targetDevice, exportConfiguration, importConfiguration) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         auto relu1 = std::make_shared<ngraph::opset1::Relu>(params[0]);
 
         size_t num_out_channels = 8;
         size_t kernel_size = 8;
         std::vector<float> filter_weights =
-            CommonTestUtils::generate_float_numbers(num_out_channels * inputShape[1] * kernel_size, -0.2f, 0.2f);
+            ov::test::utils::generate_float_numbers(num_out_channels * inputShape[1] * kernel_size, -0.2f, 0.2f);
         auto conv = ngraph::builder::makeConvolution(relu1,
                                                      ngPrc,
                                                      {1, kernel_size},
@@ -164,7 +164,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ImportActConvAct,
                          ImportActConvActTest,
                          ::testing::Combine(::testing::ValuesIn(inputShape),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(exportConfigs),
                                             ::testing::ValuesIn(importConfigs)),
                          ImportActConvActTest::getTestCaseName);

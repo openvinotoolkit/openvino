@@ -199,7 +199,12 @@ def get_image_tensors(image_paths: List[str], info: AppInputInfo, batch_sizes: L
                 tensors.append(Tensor(image.astype(dtype)))
             else:
                 try:
-                    images[b] = image
+                    if 3 == images[b].ndim and 1 == images[b].shape[2] and 2 == image.ndim:
+                        # The model last dim has length 1, which means it takes greyscale images.
+                        # Extend input image dims to match it
+                        images[b] = image[:, :, None]
+                    else:
+                        images[b] = image
                 except ValueError:
                     raise Exception(f"Image shape {image.shape} is not compatible with input shape {shape}! "
                                     f"Make sure -i parameter is valid.")

@@ -2,38 +2,38 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/fq_reshape_fusion.hpp"
+
 #include <gtest/gtest.h>
 
-#include <common_test_utils/ngraph_test_utils.hpp>
 #include <map>
 #include <memory>
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset4.hpp>
-#include <ngraph/pass/manager.hpp>
 #include <string>
-#include <transformations/common_optimizations/fq_reshape_fusion.hpp>
-#include <transformations/init_node_info.hpp>
 
-#include "cnn_network_ngraph_impl.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset4.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
 
+using namespace ov;
 using namespace testing;
-using namespace InferenceEngine;
 
 namespace {
 
-ngraph::Shape DO_NOT_RESHAPE = ngraph::Shape{0};
+Shape DO_NOT_RESHAPE = Shape{0};
 
 struct FQReshapeFusionTestCase {
-    ngraph::Shape data_shape, il_shape, ih_shape, ol_shape, oh_shape;
+    Shape data_shape, il_shape, ih_shape, ol_shape, oh_shape;
     std::vector<int64_t> reshape_pattern;
-    ngraph::Shape new_il_shape, new_ih_shape, new_ol_shape, new_oh_shape;
+    Shape new_il_shape, new_ih_shape, new_ol_shape, new_oh_shape;
     bool is_negative;
 };
 
-class nGraphFQReshapeFusionTests : public CommonTestUtils::TestsCommon,
-                                   public testing::WithParamInterface<std::tuple<FQReshapeFusionTestCase>> {
+class FQReshapeFusionTests : public ov::test::TestsCommon,
+                             public testing::WithParamInterface<std::tuple<FQReshapeFusionTestCase>> {
 public:
-    std::shared_ptr<ngraph::Function> f, ref_f;
+    std::shared_ptr<ov::Model> f, ref_f;
 
     void SetUp() override {
         const auto& test_case = std::get<0>(GetParam());
@@ -45,90 +45,81 @@ public:
     }
 
 private:
-    std::shared_ptr<ngraph::Function> get_initial_function(const FQReshapeFusionTestCase& test_case) {
-        const auto& data = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, test_case.data_shape, 0);
-        auto il = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, test_case.il_shape);
-        auto ih = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, test_case.ih_shape);
-        auto ol = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, test_case.ol_shape);
-        auto oh = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, test_case.oh_shape);
+    std::shared_ptr<ov::Model> get_initial_function(const FQReshapeFusionTestCase& test_case) {
+        const auto& data = std::make_shared<opset4::Constant>(element::f32, test_case.data_shape, 0);
+        auto il = std::make_shared<opset4::Parameter>(element::f32, test_case.il_shape);
+        auto ih = std::make_shared<opset4::Parameter>(element::f32, test_case.ih_shape);
+        auto ol = std::make_shared<opset4::Parameter>(element::f32, test_case.ol_shape);
+        auto oh = std::make_shared<opset4::Parameter>(element::f32, test_case.oh_shape);
 
-        auto fq = std::make_shared<ngraph::opset4::FakeQuantize>(data, il, ih, ol, oh, 42);
+        auto fq = std::make_shared<opset4::FakeQuantize>(data, il, ih, ol, oh, 42);
 
-        auto reshape_pattern =
-            std::make_shared<ngraph::opset4::Constant>(ngraph::element::i64,
-                                                       ngraph::Shape{test_case.reshape_pattern.size()},
-                                                       test_case.reshape_pattern);
-        auto reshape = std::make_shared<ngraph::opset4::Reshape>(fq, reshape_pattern, true);
+        auto reshape_pattern = std::make_shared<opset4::Constant>(element::i64,
+                                                                  Shape{test_case.reshape_pattern.size()},
+                                                                  test_case.reshape_pattern);
+        auto reshape = std::make_shared<opset4::Reshape>(fq, reshape_pattern, true);
 
-        auto result = std::make_shared<ngraph::op::Result>(reshape);
-        ngraph::ParameterVector params = {il, ih, ol, oh};
-        ngraph::ResultVector results = {result};
-        return std::make_shared<ngraph::Function>(results, params);
+        auto result = std::make_shared<op::v0::Result>(reshape);
+        ParameterVector params = {il, ih, ol, oh};
+        ResultVector results = {result};
+        return std::make_shared<ov::Model>(results, params);
     }
 
-    std::shared_ptr<ngraph::Function> get_reference_function(const FQReshapeFusionTestCase& test_case) {
-        const auto& data = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, test_case.data_shape, 0);
-        const auto& reshaped_data = std::make_shared<ngraph::opset4::Reshape>(
+    std::shared_ptr<ov::Model> get_reference_function(const FQReshapeFusionTestCase& test_case) {
+        const auto& data = std::make_shared<opset4::Constant>(element::f32, test_case.data_shape, 0);
+        const auto& reshaped_data = std::make_shared<opset4::Reshape>(
             data,
-            std::make_shared<ngraph::opset4::Constant>(ngraph::element::i64,
-                                                       ngraph::Shape{test_case.reshape_pattern.size()},
-                                                       test_case.reshape_pattern),
+            std::make_shared<opset4::Constant>(element::i64,
+                                               Shape{test_case.reshape_pattern.size()},
+                                               test_case.reshape_pattern),
             true);
 
-        const auto& p_il = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, test_case.il_shape);
-        ngraph::Output<ngraph::Node> il = p_il;
-        const auto& p_ih = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, test_case.ih_shape);
-        ngraph::Output<ngraph::Node> ih = p_ih;
-        const auto& p_ol = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, test_case.ol_shape);
-        ngraph::Output<ngraph::Node> ol = p_ol;
-        const auto& p_oh = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, test_case.oh_shape);
-        ngraph::Output<ngraph::Node> oh = p_oh;
+        const auto& p_il = std::make_shared<opset4::Parameter>(element::f32, test_case.il_shape);
+        Output<Node> il = p_il;
+        const auto& p_ih = std::make_shared<opset4::Parameter>(element::f32, test_case.ih_shape);
+        Output<Node> ih = p_ih;
+        const auto& p_ol = std::make_shared<opset4::Parameter>(element::f32, test_case.ol_shape);
+        Output<Node> ol = p_ol;
+        const auto& p_oh = std::make_shared<opset4::Parameter>(element::f32, test_case.oh_shape);
+        Output<Node> oh = p_oh;
 
         if (test_case.new_il_shape != DO_NOT_RESHAPE)
-            il = std::make_shared<ngraph::opset4::Reshape>(
+            il = std::make_shared<opset4::Reshape>(
                 il,
-                ngraph::opset4::Constant::create(ngraph::element::i64,
-                                                 {test_case.new_il_shape.size()},
-                                                 test_case.new_il_shape),
+                opset4::Constant::create(element::i64, {test_case.new_il_shape.size()}, test_case.new_il_shape),
                 true);
         if (test_case.new_ih_shape != DO_NOT_RESHAPE)
-            ih = std::make_shared<ngraph::opset4::Reshape>(
+            ih = std::make_shared<opset4::Reshape>(
                 ih,
-                ngraph::opset4::Constant::create(ngraph::element::i64,
-                                                 {test_case.new_ih_shape.size()},
-                                                 test_case.new_ih_shape),
+                opset4::Constant::create(element::i64, {test_case.new_ih_shape.size()}, test_case.new_ih_shape),
                 true);
         if (test_case.new_ol_shape != DO_NOT_RESHAPE)
-            ol = std::make_shared<ngraph::opset4::Reshape>(
+            ol = std::make_shared<opset4::Reshape>(
                 ol,
-                ngraph::opset4::Constant::create(ngraph::element::i64,
-                                                 {test_case.new_ol_shape.size()},
-                                                 test_case.new_ol_shape),
+                opset4::Constant::create(element::i64, {test_case.new_ol_shape.size()}, test_case.new_ol_shape),
                 true);
         if (test_case.new_oh_shape != DO_NOT_RESHAPE)
-            oh = std::make_shared<ngraph::opset4::Reshape>(
+            oh = std::make_shared<opset4::Reshape>(
                 oh,
-                ngraph::opset4::Constant::create(ngraph::element::i64,
-                                                 {test_case.new_oh_shape.size()},
-                                                 test_case.new_oh_shape),
+                opset4::Constant::create(element::i64, {test_case.new_oh_shape.size()}, test_case.new_oh_shape),
                 true);
 
-        auto fq = std::make_shared<ngraph::opset4::FakeQuantize>(reshaped_data, il, ih, ol, oh, 42);
+        auto fq = std::make_shared<opset4::FakeQuantize>(reshaped_data, il, ih, ol, oh, 42);
 
-        auto result = std::make_shared<ngraph::op::Result>(fq);
-        ngraph::ParameterVector params = {p_il, p_ih, p_ol, p_oh};
-        ngraph::ResultVector results = {result};
-        return std::make_shared<ngraph::Function>(results, params);
+        auto result = std::make_shared<op::v0::Result>(fq);
+        ParameterVector params = {p_il, p_ih, p_ol, p_oh};
+        ResultVector results = {result};
+        return std::make_shared<ov::Model>(results, params);
     }
 };
 
-TEST_P(nGraphFQReshapeFusionTests, ReshapeMatMul) {
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
-    ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
+TEST_P(FQReshapeFusionTests, ReshapeMatMul) {
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
+    pass::Manager manager;
+    manager.register_pass<ov::pass::InitUniqueNames>(unh);
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::pass::FakeQuantizeReshapeFusion>();
-    manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+    manager.register_pass<ov::pass::CheckUniqueNames>(unh);
 
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
@@ -141,7 +132,7 @@ TEST_P(nGraphFQReshapeFusionTests, ReshapeMatMul) {
 
 INSTANTIATE_TEST_SUITE_P(
     NGraph,
-    nGraphFQReshapeFusionTests,
+    FQReshapeFusionTests,
     testing::Values(
         // positive
         FQReshapeFusionTestCase{{1, 2, 1, 3},
@@ -184,29 +175,28 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_F(TransformationTestsF, FQReshapeGroupConvolution) {
     auto get_function = [](const FQReshapeFusionTestCase& test_case) {
-        const auto& data = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, test_case.data_shape, 0);
-        auto il = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, test_case.il_shape);
-        auto ih = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, test_case.ih_shape);
-        auto ol = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, test_case.ol_shape);
-        auto oh = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, test_case.oh_shape);
+        const auto& data = std::make_shared<opset4::Constant>(element::f32, test_case.data_shape, 0);
+        auto il = std::make_shared<opset4::Parameter>(element::f32, test_case.il_shape);
+        auto ih = std::make_shared<opset4::Parameter>(element::f32, test_case.ih_shape);
+        auto ol = std::make_shared<opset4::Parameter>(element::f32, test_case.ol_shape);
+        auto oh = std::make_shared<opset4::Parameter>(element::f32, test_case.oh_shape);
 
-        auto fq = std::make_shared<ngraph::opset4::FakeQuantize>(data, il, ih, ol, oh, 42);
+        auto fq = std::make_shared<opset4::FakeQuantize>(data, il, ih, ol, oh, 42);
 
-        auto reshape_pattern =
-            std::make_shared<ngraph::opset4::Constant>(ngraph::element::i64,
-                                                       ngraph::Shape{test_case.reshape_pattern.size()},
-                                                       test_case.reshape_pattern);
-        auto reshape = std::make_shared<ngraph::opset4::Reshape>(fq, reshape_pattern, true);
+        auto reshape_pattern = std::make_shared<opset4::Constant>(element::i64,
+                                                                  Shape{test_case.reshape_pattern.size()},
+                                                                  test_case.reshape_pattern);
+        auto reshape = std::make_shared<opset4::Reshape>(fq, reshape_pattern, true);
 
-        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, test_case.data_shape);
-        ngraph::Strides stride{1, 1};
-        ngraph::CoordinateDiff pad{0, 0};
-        auto group_conv = std::make_shared<ngraph::opset4::GroupConvolution>(input, reshape, stride, pad, pad, stride);
+        auto input = std::make_shared<opset4::Parameter>(element::f32, test_case.data_shape);
+        Strides stride{1, 1};
+        CoordinateDiff pad{0, 0};
+        auto group_conv = std::make_shared<opset4::GroupConvolution>(input, reshape, stride, pad, pad, stride);
 
-        auto result = std::make_shared<ngraph::op::Result>(group_conv);
-        ngraph::ParameterVector params = {il, ih, ol, oh, input};
-        ngraph::ResultVector results = {result};
-        return std::make_shared<ngraph::Function>(results, params);
+        auto result = std::make_shared<op::v0::Result>(group_conv);
+        ParameterVector params = {il, ih, ol, oh, input};
+        ResultVector results = {result};
+        return std::make_shared<ov::Model>(results, params);
     };
 
     FQReshapeFusionTestCase params;
@@ -217,9 +207,9 @@ TEST_F(TransformationTestsF, FQReshapeGroupConvolution) {
     params.oh_shape = {1, 2, 1, 1};
     params.reshape_pattern = {2, 3, 1, 1, 1};
 
-    function = get_function(params);
+    model = get_function(params);
 
-    ngraph::pass::Manager manager;
+    pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::pass::FakeQuantizeReshapeFusion>();
 }

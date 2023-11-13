@@ -5,24 +5,17 @@
 #include <behavior/plugin/core_threading.hpp>
 #ifdef __GLIBC__
 #include <gnu/libc-version.h>
-#if __GLIBC_MINOR__  >= 34
-    #define ENABLETESTMULTI
-#endif
 #endif
 
 namespace {
 
 const Params params[] = {
-    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_CPU, {{ CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) }}},
-    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_HETERO, {{ "TARGET_FALLBACK", CommonTestUtils::DEVICE_CPU }}},
-#ifdef ENABLETESTMULTI
-    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_MULTI, {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU }}},
-    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_AUTO, {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU }}},
-#endif
+    std::tuple<Device, Config>{ ov::test::utils::DEVICE_CPU, {{ CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) }}},
+    std::tuple<Device, Config>{ ov::test::utils::DEVICE_HETERO, {{ "TARGET_FALLBACK", ov::test::utils::DEVICE_CPU }}},
 };
 
 const Params paramsStreams[] = {
-    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_CPU, {{ CONFIG_KEY(CPU_THROUGHPUT_STREAMS), CONFIG_VALUE(CPU_THROUGHPUT_AUTO) }}},
+    std::tuple<Device, Config>{ ov::test::utils::DEVICE_CPU, {{ CONFIG_KEY(CPU_THROUGHPUT_STREAMS), CONFIG_VALUE(CPU_THROUGHPUT_AUTO) }}},
 };
 }  // namespace
 

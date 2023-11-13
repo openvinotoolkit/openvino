@@ -5,7 +5,7 @@
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -60,9 +60,9 @@ public:
         result << "netPRC=" << netPrecision << "_";
         result << "inPRC=" << inPrc << "_";
         result << "outPRC=" << outPrc << "_";
-        result << "IS=" << CommonTestUtils::partialShape2str({inputShape.first}) << "_" << "TS=(";
+        result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_" << "TS=(";
         for (const auto& shape : inputShape.second) {
-            result << CommonTestUtils::vec2str(shape) << "_";
+            result << ov::test::utils::vec2str(shape) << "_";
         }
 
         result << CPUTestsBase::getTestCaseName(cpuParams);
@@ -80,7 +80,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         basicTopKParams basicParamsSet;
         CPUSpecificParams cpuParams;
@@ -116,7 +116,7 @@ protected:
             }
         }
 
-        auto params = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes[0]});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
 
         // static shape need specific const k to test different sorting algorithms, dynamic shape tests random param k
         std::shared_ptr<ov::op::v11::TopK> topk;

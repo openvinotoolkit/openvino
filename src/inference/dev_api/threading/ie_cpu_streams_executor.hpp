@@ -33,7 +33,7 @@ public:
      * @brief Constructor
      * @param config Stream executor parameters
      */
-    explicit CPUStreamsExecutor(const InferenceEngine::IStreamsExecutor::Config& config = {});
+    explicit CPUStreamsExecutor(const IStreamsExecutor::Config& config = {});
 
     /**
      * @brief A class destructor
@@ -47,6 +47,8 @@ public:
     int GetStreamId() override;
 
     int GetNumaNodeId() override;
+
+    int GetSocketId() override;
 
 private:
     struct Impl;

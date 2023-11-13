@@ -5,14 +5,15 @@
 #pragma once
 
 #include "openvino/op/experimental_detectron_generate_proposals.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace op {
 namespace v6 {
 
-template <class TShape>
-std::vector<TShape> shape_infer(const ExperimentalDetectronGenerateProposalsSingleImage* op,
-                                const std::vector<TShape>& input_shapes) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const ExperimentalDetectronGenerateProposalsSingleImage* op,
+                                 const std::vector<TShape>& input_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 4);
 
     const auto& im_info_shape = input_shapes[0];
@@ -69,18 +70,10 @@ std::vector<TShape> shape_infer(const ExperimentalDetectronGenerateProposalsSing
     }
 
     auto post_nms_count = static_cast<typename TShape::value_type>(op->get_attrs().post_nms_count);
-    auto output_shapes = std::vector<TShape>(2, TShape{post_nms_count});
+    auto output_shapes = std::vector<TRShape>(2, TRShape{post_nms_count});
     output_shapes[0].push_back(4);
     return output_shapes;
 }
-
-template <class TShape>
-void shape_infer(const ExperimentalDetectronGenerateProposalsSingleImage* op,
-                 const std::vector<TShape>& input_shapes,
-                 std::vector<TShape>& output_shapes) {
-    output_shapes = shape_infer(op, input_shapes);
-}
-
 }  // namespace v6
 }  // namespace op
 }  // namespace ov

@@ -1,99 +1,75 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "snippets/pass/common_optimizations.hpp"
 
-#include <memory>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/pass/constant_folding.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-
-#include "transformations/utils/utils.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/softmax_reshape_elimination.hpp"
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
+#include "snippets/pass/transpose_decomposition.hpp"
+#include "snippets/pass/fuse_transpose_brgemm.hpp"
+#include "snippets/pass/transform_convert.hpp"
+#include "snippets/pass/validate.hpp"
+#include "snippets/pass/split_dimension_m.hpp"
+#include "snippets/pass/extract_constants.hpp"
+#include "snippets/pass/extract_unsupported_transposes.hpp"
+#include "snippets/pass/subgraph_manager.hpp"
 #include "snippets/op/subgraph.hpp"
-#include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::CommonOptimizations, "Snippets::CommonOptimizations");
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace pass {
 
+#define REGISTER_SNIPPETS_PASS(manager, pass, enabled, ...) \
+    if (enabled) \
+        manager.register_pass<pass>(__VA_ARGS__);
 
-// Move up Constants which aren't scalars from body to Subgraph and replace them with Parameters inside body
-void ConvertConstantsToParameters(const std::shared_ptr<ngraph::snippets::op::Subgraph>& subgraph) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::ConvertConstantsToParameters");
-    auto body = subgraph->body_ptr();
-
-    ParameterVector new_parameters;
-    OutputVector new_external_inputs = subgraph->input_values();
-
-    for (auto& op : body->get_ops()) {
-        auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op);
-        if (!constant || ngraph::shape_size(constant->get_shape()) == 1ul)
-            continue;
-
-        const auto child = constant->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
-        if (op::Subgraph::constant_input_should_be_inside_body(child))
-            continue;
-
-        auto parameter = std::make_shared<opset1::Parameter>(constant->get_element_type(), constant->output(0).get_partial_shape());
-        parameter->set_friendly_name(constant->get_friendly_name());
-        ngraph::copy_runtime_info(constant, parameter);
-        constant->output(0).replace(parameter->output(0));
-
-        new_external_inputs.push_back(constant);
-        new_parameters.push_back(parameter);
-    }
-
-    if (new_parameters.size() != 0) {
-        body->add_parameters(new_parameters);
-        body->validate_nodes_and_infer_types();
-        subgraph->set_arguments(new_external_inputs);
-    }
-}
-
-CommonOptimizations::CommonOptimizations() {
+CommonOptimizations::CommonOptimizations(const SnippetsTokenization::Config& config) {
     MATCHER_SCOPE(CommonOptimizations);
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
-        OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::CommonOptimizations");
+    ov::graph_rewrite_callback callback = [&](ov::pass::pattern::Matcher& m) {
+        OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::CommonOptimizations");
 
-        auto subgraph = ngraph::as_type_ptr<ngraph::snippets::op::Subgraph>(m.get_match_root());
+        auto subgraph = ov::as_type_ptr<ov::snippets::op::Subgraph>(m.get_match_root());
         if (transformation_callback(subgraph)) {
             return false;
         }
 
-        auto body = subgraph->body_ptr();
+        const auto& body = subgraph->body_ptr();
         const auto is_quantized = subgraph->is_quantized();
+        const auto is_domain_sensitive = subgraph->has_domain_sensitive_ops();
 
-        // Firsly we should transform all original Converts inside body to ConvertTruncation to save original behavior.
+        // Firstly, we should transform all original Converts inside body to ConvertTruncation to save original behavior.
         // Then if Subgraph contains FakeQuantize we enable specific transformation for quantized subgraphs.
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::snippets::pass::TransformConvertToConvertTruncation>();
-        manager.register_pass<ngraph::snippets::pass::ExplicitTransposeMatMulInputs>();
-        if (is_quantized) {
-            manager.register_pass<ngraph::snippets::pass::CommonFakeQuantizeDecomposition>();
-        }
-        manager.register_pass<snippets::pass::SoftmaxReshapeElimination>();
+        ov::pass::Manager manager(get_pass_config());
+        REGISTER_SNIPPETS_PASS(manager, ov::snippets::pass::TransformConvertToConvertTruncation, true);
+        REGISTER_SNIPPETS_PASS(manager, ov::snippets::pass::ExplicitTransposeMatMulInputs, is_domain_sensitive);
+        REGISTER_SNIPPETS_PASS(manager, ov::snippets::pass::CommonFakeQuantizeDecomposition, is_quantized);
+        REGISTER_SNIPPETS_PASS(manager, ov::snippets::pass::SoftmaxReshapeElimination, is_domain_sensitive);
         manager.run_passes(body);
 
+        ov::snippets::pass::CommonOptimizations::SubgraphManager subgraph_manager;
         // At the moment only non-scalar Constants of FakeQuantize can be inside Subgraph
-        // so we can enable ConvertConstantsToParameters pass for quantized models
-        if (is_quantized) {
-            ConvertConstantsToParameters(subgraph);
-        }
+        // so we can enable ExtractConstants pass for quantized models
+        REGISTER_SNIPPETS_PASS(subgraph_manager, ov::snippets::pass::ExtractConstants, is_quantized);
+        REGISTER_SNIPPETS_PASS(subgraph_manager, ov::snippets::pass::ExtractUnsupportedTransposes, is_domain_sensitive);
+        REGISTER_SNIPPETS_PASS(subgraph_manager, ov::snippets::pass::SplitDimensionM, is_domain_sensitive && config.split_m_dimension, config.concurrency);
+        subgraph_manager.run_passes(subgraph);
+
+        // Validate the body after all common optimizations
+        ov::snippets::pass::Validate(get_pass_config()).run_on_model(body);
+
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<ngraph::snippets::op::Subgraph>(),
-                                                        matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(ov::pass::pattern::wrap_type<ov::snippets::op::Subgraph>(), matcher_name);
     this->register_matcher(m, callback);
 }
 
 } // namespace pass
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

@@ -54,6 +54,8 @@ namespace cldnn {
 struct broadcast : public primitive_base<broadcast> {
     CLDNN_DECLARE_PRIMITIVE(broadcast)
 
+    broadcast() : primitive_base("", {}) {}
+
     /// @brief Constructs broadcast primitive / layer.
     ///
     /// @param id              An identifier of new primitive.
@@ -93,7 +95,7 @@ struct broadcast : public primitive_base<broadcast> {
     broadcast(const primitive_id& id,
               const input_info& input,
               const ov::Shape& target_shape,
-              const ngraph::AxisSet& axes_mapping,
+              const ov::AxisSet& axes_mapping,
               const ov::op::BroadcastModeSpec& broadcast_spec = ov::op::BroadcastType::EXPLICIT,
               const padding& output_padding = padding())
         : primitive_base(id, {input}, {output_padding}),
@@ -107,7 +109,7 @@ struct broadcast : public primitive_base<broadcast> {
     broadcast(const primitive_id& id,
           const input_info& input,
           const input_info& target_shape_id,
-          const ngraph::AxisSet& axes_mapping,
+          const ov::AxisSet& axes_mapping,
           const ov::op::BroadcastModeSpec& broadcast_spec = ov::op::BroadcastType::EXPLICIT,
           const padding& output_padding = padding())
     : primitive_base(id, {input, target_shape_id}, {output_padding}),
@@ -145,6 +147,24 @@ struct broadcast : public primitive_base<broadcast> {
         return axes_mapping == rhs_casted.axes_mapping &&
                broadcast_mode == rhs_casted.broadcast_mode &&
                broadcast_sizes == rhs_casted.broadcast_sizes;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<broadcast>::save(ob);
+        ob << target_shape;
+        ob << axes_mapping;
+        ob << make_data(&broadcast_mode, sizeof(ov::op::BroadcastModeSpec));
+        ob << broadcast_sizes;
+        ob << broadcast_axes;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<broadcast>::load(ib);
+        ib >> target_shape;
+        ib >> axes_mapping;
+        ib >> make_data(&broadcast_mode, sizeof(ov::op::BroadcastModeSpec));
+        ib >> broadcast_sizes;
+        ib >> broadcast_axes;
     }
 };
 }  // namespace cldnn

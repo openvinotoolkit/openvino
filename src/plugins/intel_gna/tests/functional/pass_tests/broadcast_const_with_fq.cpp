@@ -10,9 +10,9 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 using BroadcastConstWithFqParamsTuple = typename std::tuple<InferenceEngine::Precision,  // Network Precision
@@ -41,8 +41,8 @@ public:
         for (auto const& configItem : configuration) {
             result << "configItem=" << configItem.first << "_" << configItem.second << "_";
         }
-        result << "inputShape1=" << CommonTestUtils::vec2str(inputShape1) << "_";
-        result << "inputShape2=" << CommonTestUtils::vec2str(inputShape2) << "_";
+        result << "inputShape1=" << ov::test::utils::vec2str(inputShape1) << "_";
+        result << "inputShape2=" << ov::test::utils::vec2str(inputShape2) << "_";
         result << "level=" << level;
         return result.str();
     }
@@ -55,7 +55,7 @@ protected:
         std::vector<size_t> inputShape2;
         std::tie(netPrecision, inputShape1, inputShape2, level, configuration, targetDevice) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape1});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape1))};
         auto fakeQuantize1 =
             ngraph::builder::makeFakeQuantize(params[0], ngPrc, level, {}, {-0.5}, {0.5}, {-0.5}, {0.5});
         auto constant = ngraph::builder::makeConstant<float>(ngPrc, inputShape2, {}, true);
@@ -86,6 +86,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_broadcast_const_with_fq,
                                             ::testing::ValuesIn(inputShapes2),
                                             ::testing::ValuesIn(level),
                                             ::testing::ValuesIn(configs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          BroadcastConstWithFq::getTestCaseName);
 }  // namespace LayerTestsDefinitions

@@ -38,7 +38,7 @@
 #include <memory>
 #include <debug.h>
 #include <shared_test_classes/base/ov_subgraph.hpp>
-#include <ngraph_functions/builders.hpp>
+#include <ov_models/builders.hpp>
 #include "common_test_utils/common_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "functional_test_utils/skip_tests_config.hpp"
@@ -89,29 +89,29 @@ public:
 
         results << "IS=(";
         for (const auto& shape : eltwiseInputShapes) {
-            results << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            results << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         results << ")_TS=(";
         for (const auto& shape : eltwiseInputShapes) {
             for (const auto& item : shape.second) {
-                results << CommonTestUtils::vec2str(item) << "_";
+                results << ov::test::utils::vec2str(item) << "_";
             }
         }
         if (withQuantization) {
             results << ")_FQS=(";
             for (const auto& shape : fqInputShapes) {
-                results << CommonTestUtils::vec2str(shape) << "_";
+                results << ov::test::utils::vec2str(shape) << "_";
             }
         }
         if (needReshape) {
             results << ")_RS=(";
-            results << CommonTestUtils::vec2str(reshapeShape) << "_";
+            results << ov::test::utils::vec2str(reshapeShape) << "_";
         }
         results << ")_";
-        for (int i = 0; i < inputPrecisions.size(); i++) {
+        for (size_t i = 0; i < inputPrecisions.size(); i++) {
             results << "InPRC" << std::to_string(i) << "=" << inputPrecisions[i] << "_";
         }
-        for (int i = 0; i < eltwiseOpTypes.size(); i++) {
+        for (size_t i = 0; i < eltwiseOpTypes.size(); i++) {
             results << "Op" << std::to_string(i) << "=" << eltwiseOpTypes[i] << "_";
         }
         results << "WithQuant=" << withQuantization << "_";
@@ -125,7 +125,7 @@ public:
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 10, 1, 1);
@@ -269,7 +269,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_2D_dyn, EltwiseCacheTest,
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false, true),
                                 ::testing::Values(false),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_empty)),
                         EltwiseCacheTest::getTestCaseName);
 
@@ -332,7 +332,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_2D_diff_last_dim_dyn, EltwiseCacheTe
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false, true),
                                 ::testing::Values(true),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_empty)),
                         EltwiseCacheTest::getTestCaseName);
 
@@ -396,7 +396,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_1D_2D_combo_dyn, EltwiseCacheTest,
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
                                 ::testing::Values(true),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_empty)),
                         EltwiseCacheTest::getTestCaseName);
 
@@ -472,7 +472,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_3D_planar_dyn, EltwiseCacheTest,
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false, true), // withQuantization
                                 ::testing::Values(true), // needReshape
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_3D_planar)),
                         EltwiseCacheTest::getTestCaseName);
 
@@ -535,7 +535,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_3D_blocked_dyn, EltwiseCacheTest,
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
                                 ::testing::Values(true),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_3D_blocked_vec))),
                         EltwiseCacheTest::getTestCaseName);
 
@@ -602,7 +602,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_3D_nspc_dyn, EltwiseCacheTest,
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
                                 ::testing::Values(true),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_3D_nspc)),
                         EltwiseCacheTest::getTestCaseName);
 
@@ -678,7 +678,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_4D_planar_dyn, EltwiseCacheTest,
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false, true), // withQuantization
                                 ::testing::Values(true), // needReshape
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_4D_planar)),
                         EltwiseCacheTest::getTestCaseName);
 
@@ -738,7 +738,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_4D_planar_collapse_dyn, EltwiseCache
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
                                 ::testing::Values(true), // needReshape
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_4D_planar)),
                         EltwiseCacheTest::getTestCaseName);
 
@@ -801,7 +801,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_4D_blocked_dyn, EltwiseCacheTest,
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
                                 ::testing::Values(true),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_blocked_vec))),
                         EltwiseCacheTest::getTestCaseName);
 
@@ -868,7 +868,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_4D_nspc_dyn, EltwiseCacheTest,
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
                                 ::testing::Values(true),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_4D_nspc)),
                         EltwiseCacheTest::getTestCaseName);
 
@@ -927,7 +927,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_4D_nspc_collapse_dyn, EltwiseCacheTe
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
                                 ::testing::Values(true),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_4D_nspc)),
                         EltwiseCacheTest::getTestCaseName);
 
@@ -1004,7 +1004,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_5D_planar_dyn, EltwiseCacheTest,
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false, true), // withQuantization
                                 ::testing::Values(true), // needReshape
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_5D_planar)),
                         EltwiseCacheTest::getTestCaseName);
 
@@ -1064,7 +1064,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_5D_planar_collapse_dyn, EltwiseCache
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
                                 ::testing::Values(true),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_5D_planar)),
                         EltwiseCacheTest::getTestCaseName);
 
@@ -1127,7 +1127,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_5D_blocked_dyn, EltwiseCacheTest,
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
                                 ::testing::Values(true),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_blocked_vec))),
                         EltwiseCacheTest::getTestCaseName);
 
@@ -1194,7 +1194,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_5D_nspc_dyn, EltwiseCacheTest,
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
                                 ::testing::Values(true),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_5D_nspc)),
                         EltwiseCacheTest::getTestCaseName);
 
@@ -1253,7 +1253,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_5D_nspc_collapse_dyn, EltwiseCacheTe
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
                                 ::testing::Values(true),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_5D_nspc)),
                         EltwiseCacheTest::getTestCaseName);
 
@@ -1324,7 +1324,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseCache_7D_dyn, EltwiseCacheTest,
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false, true), // withQuantization
                                 ::testing::Values(true), // needReshape
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(cpuParams_empty)),
                         EltwiseCacheTest::getTestCaseName);
 

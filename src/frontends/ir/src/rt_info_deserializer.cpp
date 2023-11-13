@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "rt_info_deserializer.hpp"
+
 #include <pugixml.hpp>
-#include <rt_info_deserializer.hpp>
-#include <transformations/rt_info/attributes.hpp>
 
 #include "openvino/frontend/exception.hpp"
 
@@ -20,6 +20,6 @@ void RTInfoDeserializer::on_adapter(const std::string& name, ValueAccessor<void>
         str_to_set_of_strings(val, ss);
         a->set(ss);
     } else {
-        IE_THROW() << "Not implemented";
+        OPENVINO_NOT_IMPLEMENTED;
     }
 }

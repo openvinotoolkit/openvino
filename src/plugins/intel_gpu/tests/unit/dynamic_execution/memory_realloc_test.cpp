@@ -27,7 +27,7 @@ TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding) {
     layout weight_layout = layout{ov::PartialShape{1, 3, 3, 3}, data_types::f16, format::bfyx};
 
     auto weights = engine.allocate_memory(weight_layout);
-    set_values<FLOAT16>(weights, {
+    set_values<ov::float16>(weights, {
             1.0f, 1.0f, 1.0f,
             1.0f, 1.0f, 1.0f,
             1.0f, 1.0f, 1.0f,
@@ -115,7 +115,7 @@ TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding) {
     // 0, 0,"0","0","0","0", // !! check pad_after
     // 0, 0,"0","0","0","0", // !! check pad_after
     auto reorder_mem = network.get_primitive("reorder")->output_memory_ptr();
-    cldnn::mem_lock<FLOAT16, mem_lock_type::read> reorder_mem_ptr(reorder_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> reorder_mem_ptr(reorder_mem, get_test_stream());
     for (size_t i = 26; i < 29; ++i) {
         ASSERT_EQ((float)reorder_mem_ptr[i], 0.f);
     }
@@ -131,7 +131,10 @@ TEST(softmax_gpu_dynamic_f32_test_upper_bound, input_same_values) {
         out_size_1  = output_x_1 * output_b_1,
         output_x_2  = 10, output_b_2  = 4,
         input_x_2   = 10, input_b_2  = 4,
-        out_size_2  = output_x_2 * output_b_2;
+        out_size_2  = output_x_2 * output_b_2,
+        output_x_3  = 10, output_b_3  = 16,
+        input_x_3   = 10, input_b_3  = 16,
+        out_size_3  = output_x_3 * output_b_3;
 
     cldnn::engine& engine = get_test_engine();
 
@@ -146,7 +149,15 @@ TEST(softmax_gpu_dynamic_f32_test_upper_bound, input_same_values) {
         layout(ov::PartialShape{ov::Dimension{1, 10}, ov::Dimension{1, 10}, ov::Dimension{1, 10}, ov::Dimension{1, 10}},
                data_types::f32,
                format::bfyx);
-    network network(engine, topology(input_layout("input", in_layout), softmax("softmax", input_info("input"), 3)), get_test_default_config(engine));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplementationDesc softmax_impl = { format::bfyx, "softmax_gpu_ref" };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "softmax", softmax_impl } }));
+    network network(engine, topology(input_layout("input", in_layout),
+                                     reorder("reorder", input_info("input"), format::bfyx, data_types::f16),
+                                     softmax("softmax", input_info("reorder"), 3),
+                                     reorder("reorder2", input_info("softmax"), format::bfyx, data_types::f32)),
+                                     config);
 
     // First run
     float out_buffer_1[out_size_1];
@@ -186,7 +197,33 @@ TEST(softmax_gpu_dynamic_f32_test_upper_bound, input_same_values) {
     ASSERT_EQ(internal_mems_1.size(), internal_mems_2.size());
     for (size_t i = 0; i < internal_mems_1.size(); ++i) {
         ASSERT_EQ(internal_mems_1[i]->buffer_ptr(), internal_mems_2[i]->buffer_ptr());
+        if (engine.get_device_info().supports_immad) {
+            ASSERT_EQ(internal_mems_1[i]->get_allocation_type(), allocation_type::usm_device);
+        }
     }
+    // Third run
+    float out_buffer_3[out_size_3];
+    std::vector<float> in_b_3(out_size_3, 2.0f);
+    std::vector<float> expected_buffer_3(out_size_3, 0.1f);
+    cldnn::memory::ptr input_3 = engine.allocate_memory({ data_types::f32, format::bfyx, {input_b_3, 1, input_x_3, 1}});
+    set_values(input_3, in_b_3);
+    network.set_input_data("input", input_3);
+    auto outputs_3 = network.execute();
+    auto output_mem_3 = outputs_3.begin()->second.get_memory();
+    cldnn::mem_lock<float> output_ptr_3(output_mem_3, get_test_stream());
+    for (uint32_t i = 0; i < out_size_3; i++) {
+        out_buffer_3[i] = output_ptr_3[i];
+    }
+    compare_out_buffer_with_expected(out_buffer_3, expected_buffer_3, out_size_3);
+    auto internal_mems_3 = network.get_primitive("softmax")->get_intermediates_memories();
+    for (size_t i = 0; i < internal_mems_3.size(); ++i) {
+        if (engine.get_device_info().supports_immad) {
+            ASSERT_EQ(internal_mems_3[i]->get_allocation_type(), allocation_type::usm_device);
+        }
+    }
+    auto& pool = network.get_memory_pool();
+    // check if previously allocated internal buffer is released
+    ASSERT_EQ(pool.get_non_padded_pool_size(), 3);
 }
 
 TEST(dyn_shape_mem_test, igpu_shape_infer_dep_mem_type) {

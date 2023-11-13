@@ -4,7 +4,15 @@
 
 #include "openvino/frontend/paddle/frontend.hpp"
 
-#include <google/protobuf/stubs/logging.h>
+#include <google/protobuf/port_def.inc>
+#if PROTOBUF_VERSION >= 4022000  // protobuf 4.22
+#    define OV_PROTOBUF_ABSL_IS_USED
+#endif
+#include <google/protobuf/port_undef.inc>
+
+#ifndef OV_PROTOBUF_ABSL_IS_USED
+#    include <google/protobuf/stubs/logging.h>
+#endif
 
 #include <fstream>
 #include <map>
@@ -20,13 +28,15 @@
 #include "internal/pass/transform_tensorarray.hpp"
 #include "internal/pass/transform_while.hpp"
 #include "op_table.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 #include "paddle_fw_node.hpp"
 #include "paddle_utils.hpp"
 #include "place.hpp"
-#include "so_extension.hpp"
+#include "transformations/resolve_names_collisions.hpp"
 
 using namespace ov::frontend::paddle::op::default_opset;
 using namespace ov;
@@ -126,22 +136,32 @@ bool normalize_framework_node(const std::shared_ptr<FrameworkNode>& node,
     return true;
 }
 
-std::istream* variant_to_stream_ptr(const ov::Any& variant, std::ifstream& ext_stream) {
+OPENVINO_SUPPRESS_DEPRECATED_START
+std::istream* variant_to_stream_ptr(const ov::Any& variant, std::fstream& fs, std::stringstream& ss) {
     if (variant.is<std::istream*>()) {
         return variant.as<std::istream*>();
+    } else if (variant.is<std::shared_ptr<ov::AlignedBuffer>>()) {
+        auto& aligned_weights_buffer = variant.as<std::shared_ptr<ov::AlignedBuffer>>();
+        ss.write(aligned_weights_buffer->get_ptr<char>(), aligned_weights_buffer->size());
+        FRONT_END_INITIALIZATION_CHECK(ss && ss.good(), "Cannot open ov::tensor.");
+        return &ss;
     } else if (variant.is<std::string>()) {
         const auto& model_path = variant.as<std::string>();
-        ext_stream.open(model_path, std::ios::in | std::ifstream::binary);
+        fs.open(model_path, std::ios::in | std::ifstream::binary);
+        FRONT_END_INITIALIZATION_CHECK(fs && fs.is_open(), "Cannot open model file.");
+        return &fs;
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     else if (variant.is<std::wstring>()) {
         const auto& model_path = variant.as<std::wstring>();
-        ext_stream.open(model_path.c_str(), std::ios::in | std::ifstream::binary);
+        fs.open(model_path.c_str(), std::ios::in | std::ifstream::binary);
+        FRONT_END_INITIALIZATION_CHECK(fs && fs.is_open(), "Cannot open model file.");
+        return &fs;
     }
 #endif
-    FRONT_END_INITIALIZATION_CHECK(ext_stream && ext_stream.is_open(), "Cannot open model file.");
-    return &ext_stream;
+    return nullptr;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace
 
 FrontEnd::FrontEnd() : m_op_translators(paddle::get_supported_ops()) {}
@@ -383,9 +403,17 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 #endif
     else if (variants[0].is<std::istream*>()) {
         // Validating first stream, it must contain a model
-        auto p_model_stream = variants[0].as<std::istream*>();
+        // step 1:
+        // PDPD API ParseFromIstream always deconstructs the context in model stream.
+        // So, make a copy for variants[0] to avoid breaking the context in variants[0].
+        const auto p_model_stream = variants[0].as<std::istream*>();
+        std::istream copy_model_stream(p_model_stream->rdbuf());
         ::paddle::framework::proto::ProgramDesc fw;
-        return fw.ParseFromIstream(p_model_stream);
+        auto ret = fw.ParseFromIstream(&copy_model_stream);
+        // step 2:
+        // reset the stream position to the beginning.
+        p_model_stream->seekg(0, p_model_stream->beg);
+        return ret;
     }
     return false;
 }
@@ -413,10 +441,10 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         }
     } else if (variants.size() == 2 + extra_variants_num) {
         // The case when .pdmodel and .pdparams files are provided
-        std::ifstream model_stream;
-        std::ifstream weights_stream;
-        std::istream* p_model_stream = paddle::variant_to_stream_ptr(variants[0], model_stream);
-        std::istream* p_weights_stream = paddle::variant_to_stream_ptr(variants[1], weights_stream);
+        std::fstream model_fstream, weights_fstream;
+        std::stringstream model_sstream, weights_sstream;
+        std::istream* p_model_stream = paddle::variant_to_stream_ptr(variants[0], model_fstream, model_sstream);
+        std::istream* p_weights_stream = paddle::variant_to_stream_ptr(variants[1], weights_fstream, weights_sstream);
         if (p_model_stream && p_weights_stream) {
             return std::make_shared<InputModel>(std::vector<std::istream*>{p_model_stream, p_weights_stream},
                                                 m_telemetry);
@@ -449,6 +477,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const
 
     fuse_fakequantize_ops(f);
     try_remove_internal_ops(f);
+    normalize(f[0]);
     return f[0];
 }
 
@@ -464,6 +493,7 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
 
     fuse_fakequantize_ops({partiallyConverted});
     try_remove_internal_ops({partiallyConverted});
+    normalize(partiallyConverted);
 }
 
 std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& model) const {
@@ -496,7 +526,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& mo
 
     fuse_fakequantize_ops(f);
     try_remove_internal_ops(f);
-
+    normalize(f[0]);
     return f[0];
 }
 
@@ -534,6 +564,12 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     }
 }
 
+void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::ResolveNameCollisions>();
+    manager.run_passes(model);
+}
+
 }  // namespace paddle
 }  // namespace frontend
 }  // namespace ov
@@ -551,7 +587,9 @@ PADDLE_C_API void* get_front_end_data() {
 
 #ifndef OPENVINO_DEBUG_ENABLE
     // disable protobuf logging
+#    ifndef OV_PROTOBUF_ABSL_IS_USED
     google::protobuf::SetLogHandler(nullptr);
+#    endif
 #endif
     return res;
 }

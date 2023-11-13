@@ -4,21 +4,20 @@
 
 #include "low_precision/reduce_min.hpp"
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
 ReduceMinTransformation::ReduceMinTransformation(const Params& params) : ReduceBaseTransformation(params) {
     MATCHER_SCOPE(ReduceMinTransformation);
-    auto matcher = pattern::wrap_type<opset1::ReduceMin>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
+    auto matcher = pattern::wrap_type<ov::opset1::ReduceMin>({ pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>() });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -26,12 +25,12 @@ ReduceMinTransformation::ReduceMinTransformation(const Params& params) : ReduceB
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
 bool ReduceMinTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
-    if (!ov::is_type<opset1::ReduceMin>(reduce)) {
+    if (!ov::is_type<ov::opset1::ReduceMin>(reduce)) {
         return false;
     }
 
@@ -40,7 +39,7 @@ bool ReduceMinTransformation::canBeTransformed(const TransformationContext& cont
     }
 
     const auto dequantization = NetworkHelper::getDequantization(reduce, defaultPrecisions);
-    const std::vector<float> scales = ov::as_type_ptr<opset1::Constant>(dequantization.multiplyConstant)->cast_vector<float>();
+    const std::vector<float> scales = ov::as_type_ptr<ov::opset1::Constant>(dequantization.multiplyConstant)->cast_vector<float>();
     if (std::any_of(scales.begin(), scales.end(), [](const float value) { return value < 0.0; })) {
         return false;
     }
@@ -58,4 +57,4 @@ bool ReduceMinTransformation::getUpdatePrecision(const std::shared_ptr<Node>& re
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

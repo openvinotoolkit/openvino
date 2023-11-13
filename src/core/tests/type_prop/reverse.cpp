@@ -2,25 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/test_assertions.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "openvino/opsets/opset10.hpp"
-#include "util/type_prop.hpp"
+#include "openvino/op/reverse.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
+#include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
+#include "openvino/opsets/opset10.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 using namespace testing;
 
 class TypePropReverseV1Test : public TypePropOpTest<op::v1::Reverse> {};
 
 TEST(type_prop, reverse_1d_deduce) {
     // Deduce type
-    auto param = make_shared<op::Parameter>(element::f32, Shape{5});
-    auto rev =
-        make_shared<op::v1::Reverse>(param, op::Constant::create(element::i64, {1}, {0}), op::v1::Reverse::Mode::INDEX);
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5});
+    auto rev = make_shared<op::v1::Reverse>(param,
+                                            ov::op::v0::Constant::create(element::i64, {1}, {0}),
+                                            op::v1::Reverse::Mode::INDEX);
 
     EXPECT_EQ(rev->get_element_type(), element::f32);
     EXPECT_EQ(rev->get_shape(), (Shape{5}));
@@ -28,9 +27,10 @@ TEST(type_prop, reverse_1d_deduce) {
 
 TEST(type_prop, reverse_2d_deduce_0) {
     // Deduce type
-    auto param = make_shared<op::Parameter>(element::f32, Shape{5, 6});
-    auto rev =
-        make_shared<op::v1::Reverse>(param, op::Constant::create(element::i64, {1}, {0}), op::v1::Reverse::Mode::INDEX);
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 6});
+    auto rev = make_shared<op::v1::Reverse>(param,
+                                            ov::op::v0::Constant::create(element::i64, {1}, {0}),
+                                            op::v1::Reverse::Mode::INDEX);
 
     EXPECT_EQ(rev->get_element_type(), element::f32);
     EXPECT_EQ(rev->get_shape(), (Shape{5, 6}));
@@ -38,9 +38,10 @@ TEST(type_prop, reverse_2d_deduce_0) {
 
 TEST(type_prop, reverse_2d_deduce_1) {
     // Deduce type
-    auto param = make_shared<op::Parameter>(element::f32, Shape{5, 6});
-    auto rev =
-        make_shared<op::v1::Reverse>(param, op::Constant::create(element::i64, {1}, {1}), op::v1::Reverse::Mode::INDEX);
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 6});
+    auto rev = make_shared<op::v1::Reverse>(param,
+                                            ov::op::v0::Constant::create(element::i64, {1}, {1}),
+                                            op::v1::Reverse::Mode::INDEX);
 
     EXPECT_EQ(rev->get_element_type(), element::f32);
     EXPECT_EQ(rev->get_shape(), (Shape{5, 6}));
@@ -48,9 +49,9 @@ TEST(type_prop, reverse_2d_deduce_1) {
 
 TEST(type_prop, reverse_2d_deduce_01) {
     // Deduce type
-    auto param = make_shared<op::Parameter>(element::f32, Shape{5, 6});
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 6});
     auto rev = make_shared<op::v1::Reverse>(param,
-                                            op::Constant::create(element::i64, {2}, {0, 1}),
+                                            ov::op::v0::Constant::create(element::i64, {2}, {0, 1}),
                                             op::v1::Reverse::Mode::INDEX);
 
     EXPECT_EQ(rev->get_element_type(), element::f32);
@@ -59,9 +60,10 @@ TEST(type_prop, reverse_2d_deduce_01) {
 
 TEST(type_prop, reverse_3d_deduce_0) {
     // Deduce type
-    auto param = make_shared<op::Parameter>(element::f32, Shape{5, 6, 7});
-    auto rev =
-        make_shared<op::v1::Reverse>(param, op::Constant::create(element::i64, {1}, {0}), op::v1::Reverse::Mode::INDEX);
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 6, 7});
+    auto rev = make_shared<op::v1::Reverse>(param,
+                                            ov::op::v0::Constant::create(element::i64, {1}, {0}),
+                                            op::v1::Reverse::Mode::INDEX);
 
     EXPECT_EQ(rev->get_element_type(), element::f32);
     EXPECT_EQ(rev->get_shape(), (Shape{5, 6, 7}));
@@ -69,9 +71,10 @@ TEST(type_prop, reverse_3d_deduce_0) {
 
 TEST(type_prop, reverse_3d_deduce_1) {
     // Deduce type
-    auto param = make_shared<op::Parameter>(element::f32, Shape{5, 6, 7});
-    auto rev =
-        make_shared<op::v1::Reverse>(param, op::Constant::create(element::i64, {1}, {1}), op::v1::Reverse::Mode::INDEX);
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 6, 7});
+    auto rev = make_shared<op::v1::Reverse>(param,
+                                            ov::op::v0::Constant::create(element::i64, {1}, {1}),
+                                            op::v1::Reverse::Mode::INDEX);
 
     EXPECT_EQ(rev->get_element_type(), element::f32);
     EXPECT_EQ(rev->get_shape(), (Shape{5, 6, 7}));
@@ -79,9 +82,10 @@ TEST(type_prop, reverse_3d_deduce_1) {
 
 TEST(type_prop, reverse_3d_deduce_2) {
     // Deduce type
-    auto param = make_shared<op::Parameter>(element::f32, Shape{5, 6, 7});
-    auto rev =
-        make_shared<op::v1::Reverse>(param, op::Constant::create(element::i64, {1}, {2}), op::v1::Reverse::Mode::INDEX);
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 6, 7});
+    auto rev = make_shared<op::v1::Reverse>(param,
+                                            ov::op::v0::Constant::create(element::i64, {1}, {2}),
+                                            op::v1::Reverse::Mode::INDEX);
 
     EXPECT_EQ(rev->get_element_type(), element::f32);
     EXPECT_EQ(rev->get_shape(), (Shape{5, 6, 7}));
@@ -89,9 +93,9 @@ TEST(type_prop, reverse_3d_deduce_2) {
 
 TEST(type_prop, reverse_3d_deduce_01) {
     // Deduce type
-    auto param = make_shared<op::Parameter>(element::f32, Shape{5, 6, 7});
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 6, 7});
     auto rev = make_shared<op::v1::Reverse>(param,
-                                            op::Constant::create(element::i64, {2}, {0, 1}),
+                                            ov::op::v0::Constant::create(element::i64, {2}, {0, 1}),
                                             op::v1::Reverse::Mode::INDEX);
 
     EXPECT_EQ(rev->get_element_type(), element::f32);
@@ -100,9 +104,9 @@ TEST(type_prop, reverse_3d_deduce_01) {
 
 TEST(type_prop, reverse_3d_deduce_02) {
     // Deduce type
-    auto param = make_shared<op::Parameter>(element::f32, Shape{5, 6, 7});
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 6, 7});
     auto rev = make_shared<op::v1::Reverse>(param,
-                                            op::Constant::create(element::i64, {2}, {0, 2}),
+                                            ov::op::v0::Constant::create(element::i64, {2}, {0, 2}),
                                             op::v1::Reverse::Mode::INDEX);
 
     EXPECT_EQ(rev->get_element_type(), element::f32);
@@ -111,9 +115,9 @@ TEST(type_prop, reverse_3d_deduce_02) {
 
 TEST(type_prop, reverse_3d_deduce_12) {
     // Deduce type
-    auto param = make_shared<op::Parameter>(element::f32, Shape{5, 6, 7});
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 6, 7});
     auto rev = make_shared<op::v1::Reverse>(param,
-                                            op::Constant::create(element::i64, {2}, {1, 2}),
+                                            ov::op::v0::Constant::create(element::i64, {2}, {1, 2}),
                                             op::v1::Reverse::Mode::INDEX);
 
     EXPECT_EQ(rev->get_element_type(), element::f32);
@@ -122,9 +126,9 @@ TEST(type_prop, reverse_3d_deduce_12) {
 
 TEST(type_prop, reverse_3d_deduce_012) {
     // Deduce type
-    auto param = make_shared<op::Parameter>(element::f32, Shape{5, 6, 7});
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 6, 7});
     auto rev = make_shared<op::v1::Reverse>(param,
-                                            op::Constant::create(element::i64, {3}, {0, 1, 2}),
+                                            ov::op::v0::Constant::create(element::i64, {3}, {0, 1, 2}),
                                             op::v1::Reverse::Mode::INDEX);
 
     EXPECT_EQ(rev->get_element_type(), element::f32);
@@ -133,10 +137,10 @@ TEST(type_prop, reverse_3d_deduce_012) {
 
 TEST(type_prop, reverse_3d_deduce_oob) {
     // Deduce type
-    auto param = make_shared<op::Parameter>(element::f32, Shape{5, 6, 7});
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5, 6, 7});
     try {
         auto rev = make_shared<op::v1::Reverse>(param,
-                                                op::Constant::create(element::i64, {3}, {0, 3, 2}),
+                                                ov::op::v0::Constant::create(element::i64, {3}, {0, 3, 2}),
                                                 op::v1::Reverse::Mode::INDEX);
 
         // Should have thrown, so fail if it didn't
@@ -154,9 +158,9 @@ TEST(type_prop, reverse_3d_deduce_oob) {
 // If the input rank is dynamic, we should pass unconditionally.
 //
 TEST(type_prop, reverse_partial_rank_dynamic) {
-    auto param = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
     auto rev = make_shared<op::v1::Reverse>(param,
-                                            op::Constant::create(element::i64, {4}, {0, 2, 1776, 90909}),
+                                            ov::op::v0::Constant::create(element::i64, {4}, {0, 2, 1776, 90909}),
                                             op::v1::Reverse::Mode::INDEX);
 
     EXPECT_EQ(rev->get_element_type(), element::f32);
@@ -182,7 +186,7 @@ TEST_F(TypePropReverseV1Test, partial_rank_static_dynamic_axes_ok) {
 
 TEST_F(TypePropReverseV1Test, axes_index_is_not_1d_tensor) {
     PartialShape param_shape{Dimension::dynamic(), Dimension::dynamic(), 2, 3};
-    auto param = make_shared<op::Parameter>(element::f32, param_shape);
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, param_shape);
     auto axes = make_shared<Parameter>(element::i64, PartialShape{2, 3});
 
     OV_EXPECT_THROW(auto op = make_op(param, axes, op::v1::Reverse::Mode::INDEX),
@@ -192,7 +196,7 @@ TEST_F(TypePropReverseV1Test, axes_index_is_not_1d_tensor) {
 
 TEST_F(TypePropReverseV1Test, axes_mask_is_not_1d_tensor) {
     PartialShape param_shape{Dimension::dynamic(), Dimension::dynamic(), 2, 3};
-    auto param = make_shared<op::Parameter>(element::f32, param_shape);
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, param_shape);
     auto axes = make_shared<Parameter>(element::boolean, PartialShape{2, 3});
 
     OV_EXPECT_THROW(auto op = make_op(param, axes, op::v1::Reverse::Mode::MASK),
@@ -202,7 +206,7 @@ TEST_F(TypePropReverseV1Test, axes_mask_is_not_1d_tensor) {
 
 TEST_F(TypePropReverseV1Test, axes_mask_length_lt_input_rank) {
     PartialShape param_shape{Dimension::dynamic(), Dimension::dynamic(), 2, 3};
-    auto param = make_shared<op::Parameter>(element::f32, param_shape);
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, param_shape);
     auto axes = make_shared<Parameter>(element::boolean, PartialShape{2});
 
     OV_EXPECT_THROW(
@@ -213,7 +217,7 @@ TEST_F(TypePropReverseV1Test, axes_mask_length_lt_input_rank) {
 
 TEST_F(TypePropReverseV1Test, axes_mask_length_gt_input_rank) {
     PartialShape param_shape{Dimension::dynamic(), Dimension::dynamic(), 2, 3};
-    auto param = make_shared<op::Parameter>(element::f32, param_shape);
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, param_shape);
     auto axes = make_shared<Parameter>(element::boolean, PartialShape{5});
 
     OV_EXPECT_THROW(
@@ -264,7 +268,7 @@ TEST_F(TypePropReverseV1Test, axes_index_not_integer_type) {
 
 TEST_F(TypePropReverseV1Test, param_static_rank_partial_shape_axes_out_of_input_rank) {
     PartialShape param_shape{Dimension::dynamic(), Dimension::dynamic(), 2, 3};
-    auto param = make_shared<op::Parameter>(element::f32, param_shape);
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, param_shape);
 
     OV_EXPECT_THROW(
         auto op = make_op(param, Constant::create(element::i64, {3}, {0, 4, 2}), op::v1::Reverse::Mode::INDEX),
@@ -275,7 +279,7 @@ TEST_F(TypePropReverseV1Test, param_static_rank_partial_shape_axes_out_of_input_
 TEST_F(TypePropReverseV1Test, param_static_rank_partial_shape_axes_negatives) {
     PartialShape param_shape{-1, {2, -1}, {-1, 3}, 5};
     set_shape_labels(param_shape, 10);
-    auto param = make_shared<op::Parameter>(element::f32, param_shape);
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, param_shape);
 
     auto op = make_op(param, Constant::create(element::i64, {3}, {0, -1, 2}), op::v1::Reverse::Mode::INDEX);
 
@@ -286,7 +290,7 @@ TEST_F(TypePropReverseV1Test, param_static_rank_partial_shape_axes_negatives) {
 
 TEST_F(TypePropReverseV1Test, more_axes_index_than_input_rank) {
     PartialShape param_shape{-1, {2, -1}, {-1, 3}, 5};
-    auto param = make_shared<op::Parameter>(element::f32, param_shape);
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, param_shape);
 
     auto op = make_op(param, Constant::create(element::i64, {7}, {0, -1, 1, 2, 3, 3, 2}), op::v1::Reverse::Mode::INDEX);
 

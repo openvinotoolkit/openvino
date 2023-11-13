@@ -15,8 +15,6 @@
 #include <memory>
 #include <vector>
 
-using namespace InferenceEngine;
-
 #define IE_CPU_PLUGIN_THROW(...) IE_THROW(__VA_ARGS__) << "CPU plugin: "
 
 namespace ov {
@@ -26,26 +24,28 @@ class Transformations {
 public:
     Transformations(const std::shared_ptr<ov::Model>& initialModel,
                     const bool                        enableLpt,
-                    const bool                        enableBF16,
+                    const ov::element::Type           inferencePrecision,
                     const bool                        isLegacyApi,
                     const Config::SnippetsMode&       snippetsMode,
                     const Config&                     config)
         : model(initialModel),
           enableLpt(enableLpt),
-          enableBF16(enableBF16),
+          inferencePrecision(inferencePrecision),
           isLegacyApi(isLegacyApi),
           snippetsMode(snippetsMode),
           config(config) {
             CPU_DEBUG_CAPS_MAYBE_UNUSED(this->config);
           }
 
-    void UpToCpuSpecificOpSet();
+    void UpToLpt();
     void CpuSpecificOpSet();
+    void PostLpt();
+    void Snippets(void);
 
 private:
     std::shared_ptr<ov::Model> model;
     const bool    enableLpt;
-    const bool    enableBF16;
+    const ov::element::Type inferencePrecision;
     const bool    isLegacyApi;
     const Config::SnippetsMode snippetsMode;
     const Config& config;
@@ -54,13 +54,9 @@ private:
 
     void Lpt(const bool hasINT16orINT32Levels, const std::vector<ov::element::Type>& defaultPrecisions);
 
-    void PostLpt();
-
     void MainSnippets(void);
 
     void PostSnippets(void);
-
-    void Snippets(void);
 
     static bool fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions);
 };

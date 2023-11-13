@@ -13,8 +13,24 @@
 char* str_to_char_array(const std::string& str) {
     std::unique_ptr<char> _char_array(new char[str.length() + 1]);
     char* char_array = _char_array.release();
-    std::copy_n(str.begin(), str.length() + 1, char_array);
+    std::copy_n(str.c_str(), str.length() + 1, char_array);
     return char_array;
+}
+
+static std::string last_err_msg;
+static std::mutex last_msg_mutex;
+void dup_last_err_msg(const char* msg) {
+    std::lock_guard<std::mutex> lock(last_msg_mutex);
+    last_err_msg = std::string(msg);
+}
+
+const char* ov_get_last_err_msg() {
+    std::lock_guard<std::mutex> lock(last_msg_mutex);
+    char* res = nullptr;
+    if (!last_err_msg.empty()) {
+        res = str_to_char_array(last_err_msg);
+    }
+    return res;
 }
 
 ov_status_e ov_get_openvino_version(ov_version_t* version) {
@@ -66,6 +82,10 @@ ov_status_e ov_core_create(ov_core_t** core) {
 void ov_core_free(ov_core_t* core) {
     if (core)
         delete core;
+
+    // release err msg buffer, there will be no err msg after core is freed.
+    std::lock_guard<std::mutex> lock(last_msg_mutex);
+    last_err_msg.clear();
 }
 
 ov_status_e ov_core_read_model(const ov_core_t* core,
@@ -89,25 +109,34 @@ ov_status_e ov_core_read_model(const ov_core_t* core,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_core_read_model_from_memory(const ov_core_t* core,
-                                           const char* model_str,
-                                           const ov_tensor_t* weights,
-                                           ov_model_t** model) {
-    if (!core || !model_str || !model) {
+ov_status_e ov_core_read_model_from_memory_buffer(const ov_core_t* core,
+                                                  const char* model_str,
+                                                  const size_t str_size,
+                                                  const ov_tensor_t* weights,
+                                                  ov_model_t** model) {
+    if (!core || !model_str || !model || !str_size) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
         std::unique_ptr<ov_model_t> _model(new ov_model_t);
+        std::string model_string(model_str, str_size);
         if (weights) {
-            _model->object = core->object->read_model(model_str, *(weights->object));
+            _model->object = core->object->read_model(model_string, *(weights->object));
         } else {
-            _model->object = core->object->read_model(model_str, ov::Tensor());
+            _model->object = core->object->read_model(model_string, ov::Tensor());
         }
         *model = _model.release();
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
+}
+
+ov_status_e ov_core_read_model_from_memory(const ov_core_t* core,
+                                           const char* model_str,
+                                           const ov_tensor_t* weights,
+                                           ov_model_t** model) {
+    return ov_core_read_model_from_memory_buffer(core, model_str, strlen(model_str), weights, model);
 }
 
 ov_status_e ov_core_compile_model(const ov_core_t* core,
@@ -438,4 +467,8 @@ ov_status_e ov_core_get_default_context(const ov_core_t* core, const char* devic
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
+}
+
+void ov_shutdown() {
+    ov::shutdown();
 }

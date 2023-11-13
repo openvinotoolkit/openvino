@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 
@@ -36,15 +36,15 @@ public:
         std::tie(batchAxisIndex, seqAxisIndex, dataInputShape, seqLengthsShape, secondaryInputType, netPrecision, targetName) = obj.param;
 
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::partialShape2str({dataInputShape.first}) << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({dataInputShape.first}) << "_";
         result << "TS=";
         for (const auto& item : dataInputShape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
-        result << "seqLengthsShape" << CommonTestUtils::partialShape2str({seqLengthsShape.first}) << "_";
+        result << "seqLengthsShape" << ov::test::utils::partialShape2str({seqLengthsShape.first}) << "_";
         result << "seqLengthsShapes=";
         for (const auto& item : seqLengthsShape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
         result << "secondaryInputType=" << secondaryInputType << "_";
         result << "batchAxis=" << batchAxisIndex << "_";
@@ -70,7 +70,7 @@ protected:
         init_input_shapes({dataInputShape, seqLengthsShape});
 
         const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto paramsIn = ngraph::builder::makeDynamicParams(ngPrc, {inputDynamicShapes[0]});
+        ov::ParameterVector paramsIn{std::make_shared<ov::op::v0::Parameter>(ngPrc, inputDynamicShapes[0])};
 
         constexpr auto seqLengthsPrc = ngraph::element::Type_t::i32; //according to the specification
         std::shared_ptr<ngraph::Node> seqLengthsInput;
@@ -159,7 +159,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUStatic3D, ReverseSequenceLayerC
                             ::testing::ValuesIn(seqLengthsStaticShapes),
                             ::testing::ValuesIn(secondaryInputTypes),
                             ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ReverseSequenceLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUStatic4D, ReverseSequenceLayerCPUTest,
@@ -170,7 +170,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUStatic4D, ReverseSequenceLayerC
                             ::testing::ValuesIn(seqLengthsStaticShapes),
                             ::testing::ValuesIn(secondaryInputTypes),
                             ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ReverseSequenceLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUStatic5D, ReverseSequenceLayerCPUTest,
@@ -181,7 +181,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUStatic5D, ReverseSequenceLayerC
                             ::testing::ValuesIn(seqLengthsStaticShapes),
                             ::testing::ValuesIn(secondaryInputTypes),
                             ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ReverseSequenceLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUDynamic3D, ReverseSequenceLayerCPUTest,
@@ -192,7 +192,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUDynamic3D, ReverseSequenceLayer
                             ::testing::ValuesIn(seqLengthsDynamicShapes),
                             ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                             ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ReverseSequenceLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUDynamic4D, ReverseSequenceLayerCPUTest,
@@ -203,7 +203,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUDynamic4D, ReverseSequenceLayer
                             ::testing::ValuesIn(seqLengthsDynamicShapes),
                             ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                             ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ReverseSequenceLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUDynamic5D, ReverseSequenceLayerCPUTest,
@@ -214,7 +214,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUDynamic5D, ReverseSequenceLayer
                             ::testing::ValuesIn(seqLengthsDynamicShapes),
                             ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                             ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ReverseSequenceLayerCPUTest::getTestCaseName);
 
 } // namespace

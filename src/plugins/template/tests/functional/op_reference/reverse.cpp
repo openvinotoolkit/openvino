@@ -9,7 +9,6 @@
 #include "base_reference_test.hpp"
 #include "openvino/op/constant.hpp"
 
-
 using namespace reference_tests;
 using namespace ov;
 
@@ -89,28 +88,28 @@ TEST_P(ReferenceReverseTestAxesRankIndexMode, CompareWithRefs) {
     EXPECT_THROW(const auto unused = std::make_shared<ov::Model>(
                      std::make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::INDEX),
                      ParameterVector{Data, Rev_Axes}),
-                 ngraph::NodeValidationFailure);
+                 ov::NodeValidationFailure);
 }
 
 TEST_P(ReferenceReverseTestAxesElemsMaskMode, CompareWithRefs) {
     const auto Data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2, 2});
     const auto Rev_Axes = std::make_shared<op::v0::Parameter>(element::boolean, Shape{2});  // correct: 3
     EXPECT_THROW(const auto unused = std::make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::MASK),
-                 ngraph::NodeValidationFailure);
+                 ov::NodeValidationFailure);
 }
 
 TEST_P(ReferenceReverseTestAxesOutOfBounds, CompareWithRefs) {
     const auto Data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2, 2});
     const auto Rev_Axes = op::v0::Constant::create(element::i64, Shape{2}, {1, 10});
     EXPECT_THROW(const auto unused = std::make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::INDEX),
-                 ngraph::NodeValidationFailure);
+                 ov::NodeValidationFailure);
 }
 
 TEST_P(ReferenceReverseTestAxesOutOfBounds4, CompareWithRefs) {
     const auto Data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2, 2});
     const auto Rev_Axes = op::v0::Constant::create(element::i64, Shape{4}, {0, 1, 2, 3});
     EXPECT_THROW(const auto unused = std::make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::INDEX),
-                 ngraph::NodeValidationFailure);
+                 ov::NodeValidationFailure);
 }
 
 template <element::Type_t IN_ET>

@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
@@ -38,18 +38,18 @@ public:
         std::ostringstream result;
         result << "IS=(";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << ")_TS=";
         for (size_t i = 0lu; i < inputShapes.front().second.size(); i++) {
             result << "{";
             for (size_t j = 0lu; j < inputShapes.size(); j++) {
-                result << CommonTestUtils::vec2str(inputShapes[j].second[i]) << (j < inputShapes.size() - 1 ? "_" : "");
+                result << ov::test::utils::vec2str(inputShapes[j].second[i]) << (j < inputShapes.size() - 1 ? "_" : "");
             }
             result << "}_";
         }
         result << "decompose=" << decompose << "_";
-        result << "activations=" << CommonTestUtils::vec2str(activations)  << "_";
+        result << "activations=" << ov::test::utils::vec2str(activations)  << "_";
         result << "clip=" << clip << "_";
         result << "netPrec=" << netPrecision << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams);
@@ -77,7 +77,7 @@ protected:
 
         std::tie(inputShapes, decompose, activations, clip, netPrecision, cpuParams, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         init_input_shapes(inputShapes);
 
@@ -92,7 +92,10 @@ protected:
             selectedType = makeSelectedTypeStr(selectedType, netPrecision);
         }
 
-        auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+        }
         auto paramsOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
         std::vector<ngraph::Shape> WRB = {{4 * hiddenSize, inputSize}, {4 * hiddenSize, hiddenSize}, {4 * hiddenSize}};
         auto lstmCellOp = ngraph::builder::makeLSTM(paramsOuts, WRB, hiddenSize, activations, {}, {}, clip);
@@ -153,6 +156,12 @@ const std::vector<std::vector<ov::test::InputShape>> dynamicShapes = {
         { {1, 1}, {3, 1}, {5, 1} } },      // Target shapes
       { { -1, 1 },                         // Dynamic shape 2
         { {1, 1}, {3, 1}, {5, 1} } } },    // Target shapes
+    { { { -1, 1 },                         // Dynamic shape 0
+        { {1, 1}, {5, 1} } },              // Target shapes
+      { { {1, 5}, 1 },                     // Dynamic shape 1
+        { {1, 1}, {5, 1} } },              // Target shapes
+      { { {1, 5}, 1 },                     // Dynamic shape 2
+        { {1, 1}, {5, 1} } } },            // Target shapes
     { { { {1, 20}, 30 },                   // Dynamic shape 0
         { {2, 30}, {5, 30}, {8, 30} } },   // Target shapes
       { { {1, 20}, 10 },                   // Dynamic shape 1

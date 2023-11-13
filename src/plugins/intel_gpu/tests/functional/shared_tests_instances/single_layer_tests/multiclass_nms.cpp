@@ -57,7 +57,7 @@ const auto params_v9_2Inputs = ::testing::Combine(
     ::testing::ValuesIn(sortResultType),
     ::testing::Combine(::testing::ValuesIn(sortResDesc), ::testing::ValuesIn(normalized)),
     ::testing::ValuesIn(outStaticShape),
-    ::testing::Values(CommonTestUtils::DEVICE_GPU));
+    ::testing::Values(ov::test::utils::DEVICE_GPU));
 
 
 INSTANTIATE_TEST_SUITE_P(smoke_MulticlassNmsLayerTest_v9_2inputs,
@@ -79,7 +79,7 @@ const auto params_v9_3Inputs = ::testing::Combine(
     ::testing::ValuesIn(sortResultType),
     ::testing::Combine(::testing::ValuesIn(sortResDesc), ::testing::ValuesIn(normalized)),
     ::testing::ValuesIn(outStaticShape),
-    ::testing::Values(CommonTestUtils::DEVICE_GPU));
+    ::testing::Values(ov::test::utils::DEVICE_GPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MulticlassNmsLayerTest_v9_3inputs,
                          MulticlassNmsLayerTest,
@@ -100,7 +100,7 @@ const auto params_v8 = ::testing::Combine(
     ::testing::ValuesIn(sortResultType),
     ::testing::Combine(::testing::ValuesIn(sortResDesc), ::testing::ValuesIn(normalized)),
     ::testing::ValuesIn(outStaticShape),
-    ::testing::Values(CommonTestUtils::DEVICE_GPU));
+    ::testing::Values(ov::test::utils::DEVICE_GPU));
 
 
 INSTANTIATE_TEST_SUITE_P(smoke_MulticlassNmsLayerTest_v8,

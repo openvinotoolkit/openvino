@@ -105,7 +105,7 @@ static inline Tensor::Dim GetGatherIndexDim(const gather_params& params) {
     case GatherAxis::X:
         return params.inputs[0].X();
     default:
-        IE_THROW() << "Unknown gather axis=" << static_cast<int>(params.axis);
+        OPENVINO_THROW("Unknown gather axis=", static_cast<int>(params.axis));
     }
 }
 
@@ -124,7 +124,7 @@ static inline int64_t GetGatherAxisIndexInShapeInfo(const gather_params& params)
     case GatherAxis::X:
         return 7;
     default:
-        IE_THROW() << "Unknown gather axis=" << static_cast<int>(params.axis);
+        OPENVINO_THROW("Unknown gather axis=", static_cast<int>(params.axis));
     }
 }
 
@@ -224,7 +224,7 @@ CommonDispatchData GatherKernelRef::SetDefault(const gather_params& params) cons
                        {Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
                        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
     } else {
-        IE_THROW() << "Unknown rank: rank=" << rank;
+        OPENVINO_THROW("Unknown rank: rank=", rank);
     }
 
     dispatchData.lws =

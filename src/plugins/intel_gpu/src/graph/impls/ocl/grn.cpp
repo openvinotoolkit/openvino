@@ -17,7 +17,7 @@ struct grn_impl : typed_primitive_impl_ocl<grn> {
     using kernel_selector_t = kernel_selector::grn_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::grn_params, kernel_selector::grn_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::grn_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<grn_impl>(*this);
@@ -49,3 +49,4 @@ attach_grn_impl::attach_grn_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::grn_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::grn)

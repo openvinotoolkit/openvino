@@ -16,7 +16,7 @@ class TestSubprocessMoConvert(unittest.TestCase):
     def test_mo_convert(self):
         mo_convert_params = get_mo_convert_params()
 
-        # Test cli tool help
+        # Test mo tool help
         mo_path = Path(mo.__file__).parent
         mo_runner = mo_path.joinpath('main.py').as_posix()
         params = [sys.executable, mo_runner, "--help"]
@@ -24,16 +24,17 @@ class TestSubprocessMoConvert(unittest.TestCase):
 
         # We don't expect PyTorch specific parameters to be in help message of the MO tool.
         for group in mo_convert_params:
-            if group == 'Pytorch-specific parameters:':
+            if group == 'Pytorch-specific parameters:' or group == 'PaddlePaddle-specific parameters:':
                 continue
             for param_name in group:
                 assert param_name in mo_output
 
-        # Test Python API help
+        # Test Python API help, applicable for convert_model from tools.mo only
         mo_help_file = os.path.join(os.path.dirname(__file__), "mo_convert_help.py")
         params = [sys.executable, mo_help_file]
         _, mo_output, _ = shell(params)
 
-        for group in mo_convert_params:
+        legacy_params = get_mo_convert_params()
+        for group in legacy_params:
             for param_name in group:
                 assert param_name in mo_output

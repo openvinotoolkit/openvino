@@ -37,10 +37,10 @@ std::string lstm_dynamic_inst::to_string(lstm_dynamic_node const& node) {
     std::stringstream primitive_description;
     json_composite lstm_dynamic_info;
     lstm_dynamic_info.add("dyn_length id", desc->dyn_length);
-    lstm_dynamic_info.add("weights id", weights_id);
+    lstm_dynamic_info.add("weights id", std::move(weights_id));
     lstm_dynamic_info.add("recurrent id", recurrent_id);
     lstm_dynamic_info.add("bias id", bias_id);
-    lstm_dynamic_info.add("initial_hidden id", initial_hidden_id);
+    lstm_dynamic_info.add("initial_hidden id", std::move(initial_hidden_id));
     lstm_dynamic_info.add("initial_cell id", initial_cell_id);
     node_info->add("lstm_dynamic info", lstm_dynamic_info);
     node_info->dump(primitive_description);

@@ -3,13 +3,8 @@
 //
 
 #include "test_utils.h"
-#include "float16.h"
 #include <iostream>
 
-
-namespace cldnn {
-const cldnn::data_types type_to_data_type<FLOAT16>::value;
-}  // namespace cldnn
 
 using namespace cldnn;
 
@@ -37,7 +32,7 @@ void generic_test::run_single_test(bool is_caching_test) {
             if (generic_params->data_type == data_types::f32) {
                 tests::set_random_values<float>(input_mems[i], true, 7, 10);
             } else {
-                tests::set_random_values<FLOAT16>(input_mems[i], true, 5, 10);
+                tests::set_random_values<ov::float16>(input_mems[i], true, 5, 10);
             }
         } else {
             size_t size = generic_params->input_layouts[i].batch() * generic_params->input_layouts[i].feature();
@@ -50,11 +45,11 @@ void generic_test::run_single_test(bool is_caching_test) {
                 tests::set_values_per_batch_and_feature<float>(input_mems[i], values);
                 multipler = values.size();
             } else {
-                std::vector<FLOAT16> values;
+                std::vector<ov::float16> values;
                 for (size_t j = 1; j <= size; j++) {
-                    values.push_back(FLOAT16(static_cast<float>(multipler + j)));
+                    values.push_back(ov::float16(static_cast<float>(multipler + j)));
                 }
-                tests::set_values_per_batch_and_feature<FLOAT16>(input_mems[i], values);
+                tests::set_values_per_batch_and_feature<ov::float16>(input_mems[i], values);
                 multipler = values.size();
             }
         }
@@ -107,7 +102,7 @@ void generic_test::run_single_test(bool is_caching_test) {
     if (output->get_layout().data_type == data_types::f32) {
         compare_buffers<float>(output, output_ref);
     } else {
-        compare_buffers<FLOAT16>(output, output_ref);
+        compare_buffers<ov::float16>(output, output_ref);
     }
 }
 
@@ -369,7 +364,7 @@ std::string test_params::print_tensor(cldnn::tensor t) {
 
 std::string test_params::print() {
     std::stringstream str;
-    str << "Data type: " << data_type_traits::name(data_type) << std::endl;
+    str << "Data type: " << ov::element::Type(data_type) << std::endl;
 
     for (int j = 0 ; j < (int)input_layouts.size(); j++) {
         const cldnn::tensor& t = input_layouts[j].get_tensor();
@@ -399,9 +394,9 @@ double default_tolerance(data_types dt) {
     case data_types::u8:
         return 1.5;
     default:
-        IE_THROW() << "Unknown";
+        OPENVINO_THROW("Unknown");
     }
-    IE_THROW() << "Unknown";
+    OPENVINO_THROW("Unknown");
 }
 
 cldnn::format generic_test::get_plain_format_for(const cldnn::format input) {
@@ -439,5 +434,42 @@ std::vector<cldnn::format> generic_test::test_input_formats = { cldnn::format::b
 std::vector<int32_t> generic_test::test_batch_sizes = { 1, 2 };// 4, 8, 16};
 std::vector<int32_t> generic_test::test_feature_sizes = { 1, 2 };// , 3, 15};
 std::vector<tensor> generic_test::test_input_sizes = { { 1, 1, 100, 100 } ,{ 1, 1, 277, 277 } ,{ 1, 1, 400, 600 } };
+
+namespace {
+double get_exectime_from_profiling_info(const std::vector<instrumentation::profiling_interval>& intervals)
+{
+    using namespace std::chrono;
+    double time = 0.0;
+    for (const auto& i : intervals) {
+        if (i.stage != instrumentation::profiling_stage::executing) {
+            continue;
+        }
+        time = duration_cast<duration<double, microseconds::period>>(i.value->value()).count();
+        break;
+    }
+    return time;
+}
+}  // namespace
+
+double get_profiling_exectime(const std::map<cldnn::primitive_id, cldnn::network_output>& outputs,
+                    const std::string& primitive_id)
+{
+    const auto event = outputs.at(primitive_id).get_event();
+    event->wait(); // should ensure execution completion, if not segfault will occur
+    const auto intervals = event->get_profiling_info();
+    return get_exectime_from_profiling_info(intervals);
+}
+
+void print_profiling_all_exectimes(const std::map<cldnn::primitive_id, cldnn::network_output>& outputs)
+{
+    std::cout << "Print last run time" << std::endl;
+    for (const auto& o : outputs) {
+        const auto event = o.second.get_event();
+        const auto intervals = event->get_profiling_info();
+        const auto time = get_exectime_from_profiling_info(intervals);
+        std::cout << o.first << ":" << time << std::endl;
+    }
+    std::cout << std::endl;
+}
 
 }  // namespace tests

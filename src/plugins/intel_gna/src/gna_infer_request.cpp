@@ -62,12 +62,10 @@ void GNAInferRequest::StartAsyncImpl() {
         std::exception_ptr exceptionPtr;
         if (res != InferenceEngine::StatusCode::OK) {
             try {
-                IE_EXCEPTION_SWITCH(res,
-                                    ExceptionType,
-                                    InferenceEngine::details::ThrowNow<ExceptionType>{} <<=
-                                    std::stringstream{}
-                                    << IE_LOCATION
-                                    << InferenceEngine::details::ExceptionTraits<ExceptionType>::string());
+                IE_EXCEPTION_SWITCH(
+                    res,
+                    ExceptionType,
+                    InferenceEngine::details::ThrowNow<ExceptionType>{IE_LOCATION_PARAM} <<= std::stringstream{});
             } catch (...) {
                 exceptionPtr = std::current_exception();
             }
@@ -111,7 +109,7 @@ bool GNAInferRequest::IsRequestCompleted() {
 }
 
 bool GNAInferRequest::SetRequestIndex(uint32_t request_index) {
-    return _infer_request_idx = request_index;
+    return (_infer_request_idx = request_index);
 }
 
 void GNAInferRequest::ValidateAndConfigureTimeout(int64_t& millis_timeout) {

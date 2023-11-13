@@ -3,16 +3,16 @@
 //
 
 #include <memory>
-#include <ngraph/coordinate_transform.hpp>
-#include <ngraph/log.hpp>
-#include <ngraph/opsets/opset6.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "mask_attribute.hpp"
+#include "openvino/op/log.hpp"
+#include "openvino/opsets/opset6.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 #include "pruning.hpp"
 
-ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet& dims,
-                                           const std::function<bool(const double& value)>& condition) {
+ov::pass::InitConstMask::InitConstMask(const ov::AxisSet& dims,
+                                       const std::function<bool(const double& value)>& condition) {
     auto constant = pattern::wrap_type<opset6::Constant>(
         pattern::type_matches_any({element::i8, element::u8, element::f16, element::f32, element::f64}));
 
@@ -24,12 +24,13 @@ ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet& dims,
         const auto& shape = const_node->get_shape();
         const auto& values = const_node->cast_vector<double>();
 
-        auto mask = std::make_shared<Mask>(shape);
+        auto mask = std::make_shared<ov::Mask>(shape);
 
         for (const auto& dim : dims) {
             if (dim >= shape.size()) {
-                NGRAPH_DEBUG << "[WARNING] Attemt to initialize masks on " << dim << " dimension which is out of shape "
-                             << shape << " for node (" << const_node->get_friendly_name() << ")";
+                OPENVINO_DEBUG << "[WARNING] Attempt to initialize masks on " << dim
+                               << " dimension which is out of shape " << shape << " for node ("
+                               << const_node->get_friendly_name() << ")";
                 continue;
             }
 
@@ -41,15 +42,15 @@ ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet& dims,
                 end[dim] = value + 1;
 
                 bool skip_dim_value = false;
-                NGRAPH_SUPPRESS_DEPRECATED_START
-                CoordinateTransform iter(shape, begin, end);
+                OPENVINO_SUPPRESS_DEPRECATED_START
+                ov::CoordinateTransform iter(shape, begin, end);
                 for (const Coordinate& coord : iter) {
                     if (!condition(values.at(iter.index(coord)))) {
                         skip_dim_value = true;
                         break;
                     }
                 }
-                NGRAPH_SUPPRESS_DEPRECATED_END
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 if (!skip_dim_value) {
                     mask->at(dim).insert(value);
                 }
@@ -61,7 +62,7 @@ ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet& dims,
         setInitMask(const_node, mask);
 #endif
         if (!mask->all_dims_are_empty()) {
-            NGRAPH_DEBUG << "MASK (" << const_node->get_friendly_name() << ") " << *mask << std::endl;
+            OPENVINO_DEBUG << "MASK (" << const_node->get_friendly_name() << ") " << *mask << std::endl;
         }
 
         return false;

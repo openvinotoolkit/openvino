@@ -7,6 +7,7 @@
 #include "reorder_inst.h"
 #include "reorder/reorder_kernel_selector.h"
 #include "reorder/reorder_kernel_base.h"
+#include "reorder/reorder_weights_kernel_selector.h"
 
 namespace cldnn {
 namespace ocl {
@@ -17,7 +18,7 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
     using kernel_selector_t = kernel_selector::reorder_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::reorder_params, kernel_selector::reorder_optional_params>;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::reorder_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<reorder_impl>(*this);
@@ -26,9 +27,10 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
 protected:
     kernel_arguments_data get_arguments(const reorder_inst& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);
-        auto input = &instance.input_memory();
-        auto input_layout = input->get_layout();
-        if (instance.has_mean()) {
+        if (instance.has_node() && instance.has_mean()) {
+            auto input = &instance.input_memory();
+            auto input_layout = input->get_layout();
+
             if (input_layout.format == cldnn::format::nv12) {
                 args.bias = instance.mean_nv12_memory();
             } else {
@@ -108,12 +110,47 @@ public:
         auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
     }
+
+    static std::unique_ptr<primitive_impl> create(const reorder_node& arg, const kernel_impl_params& impl_param) {
+        bool is_reorder_weights = format::is_weights_format(impl_param.get_input_layout().format) ||
+                                  format::is_weights_format(impl_param.get_output_layout().format);
+        if (is_reorder_weights) {
+            return create_reorder_weights(impl_param);
+        } else {
+            return typed_primitive_impl_ocl<reorder>::create<reorder_impl>(arg, impl_param);
+        }
+    }
+
+    static std::unique_ptr<primitive_impl> create_reorder_weights(const kernel_impl_params& impl_param) {
+        const auto& prim = impl_param.typed_desc<reorder>();
+        const auto& weights_params = prim->weights_reorder_params;
+        auto& kernel_selector = kernel_selector::ReorderWeightsKernelSelector::Instance();
+
+        OPENVINO_ASSERT(weights_params != nullptr, "[GPU] Attempt to create reorder weights without weights params");
+
+        OPENVINO_ASSERT(impl_param.get_input_layout().bytes_count() == weights_params->get_input_layout().bytes_count(),
+                        "[GPU] Input layout doesn't match required reorder weights layout");
+
+        kernel_selector::reorder_weights_params r_params;
+        set_params(impl_param, r_params);
+
+        r_params.input = convert_weights_tensor(weights_params->get_input_layout(), weights_params->get_grouped());
+        r_params.output = convert_weights_tensor(weights_params->get_output_layout());
+        r_params.layerID = impl_param.desc->id + "_reorder_weigths";
+        r_params.uniqueID = std::to_string(impl_param.unique_id) + "_weight";
+        r_params.rotate_180 = weights_params->should_be_transposed();
+
+        kernel_selector::reorder_optional_params optional_params;
+        auto best_kernel = kernel_selector.get_best_kernel(r_params, optional_params);
+
+        return make_unique<reorder_impl>(best_kernel);
+    }
 };
 
 namespace detail {
 
 attach_reorder_impl::attach_reorder_impl() {
-    implementation_map<reorder>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<reorder>::create<reorder_impl>, {});
+    implementation_map<reorder>::add(impl_types::ocl, shape_types::static_shape, reorder_impl::create, {});
 
     auto types = {
         data_types::f32,
@@ -129,7 +166,9 @@ attach_reorder_impl::attach_reorder_impl() {
         format::bfzyx,
         format::bfwzyx,
     };
-    implementation_map<reorder>::add(impl_types::ocl, shape_types::dynamic_shape, typed_primitive_impl_ocl<reorder>::create<reorder_impl>, types, formats);
+    implementation_map<reorder>::add(impl_types::ocl, shape_types::dynamic_shape, reorder_impl::create, types, formats);
+
+    WeightsReordersFactory::add(cldnn::impl_types::ocl, shape_types::static_shape, reorder_impl::create_reorder_weights);
 }
 
 }  // namespace detail

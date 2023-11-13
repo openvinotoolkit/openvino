@@ -8,8 +8,8 @@
 
 #include "behavior/plugin/caching_tests.hpp"
 #include "common_test_utils/file_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 
 using namespace InferenceEngine::details;
 using namespace InferenceEngine;
@@ -175,8 +175,8 @@ void LoadNetworkCacheTestBase::SetUp() {
 }
 
 void LoadNetworkCacheTestBase::TearDown() {
-    CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "blob");
-    CommonTestUtils::removeDir(m_cacheFolderName);
+    ov::test::utils::removeFilesWithExt(m_cacheFolderName, "blob");
+    ov::test::utils::removeDir(m_cacheFolderName);
     core->SetConfig({{CONFIG_KEY(CACHE_DIR), {}}});
     APIBaseTest::TearDown();
 }
@@ -223,7 +223,7 @@ void LoadNetworkCacheTestBase::Run() {
             ASSERT_NO_THROW(Infer());
         }
         // cache is created and reused
-        ASSERT_EQ(CommonTestUtils::listFilesWithExt(m_cacheFolderName, "blob").size(), 1);
+        ASSERT_EQ(ov::test::utils::listFilesWithExt(m_cacheFolderName, "blob").size(), 1);
         compareOutputs(originalOutputs, GetOutputs());
     }
 }
@@ -258,22 +258,22 @@ TEST_P(LoadNetworkCompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinaries) {
         auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
         execNet = {};
         // Check that directory with cached kernels exists after loading network
-        ASSERT_TRUE(CommonTestUtils::directoryExists(cache_path)) << "Directory with cached kernels doesn't exist";
+        ASSERT_TRUE(ov::test::utils::directoryExists(cache_path)) << "Directory with cached kernels doesn't exist";
         for (auto& ext : m_extList) {
             // Check that folder contains cache files and remove them
-            ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path, ext), 0);
+            ASSERT_GT(ov::test::utils::removeFilesWithExt(cache_path, ext), 0);
         }
         // Remove directory and check that it doesn't exist anymore
-        ASSERT_EQ(CommonTestUtils::removeDir(cache_path), 0);
-        ASSERT_FALSE(CommonTestUtils::directoryExists(cache_path));
+        ASSERT_EQ(ov::test::utils::removeDir(cache_path), 0);
+        ASSERT_FALSE(ov::test::utils::directoryExists(cache_path));
     } catch (std::exception& ex) {
         // Cleanup in case of any exception
-        if (CommonTestUtils::directoryExists(cache_path)) {
+        if (ov::test::utils::directoryExists(cache_path)) {
             for (auto& ext : m_extList) {
             // Check that folder contains cache files and remove them
-            ASSERT_GE(CommonTestUtils::removeFilesWithExt(cache_path, ext), 0);
+            ASSERT_GE(ov::test::utils::removeFilesWithExt(cache_path, ext), 0);
             }
-            ASSERT_EQ(CommonTestUtils::removeDir(cache_path), 0);
+            ASSERT_EQ(ov::test::utils::removeDir(cache_path), 0);
         }
         FAIL() << ex.what() << std::endl;
     }
@@ -292,11 +292,11 @@ TEST_P(LoadNetworkCompiledKernelsCacheTest, TwoNetworksWithSameModelCreatesSameC
         execNet1 = {};
         for (auto& ext : m_extList) {
             // Check that folder contains cache files and remove them
-            n_cache_files += CommonTestUtils::listFilesWithExt(cache_path, ext).size();
+            n_cache_files += ov::test::utils::listFilesWithExt(cache_path, ext).size();
         }
 
         // Check that directory with cached kernels exists after loading network
-        ASSERT_TRUE(CommonTestUtils::directoryExists(cache_path)) << "Directory with cached kernels doesn't exist";
+        ASSERT_TRUE(ov::test::utils::directoryExists(cache_path)) << "Directory with cached kernels doesn't exist";
         // Load 2nd CNNNetwork
         auto execNet2 = ie->LoadNetwork(cnnNet2, targetDevice, configuration);
         execNet2 = {};
@@ -304,23 +304,23 @@ TEST_P(LoadNetworkCompiledKernelsCacheTest, TwoNetworksWithSameModelCreatesSameC
         // Check that two loaded networks with same function creates same caches
         for (auto& ext : m_extList) {
             // Check that folder contains cache files and remove them
-            n_cache_files_compare += CommonTestUtils::listFilesWithExt(cache_path, ext).size();
-            ASSERT_TRUE(CommonTestUtils::removeFilesWithExt(cache_path, ext));
+            n_cache_files_compare += ov::test::utils::listFilesWithExt(cache_path, ext).size();
+            ASSERT_TRUE(ov::test::utils::removeFilesWithExt(cache_path, ext));
         }
 
         ASSERT_EQ(n_cache_files_compare, n_cache_files);
 
         // Remove directory and check that it doesn't exist anymore
-        ASSERT_EQ(CommonTestUtils::removeDir(cache_path), 0);
-        ASSERT_FALSE(CommonTestUtils::directoryExists(cache_path));
+        ASSERT_EQ(ov::test::utils::removeDir(cache_path), 0);
+        ASSERT_FALSE(ov::test::utils::directoryExists(cache_path));
     } catch (std::exception& ex) {
         // Cleanup in case of any exception
-        if (CommonTestUtils::directoryExists(cache_path)) {
+        if (ov::test::utils::directoryExists(cache_path)) {
             for (auto& ext : m_extList) {
                 // Check that folder contains cache files and remove them
-                ASSERT_GE(CommonTestUtils::removeFilesWithExt(cache_path, ext), 0);
+                ASSERT_GE(ov::test::utils::removeFilesWithExt(cache_path, ext), 0);
             }
-            ASSERT_EQ(CommonTestUtils::removeDir(cache_path), 0);
+            ASSERT_EQ(ov::test::utils::removeDir(cache_path), 0);
         }
         FAIL() << ex.what() << std::endl;
     }
@@ -332,9 +332,9 @@ TEST_P(LoadNetworkCompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnic
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
     // Create CNNNetwork from ngraph::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
-        std::wstring postfix  = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
-        std::wstring cache_path_w = CommonTestUtils::stringToWString(cache_path) + postfix;
+    for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
+        std::wstring postfix  = L"_" + ov::test::utils::test_unicode_postfix_vector[testIndex];
+        std::wstring cache_path_w = ov::test::utils::stringToWString(cache_path) + postfix;
 
         try {
             auto cache_path_mb = ov::util::wstring_to_string(cache_path_w);
@@ -343,24 +343,24 @@ TEST_P(LoadNetworkCompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnic
             auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
             execNet = {};
             // Check that directory with cached kernels exists after loading network
-            ASSERT_TRUE(CommonTestUtils::directoryExists(cache_path_w)) << "Directory with cached kernels doesn't exist";
+            ASSERT_TRUE(ov::test::utils::directoryExists(cache_path_w)) << "Directory with cached kernels doesn't exist";
             // Check that folder contains cache files and remove them
             for (auto& ext : m_extList) {
                 // Check that folder contains cache files and remove them
-                ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path_w, CommonTestUtils::stringToWString(ext)), 0);
+                ASSERT_GT(ov::test::utils::removeFilesWithExt(cache_path_w, ov::test::utils::stringToWString(ext)), 0);
             }
-            //ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path_w, L"cl_cache"), 0);
+            //ASSERT_GT(ov::test::utils::removeFilesWithExt(cache_path_w, L"cl_cache"), 0);
             // Remove directory and check that it doesn't exist anymore
-            ASSERT_EQ(CommonTestUtils::removeDir(cache_path_w), 0);
-            ASSERT_FALSE(CommonTestUtils::directoryExists(cache_path_w));
+            ASSERT_EQ(ov::test::utils::removeDir(cache_path_w), 0);
+            ASSERT_FALSE(ov::test::utils::directoryExists(cache_path_w));
         } catch (std::exception& ex) {
             // Cleanup in case of any exception
-            if (CommonTestUtils::directoryExists(cache_path_w)) {
+            if (ov::test::utils::directoryExists(cache_path_w)) {
                 for (auto& ext : m_extList) {
                     // Check that folder contains cache files and remove them
-                    ASSERT_GE(CommonTestUtils::removeFilesWithExt(cache_path_w, CommonTestUtils::stringToWString(ext)), 0);
+                    ASSERT_GE(ov::test::utils::removeFilesWithExt(cache_path_w, ov::test::utils::stringToWString(ext)), 0);
                 }
-                ASSERT_EQ(CommonTestUtils::removeDir(cache_path_w), 0);
+                ASSERT_EQ(ov::test::utils::removeDir(cache_path_w), 0);
             }
             FAIL() << ex.what() << std::endl;
         }

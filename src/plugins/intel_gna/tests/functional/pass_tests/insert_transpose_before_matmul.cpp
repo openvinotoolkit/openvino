@@ -11,9 +11,9 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/builders.hpp"
+#include "ov_models/pass/convert_prc.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
@@ -53,7 +53,7 @@ public:
         blob->allocate();
 
         auto* rawBlobDataPtr = blob->buffer().as<float*>();
-        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
+        std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
         for (size_t i = 0; i < blob->size(); i++) {
             rawBlobDataPtr[i] = values[i];
         }
@@ -68,7 +68,7 @@ protected:
         std::tie(netPrecision, targetDevice, configuration, inputShape, firstInConst) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, inputShape}});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, inputShape})};
 
         auto matmul_in_shape = firstInConst ? ngraph::Shape{inputShape / 8, 8} : ngraph::Shape{8, inputShape / 8};
         auto pattern =
@@ -77,11 +77,11 @@ protected:
 
         std::shared_ptr<ngraph::Node> weights_node;
         if (firstInConst) {
-            std::vector<float> weights = CommonTestUtils::generate_float_numbers(matmul_in_shape[0], -0.2f, 0.2f);
+            std::vector<float> weights = ov::test::utils::generate_float_numbers(matmul_in_shape[0], -0.2f, 0.2f);
             weights_node =
                 std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{1, matmul_in_shape[0]}, weights);
         } else {
-            std::vector<float> weights = CommonTestUtils::generate_float_numbers(matmul_in_shape[1], -0.2f, 0.2f);
+            std::vector<float> weights = ov::test::utils::generate_float_numbers(matmul_in_shape[1], -0.2f, 0.2f);
             weights_node =
                 std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{matmul_in_shape[1], 1}, weights);
         }
@@ -111,7 +111,7 @@ const std::vector<bool> firstInputConst = {false, true};
 INSTANTIATE_TEST_SUITE_P(smoke_InsertTransposeBeforeMatmulTest,
                          InsertTransposeBeforeMatmul,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShape),
                                             ::testing::ValuesIn(firstInputConst)),
@@ -146,7 +146,7 @@ public:
         blob->allocate();
 
         auto* rawBlobDataPtr = blob->buffer().as<float*>();
-        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
+        std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
         for (size_t i = 0; i < blob->size(); i++) {
             rawBlobDataPtr[i] = values[i];
         }
@@ -161,20 +161,20 @@ protected:
         std::tie(netPrecision, targetDevice, configuration, inputShape, firstInConst) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, inputShape}});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, inputShape})};
         auto matmul_in_shape = ngraph::Shape{inputShape / 8, 8};
         auto pattern =
             std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{2}, matmul_in_shape);
         auto reshape = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern, false);
 
         std::vector<float> data =
-            CommonTestUtils::generate_float_numbers(ngraph::shape_size(matmul_in_shape), -0.2f, 0.2f);
+            ov::test::utils::generate_float_numbers(ngraph::shape_size(matmul_in_shape), -0.2f, 0.2f);
         auto concat_const = std::make_shared<ngraph::opset1::Constant>(ngPrc, matmul_in_shape, data);
         ngraph::OutputVector concat_chunks{reshape, concat_const};
         auto concat = std::make_shared<ngraph::opset7::Concat>(concat_chunks, 0);
 
         std::shared_ptr<ngraph::Node> weights_node;
-        std::vector<float> weights = CommonTestUtils::generate_float_numbers(matmul_in_shape[0] * 2, -0.2f, 0.2f);
+        std::vector<float> weights = ov::test::utils::generate_float_numbers(matmul_in_shape[0] * 2, -0.2f, 0.2f);
         weights_node =
             std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{1, matmul_in_shape[0] * 2}, weights);
 
@@ -197,7 +197,7 @@ const std::vector<bool> firstInputConstConcat = {true};
 INSTANTIATE_TEST_SUITE_P(smoke_InsertTransposeBeforeMatmulConcat,
                          InsertTransposeBeforeConcatConcat,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(concatInputShape),
                                             ::testing::ValuesIn(firstInputConstConcat)),

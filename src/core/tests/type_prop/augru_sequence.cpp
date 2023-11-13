@@ -4,11 +4,13 @@
 
 #include "ov_ops/augru_sequence.hpp"
 
+#include <gtest/gtest.h>
+
 #include "common_test_utils/test_assertions.hpp"
-#include "gtest/gtest.h"
+#include "common_test_utils/type_prop.hpp"
 #include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/opsets/opset9.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ov;
@@ -23,7 +25,7 @@ struct augru_sequence_parameters {
     element::Type et = element::f32;
 };
 
-shared_ptr<op::internal::AUGRUSequence> augru_seq_init(const augru_sequence_parameters& params) {
+static shared_ptr<op::internal::AUGRUSequence> augru_seq_init(const augru_sequence_parameters& params) {
     auto batch_size = params.batch_size;
     auto seq_length = params.seq_length;
     auto input_size = params.input_size;
@@ -172,7 +174,7 @@ TEST(type_prop, augru_sequence_invalid_input_dimension) {
     for (size_t i = 0; i < augru_sequence->get_input_size(); i++) {
         augru_sequence = augru_seq_init(params);
         augru_sequence->set_argument(i, invalid_rank_tensor);
-        ASSERT_THROW(augru_sequence->validate_and_infer_types(), ngraph::CheckFailure)
+        ASSERT_THROW(augru_sequence->validate_and_infer_types(), ov::AssertFailure)
             << "AUGRUSequence node was created with invalid data.";
     }
 }

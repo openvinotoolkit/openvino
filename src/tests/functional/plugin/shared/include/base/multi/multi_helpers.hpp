@@ -8,7 +8,7 @@
 #include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
+#include "ov_models/subgraph_builders.hpp"
 #include "openvino/util/common_util.hpp"
 
 using namespace ::testing;
@@ -26,7 +26,7 @@ using DevicesNames = std::vector<DeviceName>;
 using DevicesNamesAndSupportTuple = std::tuple<DevicesNames, bool, ov::AnyMap>;
 using DevicesNamseAndProperties = std::pair<DevicesNames, ov::AnyMap>;
 
-class MultiDevice_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<DevicesNamseAndProperties> {
+class MultiDevice_Test : public ov::test::TestsCommon, public testing::WithParamInterface<DevicesNamseAndProperties> {
     void SetUp() override {
         std::vector<DeviceName> deviceNameList;
         std::tie(deviceNameList, _properties) = this->GetParam();
@@ -56,7 +56,7 @@ protected:
     std::shared_ptr<ngraph::Function> fn_ptr;
 };
 
-class MultiDevice_SupportTest : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<DevicesNamesAndSupportTuple> {
+class MultiDevice_SupportTest : public ov::test::TestsCommon, public testing::WithParamInterface<DevicesNamesAndSupportTuple> {
     void SetUp() override {
         std::vector<DeviceName> deviceNameList;
         std::tie(deviceNameList, expected_status, _properties) = this->GetParam();
@@ -88,7 +88,7 @@ protected:
     std::shared_ptr<ngraph::Function> fn_ptr;
 };
 
-class MultiDeviceMultipleGPU_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<DevicesNames> {
+class MultiDeviceMultipleGPU_Test : public ov::test::TestsCommon, public testing::WithParamInterface<DevicesNames> {
     void SetUp() override {
         device_names = getDeviceStringWithMulti(this->GetParam());
         device_lists = this->GetParam();
@@ -106,6 +106,6 @@ protected:
     std::vector<std::string> device_lists;
     std::shared_ptr<ngraph::Function> fn_ptr;
 };
-#define MULTI  CommonTestUtils::DEVICE_MULTI
-#define CPU    CommonTestUtils::DEVICE_CPU
-#define GPU    CommonTestUtils::DEVICE_GPU
+#define MULTI  ov::test::utils::DEVICE_MULTI
+#define CPU    ov::test::utils::DEVICE_CPU
+#define GPU    ov::test::utils::DEVICE_GPU

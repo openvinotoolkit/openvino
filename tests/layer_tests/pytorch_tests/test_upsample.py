@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from sys import platform
+
 import pytest
 
 from pytorch_layer_test_class import PytorchLayerTest
@@ -41,6 +43,7 @@ class TestUpsample1D(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
     def test_upsample1d(self, mode, size, scale, ie_device, precision, ir_version):
         self._test(*self.create_model(size, scale, mode), ie_device,
                    precision, ir_version, trace_model=True)
@@ -76,6 +79,50 @@ class TestUpsample2D(PytorchLayerTest):
         ('nearest', None, 2.5),
         ('nearest', None, 0.75),
         ('nearest', None, (1.5, 2)),
+        ('bilinear', 300, None),
+        ('bilinear', 150, None),
+        ('bilinear', (400, 480), None),
+        ('bilinear', None, 2.5,),
+        ('bilinear', None, 0.75),
+        ('bilinear', None, (1.2, 1.3)),
+        ('bicubic', 300, None),
+        ('bicubic', 150, None),
+        ('bicubic', (400, 480), None),
+        ('bicubic', None, 2.5,),
+        ('bicubic', None, 0.75),
+        ('bicubic', None, (1.2, 1.3))
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_upsample2d(self, mode, size, scale, ie_device, precision, ir_version):
+        self._test(*self.create_model(size, scale, mode), ie_device,
+                   precision, ir_version, trace_model=True, **{"custom_eps": 1e-3})
+
+
+class TestUpsample2DAntialias(PytorchLayerTest):
+    def _prepare_input(self):
+        import numpy as np
+        return (np.random.randn(1, 3, 200, 200).astype(np.float32),)
+
+    def create_model(self, size, scale, mode):
+        import torch
+        import torch.nn.functional as F
+
+        class aten_upsample(torch.nn.Module):
+            def __init__(self, size, scale, mode):
+                super().__init__()
+                self.size = size
+                self.scale = scale
+                self.mode = mode
+
+            def forward(self, x):
+                return F.interpolate(x, self.size, scale_factor=self.scale, mode=self.mode, antialias=True)
+
+        ref_net = None
+
+        return aten_upsample(size, scale, mode), ref_net, F"aten::_upsample_{mode}2d_aa"
+
+    @pytest.mark.parametrize("mode,size,scale", [
         ('bilinear', 300, None),
         ('bilinear', 150, None),
         ('bilinear', (400, 480), None),

@@ -25,7 +25,7 @@ public:
     size_t descInputNumbers() override {
         return static_cast<size_t>(getOriginalInputsNumber());
     }
-    std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;

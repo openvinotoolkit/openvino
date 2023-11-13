@@ -6,6 +6,7 @@
 
 #include "default_opset.hpp"
 #include "ngraph/op/normalize_l2.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "utils/common.hpp"
 
 namespace ngraph {
@@ -23,7 +24,7 @@ OutputVector normalize(const Node& node) {
 
     std::shared_ptr<ngraph::Node> weights;
     if (channel_shared) {
-        NGRAPH_CHECK(ngraph::op::is_constant(inputs[1].get_node()),
+        NGRAPH_CHECK(ov::op::util::is_constant(inputs[1].get_node()),
                      "Weights input must be a constant if channel_shared is set to 1");
         const auto& shape = inputs[1].get_partial_shape();
         NGRAPH_CHECK(shape.is_static() && shape.rank().get_length() == 1,

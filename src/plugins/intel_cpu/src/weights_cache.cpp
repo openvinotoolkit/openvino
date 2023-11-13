@@ -71,22 +71,23 @@ WeightsSharing::SharedMemory::Ptr WeightsSharing::get(const std::string& key) co
                                                 : std::unique_lock<std::mutex>(ptr->guard), ptr, newPtr);
 }
 
-NumaNodesWeights::NumaNodesWeights() {
-    for (auto numa_id : InferenceEngine::getAvailableNUMANodes())
-        _cache_map[numa_id] = std::make_shared<WeightsSharing>();
+SocketsWeights::SocketsWeights() {
+    int num_sockets = get_num_sockets();
+    for (int socket_id = 0; socket_id < num_sockets; socket_id++)
+         _cache_map[socket_id] = std::make_shared<WeightsSharing>();
 }
 
-WeightsSharing::Ptr& NumaNodesWeights::operator[](int numa_id) {
-    auto found = _cache_map.find(numa_id);
+WeightsSharing::Ptr& SocketsWeights::operator[](int socket_id) {
+    auto found = _cache_map.find(socket_id);
     if (found == _cache_map.end())
-        IE_THROW() << "Unknown numa node id " << numa_id;
+        IE_THROW() << "Unknown socket id " << socket_id;
     return found->second;
 }
 
-const WeightsSharing::Ptr& NumaNodesWeights::operator[](int numa_id) const {
-    auto found = _cache_map.find(numa_id);
+const WeightsSharing::Ptr& SocketsWeights::operator[](int socket_id) const {
+    auto found = _cache_map.find(socket_id);
     if (found == _cache_map.end())
-        IE_THROW() << "Unknown numa node id " << numa_id;
+        IE_THROW() << "Unknown socket id " << socket_id;
     return found->second;
 }
 

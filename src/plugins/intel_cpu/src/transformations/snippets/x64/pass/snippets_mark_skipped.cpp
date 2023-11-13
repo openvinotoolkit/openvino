@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "snippets_mark_skipped.hpp"
+
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/utils.hpp"
-#include <ngraph/opsets/opset1.hpp>
+
+#include <transformations/utils/utils.hpp>
 #include <utils/general_utils.h>
 #include <utils/cpu_utils.hpp>
 
 #include "itt.hpp"
 
-using namespace ngraph;
 
 namespace ov {
 namespace intel_cpu {
@@ -44,13 +45,13 @@ int getNumNonConstInputs(const std::shared_ptr<const Node> &node) {
     int num_non_const_inputs = 0;
     for (const auto &parent_out : node->input_values()) {
         const auto parent = parent_out.get_node_shared_ptr();
-        if (ov::is_type<ngraph::op::v1::Reshape>(parent)) {
+        if (ov::is_type<ov::op::v1::Reshape>(parent)) {
             for (const auto &grandparent_out : parent->input_values()) {
                 const auto grandparent = grandparent_out.get_node_shared_ptr();
-                if (!ngraph::op::is_constant(grandparent))
+                if (!ov::is_type<ov::op::v0::Constant>(grandparent))
                     num_non_const_inputs++;
             }
-        } else if (!ngraph::op::is_constant(parent)) {
+        } else if (!ov::is_type<ov::op::v0::Constant>(parent)) {
             num_non_const_inputs++;
         }
     }
@@ -59,16 +60,16 @@ int getNumNonConstInputs(const std::shared_ptr<const Node> &node) {
 bool SupportsFusingWithConvolution_SumActivation(const std::shared_ptr<const Node> &node) {
     // todo: Do all PReLUs are fused? Not sure about round and softRelu
     // EltwiseRoundHalfToEven, EltwiseRoundHalfAwayFromZero, EltwiseSoftRelu
-    return  ov::is_type<ngraph::op::Relu>(node) ||
-            ov::is_type<ngraph::op::PRelu>(node) ||
-            ov::is_type<ngraph::op::Elu>(node) ||
-            ov::is_type<ngraph::op::Sigmoid>(node) ||
-            ov::is_type<ngraph::op::v5::HSigmoid>(node) ||
-            ov::is_type<ngraph::op::Clamp>(node) ||
-            ov::is_type<ngraph::op::v4::Swish>(node) ||
-            ov::is_type<ngraph::op::v4::HSwish>(node) ||
-            ov::is_type<ngraph::op::v4::Mish>(node) ||
-            ov::is_type<ngraph::op::v5::Round>(node);
+    return  ov::is_type<ov::op::v0::Relu>(node) ||
+            ov::is_type<ov::op::v0::PRelu>(node) ||
+            ov::is_type<ov::op::v0::Elu>(node) ||
+            ov::is_type<ov::op::v0::Sigmoid>(node) ||
+            ov::is_type<ov::op::v5::HSigmoid>(node) ||
+            ov::is_type<ov::op::v0::Clamp>(node) ||
+            ov::is_type<ov::op::v4::Swish>(node) ||
+            ov::is_type<ov::op::v4::HSwish>(node) ||
+            ov::is_type<ov::op::v4::Mish>(node) ||
+            ov::is_type<ov::op::v5::Round>(node);
 }
 
 bool canBePerformedAsScaleShift(const std::shared_ptr<const Node> &node, const int channelAxis) {
@@ -77,7 +78,7 @@ bool canBePerformedAsScaleShift(const std::shared_ptr<const Node> &node, const i
     ov::PartialShape dataShape;
     for (size_t i = 0; i < node->get_input_size(); i++) {
         const auto parent = node->get_input_node_shared_ptr(i);
-        if (!ngraph::op::is_constant(parent)) {
+        if (!ov::is_type<ov::op::v0::Constant>(parent)) {
             fusingPort = i;
             dataShape = node->get_input_partial_shape(i);
             // only one non-const parent is allowed
@@ -105,10 +106,10 @@ bool canBePerformedAsScaleShift(const std::shared_ptr<const Node> &node, const i
 
     // Prelu and MulAdd are still ignored
     // isConvertablePowerStatic() is ignored
-    return (ov::is_type<ngraph::opset1::Add>(node) ||
-            ov::is_type<ngraph::opset1::Multiply>(node) ||
-            ov::is_type<ngraph::opset1::Subtract>(node) ||
-            ov::is_type<ngraph::opset1::Divide>(node)) &&
+    return (ov::is_type<ov::opset1::Add>(node) ||
+            ov::is_type<ov::opset1::Multiply>(node) ||
+            ov::is_type<ov::opset1::Subtract>(node) ||
+            ov::is_type<ov::opset1::Divide>(node)) &&
            isBroadcastableToDataInput();
 }
 
@@ -118,25 +119,25 @@ inline bool canBeMatMulExecutedInInt8(const ov::element::Type& firstType, const 
 
 bool SupportsFusingWithConvolution_Simple(const std::shared_ptr<const Node> &node, const int channelAxis = DEFAULT_AXIS) {
     return SupportsFusingWithConvolution_SumActivation(node) ||
-           ov::is_type<ngraph::op::Tanh>(node) ||
-           ov::is_type<ngraph::op::v0::Gelu>(node) ||
-           ov::is_type<ngraph::op::v7::Gelu>(node) ||
-           ov::is_type<ngraph::op::Abs>(node) ||
-           ov::is_type<ngraph::op::Sqrt>(node) ||
-           ov::is_type<ngraph::op::FakeQuantize>(node) ||
+           ov::is_type<ov::op::v0::Tanh>(node) ||
+           ov::is_type<ov::op::v0::Gelu>(node) ||
+           ov::is_type<ov::op::v7::Gelu>(node) ||
+           ov::is_type<ov::op::v0::Abs>(node) ||
+           ov::is_type<ov::op::v0::Sqrt>(node) ||
+           ov::is_type<ov::op::v0::FakeQuantize>(node) ||
            canBePerformedAsScaleShift(node, channelAxis);
 }
 // Convolution is a special case, since it supports peculiar fusings
 bool isSuitableConvolutionParent(const std::shared_ptr<const Node> &node) {
-    const bool is_suitable_node = ov::is_type<ngraph::op::v1::Convolution>(node) ||
-                                  ov::is_type<ngraph::op::v1::GroupConvolution>(node);
+    const bool is_suitable_node = ov::is_type<ov::op::v1::Convolution>(node) ||
+                                  ov::is_type<ov::op::v1::GroupConvolution>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
     return is_suitable_node && has_only_child;
 }
 bool isSuitableBinaryConvolutionParent(const std::shared_ptr<const Node> &node) {
-    const bool is_suitable_node = ov::is_type<ngraph::op::v1::BinaryConvolution>(node);
+    const bool is_suitable_node = ov::is_type<ov::op::v1::BinaryConvolution>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
@@ -158,17 +159,17 @@ int getChannelAxis(const ov::AxisSet &axes, bool keep_dims) {
     return channelAxis;
 }
 bool isSuitableMiscParent(const std::shared_ptr<const Node> &node) {
-    const bool is_suitable_node = ov::is_type<ngraph::op::v0::MVN>(node) ||
-                                  ov::is_type<ngraph::op::v6::MVN>(node) ||
-                                  ov::is_type<ngraph::op::v0::NormalizeL2>(node) ||
-                                  ov::is_type<ngraph::op::v0::Interpolate>(node) ||
-                                  ov::is_type<ngraph::op::v4::Interpolate>(node) ||
-                                  ov::is_type<ngraph::op::v0::LSTMCell>(node) ||
-                                  ov::is_type<ngraph::op::v4::LSTMCell>(node) ||
-                                  ov::is_type<ngraph::opset1::ConvolutionBackpropData>(node) ||
-                                  ov::is_type<ngraph::op::util::ArithmeticReductionKeepDims>(node) ||
-                                  ov::is_type<ngraph::opset1::GroupConvolutionBackpropData>(node) ||
-                                  ov::is_type<ngraph::opset1::AvgPool>(node);
+    const bool is_suitable_node = ov::is_type<ov::op::v0::MVN>(node) ||
+                                  ov::is_type<ov::op::v6::MVN>(node) ||
+                                  ov::is_type<ov::op::v0::NormalizeL2>(node) ||
+                                  ov::is_type<ov::op::v0::Interpolate>(node) ||
+                                  ov::is_type<ov::op::v4::Interpolate>(node) ||
+                                  ov::is_type<ov::op::v0::LSTMCell>(node) ||
+                                  ov::is_type<ov::op::v4::LSTMCell>(node) ||
+                                  ov::is_type<ov::opset1::ConvolutionBackpropData>(node) ||
+                                  ov::is_type<ov::op::util::ArithmeticReductionKeepDims>(node) ||
+                                  ov::is_type<ov::opset1::GroupConvolutionBackpropData>(node) ||
+                                  ov::is_type<ov::opset1::AvgPool>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
@@ -176,7 +177,7 @@ bool isSuitableMiscParent(const std::shared_ptr<const Node> &node) {
 }
 // Matmul is a special case, since it supports simple + bias fusings
 bool isSuitableMatMulParent(const std::shared_ptr<const Node> &node) {
-    const bool is_suitable_node = ov::is_type<ngraph::op::MatMul>(node);
+    const bool is_suitable_node = ov::is_type<ov::op::v0::MatMul>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
@@ -191,7 +192,7 @@ inline bool isSuitableReduceParent(const std::shared_ptr<const Node> &node) {
 }
 // Subtract as ZeroPoints for Convolution
 bool isSuitableSubtractAsZeroPointsParent(const std::shared_ptr<const Node> &node) {
-    const bool is_suitable_node = ov::is_type<ngraph::op::v1::Subtract>(node);
+    const bool is_suitable_node = ov::is_type<ov::op::v1::Subtract>(node);
     const auto out = node->outputs();
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
     const bool has_two_parents = node->get_input_size() == 2;
@@ -230,12 +231,12 @@ bool isSuitableSubtractAsZeroPointsParent(const std::shared_ptr<const Node> &nod
                                               zp_weights_is_suitable;
 
     const auto conv_weights = child->get_input_node_shared_ptr(1);
-    bool second_conv_input_is_suitable = ov::is_type<ngraph::op::v0::Constant>(conv_weights) &&
+    bool second_conv_input_is_suitable = ov::is_type<ov::op::v0::Constant>(conv_weights) &&
                                          conv_weights->get_output_element_type(0) == ov::element::i8;
     return first_conv_input_is_suitable && second_conv_input_is_suitable;
 }
 bool isSuitablePoolChild(const std::shared_ptr<const Node> &node) {
-    const bool is_suitable_node = ov::is_type<ngraph::op::v1::MaxPool>(node);
+    const bool is_suitable_node = ov::is_type<ov::op::v1::MaxPool>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
@@ -253,7 +254,7 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, con
     ov::PartialShape matmul_shape;
     for (const auto &parent_out : node->input_values()) {
         const auto parent = parent_out.get_node_shared_ptr();
-        if (ngraph::op::is_constant(parent)) {
+        if (ov::op::util::is_on_constant_path(parent_out)) {
             bias_shape = parent_out.get_shape();
             num_non_const_inputs++;
         } else {
@@ -264,7 +265,7 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, con
             // first check that weights are constant and both activations and weights have static shape
             if (grandparents.size() == 2 &&
                 grandparents[1].get_partial_shape().is_static() &&
-                ov::is_type<ov::op::v0::Constant>(grandparents[1].get_node_shared_ptr())) {
+                (ov::op::util::is_on_constant_path(grandparents[1]))) {
                 auto rank_a = grandparents[0].get_partial_shape().rank().get_length();
                 auto rank_w = grandparents[1].get_partial_shape().rank().get_length();
                 if (rank_a != 1 && rank_w != 1 && rank_a <= 3 && rank_w <= 3)
@@ -276,10 +277,10 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, con
         return false;
 
     // Matmul / FC bias fusion
-    if (ov::is_type<ngraph::opset1::Add>(node) &&
+    if (ov::is_type<ov::opset1::Add>(node) &&
         bias_shape.is_static() && matmul_shape.rbegin()->is_static() &&
         bias_shape.rbegin()->get_length() == matmul_shape.rbegin()->get_length() &&
-        bias_shape.rbegin()->get_length() == shape_size(bias_shape.get_shape())) {
+        bias_shape.rbegin()->get_length() == static_cast<int64_t>(shape_size(bias_shape.get_shape()))) {
         return true;
     }
 
@@ -319,10 +320,10 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, con
                     }
                 }
             } else if (ov::is_type<ov::op::v0::FakeQuantize>(node)) {
-                const bool is_per_tensor_broadcasting = ngraph::snippets::utils::is_scalar_constant(node->get_input_node_shared_ptr(1)) &&
-                                                        ngraph::snippets::utils::is_scalar_constant(node->get_input_node_shared_ptr(2)) &&
-                                                        ngraph::snippets::utils::is_scalar_constant(node->get_input_node_shared_ptr(3)) &&
-                                                        ngraph::snippets::utils::is_scalar_constant(node->get_input_node_shared_ptr(4));
+                const bool is_per_tensor_broadcasting = snippets::utils::is_scalar_constant(node->get_input_node_shared_ptr(1)) &&
+                                                        snippets::utils::is_scalar_constant(node->get_input_node_shared_ptr(2)) &&
+                                                        snippets::utils::is_scalar_constant(node->get_input_node_shared_ptr(3)) &&
+                                                        snippets::utils::is_scalar_constant(node->get_input_node_shared_ptr(4));
                 if (!is_per_tensor_broadcasting) {
                     return false;
                 }
@@ -340,15 +341,15 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, con
     return true;
 }
 bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node> &node) {
-    if (!ov::is_type<ngraph::op::v1::Add>(node))
+    if (!ov::is_type<ov::op::v1::Add>(node))
         return false;
     auto isFusedBiasNode = [](std::shared_ptr<Node> n){
-        if (!(ov::is_type<ngraph::op::v1::Add>(n) &&
+        if (!(ov::is_type<ov::op::v1::Add>(n) &&
               GetNodeFusingType(n) ==  NodeFusingType::FusedWithConvolution))
             return false;
         const auto conv = n->get_input_source_output(0);
         const auto bias = n->get_input_source_output(1);
-        if (!(ngraph::op::is_constant(bias.get_node_shared_ptr()) && isSuitableConvolutionParent(conv.get_node_shared_ptr())))
+        if (!(ov::is_type<ov::op::v0::Constant>(bias.get_node_shared_ptr()) && isSuitableConvolutionParent(conv.get_node_shared_ptr())))
             return false;
         const auto conv_shape = conv.get_partial_shape();
         const auto bias_shape = bias.get_partial_shape();
@@ -371,7 +372,7 @@ bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node> &n
         return true;
     };
     auto isFusedFQNode = [&isFusedBiasNode](std::shared_ptr<Node> n) {
-        if (!(ov::is_type<ngraph::op::v0::FakeQuantize>(n) &&
+        if (!(ov::is_type<ov::op::v0::FakeQuantize>(n) &&
             GetNodeFusingType(n) == NodeFusingType::FusedWithConvolution))
             return false;
         const auto& parent = n->get_input_node_shared_ptr(0);
@@ -394,6 +395,11 @@ bool isSuitableChildForFusingSumActivation(const std::shared_ptr<const Node> &no
 }
 bool isSuitableReduceChild(const std::shared_ptr<const Node> &node, const int channelAxis = DEFAULT_AXIS) {
     return node->get_output_element_type(0) == ov::element::f32 && isSuitableChildForFusingSimple(node, channelAxis);
+}
+bool isSuitableMatMulWithConstantPath(const std::shared_ptr<Node>& node) {
+    return ov::is_type<ov::opset1::MatMul>(node) &&
+           !ov::is_type<ov::opset1::Constant>(node->get_input_node_shared_ptr(1)) &&
+           ov::op::util::is_on_constant_path(node->input_value(1));
 }
 // Continue fusing chain of the passed type if the node has one child
 // Otherwise mark node as FusedTerminator (Fused, but fusing chain is interrupted)
@@ -425,19 +431,19 @@ void MarkSubgraphOpAsSkipped(const std::shared_ptr<Node> &node) {
 }
 
 bool isSuitableConvert(const std::shared_ptr<const Node>& node) {
-    if (!ov::is_type<ngraph::op::Convert>(node))
+    if (!ov::is_type<ov::op::v0::Convert>(node))
         return false;
-    auto hasResult = [](const std::shared_ptr<const Node>& node){
+    auto hasResult = [](const std::shared_ptr<const Node>& node) {
         auto consumers = node->output(0).get_target_inputs();
         bool findResult = false;
         if (consumers.size() == 1) {
-            if (ov::is_type<ngraph::op::Result>(consumers.begin()->get_node()))
+            if (ov::is_type<ov::op::v0::Result>(consumers.begin()->get_node()))
                 findResult = true;
         }
         return findResult;
     };
     // 1. check Parameter->Convert 2. check Convert->Result
-    if (ov::is_type<ngraph::op::Parameter>(node->get_input_node_ptr(0))) {
+    if (ov::is_type<ov::op::v0::Parameter>(node->get_input_node_ptr(0))) {
         auto inPrc = node->get_input_element_type(0);
         auto outPrc = node->get_output_element_type(0);
         return inPrc == element::bf16 && outPrc == element::f32;
@@ -449,14 +455,29 @@ bool isSuitableConvert(const std::shared_ptr<const Node>& node) {
         return false;
     }
 }
+
+auto is_skipped_op(const std::shared_ptr<ov::Node>& op) -> bool {
+    return ov::is_type<ov::op::v0::Constant>(op) ||
+           ov::is_type<ov::op::v0::Parameter>(op) ||
+           ov::is_type<ov::op::v0::Result>(op);
+}
 } // namespace
 
 bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
     RUN_ON_MODEL_SCOPE(SnippetsMarkSkipped);
     int channelAxis = DEFAULT_AXIS;
     for (auto &node : m->get_ordered_ops()) {
-        if (ngraph::op::is_constant(node) || ov::is_type<ov::op::v0::Result>(node))
+        if (is_skipped_op(node))
             continue;
+        // We perform this check separately because we mark here only weights path
+        // Matmul itself will be checked further
+        if (isSuitableMatMulWithConstantPath(node)) {
+            auto markup_func = [](Node* node) {
+                SetSnippetsNodeType(node->shared_from_this(), snippets::pass::SnippetsNodeType::SkippedByPlugin);
+            };
+            std::unordered_set<Node*> visited;
+            ov::op::util::visit_shape_path(node->get_input_node_ptr(1), visited, markup_func);
+        }
         if (isSuitableConvolutionParent(node)) {
             // Initiate fusing chain
             SetNodeFusingType(node, NodeFusingType::FusedWithConvolution);
@@ -465,11 +486,11 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
             SetNodeFusingType(node, NodeFusingType::FusedWithBinaryConvolution);
             channelAxis = DEFAULT_AXIS;
         } else if (isSuitableReduceParent(node)) {
-            const auto reduce = std::dynamic_pointer_cast<const ngraph::op::util::ArithmeticReductionKeepDims>(node);
+            const auto reduce = std::dynamic_pointer_cast<const ov::op::util::ArithmeticReductionKeepDims>(node);
             channelAxis = getChannelAxis(reduce->get_reduction_axes(), reduce->get_keep_dims());
             SetNodeFusingType(node, NodeFusingType::FusedWithReduce);
         } else if (isSuitableMiscParent(node)) {
-            if (const auto reduce = std::dynamic_pointer_cast<const ngraph::op::util::ArithmeticReductionKeepDims>(node)) {
+            if (const auto reduce = std::dynamic_pointer_cast<const ov::op::util::ArithmeticReductionKeepDims>(node)) {
                 channelAxis = getChannelAxis(reduce->get_reduction_axes(), reduce->get_keep_dims());
             } else {
                 channelAxis = DEFAULT_AXIS;

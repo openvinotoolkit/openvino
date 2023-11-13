@@ -2,21 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/matrix_nms.hpp"
+#include "openvino/op/matrix_nms.hpp"
 
 #include <cstring>
-#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/runtime/reference/matrix_nms.hpp"
-#include "ngraph/type/bfloat16.hpp"
-#include "ngraph/type/float16.hpp"
-#include "ngraph/util.hpp"
+#include "matrix_nms_shape_inference.hpp"
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/op/util/op_types.hpp"
 
-using namespace ngraph;
+namespace ov {
 
 op::v8::MatrixNms::MatrixNms(const Output<Node>& boxes, const Output<Node>& scores, const Attributes& attrs)
     : Op({boxes, scores}),
@@ -37,8 +32,6 @@ void op::v8::MatrixNms::validate() {
 
     const auto& nms_attrs = this->get_attrs();
     const auto output_type = nms_attrs.output_type;
-    const auto nms_top_k = nms_attrs.nms_top_k;
-    const auto keep_top_k = nms_attrs.keep_top_k;
 
     auto is_float_type_admissible = [](const element::Type& t) {
         return t == element::f32 || t == element::f16 || t == element::bf16;
@@ -60,64 +53,22 @@ void op::v8::MatrixNms::validate() {
     NODE_VALIDATION_CHECK(this,
                           this->get_input_element_type(0).compatible(this->get_input_element_type(1)),
                           "Expected 'boxes', 'scores' type is same.");
-
-    // validate attributes
-    NODE_VALIDATION_CHECK(this, nms_top_k >= -1, "The 'nms_top_k' must be great or equal -1. Got:", nms_top_k);
-
-    NODE_VALIDATION_CHECK(this, keep_top_k >= -1, "The 'keep_top_k' must be great or equal -1. Got:", keep_top_k);
-
-    NODE_VALIDATION_CHECK(this,
-                          m_attrs.background_class >= -1,
-                          "The 'background_class' must be great or equal -1. Got:",
-                          m_attrs.background_class);
 }
 
 void op::v8::MatrixNms::validate_and_infer_types() {
     OV_OP_SCOPE(v8_MatrixNms_validate_and_infer_types);
-    const auto boxes_ps = get_input_partial_shape(0);
-    const auto scores_ps = get_input_partial_shape(1);
 
-    auto first_dim_shape = Dimension::dynamic();
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shapes = shape_infer(this, input_shapes);
 
     validate();
 
-    const auto& nms_attrs = this->get_attrs();
-    const auto output_type = nms_attrs.output_type;
-    const auto nms_top_k = nms_attrs.nms_top_k;
-    const auto keep_top_k = nms_attrs.keep_top_k;
-
-    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static()) {
-        const auto num_boxes_boxes = boxes_ps[1];
-        if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static()) {
-            const auto num_boxes = num_boxes_boxes.get_length();
-            const auto num_classes = scores_ps[1].get_length();
-            int64_t max_output_boxes_per_class = 0;
-            if (nms_top_k >= 0)
-                max_output_boxes_per_class = std::min(num_boxes, (int64_t)nms_top_k);
-            else
-                max_output_boxes_per_class = num_boxes;
-
-            auto max_output_boxes_per_batch = max_output_boxes_per_class * num_classes;
-            if (keep_top_k >= 0)
-                max_output_boxes_per_batch = std::min(max_output_boxes_per_batch, (int64_t)keep_top_k);
-
-            first_dim_shape = Dimension(0, max_output_boxes_per_batch * scores_ps[0].get_length());
-        }
-    }
-
-    // 'selected_outputs' have the following format:
-    //      [number of selected boxes, [class_id, box_score, xmin, ymin, xmax, ymax]]
-    set_output_type(0, get_input_element_type(0), {first_dim_shape, 6});
-    // 'selected_indices' have the following format:
-    //      [number of selected boxes, ]
-    set_output_type(1, output_type, {first_dim_shape, 1});
-    // 'selected_num' have the following format:
-    //      [num_batches, ]
-    if (boxes_ps.rank().is_static() && boxes_ps.rank().get_length() > 0) {
-        set_output_type(2, output_type, {boxes_ps[0]});
-    } else {
-        set_output_type(2, output_type, {Dimension::dynamic()});
-    }
+    const auto& output_type = get_attrs().output_type;
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
+    set_output_type(1, output_type, output_shapes[1]);
+    set_output_type(2, output_type, output_shapes[2]);
 }
 
 bool op::v8::MatrixNms::visit_attributes(AttributeVisitor& visitor) {
@@ -138,29 +89,29 @@ bool op::v8::MatrixNms::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-std::ostream& ov::operator<<(std::ostream& s, const op::v8::MatrixNms::DecayFunction& type) {
+void op::v8::MatrixNms::set_attrs(Attributes attrs) {
+    m_attrs = std::move(attrs);
+}
+
+std::ostream& operator<<(std::ostream& s, const op::v8::MatrixNms::DecayFunction& type) {
     return s << as_string(type);
 }
 
-namespace ov {
 template <>
-NGRAPH_API EnumNames<ngraph::op::v8::MatrixNms::DecayFunction>&
-EnumNames<ngraph::op::v8::MatrixNms::DecayFunction>::get() {
-    static auto enum_names = EnumNames<ngraph::op::v8::MatrixNms::DecayFunction>(
-        "op::v8::MatrixNms::DecayFunction",
-        {{"gaussian", ngraph::op::v8::MatrixNms::DecayFunction::GAUSSIAN},
-         {"linear", ngraph::op::v8::MatrixNms::DecayFunction::LINEAR}});
+OPENVINO_API EnumNames<op::v8::MatrixNms::DecayFunction>& EnumNames<op::v8::MatrixNms::DecayFunction>::get() {
+    static auto enum_names =
+        EnumNames<op::v8::MatrixNms::DecayFunction>("op::v8::MatrixNms::DecayFunction",
+                                                    {{"gaussian", op::v8::MatrixNms::DecayFunction::GAUSSIAN},
+                                                     {"linear", op::v8::MatrixNms::DecayFunction::LINEAR}});
     return enum_names;
 }
-}  // namespace ov
 
-std::ostream& ov::operator<<(std::ostream& s, const op::v8::MatrixNms::SortResultType& type) {
+std::ostream& operator<<(std::ostream& s, const op::v8::MatrixNms::SortResultType& type) {
     return s << as_string(type);
 }
 
-namespace ov {
 template <>
-NGRAPH_API EnumNames<op::v8::MatrixNms::SortResultType>& EnumNames<op::v8::MatrixNms::SortResultType>::get() {
+OPENVINO_API EnumNames<op::v8::MatrixNms::SortResultType>& EnumNames<op::v8::MatrixNms::SortResultType>::get() {
     static auto enum_names =
         EnumNames<op::v8::MatrixNms::SortResultType>("op::v8::MatrixNms::SortResultType",
                                                      {{"classid", op::v8::MatrixNms::SortResultType::CLASSID},

@@ -1,11 +1,12 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <gmock/gmock.h>
+
 #include <array>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "embeddingbag_packed_shape_inference.hpp"
-#include "gmock/gmock.h"
 #include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
@@ -30,13 +31,13 @@ TEST_F(EmbeddingBagPackedSumV3StaticShapeInferenceTest, default_ctor) {
     // 2 inputs
     {
         input_shapes = {StaticShape{3, 4, 5, 6}, StaticShape{batch, 2}};
-        shape_infer(op.get(), input_shapes, output_shapes);
+        output_shapes = shape_inference(op.get(), input_shapes);
         EXPECT_EQ(output_shapes[0], expected_output);
     }
     // 3 inputs
     {
         input_shapes = {StaticShape{3, 4, 5, 6}, StaticShape{batch, 2}, StaticShape{batch, 2}};
-        shape_infer(op.get(), input_shapes, output_shapes);
+        output_shapes = shape_inference(op.get(), input_shapes);
         EXPECT_EQ(output_shapes[0], expected_output);
     }
 }
@@ -49,7 +50,7 @@ TEST_F(EmbeddingBagPackedSumV3StaticShapeInferenceTest, basic_2in) {
     auto op = make_op(emb_table, indices);
 
     input_shapes = {StaticShape{5, 2, 6}, StaticShape{3, 4}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], (StaticShape{3, 2, 6}));
 }
 
@@ -61,6 +62,6 @@ TEST_F(EmbeddingBagPackedSumV3StaticShapeInferenceTest, basic_3in) {
     auto op = make_op(emb_table, indices, per_sample_weights);
 
     input_shapes = {StaticShape{5, 2, 6}, StaticShape{3, 4}, StaticShape{3, 4}};
-    shape_inference(op.get(), input_shapes, output_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], (StaticShape{3, 2, 6}));
 }

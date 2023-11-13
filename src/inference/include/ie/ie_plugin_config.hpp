@@ -10,6 +10,16 @@
  */
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <map>
 #include <string>
 #include <tuple>
@@ -18,6 +28,7 @@
 #include "ie_precision.hpp"
 
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @brief %Metrics
@@ -56,6 +67,7 @@ namespace Metrics {
 /**
  * @brief Metric to get a std::vector<std::string> of available device IDs. String value is "AVAILABLE_DEVICES"
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_KEY(AVAILABLE_DEVICES, std::vector<std::string>);
 
 /**
@@ -67,6 +79,7 @@ DECLARE_METRIC_KEY(AVAILABLE_DEVICES, std::vector<std::string>);
  * can be passed to ExecutableNetwork::GetMetric.
  *
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_KEY(SUPPORTED_METRICS, std::vector<std::string>);
 
 /**
@@ -79,11 +92,13 @@ DECLARE_METRIC_KEY(SUPPORTED_METRICS, std::vector<std::string>);
  * ExecutableNetwork::GetConfig.
  *
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_KEY(SUPPORTED_CONFIG_KEYS, std::vector<std::string>);
 
 /**
  * @brief Metric to get a std::string value representing a full device name. String value is "FULL_DEVICE_NAME"
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_KEY(FULL_DEVICE_NAME, std::string);
 
 /**
@@ -99,14 +114,22 @@ DECLARE_METRIC_KEY(FULL_DEVICE_NAME, std::string);
  *  - "WINOGRAD" - device can support models where convolution implemented via Winograd transformations
  *  - "BATCHED_BLOB" - device can support BatchedBlob
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_KEY(OPTIMIZATION_CAPABILITIES, std::vector<std::string>);
 
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_VALUE(FP32);
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_VALUE(BF16);
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_VALUE(FP16);
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_VALUE(INT8);
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_VALUE(BIN);
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_VALUE(WINOGRAD);
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_VALUE(BATCHED_BLOB);
 
 /**
@@ -117,6 +140,7 @@ DECLARE_METRIC_VALUE(BATCHED_BLOB);
  *  - Second value is upper bound.
  * String value for metric name is "RANGE_FOR_STREAMS".
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_KEY(RANGE_FOR_STREAMS, std::tuple<unsigned int, unsigned int>);
 /**
  * @brief Metric to query information optimal batch size for the given device and the network
@@ -129,6 +153,7 @@ DECLARE_METRIC_KEY(RANGE_FOR_STREAMS, std::tuple<unsigned int, unsigned int>);
  * so that the result (>1) governs the automatic batching (transparently to the application).
  * The automatic batching can be disabled with ALLOW_AUTO_BATCHING set to NO
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_KEY(OPTIMAL_BATCH_SIZE, unsigned int);
 
 /**
@@ -139,6 +164,7 @@ DECLARE_METRIC_KEY(OPTIMAL_BATCH_SIZE, unsigned int);
  * Also, MODEL_PTR is the required option for this metric since the available max batch size depends on the model size.
  * If the MODEL_PTR is not given, it will return 1.
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_KEY(MAX_BATCH_SIZE, unsigned int);
 
 /**
@@ -151,6 +177,7 @@ DECLARE_METRIC_KEY(MAX_BATCH_SIZE, unsigned int);
  *  - Third value is step inside this range.
  * String value for metric name is "RANGE_FOR_ASYNC_INFER_REQUESTS".
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS, std::tuple<unsigned int, unsigned int, unsigned int>);
 
 /**
@@ -158,6 +185,7 @@ DECLARE_METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS, std::tuple<unsigned int, unsi
  *
  * String value is "NUMBER_OF_WAITNING_INFER_REQUESTS". This can be used as an executable network metric as well
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_KEY(NUMBER_OF_WAITING_INFER_REQUESTS, unsigned int);
 
 /**
@@ -165,23 +193,27 @@ DECLARE_METRIC_KEY(NUMBER_OF_WAITING_INFER_REQUESTS, unsigned int);
  *
  * String value is "NUMBER_OF_EXEC_INFER_REQUESTS". This can be used as an executable network metric as well
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_KEY(NUMBER_OF_EXEC_INFER_REQUESTS, unsigned int);
 
 /**
  * @brief Metric which defines the device architecture.
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_KEY(DEVICE_ARCHITECTURE, std::string);
 
 /**
  * @brief Enum to define possible device types
  */
-enum class DeviceType {
+enum class INFERENCE_ENGINE_1_0_DEPRECATED DeviceType {
     integrated = 0,
     discrete = 1,
 };
 
 /** @cond INTERNAL */
-inline std::ostream& operator<<(std::ostream& os, const InferenceEngine::Metrics::DeviceType& deviceType) {
+INFERENCE_ENGINE_1_0_DEPRECATED inline std::ostream& operator<<(
+    std::ostream& os,
+    const InferenceEngine::Metrics::DeviceType& deviceType) {
     switch (deviceType) {
     case InferenceEngine::Metrics::DeviceType::discrete:
         os << "discrete";
@@ -201,32 +233,38 @@ inline std::ostream& operator<<(std::ostream& os, const InferenceEngine::Metrics
 /**
  * @brief Metric to get a type of device. See DeviceType enum definition for possible return values
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_KEY(DEVICE_TYPE, DeviceType);
 
 /**
  * @brief Metric which defines Giga OPS per second count (GFLOPS or GIOPS) for a set of precisions supported by
  * specified device
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_KEY(DEVICE_GOPS, std::map<InferenceEngine::Precision, float>);
 
 /**
  * @brief Metric which defines support of import/export functionality by plugin
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_KEY(IMPORT_EXPORT_SUPPORT, bool);
 
 /**
  * @brief Metric to get a name of network. String value is "NETWORK_NAME".
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_EXEC_NETWORK_METRIC_KEY(NETWORK_NAME, std::string);
 
 /**
  * @brief  Metric to get a float of device thermal. String value is "DEVICE_THERMAL"
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_METRIC_KEY(DEVICE_THERMAL, float);
 
 /**
  * @brief Metric to get an unsigned integer value of optimal number of executable network infer requests.
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_EXEC_NETWORK_METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS, unsigned int);
 
 }  // namespace Metrics
@@ -255,9 +293,13 @@ namespace PluginConfigParams {
  * @brief (Optional) config key that defines what model should be provided with more performant bounded resource first
  * It provides 3 types of levels: High, Medium and Low. The default value is Medium
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_KEY(MODEL_PRIORITY);
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_VALUE(MODEL_PRIORITY_HIGH);
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_VALUE(MODEL_PRIORITY_MED);
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_VALUE(MODEL_PRIORITY_LOW);
 
 /**
@@ -265,40 +307,52 @@ DECLARE_CONFIG_VALUE(MODEL_PRIORITY_LOW);
  * unlike low-level config keys that are individual (per-device), the hints are smth that every device accepts
  * and turns into device-specific settings
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_KEY(PERFORMANCE_HINT);
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_VALUE(LATENCY);
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_VALUE(THROUGHPUT);
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_VALUE(UNDEFINED);
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_VALUE(CUMULATIVE_THROUGHPUT);
 /**
  * @brief (Optional) config key that backs the (above) Performance Hints
  * by giving additional information on how many inference requests the application will be keeping in flight
  * usually this value comes from the actual use-case (e.g. number of video-cameras, or other sources of inputs)
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS);
 /**
  * @brief (Optional) config key that governs Auto-Batching (with YES/NO values, below)
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_KEY(ALLOW_AUTO_BATCHING);
 
 /**
  * @brief generic boolean values
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_VALUE(YES);
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_VALUE(NO);
 
 /**
  * @brief Auto-batching configuration, string for the device + batch size, e.g. "GPU(4)"
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG);
 /**
  * @brief Auto-batching configuration: string with timeout (in ms), e.g. "100"
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_KEY(AUTO_BATCH_TIMEOUT);
 
 /**
  * @brief Limit `#threads` that are used by Inference Engine for inference on the CPU.
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_KEY(CPU_THREADS_NUM);
 
 /**
@@ -318,8 +372,11 @@ DECLARE_CONFIG_KEY(CPU_THREADS_NUM);
  * Also, the settings are ignored, if the OpenVINO compiled with OpenMP and any affinity-related OpenMP's
  * environment variable is set (as affinity is configured explicitly)
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_KEY(CPU_BIND_THREAD);
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_VALUE(NUMA);
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_VALUE(HYBRID_AWARE);
 
 /**
@@ -332,8 +389,11 @@ DECLARE_CONFIG_VALUE(HYBRID_AWARE);
  *   (and what is the optimal number of streams)
  * - finally, specifying the positive integer value creates the requested number of streams
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_KEY(CPU_THROUGHPUT_STREAMS);
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_VALUE(CPU_THROUGHPUT_AUTO);
 
 /**
@@ -342,37 +402,15 @@ DECLARE_CONFIG_VALUE(CPU_THROUGHPUT_AUTO);
  * It is passed to Core::SetConfig(), this option should be used with values:
  * PluginConfigParams::YES or PluginConfigParams::NO
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_KEY(PERF_COUNT);
-
-/**
- * @brief The key defines dynamic limit of batch processing.
- * @deprecated
- *
- * Specified value is applied to all following Infer() calls. Inference Engine processes
- * min(batch_limit, original_batch_size) first pictures from input blob. For example, if input
- * blob has sizes 32x3x224x224 after applying plugin.SetConfig({KEY_DYN_BATCH_LIMIT, 10})
- * Inference Engine primitives processes only beginner subblobs with size 10x3x224x224.
- * This value can be changed before any Infer() call to specify a new batch limit.
- *
- * The paired parameter value should be convertible to integer number. Acceptable values:
- * -1 - Do not limit batch processing
- * >0 - Direct value of limit. Batch size to process is min(new batch_limit, original_batch)
- */
-INFERENCE_ENGINE_DEPRECATED("This config is deprecated and will be removed in 2023.1 release")
-DECLARE_CONFIG_KEY(DYN_BATCH_LIMIT);
-
-/**
- * @brief The key checks whether dynamic batch is enabled.
- * @deprecated
- */
-INFERENCE_ENGINE_DEPRECATED("This config is deprecated and will be removed in 2023.1 release")
-DECLARE_CONFIG_KEY(DYN_BATCH_ENABLED);
 
 /**
  * @brief This key directs the plugin to load a configuration file.
  *
  * The value should be a file name with the plugin specific configuration
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_KEY(CONFIG_FILE);
 
 /**
@@ -382,23 +420,31 @@ DECLARE_CONFIG_KEY(CONFIG_FILE);
  * PluginConfigParams::LOG_ERROR, PluginConfigParams::LOG_WARNING,
  * PluginConfigParams::LOG_INFO, PluginConfigParams::LOG_DEBUG, PluginConfigParams::LOG_TRACE
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_KEY(LOG_LEVEL);
 
-DECLARE_CONFIG_VALUE(LOG_NONE);     // turn off logging
-DECLARE_CONFIG_VALUE(LOG_ERROR);    // error events that might still allow the
-                                    // application to continue running
+INFERENCE_ENGINE_1_0_DEPRECATED
+DECLARE_CONFIG_VALUE(LOG_NONE);  // turn off logging
+INFERENCE_ENGINE_1_0_DEPRECATED
+DECLARE_CONFIG_VALUE(LOG_ERROR);  // error events that might still allow the
+                                  // application to continue running
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_VALUE(LOG_WARNING);  // potentially harmful situations which may
                                     // further lead to ERROR
-DECLARE_CONFIG_VALUE(LOG_INFO);     // informational messages that display the progress of the
-                                    // application at coarse-grained level
-DECLARE_CONFIG_VALUE(LOG_DEBUG);    // fine-grained events that are most useful to
-                                    // debug an application.
-DECLARE_CONFIG_VALUE(LOG_TRACE);    // finer-grained informational events than the DEBUG
+INFERENCE_ENGINE_1_0_DEPRECATED
+DECLARE_CONFIG_VALUE(LOG_INFO);  // informational messages that display the progress of the
+                                 // application at coarse-grained level
+INFERENCE_ENGINE_1_0_DEPRECATED
+DECLARE_CONFIG_VALUE(LOG_DEBUG);  // fine-grained events that are most useful to
+                                  // debug an application.
+INFERENCE_ENGINE_1_0_DEPRECATED
+DECLARE_CONFIG_VALUE(LOG_TRACE);  // finer-grained informational events than the DEBUG
 
 /**
  * @brief the key for setting of required device to execute on
  * values: device id starts from "0" - first device, "1" - second device, etc
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_KEY(DEVICE_ID);
 
 /**
@@ -411,6 +457,7 @@ DECLARE_CONFIG_KEY(DEVICE_ID);
  * By default, the option is set to YES for hetero cases, and to NO for conventional (single-plugin) cases
  * Notice that setting YES disables the CPU streams feature (see another config key in this file)
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS);
 
 /**
@@ -421,7 +468,7 @@ DECLARE_CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS);
  * corresponding configuration information. Value is a name of output dot file without extension.
  * Files `<dot_file_name>_init.dot` and `<dot_file_name>_perf.dot` will be produced.
  */
-INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::ExecutableNetwork::GetExecGraphInfo::serialize method")
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_KEY(DUMP_EXEC_GRAPH_AS_DOT);
 
 /**
@@ -433,6 +480,7 @@ DECLARE_CONFIG_KEY(DUMP_EXEC_GRAPH_AS_DOT);
  * verified separately by the user and basing on performance and accuracy results it should be
  * user's decision to use this option or not to use
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_KEY(ENFORCE_BF16);
 
 /**
@@ -453,6 +501,7 @@ DECLARE_CONFIG_KEY(ENFORCE_BF16);
  * ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "cache/"}}); // enables models cache
  * @endcode
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_KEY(CACHE_DIR);
 
 /**
@@ -466,6 +515,7 @@ DECLARE_CONFIG_KEY(CACHE_DIR);
  * ie.SetConfig({{CONFIG_KEY(FORCE_TBB_TERMINATE), CONFIG_VALUE(YES)}}); // enable
  * @endcode
  */
+INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_KEY(FORCE_TBB_TERMINATE);
 
 }  // namespace PluginConfigParams
@@ -478,6 +528,7 @@ DECLARE_CONFIG_KEY(FORCE_TBB_TERMINATE);
 
 #define DECLARE_AUTO_CONFIG_KEY(name) DECLARE_CONFIG_KEY(AUTO_##name)
 
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine
 
 #include "gpu/gpu_config.hpp"

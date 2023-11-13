@@ -9,33 +9,33 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <low_precision/shuffle_channels.hpp>
+#include "transformations/utils/utils.hpp"
+#include "low_precision/shuffle_channels.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "lpt_ngraph_functions/shuffle_channels_function.hpp"
-#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "ov_lpt_models/shuffle_channels.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 namespace {
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 class ShuffleChannelsTransformationTestValues {
 public:
 public:
     class Actual {
     public:
-        ngraph::element::Type inputPrecision;
+        ov::element::Type inputPrecision;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
-        ngraph::element::Type inputPrecision;
+        ov::element::Type inputPrecision;
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-        ngraph::element::Type preicsionAfterOperation;
+        ov::element::Type preicsionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
@@ -47,13 +47,13 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::PartialShape,
+    ov::PartialShape,
     ShuffleChannelsTransformationTestValues> ShuffleChannelsTransformationParams;
 
 class ShuffleChannelsTransformation : public LayerTransformation, public testing::WithParamInterface<ShuffleChannelsTransformationParams> {
 public:
     void SetUp() override {
-        ngraph::PartialShape inputShape = std::get<0>(GetParam());
+        ov::PartialShape inputShape = std::get<0>(GetParam());
         ShuffleChannelsTransformationTestValues testValues = std::get<1>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::ShuffleChannelsFunction::getOriginal(
@@ -64,7 +64,7 @@ public:
             testValues.group);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ShuffleChannelsTransformation, ngraph::opset1::ShuffleChannels>(testValues.params);
+        transform.add<ov::pass::low_precision::ShuffleChannelsTransformation, ov::op::v0::ShuffleChannels>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::ShuffleChannelsFunction::getReference(
@@ -78,7 +78,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ShuffleChannelsTransformationParams> obj) {
-        ngraph::PartialShape inputShape = std::get<0>(obj.param);
+        ov::PartialShape inputShape = std::get<0>(obj.param);
         ShuffleChannelsTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
@@ -100,7 +100,7 @@ TEST_P(ShuffleChannelsTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> inputShapes = {
+const std::vector<ov::PartialShape> inputShapes = {
     { 1, 3, 8, 10 },
     { 4, 3, 8, 10 },
     { -1, -1, -1, -1 }
@@ -113,14 +113,14 @@ const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
         1, // axis
         1, // group
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128.f}, {0.02f}}
+            ov::element::u8,
+            {{ov::element::f32}, {128.f}, {0.02f}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128.f}, {0.02f}}
+            ov::element::u8,
+            {{ov::element::f32}, {128.f}, {0.02f}}
         }
     },
     // U8 per channel quantization
@@ -129,14 +129,14 @@ const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
         1,
         1,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
+            ov::element::u8,
+            {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
+            ov::element::u8,
+            {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
         }
     },
     // subtraction with Convert from u8 to fp32
@@ -145,19 +145,19 @@ const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
         1,
         1,
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
+                {ov::element::f32},
                 {{128.f}, element::undefined, {1, 3, 1, 1}, false, 1ul, element::u8, true},
                 {3.f}
             }
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
+                {ov::element::f32},
                 {{128.f}, element::undefined, {1, 3, 1, 1}, false, 1ul, element::u8, true},
                 {3.f}
             }
@@ -169,21 +169,21 @@ const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
         2,
         4,
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
-                {{121.f, 122.f, 123.f, 124.f, 125.f, 126.f, 127.f, 128.f}, ngraph::element::f32, ngraph::Shape{1, 1, 8, 1}},
-                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f}, ngraph::element::f32, ngraph::Shape{1, 1, 8, 1}}
+                {ov::element::f32},
+                {{121.f, 122.f, 123.f, 124.f, 125.f, 126.f, 127.f, 128.f}, ov::element::f32, ov::Shape{1, 1, 8, 1}},
+                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f}, ov::element::f32, ov::Shape{1, 1, 8, 1}}
             }
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
-                {{121.f, 123.f, 125.f, 127.f, 122.f, 124.f, 126.f, 128.f}, ngraph::element::f32, ngraph::Shape{1, 1, 8, 1}},
-                {{1.f, 3.f, 5.f, 7.f, 2.f, 4.f, 6.f, 8.f}, ngraph::element::f32, ngraph::Shape {1, 1, 8, 1}},
+                {ov::element::f32},
+                {{121.f, 123.f, 125.f, 127.f, 122.f, 124.f, 126.f, 128.f}, ov::element::f32, ov::Shape{1, 1, 8, 1}},
+                {{1.f, 3.f, 5.f, 7.f, 2.f, 4.f, 6.f, 8.f}, ov::element::f32, ov::Shape {1, 1, 8, 1}},
             }
         }
     },
@@ -193,14 +193,14 @@ const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
         -2,
         4,
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
+            ov::element::u8,
+            {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
+            ov::element::u8,
+            {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
         }
     },
     // I8 per tensor quantization
@@ -209,14 +209,14 @@ const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
         1,
         1,
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {128.f}, {0.02f}}
+            ov::element::i8,
+            {{ov::element::f32}, {128.f}, {0.02f}}
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {},
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {128.f}, {0.02f}}
+            ov::element::i8,
+            {{ov::element::f32}, {128.f}, {0.02f}}
         }
     },
     // I8 per channel quantization
@@ -225,14 +225,14 @@ const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
         1,
         1,
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
+            ov::element::i8,
+            {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {},
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
+            ov::element::i8,
+            {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
         }
     },
     // I8 quantization by spatial dimension, shuffling by the same dimension
@@ -241,21 +241,21 @@ const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
         2,
         4,
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {
-                {ngraph::element::f32},
-                {{121.f, 122.f, 123.f, 124.f, 125.f, 126.f, 127.f, 128.f}, ngraph::element::f32, ngraph::Shape{1, 1, 8, 1}},
-                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f}, ngraph::element::f32, ngraph::Shape{1, 1, 8, 1}}
+                {ov::element::f32},
+                {{121.f, 122.f, 123.f, 124.f, 125.f, 126.f, 127.f, 128.f}, ov::element::f32, ov::Shape{1, 1, 8, 1}},
+                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f}, ov::element::f32, ov::Shape{1, 1, 8, 1}}
             }
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {},
-            ngraph::element::i8,
+            ov::element::i8,
             {
-                {ngraph::element::f32},
-                {{121.f, 123.f, 125.f, 127.f, 122.f, 124.f, 126.f, 128.f}, ngraph::element::f32, ngraph::Shape{1, 1, 8, 1}},
-                {{1.f, 3.f, 5.f, 7.f, 2.f, 4.f, 6.f, 8.f}, ngraph::element::f32, ngraph::Shape {1, 1, 8, 1}},
+                {ov::element::f32},
+                {{121.f, 123.f, 125.f, 127.f, 122.f, 124.f, 126.f, 128.f}, ov::element::f32, ov::Shape{1, 1, 8, 1}},
+                {{1.f, 3.f, 5.f, 7.f, 2.f, 4.f, 6.f, 8.f}, ov::element::f32, ov::Shape {1, 1, 8, 1}},
             }
         }
     },
@@ -265,14 +265,14 @@ const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
         -2,
         4,
         {
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
+            ov::element::i8,
+            {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
         },
         {
-            ngraph::element::i8,
+            ov::element::i8,
             {},
-            ngraph::element::i8,
-            {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
+            ov::element::i8,
+            {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
         }
     },
     // U8 per tensor quantization, not update precision
@@ -281,13 +281,13 @@ const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
         3,
         5,
         {
-            ngraph::element::f32,
+            ov::element::f32,
             {{}, {128.f}, {0.02f}}
         },
         {
-            ngraph::element::f32,
+            ov::element::f32,
             {},
-            ngraph::element::f32,
+            ov::element::f32,
             {{}, {128.f}, {0.02f}}
         }
     },
@@ -297,13 +297,13 @@ const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
         2,
         4,
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {{}, {}, {}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {},
-            ngraph::element::u8,
+            ov::element::u8,
             {{}, {}, {}}
         }
     },
@@ -319,8 +319,8 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> inputShapesWithDynamicRank = {
-    ngraph::PartialShape::dynamic()
+const std::vector<ov::PartialShape> inputShapesWithDynamicRank = {
+    ov::PartialShape::dynamic()
 };
 
 const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
@@ -330,13 +330,13 @@ const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
         1, // axis
         1, // group
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128.f}, {0.02f}}
+            ov::element::u8,
+            {{ov::element::f32}, {128.f}, {0.02f}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {128.f}, {0.02f}},
-            ngraph::element::f32,
+            ov::element::u8,
+            {{ov::element::f32}, {128.f}, {0.02f}},
+            ov::element::f32,
             {},
         }
     },
