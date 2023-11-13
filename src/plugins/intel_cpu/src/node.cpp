@@ -80,7 +80,7 @@ Node::NodesFactory & Node::factory() {
     return factoryInstance;
 }
 
-Node::Node(const std::shared_ptr<ngraph::Node>& op,
+Node::Node(const std::shared_ptr<ov::Node>& op,
            const GraphContext::CPtr ctx,
            const ShapeInferFactory& shapeInferFactory)
     : selectedPrimitiveDescriptorIndex(-1),
@@ -1282,7 +1282,7 @@ InferenceEngine::Precision Node::getRuntimePrecision() const {
     return runtimePrecision;
 }
 
-Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) {
+Node* Node::NodesFactory::create(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) {
     // getExceptionDescWithoutStatus removes redundant information from the exception message. For instance, the NotImplemented
     // exception is generated in the form: full_path_to_src_file:line_number [ NOT_IMPLEMENTED ] reason.
     // An example for gather node:

@@ -34,7 +34,7 @@ public:
     }
 
 private:
-    std::shared_ptr<const ngraph::Node> m_op;
+    std::shared_ptr<const ov::Node> m_op;
 };
 } // namespace node
 } // namespace intel_cpu

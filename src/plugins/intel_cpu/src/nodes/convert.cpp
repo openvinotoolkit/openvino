@@ -17,7 +17,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool Convert::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Convert::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto convert = std::dynamic_pointer_cast<const ngraph::opset1::Convert>(op);
         if (!convert) {
@@ -30,7 +30,7 @@ bool Convert::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-Convert::Convert(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+Convert::Convert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {

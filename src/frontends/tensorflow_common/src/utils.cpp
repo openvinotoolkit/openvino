@@ -249,12 +249,17 @@ void default_op_checks(const frontend::NodeContext& node,
                        const vector<string>& supported_ops,
                        bool supported_complex) {
     auto op_type = node.get_op_type();
-    TENSORFLOW_OP_VALIDATION(node,
-                             find(supported_ops.begin(), supported_ops.end(), op_type) != supported_ops.end(),
-                             op_type + " is not supported for conversion.");
-    TENSORFLOW_OP_VALIDATION(node,
-                             node.get_input_size() >= min_input_size,
-                             op_type + " must have at least " + to_string(min_input_size) + " inputs.");
+
+    // we can skip these checks if translator wrapper can be used for multiple operations
+    // check only if supported_ops is defined
+    if (supported_ops.size() > 0) {
+        TENSORFLOW_OP_VALIDATION(node,
+                                 find(supported_ops.begin(), supported_ops.end(), op_type) != supported_ops.end(),
+                                 op_type + " is not supported for conversion.");
+        TENSORFLOW_OP_VALIDATION(node,
+                                 node.get_input_size() >= min_input_size,
+                                 op_type + " must have at least " + to_string(min_input_size) + " inputs.");
+    }
 
     // check if it supports complex type in case complex type input
     bool has_input_complex_type = false;

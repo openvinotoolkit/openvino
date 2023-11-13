@@ -21,11 +21,11 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool ScatterUpdate::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool ScatterUpdate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto scatterElemUpd = ngraph::as_type_ptr<const ngraph::opset3::ScatterElementsUpdate>(op);
-        auto scatterUpd = ngraph::as_type_ptr<const ngraph::opset3::ScatterUpdate>(op);
-        auto scatterNdUpd = ngraph::as_type_ptr<const ngraph::opset4::ScatterNDUpdate>(op);
+        auto scatterElemUpd = ov::as_type_ptr<const ngraph::opset3::ScatterElementsUpdate>(op);
+        auto scatterUpd = ov::as_type_ptr<const ngraph::opset3::ScatterUpdate>(op);
+        auto scatterNdUpd = ov::as_type_ptr<const ngraph::opset4::ScatterNDUpdate>(op);
         if (!scatterElemUpd && !scatterUpd && !scatterNdUpd) {
             const std::string opType = op->get_type_name();
             errorMessage = "Only opset" + opType == "ScatterNDUpdate" ? "4 " : "3 " + opType + " operation is supported";
@@ -41,7 +41,7 @@ bool ScatterUpdate::isExecutable() const {
     return !isInputTensorAtPortEmpty(DATA_ID);
 }
 
-ScatterUpdate::ScatterUpdate(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+ScatterUpdate::ScatterUpdate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)),
           dataSize(0lu), indicesSize(0lu), axisSize(0lu),
           dataPrec(Precision::UNSPECIFIED),

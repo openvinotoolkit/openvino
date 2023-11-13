@@ -281,7 +281,7 @@ void split_points(const std::vector<int>& ids, std::vector<int>& rois_per_level,
 
 } // namespace
 
-bool ExperimentalDetectronROIFeatureExtractor::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
+bool ExperimentalDetectronROIFeatureExtractor::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                                               std::string& errorMessage) noexcept {
     try {
         const auto roiFeatureExtractor = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
@@ -296,7 +296,7 @@ bool ExperimentalDetectronROIFeatureExtractor::isSupportedOperation(const std::s
 }
 
 ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatureExtractor(
-    const std::shared_ptr<ngraph::Node>& op,
+    const std::shared_ptr<ov::Node>& op,
     const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;

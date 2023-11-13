@@ -15,21 +15,21 @@ public:
 
     LeakyReluNode() = default;
 
-    LeakyReluNode(const ngraph::Output<ngraph::Node> &data, const float &negative_slope, const ngraph::element::Type output_type);
+    LeakyReluNode(const ov::Output<ov::Node> &data, const float &negative_slope, const ov::element::Type output_type);
 
     void validate_and_infer_types() override;
 
-    bool visit_attributes(ngraph::AttributeVisitor &visitor) override;
+    bool visit_attributes(ov::AttributeVisitor &visitor) override;
 
-    std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector &new_args) const override;
+    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector &new_args) const override;
 
     float get_slope() { return m_negative_slope; }
 
-    ngraph::element::Type get_output_type() const { return m_output_type; }
+    ov::element::Type get_output_type() const { return m_output_type; }
 
 private:
     float m_negative_slope = 0.f;
-    ngraph::element::Type m_output_type;
+    ov::element::Type m_output_type;
 };
 
 }   // namespace intel_cpu
