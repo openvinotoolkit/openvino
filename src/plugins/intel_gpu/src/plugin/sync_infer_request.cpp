@@ -226,6 +226,7 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const CompiledModel>& c
     : ov::ISyncInferRequest(compiled_model)
     , m_graph(compiled_model->get_graph(0))
     , m_context(std::static_pointer_cast<RemoteContextImpl>(compiled_model->get_context_impl()))
+    , m_shape_predictor(new cldnn::ShapePredictor(&m_graph->get_engine(), m_graph->get_config().get_property(ov::intel_gpu::buffers_preallocation_ratio)))
     , m_enable_profiling(m_graph->get_config().get_property(ov::enable_profiling))
     , m_use_external_queue(m_graph->use_external_queue()) {
     bool is_legacy_api = !compiled_model->is_new_api();
@@ -233,6 +234,17 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const CompiledModel>& c
     allocate_inputs();
     allocate_outputs();
     allocate_states();
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->mem_preallocation_params.is_initialized) {
+        auto& mem_preallocation_params = debug_config->mem_preallocation_params;
+        m_shape_predictor.reset(
+            new cldnn::ShapePredictor(&m_graph->get_engine(),
+                                      mem_preallocation_params.next_iters_preallocation_count,
+                                      mem_preallocation_params.max_per_iter_size,
+                                      mem_preallocation_params.max_per_dim_diff,
+                                      mem_preallocation_params.buffers_preallocation_ratio));
+    }
 }
 
 void SyncInferRequest::infer() {
@@ -401,6 +413,7 @@ void SyncInferRequest::enqueue() {
 
     auto network = m_graph->get_network();
     network->assign_variables_memories();
+    network->set_shape_predictor(m_shape_predictor);
 
     m_internal_outputs.clear();
     m_internal_outputs = network->execute(dependencies);
@@ -476,8 +489,7 @@ void SyncInferRequest::wait() {
                     need_reallocate = usm_host_tensor->get_impl()->get_original_memory()->size() < output_memory->size();
 
                 if (need_reallocate) {
-                    auto& shape_predictor = m_graph->get_network()->get_shape_predictor();
-                    auto actual_memory_shape = predict_shape(name, mem_shape, output_tensor->get_element_type(), shape_predictor);
+                    auto actual_memory_shape = predict_shape(name, mem_shape, output_tensor->get_element_type(), *m_shape_predictor);
                     output_tensor->set_shape(actual_memory_shape);
                 }
             }
@@ -585,8 +597,7 @@ TensorWrapper SyncInferRequest::create_or_share_device_tensor(const TensorWrappe
 
     auto actual_memory_shape = tensor_shape;
     if (is_dynamic) {
-        auto& shape_predictor = m_graph->get_network()->get_shape_predictor();
-        actual_memory_shape = predict_shape(name, tensor_shape, element_type, shape_predictor);
+        actual_memory_shape = predict_shape(name, tensor_shape, element_type, *m_shape_predictor);
     }
 
     return { create_device_tensor(actual_memory_shape, element_type, need_lockable_mem), TensorOwner::PLUGIN };
@@ -746,7 +757,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
 
     if (is_remote) {
         m_plugin_inputs[name] = user_tensor_wrapper;
-    } else if (is_usm_host_tensor && !convert_needed) {
+    } else if (is_usm_host_tensor && !convert_needed && can_use_usm_host(engine)) {
         m_plugin_inputs[name] = {usm_host_ptr->get_impl(), user_tensor_wrapper.owner};
         is_remote = true;
     }
@@ -762,8 +773,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
         auto device_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(device_tensor_wrapper.ptr);
         if (is_dynamic) {
             if (device_tensor->get_original_memory()->size() < user_tensor->get_byte_size()) {
-                auto& shape_predictor = network->get_shape_predictor();
-                auto actual_shape = predict_shape(name, user_tensor->get_shape(), device_tensor_et, shape_predictor);
+                auto actual_shape = predict_shape(name, user_tensor->get_shape(), device_tensor_et, *m_shape_predictor);
                 GPU_DEBUG_TRACE_DETAIL << "    actual memory shape: " << actual_shape.to_string() << std::endl;
                 auto new_tensor = create_device_tensor(actual_shape, device_tensor_et, false);
                 new_tensor->set_shape(user_tensor->get_shape());

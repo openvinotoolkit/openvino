@@ -121,6 +121,7 @@ struct loop_impl : typed_primitive_impl<loop> {
 
         auto ev = stream.create_user_event(false);
 
+        body_network->set_shape_predictor(outer_network.get_shape_predictor());
         OPENVINO_ASSERT(!primitive->num_iteration_id.empty(), "loop operation should have num_iteration_id");
 
         auto num_iterations = instance.get_num_iterations();
