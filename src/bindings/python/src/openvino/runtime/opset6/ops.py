@@ -128,22 +128,25 @@ def mvn(
 @nameable_op
 def read_value(init_value: NodeInput,
                variable_id: str,
-               variable_type: Optional[Union[NumericType, Type]] = None,
+               variable_type: Optional[Union[NumericType, Type, str]] = None,
                variable_shape: Optional[TensorShape] = None,
                name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.
 
     :param init_value:   Node producing a value to be returned instead of an unassigned variable.
     :param variable_id:  Id of a variable to be read.
-    :param variable_shape:  shape to be set into Variable
-    :param variable_type:   type to be set into Variable
+    :param variable_type:   Optional type to be set into Variable.
+    :param variable_shape:  Optional shape to be set into Variable.
     :param name:         Optional name for output node.
     :return: ReadValue node
     """
     attr_map: Dict[str, Any] = {"variable_id": variable_id}
 
     if variable_type is not None:
-        attr_map["variable_type"] = get_element_type_str(variable_type) if not isinstance(variable_type, Type) else variable_type
+        if not isinstance(variable_type, Type) and not isinstance(variable_type, str):
+            attr_map["variable_type"] = get_element_type_str(variable_type)
+        else:
+            attr_map["variable_type"] = variable_type
 
     if variable_shape is not None:
         attr_map["variable_shape"] = PartialShape(variable_shape)
@@ -157,21 +160,24 @@ def read_value(init_value: NodeInput,
 
 @read_value.register
 def _(variable_id: str,
-      variable_type: Optional[Union[NumericType, Type]] = None,
+      variable_type: Optional[Union[NumericType, Type, str]] = None,
       variable_shape: Optional[TensorShape] = None,
       name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.
 
     :param variable_id:  Id of a variable to be read.
-    :param variable_shape:  shape to be set into Variable
-    :param variable_type:   type to be set into Variable
+    :param variable_type:   Optional type to be set into Variable.
+    :param variable_shape:  Optional shape to be set into Variable.
     :param name:         Optional name for output node.
     :return: ReadValue node
     """
     attr_map: Dict[str, Any] = {"variable_id": variable_id}
 
     if variable_type is not None:
-        attr_map["variable_type"] = get_element_type_str(variable_type) if not isinstance(variable_type, Type) else variable_type
+        if not isinstance(variable_type, Type) and not isinstance(variable_type, str):
+            attr_map["variable_type"] = get_element_type_str(variable_type)
+        else:
+            attr_map["variable_type"] = variable_type
 
     if variable_shape is not None:
         attr_map["variable_shape"] = PartialShape(variable_shape)

@@ -18,7 +18,7 @@ def main():
     # 2. Creating ov.Model
     input = ops.parameter([1, 1], dtype=np.float32, name="data")
     init_const = ops.constant([[0]], dtype=np.float32)
-    read = ops.read_value(init_const, "variable0", [1, 1], "fp32")
+    read = ops.read_value(init_const, "variable0", "f32", [1, 1])
     add = ops.add(input, read)
     assign = ops.assign(add, "variable0")
     add2 = ops.add(add, read)
