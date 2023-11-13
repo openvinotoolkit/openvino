@@ -5,7 +5,7 @@
 #include "jit_conversion_emitters.hpp"
 #include "utils/bfloat16.hpp"
 #include <cpu/x64/jit_uni_eltwise.hpp>
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <nodes/eltwise.h>
 
 using namespace InferenceEngine;

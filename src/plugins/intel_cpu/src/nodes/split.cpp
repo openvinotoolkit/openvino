@@ -8,7 +8,7 @@
 #include <vector>
 #include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
-#include <ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 #include "utils/general_utils.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "utils/ngraph_utils.hpp"
@@ -25,11 +25,11 @@ namespace node {
 
 bool Split::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(), ngraph::op::v1::Split::get_type_info_static(), ngraph::op::v1::VariadicSplit::get_type_info_static())) {
+        if (!one_of(op->get_type_info(), ov::op::v1::Split::get_type_info_static(), ov::op::v1::VariadicSplit::get_type_info_static())) {
             errorMessage = "Only opset1 Split and VariadicSplit operations are supported";
             return false;
         }
-        auto axisOp = ov::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+        auto axisOp = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
         if (!axisOp) {
             errorMessage = "Constant expected as the axis input.";
             return false;
@@ -51,18 +51,18 @@ Split::Split(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr conte
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    if (ov::as_type_ptr<const ngraph::op::v1::Split>(op)) {
+    if (ov::as_type_ptr<const ov::op::v1::Split>(op)) {
         INPUTS_NUM = 2;
-    } else if (ov::as_type_ptr<const ngraph::op::v1::VariadicSplit>(op)) {
+    } else if (ov::as_type_ptr<const ov::op::v1::VariadicSplit>(op)) {
         INPUTS_NUM = 3;
-        if (!ov::is_type<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2))) {
+        if (!ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2))) {
             this->splitLengths.resize(op->get_input_shape(2)[0]);
             this->constSplitLengths = false;
         }
     }
 
     const auto inRank = getInputShapeAtPort(0).getRank();
-    auto axisOp = ov::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+    auto axisOp = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     auto axis = axisOp->cast_vector<int64_t>()[0];
     if (axis < 0) {
         axis += inRank;

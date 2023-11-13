@@ -8,8 +8,8 @@
 
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset8.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "openvino/core/rt_info.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 template <class Conv>
 ov::matcher_pass_callback ov::intel_cpu::ConvertConv1DBase::convert_conv1d_to_conv2d() {
@@ -44,10 +44,10 @@ ov::matcher_pass_callback ov::intel_cpu::ConvertConv1DBase::convert_conv1d_to_co
 
         auto conv2d = std::make_shared<Conv>(input2d,
                                              weights2d,
-                                             ngraph::Strides{conv->get_strides()[0], 1},
-                                             ngraph::CoordinateDiff{conv->get_pads_begin()[0], 0},
-                                             ngraph::CoordinateDiff{conv->get_pads_end()[0], 0},
-                                             ngraph::Strides{conv->get_dilations()[0], 1},
+                                             ov::Strides{conv->get_strides()[0], 1},
+                                             ov::CoordinateDiff{conv->get_pads_begin()[0], 0},
+                                             ov::CoordinateDiff{conv->get_pads_end()[0], 0},
+                                             ov::Strides{conv->get_dilations()[0], 1},
                                              conv->get_auto_pad());
 
         auto reshape = std::make_shared<ov::opset8::Squeeze>(
