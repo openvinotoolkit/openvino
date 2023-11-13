@@ -1348,9 +1348,80 @@ jobs:
           TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
 
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results-tensorflow-hub-models
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
+          if-no-files-found: 'error'
+
+  TensorFlow_Hub_Performance_Models_Tests:
+    name: TensorFlow Hub Performance Models tests
+    needs: Build
+    defaults:
+      run:
+        shell: bash
+    runs-on: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores'}}
+    timeout-minutes: ${{ github.event_name == 'schedule' && 400 || 5 }}
+    env:
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
+
+    steps:
+      - name: Check sudo
+        run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
+
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd ${INSTALL_DIR}
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
+          popd
+
+          pushd ${INSTALL_TEST_DIR}
+            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
+          popd
+
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
+
+      - name: Install OpenVINO Python wheels
+        run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
+
+      - name: Install TF Hub tests requirements
+        run: |
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/requirements.txt
+
       - name: Install Hub Performance tests requirements
         run: |
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/perfomance_tests/requirements.txt
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/performance_tests/requirements.txt
 
       - name: Performance Hub Tests
         run: |
@@ -1364,7 +1435,7 @@ jobs:
         uses: actions/upload-artifact@v3
         if: ${{ !cancelled() }}
         with:
-          name: test-results-tensorflow-hub-models
+          name: test-results-tensorflow-hub-performance-models
           path: |
             ${{ env.INSTALL_TEST_DIR }}/TEST*.html
           if-no-files-found: 'error'
