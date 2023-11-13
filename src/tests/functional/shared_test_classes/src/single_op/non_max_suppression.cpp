@@ -92,16 +92,7 @@ void NmsLayerTest::SetUp() {
                                                                sort_res_descend,
                                                                out_type);
 
-    auto nms_0_identity =
-        std::make_shared<ov::op::v1::Multiply>(nms->output(0), ov::op::v0::Constant::create(out_type, ov::Shape{1}, {1}));
-    auto nms_1_identity =
-        std::make_shared<ov::op::v1::Multiply>(nms->output(1), ov::op::v0::Constant::create(params_type, ov::Shape{1}, {1}));
-    auto nms_2_identity =
-        std::make_shared<ov::op::v1::Multiply>(nms->output(2), ov::op::v0::Constant::create(out_type, ov::Shape{1}, {1}));
-    nms_0_identity->set_friendly_name("Multiply_0");
-    nms_1_identity->set_friendly_name("Multiply_1");
-    nms_2_identity->set_friendly_name("Multiply_2");
-    function = std::make_shared<ov::Model>(OutputVector{nms_0_identity, nms_1_identity, nms_2_identity}, params, "NMS");
+    function = std::make_shared<ov::Model>(nms, params, "NMS");
 }
 
 void Nms9LayerTest::SetUp() {

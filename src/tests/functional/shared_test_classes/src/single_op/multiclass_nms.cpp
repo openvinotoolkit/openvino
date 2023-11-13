@@ -138,20 +138,10 @@ void MulticlassNmsLayerTest::SetUp() {
     bool sortResCB, normalized;
     std::tie(sortResCB, normalized) = inboolVar;
 
-    ASSERT_LE(inputDynamicShapes.size(), 3);
-    ParameterVector params;
-    if (inputDynamicShapes.size() > 2) {
-        std::vector<ov::element::Type> types {paramsPrec, paramsPrec, roisnumPrec};
-        OPENVINO_ASSERT(types.size() == inputDynamicShapes.size());
-        for (size_t i = 0; i < types.size(); i++) {
-            auto param_node = std::make_shared<ov::op::v0::Parameter>(types[i], inputDynamicShapes[i]);
-            params.push_back(param_node);
-        }
-    } else {
-        for (auto&& shape : inputDynamicShapes) {
-            params.push_back(std::make_shared<ov::op::v0::Parameter>(paramsPrec, shape));
-        }
-    }
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(paramsPrec, inputDynamicShapes.at(0)),
+                                std::make_shared<ov::op::v0::Parameter>(paramsPrec, inputDynamicShapes.at(1))};
+    if (inputDynamicShapes.size() > 2)
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(roisnumPrec, inputDynamicShapes.at(2)));
 
     attrs.iou_threshold = iouThr;
     attrs.score_threshold = scoreThr;
