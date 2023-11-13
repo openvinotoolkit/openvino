@@ -345,12 +345,14 @@ std::shared_ptr<ov::Node> makeMVN(const ov::Output<Node>& in,
                                   bool normalizeVariance,
                                   double eps);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeMVN6(const Output<Node>& in,
                                    const Output<Node>& axesNode,
                                    bool normalizeVariance,
                                    float eps,
                                    std::string& epsMode);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeSqueezeUnsqueeze(const ov::Output<Node>& in,
                                                const element::Type& type,
                                                const std::vector<int>& squeeze_indices,
