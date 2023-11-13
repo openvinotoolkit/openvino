@@ -7,7 +7,6 @@
 #include <pugixml.hpp>
 #include <regex>
 
-#include "ngraph/runtime/shared_buffer.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
 #include "openvino/core/type/element_type.hpp"

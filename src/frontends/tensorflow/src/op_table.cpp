@@ -43,7 +43,7 @@ TF_OP_CONVERTER(translate_queue_dequeue_many_op);
 TF_OP_CONVERTER(translate_readvariable_op);
 TF_OP_CONVERTER(translate_restorev2_op);
 TF_OP_CONVERTER_NAMED(translate_sparse_fill_empty_rows_op);
-TF_OP_CONVERTER(translate_sparse_reshape_op);
+TF_OP_CONVERTER_NAMED(translate_sparse_reshape_op);
 TF_OP_CONVERTER(translate_sparse_segment_sum_op);
 TF_OP_CONVERTER(translate_staticregexfullmatch_op);
 TF_OP_CONVERTER(translate_stringjoin_op);
@@ -154,6 +154,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"CheckNumerics", CreatorFunction(translate_identity_op)},
         {"CheckNumericsV2", CreatorFunction(translate_identity_op)},
         {"ClipByValue", CreatorFunction(translate_clip_by_value_op)},
+        {"Complex", CreatorFunction(translate_complex_op)},
+        {"ComplexAbs", CreatorFunction(translate_complex_abs_op)},
         {"Concat", CreatorFunction(translate_concat_op)},
         {"ConcatV2", CreatorFunction(translate_concat_op)},
         {"Const", CreatorFunction(translate_const_op)},
@@ -178,6 +180,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"FakeQuantWithMinMaxVars", CreatorFunction(translate_fake_quant_op)},
         {"FakeQuantWithMinMaxVarsPerChannel", CreatorFunction(translate_fake_quant_op)},
         {"FakeQuantWithMinMaxArgs", CreatorFunction(translate_fake_quant_with_min_max_args)},
+        {"FFT", CreatorFunction(translate_fft_op)},
+        {"FFT2D", CreatorFunction(translate_fft_op)},
+        {"FFT3D", CreatorFunction(translate_fft_op)},
         {"FIFOQueue", CreatorFunction(translate_fifo_queue_op)},
         {"FIFOQueueV2", CreatorFunction(translate_fifo_queue_op)},
         {"Fill", CreatorFunction(translate_fill_op)},
@@ -194,8 +199,16 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"HashTableV2", CreatorFunction(translate_hash_table_op)},
         {"Identity", CreatorFunction(translate_identity_op)},
         {"IdentityN", CreatorFunction(translate_identity_n_op)},
+        {"Inv", CreatorFunction(translate_inv_op)},
         {"If", CreatorFunction(translate_if_op)},
+        {"IFFT", CreatorFunction(translate_ifft_op)},
+        {"IFFT2D", CreatorFunction(translate_ifft_op)},
+        {"IFFT3D", CreatorFunction(translate_ifft_op)},
+        {"Imag", CreatorFunction(translate_real_imag_op)},
         {"input_arg", CreatorFunction(translate_input_arg_op)},
+        {"IRFFT", CreatorFunction(translate_irfft_op)},
+        {"IRFFT2D", CreatorFunction(translate_irfft_op)},
+        {"IRFFT3D", CreatorFunction(translate_irfft_op)},
         {"Iterator", CreatorFunction(translate_iterator_op)},
         {"IteratorGetNext", CreatorFunction(translate_iterator_get_next_op)},
         {"IteratorV2", CreatorFunction(translate_iterator_op)},
@@ -215,7 +228,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"MaxPool", CreatorFunction(translate_max_pool_op)},
         {"MaxPoolV2", CreatorFunction(translate_max_pool_op)},
         {"MaxPool3D", CreatorFunction(translate_max_pool_op)},
-        {"MaxPoolWithArgmax", CreatorFunction(translate_max_pool_op)},
+        {"MaxPoolWithArgmax", CreatorFunction(translate_max_pool_with_argmax)},
         {"Merge", CreatorFunction(translate_merge_op)},
         {"MirrorPad", CreatorFunction(translate_mirror_pad_op)},
         {"MutableHashTable", CreatorFunction(translate_hash_table_op)},
@@ -247,6 +260,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Rank", CreatorFunction(translate_rank_op)},
         {"RandomUniform", CreatorFunction(translate_random_uniform_op)},
         {"RandomUniformInt", CreatorFunction(translate_random_uniform_int_op)},
+        {"Real", CreatorFunction(translate_real_imag_op)},
         {"Reciprocal", CreatorFunction(translate_reciprocal_op)},
         {"Relu6", CreatorFunction(translate_relu_6_op)},
         {"Reshape", CreatorFunction(translate_reshape_op)},
@@ -256,6 +270,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"ResizeBilinear", CreatorFunction(translate_interpolate_op)},
         {"ResizeNearestNeighbor", CreatorFunction(translate_interpolate_op)},
         {"ResourceGather", CreatorFunction(translate_resource_gather_op)},
+        {"RFFT", CreatorFunction(translate_rfft_op)},
+        {"RFFT2D", CreatorFunction(translate_rfft_op)},
+        {"RFFT3D", CreatorFunction(translate_rfft_op)},
         {"Roll", CreatorFunction(translate_roll_op)},
         {"Round", CreatorFunction(translate_round_op)},
         {"Rsqrt", CreatorFunction(translate_rsqrt_op)},

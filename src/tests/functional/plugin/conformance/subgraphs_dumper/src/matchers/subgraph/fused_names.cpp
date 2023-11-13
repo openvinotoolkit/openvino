@@ -6,6 +6,7 @@
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/loop.hpp"
+#include "openvino/util/file_util.hpp"
 
 #include "common_test_utils/common_utils.hpp"
 
@@ -16,6 +17,13 @@ using namespace ov::tools::subgraph_dumper;
 
 void FusedNamesExtractor::set_target_device(const std::string& _device) {
     auto available_devices = core->get_available_devices();
+    if (_device == std::string(ov::test::utils::DEVICE_TEMPLATE) &&
+        std::find(available_devices.begin(), available_devices.end(), _device) == available_devices.end()) {
+        auto plugin_path = ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                                              std::string(ov::test::utils::TEMPLATE_LIB) + OV_BUILD_POSTFIX);
+        core->register_plugin(plugin_path, _device);
+        available_devices = core->get_available_devices();
+    }
     if (_device.empty() && !available_devices.empty()) {
         device = available_devices.front();
         std::cout << "[ WARNING ][ GRAPH CACHE ] " << device <<
