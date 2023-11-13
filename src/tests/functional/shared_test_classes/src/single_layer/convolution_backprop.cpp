@@ -54,15 +54,13 @@ void ConvolutionBackpropLayerTest::SetUp() {
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding) = convBackpropDataParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto convBackpropData = std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(
-            ngraph::builder::makeConvolutionBackpropData(paramOuts[0], ngPrc, kernel, stride, padBegin,
+            ngraph::builder::makeConvolutionBackpropData(params[0], ngPrc, kernel, stride, padBegin,
                                                         padEnd, dilation, padType, convOutChannels, false, outPadding));
     if (!outputShape.empty()) {
         auto outShape = ngraph::opset3::Constant::create(ngraph::element::i64, {outputShape.size()}, outputShape);
         convBackpropData = std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(
-        ngraph::builder::makeConvolutionBackpropData(paramOuts[0], outShape, ngPrc, kernel, stride, padBegin,
+        ngraph::builder::makeConvolutionBackpropData(params[0], outShape, ngPrc, kernel, stride, padBegin,
                                                         padEnd, dilation, padType, convOutChannels));
     }
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(convBackpropData)};
