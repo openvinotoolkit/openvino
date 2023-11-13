@@ -65,8 +65,7 @@ bool with_cpu_x86_avx512f() {
 }
 
 bool with_cpu_x86_avx512_core() {
-    return get_cpu_info().has(Xbyak::util::Cpu::tAVX512F | Xbyak::util::Cpu::tAVX512VL | Xbyak::util::Cpu::tAVX512DQ |
-                              Xbyak::util::Cpu::tAVX512BW);
+    return get_cpu_info().has(Xbyak::util::Cpu::tAVX512F | Xbyak::util::Cpu::tAVX512DQ | Xbyak::util::Cpu::tAVX512BW);
 }
 
 bool with_cpu_x86_avx512_core_vnni() {

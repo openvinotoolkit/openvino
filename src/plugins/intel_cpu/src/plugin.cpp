@@ -174,6 +174,24 @@ Engine::Engine() :
     deviceFullName(getDeviceFullName()),
     specialSetup(new CPUSpecialSetup) {
     set_device_name("CPU");
+    auto proc_type_table = get_proc_type_table();
+    ov::threading::IStreamsExecutor::Config streamsConfig;
+    streamsConfig._name = "CPUStreamsExecutor";
+    streamsConfig._streams = 1;
+    streamsConfig._threads = 1;
+    //Initialize Xbyak::util::Cpu object on Pcore for hybrid cores machine
+    if (proc_type_table[0][MAIN_CORE_PROC] > 0 && proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
+        streamsConfig._streams_info_table.push_back({1, MAIN_CORE_PROC, 1, 0, 0});
+    }
+    if (!streamsConfig._streams_info_table.empty()) {
+        std::shared_ptr<ov::threading::ITaskExecutor> taskExecutor =
+            std::make_shared<ov::threading::CPUStreamsExecutor>(streamsConfig);
+        std::vector<Task> tasks;
+        tasks.emplace_back([&] {
+            dnnl::impl::cpu::x64::cpu();
+        });
+        taskExecutor->run_and_wait(tasks);
+    }
     extensionManager->AddExtension(std::make_shared<Extension>());
 #if defined(OV_CPU_WITH_ACL)
     scheduler_guard = SchedulerGuard::instance();
@@ -506,36 +524,6 @@ static Config::SnippetsMode getSnippetsMode(const ov::AnyMap& modelConfig, const
         OPENVINO_THROW("Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK");
 }
 
-void Engine::init_cpu_info(const ov::AnyMap& config, Config::ModelType modelType) const {
-    Config tempConf = engConfig;
-    tempConf.readProperties(config, modelType);
-    auto proc_type_table = get_proc_type_table();
-    // update proc_type_table according config
-    proc_type_table = apply_scheduling_core_type(tempConf.schedulingCoreType, proc_type_table);
-
-    ov::threading::IStreamsExecutor::Config streamsConfig;
-    streamsConfig._name = "CPUStreamsExecutor";
-    streamsConfig._streams = 1;
-    streamsConfig._threads = 1;
-    if (tempConf.schedulingCoreType == ov::hint::SchedulingCoreType::ECORE_ONLY &&
-        proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
-        streamsConfig._streams_info_table.push_back({1, EFFICIENT_CORE_PROC, 1, 0, 0});
-    } else if (proc_type_table[0][MAIN_CORE_PROC] > 0 && proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
-        streamsConfig._streams_info_table.push_back({1, MAIN_CORE_PROC, 1, 0, 0});
-    }
-    if (!streamsConfig._streams_info_table.empty()) {
-        std::shared_ptr<ov::threading::ITaskExecutor> taskExecutor =
-            std::make_shared<ov::threading::CPUStreamsExecutor>(streamsConfig);
-        std::vector<Task> tasks;
-        tasks.emplace_back([&] {
-            dnnl::impl::cpu::x64::cpu();
-        });
-        taskExecutor->run_and_wait(tasks);
-    } else {
-        dnnl::impl::cpu::x64::cpu();
-    }
-}
-
 std::shared_ptr<ov::ICompiledModel>
 Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const{
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Engine::compile_model");
@@ -571,8 +559,6 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     ov::element::Type inferencePrecision = getInferencePrecision(config, engConfig, modelType);
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, engConfig);
     DEBUG_LOG(PrintableModel(*cloned_model, "org_"));
-
-    init_cpu_info(config, modelType);
 
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?

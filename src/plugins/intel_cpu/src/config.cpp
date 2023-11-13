@@ -177,7 +177,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16) {
             if (val == InferenceEngine::PluginConfigParams::YES) {
-                if (ov::with_cpu_x86_avx512_core()) {
+                if (mayiuse(avx512_core)) {
                     inferencePrecision = ov::element::bf16;
                 } else {
                     IE_THROW() << "Platform doesn't support BF16 format";
@@ -191,14 +191,13 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             inferencePrecisionSetExplicitly = true;
         } else if (key == ov::hint::inference_precision.name()) {
             if (val == "bf16") {
-                if (ov::with_cpu_x86_avx512_core()) {
+                if (mayiuse(avx512_core)) {
                     inferencePrecision = ov::element::bf16;
                     inferencePrecisionSetExplicitly = true;
                 }
             } else if (val == "f16") {
 #if defined(OPENVINO_ARCH_X86_64)
-                if (ov::with_cpu_x86_avx512_core_fp16() && ov::with_cpu_x86_avx512_core_vnni() &&
-                    ov::with_cpu_x86_bfloat16() && ov::with_cpu_x86_avx2_vnni()) {
+                if (mayiuse(avx512_core_fp16) || mayiuse(avx512_core_amx_fp16)) {
                     inferencePrecision = ov::element::f16;
                     inferencePrecisionSetExplicitly = true;
                 }
@@ -272,7 +271,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             if (modelType != ModelType::CNN)
                 inferencePrecision = ov::element::f16;
 #else
-            if (ov::with_cpu_x86_avx512_core_vnni() && ov::with_cpu_x86_bfloat16())
+            if (mayiuse(avx512_core_bf16))
                 inferencePrecision = ov::element::bf16;
 #endif
         } else {

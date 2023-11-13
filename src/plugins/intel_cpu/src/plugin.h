@@ -71,9 +71,6 @@ private:
                               const bool enable_hyper_thread = true) const;
     void calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported = false) const;
 
-    //Initialize Xbyak::util::Cpu object on the specified core type
-    void init_cpu_info(const ov::AnyMap &config, Config::ModelType modelType) const;
-
     Config engConfig;
     ExtensionManager::Ptr extensionManager = std::make_shared<ExtensionManager>();
     /* Explicily configured streams have higher priority than performance hints.
