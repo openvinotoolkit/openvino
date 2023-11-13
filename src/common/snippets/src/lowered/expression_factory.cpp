@@ -129,9 +129,7 @@ ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ov::Node
     expr->validate();
     // todo: here we blindly synchronize input shapes from parent and child. Remove this when shapes will be stored in
     //  port connector itself
-    if (linear_ir.m_shape_infer_factory &&
-        !ov::is_type<op::PerfCountBeginBase>(n) &&
-        !ov::is_type<op::PerfCountEndBase>(n))
+    if (linear_ir.m_shape_infer_factory)
         expr->updateShapes();
     return expr;
 }

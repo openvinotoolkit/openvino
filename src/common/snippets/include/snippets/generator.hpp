@@ -126,14 +126,6 @@ protected:
     * @return bool
     */
     virtual bool uses_precompiled_kernel(const std::shared_ptr<Emitter>& emitter) const { return false; }
-    /**
-    * @brief returns true if a node should be alive in execution.
-    * @return bool
-    */
-    virtual bool should_node_alive_in_execution(const std::shared_ptr<ov::Node>& op) const {
-        return std::dynamic_pointer_cast<op::PerfCountBeginBase>(op) ||
-               std::dynamic_pointer_cast<op::PerfCountEndBase>(op);
-    }
 
     std::shared_ptr<TargetMachine> target;
 };

@@ -50,9 +50,7 @@ bool InsertPerfCount::run(LinearIR& linear_ir) {
     // insert perf_count_end before first result
     const auto& perf_count_end = std::make_shared<op::PerfCountEnd>(perf_count_begin->output(0));
     perf_count_end->set_friendly_name("last_parameter_to_first_result");
-    std::vector<PortConnectorPtr> pc_end_inputs;
-    pc_end_inputs.push_back(perf_count_begin_expr->get_output_port_connector(0));
-    const auto& perf_count_end_expr = linear_ir.create_expression(perf_count_end, pc_end_inputs);
+    const auto& perf_count_end_expr = linear_ir.create_expression(perf_count_end, std::vector<PortConnectorPtr>{});
     linear_ir.insert(perf_count_end_pos, perf_count_end_expr);
 
     return true;
