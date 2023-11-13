@@ -43,7 +43,7 @@ const std::vector<QuantRange> ranges_i32 = {
 const std::vector<uint64_t> levels_8 = {256};
 const std::vector<uint64_t> levels_16 = {65536};
 const std::vector<uint64_t> levels_32 = {4294967296};
-const std::vector<QuantizationGranularity> granularity = {Pertensor};
+const std::vector<QuantizationGranularity> granularity = {QuantizationGranularity::Pertensor};
 
 const auto quantParams_i8 = ::testing::Combine(
         ::testing::ValuesIn(levels_8),
