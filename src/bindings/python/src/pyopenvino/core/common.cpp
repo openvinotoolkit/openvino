@@ -201,12 +201,18 @@ ov::op::v0::Constant create_shared(ov::Tensor& tensor) {
 
 template <>
 ov::Tensor create_copied(py::array& array) {
+    // Create actual Tensor.
+    auto tensor = ov::Tensor(array_helpers::get_ov_type(array), array_helpers::get_shape(array));
+    // If size of an array is equal to 0, the array is empty.
+    // Alternative could be `array.nbytes()`.
+    // Do not copy data from it, only return empty tensor based on type.
+    if (array.size() == 0) {
+        return tensor;
+    }
     // Convert to contiguous array if not already in C-style.
     if (!array_helpers::is_contiguous(array)) {
         array = array_helpers::as_contiguous(array, array_helpers::get_ov_type(array));
     }
-    // Create actual Tensor and copy data.
-    auto tensor = ov::Tensor(array_helpers::get_ov_type(array), array_helpers::get_shape(array));
     // If ndim of py::array is 0, array is a numpy scalar. That results in size to be equal to 0.
     std::memcpy(tensor.data(),
                 array.ndim() == 0 ? array.data() : array.data(0),
@@ -220,9 +226,10 @@ ov::Tensor create_shared(py::array& array) {
     // If memory is going to be shared it needs to be contiguous before passing to the constructor.
     if (array_helpers::is_contiguous(array)) {
         // If ndim of py::array is 0, array is a numpy scalar.
+        // If size of an array is equal to 0, the array is empty.
         return ov::Tensor(array_helpers::get_ov_type(array),
                           array_helpers::get_shape(array),
-                          array.ndim() == 0 ? array.mutable_data() : array.mutable_data(0));
+                          (array.ndim() == 0 || array.size() == 0) ? array.mutable_data() : array.mutable_data(0));
     }
     // If passed array is not C-style, throw an error.
     OPENVINO_THROW("SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
