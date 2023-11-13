@@ -17,6 +17,10 @@ public:
     FakeConvert() = default;
     FakeConvert(const ov::Output<ov::Node>& arg,
                 const ov::Output<ov::Node>& scale,
+                std::string destination_type = "f8e4m3");
+
+    FakeConvert(const ov::Output<ov::Node>& arg,
+                const ov::Output<ov::Node>& scale,
                 const ov::Output<ov::Node>& shift,
                 std::string destination_type = "f8e4m3");
 

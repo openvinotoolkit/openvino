@@ -18,6 +18,14 @@ static const std::vector<std::string>& get_valid_types() {
 
 FakeConvert::FakeConvert(const ov::Output<ov::Node>& arg,
                          const ov::Output<ov::Node>& scale,
+                         std::string destination_type)
+    : Op({arg, scale}),
+      m_destination_type(std::move(destination_type)) {
+    constructor_validate_and_infer_types();
+}
+
+FakeConvert::FakeConvert(const ov::Output<ov::Node>& arg,
+                         const ov::Output<ov::Node>& scale,
                          const ov::Output<ov::Node>& shift,
                          std::string destination_type)
     : Op({arg, scale, shift}),
@@ -37,9 +45,13 @@ void FakeConvert::validate_and_infer_types() {
 
 std::shared_ptr<ov::Node> FakeConvert::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     OV_OP_SCOPE(v13_FakeConvert_clone_with_new_inputs);
-    OPENVINO_ASSERT(new_args.size() == 3, "Incorrect number of new arguments");
-
-    return std::make_shared<FakeConvert>(new_args.at(0), new_args.at(1), new_args.at(2), m_destination_type);
+    if (new_args.size() == 2) {
+        return std::make_shared<FakeConvert>(new_args.at(0), new_args.at(1), m_destination_type);
+    } else if (new_args.size() == 3) {
+        return std::make_shared<FakeConvert>(new_args.at(0), new_args.at(1), new_args.at(2), m_destination_type);
+    } else {
+        OPENVINO_THROW("Incorrect number of FakeConvert new arguments.");
+    }
 }
 
 bool FakeConvert::visit_attributes(ov::AttributeVisitor& visitor) {
