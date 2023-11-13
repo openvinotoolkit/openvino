@@ -137,10 +137,9 @@ protected:
             params.push_back(depthParam);
             depth = depthParam;
         }
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
         auto on_value_const = std::make_shared<ngraph::op::Constant>(outType, ngraph::Shape{ }, OnValue);
         auto off_value_const = std::make_shared<ngraph::op::Constant>(outType, ngraph::Shape{ }, OffValue);
-        auto oneHot = std::make_shared<ngraph::opset5::OneHot>(paramOuts[0], depth, on_value_const, off_value_const, Axis);
+        auto oneHot = std::make_shared<ngraph::opset5::OneHot>(params[0], depth, on_value_const, off_value_const, Axis);
         return makeNgraphFunction(ngraph::element::i32, params, oneHot, "OneHot");
     }
     void generateDepth() {
