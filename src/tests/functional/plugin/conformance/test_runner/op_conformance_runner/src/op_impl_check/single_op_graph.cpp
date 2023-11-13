@@ -1295,7 +1295,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v13::FakeConve
     const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 3, 8, 6});
     const auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{});
     const auto shift = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{});
-    const auto op = std::make_shared<ov::op::v13::FakeConvert>(data, scale, shift, "f8e4m3", true);
+    const auto op = std::make_shared<ov::op::v13::FakeConvert>(data, scale, shift, "f8e4m3");
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(op)};
     return std::make_shared<ov::Model>(results, ov::ParameterVector{data, scale, shift}, "FakeConvert");
 }
