@@ -261,7 +261,12 @@ void convertfp16_f8e4m3(const T* arg, T* out, size_t count, int exp_bits = 5, in
 // Exponent normal values 1..14 -10..3 (11 - exponent)
 // Exponent NaN values 15 4
 template <typename T>
-void convertfp16_f8e4m3_ext(const T* arg, T* out, size_t count, int exp_bits = 5, int mbits = 9, bool use_clamp = true) {
+void convertfp16_f8e4m3_ext(const T* arg,
+                            T* out,
+                            size_t count,
+                            int exp_bits = 5,
+                            int mbits = 9,
+                            bool use_clamp = true) {
     typedef union half_t {
         unsigned short u;
         T f;
@@ -345,7 +350,12 @@ void convertfp16_f8e4m3_ext(const T* arg, T* out, size_t count, int exp_bits = 5
 // Exponent normal values 1..15 -6..8 (7 - exponent)
 // Exponent NaN values 15 8
 template <typename T>
-void convertfp16_f8e4m3_bias7(const T* arg, T* out, size_t count, int exp_bits = 5, int mbits = 9, bool use_clamp = true) {
+void convertfp16_f8e4m3_bias7(const T* arg,
+                              T* out,
+                              size_t count,
+                              int exp_bits = 5,
+                              int mbits = 9,
+                              bool use_clamp = true) {
     typedef union half_t {
         unsigned short u;
         T f;
@@ -517,7 +527,6 @@ void apply_per_channel_scale(ov::Tensor& data, const ov::Tensor& scale, const ov
 }  // namespace
 }  // namespace convert_fp8
 
-//! [op:evaluate]
 bool FakeConvert::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     ov::TensorVector fp16;
 
