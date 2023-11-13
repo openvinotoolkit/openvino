@@ -21,6 +21,6 @@ pytest>=5.0,<7.5
 pytest-dependency==0.5.1
 pytest-html==3.2.0
 pytest-timeout==2.1.0
-jax<=0.4.19
-jaxlib<=0.4.19
+jax<=0.4.20
+jaxlib<=0.4.20
 torch<2.1.0,>=1.13
