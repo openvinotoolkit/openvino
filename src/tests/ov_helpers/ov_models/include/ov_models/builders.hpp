@@ -318,8 +318,10 @@ std::shared_ptr<ov::Node> makeSlice(const ov::Output<Node>& in,
                                     const ov::Output<Node>& end,
                                     const ov::Output<Node>& stride);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeMVN(const ov::Output<Node>& in, bool acrossChannels, bool normalizeVariance, double eps);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeMVN(const ov::Output<Node>& in,
                                   const ov::AxisSet& axes,
                                   bool normalizeVariance,

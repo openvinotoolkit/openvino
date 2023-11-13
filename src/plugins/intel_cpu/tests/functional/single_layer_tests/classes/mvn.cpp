@@ -103,9 +103,19 @@ void MvnLayerCPUTest::SetUp() {
     for (auto&& shape : inputDynamicShapes)
         params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
 
-    auto mvn = ngraph::builder::makeMVN(params[0], acrossChanels, normalizeVariance, eps);
+    std::shared_ptr<ov::Node> mvn;
     if (!axes.empty()) {
-        mvn = ngraph::builder::makeMVN(params[0], axes, normalizeVariance, eps);
+        mvn = std::make_shared<ov::op::v0::MVN>(params[0], axes, normalizeVariance, eps);
+    } else {
+        auto mvnNode = std::make_shared<ov::op::v0::MVN>(params[0], acrossChanels, normalizeVariance, eps);
+
+        // OpenVINO MVN implementation implicitly adds 0th dimension to reduction axes set which is not valid behavior
+        ov::AxisSet axes;
+        const size_t startAxis = acrossChanels ? 1 : 2;
+        const size_t numOfDims = params[0]->output(0).get_partial_shape().size();
+        for (size_t i = startAxis; i < numOfDims; i++)
+            axes.insert(i);
+        mvnNode->set_reduction_axes(axes);
     }
 
     rel_threshold = 0.015f;
