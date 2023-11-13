@@ -283,6 +283,7 @@ std::shared_ptr<ov::Node> makeEltwise(const ov::Output<Node>& in0,
                                       const ov::Output<Node>& in1,
                                       ov::test::utils::EltwiseTypes eltwiseType);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeBatchToSpace(const ov::Output<Node>& in,
                                            const element::Type& type,
                                            const std::vector<int64_t>& blockShape,
