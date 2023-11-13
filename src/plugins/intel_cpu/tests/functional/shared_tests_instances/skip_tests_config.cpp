@@ -256,12 +256,6 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
     // int8 specific
     retVector.emplace_back(R"(smoke_Quantized.*)");
-    //TODO: oneDNN does not support scale shift fusing on ARM
-    retVector.emplace_back(R"(smoke_Conv_2D_FP32_dynBatch.*Fused=Relu.Multiply\(PerChannel\)\.Add\(PerChannel\))");
-    //TODO: oneDNN does not support NCHW convolution
-    retVector.emplace_back(R"(.*Conv_2D_.*inFmts=nchw_outFmts=nchw_primitive=gemm_acl.*)");
-    //TODO: oneDNN does not support 3D convolution on ARM
-    retVector.emplace_back(R"(.*Conv_3D.*)");
 
 #if defined(OV_CPU_ARM_ENABLE_FP16)
     // Issue: 123019

@@ -366,7 +366,6 @@ const std::vector<CPUSpecificParams>& CPUParams_GEMM_2D() {
     static const std::vector<CPUSpecificParams> CPUParams_GEMM_2D = {
         conv_gemm_2D,
         conv_gemm_2D_nspc,
-        conv_gemm_acl_2D,
         conv_gemm_acl_2D_nspc
     };
     return CPUParams_GEMM_2D;
