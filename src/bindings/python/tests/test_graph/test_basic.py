@@ -243,6 +243,29 @@ def test_constant_get_data_unsigned_integer(data_type):
     assert np.allclose(input_data, retrieved_data)
 
 
+@pytest.mark.parametrize(
+    "shared_flag",
+    [
+        (True),
+        (False),
+    ],
+)
+@pytest.mark.parametrize(
+    "init_value",
+    [
+        (np.array([])),
+        (np.array([], dtype=np.int32)),
+        (np.empty(shape=(0))),
+    ],
+)
+def test_constant_from_empty_array(shared_flag, init_value):
+    const = ov.op.Constant(init_value, shared_memory=shared_flag)
+    assert tuple(const.shape) == init_value.shape
+    assert const.get_element_type().to_dtype() == init_value.dtype
+    assert const.get_byte_size() == init_value.nbytes
+    assert np.allclose(const.data, init_value)
+
+
 def test_set_argument():
     data1 = np.array([1, 2, 3])
     data2 = np.array([4, 5, 6])
