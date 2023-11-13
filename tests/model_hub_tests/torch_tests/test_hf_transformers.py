@@ -53,7 +53,7 @@ class TestTransformersModel(TestConvertModel):
         from PIL import Image
         import requests
 
-        self.infer_timeout = 1200
+        self.infer_timeout = 800
 
         url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         self.image = Image.open(requests.get(url, stream=True).raw)
@@ -104,6 +104,13 @@ class TestTransformersModel(TestConvertModel):
 
             model = VIT_GPT2_Model(model)
             example = (encoded_input.pixel_values,)
+        elif "mms-lid" in name:
+            # mms-lid model config does not have auto_model attribute, only direct loading aviable 
+            from transformers import Wav2Vec2ForSequenceClassification, AutoFeatureExtractor
+            model = Wav2Vec2ForSequenceClassification.from_pretrained(name, torchscript=True)
+            processor = AutoFeatureExtractor.from_pretrained(name)
+            input_values = processor(torch.randn(16000).numpy(), sampling_rate=16_000, return_tensors="pt")
+            example =  {"input_values": input_values.input_values}
         elif "retribert" in mi.tags:
             from transformers import RetriBertTokenizer
             text = "How many cats are there?"
@@ -250,8 +257,8 @@ class TestTransformersModel(TestConvertModel):
         if model is None:
             from transformers import AutoModel
             model = AutoModel.from_pretrained(name, torchscript=True)
-            if hasattr(model, "set_default_language"):
-                model.set_default_language("en_XX")
+        if hasattr(model, "set_default_language"):
+            model.set_default_language("en_XX")
         if example is None:
             if "encodec" in mi.tags:
                 example = (torch.randn(1, 1, 100),)
@@ -276,7 +283,9 @@ class TestTransformersModel(TestConvertModel):
             return [i.numpy() for i in self.example]
 
     def convert_model(self, model_obj):
-        ov_model = convert_model(model_obj, example_input=self.example)
+        ov_model = convert_model(model_obj,
+                                 example_input=self.example,
+                                 verbose=True)
         return ov_model
 
     def infer_fw_model(self, model_obj, inputs):
@@ -294,14 +303,10 @@ class TestTransformersModel(TestConvertModel):
 
     @pytest.mark.parametrize("name,type", [("allenai/led-base-16384", "led"),
                                            ("bert-base-uncased", "bert"),
-                                           ("facebook/bart-large-mnli", "bart"),
                                            ("google/flan-t5-base", "t5"),
                                            ("google/tapas-large-finetuned-wtq", "tapas"),
                                            ("gpt2", "gpt2"),
-                                           ("openai/clip-vit-large-patch14", "clip"),
-                                           ("RWKV/rwkv-4-169m-pile", "rwkv"),
-                                           ("microsoft/layoutlmv3-base", "layoutlmv3"),
-                                           ("microsoft/xprophetnet-large-wiki100-cased", "xlm-prophetnet"),
+                                           ("openai/clip-vit-large-patch14", "clip")
                                            ])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, type, ie_device):

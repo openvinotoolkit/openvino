@@ -82,7 +82,7 @@ RepeatPatternExtractor::update_extractor_cache(
     const std::map<std::string, InputInfo>& pattern_in_info) {
     for (auto& extracted_pattern : extracted_patterns) {
         auto& pattern_structure = extracted_pattern.front();
-        const auto& cached_pattern = std::get<0>(pattern_structure);
+        const auto cached_pattern = std::get<0>(pattern_structure);
         if (model_comparator->match(pattern, cached_pattern)) {
             try {
                 const auto& cached_in_info = std::get<2>(pattern_structure);
@@ -99,17 +99,15 @@ void
 RepeatPatternExtractor::update_extractor_cache(
     std::list<std::vector<RepeatPatternExtractor::ExtractedRepeatPattern>>& extracted_patterns,
     std::list<std::vector<RepeatPatternExtractor::ExtractedRepeatPattern>>& secondary_extracted_patterns) {
-    auto extern_it = secondary_extracted_patterns.begin();
     while (!secondary_extracted_patterns.empty()) {
-        auto it = extern_it->rbegin();
+        auto extern_it = secondary_extracted_patterns.begin();
         while (!extern_it->empty()) {
-            auto& pattern_structure = *it;
+            auto& pattern_structure = *(extern_it->rbegin());
             const auto& pattern = std::get<0>(pattern_structure);
             const auto& pattern_node_vector = std::get<1>(pattern_structure);
             const auto& pattern_in_info = std::get<2>(pattern_structure);
             update_extractor_cache(extracted_patterns, pattern, pattern_node_vector, pattern_in_info);
             extern_it->pop_back();
-            it = extern_it->rbegin();
         }
         secondary_extracted_patterns.pop_front();
     }

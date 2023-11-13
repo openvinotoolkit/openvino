@@ -15,10 +15,10 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
 
 #include "cache/cache.hpp"
 #include "utils/node.hpp"
+#include "utils/dynamism.hpp"
 
 namespace ov {
 namespace tools {
@@ -62,6 +62,8 @@ static std::map<ModelCacheStatus, std::string> model_cache_status_to_str = {
     { ModelCacheStatus::LARGE_MODELS_INCLUDED, "large_models_included" },
 };
 
+const std::shared_ptr<ov::Core> core = std::make_shared<ov::Core>();
+
 std::pair<std::vector<std::string>, std::pair<ModelCacheStatus, std::vector<std::string>>>
 find_models(const std::vector<std::string> &dirs, const std::string& regexp = ".*");
 
@@ -74,7 +76,6 @@ std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
 void save_model_status_to_file(const std::map<ModelCacheStatus, std::vector<std::string>>& caching_status,
                                const std::string& output_dir);
 
-bool is_dynamic_model(const std::shared_ptr<ov::Model>& model);
 std::string get_model_type(const std::shared_ptr<ov::Model>& model);
 
 std::map<std::string, InputInfo>

@@ -37,7 +37,7 @@ ov::Shape compute_allocation_shape(const LinearIR::LoopManagerPtr& loop_manager,
                                    const std::vector<size_t>& parent_loop_ids,
                                    const ExpressionPort& expr_port,
                                    const int allocation_rank) {
-    const auto& planar_shape = utils::get_planar_vdims(expr_port);
+    const auto planar_shape = utils::get_preordered_vdims(expr_port);
 
     const size_t rank = allocation_rank >= 0 ? std::min(static_cast<size_t>(allocation_rank), planar_shape.size()) : planar_shape.size();
     ov::Shape allocation_shape(rank);

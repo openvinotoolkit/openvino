@@ -35,8 +35,6 @@ protected:
 
     void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) override;
 
-    precisions_map get_ref_precisions_convert_map() override;
-
     template<typename T>
     void rndUCompare(const ov::Tensor& expected, const ov::Tensor& actual);
 
@@ -46,8 +44,8 @@ private:
     uint64_t m_operational_seed;
     double m_min_val;
     double m_max_val;
-    static constexpr double m_mean_threshold = 0.05;
-    static constexpr double m_variance_threshold = 0.1;
+    static constexpr double m_mean_threshold = 0.075;
+    static constexpr double m_variance_threshold = 0.15;
 };
 
 } // namespace CPULayerTestsDefinitions

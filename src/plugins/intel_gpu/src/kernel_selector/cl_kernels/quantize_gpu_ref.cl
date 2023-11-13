@@ -52,42 +52,6 @@ KERNEL(quantize_ref)(
     const int v = ((vuwzyx / OUTPUT_SIZE_X) / OUTPUT_SIZE_Y) / OUTPUT_SIZE_Z / OUTPUT_SIZE_W / OUTPUT_SIZE_U;
 #endif
 
-#if PACKED_BINARY_OUTPUT
-    const int output_offset = OUTPUT_OFFSET
-                            + b*OUTPUT_FEATURE_NUM_PACKED*OUTPUT_FEATURE_PITCH
-                            + of*OUTPUT_FEATURE_PITCH
-                            + y*OUTPUT_Y_PITCH
-                            + x*OUTPUT_X_PITCH;
-
-    const int threshold_offset = INPUT1_OFFSET
-                               + (b % INPUT1_BATCH_NUM)*INPUT1_BATCH_PITCH
-                               + (y % INPUT1_SIZE_Y)*INPUT1_Y_PITCH
-                               + (x % INPUT1_SIZE_X)*INPUT1_X_PITCH;
-
-    OUTPUT_TYPE res = 0x00000000;
-#if SINGLE_OUT_VAL
-    int high_bit = output_high[0] == UNIT_VAL_ONE ? 1 : 0;
-    int low_bit  = output_low[0] == UNIT_VAL_ONE ? 1 : 0;
-#endif
-    int limit = min((int)OC_BLOCK_SIZE, (int)INPUT0_FEATURE_NUM);
-    for (int f = 0; f < limit; f++)
-    {
-        UNIT_TYPE val = input[INPUT0_GET_INDEX(b, of*OC_BLOCK_SIZE + f, y, x)];
-        UNIT_TYPE threshold  = input_low[threshold_offset + ((of*OC_BLOCK_SIZE + f) % INPUT1_FEATURE_NUM)*INPUT1_FEATURE_PITCH];
-#if PER_CHANNEL_OUT_VAL
-        int high_bit = output_high[of*OC_BLOCK_SIZE + f] == UNIT_VAL_ONE ? 1 : 0;
-        int low_bit  = output_low[of*OC_BLOCK_SIZE + f] == UNIT_VAL_ONE ? 1 : 0;
-#endif
-        res |= (((val > threshold) ? high_bit : low_bit) << f);
-    }
-
-    if (x >= OUTPUT_SIZE_X || y >= OUTPUT_SIZE_Y)
-        return;
-
-    output[output_offset] = res;
-
-#else
-
 #if INPUT0_DIMS == 8
     const int input_offset = INPUT0_GET_INDEX(b, of, v, u, w, z, y, x);
 #elif INPUT0_DIMS == 7
@@ -195,6 +159,4 @@ KERNEL(quantize_ref)(
                               * (UNIT_VAL_ONE / (LEVELS-1) * (output_high_val - output_low_val)) + output_low_val));
 #endif
     }
-
-#endif
 }

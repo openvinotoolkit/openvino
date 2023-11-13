@@ -205,6 +205,9 @@ IE_CPU.onnx_constant_sparse_tensor_double_3x4
 IE_CPU.onnx_constant_sparse_tensor_int16_3x4
 IE_CPU.onnx_constant_sparse_tensor_uint16_3x4
 
+# Unsupported op NMSRotated
+onnx_model_mm_nms_rotated
+
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine GPU plugin excludes

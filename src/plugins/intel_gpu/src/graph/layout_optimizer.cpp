@@ -450,9 +450,6 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
             || fmt_next == format::bs_fs_yx_bsv32_fsv16 || fmt_next == format::bs_fs_yx_bsv32_fsv32))
         return true;
 
-    if (prev.is_type<binary_convolution>() && fmt_next == format::b_fs_yx_fsv16)
-        return true;
-
     if (prev.is_type<one_hot>() &&
         !data_type_traits::is_floating_point(dt_prev) &&
         data_type_traits::is_floating_point(dt_next) &&
@@ -1484,17 +1481,21 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         if (blocked_formats.find(node.get_input_layout(0).format) != blocked_formats.end()) {
             preferred_impl = impl_types::ocl;
         } else {
-            auto& nms_node = node.as<non_max_suppression>();
-            auto scores_layout = nms_node.input_scores().get_output_layout();
-            if (scores_layout.is_dynamic()) {
+            const auto& nms_node = node.as<non_max_suppression>();
+            if (nms_node.get_primitive()->rotation != non_max_suppression::Rotation::NONE) {
                 preferred_impl = impl_types::ocl;
             } else {
-                const size_t kBatchNum = scores_layout.batch();
-                const size_t kClassNum = scores_layout.feature();
-                const size_t kNStreams =
-                    static_cast<size_t>(node.get_program().get_config().get_property(ov::streams::num));
-                const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
-                preferred_impl = (kKeyValue > 64) ? impl_types::ocl : impl_types::cpu;
+                const auto scores_layout = nms_node.input_scores().get_output_layout();
+                if (scores_layout.is_dynamic()) {
+                    preferred_impl = impl_types::ocl;
+                } else {
+                    const size_t kBatchNum = scores_layout.batch();
+                    const size_t kClassNum = scores_layout.feature();
+                    const size_t kNStreams =
+                            static_cast<size_t>(node.get_program().get_config().get_property(ov::streams::num));
+                    const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
+                    preferred_impl = (kKeyValue > 64) ? impl_types::ocl : impl_types::cpu;
+                }
             }
         }
     } else if (node.is_type<reorder>()) {
@@ -1737,8 +1738,6 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         expected = _forcing_map.at(node.id()).first;
     } else if (node.is_type<convolution>()) {
         expected = get_expected_format(node.as<convolution>());
-    } else if (node.is_type<binary_convolution>()) {
-        expected = cldnn::format::b_fs_yx_32fp;
     } else if (node.is_type<quantize>()) {
         expected = get_expected_format(node.as<quantize>());
     } else if (node.is_type<reorder>() || node.is_type<input_layout>()) {
