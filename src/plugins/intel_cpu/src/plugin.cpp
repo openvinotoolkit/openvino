@@ -247,7 +247,7 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
                 ov::Any value = num_requests->second.as<std::string>();
                 val = value.as<int>();
                 if (val < 0)
-                    throw("invalid value!");
+                    throw std::logic_error("invalid value!");
             } catch (const std::exception&) {
                 OPENVINO_THROW("Wrong value of ",
                                num_requests->second.as<std::string>(),
