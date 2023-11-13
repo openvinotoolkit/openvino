@@ -57,6 +57,10 @@ public:
                                "get_default_context  is not supported by CPU plugin!");
     };
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension) override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
 private:
     bool is_legacy_api() const;
 
