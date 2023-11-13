@@ -50,7 +50,7 @@ void ACLScheduler::schedule_custom(ICPPKernel *kernel, const Hints &hints, const
         const auto num_windows = _num_threads;
         const auto hints_split_dimension = hints.split_dimension();
 
-        InferenceEngine::parallel_for(num_windows, [&](int wid) {
+        ov::parallel_for(num_windows, [&](int wid) {
             Window win = max_window.split_window(hints_split_dimension, wid, num_windows);
             win.validate();
             main_run(win, {wid, static_cast<int>(_num_threads), &cpu_info()});
@@ -68,7 +68,7 @@ void ACLScheduler::schedule_op(ICPPKernel *kernel, const Hints &hints, const Win
 }
 
 void ACLScheduler::run_workloads(std::vector<arm_compute::IScheduler::Workload> &workloads) {
-    InferenceEngine::parallel_for(workloads.size(), [&](int wid) {
+    ov::parallel_for(workloads.size(), [&](int wid) {
         workloads[wid]({wid, static_cast<int>(parallel_get_num_threads()), &cpu_info()});
     });
 }

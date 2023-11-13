@@ -183,11 +183,11 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
     return opsets;
 }
 
-std::vector<std::string> Extension::getImplTypes(const std::shared_ptr<ngraph::Node>&) {
+std::vector<std::string> Extension::getImplTypes(const std::shared_ptr<ov::Node>&) {
     return {};
 }
 
-InferenceEngine::ILayerImpl::Ptr Extension::getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) {
+InferenceEngine::ILayerImpl::Ptr Extension::getImplementation(const std::shared_ptr<ov::Node>& node, const std::string& implType) {
     return nullptr;
 }
 

@@ -74,10 +74,10 @@ static std::vector<float> generate_anchors(proposal_conf &conf) {
     return anchors;
 }
 
-bool Proposal::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Proposal::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto proposal0Op = ngraph::as_type_ptr<const ngraph::op::v0::Proposal>(op);
-        const auto proposal4Op = ngraph::as_type_ptr<const ngraph::op::v4::Proposal>(op);
+        const auto proposal0Op = ov::as_type_ptr<const ngraph::op::v0::Proposal>(op);
+        const auto proposal4Op = ov::as_type_ptr<const ngraph::op::v4::Proposal>(op);
         if (!proposal0Op && !proposal4Op) {
             errorMessage = "Node is not an instance of the Proposal from the operations set v0 or v4.";
             return false;
@@ -93,7 +93,7 @@ bool Proposal::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& o
     return true;
 }
 
-Proposal::Proposal(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+Proposal::Proposal(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
