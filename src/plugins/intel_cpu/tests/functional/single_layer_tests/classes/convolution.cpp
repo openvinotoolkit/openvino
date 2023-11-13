@@ -636,8 +636,7 @@ const convParams_ExplicitPaddingType& convParams_ExplicitPadding_GEMM_2D() {
             ::testing::ValuesIn(padEnds2d()),
             ::testing::ValuesIn(dilations2d()),
             ::testing::ValuesIn(numOutChannels_Gemm()),
-            ::testing::Values(ngraph::op::PadType::EXPLICIT)
-    );
+            ::testing::Values(ngraph::op::PadType::EXPLICIT));
     return convParams_ExplicitPadding_GEMM_2D;
 }
 
@@ -649,8 +648,7 @@ const convParams_ExplicitPaddingDilatedType& convParams_ExplicitPadding_GEMM_2D_
             ::testing::ValuesIn(padEnds2d()),
             ::testing::Values(SizeVector{2, 2}),
             ::testing::ValuesIn(numOutChannels_Gemm()),
-            ::testing::Values(ngraph::op::PadType::EXPLICIT)
-    );
+            ::testing::Values(ngraph::op::PadType::EXPLICIT));
     return convParams_ExplicitPadding_GEMM_2D_dilated;
 }
 
@@ -662,8 +660,7 @@ const convParams_ExplicitPaddingType& convParams_ExplicitPadding_GEMM_1D() {
             ::testing::ValuesIn(padEnds1d()),
             ::testing::ValuesIn(dilations1d()),
             ::testing::ValuesIn(numOutChannels_Gemm()),
-            ::testing::Values(ngraph::op::PadType::EXPLICIT)
-    );
+            ::testing::Values(ngraph::op::PadType::EXPLICIT));
     return convParams_ExplicitPadding_GEMM_1D;
 }
 
@@ -675,8 +672,7 @@ const convParams_ExplicitPaddingType& convParams_ExplicitPadding_2D() {
             ::testing::ValuesIn(padEnds2d()),
             ::testing::ValuesIn(dilations2d()),
             ::testing::ValuesIn(numOutChannels()),
-            ::testing::Values(ngraph::op::PadType::EXPLICIT)
-    );
+            ::testing::Values(ngraph::op::PadType::EXPLICIT));
     return convParams_ExplicitPadding_2D;
 }
 
@@ -688,8 +684,7 @@ const convParams_ExplicitPaddingDilatedType& convParams_ExplicitPadding_2D_dilat
             ::testing::ValuesIn(padEnds2d()),
             ::testing::Values(SizeVector{2, 2}),
             ::testing::ValuesIn(numOutChannels()),
-            ::testing::Values(ngraph::op::PadType::EXPLICIT)
-    );
+            ::testing::Values(ngraph::op::PadType::EXPLICIT));
     return convParams_ExplicitPadding_2D_dilated;
 }
 
@@ -701,8 +696,7 @@ const convParams_ExplicitPaddingType& convParams_ExplicitPadding_GEMM_3D() {
             ::testing::ValuesIn(padEnds3d()),
             ::testing::ValuesIn(dilations3d()),
             ::testing::ValuesIn(numOutChannels_Gemm()),
-            ::testing::Values(ngraph::op::PadType::EXPLICIT)
-    );
+            ::testing::Values(ngraph::op::PadType::EXPLICIT));
     return convParams_ExplicitPadding_GEMM_3D;
 }
 
@@ -714,8 +708,7 @@ const convParams_ExplicitPaddingDilatedType& convParams_ExplicitPadding_GEMM_3D_
             ::testing::ValuesIn(padEnds3d()),
             ::testing::Values(SizeVector{2, 2, 2}),
             ::testing::ValuesIn(numOutChannels_Gemm()),
-            ::testing::Values(ngraph::op::PadType::EXPLICIT)
-    );
+            ::testing::Values(ngraph::op::PadType::EXPLICIT));
     return convParams_ExplicitPadding_GEMM_3D_dilated;
 }
 
@@ -727,8 +720,7 @@ const convParams_ExplicitPaddingType& convParams_ExplicitPadding_3D() {
             ::testing::ValuesIn(padEnds3d()),
             ::testing::ValuesIn(dilations3d()),
             ::testing::ValuesIn(numOutChannels()),
-            ::testing::Values(ngraph::op::PadType::EXPLICIT)
-    );
+            ::testing::Values(ngraph::op::PadType::EXPLICIT));
     return convParams_ExplicitPadding_3D;
 }
 
@@ -740,8 +732,7 @@ const convParams_ExplicitPaddingDilatedType& convParams_ExplicitPadding_3D_dilat
             ::testing::ValuesIn(padEnds3d()),
             ::testing::Values(SizeVector{2, 2, 2}),
             ::testing::ValuesIn(numOutChannels()),
-            ::testing::Values(ngraph::op::PadType::EXPLICIT)
-    );
+            ::testing::Values(ngraph::op::PadType::EXPLICIT));
     return convParams_ExplicitPadding_3D_dilated;
 }
 
@@ -753,8 +744,7 @@ const convParams_ExplicitPadding_1x1_Type& convParams_ExplicitPadding_1x1_1D() {
             ::testing::Values(std::vector<ptrdiff_t>({0})),
             ::testing::Values(SizeVector({1})),
             ::testing::Values(63),
-            ::testing::Values(ngraph::op::PadType::EXPLICIT)
-    );
+            ::testing::Values(ngraph::op::PadType::EXPLICIT));
     return convParams_ExplicitPadding_1x1_1D;
 }
 
@@ -766,8 +756,7 @@ const convParams_ExplicitPadding_1x1_Type& convParams_ExplicitPadding_1x1_2D() {
             ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
             ::testing::Values(SizeVector({1, 1})),
             ::testing::Values(63),
-            ::testing::Values(ngraph::op::PadType::EXPLICIT)
-    );
+            ::testing::Values(ngraph::op::PadType::EXPLICIT));
     return convParams_ExplicitPadding_1x1_2D;
 }
 
