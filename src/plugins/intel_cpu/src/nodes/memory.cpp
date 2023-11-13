@@ -21,13 +21,8 @@ namespace node {
 
 std::mutex MemoryNodeVirtualEdge::holderMutex;
 
-<<<<<<< HEAD
 MemoryNode::MemoryNode(const std::shared_ptr<ov::Node>& op) {
-    if (auto assignOp = std::dynamic_pointer_cast<ngraph::op::AssignBase>(op)) {
-=======
-MemoryNode::MemoryNode(const std::shared_ptr<ngraph::Node>& op) {
     if (auto assignOp = ov::as_type_ptr<ngraph::op::AssignBase>(op)) {
->>>>>>> Zero copy init working state
         _id = assignOp->get_variable_id();
     } else if (auto readValueOp = ov::as_type_ptr<ngraph::op::ReadValueBase>(op)) {
         _id = readValueOp->get_variable_id();
@@ -463,7 +458,6 @@ void MemoryNodeVirtualEdge::remove(MemoryNode * node, Holder* holder) {
         });
     }
 }
-
 }   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
