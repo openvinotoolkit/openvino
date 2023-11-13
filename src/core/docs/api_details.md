@@ -24,6 +24,7 @@ OpenVINO Core API contains two folders:
 * `ov::element::Type` class represents element type for OpenVINO Tensors and Operations. The class is located in the [openvino/core/type/element_type.hpp](../include/openvino/core/type/element_type.hpp).
 * `ov::Tensor` is used for memory representation inside OpenVINO. The class is located in the [openvino/runtime/tensor.hpp](../include/openvino/runtime/tensor.hpp).
 
+
 ## See also
  * [OpenVINO™ Core README](../README.md)
  * [OpenVINO™ README](../../../README.md)
