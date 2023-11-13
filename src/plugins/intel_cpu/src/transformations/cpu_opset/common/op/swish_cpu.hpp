@@ -15,11 +15,11 @@ public:
 
     SwishNode() = default;
 
-    explicit SwishNode(const ngraph::Output<Node> &input, float alpha = 1.0);
+    explicit SwishNode(const ov::Output<Node> &input, float alpha = 1.0);
 
     void validate_and_infer_types() override;
-    bool visit_attributes(ngraph::AttributeVisitor& visitor) override;
-    std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector &new_args) const override;
+    bool visit_attributes(ov::AttributeVisitor& visitor) override;
+    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector &new_args) const override;
 
     float get_alpha() const;
 
