@@ -19,7 +19,7 @@ public:
     MOCK_METHOD(const std::string&, get_name, (), (const));
     MOCK_METHOD(void, reset, ());
     MOCK_METHOD(void, set_state, (const ov::SoPtr<ov::ITensor>&));
-    MOCK_METHOD(const ov::SoPtr<ov::ITensor>&, get_state, (), (const));
+    MOCK_METHOD(ov::SoPtr<ov::ITensor>, get_state, (), (const));
 };
 
 }  // namespace ov
