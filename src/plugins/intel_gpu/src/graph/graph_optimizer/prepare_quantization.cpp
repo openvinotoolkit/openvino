@@ -530,6 +530,10 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         in1.get_output_layout().data_type != data_types::i8)
         return;
 
+    const size_t feature_idx = 1;
+    if (asymmetric_data && in0.get_output_layout().get_partial_shape()[feature_idx].is_dynamic())
+        return;
+
     auto old_conv_prim = convolution_node.get_primitive();
 
     primitive_id input = old_conv_prim->input[0].pid;
@@ -546,7 +550,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         wl = wl.convert_to_weights_layout(convolution_node.typed_desc()->grouped_weights_shape);
     }
     int ofm = wl.group() * wl.ofm();
-    int ifm = in0.get_output_layout().feature();
+    int ifm = in0.get_output_layout().get_partial_shape()[feature_idx].get_length();
     int ofm_aligned = align_to(ofm, 32);
     int ifm_aligned = align_to(ifm, 32);
 
