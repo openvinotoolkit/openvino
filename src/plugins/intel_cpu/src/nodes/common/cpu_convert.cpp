@@ -4,7 +4,7 @@
 
 #include "cpu_convert.h"
 #include "cpu_memcpy.h"
-#include <ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 #include <utils/bfloat16.hpp>
 #include <utils/general_utils.h>
 #include <selective_build.h>

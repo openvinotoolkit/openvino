@@ -10,12 +10,12 @@
 #include <cmath>
 #include <dnnl_extension_utils.h>
 
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "ie_precision.hpp"
 #include <onednn/dnnl.h>
 #include "utils/general_utils.h"
 #include "common/cpu_memcpy.h"
-#include <ngraph/opsets/opset7.hpp>
+#include <openvino/opsets/opset7.hpp>
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
@@ -25,7 +25,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool DFT::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool DFT::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -44,7 +44,7 @@ bool DFT::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
     return true;
 }
 
-DFT::DFT(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+DFT::DFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
                Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

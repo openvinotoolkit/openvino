@@ -20,16 +20,16 @@ public:
     EnforcePrecision(
         const element::Type source,
         const element::Type target,
-        std::function<std::set<std::vector<element::Type>>(const std::shared_ptr<ngraph::Node>& op)> get_supported_precisions = nullptr);
+        std::function<std::set<std::vector<element::Type>>(const std::shared_ptr<ov::Node>& op)> get_supported_precisions = nullptr);
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:
-    static std::set<std::vector<element::Type>> get_supported_precisions_default(const std::shared_ptr<ngraph::Node>& op) noexcept;
+    static std::set<std::vector<element::Type>> get_supported_precisions_default(const std::shared_ptr<ov::Node>& op) noexcept;
 
     const element::Type source;
     const element::Type target;
-    const std::function<std::set<std::vector<element::Type>>(const std::shared_ptr<ngraph::Node>& op)> get_supported_precisions;
+    const std::function<std::set<std::vector<element::Type>>(const std::shared_ptr<ov::Node>& op)> get_supported_precisions;
 };
 
 }  // namespace pass

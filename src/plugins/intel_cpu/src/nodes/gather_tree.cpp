@@ -6,8 +6,8 @@
 #include <vector>
 #include <cmath>
 
-#include <ngraph/op/gather_tree.hpp>
-#include "ie_parallel.hpp"
+#include "openvino/op/gather_tree.hpp"
+#include "openvino/core/parallel.hpp"
 #include "gather_tree.h"
 #include <utils/general_utils.h>
 
@@ -17,9 +17,9 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool GatherTree::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool GatherTree::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto gatherElementsOp = ngraph::as_type_ptr<const ngraph::op::v1::GatherTree>(op);
+        const auto gatherElementsOp = ov::as_type_ptr<const ov::op::v1::GatherTree>(op);
         if (!gatherElementsOp) {
             errorMessage = "Node is not an instance of the GatherTree operation from operation set v1.";
             return false;
@@ -30,7 +30,7 @@ bool GatherTree::isSupportedOperation(const std::shared_ptr<const ngraph::Node>&
     return true;
 }
 
-GatherTree::GatherTree(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+GatherTree::GatherTree(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
