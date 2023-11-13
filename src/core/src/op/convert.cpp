@@ -23,12 +23,12 @@ constexpr bool is_lp_type(const element::Type_t et) {
 
 struct Evaluate : public element::NoAction<bool> {
     using element::NoAction<bool>::visit;
-    template <element::Type_t ET, class TO = fundamental_type_for<ET>>
+    template <element::Type_t ET, class TI = fundamental_type_for<ET>>
     static result_type visit(const Tensor& arg, Tensor& out, const size_t count) {
         using namespace ov::element;
         return IfTypeOf<CONVERT_ET_LIST>::apply<EvalByOutputType<is_lp_type(ET)>>(
             out.get_element_type(),
-            reinterpret_cast<const TO*>(arg.data()),
+            reinterpret_cast<const TI*>(arg.data()),
             out,
             count,
             ET);
