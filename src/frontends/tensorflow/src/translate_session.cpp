@@ -119,11 +119,6 @@ void adjust_saved_model_names(ov::Output<ov::Node>& ov_output,
     // 3. set cleanup names to the tensor only if it is found in the signature
     // otherwise, the tensor corresponds to unused Parameter or Result nodes
     if (cleanup_names.size() > 0) {
-        std::cout << "cleanup_names:" << std::endl;
-        for (auto name: cleanup_names) {
-            std::cout << name << " ";
-        }
-        std::cout << std::endl;
         ov_output.set_names(cleanup_names);
     } else if (signature_passed) {
         // this is unused tensor that should be removed
