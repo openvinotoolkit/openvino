@@ -262,6 +262,23 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*Conv_2D_.*inFmts=nchw_outFmts=nchw_primitive=gemm_acl.*)");
     //TODO: oneDNN does not support 3D convolution on ARM
     retVector.emplace_back(R"(.*Conv_3D.*)");
+
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+    // Issue: 123019
+    retVector.emplace_back(R"(smoke_CompareWithRefs_Mvn.*INFERENCE_PRECISION_HINT=f16.*)");
+    retVector.emplace_back(R"(smoke_staticShapes4D.*INFERENCE_PRECISION_HINT=f16.*)");
+    retVector.emplace_back(R"(smoke_dynamicShapes4D.*INFERENCE_PRECISION_HINT=f16.*)");
+    // Issue: 124309
+    retVector.emplace_back(R"(.*InferRequestPreprocessConversionTest.*oLT=NHWC.*)");
+    retVector.emplace_back(R"(.*smoke_NoReshape/ExecGraphUniqueNodeNames.CheckUniqueNodeNames.*)");
+    retVector.emplace_back(R"(.*smoke_BehaviorTests/InferRequestPerfCountersTest.CheckOperationInPerfMap.*)");
+    retVector.emplace_back(R"(smoke_BehaviorTests/ExecutableNetworkBaseTest.CheckExecGraphInfo.*)");
+    retVector.emplace_back(R"(smoke_BehaviorTests/OVCompiledModelBaseTestOptional.CheckExecGraphInfo.*)");
+    retVector.emplace_back(R"(smoke_ExecGraph/ExecGraphRuntimePrecision.CheckRuntimePrecision/Function=FakeQuantizeBinaryConvolution.*)");
+    // Issue: 124395
+    retVector.emplace_back(R"(smoke_VariableStateBasic/InferRequestVariableStateTest.*)");
+#endif
+
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)

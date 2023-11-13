@@ -10,8 +10,8 @@
 #include "test_utils/convolution_params.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
+#include "ov_models/builders.hpp"
 #include "openvino/core/visibility.hpp"
 #include <shared_test_classes/single_layer/convolution.hpp>
 
@@ -36,6 +36,33 @@ typedef std::tuple<
         CPUSpecificParams,
         fusingSpecificParams,
         std::map<std::string, std::string> > convLayerCPUTestParamsSet;
+
+typedef testing::internal::CartesianProductHolder<
+        testing::internal::ParamGenerator<std::vector<unsigned long>>,
+        testing::internal::ParamGenerator<std::vector<unsigned long>>,
+        testing::internal::ParamGenerator<std::vector<long>>,
+        testing::internal::ParamGenerator<std::vector<long>>,
+        testing::internal::ParamGenerator<std::vector<unsigned long>>,
+        testing::internal::ParamGenerator<unsigned long>,
+        testing::internal::ValueArray<ov::op::PadType>> convParams_ExplicitPaddingType;
+
+typedef testing::internal::CartesianProductHolder<
+        testing::internal::ParamGenerator<std::vector<unsigned long>>,
+        testing::internal::ParamGenerator<std::vector<unsigned long>>,
+        testing::internal::ParamGenerator<std::vector<long>>,
+        testing::internal::ParamGenerator<std::vector<long>>,
+        testing::internal::ValueArray<std::vector<unsigned long>>,
+        testing::internal::ParamGenerator<unsigned long>,
+        testing::internal::ValueArray<ov::op::PadType>> convParams_ExplicitPaddingDilatedType;
+
+typedef testing::internal::CartesianProductHolder<
+        testing::internal::ValueArray<std::vector<unsigned long>>,
+        testing::internal::ValueArray<std::vector<unsigned long>>,
+        testing::internal::ValueArray<std::vector<long>>,
+        testing::internal::ValueArray<std::vector<long>>,
+        testing::internal::ValueArray<std::vector<unsigned long>>,
+        testing::internal::ValueArray<int>,
+        testing::internal::ValueArray<ov::op::PadType>> convParams_ExplicitPadding_1x1_Type;
 
 class ConvolutionLayerCPUTest : public testing::WithParamInterface<convLayerCPUTestParamsSet>,
                                 virtual public SubgraphBaseTest, public CpuTestWithFusing {
@@ -72,25 +99,43 @@ namespace Convolution {
     const std::vector<std::vector<ptrdiff_t>>& padBegins3d();
     const std::vector<std::vector<ptrdiff_t>>& padEnds3d();
     const std::vector<SizeVector>& dilations3d();
-    const std::vector<InputShape> & inputShapes3d();
 
     const std::vector<CPUSpecificParams>& CPUParams_1x1_1D();
     const std::vector<CPUSpecificParams>& CPUParams_1x1_2D();
     const std::vector<CPUSpecificParams>& CPUParams_2D();
+    const std::vector<CPUSpecificParams>& CPUParams_GEMM_1D();
     const std::vector<CPUSpecificParams>& CPUParams_GEMM_2D();
     const std::vector<CPUSpecificParams>& CPUParams_GEMM_3D();
 
     const std::vector<InputShape>& inputShapes1d();
     const std::vector<InputShape>& inputShapes2d();
+    const std::vector<InputShape>& inputShapes3d();
     const std::vector<InputShape>& inputShapes2d_cache();
     const std::vector<InputShape>& inputShapesPlain2Blocked2d();
     const std::vector<InputShape>& inputShapes2d_dynBatch();
+    const std::vector<InputShape>& inShapesGemm1D();
 
     const std::vector<InputShape>& inShapesGemm2D();
     const std::vector<InputShape>& inShapesGemm2D_cache();
-    const std::vector<InputShape> & inShapesGemm3D();
+    const std::vector<InputShape>& inShapesGemm3D();
 
     const SizeVector& numOutChannels();
     const SizeVector& numOutChannels_Gemm();
+
+    const std::vector<fusingSpecificParams>& fusingParamsSetWithEmpty();
+
+    const convParams_ExplicitPaddingType& convParams_ExplicitPadding_GEMM_1D();
+    const convParams_ExplicitPaddingType& convParams_ExplicitPadding_GEMM_2D();
+    const convParams_ExplicitPaddingType& convParams_ExplicitPadding_GEMM_3D();
+    const convParams_ExplicitPaddingType& convParams_ExplicitPadding_2D();
+    const convParams_ExplicitPaddingType& convParams_ExplicitPadding_3D();
+
+    const convParams_ExplicitPaddingDilatedType& convParams_ExplicitPadding_2D_dilated();
+    const convParams_ExplicitPaddingDilatedType& convParams_ExplicitPadding_3D_dilated();
+    const convParams_ExplicitPaddingDilatedType& convParams_ExplicitPadding_GEMM_2D_dilated();
+    const convParams_ExplicitPaddingDilatedType& convParams_ExplicitPadding_GEMM_3D_dilated();
+
+    const convParams_ExplicitPadding_1x1_Type& convParams_ExplicitPadding_1x1_1D();
+    const convParams_ExplicitPadding_1x1_Type& convParams_ExplicitPadding_1x1_2D();
 } // namespace Convolution
 } // namespace CPULayerTestsDefinitions

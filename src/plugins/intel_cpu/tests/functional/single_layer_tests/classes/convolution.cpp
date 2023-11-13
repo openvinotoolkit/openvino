@@ -170,22 +170,16 @@ void ConvolutionLayerCPUTest::SetUp() {
     }
 
     ngraph::op::PadType padType;
+    InferenceEngine::SizeVector stride;
+    std::vector<ptrdiff_t> padBegin, padEnd;
     size_t convOutChannels;
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
 
-    auto inputParams = ngraph::builder::makeDynamicParams(ngraph::element::f32, inputDynamicShapes);
-    auto paramOuts =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
-
-    auto convolutionNode = ngraph::builder::makeConvolution(paramOuts.front(),
-                                                            netType,
-                                                            kernel,
-                                                            stride,
-                                                            padBegin,
-                                                            padEnd,
-                                                            dilation,
-                                                            padType,
-                                                            convOutChannels);
+    ov::ParameterVector inputParams;
+    for (auto&& shape : inputDynamicShapes)
+        inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape));
+    auto convolutionNode = ngraph::builder::makeConvolution(inputParams[0], netType, kernel, stride, padBegin,
+                                                            padEnd, dilation, padType, convOutChannels);
 
     function = makeNgraphFunction(netType, inputParams, convolutionNode, "Convolution");
 }
@@ -358,6 +352,14 @@ const std::vector<CPUSpecificParams>& CPUParams_2D() {
         conv_avx512_2D_nspc_brgconv
     };
     return CPUParams_2D;
+}
+
+const std::vector<CPUSpecificParams>& CPUParams_GEMM_1D() {
+    static const std::vector<CPUSpecificParams> CPUParams_GEMM_1D = {
+            conv_gemm_1D,
+            conv_gemm_1D_nspc
+    };
+    return CPUParams_GEMM_1D;
 }
 
 const std::vector<CPUSpecificParams>& CPUParams_GEMM_2D() {
@@ -592,5 +594,183 @@ const std::vector<InputShape>& inputShapes2d_cache() {
     return inputShapes2d_cache;
 }
 
+const std::vector<fusingSpecificParams>& fusingParamsSetWithEmpty() {
+    static const std::vector<fusingSpecificParams> fusingParamsSetWithEmpty = {
+            emptyFusingSpec,
+            // eltwise
+            fusingRelu,
+            fusingPRelu1DScaleShift,
+            // depthwise
+            fusingReluScaleShift,
+            // fake quantize
+            fusingFakeQuantizePerTensorRelu,
+            fusingFakeQuantizePerChannelRelu,
+            // sum
+            fusingSumEluFQ,
+            fusingSum,
+            // bias
+            fusingAddPerChannel
+    };
+    return fusingParamsSetWithEmpty;
+}
+
+const std::vector<InputShape>& inShapesGemm1D() {
+    static const std::vector<InputShape> inShapesGemm1D = {
+            {{}, {{ 2, 12, 7 }}},
+            {
+                //dynamic shape
+                { {1, 200}, 12, {1, 200} },
+                { //target static shapes
+                    { 2, 12, 7 },
+                    { 1, 12, 5 }
+                }
+            }
+    };
+    return inShapesGemm1D;
+}
+
+const convParams_ExplicitPaddingType& convParams_ExplicitPadding_GEMM_2D() {
+    static const auto convParams_ExplicitPadding_GEMM_2D = ::testing::Combine(
+            ::testing::ValuesIn(kernels2d()),
+            ::testing::ValuesIn(strides2d()),
+            ::testing::ValuesIn(padBegins2d()),
+            ::testing::ValuesIn(padEnds2d()),
+            ::testing::ValuesIn(dilations2d()),
+            ::testing::ValuesIn(numOutChannels_Gemm()),
+            ::testing::Values(ngraph::op::PadType::EXPLICIT)
+    );
+    return convParams_ExplicitPadding_GEMM_2D;
+}
+
+const convParams_ExplicitPaddingDilatedType& convParams_ExplicitPadding_GEMM_2D_dilated() {
+    static const auto convParams_ExplicitPadding_GEMM_2D_dilated = ::testing::Combine(
+            ::testing::ValuesIn(kernels2d()),
+            ::testing::ValuesIn(strides2d()),
+            ::testing::ValuesIn(padBegins2d()),
+            ::testing::ValuesIn(padEnds2d()),
+            ::testing::Values(SizeVector{2, 2}),
+            ::testing::ValuesIn(numOutChannels_Gemm()),
+            ::testing::Values(ngraph::op::PadType::EXPLICIT)
+    );
+    return convParams_ExplicitPadding_GEMM_2D_dilated;
+}
+
+const convParams_ExplicitPaddingType& convParams_ExplicitPadding_GEMM_1D() {
+    static const auto convParams_ExplicitPadding_GEMM_1D = ::testing::Combine(
+            ::testing::ValuesIn(kernels1d()),
+            ::testing::ValuesIn(strides1d()),
+            ::testing::ValuesIn(padBegins1d()),
+            ::testing::ValuesIn(padEnds1d()),
+            ::testing::ValuesIn(dilations1d()),
+            ::testing::ValuesIn(numOutChannels_Gemm()),
+            ::testing::Values(ngraph::op::PadType::EXPLICIT)
+    );
+    return convParams_ExplicitPadding_GEMM_1D;
+}
+
+const convParams_ExplicitPaddingType& convParams_ExplicitPadding_2D() {
+    static const auto convParams_ExplicitPadding_2D = ::testing::Combine(
+            ::testing::ValuesIn(kernels2d()),
+            ::testing::ValuesIn(strides2d()),
+            ::testing::ValuesIn(padBegins2d()),
+            ::testing::ValuesIn(padEnds2d()),
+            ::testing::ValuesIn(dilations2d()),
+            ::testing::ValuesIn(numOutChannels()),
+            ::testing::Values(ngraph::op::PadType::EXPLICIT)
+    );
+    return convParams_ExplicitPadding_2D;
+}
+
+const convParams_ExplicitPaddingDilatedType& convParams_ExplicitPadding_2D_dilated() {
+    static const auto convParams_ExplicitPadding_2D_dilated = ::testing::Combine(
+            ::testing::ValuesIn(kernels2d()),
+            ::testing::ValuesIn(strides2d()),
+            ::testing::ValuesIn(padBegins2d()),
+            ::testing::ValuesIn(padEnds2d()),
+            ::testing::Values(SizeVector{2, 2}),
+            ::testing::ValuesIn(numOutChannels()),
+            ::testing::Values(ngraph::op::PadType::EXPLICIT)
+    );
+    return convParams_ExplicitPadding_2D_dilated;
+}
+
+const convParams_ExplicitPaddingType& convParams_ExplicitPadding_GEMM_3D() {
+    static const auto convParams_ExplicitPadding_GEMM_3D = ::testing::Combine(
+            ::testing::ValuesIn(kernels3d()),
+            ::testing::ValuesIn(strides3d()),
+            ::testing::ValuesIn(padBegins3d()),
+            ::testing::ValuesIn(padEnds3d()),
+            ::testing::ValuesIn(dilations3d()),
+            ::testing::ValuesIn(numOutChannels_Gemm()),
+            ::testing::Values(ngraph::op::PadType::EXPLICIT)
+    );
+    return convParams_ExplicitPadding_GEMM_3D;
+}
+
+const convParams_ExplicitPaddingDilatedType& convParams_ExplicitPadding_GEMM_3D_dilated() {
+    static const auto convParams_ExplicitPadding_GEMM_3D_dilated = ::testing::Combine(
+            ::testing::ValuesIn(kernels3d()),
+            ::testing::ValuesIn(strides3d()),
+            ::testing::ValuesIn(padBegins3d()),
+            ::testing::ValuesIn(padEnds3d()),
+            ::testing::Values(SizeVector{2, 2, 2}),
+            ::testing::ValuesIn(numOutChannels_Gemm()),
+            ::testing::Values(ngraph::op::PadType::EXPLICIT)
+    );
+    return convParams_ExplicitPadding_GEMM_3D_dilated;
+}
+
+const convParams_ExplicitPaddingType& convParams_ExplicitPadding_3D() {
+    static const auto convParams_ExplicitPadding_3D = ::testing::Combine(
+            ::testing::ValuesIn(kernels3d()),
+            ::testing::ValuesIn(strides3d()),
+            ::testing::ValuesIn(padBegins3d()),
+            ::testing::ValuesIn(padEnds3d()),
+            ::testing::ValuesIn(dilations3d()),
+            ::testing::ValuesIn(numOutChannels()),
+            ::testing::Values(ngraph::op::PadType::EXPLICIT)
+    );
+    return convParams_ExplicitPadding_3D;
+}
+
+const convParams_ExplicitPaddingDilatedType& convParams_ExplicitPadding_3D_dilated() {
+    static const auto convParams_ExplicitPadding_3D_dilated = ::testing::Combine(
+            ::testing::ValuesIn(kernels3d()),
+            ::testing::ValuesIn(strides3d()),
+            ::testing::ValuesIn(padBegins3d()),
+            ::testing::ValuesIn(padEnds3d()),
+            ::testing::Values(SizeVector{2, 2, 2}),
+            ::testing::ValuesIn(numOutChannels()),
+            ::testing::Values(ngraph::op::PadType::EXPLICIT)
+    );
+    return convParams_ExplicitPadding_3D_dilated;
+}
+
+const convParams_ExplicitPadding_1x1_Type& convParams_ExplicitPadding_1x1_1D() {
+    static const auto convParams_ExplicitPadding_1x1_1D = ::testing::Combine(
+            ::testing::Values(SizeVector({1})),
+            ::testing::Values(SizeVector({1})),
+            ::testing::Values(std::vector<ptrdiff_t>({0})),
+            ::testing::Values(std::vector<ptrdiff_t>({0})),
+            ::testing::Values(SizeVector({1})),
+            ::testing::Values(63),
+            ::testing::Values(ngraph::op::PadType::EXPLICIT)
+    );
+    return convParams_ExplicitPadding_1x1_1D;
+}
+
+const convParams_ExplicitPadding_1x1_Type& convParams_ExplicitPadding_1x1_2D() {
+    static const auto convParams_ExplicitPadding_1x1_2D = ::testing::Combine(
+            ::testing::Values(SizeVector({1, 1})),
+            ::testing::Values(SizeVector({1, 1})),
+            ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+            ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+            ::testing::Values(SizeVector({1, 1})),
+            ::testing::Values(63),
+            ::testing::Values(ngraph::op::PadType::EXPLICIT)
+    );
+    return convParams_ExplicitPadding_1x1_2D;
+}
+
 } // namespace Convolution
-}  // namespace CPULayerTestsDefinitions
+} // namespace CPULayerTestsDefinitions
