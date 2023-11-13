@@ -4,15 +4,22 @@
 
 """Factory functions for ops added to openvino opset13."""
 from functools import partial
-from typing import Optional
+from typing import Optional, Union
+import logging
 
-from openvino.runtime import Node
+import numpy as np
+
+log = logging.getLogger(__name__)
+
+from openvino.runtime import Node, Type
+from openvino.runtime.op import Constant
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
 from openvino.runtime.utils.types import (
+    NumericData,
     NodeInput,
+    NumericType,
     as_nodes,
-    as_node,
 )
 
 _get_node_factory_opset13 = partial(_get_node_factory, "opset13")
@@ -222,3 +229,57 @@ def scaled_dot_product_attention(
         "causal": causal,
     }
     return _get_node_factory_opset13().create("ScaledDotProductAttention", inputs, attributes)
+
+
+@nameable_op
+def constant(
+    value: NumericData,
+    dtype: Union[NumericType, Type] = None,
+    name: Optional[str] = None,
+    *,
+    shared_memory: Optional[bool] = False,
+) -> Constant:
+    """Create a Constant node from provided value.
+
+    :param value: One of: array of values or scalar to initialize node with.
+    :param dtype: The data type of provided data.
+                  If dtype does not match, data will be converted.
+                  Note: disables sharing of the memory when convertion occurs.
+    :param name: Optional name for output node.
+    :param shared_memory: keyword-only argument.
+                          If `True`, this Constant's memory is being shared with a host,
+                          that means the responsibility of keeping host memory is
+                          on the side of a user. Any action performed on the host
+                          memory is reflected on this Constant's memory!
+                          If `False`, data is being copied to this Constant.
+                          Requires data to be C_CONTIGUOUS if `True`.
+    :return: The Constant node initialized with provided data.
+    """
+    _value = value
+    _shared_memory = shared_memory
+    _dtype = dtype
+    # Convert scalars to: 
+    if isinstance(value, int):
+        log.warning("Converting scalar type of undefined bitwidth to 32-bit integer. Memory sharing is disabled by default.")
+        _value, _shared_memory = np.array(value, dtype=np.int32), False
+    elif isinstance(value, float):
+        log.warning("Converting scalar type of undefined bitwidth to 32-bit float. Memory sharing is disabled by default.")
+        _value, _shared_memory = np.array(value, dtype=np.float32), False
+    elif isinstance(value, bool):
+        log.warning("Converting bool type to numpy bool. Memory sharing is disabled by default.")
+        _value, _shared_memory = np.array(value, dtype=np.bool_), False
+    elif isinstance(value, (np.number, np.bool_)):
+        log.warning(f"Converting numpy scalar of {value.dtype} to corresponding type. Memory sharing is disabled by default.")
+        _value, _shared_memory = np.array(value, dtype=value.dtype), False
+    elif isinstance(value, list):
+        log.warning("Converting list type of undefined bitwidth to 32-bit float array. Memory sharing is disabled by default.")
+        _value, _shared_memory = np.array(value, dtype=np.float32), False
+    # Handle type casting:
+    if _dtype:  # is not None:
+        if isinstance(_dtype, Type):
+            _dtype = _dtype.to_dtype()
+        if _dtype != _value.dtype:
+            log.warning(f"Converting value of {_value.dtype} to {_dtype}. Memory sharing is disabled by default.")
+            _value, _shared_memory = _value.astype(_dtype), False
+    # Default case:
+    return Constant(_value, shared_memory=_shared_memory)
