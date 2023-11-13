@@ -16,7 +16,7 @@ namespace node {
 
 class Proposal : public Node {
 public:
-    Proposal(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Proposal(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -26,7 +26,7 @@ public:
     bool needPrepareParams() const override { return false; };
     void executeDynamicImpl(dnnl::stream strm) override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     const size_t PROBABILITIES_IN_IDX = 0lu;

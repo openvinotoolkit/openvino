@@ -15,6 +15,10 @@ inputs:
     description: 'If the runner is self-hosted'
     required: false
     default: 'true'
+  show-cache-info:
+    description: 'If the action should show the share space occupied by cache'
+    required: false
+    default: 'false'
 runs:
   using: 'composite'
   steps:
@@ -52,7 +56,7 @@ runs:
         echo "PIP_CACHE_DIR=${{ inputs.pip-cache-path }}/${PIP_VER}" >> $GITHUB_ENV
         echo "PIP_INSTALL_PATH=$(python3 -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')" >> $GITHUB_ENV
 
-    - if: ${{ inputs.should-setup-pip-paths == 'true' }}
+    - if: ${{ inputs.show-cache-info == 'true' }}
       name: Get pip cache info
       shell: bash
       run: |

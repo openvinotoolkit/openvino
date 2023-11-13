@@ -12,9 +12,9 @@
 
 ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
     MATCHER_SCOPE(ConvertBroadcastToTiles);
-    auto broadcast = ngraph::pattern::wrap_type<ngraph::opset1::Broadcast>();
+    auto broadcast = ov::pass::pattern::wrap_type<ngraph::opset1::Broadcast>();
 
-    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
         auto broadcast = std::dynamic_pointer_cast<ngraph::opset1::Broadcast>(m.get_match_root());
 
         if (!broadcast) {
@@ -37,14 +37,14 @@ ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
 
         auto last_node = data_node;
 
-        ngraph::NodeVector new_ops;
+        ov::NodeVector new_ops;
 
         // In case if input_shape and output_shape differ we insert Reshape to align shapes
         if (input_shape.size() != dims_count) {
             if (input_shape.size() > dims_count) {
                 return false;
             }
-            ngraph::Shape shape;
+            ov::Shape shape;
             auto broadcast_type = broadcast->get_broadcast_spec();
             if (broadcast_type == ngraph::op::AutoBroadcastType::NUMPY) {
                 shape = input_shape;
@@ -60,7 +60,7 @@ ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
             } else {
                 return false;
             }
-            auto shape_const = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{shape.size()}, shape);
+            auto shape_const = std::make_shared<ngraph::opset1::Constant>(ov::element::i64, ov::Shape{shape.size()}, shape);
             auto reshape = std::make_shared<ngraph::opset1::Reshape>(data_node, shape_const, true);
             new_ops.push_back(reshape);
             last_node = reshape;
@@ -84,16 +84,16 @@ ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
             ++input_shape_it;
         }
 
-        auto const_node = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{dims_count}, dims);
+        auto const_node = std::make_shared<ngraph::opset1::Constant>(ov::element::i64, ov::Shape{dims_count}, dims);
         auto tile = register_new_node<ngraph::opset1::Tile>(last_node, const_node);
         new_ops.push_back(tile);
         tile->set_friendly_name(broadcast->get_friendly_name());
 
-        ngraph::copy_runtime_info(broadcast, new_ops);
-        ngraph::replace_node(broadcast, tile);
+        ov::copy_runtime_info(broadcast, new_ops);
+        ov::replace_node(broadcast, tile);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(broadcast, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(broadcast, matcher_name);
     this->register_matcher(m, callback);
 }

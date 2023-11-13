@@ -617,7 +617,7 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
                     // Bias -> Reshape -> Conv/Deconv/FC
                     const VectorDims flattenShape = {biasOutputShape.getElementsCount()};
                     // Construct Ngraph Reshape node and CPU Reshape node.
-                    auto reshapeConstInput = std::make_shared<ngraph::opset1::Constant>(ov::element::i32, ngraph::Shape{1}, flattenShape);
+                    auto reshapeConstInput = std::make_shared<ngraph::opset1::Constant>(ov::element::i32, ov::Shape{1}, flattenShape);
                     auto reshapeDummyInput = std::make_shared<ngraph::opset1::Parameter>(
                                                 details::convertPrecision(biasNode->getOriginalOutputPrecisionAtPort(0)),
                                                 biasOutputShape.toPartialShape());
@@ -2647,7 +2647,7 @@ void GraphOptimizer::reshapeRnnSeq(Graph &graph) {
             auto edge = childrenEdges[j];
             auto childNode = edge->getChild();
 
-            const auto secondInput = std::make_shared<ngraph::opset1::Constant>(ov::element::i32, ngraph::Shape{1}, std::vector<int>{1});
+            const auto secondInput = std::make_shared<ngraph::opset1::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{1});
             const auto unsqueeze = std::make_shared<ngraph::opset1::Unsqueeze>(
                 std::make_shared<ngraph::opset1::Parameter>(details::convertPrecision(parentNode->getOriginalOutputPrecisionAtPort(0)),
                                                             parentNode->getOutputShapeAtPort(0).toPartialShape()), secondInput);
