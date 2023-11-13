@@ -272,9 +272,9 @@ void fill_output_blobs(const float* proposals, const int* roi_indices,
 }  // namespace
 
 bool ExperimentalDetectronGenerateProposalsSingleImage::isSupportedOperation
-            (const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+            (const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto proposalOp = ngraph::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(op);
+        const auto proposalOp = ov::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(op);
         if (!proposalOp) {
             errorMessage = "Node is not an instance of the Proposal from the operations set v0.";
             return false;
@@ -286,7 +286,7 @@ bool ExperimentalDetectronGenerateProposalsSingleImage::isSupportedOperation
 }
 
 ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerateProposalsSingleImage(
-    const std::shared_ptr<ngraph::Node>& op,
+    const std::shared_ptr<ov::Node>& op,
     const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
@@ -294,7 +294,7 @@ ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerate
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    auto proposalOp = ngraph::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(op);
+    auto proposalOp = ov::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(op);
     auto proposalAttrs = proposalOp->get_attrs();
 
     min_size_ = proposalAttrs.min_size;

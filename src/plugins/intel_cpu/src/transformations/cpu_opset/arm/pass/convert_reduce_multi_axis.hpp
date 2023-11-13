@@ -53,7 +53,7 @@ class ConvertReduceMultiAxisBase: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertReduceMultiAxisBase", "0");
     template <class T>
-    ngraph::matcher_pass_callback convert_reduce();
+    ov::matcher_pass_callback convert_reduce();
 };
 
 class ConvertReduceProd: public ConvertReduceMultiAxisBase {

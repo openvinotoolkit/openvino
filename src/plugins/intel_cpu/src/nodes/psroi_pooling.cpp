@@ -24,7 +24,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool PSROIPooling::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool PSROIPooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -57,7 +57,7 @@ bool PSROIPooling::isSupportedOperation(const std::shared_ptr<const ngraph::Node
     return true;
 }
 
-PSROIPooling::PSROIPooling(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+PSROIPooling::PSROIPooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -116,12 +116,12 @@ PSROIPooling::PSROIPooling(const std::shared_ptr<ngraph::Node>& op, const GraphC
         pooledWidth = groupSize;
     }
 
-    ngraph::Shape inDims = op->get_input_shape(0);
+    ov::Shape inDims = op->get_input_shape(0);
     channels = static_cast<int>(inDims[1]);
     height = static_cast<int>(inDims[2]);
     width = static_cast<int>(inDims[3]);
 
-    ngraph::Shape outDims = op->get_shape();
+    ov::Shape outDims = op->get_shape();
     nn = static_cast<int>(outDims[0]);
     nc = static_cast<int>(outDims[1]);
     nh = static_cast<int>(outDims[2]);

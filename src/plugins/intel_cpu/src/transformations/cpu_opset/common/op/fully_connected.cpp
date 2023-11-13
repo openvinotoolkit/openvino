@@ -5,15 +5,15 @@
 #include "fully_connected.hpp"
 #include "transformations/itt.hpp"
 
-ov::intel_cpu::FullyConnectedNode::FullyConnectedNode(const ngraph::Output<Node>& A,
-                                                     const ngraph::Output<Node>& B,
-                                                     const ngraph::Rank& output_rank,
-                                                     const ngraph::element::Type output_type)
+ov::intel_cpu::FullyConnectedNode::FullyConnectedNode(const ov::Output<Node>& A,
+                                                     const ov::Output<Node>& B,
+                                                     const ov::Rank& output_rank,
+                                                     const ov::element::Type output_type)
     : Op({A, B}), m_output_rank(output_rank), m_output_type(output_type) {
     validate_and_infer_types();
 }
 
-std::shared_ptr<ngraph::Node> ov::intel_cpu::FullyConnectedNode::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {
+std::shared_ptr<ov::Node> ov::intel_cpu::FullyConnectedNode::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(FullyConnectedNode_clone_with_new_inputs);
     check_new_args_count(this, new_args);
 
@@ -67,11 +67,11 @@ void ov::intel_cpu::FullyConnectedNode::validate_and_infer_types() {
         output_pshape = ngraph::PartialShape::dynamic();
     }
 
-    auto output_type = m_output_type == ngraph::element::undefined ? get_input_element_type(0) : m_output_type;
+    auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;
     set_output_type(0, output_type, output_pshape);
 }
 
-bool ov::intel_cpu::FullyConnectedNode::visit_attributes(ngraph::AttributeVisitor &visitor) {
+bool ov::intel_cpu::FullyConnectedNode::visit_attributes(ov::AttributeVisitor &visitor) {
     INTERNAL_OP_SCOPE(FullyConnectedNode_visit_attributes);
     visitor.on_attribute("out-rank", m_output_rank);
     visitor.on_attribute("out-type", m_output_type);
