@@ -408,15 +408,6 @@ INSTANTIATE_TEST_SUITE_P(Conv_PlainToBlocked_3D_BF16_dilated, ConvolutionLayerCP
                          ConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= Kernel_1x1 (1D) ============= */
-/*const auto convParams_ExplicitPadding_1x1_1D = ::testing::Combine(
-        ::testing::Values(SizeVector({1})),
-        ::testing::Values(SizeVector({1})),
-        ::testing::Values(std::vector<ptrdiff_t>({0})),
-        ::testing::Values(std::vector<ptrdiff_t>({0})),
-        ::testing::Values(SizeVector({1})),
-        ::testing::Values(63),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT)
-);*/
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_1x1_FP32_empty_fusing, ConvolutionLayerCPUTest,
                          ::testing::Combine(
@@ -447,16 +438,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_1x1_I8, ConvolutionLayerCPUTest,
                          ConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= Kernel_1x1 (2D) ============= */
-
-/*const auto convParams_ExplicitPadding_1x1_2D = ::testing::Combine(
-        ::testing::Values(SizeVector({1, 1})),
-        ::testing::Values(SizeVector({1, 1})),
-        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
-        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
-        ::testing::Values(SizeVector({1, 1})),
-        ::testing::Values(63),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT)
-);*/
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_1x1_FP32_empty_fusing, ConvolutionLayerCPUTest,
                          ::testing::Combine(
