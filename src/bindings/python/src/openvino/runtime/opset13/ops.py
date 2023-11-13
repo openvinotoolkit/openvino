@@ -258,7 +258,7 @@ def constant(
     _value = value
     _shared_memory = shared_memory
     _dtype = dtype
-    # Convert scalars to: 
+    # Convert scalars to:
     if isinstance(value, int):
         log.warning("Converting scalar type of undefined bitwidth to 32-bit integer. Memory sharing is disabled by default.")
         _value, _shared_memory = np.array(value, dtype=np.int32), False
