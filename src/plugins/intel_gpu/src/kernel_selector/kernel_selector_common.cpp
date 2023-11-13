@@ -103,7 +103,6 @@ std::string toString(DataLayout l) {
         case kernel_selector::DataLayout::bs_f_bsv8__af8:        return "BS_F_BSV8__AF8";
         case kernel_selector::DataLayout::bs_f_bsv16__af8:       return "BS_F_BSV16__AF8";
         case kernel_selector::DataLayout::winograd_2x3_s1_data:  return "WINOGRAD_2x3_S1_DATA";
-        case kernel_selector::DataLayout::b_fs_yx_32fp:          return "B_FS_YX_32FP";
         case kernel_selector::DataLayout::bfzyx:                 return "BFZYX";
         case kernel_selector::DataLayout::bzyxf:                 return "BZYXF";
         case kernel_selector::DataLayout::fs_b_yx_fsv32:         return "FS_B_YX_FSV32";
@@ -141,7 +140,8 @@ std::string toString(DataLayout l) {
 
 std::string toString(Datatype dType) {
     switch (dType) {
-        case Datatype::BINARY: return "BINARY";
+        case Datatype::UINT4:  return "UINT4";
+        case Datatype::INT4:   return "INT4";
         case Datatype::INT8:   return "INT8";
         case Datatype::UINT8:  return "UINT8";
         case Datatype::INT16:  return "INT16";
@@ -157,9 +157,10 @@ std::string toString(Datatype dType) {
 
 std::string toString(WeightsType wType) {
     switch (wType) {
-        case WeightsType::BINARY: return "BINARY";
         case WeightsType::F16:    return "F16";
         case WeightsType::F32:    return "F32";
+        case WeightsType::UINT4:  return "UINT4";
+        case WeightsType::INT4:   return "INT4";
         case WeightsType::INT8:   return "INT8";
         case WeightsType::UINT8:  return "UINT8";
         case WeightsType::INT32:  return "INT32";
@@ -182,8 +183,6 @@ std::string toString(KernelType kt) {
         case KernelType::ELTWISE:         return "ELTWISE";
         case KernelType::REORDER:         return "REORDER";
         case KernelType::SELECT:          return "SELECT";
-        case KernelType::BINARY_CONVOLUTION:
-                                          return "BINARY_CONVOLUTION";
         case KernelType::NON_MAX_SUPPRESSION:
                                           return "NON_MAX_SUPPRESSION";
         case KernelType::MATRIX_NMS:      return "MATRIX_NMS";
@@ -357,7 +356,6 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::os_is_yx_osv32_isv4:                         return "OS_IS_YX_OSV32_ISV4";
         case WeightsLayout::os_is_zyx_osv32_isv4:                        return "OS_IS_ZYX_OSV32_ISV4";
         case WeightsLayout::os_is_y_x8_osv8_isv4_swizzled_by_4:          return "OS_IS_Y_X8_OSV8_ISV4_SWIZZLED_BY_4";
-        case WeightsLayout::os_is_yx_osv32_isv32p:                       return "OS_IS_YX_OSV32_ISV32P";
         case WeightsLayout::oizyx:                                       return "OIZYX";
         case WeightsLayout::iozyx:                                       return "IOZYX";
         case WeightsLayout::os_is_zyx_isv16_osv16:                       return "OS_IS_ZYX_ISV16_OSV16";

@@ -8,6 +8,7 @@
 
 #include "Python.h"
 #include "openvino/core/except.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 
 #define C_CONTIGUOUS py::detail::npy_api::constants::NPY_ARRAY_C_CONTIGUOUS_
@@ -154,11 +155,17 @@ py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
 
 template <>
 ov::op::v0::Constant create_copied(py::array& array) {
+    // Do not copy data from the array, only return empty tensor based on type.
+    if (array.size() == 0) {
+        return ov::op::v0::Constant(array_helpers::get_ov_type(array), array_helpers::get_shape(array));
+    }
     // Convert to contiguous array if not already in C-style.
     if (!array_helpers::is_contiguous(array)) {
         array = array_helpers::as_contiguous(array, array_helpers::get_ov_type(array));
     }
     // Create actual Constant and a constructor is copying data.
+    // If ndim is equal to 0, creates scalar Constant.
+    // If size is equal to 0, creates empty Constant.
     return ov::op::v0::Constant(array_helpers::get_ov_type(array),
                                 array_helpers::get_shape(array),
                                 array.ndim() == 0 ? array.data() : array.data(0));
@@ -170,14 +177,15 @@ ov::op::v0::Constant create_copied(ov::Tensor& tensor) {
     return ov::op::v0::Constant(tensor.get_element_type(), tensor.get_shape(), const_cast<void*>(tensor.data()));
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 template <>
 ov::op::v0::Constant create_shared(py::array& array) {
     // Check if passed array has C-style contiguous memory layout.
     // If memory is going to be shared it needs to be contiguous before passing to the constructor.
+    // If ndim is equal to 0, creates scalar Constant.
+    // If size is equal to 0, creates empty Constant.
     if (array_helpers::is_contiguous(array)) {
-        auto memory = std::make_shared<ngraph::runtime::SharedBuffer<py::array>>(
-            static_cast<char*>(array.ndim() == 0 ? array.mutable_data() : array.mutable_data(0)),
+        auto memory = std::make_shared<ov::SharedBuffer<py::array>>(
+            static_cast<char*>((array.ndim() == 0 || array.size() == 0) ? array.mutable_data() : array.mutable_data(0)),
             array.ndim() == 0 ? array.itemsize() : array.nbytes(),
             array);
         return ov::op::v0::Constant(array_helpers::get_ov_type(array), array_helpers::get_shape(array), memory);
@@ -185,7 +193,6 @@ ov::op::v0::Constant create_shared(py::array& array) {
     // If passed array is not C-style, throw an error.
     OPENVINO_THROW("SHARED MEMORY MODE FOR THIS CONSTANT IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <>
 ov::op::v0::Constant create_shared(ov::Tensor& tensor) {

@@ -35,10 +35,9 @@ std::vector<size_t> get_buffer_loop_ids(const std::vector<size_t>& lhs, const st
 ov::Shape compute_allocation_shape(const LinearIR::LoopManagerPtr& loop_manager,
                                    const std::vector<size_t>& buffer_loop_ids,
                                    const std::vector<size_t>& parent_loop_ids,
-                                   const ov::Output<ov::Node>& parent_output,
+                                   const ExpressionPort& expr_port,
                                    const int allocation_rank) {
-    const auto& port = lowered::PortDescriptorUtils::get_port_descriptor_ptr(parent_output);
-    const auto planar_shape = utils::get_planar_vdims(port);
+    const auto planar_shape = utils::get_preordered_vdims(expr_port);
 
     const size_t rank = allocation_rank >= 0 ? std::min(static_cast<size_t>(allocation_rank), planar_shape.size()) : planar_shape.size();
     ov::Shape allocation_shape(rank);
@@ -123,9 +122,9 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
     for (const auto& entry_point : loop_entries) {
         const auto& entry_port = entry_point.expr_port;
         const auto& expr = entry_port->get_expr();
-        const auto port = entry_port->get_index();
+        const auto port_idx = entry_port->get_index();
         const auto node = expr->get_node();
-        const auto& input_connector = expr->get_input_port_connector(port);
+        const auto& input_connector = expr->get_input_port_connector(port_idx);
         const auto& parent_expr_output = input_connector->get_source();
         const auto& parent_expr = parent_expr_output.get_expr();
         const auto parent_port = parent_expr_output.get_index();
@@ -140,7 +139,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
         const auto parent_ma = ov::as_type_ptr<op::MemoryAccess>(parent);
         const auto node_ma = ov::as_type_ptr<op::MemoryAccess>(node);
         bool is_buffer_needed = (parent_ma && parent_ma->is_memory_access_output_port(parent_port)) ||
-                                (node_ma && node_ma->is_memory_access_input_port(port));
+                                (node_ma && node_ma->is_memory_access_input_port(port_idx));
         const auto current_loops = expr->get_loop_ids();
         const auto parent_loops = parent_expr->get_loop_ids();
         const auto buffer_loop_ids = get_buffer_loop_ids(current_loops, parent_loops, is_buffer_needed);
@@ -154,7 +153,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
             const auto allocation_shape = compute_allocation_shape(loop_manager,
                                                                    buffer_loop_ids,
                                                                    parent_loops,
-                                                                   parent->output(parent_port),
+                                                                   parent_expr_output,
                                                                    m_buffer_allocation_rank);
             const auto buffer = std::make_shared<op::Buffer>(parent->output(parent_port), allocation_shape);
             PortDescriptorUtils::set_port_descriptor_ptr(buffer->output(0), parent_expr_output.get_descriptor_ptr()->clone());
@@ -169,7 +168,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
     for (const auto& exit_point : loop_exits) {
         const auto& exit_port = exit_point.expr_port;
         const auto& expr = exit_port->get_expr();
-        const auto port = exit_port->get_index();
+        const auto port_idx = exit_port->get_index();
         const auto node = expr->get_node();
         const auto output_connector = exit_port->get_port_connector_ptr();
         const auto child_exprs_inputs = output_connector->get_consumers();
@@ -200,7 +199,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
             const auto child_ma = ov::as_type_ptr<op::MemoryAccess>(child);
             const auto node_ma = ov::as_type_ptr<op::MemoryAccess>(node);
             bool is_buffer_needed = (child_ma && child_ma->is_memory_access_input_port(child_port)) ||
-                                    (node_ma && node_ma->is_memory_access_output_port(port));
+                                    (node_ma && node_ma->is_memory_access_output_port(port_idx));
             const auto local_buffer_loop_ids = get_buffer_loop_ids(current_loops, child_expr->get_loop_ids(), is_buffer_needed);
 
             if (is_buffer_needed) {
@@ -247,9 +246,9 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
             const auto allocation_shape = compute_allocation_shape(loop_manager,
                                                                    buffer_loop_ids,
                                                                    current_loops,
-                                                                   node->output(port),
+                                                                   *exit_port,
                                                                    m_buffer_allocation_rank);
-            auto buffer = std::make_shared<op::Buffer>(node->output(port), allocation_shape);
+            auto buffer = std::make_shared<op::Buffer>(node->output(port_idx), allocation_shape);
             PortDescriptorUtils::set_port_descriptor_ptr(buffer->output(0), exit_port->get_descriptor_ptr()->clone());
             // We cannot insert Node output connector on Buffer output because not all consumers of Node needs Buffer
             //  Example:

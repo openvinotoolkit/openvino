@@ -7,8 +7,8 @@
 #include "helper_ops/string_constant.hpp"
 #include "helper_ops/unsupported_constant.hpp"
 #include "input_model.hpp"
-#include "ngraph/runtime/shared_buffer.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "ov_tensorflow/tensor_bundle.pb.h"
 
@@ -44,15 +44,12 @@ static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<VariablesIndex> v
             node,
             static_cast<int64_t>(mapped_memory->size()) >= entry.offset() + entry.size(),
             "[TensorFlow Frontend] Internal error: Variable entry size is out of bounds of mapped memory size.");
-        OPENVINO_SUPPRESS_DEPRECATED_START
         return std::make_shared<Constant>(
             ov_type,
             shape,
-            std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<MappedMemory>>>(
-                mapped_memory->data() + entry.offset(),
-                entry.size(),
-                mapped_memory));
-        OPENVINO_SUPPRESS_DEPRECATED_END
+            std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data() + entry.offset(),
+                                                                              entry.size(),
+                                                                              mapped_memory));
     } else {
         std::vector<T> var_data;
         var_data.resize(size);
