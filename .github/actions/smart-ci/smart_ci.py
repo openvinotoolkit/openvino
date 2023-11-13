@@ -192,10 +192,20 @@ def main():
     # We don't need to run workflow if changes were only in documentation
     # This is the case when we have no product labels set except "docs"
     # or only if md files were matched (the latter covers cases where *.md is outside docs directory)
-    only_docs_changes = 'md_files_only' in changed_component_names or \
-                        changed_component_names - {'docs'} == set()
+    only_docs_changes = False
+    if args.pr and not run_full_scope:
+        # We don't want to add helper labels to labeler config for now, so handling it manually
+        docs_label_only = changed_component_names - {'docs'} == set()
+        if docs_label_only:
+            only_docs_changes = True
+        else:
+            # To avoid spending extra API requests running step below only if necessary
+            changed_files = gh_api.pulls.list_files(args.pr)
+            doc_suffixes = ['.md', '.rst', '.png', '.jpg', '.svg']
+            only_docs_changes = all([Path(f.filename).suffix in doc_suffixes for f in changed_files])
+            logger.debug(f"doc files only: {only_docs_changes}")
 
-    if only_docs_changes and not run_full_scope:
+    if only_docs_changes:
         logger.info(f"Changes are documentation only, workflow may be skipped")
         affected_components['docs_only'] = ComponentConfig.FullScope
 
