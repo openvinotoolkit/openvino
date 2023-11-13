@@ -304,12 +304,12 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
         config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = tput_hints.first;
         OPENVINO_SUPPRESS_DEPRECATED_END
         config[ov::num_streams.name()] = tput_hints.first;
-        config[ov::internal::big_core_streams.name()] = std::to_string(tput_hints.second.big_core_streams);
-        config[ov::internal::small_core_streams.name()] = std::to_string(tput_hints.second.small_core_streams);
-        config[ov::internal::threads_per_stream_big.name()] = std::to_string(tput_hints.second.threads_per_stream_big);
-        config[ov::internal::threads_per_stream_small.name()] =
+        config[ov::threading::big_core_streams.name()] = std::to_string(tput_hints.second.big_core_streams);
+        config[ov::threading::small_core_streams.name()] = std::to_string(tput_hints.second.small_core_streams);
+        config[ov::threading::threads_per_stream_big.name()] = std::to_string(tput_hints.second.threads_per_stream_big);
+        config[ov::threading::threads_per_stream_small.name()] =
             std::to_string(tput_hints.second.threads_per_stream_small);
-        config[ov::internal::small_core_offset.name()] = std::to_string(tput_hints.second.small_core_offset);
+        config[ov::threading::small_core_offset.name()] = std::to_string(tput_hints.second.small_core_offset);
     }
 }
 
@@ -702,7 +702,7 @@ ov::Any Engine::get_metric_legacy(const std::string& name, const ov::AnyMap& opt
         return decltype(ov::device::full_name)::value_type(deviceFullName);
     } else if (name == ov::available_devices.name()) {
         std::vector<std::string> availableDevices = {""};
-        return decltype(ov::available_devices)::value_type(availableDevices);
+        return decltype(ov::available_devices)::value_type(std::move(availableDevices));
     } else if (name == ov::device::capabilities.name()) {
         std::vector<std::string> capabilities;
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
@@ -713,7 +713,7 @@ ov::Any Engine::get_metric_legacy(const std::string& name, const ov::AnyMap& opt
         capabilities.push_back(METRIC_VALUE(FP16));
         capabilities.push_back(METRIC_VALUE(INT8));
         capabilities.push_back(METRIC_VALUE(BIN));
-        return decltype(ov::device::capabilities)::value_type(capabilities);
+        return decltype(ov::device::capabilities)::value_type(std::move(capabilities));
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
         for (auto&& opt : engConfig._config)
@@ -733,7 +733,7 @@ ov::Any Engine::get_metric_legacy(const std::string& name, const ov::AnyMap& opt
             ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}};
     } else if (name == ov::internal::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties = {ov::device::full_name.name()};
-        return decltype(ov::internal::caching_properties)::value_type(cachingProperties);
+        return decltype(ov::internal::caching_properties)::value_type(std::move(cachingProperties));
     }
 
     IE_CPU_PLUGIN_THROW() << "Unsupported metric key: " << name;

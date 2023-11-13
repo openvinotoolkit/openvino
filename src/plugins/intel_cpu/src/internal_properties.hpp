@@ -23,7 +23,6 @@ static constexpr Property<bool, PropertyMutability::RW> lp_transforms_mode{"LP_T
 
 /**
  * @brief Enum to define possible snippets mode hints
- * @ingroup ov_runtime_cpp_prop_api
  */
 enum class SnippetsMode {
     ENABLE = 0,           //!<  Enable

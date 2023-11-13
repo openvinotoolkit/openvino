@@ -62,36 +62,6 @@ static constexpr Property<ov::threading::IStreamsExecutor::ThreadBindingType, Pr
     "CPU_BIND_THREAD"};
 
 /**
- * @brief Number of streams in Performance-core(big core)
- * @ingroup ov_dev_api_plugin_api
- */
-static constexpr Property<size_t, PropertyMutability::RW> big_core_streams{"BIG_CORE_STREAMS"};
-
-/**
- * @brief Number of streams in Efficient-core(small core) on hybrid cores machine
- * @ingroup ov_dev_api_plugin_api
- */
-static constexpr Property<size_t, PropertyMutability::RW> small_core_streams{"SMALL_CORE_STREAMS"};
-
-/**
- * @brief Number of threads per stream in big cores
- * @ingroup ov_dev_api_plugin_api
- */
-static constexpr Property<size_t, PropertyMutability::RW> threads_per_stream_big{"THREADS_PER_STREAM_BIG"};
-
-/**
- * @brief Number of threads per stream in small cores on hybrid cores machine
- * @ingroup ov_dev_api_plugin_api
- */
-static constexpr Property<size_t, PropertyMutability::RW> threads_per_stream_small{"THREADS_PER_STREAM_SMALL"};
-
-/**
- * @brief Small core start offset when binding cpu cores
- * @ingroup ov_dev_api_plugin_api
- */
-static constexpr Property<size_t, PropertyMutability::RW> small_core_offset{"SMALL_CORE_OFFSET"};
-
-/**
  * @brief Limit \#threads that are used by IStreamsExecutor to execute `parallel_for` calls
  * @ingroup ov_dev_api_plugin_api
  */
