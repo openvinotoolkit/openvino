@@ -28,22 +28,11 @@ The types were introduced in the following paper: `FP8 Formats for Deep Learning
   * **Required**: *yes*
 
 
-* *apply_scale*
-
-  * **Description**: *apply_scale* is a flag that specifies whether to perform variance normalization.
-  * **Range of values**:
-    * ``false`` - do not apply scale and shift inputs
-    * ``true`` - apply scale and shift inputs
-  * **Type**: ``boolean``
-  * **Default value**: ``true``
-  * **Required**: *no*
-
-
 **Inputs**:
 
 * **1**: `data` - tensor of type *T_F* and arbitrary shape. **Required.**
-* **2**: `scale` - tensor of type *T_F* with minimum limit for input value. The shape must be broadcastable to the shape of *data*. **Required.**
-* **3**: `shift` - tensor of type *T_F* with maximum limit for input value. The shape must be broadcastable to the shape of *data*. **Required.**
+* **2**: `scale` - tensor of type *T_F* with a scale factor for the *data* input value. The shape must be broadcastable to the shape of *data*. **Required.**
+* **3**: `shift` - tensor of type *T_F* with value to subtract before and add after conversion of the *data* input value. The shape must be broadcastable to the shape of *data*. **Optional.**
 
 
 **Outputs**:
