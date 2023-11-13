@@ -86,12 +86,13 @@ protected:
 
         init_input_shapes({inputShapes});
         ov::ParameterVector inputParams;
+        ov::OutputVector paramsOuts;
         for (auto&& shape : inputDynamicShapes) {
-            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, shape));
+            auto param = std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, shape);
+            inputParams.push_back(param);
+            paramsOuts.push_back(param);
         }
-
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
-        auto customOp = std::make_shared<CustomOp>(paramOuts);
+        auto customOp = std::make_shared<CustomOp>(paramsOuts);
         auto shapeOf = std::make_shared<ov::opset10::ShapeOf>(customOp->output(1));
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(customOp->output(0)),

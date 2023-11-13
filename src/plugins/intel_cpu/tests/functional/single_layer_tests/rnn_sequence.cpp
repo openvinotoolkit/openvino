@@ -106,10 +106,10 @@ protected:
             rel_threshold = 1e-4;
         }
 
-            ov::ParameterVector params;
-            for (auto&& shape : inputDynamicShapes) {
-                params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
-            }
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+        }
         const size_t batchSize = inputDynamicShapes[0][0].is_static() ? inputDynamicShapes[0][0].get_length() :
             inputDynamicShapes[1][0].is_static() ? inputDynamicShapes[1][0].get_length() :
             inputDynamicShapes.size() > 2 && inputDynamicShapes[2][0].is_static() ? inputDynamicShapes[2][0].get_length() :
@@ -124,9 +124,13 @@ protected:
             }
         }
 
+        ov::OutputVector paramsOuts;
+        for (const auto& param : params)
+          paramsOuts.push_back(param);
+
         std::vector<ov::Shape> WRB = {{numDirections, hiddenSize, inputSize}, {numDirections, hiddenSize, hiddenSize}, {numDirections, hiddenSize},
                                         {batchSize}};
-        auto rnn_sequence = ngraph::builder::makeRNN(ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
+        auto rnn_sequence = ngraph::builder::makeRNN(paramsOuts,
                                                      WRB,
                                                      hiddenSize,
                                                      activations,

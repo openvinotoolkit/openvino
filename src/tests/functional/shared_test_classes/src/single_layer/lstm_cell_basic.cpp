@@ -64,10 +64,12 @@ void LSTMCellBasicTest::SetUp() {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0])),
                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[1])),
                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[2]))};
+    ov::OutputVector paramsOuts;
+    for (auto&& param : params)
+        paramsOuts.push_back(param);
 
     std::vector<ngraph::Shape> WRB = {inputShapes[3], inputShapes[4], inputShapes[5]};
-    auto lstm_cell = ngraph::builder::makeLSTM(ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
-            WRB, hidden_size, activations, {}, {}, clip);
+    auto lstm_cell = ngraph::builder::makeLSTM(paramsOuts, WRB, hidden_size, activations, {}, {}, clip);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(lstm_cell->output(0)),
                                  std::make_shared<ngraph::opset1::Result>(lstm_cell->output(1))};
     function = std::make_shared<ngraph::Function>(results, params, "lstm_cell");

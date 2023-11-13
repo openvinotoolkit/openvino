@@ -94,12 +94,14 @@ protected:
         }
 
         ov::ParameterVector params;
+        ov::OutputVector paramsOuts;
         for (auto&& shape : inputDynamicShapes) {
-            params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+            auto param = std::make_shared<ov::op::v0::Parameter>(netPrecision, shape);
+            params.push_back(param);
+            paramsOuts.push_back(param);
         }
         std::vector<ngraph::Shape> WRB = {{3 * hiddenSize, inputSize}, {3 * hiddenSize, hiddenSize}, {(linearBeforeReset ? 4 : 3) * hiddenSize}};
-        auto augruCellOp = ngraph::builder::makeAUGRU(
-            ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)), WRB, hiddenSize/*, activations, {}, {}, clip, linearBeforeReset*/);
+        auto augruCellOp = ngraph::builder::makeAUGRU(paramsOuts, WRB, hiddenSize/*, activations, {}, {}, clip, linearBeforeReset*/);
 
         function = makeNgraphFunction(netPrecision, params, augruCellOp, "AUGRUCell");
     }

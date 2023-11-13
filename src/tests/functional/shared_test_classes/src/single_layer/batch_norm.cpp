@@ -38,10 +38,8 @@ void BatchNormLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
 
-    auto batchNorm = ngraph::builder::makeBatchNormInference(paramOuts[0], epsilon);
+    auto batchNorm = ngraph::builder::makeBatchNormInference(params[0], epsilon);
     ngraph::ResultVector results{std::make_shared<ov::op::v0::Result>(batchNorm)};
     function = std::make_shared<ngraph::Function>(results, params, "BatchNormInference");
 }

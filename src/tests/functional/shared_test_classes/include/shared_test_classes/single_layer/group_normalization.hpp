@@ -59,16 +59,13 @@ protected:
         InputShape biasInputShape = ExtractBiasShape(shapes);
         init_input_shapes({shapes, biasInputShape, biasInputShape});
         ov::ParameterVector params;
-        for (auto&& shape : inputDynamicShapes) {
+        for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, shape));
-        }
-        const auto paramOuts =
-            ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
         const auto groupNormalization = std::make_shared<ov::op::v12::GroupNormalization>(
-            paramOuts.at(0),
-            paramOuts.at(1),
-            paramOuts.at(2),
+            params.at(0),
+            params.at(1),
+            params.at(2),
             num_groups,
             epsilon);
         const ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(groupNormalization)};

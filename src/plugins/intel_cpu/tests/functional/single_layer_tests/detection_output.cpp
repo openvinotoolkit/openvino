@@ -198,11 +198,13 @@ public:
         init_input_shapes({ inShapes });
 
         ov::ParameterVector params;
+        ov::OutputVector paramsOuts;
         for (auto&& shape : inputDynamicShapes) {
-            params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape));
+            auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+            params.push_back(param);
+            paramsOuts.push_back(param);
         }
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
-        auto detOut = ngraph::builder::makeDetectionOutput(paramOuts, attrs);
+        auto detOut = ngraph::builder::makeDetectionOutput(paramsOuts, attrs);
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
         function = std::make_shared<ngraph::Function>(results, params, "DetectionOutputDynamic");
     }

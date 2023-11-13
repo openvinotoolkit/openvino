@@ -51,10 +51,8 @@ void CTCLossLayerTest::SetUp() {
     auto ngIntPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(intPrecision);
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngFpPrc, ov::Shape(logitsShapes))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto ctcLoss = std::dynamic_pointer_cast<ngraph::opset4::CTCLoss>(
-            ngraph::builder::makeCTCLoss(paramOuts[0], logitsLength, labels, labelsLength, blankIndex,
+            ngraph::builder::makeCTCLoss(params[0], logitsLength, labels, labelsLength, blankIndex,
                 ngFpPrc, ngIntPrc, preprocessCollapseRepeated, ctcMergeRepeated, unique));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(ctcLoss)};
     function = std::make_shared<ngraph::Function>(results, params, "CTCLoss");

@@ -122,9 +122,13 @@ protected:
             }
         }
 
+        ov::OutputVector paramsOuts;
+        for (const auto& param : params)
+          paramsOuts.push_back(param);
+
         std::vector<ov::Shape> WRB = {{numDirections, 3 * hiddenSize, inputSize}, {numDirections, 3 * hiddenSize, hiddenSize},
                 {numDirections, (linearBeforeReset ? 4 : 3) * hiddenSize}, {batchSize}};
-        auto gruSequenceOp = ngraph::builder::makeGRU(ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
+        auto gruSequenceOp = ngraph::builder::makeGRU(paramsOuts,
                                                      WRB,
                                                      hiddenSize,
                                                      activations,

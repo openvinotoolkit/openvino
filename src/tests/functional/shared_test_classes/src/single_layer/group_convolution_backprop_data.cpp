@@ -53,10 +53,8 @@ void GroupConvBackpropDataLayerTest::SetUp() {
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType) = groupConvBackpropDataParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto groupConvBackpropData = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(
-            ngraph::builder::makeGroupConvolutionBackpropData(paramOuts[0], ngPrc, kernel, stride, padBegin,
+            ngraph::builder::makeGroupConvolutionBackpropData(params[0], ngPrc, kernel, stride, padBegin,
                                              padEnd, dilation, padType, convOutChannels, numGroups));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(groupConvBackpropData)};
     function = std::make_shared<ngraph::Function>(results, params, "GroupConvolutionBackpropData");
@@ -109,17 +107,15 @@ void GroupConvBackpropLayerTest::SetUp() {
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType, outPadding) = groupConvBackpropDataParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     std::shared_ptr<ngraph::op::v1::GroupConvolutionBackpropData> groupConvBackpropData;
     if (!outputShape.empty()) {
         auto outShape = ngraph::opset3::Constant::create(ngraph::element::i64, {outputShape.size()}, outputShape);
         groupConvBackpropData = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(
-        ngraph::builder::makeGroupConvolutionBackpropData(paramOuts[0], outShape, ngPrc, kernel, stride, padBegin,
+        ngraph::builder::makeGroupConvolutionBackpropData(params[0], outShape, ngPrc, kernel, stride, padBegin,
                                                         padEnd, dilation, padType, convOutChannels, numGroups, false, outPadding));
     } else {
         groupConvBackpropData = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(
-        ngraph::builder::makeGroupConvolutionBackpropData(paramOuts[0], ngPrc, kernel, stride, padBegin,
+        ngraph::builder::makeGroupConvolutionBackpropData(params[0], ngPrc, kernel, stride, padBegin,
                                              padEnd, dilation, padType, convOutChannels, numGroups, false, outPadding));
     }
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(groupConvBackpropData)};

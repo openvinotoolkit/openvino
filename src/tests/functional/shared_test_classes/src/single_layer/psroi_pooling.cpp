@@ -109,10 +109,8 @@ void PSROIPoolingLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape)),
                                 std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(coordsShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    std::shared_ptr<ngraph::Node> psroiPooling = std::make_shared<ngraph::op::v0::PSROIPooling>(paramOuts[0],
-                                                                                                paramOuts[1],
+    std::shared_ptr<ngraph::Node> psroiPooling = std::make_shared<ngraph::op::v0::PSROIPooling>(params[0],
+                                                                                                params[1],
                                                                                                 outputDim,
                                                                                                 groupSize_,
                                                                                                 spatialScale_,
