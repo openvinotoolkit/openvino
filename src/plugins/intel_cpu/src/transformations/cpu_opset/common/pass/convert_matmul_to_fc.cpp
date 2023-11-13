@@ -16,14 +16,14 @@
 
 ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
     MATCHER_SCOPE(ConvertMatMulToFC);
-    auto activations_m = ngraph::pattern::any_input(ngraph::pattern::has_static_rank());
+    auto activations_m = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
     auto weights_path = [](const ov::Output<ov::Node>& output) {
         return ov::op::util::is_on_constant_path(output);
     };
-    auto weights_m = ngraph::pattern::any_input(weights_path);
-    auto matmul_m = ngraph::pattern::wrap_type<ngraph::op::v0::MatMul>({ activations_m, weights_m }, ngraph::pattern::has_static_rank());
+    auto weights_m = ov::pass::pattern::any_input(weights_path);
+    auto matmul_m = ov::pass::pattern::wrap_type<ngraph::op::v0::MatMul>({ activations_m, weights_m }, ov::pass::pattern::has_static_rank());
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto matmul = std::dynamic_pointer_cast<ngraph::op::v0::MatMul>(pattern_map.at(matmul_m).get_node_shared_ptr());
@@ -105,16 +105,16 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
          *  sequence starting from 0 and replace last two dimension. For example for length = 4  the
          *  order will be [0, 1, 3, 2] that emulates transpose_a or transpose_b attribute.
          */
-        ngraph::NodeVector new_ops;
+        ov::NodeVector new_ops;
 
-        auto create_transpose = [this, &new_ops ](const ngraph::Output<ngraph::Node>& node, const std::string& transpose_name) {
+        auto create_transpose = [this, &new_ops ](const ov::Output<ov::Node>& node, const std::string& transpose_name) {
             std::vector<size_t> transpose_order(node.get_partial_shape().size());
             std::iota(transpose_order.begin(), transpose_order.end(), 0);
             std::swap(*(transpose_order.end() - 1), *(transpose_order.end() - 2));
 
-            auto transpose_const = ngraph::op::v0::Constant::create(ngraph::element::i32, ngraph::Shape{ transpose_order.size() }, transpose_order);
+            auto transpose_const = ngraph::op::v0::Constant::create(ov::element::i32, ov::Shape{ transpose_order.size() }, transpose_order);
             auto transpose = std::make_shared<ngraph::op::v1::Transpose>(node, transpose_const);
-            if (!ngraph::is_type<ngraph::op::v0::Constant>(transpose)) {
+            if (!ov::is_type<ngraph::op::v0::Constant>(transpose)) {
                 new_ops.push_back(transpose_const);
                 MatcherPass::register_new_node(transpose);
             }
@@ -144,7 +144,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             NGRAPH_CHECK(K.is_static());
             auto k_len = K.get_length();
             auto reshape_shape_values = matmul->get_transpose_b() ? std::vector<int64_t>{-1, k_len} : std::vector<int64_t>{k_len, -1};
-            auto reshape_shape = ngraph::op::v0::Constant::create(ngraph::element::i32, ngraph::Shape{ 2 }, reshape_shape_values);
+            auto reshape_shape = ngraph::op::v0::Constant::create(ov::element::i32, ov::Shape{ 2 }, reshape_shape_values);
             fc_input_b = ov::op::util::make_try_fold<ngraph::op::v1::Reshape>(fc_input_b, reshape_shape, false);
             if (!std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fc_input_b.get_node_shared_ptr())) {
                 new_ops.push_back(reshape_shape);
@@ -176,11 +176,11 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
                 matmul->get_output_element_type(0));
         fc->set_friendly_name(matmul->get_friendly_name());
         new_ops.push_back(fc);
-        ngraph::copy_runtime_info(matmul, new_ops);
-        ngraph::replace_node(matmul, fc);
+        ov::copy_runtime_info(matmul, new_ops);
+        ov::replace_node(matmul, fc);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_m, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matmul_m, matcher_name);
     this->register_matcher(m, callback);
 }

@@ -37,9 +37,7 @@ void RDFTLayerTest::SetUp() {
     auto paramData = std::make_shared<ngraph::opset1::Parameter>(inType, ngraph::Shape(inputShapes));
     paramVector.push_back(paramData);
 
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramVector));
-    auto rdft = ngraph::builder::makeRDFT(paramOuts[0], axes, signalSize, opType);
-
+    auto rdft = ngraph::builder::makeRDFT(paramVector[0], axes, signalSize, opType);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(rdft)};
     function = std::make_shared<ngraph::Function>(results, paramVector, "RDFT");

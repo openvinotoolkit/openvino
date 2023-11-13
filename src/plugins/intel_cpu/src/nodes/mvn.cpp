@@ -1706,7 +1706,7 @@ private:
 
 //////////////////////////////////////////////////////////////////////////////////
 
-bool MVN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MVN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (op->get_output_partial_shape(0).rank().is_dynamic()) {
             errorMessage = "Unsupported dynamic input rank.";
@@ -1718,8 +1718,8 @@ bool MVN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
             return false;
         }
 
-        if (auto mvnOp = ngraph::as_type_ptr<const ngraph::op::v6::MVN>(op)) {
-            auto axesOp = ngraph::as_type_ptr<ngraph::op::Constant>(mvnOp->get_input_node_shared_ptr(1));
+        if (auto mvnOp = ov::as_type_ptr<const ngraph::op::v6::MVN>(op)) {
+            auto axesOp = ov::as_type_ptr<ngraph::op::Constant>(mvnOp->get_input_node_shared_ptr(1));
             if (!axesOp) {
                 errorMessage = "Constant expected as the second input.";
                 return false;
@@ -1762,7 +1762,7 @@ bool MVN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
                     }
                 }
             }
-        } else if (auto mvnOp = ngraph::as_type_ptr<const ngraph::op::v0::MVN>(op)) {
+        } else if (auto mvnOp = ov::as_type_ptr<const ngraph::op::v0::MVN>(op)) {
         } else {
             errorMessage = "Node is not an instance of the MVN operation.";
             return false;
@@ -1773,7 +1773,7 @@ bool MVN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
     return true;
 }
 
-MVN::MVN(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+MVN::MVN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -1781,7 +1781,7 @@ MVN::MVN(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr conte
     }
 
     mvnAttrs.epsMode_ = INSIDE_SQRT;
-    if (auto mvnOp = ngraph::as_type_ptr<ngraph::op::v6::MVN>(op)) {
+    if (auto mvnOp = ov::as_type_ptr<ngraph::op::v6::MVN>(op)) {
         mvnAttrs.normalizeVariance_ = mvnOp->get_normalize_variance();
         mvnAttrs.epsValue_ = mvnOp->get_eps();
         if (mvnOp->get_eps_mode() == ngraph::op::MVNEpsMode::OUTSIDE_SQRT) {
@@ -1792,7 +1792,7 @@ MVN::MVN(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr conte
         const auto& inDataShapeSize = getInputShapeAtPort(0).getRank();
         if (inDataShapeSize == mvnOp->input_value(1).get_shape()[0] + 1 || inDataShapeSize == 1)
             mvnAttrs.initAcrossChannels_ = true;
-    } else if (auto mvnOp = ngraph::as_type_ptr<ngraph::op::v0::MVN>(op)) {
+    } else if (auto mvnOp = ov::as_type_ptr<ngraph::op::v0::MVN>(op)) {
         mvnAttrs.normalizeVariance_ = mvnOp->get_normalize_variance();
         mvnAttrs.epsValue_ = mvnOp->get_eps();
         mvnAttrs.initAcrossChannels_ = mvnOp->get_across_channels();

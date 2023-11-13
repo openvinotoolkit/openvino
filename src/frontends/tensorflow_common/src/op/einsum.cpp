@@ -2,20 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/einsum.hpp"
+
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
 OutputVector translate_einsum_op(const NodeContext& node) {
+    default_op_checks(node, 1, {"Einsum"});
+
     auto op_type = node.get_op_type();
     TENSORFLOW_OP_VALIDATION(node, op_type == "Einsum", "Internal error: incorrect usage of translate_einsum_op.");
-    auto equation = node.get_attribute<std::string>("equation");
+    auto equation = node.get_attribute<string>("equation");
     int input_size = static_cast<int>(node.get_input_size());
 
     OutputVector inputs;
@@ -23,7 +26,7 @@ OutputVector translate_einsum_op(const NodeContext& node) {
         inputs.push_back(node.get_input(input_ind));
     }
 
-    auto einsum = make_shared<Einsum>(inputs, equation);
+    auto einsum = make_shared<v7::Einsum>(inputs, equation);
     set_node_name(node.get_name(), einsum);
     return {einsum};
 }
