@@ -290,6 +290,7 @@ std::shared_ptr<ov::Node> makeBatchToSpace(const ov::Output<Node>& in,
                                            const std::vector<int64_t>& cropsBegin,
                                            const std::vector<int64_t>& cropsEnd);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeSpaceToBatch(const ov::Output<Node>& in,
                                            const element::Type& type,
                                            const std::vector<int64_t>& blockShape,
