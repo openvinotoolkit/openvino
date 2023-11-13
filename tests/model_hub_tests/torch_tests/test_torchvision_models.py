@@ -9,10 +9,6 @@ import torchvision.transforms.functional as F
 from openvino import convert_model
 from models_hub_common.test_convert_model import TestConvertModel
 from models_hub_common.utils import get_models_list
-from torch.export import export
-from torch.fx.experimental.proxy_tensor import make_fx
-from openvino.frontend import FrontEndManager
-from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
 
 def get_all_models() -> list:
