@@ -40,7 +40,7 @@ public:
     //ov::IVariableState
     void reset() override;
     void set_state(const ov::SoPtr<ov::ITensor>& state) override;
-    const ov::SoPtr<ov::ITensor>& get_state() const override;
+    ov::SoPtr<ov::ITensor> get_state() const override;
 
     //ov::intel_cpu::IVariableState
     void commit() override;
@@ -76,8 +76,6 @@ private:
     MemoryDescPtr m_internal_desc; //mem desc required by the graph internal tensor
     std::array<MemoryPtr, 2> m_internal_mem{};
     size_t buffer_num = 0;
-
-    mutable ov::SoPtr<ov::ITensor> m_converted_state; //redundant field to make the interface working
 };
 
 using MemStatePtr = std::shared_ptr<IVariableState>;

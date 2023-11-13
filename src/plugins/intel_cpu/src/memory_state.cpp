@@ -60,15 +60,14 @@ const dnnl::engine& VariableStateDoubleBuffer::get_engine() const {
     return eng;
 }
 
-const ov::SoPtr<ov::ITensor>& VariableStateDoubleBuffer::get_state() const {
+ov::SoPtr<ov::ITensor> VariableStateDoubleBuffer::get_state() const {
     //TODO , in general case must be synchronized
     const auto& current_dims = prime_mem()->getStaticDims();
     auto current_ext_desc = m_external_desc->cloneWithNewDims(current_dims);
     auto current_internal_desc = prime_mem()->getDescPtr();
 
     if (current_ext_desc->isCompatible(*current_internal_desc)) {
-        m_converted_state = std::make_shared<Tensor>(prime_mem());
-        return m_converted_state; // TODO: shouldn't we provide the so ptr?
+        return std::make_shared<Tensor>(prime_mem());
     }
 
     //test precision
@@ -81,16 +80,14 @@ const ov::SoPtr<ov::ITensor>& VariableStateDoubleBuffer::get_state() const {
             auto external_prc = current_ext_desc->getPrecision();
 
             cpu_convert(prime_mem()->getData(), mem->getData(), internal_prc, external_prc, elements_to_convert);
-            m_converted_state = std::make_shared<Tensor>(mem);
-            return m_converted_state;
+            return std::make_shared<Tensor>(mem);
         }
     }
 
     //reorder
     auto mem = std::make_shared<Memory>(get_engine(), current_ext_desc);
     mem->load(*(prime_mem()));
-    m_converted_state = std::make_shared<Tensor>(mem);
-    return m_converted_state;
+    return std::make_shared<Tensor>(mem);
 }
 
 void VariableStateDoubleBuffer::reset() {
