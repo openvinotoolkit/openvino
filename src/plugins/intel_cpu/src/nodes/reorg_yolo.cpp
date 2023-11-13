@@ -4,8 +4,8 @@
 
 #include <string>
 
-#include <ngraph/opsets/opset2.hpp>
-#include "ie_parallel.hpp"
+#include <openvino/opsets/opset2.hpp>
+#include "openvino/core/parallel.hpp"
 #include "reorg_yolo.h"
 
 using namespace InferenceEngine;
@@ -16,7 +16,7 @@ namespace node {
 
 bool ReorgYolo::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto reorgYolo = std::dynamic_pointer_cast<const ngraph::opset2::ReorgYolo>(op);
+        const auto reorgYolo = std::dynamic_pointer_cast<const ov::opset2::ReorgYolo>(op);
         if (!reorgYolo) {
             errorMessage = "Only opset2 ReorgYolo operation is supported";
             return false;
@@ -38,7 +38,7 @@ ReorgYolo::ReorgYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
     if (getOriginalInputsNumber() != 1 || getOriginalOutputsNumber() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
 
-    const auto reorgYolo = std::dynamic_pointer_cast<const ngraph::opset2::ReorgYolo>(op);
+    const auto reorgYolo = std::dynamic_pointer_cast<const ov::opset2::ReorgYolo>(op);
     const auto strides = reorgYolo->get_strides();
     if (strides.empty())
         IE_THROW() << errorPrefix << " has empty strides";

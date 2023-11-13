@@ -3,8 +3,8 @@
 //
 
 #include "grid_sample.hpp"
-#include "ie_parallel.hpp"
 #include "openvino/op/grid_sample.hpp"
+#include "openvino/core/parallel.hpp"
 
 using namespace InferenceEngine;
 using namespace ov::intel_cpu;

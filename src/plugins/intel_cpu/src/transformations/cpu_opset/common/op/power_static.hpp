@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include <ngraph/op/op.hpp>
+#include "openvino/op/op.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-class PowerStaticNode : public ngraph::op::Op {
+class PowerStaticNode : public ov::op::Op {
 public:
     OPENVINO_OP("PowerStatic", "cpu_plugin_opset");
 

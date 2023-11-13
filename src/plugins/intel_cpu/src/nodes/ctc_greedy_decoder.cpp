@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 
-#include <ngraph/op/ctc_greedy_decoder.hpp>
-#include "ie_parallel.hpp"
+#include "openvino/op/ctc_greedy_decoder.hpp"
+#include "openvino/core/parallel.hpp"
 #include "ctc_greedy_decoder.h"
 
 using namespace InferenceEngine;
@@ -17,7 +17,7 @@ namespace node {
 
 bool CTCGreedyDecoder::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto greedyDecOp = ov::as_type_ptr<const ngraph::op::v0::CTCGreedyDecoder>(op);
+        const auto greedyDecOp = ov::as_type_ptr<const ov::op::v0::CTCGreedyDecoder>(op);
         if (!greedyDecOp) {
             errorMessage = "Node is not an instance of the CTCGreedyDecoder operation from operation set v0.";
             return false;
@@ -47,7 +47,7 @@ CTCGreedyDecoder::CTCGreedyDecoder(const std::shared_ptr<ov::Node>& op, const Gr
     if (!dimsEqualWeak(dataDims[0], seqDims[0]) || !dimsEqualWeak(dataDims[1], seqDims[1]))
         IE_THROW() << errorPrefix << "has invalid input shapes.";
 
-    auto greedyDecOp = ov::as_type_ptr<const ngraph::op::v0::CTCGreedyDecoder>(op);
+    auto greedyDecOp = ov::as_type_ptr<const ov::op::v0::CTCGreedyDecoder>(op);
     mergeRepeated = greedyDecOp->get_ctc_merge_repeated();
 }
 
