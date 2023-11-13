@@ -65,10 +65,10 @@ protected:
         init_input_shapes({shapes});
 
         ov::ParameterVector params;
-        for (auto&& shape : inputDynamicShapes) {
+        for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
-        }
-        auto d2s = ngraph::builder::makeDepthToSpace(params[0], mode, blockSize);
+
+        auto d2s = std::make_shared<ov::op::v0::DepthToSpace>(params[0], mode, blockSize);
 
         ngraph::ResultVector results;
         for (size_t i = 0; i < d2s->get_output_size(); i++)
