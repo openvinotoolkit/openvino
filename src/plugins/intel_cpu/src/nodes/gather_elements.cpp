@@ -76,23 +76,23 @@ void GatherElements::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    Precision inDataPrecision = getOriginalInputPrecisionAtPort(dataIndex_);
+    ov::element::Type inDataPrecision = getOriginalInputPrecisionAtPort(dataIndex_);
     if (!one_of(inDataPrecision.size(),
-                sizeof(PrecisionTrait<Precision::I32>::value_type),
-                sizeof(PrecisionTrait<Precision::I16>::value_type),
-                sizeof(PrecisionTrait<Precision::I8>::value_type))) {
+                sizeof(element_type_traits<ov::element::i32>::value_type),
+                sizeof(element_type_traits<ov::element::i16>::value_type),
+                sizeof(element_type_traits<ov::element::i8>::value_type))) {
         IE_THROW() << errorPrefix_ << " has unsupported 'inputData' input precision: " << inDataPrecision;
     }
 
-    Precision indicesPrecision = getOriginalInputPrecisionAtPort(indicesIndex_);
-    if (!one_of(indicesPrecision, Precision::I32, Precision::I64)) {
+    ov::element::Type indicesPrecision = getOriginalInputPrecisionAtPort(indicesIndex_);
+    if (!one_of(indicesPrecision, ov::element::i32, ov::element::i64)) {
         IE_THROW() << errorPrefix_ << " has unsupported 'indices' input precision: " << indicesPrecision;
     }
 
     dataTypeSize_ = inDataPrecision.size();
 
     addSupportedPrimDesc({{LayoutType::ncsp, inDataPrecision},
-                          {LayoutType::ncsp, Precision::I32}},
+                          {LayoutType::ncsp, ov::element::i32}},
                          {{LayoutType::ncsp, inDataPrecision}},
                          impl_desc_type::ref_any);
 }
@@ -136,12 +136,12 @@ void GatherElements::directExecution() {
 
 void GatherElements::execute(dnnl::stream strm) {
     switch (dataTypeSize_) {
-        case sizeof(PrecisionTrait<Precision::I32>::value_type):
-            return directExecution<PrecisionTrait<Precision::I32>::value_type>();
-        case sizeof(PrecisionTrait<Precision::I16>::value_type):
-            return directExecution<PrecisionTrait<Precision::I16>::value_type>();
-        case sizeof(PrecisionTrait<Precision::I8>::value_type):
-            return directExecution<PrecisionTrait<Precision::I8>::value_type>();
+        case sizeof(element_type_traits<ov::element::i32>::value_type):
+            return directExecution<element_type_traits<ov::element::i32>::value_type>();
+        case sizeof(element_type_traits<ov::element::i16>::value_type):
+            return directExecution<element_type_traits<ov::element::i16>::value_type>();
+        case sizeof(element_type_traits<ov::element::i8>::value_type):
+            return directExecution<element_type_traits<ov::element::i8>::value_type>();
         default:
             return IE_THROW() << "Unsupported data type size";
     }

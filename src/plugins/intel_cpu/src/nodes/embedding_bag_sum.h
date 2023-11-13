@@ -23,7 +23,7 @@ public:
             size_t perSampleWeightsIdx,
             size_t defaultIndexIdx);
 
-    void execute(const uint8_t* srcData, const uint8_t* weightsData, const InferenceEngine::Precision &srcPrc,
+    void execute(const uint8_t* srcData, const uint8_t* weightsData, const ov::element::Type &srcPrc,
                  const InferenceEngine::SizeVector& inDims, const MemoryPtr& outMemory);
 
     ~EmbeddingBagSum() = default;

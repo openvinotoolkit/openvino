@@ -256,7 +256,10 @@ InferenceEngine::Blob::Ptr Deconvolution::createWeiBlobAsIO(InferenceEngine::Siz
         orderForBlockedDesc.push_back(i);
 
     BlockingDesc blkDesc(dimsForBlockedDesc, orderForBlockedDesc);
-    InferenceEngine::TensorDesc tensorDesc(DnnlExtensionUtils::DataTypeToIEPrecision(blb->getDataType()), dims, blkDesc);
+    InferenceEngine::TensorDesc tensorDesc(
+        InferenceEngine::details::convertPrecision(DnnlExtensionUtils::DataTypeToElementType(blb->getDataType())),
+        dims,
+        blkDesc);
 
     Blob::Ptr internalBlob = InferenceEngine::make_shared_blob<int8_t>(tensorDesc);
     internalBlob->allocate();
@@ -309,11 +312,11 @@ bool Deconvolution::canBeExecutedInInt8() const {
     if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core) && deconvAttrs.stride.back() > 3)
         return false;
 
-    InferenceEngine::Precision inPrecision = getOriginalInputPrecisionAtPort(0);
-    auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(inPrecision);
+    ov::element::Type inPrecision = getOriginalInputPrecisionAtPort(0);
+    auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(inPrecision);
 
-    InferenceEngine::Precision weiPrecision = getOriginalInputPrecisionAtPort(1);
-    auto weightsDataType = DnnlExtensionUtils::IEPrecisionToDataType(weiPrecision);
+    ov::element::Type weiPrecision = getOriginalInputPrecisionAtPort(1);
+    auto weightsDataType = DnnlExtensionUtils::ElementTypeToDataType(weiPrecision);
 
     if (isDW && (inputDataType == dnnl_s8 || deconvAttrs.dilation.size() == 3))
         return false;
@@ -433,28 +436,28 @@ void Deconvolution::getSupportedDescriptors() {
         IE_THROW() << errorPrefix << " supports bias fusing only for int8 execution precision";
     }
 
-    InferenceEngine::Precision inPrecision = getOriginalInputPrecisionAtPort(0);
-    InferenceEngine::Precision outPrecision = getOriginalOutputPrecisionAtPort(0);
+    ov::element::Type inPrecision = getOriginalInputPrecisionAtPort(0);
+    ov::element::Type outPrecision = getOriginalOutputPrecisionAtPort(0);
     if (isInt8) {
         // TODO: We have to extend jit_avx512_core_x8s8s32x_deconv_fwd_kernel from oneDNN to support BF16 output data type
-        if (InferenceEngine::Precision::BF16 == inPrecision)
-            inPrecision = InferenceEngine::Precision::FP32;
-        if (InferenceEngine::Precision::BF16 == outPrecision)
-            outPrecision = InferenceEngine::Precision::FP32;
+        if (ov::element::bf16 == inPrecision)
+            inPrecision = ov::element::f32;
+        if (ov::element::bf16 == outPrecision)
+            outPrecision = ov::element::f32;
     } else {
-        if (!inPrecision.is_float())
-            inPrecision = InferenceEngine::Precision::FP32;
-        if (!outPrecision.is_float())
-            outPrecision = InferenceEngine::Precision::FP32;
+        if (!inPrecision.is_real())
+            inPrecision = ov::element::f32;
+        if (!outPrecision.is_real())
+            outPrecision = ov::element::f32;
     }
-    auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(inPrecision);
-    outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(outPrecision);
+    auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(inPrecision);
+    outputDataType = DnnlExtensionUtils::ElementTypeToDataType(outPrecision);
     if (inputDataType == memory::data_type::bf16 || outputDataType == memory::data_type::bf16)
        inputDataType = outputDataType = memory::data_type::bf16;
     if (inputDataType == memory::data_type::f16 || outputDataType == memory::data_type::f16)
        inputDataType = outputDataType = memory::data_type::f16;
     if (!fusedWith.empty()) {
-        outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
+        outputDataType = DnnlExtensionUtils::ElementTypeToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
     }
     if (getParentEdges().size() != (withBiases ? (biasPort + 1) : biasPort)) {
         IE_THROW() << errorPrefix << " has incorrect number of input edges";
@@ -617,7 +620,7 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims &inDims, std::vect
                 }
                 outSpDimsVecShape = {outSpDims.size()};
                 inputShapesRefs.push_back(std::cref(outSpDimsVecShape));
-                CpuBlockedMemoryDesc desc(Precision::I32, Shape(outSpDimsVecShape));
+                CpuBlockedMemoryDesc desc(ov::element::i32, Shape(outSpDimsVecShape));
                 auto mem = std::make_shared<Memory>(getEngine(), desc, outSpDims.data());
                 inputValues[i] = mem;
                 break;
@@ -1100,7 +1103,7 @@ void Deconvolution::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc
 
 std::shared_ptr<MemoryDesc> Deconvolution::getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
     if (idx == 2 && !withBiases) {
-        return std::make_shared<CpuBlockedMemoryDesc>(InferenceEngine::Precision::I32, Shape(getInputShapeAtPort(2).getStaticDims()));
+        return std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, Shape(getInputShapeAtPort(2).getStaticDims()));
     } else if (idx > 0 && isInt8) {
         // we need to store 'weight' input as edge,
         // because at this moment we can't simple replace internal blob with input, since we need to save weight data as is, but with different order
@@ -1122,14 +1125,14 @@ std::shared_ptr<MemoryDesc> Deconvolution::getDstMemDesc(const dnnl::primitive_d
     return DnnlExtensionUtils::makeDescriptor(desc);
 }
 
-InferenceEngine::Precision Deconvolution::getRuntimePrecision() const {
-    std::vector<InferenceEngine::Precision> inputPrecisions;
+ov::element::Type Deconvolution::getRuntimePrecision() const {
+    std::vector<ov::element::Type> inputPrecisions;
     // Don't take bias precision into account
     size_t inputsNumLimit = 2;
     for (size_t i = 0; i < std::min(getParentEdges().size(), inputsNumLimit); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated) {
-            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->getDataType())));
+            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToElementType((parentEdge->getMemoryPtr()->getDataType())));
         }
     }
 

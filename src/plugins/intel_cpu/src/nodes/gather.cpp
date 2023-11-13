@@ -130,10 +130,10 @@ void Gather::initSupportedPrimitiveDescriptors() {
     }
 
     // Implementation desc type will be redefined in the fn prepareParams if a kernel will be created.
-    Precision dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
+    ov::element::Type dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
     addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
-                          {LayoutType::ncsp, Precision::I32},
-                          {LayoutType::ncsp, Precision::I32, isAxisInputConst}},
+                          {LayoutType::ncsp, ov::element::i32},
+                          {LayoutType::ncsp, ov::element::i32, isAxisInputConst}},
                          {{LayoutType::ncsp, dataPrecision}},
                          ref_any);
 
@@ -170,8 +170,8 @@ void Gather::initSupportedPrimitiveDescriptors() {
     }
 
     addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
-                    {LayoutType::ncsp, Precision::I32},
-                    {LayoutType::ncsp, Precision::I32, isAxisInputConst}},
+                    {LayoutType::ncsp, ov::element::i32},
+                    {LayoutType::ncsp, ov::element::i32, isAxisInputConst}},
                     {{LayoutType::ncsp, dataPrecision, false, GATHER_DATA}},
                     unknown);
 }

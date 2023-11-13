@@ -123,7 +123,23 @@ TEST_P(ExecGraphRuntimePrecision, CheckRuntimePrecision) {
         if (rtIter == rtInfo.end())
             FAIL() << "Runtime precision is not found for node: " << opIter->get()->get_friendly_name();
 
-        if (expectedPrc.second.name() != rtIter->second.as<std::string>())
+        bool success_status = false;
+        success_status = std::regex_match(expectedPrc.second.name(),
+                                          std::regex(rtIter->second.as<std::string>(), std::regex::icase));
+
+        if (!success_status && std::string(expectedPrc.second.name()).find("FP") != std::string::npos) {
+            success_status = std::regex_match(
+                rtIter->second.as<std::string>(),
+                std::regex(std::regex_replace(expectedPrc.second.name(), std::regex("FP"), "f"), std::regex::icase));
+        }
+
+        if (!success_status && std::string(expectedPrc.second.name()).find("BIN") != std::string::npos) {
+            success_status = std::regex_match(
+                rtIter->second.as<std::string>(),
+                std::regex(std::regex_replace(expectedPrc.second.name(), std::regex("BIN"), "u1"), std::regex::icase));
+        }
+
+        if (!success_status)
             FAIL() << "`" << expectedPrc.first << "' node runtime precision mismatch: actual = " <<
                 rtIter->second.as<std::string>() << ", expected = " << expectedPrc.second.name();
     }

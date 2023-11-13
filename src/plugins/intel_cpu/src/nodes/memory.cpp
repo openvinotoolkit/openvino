@@ -69,7 +69,7 @@ void MemoryOutput::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
+    ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
     NodeConfig config;
     config.inConfs.resize(1);
     config.inConfs[0].inPlace(-1);

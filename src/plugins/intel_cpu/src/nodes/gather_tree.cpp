@@ -58,8 +58,8 @@ void GatherTree::initSupportedPrimitiveDescriptors() {
         return;
 
     precision = getOriginalInputPrecisionAtPort(GATHER_TREE_STEP_IDX);
-    if (!one_of(precision, Precision::FP32, Precision::I32))
-        precision = Precision::FP32;
+    if (!one_of(precision, ov::element::f32, ov::element::i32))
+        precision = ov::element::f32;
 
     if (getOriginalInputPrecisionAtPort(GATHER_TREE_PARENT_IDX)  != precision ||
         getOriginalInputPrecisionAtPort(GATHER_TREE_MAX_SEQ_LEN) != precision ||
@@ -80,7 +80,7 @@ void GatherTree::execute(dnnl::stream strm) {
     if (!execPtr)
         IE_THROW() << errorPrefix << " has not compiled executor.";
 
-    if (precision == Precision::FP32)
+    if (precision == ov::element::f32)
         execPtr->exec<float>(getParentEdgeAt(GATHER_TREE_STEP_IDX)->getMemoryPtr(),
                              getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemoryPtr(),
                              getParentEdgeAt(GATHER_TREE_MAX_SEQ_LEN)->getMemoryPtr(),

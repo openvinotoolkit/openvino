@@ -15,7 +15,7 @@ constexpr size_t channelsPos = 1lu;
 
 class PlainFormatCreator : public BlockedDescCreator {
 public:
-    CpuBlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const Shape& srcShape) const override {
+    CpuBlockedMemoryDesc createDesc(const ov::element::Type &precision, const Shape& srcShape) const override {
         SizeVector order(srcShape.getRank());
         std::iota(order.begin(), order.end(), 0);
         return CpuBlockedMemoryDesc(precision, srcShape, srcShape.getDims(), order);
@@ -25,7 +25,7 @@ public:
 
 class PerChannelCreator : public BlockedDescCreator {
 public:
-    CpuBlockedMemoryDesc createDesc(const InferenceEngine::Precision &precision, const Shape& srcShape) const override {
+    CpuBlockedMemoryDesc createDesc(const ov::element::Type &precision, const Shape& srcShape) const override {
         SizeVector order(srcShape.getRank());
         std::iota(order.begin(), order.end(), 0);
         SizeVector blkDims = srcShape.getDims();
@@ -47,7 +47,7 @@ public:
 class ChannelBlockedCreator : public BlockedDescCreator {
 public:
     ChannelBlockedCreator(size_t blockSize) : _blockSize(blockSize) {}
-    CpuBlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const Shape& srcShape) const override {
+    CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision, const Shape& srcShape) const override {
         if (srcShape.getRank() < 2) {
             IE_THROW() << "Can't create blocked tensor descriptor!";
         }

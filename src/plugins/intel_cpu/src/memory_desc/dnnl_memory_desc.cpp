@@ -21,15 +21,15 @@ DnnlMemoryDesc::DnnlMemoryDesc(const_dnnl_memory_desc_t cdesc) :
         IE_THROW(Unexpected) << "Memory format any is prohibited!";
 }
 
-InferenceEngine::Precision DnnlMemoryDesc::getPrecision() const {
-    return DnnlExtensionUtils::DataTypeToIEPrecision(getDataType());
+ov::element::Type DnnlMemoryDesc::getPrecision() const {
+    return DnnlExtensionUtils::DataTypeToElementType(getDataType());
 }
 
 MemoryDescPtr DnnlMemoryDesc::clone() const {
     return std::make_shared<DnnlMemoryDesc>(*this);
 }
 
-MemoryDescPtr DnnlMemoryDesc::cloneWithNewPrecision(const InferenceEngine::Precision prec) const {
+MemoryDescPtr DnnlMemoryDesc::cloneWithNewPrecision(const ov::element::Type prec) const {
     auto newDesc = std::make_shared<DnnlMemoryDesc>(*this);
     newDesc->setPrecision(prec);
     return newDesc;

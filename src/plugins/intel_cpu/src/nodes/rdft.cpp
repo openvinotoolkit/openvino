@@ -13,7 +13,6 @@
 
 #include "rdft.h"
 #include "ie_parallel.hpp"
-#include "ie_precision.hpp"
 
 #include "utils/general_utils.h"
 #include "common/cpu_memcpy.h"
@@ -127,28 +126,28 @@ void RDFT::initSupportedPrimitiveDescriptors() {
         return;
 
     const auto& dataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
-    if (!dataPrecision.is_float()) {
-        IE_THROW() << errorMsgPrefix << " has unsupported 'data' input precision: " << dataPrecision.name();
+    if (!dataPrecision.is_real()) {
+        IE_THROW() << errorMsgPrefix << " has unsupported 'data' input precision: " << dataPrecision.get_type_name();
     }
 
     const auto& axesPrecision = getOriginalInputPrecisionAtPort(AXES_INDEX);
-    if (axesPrecision != Precision::I32 && axesPrecision != Precision::I64) {
-        IE_THROW() << errorMsgPrefix << " has unsupported 'axes' input precision: " << axesPrecision.name();
+    if (axesPrecision != ov::element::i32 && axesPrecision != ov::element::i64) {
+        IE_THROW() << errorMsgPrefix << " has unsupported 'axes' input precision: " << axesPrecision.get_type_name();
     }
 
     if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
         const auto& signalSizePrecision = getOriginalInputPrecisionAtPort(SIGNAL_SIZE_INDEX);
-        if (signalSizePrecision != Precision::I32 && signalSizePrecision != Precision::I64) {
-            IE_THROW() << errorMsgPrefix << " has unsupported 'signalSize' input precision: " << signalSizePrecision.name();
+        if (signalSizePrecision != ov::element::i32 && signalSizePrecision != ov::element::i64) {
+            IE_THROW() << errorMsgPrefix << " has unsupported 'signalSize' input precision: " << signalSizePrecision.get_type_name();
         }
     }
 
-    std::vector<PortConfigurator> configurators({{LayoutType::ncsp, Precision::FP32},
-                                                 {LayoutType::ncsp, Precision::I32}});
+    std::vector<PortConfigurator> configurators({{LayoutType::ncsp, ov::element::f32},
+                                                 {LayoutType::ncsp, ov::element::i32}});
     if (inputShapes.size() > SIGNAL_SIZE_INDEX)
-        configurators.push_back({LayoutType::ncsp, Precision::I32});
+        configurators.push_back({LayoutType::ncsp, ov::element::i32});
 
-    addSupportedPrimDesc(configurators, {{LayoutType::ncsp, Precision::FP32}}, impl_desc_type::ref_any);
+    addSupportedPrimDesc(configurators, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
 }
 
 void RDFT::execute(dnnl::stream strm) {

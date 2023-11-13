@@ -6,7 +6,7 @@
 
 #include <memory>
 #include <cmath>
-#include <ie_precision.hpp>
+#include "openvino/core/type/element_type.hpp"
 #include "defs.h"
 #include "ie_parallel.hpp"
 
@@ -41,7 +41,7 @@ void softmax_many_batches(const float *src_data, float *dst_data, int B, int C, 
 
 class SoftmaxGeneric {
 public:
-    SoftmaxGeneric(InferenceEngine::Precision inpPrc, InferenceEngine::Precision outPrc);
+    SoftmaxGeneric(ov::element::Type inpPrc, ov::element::Type outPrc);
 
     void execute(const uint8_t *src_data, uint8_t *dst_data, int B, int C, int H, int W);
 private:
@@ -50,7 +50,7 @@ private:
 
 private:
     int block_size;
-    InferenceEngine::Precision input_prec, output_prec;
+    ov::element::Type input_prec, output_prec;
     std::shared_ptr<jit_uni_softmax_kernel> softmax_kernel;
 };
 

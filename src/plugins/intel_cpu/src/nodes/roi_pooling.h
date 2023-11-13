@@ -25,8 +25,8 @@ struct jit_roi_pooling_params {
     int pooled_h;
     int pooled_w;
 
-    InferenceEngine::Precision src_prc;
-    InferenceEngine::Precision dst_prc;
+    ov::element::Type src_prc;
+    ov::element::Type dst_prc;
 
     Algorithm alg;
 

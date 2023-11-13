@@ -116,12 +116,11 @@ void Pad::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    std::vector<InferenceEngine::Precision> supportedPrecisions = {InferenceEngine::Precision::FP32, InferenceEngine::Precision::I32,
-                                                                   InferenceEngine::Precision::BF16, InferenceEngine::Precision::FP16,
-                                                                   InferenceEngine::Precision::I8, InferenceEngine::Precision::U8};
-    InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(DATA_ID);
+    std::vector<ov::element::Type> supportedPrecisions =
+        {ov::element::f32, ov::element::i32, ov::element::bf16, ov::element::f16, ov::element::i8, ov::element::u8};
+    ov::element::Type precision = getOriginalInputPrecisionAtPort(DATA_ID);
     if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), precision) == supportedPrecisions.end())
-        precision = precision.is_float() ? InferenceEngine::Precision::FP32 : InferenceEngine::Precision::I32;
+        precision = precision.is_real() ? ov::element::f32 : ov::element::i32;
 
     const auto& inputDataShape = getInputShapeAtPort(DATA_ID);
     const size_t numOfDims = inputDataShape.getRank();
@@ -133,10 +132,10 @@ void Pad::initSupportedPrimitiveDescriptors() {
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushSupportedPrimitiveDescriptor = [&](LayoutType memoryFormat) {
         config.inConfs[0].setMemDesc(creatorsMap.at(memoryFormat)->createSharedDesc(precision, getInputShapeAtPort(DATA_ID)));
-        config.inConfs[1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(Precision::I32, getInputShapeAtPort(PADS_BEGIN_ID)));
-        config.inConfs[2].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(Precision::I32, getInputShapeAtPort(PADS_END_ID)));
+        config.inConfs[1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::i32, getInputShapeAtPort(PADS_BEGIN_ID)));
+        config.inConfs[2].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::i32, getInputShapeAtPort(PADS_END_ID)));
         if (isPadValueSpecified)
-            config.inConfs[3].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(Precision::FP32, getInputShapeAtPort(PAD_VALUE_ID)));
+            config.inConfs[3].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, getInputShapeAtPort(PAD_VALUE_ID)));
 
         config.outConfs[0].setMemDesc(creatorsMap.at(memoryFormat)->createSharedDesc(precision, getOutputShapeAtPort(DATA_ID)));
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref});
@@ -427,12 +426,12 @@ void Pad::PadExecutor::padConstant(const MemoryPtr& srcMemPtr, const MemoryPtr& 
               PadConstantEmitter,
               ctx,
               params.attrs.prc,
-              OV_CASE(InferenceEngine::Precision::FP32, float),
-              OV_CASE(InferenceEngine::Precision::I32, int32_t),
-              OV_CASE(InferenceEngine::Precision::BF16, bfloat16_t),
-              OV_CASE(InferenceEngine::Precision::FP16, ov::float16),
-              OV_CASE(InferenceEngine::Precision::I8, int8_t),
-              OV_CASE(InferenceEngine::Precision::U8, uint8_t));
+              OV_CASE(ov::element::f32, float),
+              OV_CASE(ov::element::i32, int32_t),
+              OV_CASE(ov::element::bf16, bfloat16_t),
+              OV_CASE(ov::element::f16, ov::float16),
+              OV_CASE(ov::element::i8, int8_t),
+              OV_CASE(ov::element::u8, uint8_t));
 }
 
 template <typename T>

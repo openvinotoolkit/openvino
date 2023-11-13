@@ -205,11 +205,11 @@ private:
         bool is_tail = step < vec_size;
 
         load(get_vmm_in(0), reg_in0, jcp_.src_prc, step, is_tail);
-        load(get_vmm_in(2), reg_add_in1, Precision::FP32, step, is_tail);
+        load(get_vmm_in(2), reg_add_in1, ov::element::f32, step, is_tail);
 
         if (jcp_.with_scales0) {
             if (!jcp_.broadcast_scales0) {
-                load(vmm_scales, reg_scales, Precision::FP32, step, is_tail);
+                load(vmm_scales, reg_scales, ov::element::f32, step, is_tail);
                 add(reg_scales,  sizeof(float) * step);
             }
             uni_vmulps(get_vmm_in(0), get_vmm_in(0), vmm_scales);
@@ -231,7 +231,7 @@ private:
 
         uni_vmaxps(get_vmm_max(0), get_vmm_max(0), get_vmm_in(0));
 
-        store(reg_buffer_aux, get_vmm_in(0), Precision::FP32, step);
+        store(reg_buffer_aux, get_vmm_in(0), ov::element::f32, step);
 
         if (!is_tail) {
             add(reg_in0, jcp_.src_prc.size() * step);
@@ -243,7 +243,7 @@ private:
     void sub_exp_reduce(size_t step) {
         bool is_tail = step < vec_size;
 
-        load(get_vmm_in(0), reg_buffer_aux, Precision::FP32, step, is_tail);
+        load(get_vmm_in(0), reg_buffer_aux, ov::element::f32, step, is_tail);
 
         uni_vsubps(get_vmm_in(0), get_vmm_in(0), get_vmm_max(0));
 
@@ -252,7 +252,7 @@ private:
 
         uni_vaddps(get_vmm_denom(0), get_vmm_denom(0), get_vmm_in(0));
 
-        store(reg_buffer_aux, get_vmm_in(0), Precision::FP32, step);
+        store(reg_buffer_aux, get_vmm_in(0), ov::element::f32, step);
 
         if (!is_tail) {
             add(reg_buffer_aux, sizeof(float) * step);
@@ -262,14 +262,14 @@ private:
     void mul_loop(size_t step) {
         bool is_tail = step < vec_size;
 
-        load(get_vmm_in(0), reg_buffer, Precision::FP32, step, is_tail);
+        load(get_vmm_in(0), reg_buffer, ov::element::f32, step, is_tail);
 
         uni_vmulps(get_vmm_in(0), get_vmm_in(0), get_vmm_denom(0));
 
-        if (jcp_.src_prc == Precision::I32) {
+        if (jcp_.src_prc == ov::element::i32) {
             if (jcp_.with_scales1) {
                 if (!jcp_.broadcast_scales1) {
-                    load(vmm_scales, reg_scales, Precision::FP32, step, is_tail);
+                    load(vmm_scales, reg_scales, ov::element::f32, step, is_tail);
                     add(reg_scales,  sizeof(float) * step);
                 }
                 uni_vmulps(get_vmm_in(0), get_vmm_in(0), vmm_scales);
@@ -285,19 +285,19 @@ private:
 #undef GET_OFF
     }
 
-    inline void load(const Vmm& vmm_dst, const Xbyak::Reg64& reg_src, Precision src_prc, const int& elt_num, bool fill) {
-        const auto seed = load_emitter_params(src_prc, Precision::FP32, elt_num, fill, "float_min").hash();
+    inline void load(const Vmm& vmm_dst, const Xbyak::Reg64& reg_src, ov::element::Type src_prc, const int& elt_num, bool fill) {
+        const auto seed = load_emitter_params(src_prc, ov::element::f32, elt_num, fill, "float_min").hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, Precision::FP32, elt_num, Precision::FP32, fill, "float_min"));
+            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, ov::element::f32, elt_num, ov::element::f32, fill, "float_min"));
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0}, {static_cast<size_t>(vmm_dst.getIdx())},
                                   pool_aux_vmm_idxs, pool_aux_gpr_idxs);
     }
-    inline void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, Precision dst_prc, const int& elt_num) {
-        const auto seed = store_emitter_params(Precision::FP32, dst_prc, elt_num).hash();
+    inline void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, ov::element::Type dst_prc, const int& elt_num) {
+        const auto seed = store_emitter_params(ov::element::f32, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_store_emitter(this, isa, Precision::FP32, dst_prc, elt_num));
+            emitters[seed].reset(new jit_store_emitter(this, isa, ov::element::f32, dst_prc, elt_num));
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx()), 0}, {static_cast<size_t>(reg_dst.getIdx())},
@@ -452,7 +452,7 @@ private:
 
         if (jcp_.with_scales) {
             if (!jcp_.broadcast_scales) {
-                load(vmm_scales, reg_scales, Precision::FP32, step, is_tail);
+                load(vmm_scales, reg_scales, ov::element::f32, step, is_tail);
                 add(reg_scales,  sizeof(float) * step);
             }
             uni_vmulps(vmm_in, vmm_in, vmm_scales);
@@ -467,19 +467,19 @@ private:
     }
 #undef GET_OFF
 
-    inline void load(const Vmm& vmm_dst, const Xbyak::Reg64& reg_src, Precision src_prc, const int& elt_num, bool fill) {
-        const auto seed = load_emitter_params(src_prc, Precision::FP32, elt_num, fill, "float_min").hash();
+    inline void load(const Vmm& vmm_dst, const Xbyak::Reg64& reg_src, ov::element::Type src_prc, const int& elt_num, bool fill) {
+        const auto seed = load_emitter_params(src_prc, ov::element::f32, elt_num, fill, "float_min").hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, Precision::FP32, elt_num, Precision::FP32, fill, "float_min"));
+            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, ov::element::f32, elt_num, ov::element::f32, fill, "float_min"));
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0}, {static_cast<size_t>(vmm_dst.getIdx())},
                                   pool_aux_vmm_idxs, pool_aux_gpr_idxs);
     }
-    inline void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, Precision dst_prc, const int& elt_num) {
-        const auto seed = store_emitter_params(Precision::FP32, dst_prc, elt_num).hash();
+    inline void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, ov::element::Type dst_prc, const int& elt_num) {
+        const auto seed = store_emitter_params(ov::element::f32, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_store_emitter(this, isa, Precision::FP32, dst_prc, elt_num));
+            emitters[seed].reset(new jit_store_emitter(this, isa, ov::element::f32, dst_prc, elt_num));
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx()), 0}, {static_cast<size_t>(reg_dst.getIdx())},
@@ -512,7 +512,7 @@ struct jit_convert_transpose_kernel : public jit_uni_convert_transpose_kernel, p
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_convert_transpose_kernel)
 
     explicit jit_convert_transpose_kernel(const jit_convert_transpose_compile_params& jcp) : jit_uni_convert_transpose_kernel(jcp), jit_generator(jit_name()) {
-        interm_prc = jcp_.with_scales ? Precision(Precision::FP32) : jcp_.src_prc;
+        interm_prc = jcp_.with_scales ? ov::element::f32 : jcp_.src_prc;
         vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / interm_prc.size();
     }
     virtual ~jit_convert_transpose_kernel() {}
@@ -612,7 +612,7 @@ private:
 
         if (jcp_.with_scales) {
             if (!jcp_.broadcast_scales) {
-                load(vmm_scales, reg_scales, Precision::FP32, Precision::FP32, step, false);
+                load(vmm_scales, reg_scales, ov::element::f32, ov::element::f32, step, false);
                 add(reg_scales, sizeof(float) * step);
             }
             uni_vmulps(vmm_in, vmm_in, vmm_scales);
@@ -626,16 +626,16 @@ private:
         }
     }
 #undef GET_OFF
-    inline void load(const Vmm& vmm_dst, const Xbyak::Reg64& reg_src, Precision src_prc, Precision dst_prc, const int& elt_num, bool fill) {
+    inline void load(const Vmm& vmm_dst, const Xbyak::Reg64& reg_src, ov::element::Type src_prc, ov::element::Type dst_prc, const int& elt_num, bool fill) {
         const auto seed = load_emitter_params(src_prc, dst_prc, elt_num, fill, "float_min").hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num, Precision::FP32, fill, "float_min"));
+            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num, ov::element::f32, fill, "float_min"));
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0}, {static_cast<size_t>(vmm_dst.getIdx())},
                                   pool_aux_vmm_idxs, pool_aux_gpr_idxs);
     }
-    inline void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, Precision src_prc, Precision dst_prc, const int& elt_num) {
+    inline void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, ov::element::Type src_prc, ov::element::Type dst_prc, const int& elt_num) {
         const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
             emitters[seed].reset(new jit_store_emitter(this, isa, src_prc, dst_prc, elt_num));
@@ -646,7 +646,7 @@ private:
     }
 
     size_t vec_size;
-    Precision interm_prc;
+    ov::element::Type interm_prc;
 
     Xmm xmm_tmp = Xmm(2);
     Vmm vmm_scales = Vmm(0);
@@ -762,7 +762,7 @@ MHA::MHA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     fqScales1 = mha->get_fq_scales1();
     fqScales2 = mha->get_fq_scales2();
     fqScales3 = mha->get_fq_scales3();
-    fqPrc2 = details::convertPrecision(mha->get_fq2_output_type());
+    fqPrc2 = mha->get_fq2_output_type();
 }
 
 void MHA::initSupportedPrimitiveDescriptors() {
@@ -771,31 +771,31 @@ void MHA::initSupportedPrimitiveDescriptors() {
 
     for (auto idx : {0, 1, 2, 3}) {
         inputPrecisions.push_back(getOriginalInputPrecisionAtPort(idx));
-        if (!one_of(inputPrecisions[idx], Precision::FP32, Precision::BF16, Precision::I8)) {
+        if (!one_of(inputPrecisions[idx], ov::element::f32, ov::element::bf16, ov::element::i8)) {
             // unsupported precision, fallback to FP32
-            inputPrecisions[idx] = Precision::FP32;
+            inputPrecisions[idx] = ov::element::f32;
         }
     }
 
     if ((inputPrecisions[0] != inputPrecisions[1]) &&
-        !(inputPrecisions[0] == Precision::I8 && inputPrecisions[1] == Precision::FP32 && !fqScales0.empty())) {
-            inputPrecisions[0] = inputPrecisions[1] = Precision::FP32;
+        !(inputPrecisions[0] == ov::element::i8 && inputPrecisions[1] == ov::element::f32 && !fqScales0.empty())) {
+            inputPrecisions[0] = inputPrecisions[1] = ov::element::f32;
         }
 
-    inputPrecisions[2] = Precision::FP32;
+    inputPrecisions[2] = ov::element::f32;
 
-    if (inputPrecisions[3] == Precision::I8 && fqScales2.empty())
-        inputPrecisions[3] = Precision::FP32;
+    if (inputPrecisions[3] == ov::element::i8 && fqScales2.empty())
+        inputPrecisions[3] = ov::element::f32;
 
     outputPrecision = getOriginalOutputPrecisionAtPort(0);
-    if (!one_of(outputPrecision, Precision::FP32, Precision::BF16, Precision::I8, Precision::U8)) {
+    if (!one_of(outputPrecision, ov::element::f32, ov::element::bf16, ov::element::i8, ov::element::u8)) {
         // unsupported precision, fallback to FP32
-        outputPrecision = Precision::FP32;
+        outputPrecision = ov::element::f32;
     }
 
     addSupportedPrimDesc({{LayoutType::ncsp, inputPrecisions[0]},
                           {LayoutType::ncsp, inputPrecisions[1]},
-                          {LayoutType::ncsp, Precision::FP32},
+                          {LayoutType::ncsp, ov::element::f32},
                           {LayoutType::ncsp, inputPrecisions[3]}},
                          {{LayoutType::ncsp, outputPrecision}},
                          ref_any);
@@ -950,16 +950,16 @@ void MHA::prepareParams() {
 
     auto brg0Prc = inputPrecisions[0];
     brg0VnniFactor = 4 / brg0Prc.size();
-    bool brg0WithAMX = isAMXSupported && brg0Prc != Precision::FP32 && (K0 % brg0VnniFactor == 0) && (N0 % brg0VnniFactor == 0);
+    bool brg0WithAMX = isAMXSupported && brg0Prc != ov::element::f32 && (K0 % brg0VnniFactor == 0) && (N0 % brg0VnniFactor == 0);
 
-    N0_blk = brg0Prc == Precision::FP32 ? N0 :
-             brg0Prc == Precision::BF16 ? 32 : 64;
+    N0_blk = brg0Prc == ov::element::f32 ? N0 :
+             brg0Prc == ov::element::bf16 ? 32 : 64;
     N0_tail = N0 % N0_blk;
-    K0_blk = brg0WithAMX ? brg0Prc == Precision::BF16 ? 32 : 64
+    K0_blk = brg0WithAMX ? brg0Prc == ov::element::bf16 ? 32 : 64
                          : K0;
     K0_tail = K0 % K0_blk;
 
-    accPrecision0 = brg0Prc == Precision::I8 ? Precision::I32 : Precision::FP32;
+    accPrecision0 = brg0Prc == ov::element::i8 ? ov::element::i32 : ov::element::f32;
 
     size_t brg0BaseIdx = std::numeric_limits<size_t>::max();
     for (size_t m = 0; m < 2; m++) {
@@ -979,8 +979,8 @@ void MHA::prepareParams() {
                 brgemmCtx.LDA = batch1 * K0;
                 brgemmCtx.LDB = rnd_up(N0, N0_blk);
                 brgemmCtx.LDC = N0;
-                brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg0Prc));
-                brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg0Prc));
+                brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brg0Prc));
+                brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brg0Prc));
                 brgemmCtx.beta = beta;
 
                 // don't create brgemm kernels for empty tiles
@@ -1000,7 +1000,7 @@ void MHA::prepareParams() {
     //     init_brgemm_copy_a(brgCopyAKernel0, K0, K0_blk, K0_tail, brgemmCtx0.LDA, brgemmCtx0.dt_in0);
     // }
 
-    if (brgemmCtx0.is_with_amx || brg0Prc == Precision::I8 || brg0Prc == Precision::BF16) {
+    if (brgemmCtx0.is_with_amx || brg0Prc == ov::element::i8 || brg0Prc == ov::element::bf16) {
         init_brgemm_copy_b(brgCopyBKernel0, N0, N0_blk, N0_tail, brgemmCtx0.LDB, brgemmCtx0.K,
             brgemmCtx0.is_with_amx, brgemmCtx0.dt_in0, brgemmCtx0.dt_in1);
     }
@@ -1013,16 +1013,16 @@ void MHA::prepareParams() {
     auto brg1PrcIn0 = !fqScales2.empty() ? fqPrc2 : inputPrecisions[3];
     auto brg1PrcIn1 = inputPrecisions[3];
     brg1VnniFactor = 4 / brg1PrcIn0.size();
-    bool brg1WithAMX = isAMXSupported && brg1PrcIn0 != Precision::FP32 && (K1 % brg1VnniFactor == 0) && (N1 % brg1VnniFactor == 0);
+    bool brg1WithAMX = isAMXSupported && brg1PrcIn0 != ov::element::f32 && (K1 % brg1VnniFactor == 0) && (N1 % brg1VnniFactor == 0);
 
-    N1_blk = brg1PrcIn1 == Precision::FP32 ? N1 :
-             brg1PrcIn1 == Precision::BF16 ? 32 : 64;
+    N1_blk = brg1PrcIn1 == ov::element::f32 ? N1 :
+             brg1PrcIn1 == ov::element::bf16 ? 32 : 64;
     N1_tail = N1 % N1_blk;
-    K1_blk = brg1WithAMX ? brg1PrcIn0 == Precision::BF16 ? 32 : 64
+    K1_blk = brg1WithAMX ? brg1PrcIn0 == ov::element::bf16 ? 32 : 64
                          : K1;
     K1_tail = K1 % K1_blk;
 
-    accPrecision1 = one_of(brg1PrcIn0, Precision::U8, Precision::I8) ? Precision::I32 : Precision::FP32;
+    accPrecision1 = one_of(brg1PrcIn0, ov::element::u8, ov::element::i8) ? ov::element::i32 : ov::element::f32;
 
     size_t brg1BaseIdx = std::numeric_limits<size_t>::max();
     for (size_t m = 0; m < 2; m++) {
@@ -1040,10 +1040,10 @@ void MHA::prepareParams() {
                 brgemmCtx.N = N_;
                 brgemmCtx.K = K_;
                 brgemmCtx.LDA = K1;
-                brgemmCtx.LDB = brg1PrcIn1 == Precision::FP32 ? batch1 * N1 : rnd_up(N1, N1_blk);
+                brgemmCtx.LDB = brg1PrcIn1 == ov::element::f32 ? batch1 * N1 : rnd_up(N1, N1_blk);
                 brgemmCtx.LDC = accPrecision1 == outputPrecision ? batch1 * N1 : N1;
-                brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1PrcIn0));
-                brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1PrcIn1));
+                brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brg1PrcIn0));
+                brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brg1PrcIn1));
                 brgemmCtx.beta = beta;
 
                 // don't create brgemm kernels for empty tiles
@@ -1058,7 +1058,7 @@ void MHA::prepareParams() {
     }
 
     auto& brgemmCtx1 = brgCtxs1[brg1BaseIdx];
-    if (brgemmCtx1.is_with_amx || brg1PrcIn1 == Precision::I8 || brg1PrcIn1 == Precision::BF16) {
+    if (brgemmCtx1.is_with_amx || brg1PrcIn1 == ov::element::i8 || brg1PrcIn1 == ov::element::bf16) {
         init_brgemm_copy_b(brgCopyBKernel1, batch1 * N1, N1_blk, N1_tail, brgemmCtx1.LDB, brgemmCtx1.K,
             brgemmCtx1.is_with_amx, brgemmCtx1.dt_in0, brgemmCtx1.dt_in1);
     }
@@ -1381,7 +1381,7 @@ void MHA::mhaImpl() {
             auto pMatMul1In0 = bufferMatMul0Out_local;
             auto pOut_aux = pout + (i0 * strOut[0] + i1 * strOut[2]) * outPrcSize;
 
-            auto pMatMul1Out = outputPrecision == Precision::FP32
+            auto pMatMul1Out = outputPrecision == ov::element::f32
                 ? pOut_aux + (mb * M_blk * batch1 * N1) * outPrcSize
                 : bufferMatMul1Out_local;
 
@@ -1421,11 +1421,11 @@ void MHA::mhaImpl() {
 }
 
 void MHA::execute(dnnl::stream strm) {
-    if (inputPrecisions[1] == Precision::FP32) {
+    if (inputPrecisions[1] == ov::element::f32) {
         mhaImpl<float>();
-    } else if (inputPrecisions[1] == Precision::BF16) {
+    } else if (inputPrecisions[1] == ov::element::bf16) {
         mhaImpl<bfloat16_t>();
-    } else if (inputPrecisions[1] == Precision::I8) {
+    } else if (inputPrecisions[1] == ov::element::i8) {
         mhaImpl<int8_t>();
     } else {
         THROW_ERROR << "doesn't support provided input precisions";

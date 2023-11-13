@@ -61,8 +61,8 @@ size_t NormalizeKey::hash() const {
     seed = hash_combine(seed, attrs.cornerCase);
     seed = hash_combine(seed, attrs.eps);
     seed = hash_combine(seed, attrs.layout);
-    seed = hash_combine(seed, attrs.input_prec.getPrecVal());
-    seed = hash_combine(seed, attrs.output_prec.getPrecVal());
+    seed = hash_combine(seed, attrs.input_prec.hash());
+    seed = hash_combine(seed, attrs.output_prec.hash());
 
     seed = hash_combine(seed, get_attr_hash(*kernel_attrs.get()));
     seed = get_vector_hash(seed, dims);
@@ -782,28 +782,28 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    Precision inputPrecision = getOriginalInputPrecisionAtPort(DATA);
-    Precision outputPrecision = getOriginalOutputPrecisionAtPort(DATA);
+    ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(DATA);
+    ov::element::Type outputPrecision = getOriginalOutputPrecisionAtPort(DATA);
 
     if (!fusedWith.empty()) {
         outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
     }
 
-    if (inputPrecision == Precision::BF16 || outputPrecision == Precision::BF16) {
+    if (inputPrecision == ov::element::bf16 || outputPrecision == ov::element::bf16) {
         if (!mayiuse(avx512_core))
-            inputPrecision = outputPrecision = Precision::FP32;
+            inputPrecision = outputPrecision = ov::element::f32;
         else
-            inputPrecision = outputPrecision = Precision::BF16;
+            inputPrecision = outputPrecision = ov::element::bf16;
     }
 
-    if (one_of(Precision::FP16, inputPrecision, outputPrecision) && mayiuse(cpu::x64::sse41)) {
-        inputPrecision = outputPrecision = Precision::FP32;
+    if (one_of(ov::element::f16, inputPrecision, outputPrecision) && mayiuse(cpu::x64::sse41)) {
+        inputPrecision = outputPrecision = ov::element::f32;
     }
 
-    if (!one_of(inputPrecision, Precision::FP32, Precision::BF16, Precision::FP16, Precision::I8, Precision::U8)) {
+    if (!one_of(inputPrecision, ov::element::f32, ov::element::bf16, ov::element::f16, ov::element::i8, ov::element::u8)) {
         THROW_ERROR << "has unsupported input precision: " << inputPrecision;
     }
-    if (!one_of(outputPrecision, Precision::FP32, Precision::BF16, Precision::FP16, Precision::I8, Precision::U8)) {
+    if (!one_of(outputPrecision, ov::element::f32, ov::element::bf16, ov::element::f16, ov::element::i8, ov::element::u8)) {
         THROW_ERROR << "has unsupported output precision: " << outputPrecision;
     }
 
@@ -825,7 +825,7 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
     auto pushDesc = [&](LayoutType format, impl_desc_type impl_type) {
         auto a = creatorsMap.at(format)->createSharedDesc(inputPrecision, getInputShapeAtPort(DATA));
         config.inConfs[0].setMemDesc(std::move(a));
-        a = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::I32, getInputShapeAtPort(AXES));
+        a = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::i32, getInputShapeAtPort(AXES));
         config.inConfs[1].setMemDesc(std::move(a));
         a = creatorsMap.at(format)->createSharedDesc(outputPrecision, getOutputShapeAtPort(DATA));
         config.outConfs[0].setMemDesc(std::move(a));
@@ -984,8 +984,8 @@ public:
             IE_THROW() << "Normalaize2L executor has selected layout which is not supported";
         }
 
-        jcp.src_dt = DnnlExtensionUtils::IEPrecisionToDataType(attrs.input_prec);
-        jcp.dst_dt = DnnlExtensionUtils::IEPrecisionToDataType(attrs.output_prec);
+        jcp.src_dt = DnnlExtensionUtils::ElementTypeToDataType(attrs.input_prec);
+        jcp.dst_dt = DnnlExtensionUtils::ElementTypeToDataType(attrs.output_prec);
         jcp.src_data_size = attrs.input_prec.size();
         jcp.dst_data_size = attrs.output_prec.size();
         jcp.across_spatial = attrs.across_spatial;
@@ -1364,7 +1364,7 @@ private:
                     for (size_t m = 0; m < spatial_dims; m++) {
                         float dst_value = src_data_bc[m] * modulo_inv;
                         apply_post_ops_scalar(dst_value, ic, post_ops_data);
-                        if (attrs.output_prec == Precision::U8) {
+                        if (attrs.output_prec == ov::element::u8) {
                             dst_data_bc[m] = (dst_value >= 0) ? dst_value : 0;
                         } else {
                             dst_data_bc[m] = dst_value;
@@ -1396,7 +1396,7 @@ private:
                     for (size_t m = 0; m < spatial_dims; m++) {
                         float dst_value = src_data_bc[m] * moduloM[m];
                         apply_post_ops_scalar(dst_value, ic, post_ops_data);
-                        if (attrs.output_prec == Precision::U8) {
+                        if (attrs.output_prec == ov::element::u8) {
                             dst_data_bc[m] = (dst_value >= 0) ? dst_value : 0;
                         } else {
                             dst_data_bc[m] = dst_value;
@@ -1429,7 +1429,7 @@ private:
                 post_ops_data++;
             } else if (post_op.is_quantization()) {
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
-                bool do_rounding = do_dequantization || attrs.output_prec == Precision::FP32 || i != p.len() - 1;
+                bool do_rounding = do_dequantization || attrs.output_prec == ov::element::f32 || i != p.len() - 1;
 
                 auto quant = post_op.quantization;
 
@@ -1478,17 +1478,17 @@ std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Execut
     NormalizeContext ctx = { nullptr, attrs, kernel_attrs, dims };
 
     OV_SWITCH(intel_cpu, NormalizeExecutorCreation, ctx, std::tie(attrs.input_prec, attrs.output_prec),
-              OV_CASE2(Precision::U8, Precision::U8, uint8_t, uint8_t),
-              OV_CASE2(Precision::I8, Precision::U8, int8_t, uint8_t),
-              OV_CASE2(Precision::FP32, Precision::U8, float, uint8_t),
-              OV_CASE2(Precision::U8, Precision::I8, uint8_t, int8_t),
-              OV_CASE2(Precision::I8, Precision::I8, int8_t, int8_t),
-              OV_CASE2(Precision::FP32, Precision::I8, float, int8_t),
-              OV_CASE2(Precision::U8, Precision::FP32, uint8_t, float),
-              OV_CASE2(Precision::I8, Precision::FP32, int8_t, float),
-              OV_CASE2(Precision::FP32, Precision::FP32, float, float),
-              OV_CASE2(Precision::BF16, Precision::BF16, bfloat16_t, bfloat16_t),
-              OV_CASE2(Precision::FP16, Precision::FP16, float16_t, float16_t));
+              OV_CASE2(ov::element::u8, ov::element::u8, uint8_t, uint8_t),
+              OV_CASE2(ov::element::i8, ov::element::u8, int8_t, uint8_t),
+              OV_CASE2(ov::element::f32, ov::element::u8, float, uint8_t),
+              OV_CASE2(ov::element::u8, ov::element::i8, uint8_t, int8_t),
+              OV_CASE2(ov::element::i8, ov::element::i8, int8_t, int8_t),
+              OV_CASE2(ov::element::f32, ov::element::i8, float, int8_t),
+              OV_CASE2(ov::element::u8, ov::element::f32, uint8_t, float),
+              OV_CASE2(ov::element::i8, ov::element::f32, int8_t, float),
+              OV_CASE2(ov::element::f32, ov::element::f32, float, float),
+              OV_CASE2(ov::element::bf16, ov::element::bf16, bfloat16_t, bfloat16_t),
+              OV_CASE2(ov::element::f16, ov::element::f16, float16_t, float16_t));
 
     return ctx.executor;
 }

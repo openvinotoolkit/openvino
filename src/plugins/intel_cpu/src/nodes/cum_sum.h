@@ -46,7 +46,7 @@ private:
     size_t numOfDims;
     size_t axis = 0;
 
-    InferenceEngine::Precision dataPrecision;
+    ov::element::Type dataPrecision;
     std::string errorPrefix;
 
     template<typename T>

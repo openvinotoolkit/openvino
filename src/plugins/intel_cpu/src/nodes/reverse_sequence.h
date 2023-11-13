@@ -52,7 +52,7 @@ private:
     int seq_axis;
     int batch_axis;
 
-    InferenceEngine::Precision lengthsPrecision;
+    ov::element::Type lengthsPrecision;
     std::string errorPrefix;
 };
 

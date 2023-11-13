@@ -5,10 +5,11 @@
 #pragma once
 
 #include <ie_common.h>
-#include <ie_precision.hpp>
+
 #include "cpu_shape.h"
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "openvino/core/type/element_type.hpp"
 
 /**
  * @brief
@@ -58,7 +59,7 @@ public:
 
     virtual ~MemoryDesc() = default;
 
-    virtual InferenceEngine::Precision getPrecision() const = 0;
+    virtual ov::element::Type getPrecision() const = 0;
 
     virtual MemoryDescPtr clone() const = 0;
 
@@ -91,7 +92,7 @@ public:
         return cloneWithNewDimsImp(dims);
     }
 
-    virtual MemoryDescPtr cloneWithNewPrecision(const InferenceEngine::Precision prec) const = 0;
+    virtual MemoryDescPtr cloneWithNewPrecision(const ov::element::Type prec) const = 0;
 
     virtual bool isCompatible(const MemoryDesc& rhs) const = 0;
 
@@ -156,7 +157,7 @@ protected:
     MemoryDesc(const VectorDims& dims, MemoryDescType type)
             : type(type), shape(dims) {}
 
-    virtual void setPrecision(InferenceEngine::Precision prc) = 0;
+    virtual void setPrecision(ov::element::Type prc) = 0;
 
     virtual size_t getCurrentMemSizeImp() const = 0;
 

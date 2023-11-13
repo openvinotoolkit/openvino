@@ -80,13 +80,13 @@ void SoftMax::getSupportedDescriptors() {
     if (descs.size())
         return;
 
-    InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
+    ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
     if (!one_of(precision,
-                InferenceEngine::Precision::FP32,
-                InferenceEngine::Precision::BF16,
-                InferenceEngine::Precision::FP16))
-        precision = InferenceEngine::Precision::FP32;
-    auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(precision);
+                ov::element::f32,
+                ov::element::bf16,
+                ov::element::f16))
+        precision = ov::element::f32;
+    auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(precision);
 
     if (getParentEdges().size() != 1)
         IE_THROW() << "Incorrect number of input edges for layer " << getName();

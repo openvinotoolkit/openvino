@@ -49,7 +49,7 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr &node) {
 
     std::string outputPrecisionsStr;
     if (!node->getChildEdges().empty()) {
-        outputPrecisionsStr = node->getChildEdgeAt(0)->getMemory().getDesc().getPrecision().name();
+        outputPrecisionsStr = node->getChildEdgeAt(0)->getMemory().getDesc().getPrecision().get_type_name();
 
         bool isAllEqual = true;
         for (size_t i = 1; i < node->getChildEdges().size(); i++) {
@@ -62,12 +62,12 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr &node) {
         // If all output precisions are the same, we store the name only once
         if (!isAllEqual) {
             for (size_t i = 1; i < node->getChildEdges().size(); i++)
-                outputPrecisionsStr += "," + std::string(node->getChildEdgeAt(i)->getMemory().getDesc().getPrecision().name());
+                outputPrecisionsStr += "," + std::string(node->getChildEdgeAt(i)->getMemory().getDesc().getPrecision().get_type_name());
         }
     } else {
         // Branch to correctly handle output nodes
         if (!node->getParentEdges().empty()) {
-            outputPrecisionsStr = node->getParentEdgeAt(0)->getMemory().getDesc().getPrecision().name();
+            outputPrecisionsStr = node->getParentEdgeAt(0)->getMemory().getDesc().getPrecision().get_type_name();
         }
     }
     serialization_info[ExecGraphInfoSerialization::OUTPUT_PRECISIONS] = outputPrecisionsStr;
@@ -106,7 +106,7 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr &node) {
 
     serialization_info[ExecGraphInfoSerialization::EXECUTION_ORDER] = std::to_string(node->getExecIndex());
 
-    serialization_info[ExecGraphInfoSerialization::RUNTIME_PRECISION] = node->getRuntimePrecision().name();
+    serialization_info[ExecGraphInfoSerialization::RUNTIME_PRECISION] = node->getRuntimePrecision().get_type_name();
 
     return serialization_info;
 }
@@ -165,7 +165,7 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph
         std::shared_ptr<ngraph::Node> return_node;
         if (is_input) {
             auto& desc = node->getChildEdgeAt(0)->getMemory().getDesc();
-            auto param = std::make_shared<ngraph::op::Parameter>(details::convertPrecision(desc.getPrecision()), desc.getShape().toPartialShape());
+            auto param = std::make_shared<ngraph::op::Parameter>(desc.getPrecision(), desc.getShape().toPartialShape());
             return_node = param;
             params.push_back(param);
         } else if (is_output) {
@@ -177,7 +177,7 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph
 
             for (size_t port = 0; port < return_node->get_output_size(); ++port) {
                 auto& desc = node->getChildEdgeAt(port)->getMemory().getDesc();
-                return_node->set_output_type(port, details::convertPrecision(desc.getPrecision()), desc.getShape().toPartialShape());
+                return_node->set_output_type(port, desc.getPrecision(), desc.getShape().toPartialShape());
             }
         }
 
@@ -241,13 +241,13 @@ void serializeToCout(const Graph &graph) {
         if (nodeDesc) {
             auto& inConfs = nodeDesc->getConfig().inConfs;
             if (!inConfs.empty()) {
-                std::cout << "in: " << inConfs.front().getMemDesc()->getPrecision().name()
+                std::cout << "in: " << inConfs.front().getMemDesc()->getPrecision().get_type_name()
                           << "/l=" << inConfs.front().getMemDesc()->serializeFormat()
                           << "; ";
             }
             auto& outConfs = nodeDesc->getConfig().outConfs;
             if (!outConfs.empty()) {
-                std::cout << "out: " << outConfs.front().getMemDesc()->getPrecision().name()
+                std::cout << "out: " << outConfs.front().getMemDesc()->getPrecision().get_type_name()
                           << "/l=" << outConfs.front().getMemDesc()->serializeFormat();
             }
         }

@@ -24,7 +24,6 @@
 #include "utils/ngraph_utils.hpp"
 #include <ngraph/ops.hpp>
 #include <ngraph/node.hpp>
-#include <ie_precision.hpp>
 #include <nodes/common/blocked_desc_creator.h>
 #include "cpu_types.h"
 #include "cpu_shape.h"
@@ -53,16 +52,16 @@ using NodeWeakPtr = std::weak_ptr<Node>;
 
 class PortConfigurator {
 public:
-    PortConfigurator(ov::intel_cpu::LayoutType blockedDescType, InferenceEngine::Precision prc, const Shape& shape,
+    PortConfigurator(ov::intel_cpu::LayoutType blockedDescType, ov::element::Type prc, const Shape& shape,
                      bool constant = false, int inPlace = -1) :
             blockedDescCreator(getBlockedDescCreator(blockedDescType)), prc(prc), shape(shape), constant(constant), inPlace(inPlace) {}
 
-    PortConfigurator(ov::intel_cpu::LayoutType blockedDescType, InferenceEngine::Precision prc = InferenceEngine::Precision::UNSPECIFIED,
+    PortConfigurator(ov::intel_cpu::LayoutType blockedDescType, ov::element::Type prc = ov::element::undefined,
                      bool constant = false, int inPlace = -1) :
             blockedDescCreator(getBlockedDescCreator(blockedDescType)), prc(prc), constant(constant), inPlace(inPlace) {}
 
     ov::intel_cpu::BlockedDescCreator::CreatorConstPtr blockedDescCreator;
-    const InferenceEngine::Precision prc;
+    const ov::element::Type prc;
     const Shape shape;
     bool constant = false;
     int inPlace = -1;
@@ -431,47 +430,47 @@ public:
      * @brief Returns runtime node precision based on input/output data types or data type used for computations
      * @return Runtime node precision
      */
-    virtual InferenceEngine::Precision getRuntimePrecision() const;
+    virtual ov::element::Type getRuntimePrecision() const;
 
-    const std::vector<InferenceEngine::Precision>& getOriginalInputPrecisions() const {
+    const std::vector<ov::element::Type>& getOriginalInputPrecisions() const {
         return originalInputPrecisions;
     }
-    const std::vector<InferenceEngine::Precision>& getOriginalOutputPrecisions() const {
+    const std::vector<ov::element::Type>& getOriginalOutputPrecisions() const {
         return originalOutputPrecisions;
     }
 
-    InferenceEngine::Precision getOriginalInputPrecisionAtPort(size_t port) const {
+    ov::element::Type getOriginalInputPrecisionAtPort(size_t port) const {
         if (originalInputPrecisions.size() <= port) {
             IE_THROW() << "Incorrect input port number for node " << getName();
         }
         return originalInputPrecisions[port];
     }
-    InferenceEngine::Precision getOriginalOutputPrecisionAtPort(size_t port) const {
+    ov::element::Type getOriginalOutputPrecisionAtPort(size_t port) const {
         if (originalOutputPrecisions.size() <= port) {
             IE_THROW() << "Incorrect output port number for node " << getName();
         }
         return originalOutputPrecisions[port];
     }
 
-    void setOriginalInputPrecisionAtPort(size_t port, InferenceEngine::Precision precision) {
+    void setOriginalInputPrecisionAtPort(size_t port, ov::element::Type precision) {
         if (originalInputPrecisions.size() <= port) {
             IE_THROW() << "Incorrect input port number for node " << getName();
         }
         originalInputPrecisions[port] = precision;
     }
 
-    void setOriginalOutputPrecisionAtPort(size_t port, InferenceEngine::Precision precision) {
+    void setOriginalOutputPrecisionAtPort(size_t port, ov::element::Type precision) {
         if (originalOutputPrecisions.size() <= port) {
             IE_THROW() << "Incorrect output port number for node " << getName();
         }
         originalOutputPrecisions[port] = precision;
     }
 
-    void addOriginalInputPrecision(InferenceEngine::Precision precision) {
+    void addOriginalInputPrecision(ov::element::Type precision) {
         originalInputPrecisions.push_back(precision);
     }
 
-    void addOriginalOutputPrecision(InferenceEngine::Precision precision) {
+    void addOriginalOutputPrecision(ov::element::Type precision) {
         originalOutputPrecisions.push_back(precision);
     }
 
@@ -640,13 +639,13 @@ protected:
      * @brief Auxiliary function to get node input precisions
      * @return Vector of precisions based on information from node input edges. Return empty vector in case edges are not initialized yet.
      */
-    virtual std::vector<InferenceEngine::Precision> getInputPrecisions() const;
+    virtual std::vector<ov::element::Type> getInputPrecisions() const;
 
     /**
      * @brief Auxiliary function to get node output precisions
      * @return Vector of precisions based on information from node output edges. Return empty vector in case edges are not initialized yet.
      */
-    virtual std::vector<InferenceEngine::Precision> getOutputPrecisions() const;
+    virtual std::vector<ov::element::Type> getOutputPrecisions() const;
 
     void addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfigs,
                               const std::vector<PortConfigurator>& outPortConfigs,
@@ -702,8 +701,8 @@ private:
     std::vector<EdgeWeakPtr> parentEdges;
     std::vector<EdgeWeakPtr> childEdges;
 
-    std::vector<InferenceEngine::Precision> originalInputPrecisions;
-    std::vector<InferenceEngine::Precision> originalOutputPrecisions;
+    std::vector<ov::element::Type> originalInputPrecisions;
+    std::vector<ov::element::Type> originalOutputPrecisions;
 
     int fusingPort;
 

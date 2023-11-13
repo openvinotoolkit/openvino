@@ -40,10 +40,10 @@ Convert::Convert(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CP
     }
 
     auto convert = ov::as_type_ptr<const ngraph::opset1::Convert>(op);
-    convertParams.origPrc = details::convertPrecision(convert->get_destination_type());
+    convertParams.origPrc = convert->get_destination_type();
 }
 
-Convert::Convert(const Shape &shape, const InferenceEngine::Precision &inPrc, const InferenceEngine::Precision &outPrc,
+Convert::Convert(const Shape &shape, const ov::element::Type &inPrc, const ov::element::Type &outPrc,
                  const std::string &nodeName, const GraphContext::CPtr context)
         : Node("Convert", nodeName, context) {
     convertParams.origPrc = outPrc;

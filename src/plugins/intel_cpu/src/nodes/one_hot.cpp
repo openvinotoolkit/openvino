@@ -94,7 +94,7 @@ void OneHot::initSupportedPrimitiveDescriptors() {
 
     // check a precision of the input tensor
     auto input_precision = getOriginalInputPrecisionAtPort(INDICES_ID);
-    if (input_precision != Precision::I32) {
+    if (input_precision != ov::element::i32) {
         IE_THROW() << errorPrefix << " has incorrect input precision for the input. Only I32 is supported!";
     }
     output_precision = getOriginalOutputPrecisionAtPort(0);

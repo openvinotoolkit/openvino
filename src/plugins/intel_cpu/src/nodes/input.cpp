@@ -254,7 +254,7 @@ Input::Input(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr c
 
 void Input::cloneBlobIfRequired() {
     Shape shape(constOp->get_shape().empty() ? ngraph::Shape(1, 1) : constOp->get_shape());
-    const auto prec = convertPrecision(constOp->get_element_type());
+    const auto prec = constOp->get_element_type();
     const size_t size = shape.getElementsCount();
     CpuBlockedMemoryDesc memDesc(prec, shape);
 
@@ -301,7 +301,7 @@ void Input::cloneBlobIfRequired() {
 
     // The presence of subnormals is better to determined at IR read time.
     auto hasSubnormals = [&, this] () {
-        if (prec == InferenceEngine::Precision::FP32) {
+        if (prec == ov::element::f32) {
             uint32_t const *u32data = constOp->get_data_ptr<uint32_t>();
 
             if (!size)
@@ -388,7 +388,7 @@ void Input::cloneBlobIfRequired() {
 }
 
 Input::Input(const Shape& shape,
-             const InferenceEngine::Precision& prc,
+             const ov::element::Type& prc,
              const std::string& name,
              const std::string& type,
              const GraphContext::CPtr context)

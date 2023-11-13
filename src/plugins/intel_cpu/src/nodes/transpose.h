@@ -50,7 +50,7 @@ private:
     TransposeExecutorPtr execPtr = nullptr;
     dnnl::primitive prim;
     InferenceEngine::SizeVector order;
-    InferenceEngine::Precision prec;
+    ov::element::Type prec;
 
     TransposeParams transposeParams;
 

@@ -11,7 +11,6 @@
 #include <dnnl_extension_utils.h>
 
 #include "ie_parallel.hpp"
-#include "ie_precision.hpp"
 #include <onednn/dnnl.h>
 #include "utils/general_utils.h"
 #include "common/cpu_memcpy.h"
@@ -88,28 +87,28 @@ void DFT::initSupportedPrimitiveDescriptors() {
         return;
 
     const auto& dataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
-    if (!dataPrecision.is_float()) {
-        IE_THROW() << layerErrorPrefix << " has unsupported 'data' input precision: " << dataPrecision.name();
+    if (!dataPrecision.is_real()) {
+        IE_THROW() << layerErrorPrefix << " has unsupported 'data' input precision: " << dataPrecision.get_type_name();
     }
 
     const auto& axesPrecision = getOriginalInputPrecisionAtPort(AXES_INDEX);
-    if (axesPrecision != Precision::I32 && axesPrecision != Precision::I64) {
-        IE_THROW() << layerErrorPrefix << " has unsupported 'axes' input precision: " << axesPrecision.name();
+    if (axesPrecision != ov::element::i32 && axesPrecision != ov::element::i64) {
+        IE_THROW() << layerErrorPrefix << " has unsupported 'axes' input precision: " << axesPrecision.get_type_name();
     }
 
     if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
         const auto& signalSizeTensorPrec = getOriginalInputPrecisionAtPort(SIGNAL_SIZE_INDEX);
-        if (signalSizeTensorPrec != Precision::I32 && signalSizeTensorPrec != Precision::I64) {
-            IE_THROW() << layerErrorPrefix << " has unsupported 'signal_size' input precision: " << signalSizeTensorPrec.name();
+        if (signalSizeTensorPrec != ov::element::i32 && signalSizeTensorPrec != ov::element::i64) {
+            IE_THROW() << layerErrorPrefix << " has unsupported 'signal_size' input precision: " << signalSizeTensorPrec.get_type_name();
         }
     }
 
-    std::vector<PortConfigurator> inDataConfigurators({{LayoutType::ncsp, Precision::FP32},
-                                                       {LayoutType::ncsp, Precision::I32}});
+    std::vector<PortConfigurator> inDataConfigurators({{LayoutType::ncsp, ov::element::f32},
+                                                       {LayoutType::ncsp, ov::element::i32}});
     if (inputShapes.size() > SIGNAL_SIZE_INDEX)
-        inDataConfigurators.push_back({LayoutType::ncsp,  Precision::I32});
+        inDataConfigurators.push_back({LayoutType::ncsp,  ov::element::i32});
 
-    addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, Precision::FP32}}, impl_desc_type::ref_any);
+    addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
 }
 
 namespace {

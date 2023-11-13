@@ -52,7 +52,7 @@ static IEB_HEADER prepare_header(const MemoryDesc& desc) {
     header.ver[0] = 0;
     header.ver[1] = 1;
 
-    header.precision = desc.getPrecision();
+    header.precision = static_cast<char>(ov::element::Type_t(desc.getPrecision()));
 
     if (desc.getShape().getRank() > 7)
         IE_THROW() << "Dumper support max 7D blobs";
@@ -78,7 +78,7 @@ static DnnlBlockedMemoryDesc parse_header(IEB_HEADER &header) {
         header.ver[1] != 1)
         IE_THROW() << "Dumper cannot parse file. Unsupported IEB format version.";
 
-    const auto prc = Precision(static_cast<Precision::ePrecision>(header.precision));
+    const auto prc = static_cast<ov::element::Type_t>(header.precision);
     SizeVector dims(header.ndims);
     for (int i = 0; i < header.ndims; i++)
         dims[i] = header.dims[i];
@@ -102,30 +102,30 @@ void BlobDumper::prepare_plain_data(const MemoryPtr &memory, std::vector<uint8_t
     const void *ptr = memory->getData();
 
     switch (desc.getPrecision()) {
-        case Precision::FP32:
-        case Precision::I32: {
+        case ov::element::f32:
+        case ov::element::i32: {
             auto *pln_blob_ptr = reinterpret_cast<int32_t *>(data.data());
             auto *blob_ptr = reinterpret_cast<const int32_t *>(ptr);
             for (size_t i = 0; i < data_size; i++)
                 pln_blob_ptr[i] = blob_ptr[desc.getElementOffset(i)];
             break;
         }
-        case Precision::BF16: {
+        case ov::element::bf16: {
             auto *pln_blob_ptr = reinterpret_cast<int16_t *>(data.data());
             auto *blob_ptr = reinterpret_cast<const int16_t *>(ptr);
             for (size_t i = 0; i < data_size; i++)
                 pln_blob_ptr[i] = blob_ptr[desc.getElementOffset(i)];
             break;
         }
-        case Precision::FP16: {
+        case ov::element::f16: {
             auto *pln_blob_ptr = reinterpret_cast<float16 *>(data.data());
             auto *blob_ptr = reinterpret_cast<const float16 *>(ptr);
             for (size_t i = 0; i < data_size; i++)
                 pln_blob_ptr[i] = blob_ptr[desc.getElementOffset(i)];
             break;
         }
-        case Precision::I8:
-        case Precision::U8: {
+        case ov::element::i8:
+        case ov::element::u8: {
             auto *pln_blob_ptr = reinterpret_cast<int8_t*>(data.data());
             auto *blob_ptr = reinterpret_cast<const int8_t *>(ptr);
             for (size_t i = 0; i < data_size; i++)
@@ -163,7 +163,7 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) const {
     size_t data_size = desc.getShape().getElementsCount();
 
     // Header like "U8 4D shape: 2 3 224 224 ()
-    stream << memory->getDesc().getPrecision().name() << " "
+    stream << memory->getDesc().getPrecision().get_type_name() << " "
            << dims.size() << "D "
            << "shape: ";
     for (size_t d : dims) stream << d << " ";
@@ -173,19 +173,19 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) const {
     const void *ptr = memory->getData();
 
     switch (desc.getPrecision()) {
-        case Precision::FP32 : {
+        case ov::element::f32 : {
             auto *blob_ptr = reinterpret_cast<const float*>(ptr);
             for (size_t i = 0; i < data_size; i++)
                 stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
             break;
         }
-        case Precision::I32: {
+        case ov::element::i32: {
             auto *blob_ptr = reinterpret_cast<const int32_t*>(ptr);
             for (size_t i = 0; i < data_size; i++)
                 stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
             break;
         }
-        case Precision::BF16: {
+        case ov::element::bf16: {
             auto *blob_ptr = reinterpret_cast<const bfloat16_t*>(ptr);
             for (size_t i = 0; i < data_size; i++) {
                 float fn = static_cast<float>(blob_ptr[desc.getElementOffset(i)]);
@@ -193,43 +193,43 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) const {
             }
             break;
         }
-        case Precision::FP16: {
+        case ov::element::f16: {
             auto *blob_ptr = reinterpret_cast<const float16*>(ptr);
             for (size_t i = 0; i < data_size; i++)
                 stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
             break;
         }
-        case Precision::I8: {
+        case ov::element::i8: {
             auto *blob_ptr = reinterpret_cast<const int8_t*>(ptr);
             for (size_t i = 0; i < data_size; i++)
                 stream << static_cast<int>(blob_ptr[desc.getElementOffset(i)]) << std::endl;
             break;
         }
-        case Precision::U8: {
+        case ov::element::u8: {
             auto *blob_ptr = reinterpret_cast<const uint8_t*>(ptr);
             for (size_t i = 0; i < data_size; i++)
                 stream << static_cast<int>(blob_ptr[desc.getElementOffset(i)]) << std::endl;
             break;
         }
-        case Precision::I64: {
+        case ov::element::i64: {
             auto* blob_ptr = reinterpret_cast<const int64_t*>(ptr);
             for (size_t i = 0; i < data_size; i++)
                 stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
             break;
         }
-        case Precision::U32: {
+        case ov::element::u32: {
             auto* blob_ptr = reinterpret_cast<const uint32_t*>(ptr);
             for (size_t i = 0; i < data_size; i++)
                 stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
             break;
         }
-        case Precision::U16: {
+        case ov::element::u16: {
             auto* blob_ptr = reinterpret_cast<const uint16_t*>(ptr);
             for (size_t i = 0; i < data_size; i++)
                 stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
             break;
         }
-        case Precision::I16: {
+        case ov::element::i16: {
             auto* blob_ptr = reinterpret_cast<const int16_t*>(ptr);
             for (size_t i = 0; i < data_size; i++)
                 stream << blob_ptr[desc.getElementOffset(i)] << std::endl;

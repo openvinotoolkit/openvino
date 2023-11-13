@@ -111,7 +111,7 @@ void Concat::initSupportedPrimitiveDescriptors() {
 
     // Concat doesn't support different precision on inputs so fallback on FP32 in such case
     if (isMixedPrecision)
-        inputPrecision = Precision::FP32;
+        inputPrecision = ov::element::f32;
 
     // Concat supports only equal precisions for inputs and output
     outputPrecision = inputPrecision;
@@ -477,7 +477,7 @@ void Concat::execute(dnnl::stream strm) {
     }
 }
 
-InferenceEngine::Precision Concat::getRuntimePrecision() const {
+ov::element::Type Concat::getRuntimePrecision() const {
     return getMaxPrecision(getInputPrecisions());
 }
 

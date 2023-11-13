@@ -38,7 +38,7 @@ private:
     using ConverterBuilder = std::function<Converter*(Node *)>;
     using SupportedImpls = multidim_map<impl_desc_type,                             // Implementation type
                                         Algorithm,                                  // Algorithm: ColorConvertXXX
-                                        InferenceEngine::Precision::ePrecision,     // Precision: FP32/U8
+                                        ov::element::Type_t,                        // element type: f32/u8
                                         bool,                                       // true - SinglePlaneConvert, false - TwoPlaneConvert/ThreePlaneConvert
                                         ConverterBuilder>;
 
@@ -63,8 +63,8 @@ public:
 
     Converter(Node *node, const ColorFormat & colorFormat);
     virtual ~Converter() = default;
-    InferenceEngine::Precision inputPrecision(size_t idx) const;
-    InferenceEngine::Precision outputPrecision(size_t idx) const;
+    ov::element::Type inputPrecision(size_t idx) const;
+    ov::element::Type outputPrecision(size_t idx) const;
     const void * input(size_t idx) const;
     void * output(size_t idx) const;
     const VectorDims & inputDims(size_t idx) const;

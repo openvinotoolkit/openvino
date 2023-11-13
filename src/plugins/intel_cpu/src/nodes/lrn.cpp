@@ -138,10 +138,10 @@ void Lrn::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW() << errorPrefix << " has incorrect number of output edges";
 
-    InferenceEngine::Precision precision = getOriginalOutputPrecisionAtPort(0);
-    if (precision != InferenceEngine::Precision::FP32 && precision != InferenceEngine::Precision::BF16)
-        precision = InferenceEngine::Precision::FP32;
-    auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(precision);
+    ov::element::Type precision = getOriginalOutputPrecisionAtPort(0);
+    if (precision != ov::element::f32 && precision != ov::element::bf16)
+        precision = ov::element::f32;
+    auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(precision);
 
     const auto &parentShape = getInputShapeAtPort(0);
 

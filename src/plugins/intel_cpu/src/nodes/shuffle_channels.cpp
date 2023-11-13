@@ -87,10 +87,10 @@ void ShuffleChannels::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
+    ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
     const std::set<size_t> supported_precision_sizes = {1, 2, 4, 8, 16};
     if (supported_precision_sizes.find(precision.size()) == supported_precision_sizes.end())
-        THROW_SHCH_ERROR << "has unsupported precision: " << precision.name();
+        THROW_SHCH_ERROR << "has unsupported precision: " << precision.get_type_name();
 
     impl_desc_type impl_type;
     if (mayiuse(cpu::x64::avx512_core)) {

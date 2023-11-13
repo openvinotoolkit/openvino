@@ -54,23 +54,23 @@ void CTCGreedyDecoderSeqLen::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    Precision inDataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
-    if (!one_of(inDataPrecision, Precision::FP32, Precision::BF16, Precision::FP16))
+    ov::element::Type inDataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
+    if (!one_of(inDataPrecision, ov::element::f32, ov::element::bf16, ov::element::f16))
         IE_THROW() << errorPrefix << "has unsupported 'data' input precision: " << inDataPrecision;
 
-    Precision seqLenPrecision = getOriginalInputPrecisionAtPort(SEQUENCE_LENGTH_INDEX);
-    if (seqLenPrecision != Precision::I32 && seqLenPrecision != Precision::I64)
+    ov::element::Type seqLenPrecision = getOriginalInputPrecisionAtPort(SEQUENCE_LENGTH_INDEX);
+    if (seqLenPrecision != ov::element::i32 && seqLenPrecision != ov::element::i64)
         IE_THROW() << errorPrefix << "has unsupported 'sequence_length' input precision: " << seqLenPrecision;
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
+    inDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
     for (size_t i = 1; i < inputShapes.size(); ++i)
-        inDataConf.emplace_back(LayoutType::ncsp, Precision::I32);
+        inDataConf.emplace_back(LayoutType::ncsp, ov::element::i32);
 
     addSupportedPrimDesc(inDataConf,
-                         {{LayoutType::ncsp, Precision::I32},
-                          {LayoutType::ncsp, Precision::I32}},
+                         {{LayoutType::ncsp, ov::element::i32},
+                          {LayoutType::ncsp, ov::element::i32}},
                          impl_desc_type::ref_any);
 }
 

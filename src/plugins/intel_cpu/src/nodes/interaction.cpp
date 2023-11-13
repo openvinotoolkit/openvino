@@ -38,9 +38,9 @@ struct jit_move_scale_kernel : public jit_uni_move_scale_kernel, public jit_gene
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_move_scale_kernel)
 
     explicit jit_move_scale_kernel(const jit_move_scale_compile_params& jcp) : jit_uni_move_scale_kernel(jcp), jit_generator(jit_name()) {
-        runtime_prc = jcp_.src_prc == Precision::BF16 ? Precision::BF16 : Precision::FP32;
-        if (jcp_.dst_prc == Precision::I8 || jcp_.dst_prc == Precision::U8)
-            runtime_prc = Precision::FP32;
+        runtime_prc = jcp_.src_prc == ov::element::bf16 ? ov::element::bf16 : ov::element::f32;
+        if (jcp_.dst_prc == ov::element::i8 || jcp_.dst_prc == ov::element::u8)
+            runtime_prc = ov::element::f32;
         vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / runtime_prc.size();
     }
     virtual ~jit_move_scale_kernel() {}
@@ -107,7 +107,7 @@ private:
 
         if (jcp_.with_scales) {
             if (!jcp_.broadcast_scales) {
-                load(vmm_scales, reg_scales, Precision::FP32, Precision::FP32, step, false);
+                load(vmm_scales, reg_scales, ov::element::f32, ov::element::f32, step, false);
                 add(reg_scales,  sizeof(float) * step);
             }
             uni_vmulps(vmm_in, vmm_in, vmm_scales);
@@ -122,7 +122,7 @@ private:
     }
 #undef GET_OFF
 
-    inline void load(const Vmm& vmm_dst, const Xbyak::Reg64& reg_src, Precision src_prc, Precision dst_prc, const int& elt_num, bool fill) {
+    inline void load(const Vmm& vmm_dst, const Xbyak::Reg64& reg_src, ov::element::Type src_prc, ov::element::Type dst_prc, const int& elt_num, bool fill) {
         const auto seed = load_emitter_params(src_prc, dst_prc, elt_num, fill, "float_min").hash();
         if (!emitters[seed]) {
             emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num, src_prc, fill, "float_min"));
@@ -131,7 +131,7 @@ private:
         emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0}, {static_cast<size_t>(vmm_dst.getIdx())},
                                   pool_aux_vmm_idxs, pool_aux_gpr_idxs);
     }
-    inline void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, Precision src_prc, Precision dst_prc, const int& elt_num) {
+    inline void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, ov::element::Type src_prc, ov::element::Type dst_prc, const int& elt_num) {
         const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
             emitters[seed].reset(new jit_store_emitter(this, isa, src_prc, dst_prc, elt_num));
@@ -142,7 +142,7 @@ private:
     }
 
     size_t vec_size;
-    Precision runtime_prc;
+    ov::element::Type runtime_prc;
 
     Xmm xmm_tmp = Xmm(2);
     Vmm vmm_scales = Vmm(0);
@@ -175,7 +175,7 @@ Interaction::Interaction(const std::shared_ptr<ngraph::Node>& op, const GraphCon
     const std::vector<float>& scales = interaction->get_output_scales();
     if (!scales.empty()) {
         fqScales = scales;
-        outputDataType  = InferenceEngine::details::convertPrecision(interaction->get_output_element_type(0));
+        outputDataType  = interaction->get_output_element_type(0);
     }
 }
 
@@ -183,10 +183,10 @@ void Interaction::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
     dataPrecision = getOriginalInputPrecisionAtPort(0);
-    if (dataPrecision != InferenceEngine::Precision::FP32 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
-        dataPrecision = InferenceEngine::Precision::BF16;
+    if (dataPrecision != ov::element::f32 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
+        dataPrecision = ov::element::bf16;
     } else {
-        dataPrecision = InferenceEngine::Precision::FP32;
+        dataPrecision = ov::element::f32;
     }
 
     if (fqScales.empty()) {
@@ -296,7 +296,7 @@ void Interaction::prepareParams() {
     std::vector<int64_t> rhsStride({1, static_cast<int64_t>(featureSize)});
     std::vector<int64_t> resShape({static_cast<int64_t>(inputSizes), static_cast<int64_t>(inputSizes)});
     std::vector<int64_t> resStride({static_cast<int64_t>(inputSizes), 1});
-    auto dataType = DnnlExtensionUtils::IEPrecisionToDataType(dataPrecision);
+    auto dataType = DnnlExtensionUtils::ElementTypeToDataType(dataPrecision);
     auto src_md = memory::desc(lhsShape, dataType, lhsStride);
     auto weights_md = memory::desc(rhsShape, dataType, rhsStride);
     auto dst_md = memory::desc(resShape, dataType, resStride);
@@ -304,7 +304,7 @@ void Interaction::prepareParams() {
     auto matmul_pd = matmul::primitive_desc(getEngine(), src_md, weights_md, dst_md, matmul_attr);
     prim = matmul(matmul_pd);
     featureSizes.assign(inputSizes, featureSize);
-    auto initMemoryPtr = [&](const InferenceEngine::Precision &prc, const intel_cpu::Shape& shape,
+    auto initMemoryPtr = [&](const ov::element::Type& prc, const intel_cpu::Shape& shape,
         MemoryPtr& ptr) {
         ptr = std::make_shared<Memory>(getEngine(), intel_cpu::DnnlBlockedMemoryDesc(prc, shape));
     };

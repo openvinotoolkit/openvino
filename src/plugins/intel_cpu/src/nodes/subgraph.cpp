@@ -64,14 +64,14 @@ size_t SnippetKey::hash() const {
     for (const auto& order : attrs.inMemOrders)
         seed = get_vector_hash(seed, order);
     for (const auto& prec : attrs.inMemPrecs)
-        seed = hash_combine(seed, prec.getPrecVal());
+        seed = hash_combine(seed, prec.hash());
 
     for (const auto& blockedDim : attrs.outMemBlockedDims)
         seed = get_vector_hash(seed, blockedDim);
     for (const auto& order : attrs.outMemOrders)
         seed = get_vector_hash(seed, order);
     for (const auto& prec : attrs.outMemPrecs)
-        seed = hash_combine(seed, prec.getPrecVal());
+        seed = hash_combine(seed, prec.hash());
 
     seed = hash_combine(seed, attrs.bodyHash);
 
@@ -117,7 +117,6 @@ bool SnippetKey::operator==(const SnippetKey& rhs) const {
 
     return true;
 }
-
 } // namespace
 
 Snippet::Snippet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
@@ -151,7 +150,8 @@ void Snippet::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    const std::set<Precision> supportedPrecisions = { Precision::FP32, Precision::I32, Precision::BF16, Precision::FP16, Precision::I8, Precision::U8 };
+    const std::set<ov::element::Type> supportedPrecisions =
+        {ov::element::f32, ov::element::i32, ov::element::bf16, ov::element::f16, ov::element::i8, ov::element::u8};
 
     bool dimRanksAreEqual = true;
     for (size_t i = 0; dimRanksAreEqual && i < inputShapes.size(); i++) {
@@ -181,7 +181,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
         Blocked
     };
     auto initDesc = [&] (LayoutType lt) -> NodeDesc {
-        auto createMemoryDesc = [lt](const Shape &shape, Precision prc, size_t offset) -> std::shared_ptr<CpuBlockedMemoryDesc> {
+        auto createMemoryDesc = [lt](const Shape &shape, ov::element::Type prc, size_t offset) -> std::shared_ptr<CpuBlockedMemoryDesc> {
             const auto &dims = shape.getDims();
             if (lt == ChannelsFirst && shape.getRank() != 1) {
                 auto ndims = shape.getRank();
@@ -224,10 +224,10 @@ void Snippet::initSupportedPrimitiveDescriptors() {
         config.inConfs.resize(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); i++) {
             const auto originalInputPrecision = getOriginalInputPrecisionAtPort(i);
-            const auto precision = ((originalInputPrecision == InferenceEngine::Precision::FP32) &&
+            const auto precision = ((originalInputPrecision == ov::element::f32) &&
                                      context->getConfig().inferencePrecision == ov::element::bf16 &&
                                      snippetAttrs.snippet->has_domain_sensitive_ops()) ?
-                static_cast<InferenceEngine::Precision>(InferenceEngine::Precision::BF16) :
+                static_cast<ov::element::Type>(ov::element::bf16) :
                 originalInputPrecision;
             if (supportedPrecisions.count(precision) == 0)
                 IE_THROW() << "Subgraph node with name `" << getName() << "` doesn't support " << precision << " precision.";
@@ -357,22 +357,22 @@ void Snippet::initOptimalPrimitiveDescriptor() {
     std::vector<ov::element::Type> output_precisions;
     input_precisions.reserve(inputNum);
     for (const auto& p :  snippetAttrs.inMemPrecs) {
-        input_precisions.push_back(InferenceEngine::details::convertPrecision(p));
+        input_precisions.push_back(p);
     }
     output_precisions.reserve(outputNum);
     for (const auto& p :  snippetAttrs.outMemPrecs)
-        output_precisions.push_back(InferenceEngine::details::convertPrecision(p));
+        output_precisions.push_back(p);
 
     snippetAttrs.snippet->data_flow_transformations(in_blocked_shapes, input_precisions, output_precisions, backend_passes);
     snippetAttrs.snippet->convert_body_to_linear_ir(std::make_shared<snippets::CPUShapeInferSnippetsFactory>());
 }
 
-InferenceEngine::Precision Snippet::getRuntimePrecision() const {
-    std::vector<InferenceEngine::Precision> inputPrecisions;
+ov::element::Type Snippet::getRuntimePrecision() const {
+    std::vector<ov::element::Type> inputPrecisions;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated && !parentEdge->getParent()->isConstant()) {
-            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->getDataType())));
+            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToElementType((parentEdge->getMemoryPtr()->getDataType())));
         }
     }
 

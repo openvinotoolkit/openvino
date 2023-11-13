@@ -229,7 +229,7 @@ struct jit_uni_quantization_kernel : public jit_uni_quantize_kernel, public jit_
 
     void generate() override {
         do_dequantization = jqp_.op_type == Algorithm::FQCommon;
-        do_rounding = do_dequantization || jqp_.dst_prc == Precision::FP32;
+        do_rounding = do_dequantization || jqp_.dst_prc == ov::element::f32;
 
         this->preamble();
 
@@ -668,80 +668,80 @@ private:
         L(exit_label);
     }
 
-    inline void load_vector(Zmm zmm_src, const Xbyak::Address &op, Precision src_prc) {
+    inline void load_vector(Zmm zmm_src, const Xbyak::Address &op, ov::element::Type src_prc) {
         switch (src_prc) {
-            case Precision::FP32:
-            case Precision::I32:
+            case ov::element::f32:
+            case ov::element::i32:
                 uni_vmovups(zmm_src, op);
                 break;
-            case Precision::I8:
+            case ov::element::i8:
                 uni_vpmovsxbd(zmm_src, op);
                 break;
-            case Precision::U8:
+            case ov::element::u8:
                 uni_vpmovzxbd(zmm_src, op);
                 break;
             default:
                 assert(!"unknown src_prc");
         }
 
-        if (src_prc != Precision::FP32) {
+        if (src_prc != ov::element::f32) {
             uni_vcvtdq2ps(zmm_src, zmm_src);
         }
     }
 
-    inline void load_vector(Ymm ymm_src, const Xbyak::Address &op, Precision src_prc) {
+    inline void load_vector(Ymm ymm_src, const Xbyak::Address &op, ov::element::Type src_prc) {
         switch (src_prc) {
-            case Precision::FP32:
-            case Precision::I32:
+            case ov::element::f32:
+            case ov::element::i32:
                 uni_vmovups(ymm_src, op);
                 break;
-            case Precision::I8:
+            case ov::element::i8:
                 uni_vpmovsxbd(ymm_src, op);
                 break;
-            case Precision::U8:
+            case ov::element::u8:
                 uni_vpmovzxbd(ymm_src, op);
                 break;
             default:
                 assert(!"unknown src_prc");
         }
 
-        if (src_prc != Precision::FP32) {
+        if (src_prc != ov::element::f32) {
             uni_vcvtdq2ps(ymm_src, ymm_src);
         }
     }
 
-    inline void load_vector(Xmm xmm_src, const Xbyak::Address &op, Precision src_prc) {
+    inline void load_vector(Xmm xmm_src, const Xbyak::Address &op, ov::element::Type src_prc) {
         switch (src_prc) {
-            case Precision::FP32:
-            case Precision::I32:
+            case ov::element::f32:
+            case ov::element::i32:
                 uni_vmovups(xmm_src, op);
                 break;
-            case Precision::I8:
+            case ov::element::i8:
                 uni_vpmovsxbd(xmm_src, op);
                 break;
-            case Precision::U8:
+            case ov::element::u8:
                 uni_vpmovzxbd(xmm_src, op);
                 break;
             default:
                 assert(!"unknown src_prc");
         }
 
-        if (src_prc != Precision::FP32) {
+        if (src_prc != ov::element::f32) {
             uni_vcvtdq2ps(xmm_src, xmm_src);
         }
     }
 
-    inline void load_scalar(Xmm xmm_src, const Xbyak::Address &op, Precision src_prc) {
+    inline void load_scalar(Xmm xmm_src, const Xbyak::Address &op, ov::element::Type src_prc) {
         switch (src_prc) {
-            case Precision::FP32:
-            case Precision::I32:
+            case ov::element::f32:
+            case ov::element::i32:
                 uni_vmovss(xmm_src, op);
                 break;
-            case Precision::I8:
+            case ov::element::i8:
                 movsx(reg_tmp_32, op);
                 uni_vmovq(xmm_src, reg_tmp_64);
                 break;
-            case Precision::U8:
+            case ov::element::u8:
                 movzx(reg_tmp_32, op);
                 uni_vmovq(xmm_src, reg_tmp_64);
                 break;
@@ -749,25 +749,25 @@ private:
                 assert(!"unknown src_prc");
         }
 
-        if (src_prc != Precision::FP32) {
+        if (src_prc != ov::element::f32) {
             uni_vcvtdq2ps(xmm_src, xmm_src);
         }
     }
 
-    inline void store_vector(const Xbyak::Address &op, Zmm zmm_dst, Precision dst_prc) {
-        if (dst_prc != Precision::FP32) {
+    inline void store_vector(const Xbyak::Address &op, Zmm zmm_dst, ov::element::Type dst_prc) {
+        if (dst_prc != ov::element::f32) {
             uni_vcvtps2dq(zmm_dst, zmm_dst);
         }
 
         switch (dst_prc) {
-            case Precision::FP32:
-            case Precision::I32:
+            case ov::element::f32:
+            case ov::element::i32:
                 uni_vmovups(op, zmm_dst);
                 break;
-            case Precision::I8:
+            case ov::element::i8:
                 vpmovsdb(op, zmm_dst);
                 break;
-            case Precision::U8:
+            case ov::element::u8:
                 vpmaxsd(zmm_dst, zmm_dst, vmm_zero);
                 vpmovusdb(op, zmm_dst);
                 break;
@@ -776,19 +776,19 @@ private:
         }
     }
 
-    inline void store_vector(const Xbyak::Address &op, Ymm ymm_dst, Precision dst_prc) {
+    inline void store_vector(const Xbyak::Address &op, Ymm ymm_dst, ov::element::Type dst_prc) {
         Xmm xmm_dst = Xmm(ymm_dst.getIdx());
 
-        if (dst_prc != Precision::FP32) {
+        if (dst_prc != ov::element::f32) {
             uni_vcvtps2dq(ymm_dst, ymm_dst);
         }
 
         switch (dst_prc) {
-            case Precision::FP32:
-            case Precision::I32:
+            case ov::element::f32:
+            case ov::element::i32:
                 uni_vmovups(op, ymm_dst);
                 break;
-            case Precision::I8:
+            case ov::element::i8:
                 uni_vpackssdw(ymm_dst, ymm_dst, ymm_dst);
 
                 vpermq(ymm_dst, ymm_dst, 0x08);
@@ -797,7 +797,7 @@ private:
 
                 vmovq(op, xmm_dst);
                 break;
-            case Precision::U8:
+            case ov::element::u8:
                 uni_vpackusdw(ymm_dst, ymm_dst, ymm_dst);
 
                 vpermq(ymm_dst, ymm_dst, 0x08);
@@ -811,22 +811,22 @@ private:
         }
     }
 
-    inline void store_vector(const Xbyak::Address &op, Xmm xmm_dst, Precision dst_prc) {
-        if (dst_prc != Precision::FP32) {
+    inline void store_vector(const Xbyak::Address &op, Xmm xmm_dst, ov::element::Type dst_prc) {
+        if (dst_prc != ov::element::f32) {
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
 
         switch (dst_prc) {
-            case Precision::FP32:
-            case Precision::I32:
+            case ov::element::f32:
+            case ov::element::i32:
                 uni_vmovups(op, xmm_dst);
                 break;
-            case Precision::I8:
+            case ov::element::i8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
                 uni_vmovd(op, xmm_dst);
                 break;
-            case Precision::U8:
+            case ov::element::u8:
                 uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
                 uni_vmovd(op, xmm_dst);
@@ -836,23 +836,23 @@ private:
         }
     }
 
-    inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, Precision dst_prc) {
-        if (dst_prc != Precision::FP32) {
+    inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, ov::element::Type dst_prc) {
+        if (dst_prc != ov::element::f32) {
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
 
         switch (dst_prc) {
-            case Precision::FP32:
-            case Precision::I32:
+            case ov::element::f32:
+            case ov::element::i32:
                 uni_vmovss(op, xmm_dst);
                 break;
-            case Precision::I8:
+            case ov::element::i8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
                 uni_vmovq(reg_tmp_64, xmm_dst);
                 mov(op, reg_tmp_8);
                 break;
-            case Precision::U8:
+            case ov::element::u8:
                 uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
                 uni_vmovq(reg_tmp_64, xmm_dst);
@@ -932,9 +932,9 @@ struct FakeQuantKey {
         using namespace dnnl::impl::primitive_hashing;
         size_t seed = 0;
         seed = hash_combine(seed, jqp.is_planar);
-        seed = hash_combine(seed, jqp.src_prc.getPrecVal());
-        seed = hash_combine(seed, jqp.wei_prc.getPrecVal());
-        seed = hash_combine(seed, jqp.dst_prc.getPrecVal());
+        seed = hash_combine(seed, jqp.src_prc.hash());
+        seed = hash_combine(seed, jqp.wei_prc.hash());
+        seed = hash_combine(seed, jqp.dst_prc.hash());
         seed = hash_combine(seed, jqp.op_type);
         if (jqp.op_type ==  Algorithm::FQBinarization) {
             seed = hash_combine(seed, jqp.c);
@@ -1268,17 +1268,17 @@ std::vector<LayoutType> FakeQuantize::getDataFormats() const {
 
 void FakeQuantize::init() {
     if (binarization) {
-        inputPrecision = Precision::FP32;
-        outputPrecision = Precision::BIN;
+        inputPrecision = ov::element::f32;
+        outputPrecision = ov::element::u1;
     } else {
         inputPrecision = getOriginalInputPrecisionAtPort(0);
         outputPrecision = getOriginalOutputPrecisionAtPort(0);
 
-        if (inputPrecision != Precision::FP32 && inputPrecision != Precision::U8 && inputPrecision != Precision::I8)
-            inputPrecision = Precision::FP32;
+        if (inputPrecision != ov::element::f32 && inputPrecision != ov::element::u8 && inputPrecision != ov::element::i8)
+            inputPrecision = ov::element::f32;
 
-        if (outputPrecision != Precision::FP32 && outputPrecision != Precision::U8 && outputPrecision != Precision::I8)
-            outputPrecision = Precision::FP32;
+        if (outputPrecision != ov::element::f32 && outputPrecision != ov::element::u8 && outputPrecision != ov::element::i8)
+            outputPrecision = ov::element::f32;
     }
 }
 
@@ -1329,8 +1329,8 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
         impl_type = impl_desc_type::ref;
 
         if (!isBinarization()) {
-            inputPrecision = Precision::FP32;
-            outputPrecision = Precision::FP32;
+            inputPrecision = ov::element::f32;
+            outputPrecision = ov::element::f32;
         }
     }
 
@@ -1354,7 +1354,7 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
                 dataConfig.setMemDesc(descCreator->createSharedDesc(getInputPrecision(), getInputShapeAtPort(i)));
             } else {
                 auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
-                dataConfig.setMemDesc(descCreator->createSharedDesc(Precision::FP32, getInputShapeAtPort(i)));
+                dataConfig.setMemDesc(descCreator->createSharedDesc(ov::element::f32, getInputShapeAtPort(i)));
             }
             config.inConfs.push_back(dataConfig);
         }
@@ -1447,7 +1447,7 @@ void FakeQuantize::createPrimitive() {
         //Form FakeQuanKey
         FakeQuantKey key = {};
         key.jqp.src_prc = config.inConfs[0].getMemDesc()->getPrecision();
-        key.jqp.wei_prc = Precision::FP32;
+        key.jqp.wei_prc = ov::element::f32;
         key.jqp.dst_prc = config.outConfs[0].getMemDesc()->getPrecision();
 
         const auto &srcMemory = getParentEdgeAt(0)->getMemory();
@@ -1836,7 +1836,7 @@ void FakeQuantize::initializePostOpDataLegacy(const VectorDims &dims, const size
 
 void FakeQuantize::appendMemory(const size_t dataSize, const void *data, MemoryPtr &memPtr, std::vector<MemoryPtr>& postOpsMem) {
     if (!memPtr) {
-        DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, {dataSize});
+        DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, {dataSize});
         memPtr = std::make_shared<Memory>(getEngine(), memoryDesc, data);
 
         postOpsMem.push_back(memPtr);

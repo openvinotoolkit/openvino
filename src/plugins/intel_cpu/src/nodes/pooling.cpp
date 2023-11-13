@@ -264,8 +264,8 @@ void Pooling::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW() << "Incorrect number of output edges for layer " << getName();
 
-    InferenceEngine::Precision inputPrecision = getOriginalInputPrecisionAtPort(0);
-    InferenceEngine::Precision outputPrecision = getOriginalOutputPrecisionAtPort(0);
+    ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(0);
+    ov::element::Type outputPrecision = getOriginalOutputPrecisionAtPort(0);
 
     const auto &parentShape = getInputShapeAtPort(0);
     const auto &childShape = getOutputShapeAtPort(0);
@@ -322,15 +322,15 @@ void Pooling::getSupportedDescriptors() {
 
     // WA: LPT transformation has WA which allows average pooling has I8/U8 output precision instead of FP32,
     // so we explicitly set output precision as FP32
-    if (!one_of(outputPrecision, Precision::I8, Precision::BF16, Precision::FP16)) {
+    if (!one_of(outputPrecision, ov::element::i8, ov::element::bf16, ov::element::f16)) {
         if (getAlgorithm() == Algorithm::PoolingMax) {
             // oneDNN supports only equal precisions for input and output
             outputPrecision = inputPrecision;
         } else if (getAlgorithm() == Algorithm::PoolingAvg) {
-            outputPrecision = Precision::FP32;
+            outputPrecision = ov::element::f32;
         }
     }
-    if (one_of(inputPrecision, Precision::BF16, Precision::FP16)) {
+    if (one_of(inputPrecision, ov::element::bf16, ov::element::f16)) {
         outputPrecision = inputPrecision;
     }
 
@@ -338,8 +338,8 @@ void Pooling::getSupportedDescriptors() {
         outputPrecision = fusedWith.back()->getOriginalOutputPrecisionAtPort(0);
     }
 
-    auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(inputPrecision);
-    auto outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(outputPrecision);
+    auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(inputPrecision);
+    auto outputDataType = DnnlExtensionUtils::ElementTypeToDataType(outputPrecision);
 
     if ((inputRank < 3) || (inputRank > 5))
         IE_THROW() << "Pooling layer. Unsupported mode. Only 3D, 4D and 5D blobs are supported as input.";
@@ -349,7 +349,7 @@ void Pooling::getSupportedDescriptors() {
     initEffectiveAttributes(inShape,
                             MemoryDescUtils::makeDummyShape(childShape));
 
-    if (inputPrecision == Precision::I8 || inputPrecision == Precision::U8) {
+    if (inputPrecision == ov::element::i8 || inputPrecision == ov::element::u8) {
         //  We have to extend i8i8_pooling_fwd_t from oneDNN to support BF16 output data type
         if (one_of(outputDataType, memory::data_type::bf16, memory::data_type::f16))
             outputDataType = memory::data_type::f32;

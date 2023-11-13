@@ -17,7 +17,7 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 
-jit_convert_emitter::jit_convert_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
+jit_convert_emitter::jit_convert_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, ov::element::Type exec_prc)
 : jit_emitter(host, host_isa, exec_prc) {
     input_type = node->get_input_element_type(0);
     output_type = node->get_output_element_type(0);
@@ -58,7 +58,7 @@ void jit_convert_emitter::float2bfloat(const std::vector<size_t> &in_vec_idxs, c
 }
 
 jit_convert_truncation_emitter::jit_convert_truncation_emitter(jit_generator *host, cpu_isa_t host_isa,
-                                                               const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
+                                                               const std::shared_ptr<ngraph::Node>& node, ov::element::Type exec_prc)
         : jit_convert_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
@@ -193,7 +193,7 @@ void jit_convert_truncation_emitter::dword2int8(const std::vector<size_t> &in_ve
 }
 
 jit_convert_saturation_emitter::jit_convert_saturation_emitter(jit_generator *host, cpu_isa_t host_isa,
-                                                               const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
+                                                               const std::shared_ptr<ngraph::Node>& node, ov::element::Type exec_prc)
     : jit_convert_emitter(host, host_isa, node, exec_prc) {
 }
 

@@ -61,8 +61,8 @@ struct InterpolateAttrs {
     float cubeCoeff = -0.75;
     std::vector<int> padBegin;
     std::vector<int> padEnd;
-    InferenceEngine::Precision inPrc;
-    InferenceEngine::Precision outPrc;
+    ov::element::Type inPrc;
+    ov::element::Type outPrc;
     InterpolateLayoutType layout;
     std::vector<float> dataScales;
     bool hasPad = false;
