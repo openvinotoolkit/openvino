@@ -20,7 +20,7 @@ public:
     OPENVINO_OP("RPE", "ie_internal_opset", op::Op);
 
     RPE() = default;
-    RPE(const Output<Node>& data, const Output<Node>& sin, const Output<Node>& cos, const int64_t& axis);
+    RPE(const Output<Node>& data, const Output<Node>& sin, const Output<Node>& cos, const int64_t axis);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
@@ -29,7 +29,7 @@ public:
     int64_t get_axis() const {
         return m_axis;
     };
-    void set_axis(const int64_t& axis) {
+    void set_axis(const int64_t axis) {
         m_axis = axis;
     };
 
