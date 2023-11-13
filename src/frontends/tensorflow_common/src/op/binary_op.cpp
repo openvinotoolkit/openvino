@@ -15,11 +15,12 @@ namespace op {
 
 OutputVector translate_binary_op(const NodeContext& node,
                                  const std::function<Output<Node>(Output<Node>&, Output<Node>&)>& create_binary_op) {
-    auto ng_lhs = node.get_input(0);
-    auto ng_rhs = node.get_input(1);
-    auto ng_node = create_binary_op(ng_lhs, ng_rhs);
-    set_node_name(node.get_name(), ng_node.get_node_shared_ptr());
-    return {ng_node};
+    default_op_checks(node, 2, {});
+    auto lhs = node.get_input(0);
+    auto rhs = node.get_input(1);
+    auto result = create_binary_op(lhs, rhs);
+    set_node_name(node.get_name(), result.get_node_shared_ptr());
+    return {result};
 }
 
 OutputVector translate_floor_div_op(const NodeContext& node) {

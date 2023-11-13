@@ -50,6 +50,8 @@ namespace op {
 
 OutputVector translate_unary_op(const NodeContext& op,
                                 const function<shared_ptr<Node>(Output<Node>)>& create_unary_op) {
+    default_op_checks(op, 1, {});
+
     auto input = op.get_input(0);
     auto res = create_unary_op(input);
     set_node_name(op.get_name(), res);
