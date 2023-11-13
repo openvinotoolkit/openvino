@@ -19,58 +19,70 @@ class DataGetter(Enum):
     VIEW = 2
 
 
-@pytest.mark.parametrize(("src_dtype"), [
-    (np.float16),
-    (np.float32),
-    (np.float64),
-    (np.int8),
-    (np.uint8),
-    (np.int16),
-    (np.uint16),
-    (np.int32),
-    (np.uint32),
-    (np.int64),
-    (bool),
-    (np.bool_),
-])
-@pytest.mark.parametrize(("dst_dtype"), [
-    (ov.Type.f32), 
-    (ov.Type.f64),
-    (ov.Type.f16), 
-    (ov.Type.bf16),
-    (ov.Type.i8), 
-    (ov.Type.u8), 
-    (ov.Type.i32),
-    (ov.Type.u32),
-    (ov.Type.i16),
-    (ov.Type.u16),
-    (ov.Type.i64),
-    (ov.Type.u64),
-    (ov.Type.boolean),
-    (ov.Type.u1),
-    (ov.Type.u4),
-    (ov.Type.i4),
-    (np.float16),
-    (np.float32),
-    (np.float64),
-    (np.int8),
-    (np.uint8),
-    (np.int16),
-    (np.uint16),
-    (np.int32),
-    (np.uint32),
-    (np.int64),
-    (bool),
-    (np.bool_),
-])
-@pytest.mark.parametrize(("shared_flag"), [
-    (True),
-    (False),
-])
-@pytest.mark.parametrize(("data_getter"), [
-    (DataGetter.COPY),
-    (DataGetter.VIEW),
-])
+@pytest.mark.parametrize(
+    ("src_dtype"),
+    [
+        (np.float16),
+        (np.float32),
+        (np.float64),
+        (np.int8),
+        (np.uint8),
+        (np.int16),
+        (np.uint16),
+        (np.int32),
+        (np.uint32),
+        (np.int64),
+        (bool),
+        (np.bool_),
+    ],
+)
+@pytest.mark.parametrize(
+    ("dst_dtype"),
+    [
+        (ov.Type.f32),
+        (ov.Type.f64),
+        (ov.Type.f16),
+        (ov.Type.bf16),
+        (ov.Type.i8),
+        (ov.Type.u8),
+        (ov.Type.i32),
+        (ov.Type.u32),
+        (ov.Type.i16),
+        (ov.Type.u16),
+        (ov.Type.i64),
+        (ov.Type.u64),
+        (ov.Type.boolean),
+        (ov.Type.u1),
+        (ov.Type.u4),
+        (ov.Type.i4),
+        (np.float16),
+        (np.float32),
+        (np.float64),
+        (np.int8),
+        (np.uint8),
+        (np.int16),
+        (np.uint16),
+        (np.int32),
+        (np.uint32),
+        (np.int64),
+        (bool),
+        (np.bool_),
+    ],
+)
+@pytest.mark.parametrize(
+    ("shared_flag"),
+    [
+        (True),
+        (False),
+    ],
+)
+@pytest.mark.parametrize(
+    ("data_getter"),
+    [
+        (DataGetter.COPY),
+        (DataGetter.VIEW),
+    ],
+)
 def test_init_with_array(src_dtype, dst_dtype, shared_flag, data_getter):
     data = np.random.rand(1, 2, 16, 8) + 0.5
     data = data.astype(src_dtype)
@@ -97,64 +109,79 @@ def test_init_with_array(src_dtype, dst_dtype, shared_flag, data_getter):
     assert np.allclose(const_data, expected_result)
 
 
-@pytest.mark.parametrize(("init_value"), [
-    (1.5),  # float
-    (2),    # int
-])
-@pytest.mark.parametrize(("src_dtype"), [
-    (float),
-    (int),
-    (np.float16),
-    (np.float32),
-    (np.float64),
-    (np.int8),
-    (np.uint8),
-    (np.int16),
-    (np.uint16),
-    (np.int32),
-    (np.uint32),
-    (np.int64),
-    (bool),
-    (np.bool_),
-])
-@pytest.mark.parametrize(("dst_dtype"), [
-    (ov.Type.f32), 
-    (ov.Type.f64),
-    (ov.Type.f16), 
-    (ov.Type.bf16),
-    (ov.Type.i8), 
-    (ov.Type.u8), 
-    (ov.Type.i32),
-    (ov.Type.u32),
-    (ov.Type.i16),
-    (ov.Type.u16),
-    (ov.Type.i64),
-    (ov.Type.u64),
-    (ov.Type.boolean),
-    (ov.Type.u1),
-    (ov.Type.u4),
-    (ov.Type.i4),
-    (np.float16),
-    (np.float32),
-    (np.float64),
-    (np.int8),
-    (np.uint8),
-    (np.int16),
-    (np.uint16),
-    (np.int32),
-    (np.uint32),
-    (np.int64),
-    (bool),
-    (np.bool_),
-])
-@pytest.mark.parametrize(("shared_flag"), [
-    (True),
-    (False),
-])
-@pytest.mark.parametrize(("data_getter"), [
-    (DataGetter.COPY),
-    (DataGetter.VIEW),
-])
+@pytest.mark.parametrize(
+    ("init_value"),
+    [
+        (1.5),  # float
+        (2),  # int
+    ],
+)
+@pytest.mark.parametrize(
+    ("src_dtype"),
+    [
+        (float),
+        (int),
+        (np.float16),
+        (np.float32),
+        (np.float64),
+        (np.int8),
+        (np.uint8),
+        (np.int16),
+        (np.uint16),
+        (np.int32),
+        (np.uint32),
+        (np.int64),
+        (bool),
+        (np.bool_),
+    ],
+)
+@pytest.mark.parametrize(
+    ("dst_dtype"),
+    [
+        (ov.Type.f32),
+        (ov.Type.f64),
+        (ov.Type.f16),
+        (ov.Type.bf16),
+        (ov.Type.i8),
+        (ov.Type.u8),
+        (ov.Type.i32),
+        (ov.Type.u32),
+        (ov.Type.i16),
+        (ov.Type.u16),
+        (ov.Type.i64),
+        (ov.Type.u64),
+        (ov.Type.boolean),
+        (ov.Type.u1),
+        (ov.Type.u4),
+        (ov.Type.i4),
+        (np.float16),
+        (np.float32),
+        (np.float64),
+        (np.int8),
+        (np.uint8),
+        (np.int16),
+        (np.uint16),
+        (np.int32),
+        (np.uint32),
+        (np.int64),
+        (bool),
+        (np.bool_),
+    ],
+)
+@pytest.mark.parametrize(
+    ("shared_flag"),
+    [
+        (True),
+        (False),
+    ],
+)
+@pytest.mark.parametrize(
+    ("data_getter"),
+    [
+        (DataGetter.COPY),
+        (DataGetter.VIEW),
+    ],
+)
 def test_init_with_scalar(init_value, src_dtype, dst_dtype, shared_flag, data_getter):
     data = src_dtype(init_value)
     # Create constant from based on numpy dtype or openvino type
@@ -177,10 +204,13 @@ def test_init_with_scalar(init_value, src_dtype, dst_dtype, shared_flag, data_ge
     assert np.allclose(const_data, expected_result)
 
 
-@pytest.mark.parametrize(("shared_flag"), [
-    (True),
-    (False),
-])
+@pytest.mark.parametrize(
+    ("shared_flag"),
+    [
+        (True),
+        (False),
+    ],
+)
 def test_write_to_buffer(shared_flag):
     arr_0 = np.ones([1, 3, 32, 32])
     ov_const = ops.constant(arr_0, shared_memory=shared_flag)
@@ -189,10 +219,13 @@ def test_write_to_buffer(shared_flag):
     assert np.array_equal(ov_const.data, arr_1)
 
 
-@pytest.mark.parametrize(("shared_flag"), [
-    (True),
-    (False),
-])
+@pytest.mark.parametrize(
+    ("shared_flag"),
+    [
+        (True),
+        (False),
+    ],
+)
 def test_memory_sharing(shared_flag):
     arr = np.ones([1, 3, 32, 32])
     ov_const = ops.constant(arr, shared_memory=shared_flag)
