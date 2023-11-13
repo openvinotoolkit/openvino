@@ -8,7 +8,6 @@
 #include "common_test_utils/test_constants.hpp"
 
 using namespace SubgraphTestsDefinitions;
-using namespace ngraph::helpers;
 
 namespace {
 
@@ -19,8 +18,10 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 const std::vector<size_t> numOutChannels = {16, 32};
 const std::vector<size_t> numGroups = {2, 8, 16};
 
-const std::vector<size_t > levels = {256};
-const std::vector<QuantizationGranularity > granularity = {QuantizationGranularity::Pertensor, QuantizationGranularity::Perchannel};
+const std::vector<size_t> levels = {256};
+const std::vector<ov::test::utils::QuantizationGranularity> granularity = {
+    ov::test::utils::QuantizationGranularity::Pertensor,
+    ov::test::utils::QuantizationGranularity::Perchannel};
 
 /* ============= 2D GroupConvolutionBackpropData ============= */
 const std::vector<std::vector<size_t >> inputShapes2D = {{1, 16, 10, 10}, {1, 32, 10, 10}};

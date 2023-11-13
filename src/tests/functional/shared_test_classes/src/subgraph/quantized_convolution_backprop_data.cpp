@@ -5,7 +5,6 @@
 #include "shared_test_classes/subgraph/quantized_convolution_backprop_data.hpp"
 
 namespace SubgraphTestsDefinitions {
-using ngraph::helpers::QuantizationGranularity;
 
 std::string QuantConvBackpropDataLayerTest::getTestCaseName(const testing::TestParamInfo<quantConvBackpropDataLayerTestParamsSet>& obj) {
     quantConvBackpropDataSpecificParams groupConvBackpropDataParams;
@@ -18,7 +17,7 @@ std::string QuantConvBackpropDataLayerTest::getTestCaseName(const testing::TestP
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t convOutChannels;
     size_t quantLevels;
-    QuantizationGranularity quantGranularity;
+    ov::test::utils::QuantizationGranularity quantGranularity;
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, quantLevels, quantGranularity) = groupConvBackpropDataParams;
 
     std::ostringstream result;
@@ -49,13 +48,13 @@ void QuantConvBackpropDataLayerTest::SetUp() {
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t convOutChannels;
     size_t quantLevels;
-    QuantizationGranularity quantGranularity;
+    ov::test::utils::QuantizationGranularity quantGranularity;
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, quantLevels, quantGranularity) = groupConvBackpropDataParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     std::vector<size_t> dataFqConstShapes(inputShape.size(), 1);
-    if (quantGranularity == QuantizationGranularity::Perchannel)
+    if (quantGranularity == ov::test::utils::QuantizationGranularity::Perchannel)
         dataFqConstShapes[1] = inputShape[1];
     auto dataFq = ngraph::builder::makeFakeQuantize(params[0], ngPrc, quantLevels, dataFqConstShapes);
 
@@ -66,7 +65,7 @@ void QuantConvBackpropDataLayerTest::SetUp() {
     auto weightsNode = ngraph::builder::makeConstant(ngPrc, weightsShapes, weightsData, weightsData.empty());
 
     std::vector<size_t> weightsFqConstShapes(weightsShapes.size(), 1);
-    if (quantGranularity == QuantizationGranularity::Perchannel)
+    if (quantGranularity == ov::test::utils::QuantizationGranularity::Perchannel)
         weightsFqConstShapes[0] = weightsShapes[0];
 
     auto weightsFq = ngraph::builder::makeFakeQuantize(weightsNode, ngPrc, quantLevels, weightsFqConstShapes);

@@ -24,7 +24,7 @@ typedef std::tuple<
         size_t,
         size_t,
         size_t,
-        ngraph::helpers::QuantizationGranularity,
+        ov::test::utils::QuantizationGranularity,
         bool> quantGroupConvSpecificParams;
 typedef std::tuple<
         quantGroupConvSpecificParams,

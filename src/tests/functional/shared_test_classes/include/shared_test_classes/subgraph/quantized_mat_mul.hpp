@@ -20,7 +20,7 @@ typedef std::tuple<
         uint64_t,
         QuantRange,
         QuantRange,
-        ngraph::helpers::QuantizationGranularity,
+        ov::test::utils::QuantizationGranularity,
         InferenceEngine::Precision> QuantParams;
 
 typedef std::tuple<
