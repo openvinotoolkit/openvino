@@ -73,7 +73,7 @@ After that the model can be compiled and run with OpenVINO:
          :language: python
          :fragment: [inference]
 
-To save the model in the OpenVINO&trade; Intermediate Representation (IR), use ``ov.save_model()``. When dealing with an original model in FP32 precision, it's advisable to preserve FP32 precision in the most impactful model operations that were reverted from INT8 to FP32. To do this, consider using compress_to_fp16=False during the saving process. This recommendation is based on the default functionality of ``ov.save_model()``, which saves models in FP16, potentially impacting accuracy through this conversion.
+To save the model in the OpenVINO Intermediate Representation (IR), use ``ov.save_model()``. When dealing with an original model in FP32 precision, it's advisable to preserve FP32 precision in the most impactful model operations that were reverted from INT8 to FP32. To do this, consider using compress_to_fp16=False during the saving process. This recommendation is based on the default functionality of ``ov.save_model()``, which saves models in FP16, potentially impacting accuracy through this conversion.
 
 .. tab-set::
 
