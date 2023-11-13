@@ -73,6 +73,17 @@ After that the model can be compiled and run with OpenVINO:
          :language: python
          :fragment: [inference]
 
+To save the model in the OpenVINO&trade; Intermediate Representation (IR), use ``ov.save_model()``. When dealing with an original model in FP32 precision, it's advisable to preserve FP32 precision in the most impactful model operations that were reverted from INT8 to FP32. To do this, consider using compress_to_fp16=False during the saving process. This recommendation is based on the default functionality of ``ov.save_model()``, which saves models in FP16, potentially impacting accuracy through this conversion.
+
+.. tab-set::
+
+   .. tab-item:: OpenVINO
+      :sync: openvino
+
+      .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_aa_openvino.py
+         :language: python
+         :fragment: [save]
+
 ``nncf.quantize_with_accuracy_control()`` API supports all the parameters from :doc:`Basic 8-bit quantization <basic_quantization_flow>` API, to quantize a model with accuracy control and a custom configuration.
 
 If the accuracy or performance of the quantized model is not satisfactory, you can try :doc:`Training-time Optimization <tmo_introduction>` as the next step.
