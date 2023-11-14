@@ -4,12 +4,12 @@
 
 #include "align_matmul_input_ranks.hpp"
 
-#include "ngraph/op/matmul.hpp"
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include "openvino/op/matmul.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include <transformations/utils/utils.hpp>
-#include <ngraph/pattern/op/or.hpp>
+#include "openvino/pass/pattern/op/or.hpp"
 
 #include <algorithm>
 #include "itt.hpp"
@@ -21,10 +21,10 @@ ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
         ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank())
     };
 
-    auto matmulPattern = ov::pass::pattern::wrap_type<ngraph::op::MatMul>(twoInputs);
+    auto matmulPattern = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>(twoInputs);
 
     ov::matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
-        auto matmul = std::dynamic_pointer_cast<ngraph::op::MatMul> (m.get_match_root());
+        auto matmul = std::dynamic_pointer_cast<ov::op::v0::MatMul> (m.get_match_root());
 
         if (!matmul || transformation_callback(matmul))
             return false;
@@ -55,9 +55,9 @@ ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
             if (transposedUnsqueeze) // special case for one-dimensional second input
                 unsqueeze_axes[unsqueeze_axes.size() - 1]++;
 
-            auto unsqueeze = std::make_shared<ngraph::opset1::Unsqueeze>(
+            auto unsqueeze = std::make_shared<ov::opset1::Unsqueeze>(
                 nodeFrom,
-                ngraph::opset1::Constant::create(ov::element::i64, ov::Shape{unsqueeze_axes.size()}, unsqueeze_axes));
+                ov::opset1::Constant::create(ov::element::i64, ov::Shape{unsqueeze_axes.size()}, unsqueeze_axes));
 
             unsqueeze->set_friendly_name(nodeFrom.get_node()->get_friendly_name() + "/Unsqueeze");
 
@@ -73,12 +73,12 @@ ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
             //                       to the left of the shape {S} -> {1, S}
             // for the second input: by adding axes with size 1 at COL_INDEX_DIM
             //                       to the right of the shape {S} -> {S, 1}
-            const auto unsqueezeInput0 = std::make_shared<ngraph::opset1::Unsqueeze>(
+            const auto unsqueezeInput0 = std::make_shared<ov::opset1::Unsqueeze>(
                 input0,
-                ngraph::opset1::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
-            const auto unsqueezeInput1 = std::make_shared<ngraph::opset1::Unsqueeze>(
+                ov::opset1::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
+            const auto unsqueezeInput1 = std::make_shared<ov::opset1::Unsqueeze>(
                 input1,
-                ngraph::opset1::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
+                ov::opset1::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
 
             matmul_new_inputs[0] = unsqueezeInput0;
             new_ops.push_back(unsqueezeInput0);
@@ -118,15 +118,15 @@ ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
             const bool can_squeeze_scalar =
                 new_output_partial_shape.is_static() ? ov::shape_size(new_output_partial_shape.to_shape()) == 1 : false;
             if (ov::is_scalar(output_shape) && can_squeeze_scalar) {
-                squeeze_output = std::make_shared<ngraph::op::v0::Squeeze>(matmul_new);
+                squeeze_output = std::make_shared<ov::op::v0::Squeeze>(matmul_new);
             } else {
                 if (input0shape.size() == 1)
                     squeeze_axis = new_out_shape_size - 2;
                 else if (input1shape.size() == 1)
                     squeeze_axis = new_out_shape_size - 1;
-                squeeze_output = std::make_shared<ngraph::op::v0::Squeeze>(
+                squeeze_output = std::make_shared<ov::op::v0::Squeeze>(
                     matmul_new,
-                    ngraph::opset1::Constant::create(ov::element::i64, ov::Shape{1}, {squeeze_axis}));
+                    ov::opset1::Constant::create(ov::element::i64, ov::Shape{1}, {squeeze_axis}));
             }
             new_ops.push_back(squeeze_output);
             matmul_new->set_friendly_name(matmul->get_friendly_name() + "/MM");
