@@ -201,14 +201,6 @@ snippets::CompiledSnippetPtr intel_cpu::CPUTargetMachine::get_snippet() {
     return result;
 }
 
-bool intel_cpu::CPUTargetMachine::is_err_detector_enabled() const {
-#ifdef CPU_DEBUG_CAPS
-        DebugCapsConfig debugCaps;
-        return !debugCaps.snippets_err_detector.empty();
-#endif
-        return false;
-}
-
 intel_cpu::CompiledSnippetCPU::CompiledSnippetCPU(std::unique_ptr<dnnl::impl::cpu::x64::jit_generator> h) : h_compiled(std::move(h)) {
     OPENVINO_ASSERT(h_compiled && h_compiled->jit_ker(), "Got invalid jit generator or kernel was nopt compiled");
 }
@@ -226,6 +218,12 @@ bool intel_cpu::CompiledSnippetCPU::empty() const {
 }
 
 intel_cpu::CPUGenerator::CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t isa_) : Generator(std::make_shared<CPUTargetMachine>(isa_)) {
+#ifdef CPU_DEBUG_CAPS
+    DebugCapsConfig debugCaps;
+    segfault_detector = !debugCaps.snippets_segfault_detector.empty();
+#else
+    segfault_detector = false;
+#endif
 }
 
 std::shared_ptr<snippets::Generator> intel_cpu::CPUGenerator::clone() const {
@@ -249,7 +247,7 @@ bool intel_cpu::CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snip
     bool need = std::dynamic_pointer_cast<intel_cpu::BrgemmEmitter>(e) ||
                 std::dynamic_pointer_cast<intel_cpu::BrgemmCopyBEmitter>(e);
 #ifdef SNIPPETS_DEBUG_CAPS
-    need = need ||
+    need = need || target->custom_segfault_detector ||
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_chrono_start_emitter>(e) ||
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_chrono_end_emitter>(e) ||
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_rdtsc_start_emitter>(e) ||
@@ -257,4 +255,5 @@ bool intel_cpu::CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snip
 #endif
     return need;
 }
+
 } // namespace ov

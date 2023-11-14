@@ -395,8 +395,12 @@ void Snippet::prepareParams() {
     SnippetKey key = {snippetAttrs};
 
     auto builder = [this](const SnippetKey& key) -> std::shared_ptr<SnippetExecutor> {
+        bool is_segfault_detector_on = false;
+#ifdef CPU_DEBUG_CAPS
+        is_segfault_detector_on = !context->getConfig().debugCaps.snippets_segfault_detector.empty();
+#endif
         std::shared_ptr<SnippetExecutor> executor =
-                std::make_shared<SnippetJitExecutor>(key.attrs, is_dynamic, context);
+                std::make_shared<SnippetJitExecutor>(key.attrs, is_dynamic, is_segfault_detector_on);
         return executor;
     };
 
@@ -515,35 +519,45 @@ void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMe
     const auto& dom = parallel_exec_domain;
     // < N, C, H, W > < 1, 1, N, C*H*W>
     const auto& callable = schedule.get_callable<kernel>();
+#ifdef __linux__
+    if (enable_segfault_detector) {
+        __sighandler_t signal_handler = [](int signal) {
+            std::lock_guard<std::mutex> guard(err_print_lock);
+            if (auto err_emitter = ov::intel_cpu::g_snippets_err_handler->local())
+            err_emitter->print_debug_info();
+            auto tid = parallel_get_thread_num();
+            OPENVINO_THROW("Segfault was caught by the signal handler in snippets node execution on thread " + std::to_string(tid));
+        };
+        struct sigaction new_handler{};
+        new_handler.sa_handler = signal_handler;
+        sigaction(SIGSEGV, &new_handler, nullptr);
+    }
+#endif
     parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
         [&](int64_t d0, int64_t d1, int64_t d2, int64_t d3, int64_t d4) {
             int64_t indexes[] = {d0, d1, d2, d3, d4};
             jit_snippets_call_args call_args;
             update_ptrs(call_args, inMemPtrs, outMemPtrs);
-#ifdef __linux__
-            if (enable_err_detector) {
-                __sighandler_t signal_handler = [](int signal) {
-                    std::lock_guard<std::mutex> guard(err_print_lock);
-                    if (auto err_emitter = ov::intel_cpu::g_snippets_err_handler->local())
-                        err_emitter->print_debug_info();
-                    auto tid = parallel_get_thread_num();
-                    OPENVINO_THROW("Segfault was caught by the signal handler in snippets node execution on thread " + std::to_string(tid));
-                };
-                struct sigaction new_handler{};
-                new_handler.sa_handler = signal_handler;
-                sigaction(SIGSEGV, &new_handler, nullptr);
-                callable(indexes, &call_args);
-            } else {
-                callable(indexes, &call_args);
-            }
-#else
             callable(indexes, &call_args);
-#endif
         });
 }
 
 void Snippet::SnippetJitExecutor::schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
     const auto& work_size = parallel_exec_domain;
+#ifdef __linux__
+    if (enable_segfault_detector) {
+        __sighandler_t signal_handler = [](int signal) {
+            std::lock_guard<std::mutex> guard(err_print_lock);
+            if (auto err_emitter = ov::intel_cpu::g_snippets_err_handler->local())
+                err_emitter->print_debug_info();
+            auto tid = parallel_get_thread_num();
+            OPENVINO_THROW("Segfault was caught by the signal handler in snippets node execution on thread " + std::to_string(tid));
+        };
+        struct sigaction new_handler{};
+        new_handler.sa_handler = signal_handler;
+        sigaction(SIGSEGV, &new_handler, nullptr);
+    }
+#endif
     parallel_nt(0, [&](const int ithr, const int nthr) {
         jit_snippets_call_args call_args;
         update_ptrs(call_args, inMemPtrs, outMemPtrs);
@@ -558,38 +572,20 @@ void Snippet::SnippetJitExecutor::schedule_nt(const std::vector<MemoryPtr>& inMe
                 indexes[j] = static_cast<int64_t>(tmp % work_size[j]);
                 tmp /= work_size[j];
             }
-#ifdef __linux__
-            if (enable_err_detector) {
-                __sighandler_t signal_handler = [](int signal) {
-                    std::lock_guard<std::mutex> guard(err_print_lock);
-                    if (auto err_emitter = ov::intel_cpu::g_snippets_err_handler->local())
-                        err_emitter->print_debug_info();
-                    auto tid = parallel_get_thread_num();
-                    OPENVINO_THROW("Segfault was caught by the signal handler in snippets node execution on thread " + std::to_string(tid));
-                };
-                struct sigaction new_handler{};
-                new_handler.sa_handler = signal_handler;
-                sigaction(SIGSEGV, &new_handler, nullptr);
-                schedule.get_callable<kernel>()(indexes.data(), &call_args);
-            } else {
-                schedule.get_callable<kernel>()(indexes.data(), &call_args);
-            }
-#else
             schedule.get_callable<kernel>()(indexes.data(), &call_args);
-#endif
         }
     });
 }
 
-Snippet::SnippetExecutor::SnippetExecutor(SnippetAttrs attrs, bool is_dynamic, const GraphContext::CPtr& context)
+Snippet::SnippetExecutor::SnippetExecutor(SnippetAttrs attrs, bool is_dynamic, const bool segfault_detector)
     : snippetAttrs(std::move(attrs)), is_dynamic(is_dynamic) {
 #ifdef CPU_DEBUG_CAPS
-    enable_err_detector = !context->getConfig().debugCaps.snippets_err_detector.empty();
+    enable_segfault_detector = segfault_detector;
 #endif
     }
 
-Snippet::SnippetJitExecutor::SnippetJitExecutor(SnippetAttrs attrs, bool is_dynamic, const GraphContext::CPtr& context) :
-    SnippetExecutor(std::move(attrs), is_dynamic, context) {
+Snippet::SnippetJitExecutor::SnippetJitExecutor(SnippetAttrs attrs, bool is_dynamic, const bool segfault_detector) :
+    SnippetExecutor(std::move(attrs), is_dynamic, segfault_detector) {
     numInput = snippetAttrs.inMemBlockedDims.size();
     numOutput = snippetAttrs.outMemBlockedDims.size();
     start_offset_in.resize(numInput);

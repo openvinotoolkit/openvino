@@ -46,7 +46,7 @@ public:
         k_mask = Xbyak::Opmask(1); // FIXME: in general case we need preserve k_mask state as well
 #ifdef CPU_DEBUG_CAPS
         DebugCapsConfig debugCaps;
-        m_snippets_err_detector = !debugCaps.snippets_err_detector.empty();
+        m_snippets_segfault_detector = !debugCaps.snippets_segfault_detector.empty();
 #endif
     }
 
@@ -152,7 +152,7 @@ protected:
 
     void build_debug_info() const;
     static void set_local_handler(jit_emitter* emitter_address);
-    bool m_snippets_err_detector = false;
+    bool m_snippets_segfault_detector = false;
 
     std::string get_type_name(const jit_emitter* emitter) const {
         std::string name = typeid(*emitter).name();

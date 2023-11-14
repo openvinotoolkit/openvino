@@ -204,7 +204,7 @@ KernelEmitter::KernelEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
 void KernelEmitter::emit_code(const std::vector<size_t> &in,
                               const std::vector<size_t> &out) const {
     validate_arguments(in, out);
-    if (m_snippets_err_detector)
+    if (m_snippets_segfault_detector)
         build_debug_info();
     emit_impl(in, out);
 }
@@ -363,7 +363,7 @@ void LoopBeginEmitter::print_debug_info() const {
 void LoopBeginEmitter::emit_code(const std::vector<size_t> &in,
                                  const std::vector<size_t> &out) const {
     validate_arguments(in, out);
-    if (m_snippets_err_detector)
+    if (m_snippets_segfault_detector)
         build_debug_info();
     emit_impl(in, out);
 }
@@ -420,7 +420,7 @@ void LoopEndEmitter::print_debug_info() const {
 void LoopEndEmitter::emit_code(const std::vector<size_t> &in,
                                  const std::vector<size_t> &out) const {
     validate_arguments(in, out);
-    if (m_snippets_err_detector)
+    if (m_snippets_segfault_detector)
         build_debug_info();
     emit_impl(in, out);
 }

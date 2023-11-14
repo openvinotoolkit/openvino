@@ -77,7 +77,7 @@ private:
 
     class SnippetExecutor {
         public:
-            SnippetExecutor(SnippetAttrs attrs, bool is_dynamic, const GraphContext::CPtr& context);
+            SnippetExecutor(SnippetAttrs attrs, bool is_dynamic, const bool segfault_detector);
             virtual void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
             virtual ~SnippetExecutor() = default;
             std::shared_ptr<IShapeInfer> shapeInference = nullptr;
@@ -85,14 +85,14 @@ private:
         protected:
             SnippetAttrs snippetAttrs;
             bool is_dynamic = false;
-            bool enable_err_detector = false;
+            bool enable_segfault_detector = false;
     };
 
     std::shared_ptr<SnippetExecutor> execPtr = nullptr;
 
     class SnippetJitExecutor : public SnippetExecutor {
         public:
-            SnippetJitExecutor(SnippetAttrs attrs, bool is_dynamic, const GraphContext::CPtr& context);
+            SnippetJitExecutor(SnippetAttrs attrs, bool is_dynamic, const bool segfault_detector);
             void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
 
             bool schedule_created();

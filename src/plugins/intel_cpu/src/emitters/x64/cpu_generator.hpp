@@ -30,7 +30,6 @@ public:
     snippets::CompiledSnippetPtr get_snippet() override;
     size_t get_lanes() const override;
     dnnl::impl::cpu::x64::cpu_isa_t get_isa() const;
-    bool is_err_detector_enabled() const override;
 
 private:
     std::unique_ptr<dnnl::impl::cpu::x64::jit_generator> h;
@@ -45,6 +44,7 @@ public:
 protected:
     bool uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& emitter) const override;
     opRegType get_specific_op_reg_type(const std::shared_ptr<ov::Node>& op) const override;
+    bool segfault_detector = false;
 };
 
 }   // namespace intel_cpu
