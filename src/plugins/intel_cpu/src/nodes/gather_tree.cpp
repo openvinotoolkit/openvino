@@ -34,23 +34,23 @@ GatherTree::GatherTree(const std::shared_ptr<ov::Node>& op, const GraphContext::
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = std::string("Node GatherTree with name '") + op->get_friendly_name() + "'";
     if (inputShapes.size() != 4)
-        IE_THROW() << errorPrefix << " has incorrect number of input edges.";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input edges.");
     if (outputShapes.size() != 1)
-        IE_THROW() << errorPrefix << " has incorrect number of output edges.";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of output edges.");
 
     if (getInputShapeAtPort(GATHER_TREE_STEP_IDX).getRank() != 3)
-        IE_THROW() << errorPrefix << " step_idx vector should be 3 dimension";
+        OPENVINO_THROW(errorPrefix, " step_idx vector should be 3 dimension");
     if (getInputShapeAtPort(GATHER_TREE_PARENT_IDX).getRank() != 3)
-        IE_THROW() << errorPrefix << " parent_idx vector should be 3 dimension";
+        OPENVINO_THROW(errorPrefix, " parent_idx vector should be 3 dimension");
     if (getInputShapeAtPort(GATHER_TREE_MAX_SEQ_LEN).getRank() != 1)
-        IE_THROW() << errorPrefix << " max_seq_len vector should be 1 dimension";
+        OPENVINO_THROW(errorPrefix, " max_seq_len vector should be 1 dimension");
     if (!is_scalar(op->get_input_partial_shape(GATHER_TREE_END_TOKEN)))
-        IE_THROW() << errorPrefix << " end_token should be scalar";
+        OPENVINO_THROW(errorPrefix, " end_token should be scalar");
 }
 
 void GatherTree::initSupportedPrimitiveDescriptors() {
@@ -65,7 +65,7 @@ void GatherTree::initSupportedPrimitiveDescriptors() {
         getOriginalInputPrecisionAtPort(GATHER_TREE_MAX_SEQ_LEN) != precision ||
         getOriginalInputPrecisionAtPort(GATHER_TREE_END_TOKEN)   != precision ||
         getOriginalOutputPrecisionAtPort(0)                 != precision) {
-            IE_THROW() << errorPrefix << " has incorrect input/output data precision. Must be the same.";
+            OPENVINO_THROW(errorPrefix, " has incorrect input/output data precision. Must be the same.");
     }
 
     addSupportedPrimDesc({{LayoutType::ncsp, precision},
@@ -78,7 +78,7 @@ void GatherTree::initSupportedPrimitiveDescriptors() {
 
 void GatherTree::execute(dnnl::stream strm) {
     if (!execPtr)
-        IE_THROW() << errorPrefix << " has not compiled executor.";
+        OPENVINO_THROW(errorPrefix, " has not compiled executor.");
 
     if (precision == Precision::FP32)
         execPtr->exec<float>(getParentEdgeAt(GATHER_TREE_STEP_IDX)->getMemoryPtr(),
@@ -101,15 +101,15 @@ void GatherTree::prepareParams() {
     const auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
 
     if (!stepIdxMemPtr || !stepIdxMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << " has not allocated input memory of 'step_ids'.";
+        OPENVINO_THROW(errorPrefix, " has not allocated input memory of 'step_ids'.");
     if (!parentIdxMemPtr || !parentIdxMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << " has not allocated input memory of 'parent_ids'.";
+        OPENVINO_THROW(errorPrefix, " has not allocated input memory of 'parent_ids'.");
     if (!maxSeqLenMemPtr || !maxSeqLenMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << " has not allocated input memory of 'max_seq_len'.";
+        OPENVINO_THROW(errorPrefix, " has not allocated input memory of 'max_seq_len'.");
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << " has not allocated output memory.";
+        OPENVINO_THROW(errorPrefix, " has not allocated output memory.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << errorPrefix << " has unidentified preferable primitive descriptor.";
+        OPENVINO_THROW(errorPrefix, " has unidentified preferable primitive descriptor.");
 
     const VectorDims& stepIdxDims = stepIdxMemPtr->getStaticDims();
     const VectorDims& parentIdxDims = parentIdxMemPtr->getStaticDims();
@@ -134,7 +134,7 @@ GatherTree::GatherTreeExecutor::GatherTreeExecutor(const VectorDims& stepIdxDims
         batchSize != parentIdxDims[1] || batchSize != dstDims[1] || batchSize != maxSeqLenDims[0] ||
         beamWidth != parentIdxDims[2] || beamWidth != dstDims[2]) {
         std::string errorMsg = "Input/Output tensors dimensions mismatch";
-        IE_THROW() << errorMsg;
+        OPENVINO_THROW(errorMsg);
     }
 }
 
@@ -178,7 +178,7 @@ void GatherTree::GatherTreeExecutor::exec(const MemoryPtr& stepIdxMemPtr, const 
 
     if (incorrectResult) {
         std::string errorMsg = "Wrong parent index, result is incorrect";
-        IE_THROW() << errorMsg;
+        OPENVINO_THROW(errorMsg);
     }
 }
 

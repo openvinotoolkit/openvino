@@ -308,7 +308,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ". Supported values: PERFORMANCE, ACCURACY");
             }
         } else {
-            IE_THROW(NotFound) << "Unsupported property " << key << " by CPU plugin";
+            OPENVINO_THROW("NotFound: Unsupported property ", key, " by CPU plugin.");
         }
     }
     // apply execution mode after all the params are handled to prevent possible conflicts

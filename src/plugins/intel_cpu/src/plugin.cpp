@@ -37,8 +37,6 @@
 
 using namespace ov::threading;
 
-#define IE_CPU_PLUGIN_THROW(...) IE_THROW(__VA_ARGS__) << "CPU plugin: "
-
 namespace ov {
 namespace intel_cpu {
 
@@ -531,8 +529,9 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
                                                                            ov::element::Type_t::boolean};
 
         if (!supported_precisions.count(input_precision)) {
-            IE_CPU_PLUGIN_THROW(NotImplemented)
-                        << "Input image format " << input_precision << " is not supported yet...";
+            OPENVINO_THROW_NOT_IMPLEMENTED("CPU plugin: Input image format ",
+                                           input_precision,
+                                           " is not supported yet...");
         }
     }
 
@@ -631,8 +630,11 @@ ov::Any Engine::get_property_legacy(const std::string& name, const ov::AnyMap& o
 }
 
 ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options) const {
-    if (is_legacy_api())
-        return get_property_legacy(name, options);
+    if (is_legacy_api()) {
+        auto ret = get_property_legacy(name, options);
+        if (!ret.empty())
+            return ret;
+    }
 
     if (name == ov::optimal_number_of_infer_requests) {
         const auto streams = engConfig.streamExecutorConfig._streams;
@@ -736,13 +738,16 @@ ov::Any Engine::get_metric_legacy(const std::string& name, const ov::AnyMap& opt
         return decltype(ov::internal::caching_properties)::value_type(std::move(cachingProperties));
     }
 
-    IE_CPU_PLUGIN_THROW() << "Unsupported metric key: " << name;
+    return {};
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& options) const {
-    if (is_legacy_api())
-        return get_metric_legacy(name, options);
+    if (is_legacy_api()) {
+        ov::Any ret = get_metric_legacy(name, options);
+        if (!ret.empty())
+            return ret;
+    }
 
     auto RO_property = [](const std::string& propertyName) {
         return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
@@ -819,7 +824,11 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */
-    return get_metric_legacy(name, options);
+    auto ret = get_metric_legacy(name, options);
+    if(!ret.empty())
+        return ret;
+
+    OPENVINO_THROW("Cannot get unsupport property: ", name);
 }
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -866,7 +875,7 @@ ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& 
             std::unique_ptr<Node> ptr;
             try {
                 ptr.reset(Node::factory().create(op, context));
-            } catch (const InferenceEngine::Exception&) {
+            } catch (const ov::Exception&) {
                 return false;
             }
             return true;
