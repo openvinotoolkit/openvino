@@ -477,8 +477,8 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         if (fmt_prev.dimension() > 6 || fmt_next.dimension() > 6)
             return false;
 
-        // Skip reorder fusing to permute when original permute output has bfxy and fusing output has bfzyx
-        if (allow_new_shape_infer && (fmt_prev.dimension() == 4) && (fmt_next.dimension() == 5) && (!node.get_users().front()->is_output()))
+        // Skip reorder fusing to permute when allow_new_shape_infer is True
+        if (allow_new_shape_infer)
             return false;
 
         return true;
