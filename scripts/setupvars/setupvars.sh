@@ -6,7 +6,8 @@
 abs_path () {
     script_path=$(eval echo "$1")
     directory=$(dirname "$script_path")
-    echo "$(cd "$directory" || exit; pwd -P)";
+    builtin cd "$directory" || exit
+    pwd -P
 }
 
 SCRIPT_DIR="$(abs_path "${BASH_SOURCE[0]}")" >/dev/null 2>&1

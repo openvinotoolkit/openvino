@@ -7,7 +7,6 @@
 #include "pass_manager.h"
 #include "program_helpers.h"
 
-#include "binary_convolution_inst.h"
 #include "reshape_inst.h"
 #include "convert_color_inst.h"
 #include "one_hot_inst.h"

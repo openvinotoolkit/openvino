@@ -7,8 +7,8 @@
 #include <mutex>
 
 #include <onednn/dnnl.h>
-#include <ngraph/op/detection_output.hpp>
-#include "ie_parallel.hpp"
+#include "openvino/op/detection_output.hpp"
+#include "openvino/core/parallel.hpp"
 #include "detection_output.h"
 
 using namespace dnnl;
@@ -51,7 +51,7 @@ bool DetectionOutput::isSupportedOperation(const std::shared_ptr<const ov::Node>
     return true;
 }
 
-DetectionOutput::DetectionOutput(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+DetectionOutput::DetectionOutput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

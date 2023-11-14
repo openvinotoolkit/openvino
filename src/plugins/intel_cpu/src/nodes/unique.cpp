@@ -4,7 +4,7 @@
 
 #include "unique.hpp"
 
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include <openvino/op/unique.hpp>
 #include "common/cpu_memcpy.h"
 #include <shape_inference/shape_inference_internal_dyn.hpp>
