@@ -353,7 +353,17 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
     _processors = system_info_table.size();
     _cpu_mapping_table.resize(_processors, std::vector<int>(CPU_MAP_TABLE_SIZE, -1));
 
-    auto update_proc_map_info = [&](const int nproc) {
+    auto clean_up_output = [&]() {
+        _processors = 0;
+        _cores = 0;
+        _numa_nodes = 0;
+        _sockets = 0;
+        _cpu_mapping_table.clear();
+        _proc_type_table.clear();
+        return;
+    };
+
+    auto update_proc_map_info = [&](const int nproc) -> int {
         if (-1 == _cpu_mapping_table[nproc][CPU_MAP_CORE_ID]) {
             int core_1 = 0;
             int core_2 = 0;
@@ -367,6 +377,10 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                 core_1 = std::stoi(sub_str);
                 sub_str = system_info_table[nproc][0].substr(endpos + 1);
                 core_2 = std::stoi(sub_str);
+                if ((core_1 != nproc) && (core_2 != nproc)) {
+                    clean_up_output();
+                    return -1;
+                }
 
                 _cpu_mapping_table[core_1][CPU_MAP_PROCESSOR_ID] = core_1;
                 _cpu_mapping_table[core_2][CPU_MAP_PROCESSOR_ID] = core_2;
@@ -428,7 +442,7 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                                                       ? _cpu_mapping_table[core_1][CPU_MAP_SOCKET_ID]
                                                       : _proc_type_table[0][PROC_SOCKET_ID];
         }
-        return;
+        return 0;
     };
 
     std::vector<int> line_value_0({0, 0, 0, 0, -1, -1});
@@ -459,14 +473,18 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                     for (int m = core_1; m <= core_2; m++) {
                         _cpu_mapping_table[m][CPU_MAP_SOCKET_ID] = _sockets;
                         _cpu_mapping_table[m][CPU_MAP_NUMA_NODE_ID] = _cpu_mapping_table[m][CPU_MAP_SOCKET_ID];
-                        update_proc_map_info(m);
+                        if (update_proc_map_info(m) == -1) {
+                            return;
+                        };
                     }
                 } else if (pos != std::string::npos) {
                     sub_str = system_info_table[n][2].substr(pos);
                     core_1 = std::stoi(sub_str);
                     _cpu_mapping_table[core_1][CPU_MAP_SOCKET_ID] = _sockets;
                     _cpu_mapping_table[core_1][CPU_MAP_NUMA_NODE_ID] = _cpu_mapping_table[core_1][CPU_MAP_SOCKET_ID];
-                    update_proc_map_info(core_1);
+                    if (update_proc_map_info(core_1) == -1) {
+                        return;
+                    };
                     endpos = pos;
                 }
 
