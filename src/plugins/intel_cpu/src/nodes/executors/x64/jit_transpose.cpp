@@ -12,7 +12,7 @@ namespace ov {
 namespace intel_cpu {
 void JitTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const int MB) {
     if (!pKernel)
-        IE_THROW() << "Could not execute. Kernel for Transpose node was not compiled.";
+        OPENVINO_THROW("Could not execute. Kernel for Transpose node was not compiled.");
 
     const uint8_t* srcData = reinterpret_cast<const uint8_t*>(src[0]->getData());
     uint8_t* dstData = reinterpret_cast<uint8_t*>(dst[0]->getData());

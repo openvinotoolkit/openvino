@@ -33,7 +33,7 @@ Ngram::Ngram(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
     : Node(op, context, NgramShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     const auto ngram = ov::as_type_ptr<const NgramNode>(op);
@@ -107,7 +107,7 @@ void Ngram::execute(dnnl::stream strm) {
     } else if (idcesPrecision == InferenceEngine::Precision::I64) {
         batchLenghts = computeBatchLenghts<std::int64_t>();
     } else {
-        IE_THROW() << "Unsupported idces precision: " << idcesPrecision;
+        OPENVINO_THROW("Unsupported idces precision: ", idcesPrecision);
     }
 
     /* The following procedure applied to each batch:

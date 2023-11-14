@@ -190,6 +190,9 @@ protected:
 /// \throws ::ov::Exception if the macro is executed.
 #define OPENVINO_THROW(...) OPENVINO_THROW_HELPER(::ov::Exception, ov::Exception::default_msg, __VA_ARGS__)
 
+#define OPENVINO_THROW_NOT_IMPLEMENTED(...) \
+    OPENVINO_ASSERT_HELPER(::ov::NotImplemented, ::ov::Exception::default_msg, false, __VA_ARGS__)
+
 #define OPENVINO_NOT_IMPLEMENTED OPENVINO_ASSERT_HELPER(::ov::NotImplemented, ::ov::Exception::default_msg, false)
 
 #define GLUE(x, y) x y

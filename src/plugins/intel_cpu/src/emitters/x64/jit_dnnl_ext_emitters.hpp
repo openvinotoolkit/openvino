@@ -154,7 +154,9 @@ public:
         else if (approximationMode == ov::op::GeluApproximationMode::TANH)
             kind = dnnl_eltwise_gelu_tanh;
         else
-            IE_THROW(NotImplemented) << "Subgraph node doesn't support ngraph operation Gelu with approximation mode: " << approximationMode;
+            OPENVINO_THROW_NOT_IMPLEMENTED(
+                "Subgraph node doesn't support ngraph operation Gelu with approximation mode: ",
+                approximationMode);
 
         set_injector();
     }
@@ -171,7 +173,8 @@ public:
         const auto mode = round->get_mode();
         if ((mode != ov::opset5::Round::RoundMode::HALF_AWAY_FROM_ZERO) &&
             (mode != ov::opset5::Round::RoundMode::HALF_TO_EVEN)) {
-            IE_THROW(NotImplemented) << "Round emitter doesn't support ngraph operation Round with mode: " << static_cast<int>(mode);
+            OPENVINO_THROW_NOT_IMPLEMENTED("Round emitter doesn't support ngraph operation Round with mode: ",
+                                           static_cast<int>(mode));
         }
 
         kind = mode == ov::opset5::Round::RoundMode::HALF_AWAY_FROM_ZERO ?

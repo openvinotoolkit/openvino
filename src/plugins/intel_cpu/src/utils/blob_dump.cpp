@@ -55,7 +55,7 @@ static IEB_HEADER prepare_header(const MemoryDesc& desc) {
     header.precision = desc.getPrecision();
 
     if (desc.getShape().getRank() > 7)
-        IE_THROW() << "Dumper support max 7D blobs";
+        OPENVINO_THROW("Dumper support max 7D blobs");
 
     header.ndims = desc.getShape().getRank();
     const auto &dims = desc.getShape().getStaticDims();
@@ -72,11 +72,11 @@ static DnnlBlockedMemoryDesc parse_header(IEB_HEADER &header) {
         header.magic[1] != IEB_MAGIC[1] ||
         header.magic[2] != IEB_MAGIC[2] ||
         header.magic[3] != IEB_MAGIC[3])
-        IE_THROW() << "Dumper cannot parse file. Wrong format.";
+        OPENVINO_THROW("Dumper cannot parse file. Wrong format.");
 
     if (header.ver[0] != 0 ||
         header.ver[1] != 1)
-        IE_THROW() << "Dumper cannot parse file. Unsupported IEB format version.";
+        OPENVINO_THROW("Dumper cannot parse file. Unsupported IEB format version.");
 
     const auto prc = Precision(static_cast<Precision::ePrecision>(header.precision));
     SizeVector dims(header.ndims);
@@ -133,13 +133,13 @@ void BlobDumper::prepare_plain_data(const MemoryPtr &memory, std::vector<uint8_t
             break;
         }
         default:
-            IE_THROW() << "Dumper. Unsupported precision";
+            OPENVINO_THROW("Dumper. Unsupported precision");
     }
 }
 
 void BlobDumper::dump(std::ostream &stream) const {
     if (memory == nullptr)
-        IE_THROW() << "Dumper cannot dump. Memory is not allocated.";
+        OPENVINO_THROW("Dumper cannot dump. Memory is not allocated.");
 
     IEB_HEADER header = prepare_header(memory->getDesc());
     std::vector<uint8_t> data;
@@ -156,7 +156,7 @@ void BlobDumper::dump(std::ostream &stream) const {
 
 void BlobDumper::dumpAsTxt(std::ostream &stream) const {
     if (memory == nullptr)
-        IE_THROW() << "Dumper cannot dump. Memory is not allocated.";
+        OPENVINO_THROW("Dumper cannot dump. Memory is not allocated.");
 
     const auto &desc = memory->getDesc();
     const auto dims = desc.getShape().getStaticDims();
@@ -237,7 +237,7 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) const {
         }
         default:
             break;
-            IE_THROW() << "Dumper. Unsupported precision";
+            OPENVINO_THROW("Dumper. Unsupported precision");
     }
 }
 
@@ -258,7 +258,7 @@ BlobDumper BlobDumper::read(const std::string &file_path) {
     std::ifstream file;
     file.open(file_path);
     if (!file.is_open())
-        IE_THROW() << "Dumper cannot open file " << file_path;
+        OPENVINO_THROW("Dumper cannot open file ", file_path);
 
     auto res = read(file);
     file.close();
@@ -269,7 +269,7 @@ void BlobDumper::dump(const std::string &dump_path) const {
     std::ofstream dump_file;
     dump_file.open(dump_path, std::ios::binary);
     if (!dump_file.is_open())
-        IE_THROW() << "Dumper cannot create dump file " << dump_path;
+        OPENVINO_THROW("Dumper cannot create dump file ", dump_path);
 
     dump(dump_file);
     dump_file.close();
@@ -279,7 +279,7 @@ void BlobDumper::dumpAsTxt(const std::string& dump_path) const {
     std::ofstream dump_file;
     dump_file.open(dump_path);
     if (!dump_file.is_open())
-        IE_THROW() << "Dumper cannot create dump file " << dump_path;
+        OPENVINO_THROW("Dumper cannot create dump file ", dump_path);
 
     dumpAsTxt(dump_file);
     dump_file.close();

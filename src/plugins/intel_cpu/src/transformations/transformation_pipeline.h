@@ -15,8 +15,6 @@
 #include <memory>
 #include <vector>
 
-#define IE_CPU_PLUGIN_THROW(...) IE_THROW(__VA_ARGS__) << "CPU plugin: "
-
 namespace ov {
 namespace intel_cpu {
 

@@ -31,17 +31,17 @@ ReorgYolo::ReorgYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = std::string(op->get_type_name()) + " node with name '" + op->get_friendly_name() + "'";
     if (getOriginalInputsNumber() != 1 || getOriginalOutputsNumber() != 1)
-        IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
 
     const auto reorgYolo = std::dynamic_pointer_cast<const ov::opset2::ReorgYolo>(op);
     const auto strides = reorgYolo->get_strides();
     if (strides.empty())
-        IE_THROW() << errorPrefix << " has empty strides";
+        OPENVINO_THROW(errorPrefix, " has empty strides");
     stride = strides[0];
 }
 

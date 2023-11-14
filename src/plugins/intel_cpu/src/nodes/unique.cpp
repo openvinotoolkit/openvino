@@ -13,7 +13,7 @@ using namespace InferenceEngine;
 using namespace ov::intel_cpu;
 using namespace ov::intel_cpu::node;
 
-#define THROW_ERROR IE_THROW() << getTypeStr() << " node with name '" << getName() << "' "
+#define THROW_ERROR(...) OPENVINO_THROW(getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
 
 bool Unique::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -36,11 +36,11 @@ Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
         Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     if (!one_of(op->get_input_size(), 1u, 2u) || op->get_output_size() != 4)
-        THROW_ERROR << "has incorrect number of input/output edges.";
+        THROW_ERROR("has incorrect number of input/output edges.");
 
     for (int i = 0; i < 4; i++) {
         definedOutputs[i] = !op->get_output_target_inputs(i).empty();
@@ -54,7 +54,8 @@ Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
             axis += op->get_input_partial_shape(IN_DATA).rank().get_length();
         }
         if (axis < 0 || axis >= op->get_input_partial_shape(IN_DATA).rank().get_length()) {
-            THROW_ERROR << "has invalid axis value: " << ov::as_type<op::v0::Constant>(op->get_input_node_ptr(AXIS))->cast_vector<int>()[0];
+            THROW_ERROR("has invalid axis value: ",
+                        ov::as_type<op::v0::Constant>(op->get_input_node_ptr(AXIS))->cast_vector<int>()[0]);
         }
     } else {
         flattened = true;
@@ -90,18 +91,18 @@ void Unique::createPrimitive() {
 void Unique::prepareParams() {
     auto dataMemPtr = getParentEdgeAt(IN_DATA)->getMemoryPtr();
     if (!dataMemPtr || !dataMemPtr->isAllocated()) {
-        THROW_ERROR << " has not allocated input data memory.";
+        THROW_ERROR(" has not allocated input data memory.");
     }
     for (int i = 0; i < 4; i++) {
         if (definedOutputs[i]) {
             auto dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
             if (!dstMemPtr || !dstMemPtr->isAllocated()) {
-                THROW_ERROR << " has not allocated output memory at port " << i;
+                THROW_ERROR(" has not allocated output memory at port ", i);
             }
         }
     }
     if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_ERROR << " has unidentified preferable primitive descriptor.";
+        THROW_ERROR(" has unidentified preferable primitive descriptor.");
     }
 
     size_t srcLen = 1;

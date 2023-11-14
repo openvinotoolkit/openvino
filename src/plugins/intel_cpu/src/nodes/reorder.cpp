@@ -32,7 +32,7 @@ bool Reorder::isExecutable() const {
 
 Reorder::Reorder(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
         Node(op, context, PassThroughShapeInferFactory()) {
-    IE_THROW() << "Can't create reorder node from ngraph node";
+    OPENVINO_THROW("Can't create reorder node from ngraph node");
 }
 
 Reorder::Reorder(const std::string& name, const GraphContext::CPtr context) :
@@ -40,9 +40,9 @@ Reorder::Reorder(const std::string& name, const GraphContext::CPtr context) :
 
 void Reorder::getSupportedDescriptors() {
     if (getParentEdges().size() != 1)
-        IE_THROW() << "Incorrect number of input edges for layer " << getName();
+        OPENVINO_THROW("Incorrect number of input edges for layer ", getName());
     if (getChildEdges().empty())
-        IE_THROW() << "Incorrect number of output edges for layer " << getName();
+        OPENVINO_THROW("Incorrect number of output edges for layer ", getName());
 }
 
 void Reorder::initSupportedPrimitiveDescriptors() {
@@ -71,7 +71,7 @@ void Reorder::initSupportedPrimitiveDescriptors() {
         config.inConfs[0].setMemDesc(parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc());
         config.outConfs[0].setMemDesc(child->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc());
     } else {
-        IE_THROW() << "Cannot initialize supported PDs for Reorder node with name `" << getName() << "`";
+        OPENVINO_THROW("Cannot initialize supported PDs for Reorder node with name `", getName(), "`");
     }
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::reorder);
@@ -83,7 +83,9 @@ void Reorder::initSupportedPrimitiveDescriptors() {
     }
 
     if (isDynamic && (config.inConfs[0].getMemDesc()->getShape().getRank() != config.outConfs[0].getMemDesc()->getShape().getRank()))
-        IE_THROW() << "Reorder node with name: " << getName() << " doesn't support case when input and output shapes have different rank and dynamic";
+        OPENVINO_THROW("Reorder node with name: ",
+                       getName(),
+                       " doesn't support case when input and output shapes have different rank and dynamic");
     if (!isOptimized) {
         const auto &inShape = getInputShapeAtPort(0);
         if (one_of(inShape.getRank(), 4u, 5u) &&
@@ -178,11 +180,11 @@ void Reorder::prepareParams() {
     auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << "Destination memory didn't allocate.";
+        OPENVINO_THROW("Destination memory didn't allocate.");
     if (!srcMemPtr || !srcMemPtr->isAllocated())
-        IE_THROW() << "Input memory didn't allocate.";
+        OPENVINO_THROW("Input memory didn't allocate.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
+        OPENVINO_THROW("Preferable primitive descriptor is not set.");
 
     auto isSupportedDesc = [](const MemoryDesc& desc) {
         if (!desc.isDefined()) {
@@ -237,11 +239,11 @@ void Reorder::prepareParams() {
     }
     if (!canUseNcsp2Nspc && !canUseNspc2Ncsp) {
         if (!dstMemPtr || !dstMemPtr->isAllocated())
-            IE_THROW() << "Destination memory didn't allocate.";
+            OPENVINO_THROW("Destination memory didn't allocate.");
         if (!srcMemPtr || !srcMemPtr->isAllocated())
-            IE_THROW() << "Input memory didn't allocate.";
+            OPENVINO_THROW("Input memory didn't allocate.");
         if (getSelectedPrimitiveDescriptor() == nullptr)
-            IE_THROW() << "Preferable primitive descriptor is not set.";
+            OPENVINO_THROW("Preferable primitive descriptor is not set.");
 
         createReorderPrimitive(srcMemPtr->getDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), srcMemPtr->getData(),
                                dstMemPtr->getDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), dstMemPtr->getData());
@@ -254,7 +256,7 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
                                      void* dstPtr) {
     auto selectedPD = getSelectedPrimitiveDescriptor();
     if (!selectedPD)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
+        OPENVINO_THROW("Preferable primitive descriptor is not set.");
 
     const auto engine = getEngine();
     src_blocked = std::make_shared<Memory>(engine, DnnlExtensionUtils::makeDescriptor(srcDesc), srcPtr, false);
@@ -299,7 +301,7 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
 
     auto result = getReorderPrim(context->getParamsCache(), getEngine(), src_desc, dst_desc);
     if (!result) {
-        IE_THROW() << "Cannot create reorder primitive: unsupported reorder case";
+        OPENVINO_THROW("Cannot create reorder primitive: unsupported reorder case");
     }
     prim = result;
 
@@ -417,7 +419,7 @@ void Reorder::execute(dnnl::stream strm) {
         if (prim) {
             prim.execute(strm, primArgs);
         } else {
-            IE_THROW() << "Reorder node with name " << getName() << " doesn't have an initialized primitive";
+            OPENVINO_THROW("Reorder node with name ", getName(), " doesn't have an initialized primitive");
         }
     }
 }
@@ -439,7 +441,7 @@ std::string Reorder::getReorderArgs(const MemoryDesc &parentDesc, const MemoryDe
 
 void Reorder::reorderData(const IMemory &input, const IMemory &output, MultiCachePtr cache) {
     if (!input.getDesc().isDefined() || !output.getDesc().isDefined())
-        IE_THROW() << "Can't reorder data with dynamic shapes";
+        OPENVINO_THROW("Can't reorder data with dynamic shapes");
 
     if (input.getShape().hasZeroDims() || output.getShape().hasZeroDims()) {
         return;
@@ -480,15 +482,17 @@ void Reorder::reorderData(const IMemory &input, const IMemory &output, MultiCach
                 reorder = getReorderPrim(cache, dstMemory.get_engine(), srcMemory.get_desc(), dstMemory.get_desc());
             }
             if (!reorder) {
-                IE_THROW() << "No reorder available for the following tensor descriptors: "
-                    << input.getDesc().serializeFormat() << " and " << output.getDesc().serializeFormat();
+                OPENVINO_THROW("No reorder available for the following tensor descriptors: ",
+                               input.getDesc().serializeFormat(),
+                               " and ",
+                               output.getDesc().serializeFormat());
             }
         }
         if (reorder) {
             dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
             reorder.execute(loc_stream, {{DNNL_ARG_FROM, srcMemory}, {DNNL_ARG_TO, dstMemory}});
         } else {
-            IE_THROW() << "Could not make onednn reorder.";
+            OPENVINO_THROW("Could not make onednn reorder.");
         }
     }
 }

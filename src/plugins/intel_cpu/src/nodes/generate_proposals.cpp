@@ -270,7 +270,7 @@ void fill_output_blobs(const float* proposals, const int* roi_indices,
         int64_t num = static_cast<int64_t>(num_rois);
         memcpy(roi_num, &num, sizeof(int64_t));
     } else {
-        IE_THROW() << "Incorrect element type of roi_num!";
+        OPENVINO_THROW("Incorrect element type of roi_num!");
     }
 }
 
@@ -293,7 +293,7 @@ GenerateProposals::GenerateProposals(const std::shared_ptr<ov::Node>& op, const 
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     auto proposalOp = ov::as_type_ptr<const ov::op::v9::GenerateProposals>(op);
@@ -330,7 +330,7 @@ void GenerateProposals::executeDynamicImpl(dnnl::stream strm) {
 void GenerateProposals::execute(dnnl::stream strm) {
     try {
         if (inputShapes.size() != 4 || outputShapes.size() != 3) {
-            IE_THROW() << "Incorrect number of input or output edges!";
+            OPENVINO_THROW("Incorrect number of input or output edges!");
         }
 
         size_t anchor_dims_size = 1;
@@ -345,7 +345,7 @@ void GenerateProposals::execute(dnnl::stream strm) {
             deltas_dims_size *= deltaDims[i];
         }
         if (anchor_dims_size != deltas_dims_size)
-            IE_THROW() << "'Anchors' blob size for GenerateProposals is incompatible with 'deltas' blob size!";
+            OPENVINO_THROW("'Anchors' blob size for GenerateProposals is incompatible with 'deltas' blob size!");
 
         size_t score_dims_size = 1;
         const auto &scoreDims = getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims();
@@ -353,7 +353,7 @@ void GenerateProposals::execute(dnnl::stream strm) {
             score_dims_size *= scoreDims[i];
         }
         if (deltas_dims_size != (4 * score_dims_size))
-            IE_THROW() << "'Deltas' blob size for GenerateProposals is incompatible with 'scores' blob size!";
+            OPENVINO_THROW("'Deltas' blob size for GenerateProposals is incompatible with 'scores' blob size!");
 
         size_t im_info_dims_size = 1;
         const auto &infoDims = getParentEdgeAt(INPUT_IM_INFO)->getMemory().getStaticDims();
@@ -461,7 +461,7 @@ void GenerateProposals::execute(dnnl::stream strm) {
         memcpy(p_roi_num_item, &roi_num[0], getChildEdgesAtPort(OUTPUT_ROI_NUM)[0]->getMemoryPtr()->getSize());
     } catch (const std::exception &e) {
         std::string errorMsg = e.what();
-        IE_THROW() << errorMsg;
+        OPENVINO_THROW(errorMsg);
     }
 }
 

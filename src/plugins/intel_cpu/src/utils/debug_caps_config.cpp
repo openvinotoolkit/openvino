@@ -25,7 +25,7 @@ void DebugCapsConfig::readProperties() {
         else if (format == "TEXT")
             return FORMAT::TEXT;
         else
-            IE_THROW() << "readDebugCapsProperties: Unknown dump format";
+            OPENVINO_THROW("readDebugCapsProperties: Unknown dump format");
     };
 
     const char* envVarValue = nullptr;

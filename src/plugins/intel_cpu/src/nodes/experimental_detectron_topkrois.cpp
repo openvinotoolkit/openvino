@@ -35,20 +35,21 @@ ExperimentalDetectronTopKROIs::ExperimentalDetectronTopKROIs(const std::shared_p
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = "ExperimentalDetectronTopKROIs layer with name '" + op->get_friendly_name() + "'";
     const auto topKROI = std::dynamic_pointer_cast<const ov::opset6::ExperimentalDetectronTopKROIs>(op);
     if (topKROI == nullptr)
-        IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
-            "' is not an instance of ExperimentalDetectronTopKROIs from opset6.";
+        OPENVINO_THROW("Operation with name '",
+                       op->get_friendly_name(),
+                       "' is not an instance of ExperimentalDetectronTopKROIs from opset6.");
 
     if (inputShapes.size() != 2 || outputShapes.size() != 1)
-        IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
 
     if (getInputShapeAtPort(INPUT_ROIS).getRank() != 2 || getInputShapeAtPort(INPUT_PROBS).getRank() != 1)
-        IE_THROW() << errorPrefix << " has unsupported input shape";
+        OPENVINO_THROW(errorPrefix, " has unsupported input shape");
 
     max_rois_num_ = topKROI->get_max_rois();
 }

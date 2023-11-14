@@ -113,7 +113,7 @@ struct TransposeOptimizedEmitter {
                 transpose_to_051234<T>(ctx.MB, ctx.srcMemPtr, ctx.dstMemPtr);
                 break;
             default:
-                IE_THROW() << "Transpose supports optimized execution with only 4D, 5D and 6D shapes";
+                OPENVINO_THROW("Transpose supports optimized execution with only 4D, 5D and 6D shapes");
         }
     }
 };

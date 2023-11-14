@@ -16,7 +16,7 @@
 #include <cmath>
 #include <common/primitive_hashing_utils.hpp>
 
-#define THROW_SHCH_ERROR IE_THROW() << "ShuffleChannels layer with name '" << getName() << "' "
+#define THROW_SHCH_ERROR(...) OPENVINO_THROW("ShuffleChannels layer with name '", getName(), "' ", __VA_ARGS__)
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -69,11 +69,11 @@ ShuffleChannels::ShuffleChannels(const std::shared_ptr<ov::Node>& op, const Grap
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     if (inputShapes.size() != 1 || outputShapes.size() != 1)
-        THROW_SHCH_ERROR << "has incorrect number of input/output edges.";
+        THROW_SHCH_ERROR("has incorrect number of input/output edges.");
 
     auto shuffleChannels = ov::as_type_ptr<const ov::op::v0::ShuffleChannels>(op);
     attrs.group = shuffleChannels->get_group();
@@ -90,7 +90,7 @@ void ShuffleChannels::initSupportedPrimitiveDescriptors() {
     InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
     const std::set<size_t> supported_precision_sizes = {1, 2, 4, 8, 16};
     if (supported_precision_sizes.find(precision.size()) == supported_precision_sizes.end())
-        THROW_SHCH_ERROR << "has unsupported precision: " << precision.name();
+        THROW_SHCH_ERROR("has unsupported precision: ", precision.name());
 
     impl_desc_type impl_type;
     if (mayiuse(cpu::x64::avx512_core)) {
@@ -128,11 +128,11 @@ void ShuffleChannels::createPrimitive() {
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        THROW_SHCH_ERROR << "has not allocated destination memory";
+        THROW_SHCH_ERROR("has not allocated destination memory");
     if (!srcMemPtr || !srcMemPtr->isAllocated())
-        THROW_SHCH_ERROR << "has not allocated input memory";
+        THROW_SHCH_ERROR("has not allocated input memory");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_SHCH_ERROR << "has unidentified preferable primitive descriptor";
+        THROW_SHCH_ERROR("has unidentified preferable primitive descriptor");
 
     const auto& memoryDesc = srcMemPtr->getDesc();
     attrs.spatialRank = attrs.dataRank - attrs.axis - 1;
@@ -159,7 +159,7 @@ void ShuffleChannels::prepareParams() {
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(attrs, builder);
     if (!result.first) {
-        IE_THROW() << "ShuffleChannelsExecutor was not found for node " << getName() << ".";
+        OPENVINO_THROW("ShuffleChannelsExecutor was not found for node ", getName(), ".");
     }
 
     execPtr = result.first;
@@ -167,7 +167,7 @@ void ShuffleChannels::prepareParams() {
 
 ShuffleChannels::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs) {
     if (!one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp))
-        IE_THROW() << "ShuffleChannels executor supports only 'nCsp16c', 'nCsp8c', 'nspc' or 'ncsp' layouts.";
+        OPENVINO_THROW("ShuffleChannels executor supports only 'nCsp16c', 'nCsp8c', 'nspc' or 'ncsp' layouts.");
 
     const bool isBlocked = one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
     const bool isChannelsLast = attrs.layoutType == LayoutType::nspc;
@@ -276,7 +276,7 @@ ShuffleChannels::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleC
 
 void ShuffleChannels::ShuffleChannelsExecutor::exec(const uint8_t* srcData, uint8_t* dstData, const int MB) {
     if (!permuteKernel)
-        IE_THROW() << "Could not execute. Kernel for Transpose node was not compiled.";
+        OPENVINO_THROW("Could not execute. Kernel for Transpose node was not compiled.");
 
     if (MB > 0)
         permuteKernel->execute(srcData, dstData, MB);
@@ -290,7 +290,7 @@ void ShuffleChannels::executeDynamicImpl(dnnl::stream strm) {
 
 void ShuffleChannels::execute(dnnl::stream strm) {
     if (!execPtr)
-        THROW_SHCH_ERROR << "doesn't have a compiled executor.";
+        THROW_SHCH_ERROR("doesn't have a compiled executor.");
 
     int MB = (attrs.axis != 0) ? getParentEdgeAt(0)->getMemoryPtr()->getStaticDims()[0] : -1;
 

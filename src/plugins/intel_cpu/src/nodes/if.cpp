@@ -62,7 +62,7 @@ If::If(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
         Node(op, context, InternalDynShapeInferFactory()), ovOp(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 }
 
@@ -80,8 +80,10 @@ void If::getSupportedDescriptors() {
         if (inNode != inMapThen.end()) {
             inputMemThen.push_back(getToMemories(inNode->second.get(), 0));
         } else {
-            IE_THROW() << "Then body of node If with name " << getName() << " does not have input with name: "
-                    << param->get_friendly_name();
+            OPENVINO_THROW("Then body of node If with name ",
+                           getName(),
+                           " does not have input with name: ",
+                           param->get_friendly_name());
         }
     }
 
@@ -91,8 +93,10 @@ void If::getSupportedDescriptors() {
         if (inNode != inMapElse.end()) {
             inputMemElse.push_back(getToMemories(inNode->second.get(), 0));
         } else {
-            IE_THROW() << "Else body of node If with name " << getName() << " does not have input with name: "
-                    << param->get_friendly_name();
+            OPENVINO_THROW("Else body of node If with name ",
+                           getName(),
+                           " does not have input with name: ",
+                           param->get_friendly_name());
         }
     }
 
@@ -105,8 +109,7 @@ void If::getSupportedDescriptors() {
             auto outMem = outNode->second->getParentEdgeAt(0)->getMemoryPtr();
             outputMemThen.push_back(outMem);
         } else {
-            IE_THROW() << "Then body of node If with name " << getName() << " does not have output with name: "
-                    << inputID;
+            OPENVINO_THROW("Then body of node If with name ", getName(), " does not have output with name: ", inputID);
         }
     }
 
@@ -119,8 +122,7 @@ void If::getSupportedDescriptors() {
             auto outMem = outNode->second->getParentEdgeAt(0)->getMemoryPtr();
             outputMemElse.push_back(outMem);
         } else {
-            IE_THROW() << "Else body of node If with name " << getName() << " does not have output with name: "
-                    << inputID;
+            OPENVINO_THROW("Else body of node If with name ", getName(), " does not have output with name: ", inputID);
         }
     }
 

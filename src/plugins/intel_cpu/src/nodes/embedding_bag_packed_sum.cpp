@@ -32,11 +32,11 @@ EmbeddingBagPackedSum::EmbeddingBagPackedSum(const std::shared_ptr<ov::Node>& op
       EmbeddingBagSum(op, 2lu, 1lu, 2lu, 3lu) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     if (getInputShapeAtPort(INDICES_IDX).getRank() != 2ul)
-        IE_THROW() << "'" << _layerName << "' layer has indices data with invalid rank.";
+        OPENVINO_THROW("'", _layerName, "' layer has indices data with invalid rank.");
 }
 
 void EmbeddingBagPackedSum::initSupportedPrimitiveDescriptors() {
@@ -52,12 +52,12 @@ void EmbeddingBagPackedSum::initSupportedPrimitiveDescriptors() {
         inDataPrecision = Precision::FP32;
     if (!supportedPrecisions.empty()) {
         if (supportedPrecisions.find(inDataPrecision) == supportedPrecisions.end())
-            IE_THROW() << logPrefix << "has unsupported precision: " << inDataPrecision.name();
+            OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.name());
     } else {
         static const std::set<Precision> defaultSupportedPrecisions =
                 {Precision::FP32, Precision::I8, Precision::U8, Precision::I32};
         if (defaultSupportedPrecisions.find(inDataPrecision) == defaultSupportedPrecisions.end())
-            IE_THROW() << logPrefix << "has unsupported precision: " << inDataPrecision.name();
+            OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.name());
     }
 
     std::vector<PortConfigurator> inDataConfigurators({{LayoutType::ncsp, inDataPrecision},
@@ -80,7 +80,7 @@ void EmbeddingBagPackedSum::initFromInputs() {
 
 void EmbeddingBagPackedSum::getIndices(size_t embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
     if (static_cast<size_t>(embIndex) >= _batch * _indicesPerBag)
-        IE_THROW() << "Invalid embedding bag index.";
+        OPENVINO_THROW("Invalid embedding bag index.");
 
     withWeight = true;
 

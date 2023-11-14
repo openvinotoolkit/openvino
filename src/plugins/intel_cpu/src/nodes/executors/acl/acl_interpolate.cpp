@@ -100,7 +100,7 @@ void ov::intel_cpu::ACLInterpolateExecutor::exec(const std::vector<MemoryCPtr>& 
 bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
         const ov::intel_cpu::InterpolateAttrs &interpolateAttrs, const std::vector<MemoryDescPtr> &srcDescs,
         const std::vector<MemoryDescPtr> &dstDescs) {
-    IE_ASSERT(srcDescs[0]->getShape().getDims().size() == 4);
+    OPENVINO_ASSERT(srcDescs[0]->getShape().getDims().size() == 4);
 
     auto& inp_shape = srcDescs[0]->getShape().getDims();
     auto& out_shape = dstDescs[0]->getShape().getDims();

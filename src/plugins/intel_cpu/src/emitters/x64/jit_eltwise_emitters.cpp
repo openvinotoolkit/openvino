@@ -1464,7 +1464,7 @@ jit_power_static_emitter::jit_power_static_emitter(x64::jit_generator *host, x64
 : jit_emitter(host, host_isa, exec_prc) {
     auto powerStaticNode = ov::as_type_ptr<ov::snippets::op::PowerStatic>(node);
     if (powerStaticNode == nullptr) {
-        IE_THROW() << "Can't cast to snippets::op::PowerStatic";
+        OPENVINO_THROW("Can't cast to snippets::op::PowerStatic");
     }
 
     power = powerStaticNode->get_power();
@@ -2047,7 +2047,7 @@ void jit_is_finite_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, co
     } else if (host_isa_ == x64::sse41) {
         emit_isa<x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else {
-        IE_THROW() << "jit_is_finite_emitter doesn't support ISA " << host_isa_;
+        OPENVINO_THROW("jit_is_finite_emitter doesn't support ISA ", host_isa_);
     }
 }
 
@@ -2120,7 +2120,7 @@ void jit_is_inf_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const
     } else if (host_isa_ == x64::sse41) {
         emit_isa<x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else {
-        IE_THROW() << "jit_is_inf_emitter doesn't support ISA " << host_isa_;
+        OPENVINO_THROW("jit_is_inf_emitter doesn't support ISA ", host_isa_);
     }
 }
 
@@ -2170,7 +2170,7 @@ void jit_is_nan_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const
     } else if (host_isa_ == x64::sse41) {
         emit_isa<x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else {
-        IE_THROW() << "jit_is_nan_emitter doesn't support ISA " << host_isa_;
+        OPENVINO_THROW("jit_is_nan_emitter doesn't support ISA ", host_isa_);
     }
 }
 

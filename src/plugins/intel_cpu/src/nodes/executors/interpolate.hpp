@@ -94,7 +94,7 @@ inline size_t getSpatialDimsNum(const Dim rank) {
         case 5:
             return 3;
         default:
-            IE_THROW() << "Can't define number spatial";
+            OPENVINO_THROW("Can't define number spatial");
     }
 }
 

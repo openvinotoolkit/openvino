@@ -32,14 +32,14 @@ EmbeddingBagOffsetSum::EmbeddingBagOffsetSum(const std::shared_ptr<ov::Node>& op
       EmbeddingBagSum(op, 3lu, 1lu, 4lu, 3lu) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     if (getInputShapeAtPort(INDICES_IDX).getRank() != 1ul)
-        IE_THROW() << "'" << _layerName << "' layer has indices data with invalid rank.";
+        OPENVINO_THROW("'", _layerName, "' layer has indices data with invalid rank.");
 
     if (getInputShapeAtPort(OFFSETS_IDX).getRank() != 1ul)
-        IE_THROW() << "'" << _layerName << "' layer's offsets data has invalid rank.";
+        OPENVINO_THROW("'", _layerName, "' layer's offsets data has invalid rank.");
 }
 
 void EmbeddingBagOffsetSum::initSupportedPrimitiveDescriptors() {
@@ -55,12 +55,12 @@ void EmbeddingBagOffsetSum::initSupportedPrimitiveDescriptors() {
         inDataPrecision = Precision::FP32;
     if (!supportedPrecisions.empty()) {
         if (supportedPrecisions.find(inDataPrecision) == supportedPrecisions.end())
-            IE_THROW() << logPrefix << "has unsupported precision: " << inDataPrecision.name();
+            OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.name());
     } else {
         static const std::set<Precision> defaultSupportedPrecisions =
                 {Precision::FP32, Precision::I8, Precision::U8, Precision::I32};
         if (defaultSupportedPrecisions.find(inDataPrecision) == defaultSupportedPrecisions.end())
-            IE_THROW() << logPrefix << "has unsupported precision: " << inDataPrecision.name();
+            OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.name());
     }
 
     std::vector<PortConfigurator> inDataConfigurators({{LayoutType::ncsp, inDataPrecision},
@@ -91,10 +91,10 @@ void EmbeddingBagOffsetSum::initFromInputs() {
 
 void EmbeddingBagOffsetSum::getIndices(size_t embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
     if (static_cast<size_t>(embIndex) >= _offsetsLen) {
-        IE_THROW() << "Invalid embedding bag index.";
+        OPENVINO_THROW("Invalid embedding bag index.");
     }
     if (static_cast<size_t>(offsetsData_[embIndex]) >= _indicesLen) {
-        IE_THROW() << "Offset value exceeds indices size.";
+        OPENVINO_THROW("Offset value exceeds indices size.");
     }
 
     indices = nullptr;

@@ -31,13 +31,13 @@ Range::Range(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr conte
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = "Range layer with name '" + op->get_friendly_name() + "'";
 
     if (getOriginalInputsNumber() != 3 || getOriginalOutputsNumber() != 1)
-        IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
 
     SizeVector start_dims = op->get_input_shape(RANGE_START);
     if (ov::shape_size(start_dims) != 1)
@@ -53,7 +53,7 @@ Range::Range(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr conte
 
     size_t dstRank = op->get_output_partial_shape(0).size();
     if (dstRank > 1)
-        IE_THROW() << errorPrefix << " has unsupported rank for output: " << dstRank;
+        OPENVINO_THROW(errorPrefix, " has unsupported rank for output: ", dstRank);
 }
 
 void Range::initSupportedPrimitiveDescriptors() {
@@ -101,11 +101,11 @@ void Range::execute(dnnl::stream strm) {
             retcode = rangeKernel<int32_t>();
             break;
         default:
-            IE_THROW() << "Incorrect output precision. Only FP32 and I32 are supported!";
+            OPENVINO_THROW("Incorrect output precision. Only FP32 and I32 are supported!");
     }
     if (retcode == PARAMETER_MISMATCH) {
         std::string errorMsg = "Range indexes exceeds data tensor dimension";
-        IE_THROW() << errorMsg;
+        OPENVINO_THROW(errorMsg);
     }
 }
 

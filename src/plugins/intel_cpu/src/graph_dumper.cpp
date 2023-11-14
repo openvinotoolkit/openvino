@@ -129,7 +129,7 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph) {
             int ch_port = edge->getOutputNum();
             auto pr_node = edge->getParent();
 
-            IE_ASSERT(node2layer.count(pr_node) == 1);
+            OPENVINO_ASSERT(node2layer.count(pr_node) == 1);
             auto pr = node2layer[pr_node];
 
             inputs[ch_port] = pr->output(pr_port);
@@ -218,7 +218,7 @@ void serialize(const Graph &graph) {
     else if (!path.compare(path.size() - 4, 4, ".xml"))
         serializeToXML(graph, path);
     else
-        IE_THROW() << "Unknown serialize format. Should be either 'cout' or '*.xml'. Got " << path;
+        OPENVINO_THROW("Unknown serialize format. Should be either 'cout' or '*.xml'. Got ", path);
 }
 
 void serializeToXML(const Graph &graph, const std::string& path) {

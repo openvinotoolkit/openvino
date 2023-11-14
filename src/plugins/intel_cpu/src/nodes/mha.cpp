@@ -26,7 +26,7 @@ using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::cpu::x64::matmul;
 using namespace Xbyak;
 
-#define THROW_ERROR IE_THROW() << getTypeStr() << " node with name '" << getName() << "' "
+#define THROW_ERROR(...) OPENVINO_THROW(getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
 
 namespace ov {
 namespace intel_cpu {
@@ -752,7 +752,7 @@ MHA::MHA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     const auto mha = std::dynamic_pointer_cast<const MHANode>(op);
@@ -812,7 +812,7 @@ void MHA::init_brgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKerne
     auto status = brgemm_desc_init(&brgDesc, isa, brgemm_strd, ctx.dt_in0, ctx.dt_in1,
             false, false, brgemm_row_major, 1.f, ctx.beta, ctx.LDA, ctx.LDB, ctx.LDC, ctx.M, ctx.N, ctx.K, &strides);
     if (status != dnnl_success) {
-        THROW_ERROR << "cannot be executed due to invalid brgconv params";
+        THROW_ERROR("cannot be executed due to invalid brgconv params");
     }
 
     ctx.is_with_amx = use_amx;
@@ -826,11 +826,11 @@ void MHA::init_brgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKerne
     brgemm_kernel_t* brgKernel_ = nullptr;
     status = brgemm_kernel_create(&brgKernel_, brgDesc);
     if (status != dnnl_success) {
-        THROW_ERROR << "cannot be executed due to invalid brgconv params";
+        THROW_ERROR("cannot be executed due to invalid brgconv params");
     }
     brgKernel.reset(brgKernel_);
 #else
-    THROW_ERROR << "is not supported on non-x86_64";
+    THROW_ERROR("is not supported on non-x86_64");
 #endif // OPENVINO_ARCH_X86_64
 }
 
@@ -890,7 +890,7 @@ void MHA::init_brgemm_copy_b(std::unique_ptr<jit_brgemm_matmul_copy_b_t>& brgCop
 #if defined(OPENVINO_ARCH_X86_64)
     auto ret = create_brgemm_matmul_copy_b(brgCopyKernel, &brgCopyKernelConf);
     if ( ret != dnnl::impl::status_t::dnnl_success )
-        THROW_ERROR << "cannot create_brgemm_matmul_copy_b kernel, dnnl_status: " << ret;
+        THROW_ERROR("cannot create_brgemm_matmul_copy_b kernel, dnnl_status: ", ret);
 #endif // OPENVINO_ARCH_X86_64
 }
 
@@ -1111,7 +1111,7 @@ void MHA::prepareParams() {
         }
 #endif // OPENVINO_ARCH_X86_64
         if (!mulAddSoftmaxKernel) {
-            THROW_ERROR << "cannot create jit eltwise kernel";
+            THROW_ERROR("cannot create jit eltwise kernel");
         }
     }
 
@@ -1135,7 +1135,7 @@ void MHA::prepareParams() {
         }
 #endif // OPENVINO_ARCH_X86_64
         if (!convertReorderKernel) {
-            THROW_ERROR << "cannot create jit eltwise kernel";
+            THROW_ERROR("cannot create jit eltwise kernel");
         }
     }
 
@@ -1162,7 +1162,7 @@ void MHA::prepareParams() {
 #endif // OPENVINO_ARCH_X86_64
 
         if (!convertTransposeKernel) {
-            THROW_ERROR << "cannot create jit eltwise kernel";
+            THROW_ERROR("cannot create jit eltwise kernel");
         }
     }
 
@@ -1210,7 +1210,7 @@ void MHA::callBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel
         brgemm_kernel_execute(brgKernel.get(), 1, pin0, pin1, nullptr, pout, wsp);
     }
 #else
-    THROW_ERROR << "is not supported on non-x64 platforms";
+    THROW_ERROR("is not supported on non-x64 platforms");
 #endif // OPENVINO_ARCH_X86_64
 }
 
@@ -1428,7 +1428,7 @@ void MHA::execute(dnnl::stream strm) {
     } else if (inputPrecisions[1] == Precision::I8) {
         mhaImpl<int8_t>();
     } else {
-        THROW_ERROR << "doesn't support provided input precisions";
+        THROW_ERROR("doesn't support provided input precisions");
     }
 }
 

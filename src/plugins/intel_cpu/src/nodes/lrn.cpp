@@ -125,7 +125,7 @@ Lrn::Lrn(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) 
         k = static_cast<float>(lrn->get_bias());
         size = lrn->get_nsize();
     } else {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 }
 
@@ -134,9 +134,9 @@ void Lrn::getSupportedDescriptors() {
         return;
 
     if (getParentEdges().size() != 2)
-        IE_THROW() << errorPrefix << " has incorrect number of input edges";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input edges");
     if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << " has incorrect number of output edges";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of output edges");
 
     InferenceEngine::Precision precision = getOriginalOutputPrecisionAtPort(0);
     if (precision != InferenceEngine::Precision::FP32 && precision != InferenceEngine::Precision::BF16)
@@ -166,13 +166,13 @@ void Lrn::prepareParams() {
     auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!srcMemPtr || !srcMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << " input memory did not allocate";
+        OPENVINO_THROW(errorPrefix, " input memory did not allocate");
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << "destination memory did not allocate";
+        OPENVINO_THROW(errorPrefix, "destination memory did not allocate");
 
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        IE_THROW() << errorPrefix << "preferable primitive descriptor did not set";
+        OPENVINO_THROW(errorPrefix, "preferable primitive descriptor did not set");
 
     auto inpDesc = getParentEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
 
@@ -207,7 +207,7 @@ void Lrn::prepareParams() {
     auto result = cache->getOrCreate(key, builder);
     execPtr = result.first;
     if (!execPtr) {
-        IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+        OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
     }
 
     auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
@@ -251,7 +251,7 @@ void Lrn::execute(dnnl::stream strm) {
     if (execPtr) {
         execPtr->exec(primArgs, strm);
     } else {
-        IE_THROW() << errorPrefix << " doesn't have an initialized executor";
+        OPENVINO_THROW(errorPrefix, " doesn't have an initialized executor");
     }
 }
 
