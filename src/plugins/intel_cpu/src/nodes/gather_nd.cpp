@@ -6,9 +6,9 @@
 #include <vector>
 #include <string>
 #include <dnnl_types.h>
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "gather_nd.h"
-#include <ngraph/opsets/opset8.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <precision_utils.h>
 #include <utils/general_utils.h>
 #include "common/cpu_memcpy.h"
@@ -21,9 +21,9 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool GatherND::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool GatherND::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(), ngraph::op::v5::GatherND::get_type_info_static(), ngraph::op::v8::GatherND::get_type_info_static())) {
+        if (!one_of(op->get_type_info(), ov::op::v5::GatherND::get_type_info_static(), ov::op::v8::GatherND::get_type_info_static())) {
             errorMessage = "Node is not an instance of the GatherND operation from operation set v5 and v8.";
             return false;
         }
@@ -34,7 +34,7 @@ bool GatherND::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& o
     return true;
 }
 
-GatherND::GatherND(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+GatherND::GatherND(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -47,9 +47,9 @@ GatherND::GatherND(const std::shared_ptr<ngraph::Node>& op, const GraphContext::
     const size_t dataInputRank = getInputShapeAtPort(GATHERND_DATA).getRank();
     const size_t indicesInputRank = getInputShapeAtPort(GATHERND_INDEXES).getRank();
 
-    if (auto gatherNdOp = ngraph::as_type_ptr<const ngraph::op::v8::GatherND>(op)) {
+    if (auto gatherNdOp = ov::as_type_ptr<const ov::op::v8::GatherND>(op)) {
         attrs.batchDims = gatherNdOp->get_batch_dims();
-    } else if (auto gatherNdOp = ngraph::as_type_ptr<const ngraph::op::v5::GatherND>(op)) {
+    } else if (auto gatherNdOp = ov::as_type_ptr<const ov::op::v5::GatherND>(op)) {
         attrs.batchDims = gatherNdOp->get_batch_dims();
     } else {
         THROW_ERROR << "has support only opset5.";

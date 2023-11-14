@@ -130,10 +130,13 @@ protected:
                 params[3]->set_element_type(ElementType::i64);
             }
         }
+        ov::OutputVector paramsOuts;
+        for (const auto& param : params)
+            paramsOuts.push_back(param);
 
         std::vector<ov::Shape> WRB = {{numDirections, 3 * hiddenSize, inputSize}, {numDirections, 3 * hiddenSize, hiddenSize},
                 {numDirections, (linearBeforeReset ? 4 : 3) * hiddenSize}, {batchSize}};
-        auto augruSequenceOp = ngraph::builder::makeAUGRU(ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
+        auto augruSequenceOp = ngraph::builder::makeAUGRU(paramsOuts,
                                                      WRB,
                                                      hiddenSize,
                                                      true,

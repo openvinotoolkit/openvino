@@ -8,7 +8,7 @@
 #include <immintrin.h>
 #endif
 
-namespace InferenceEngine {
+namespace ov {
 namespace Extensions {
 namespace Cpu {
 
@@ -361,4 +361,4 @@ namespace SSE42 {
 
 }  // namespace Cpu
 }  // namespace Extensions
-}  // namespace InferenceEngine
+}  // namespace ov

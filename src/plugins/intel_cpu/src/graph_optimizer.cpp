@@ -26,12 +26,11 @@
 
 #include "onednn/dnnl.h"
 
-#include <blob_factory.hpp>
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <ie_ngraph_utils.hpp>
 
 // WA for xbyak.h
@@ -326,16 +325,22 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
 
         const auto mulParent = multiplyNode->getParentEdgesAtPort(0)[0]->getParent();
         const bool withSubtract = mulParent->getAlgorithm() == Algorithm::EltwiseSubtract;
-        NodePtr subtractNode, subtractConstNode;
+        NodePtr subtractNode, subtractConvertNode, subtractConstNode;
         if (withSubtract) {
             subtractNode = mulParent;
             if (!expectedNode(subtractNode, Type::Eltwise))
                 continue;
-            subtractConstNode = subtractNode->getParentEdgesAtPort(1)[0]->getParent();
+            auto subtractParent = subtractNode->getParentEdgesAtPort(1)[0]->getParent();
+            if (expectedNode(subtractParent, Type::Convert)) {
+                subtractConvertNode = subtractParent;
+                subtractParent = subtractConvertNode->getParentEdgesAtPort(0)[0]->getParent();
+            }
+            subtractConstNode = subtractParent;
             if (!expectedNode(subtractConstNode, Type::Input))
                 continue;
         }
 
+        const bool withSubtractConvert = subtractConvertNode != nullptr;
         const bool withPowerStatic = mulParent->getAlgorithm() == Algorithm::EltwisePowerStatic;
         NodePtr powerStaticNode;
         if (withPowerStatic) {
@@ -365,12 +370,6 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
             continue;
 
         // Precision limitations
-        if (multiplyConstNode->getOriginalOutputPrecisionAtPort(0) != Precision::FP32)
-            continue;
-        if (withSubtract && subtractConstNode->getOriginalOutputPrecisionAtPort(0) != Precision::FP32)
-            continue;
-        if (withPowerStatic && powerStaticNode->getOriginalOutputPrecisionAtPort(0) != Precision::FP32)
-            continue;
         if (supportedDataPrecisions.find(fcNode->getOriginalInputPrecisionAtPort(0)) == supportedDataPrecisions.end())
             continue;
         if (supportedWeightsPrecisions.find(weightsNode->getOriginalOutputPrecisionAtPort(0)) == supportedWeightsPrecisions.end())
@@ -404,9 +403,17 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
             decompressionConstShape = withTranspose ? VectorDims{N, 1, O} : VectorDims{O, N, 1};
             groupNum = N;
         }
-        if (multiplyConstNode->getOutputShapeAtPort(0).getDims() != decompressionConstShape)
+
+        auto check_decompression_shape = [&decompressionConstShape](const VectorDims& shape_to_check) {
+            if (shape_to_check.size() > decompressionConstShape.size())
+                return false;
+            const auto comparison_start_pos = decompressionConstShape.size() - shape_to_check.size();
+            // in case of different ranks shapes are compared taking into account ranks numpy broadcasting
+            return std::equal(shape_to_check.begin(), shape_to_check.end(), decompressionConstShape.begin() + comparison_start_pos);
+        };
+        if (!check_decompression_shape(multiplyConstNode->getOutputShapeAtPort(0).getDims()))
             continue;
-        if (withSubtract && subtractConstNode->getOutputShapeAtPort(0).getDims() != decompressionConstShape)
+        if (withSubtract && !check_decompression_shape(subtractConstNode->getOutputShapeAtPort(0).getDims()))
             continue;
 
         // HW specific shape limitations
@@ -461,6 +468,11 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         fcNode->addOriginalLayer(multiplyNode->getOriginalLayers());
         fcNode->addOriginalLayer(convertNode->getOriginalLayers());
 
+        if (withSubtractConvert) {
+            fcNode->addOriginalLayer(subtractConvertNode->getOriginalLayers());
+            auto subtractConvertEdge = subtractConvertNode->getChildEdges()[0].lock();
+            graph.RemoveEdge(subtractConvertEdge);
+        }
         if (withSubtract) {
             fcNode->addOriginalLayer(subtractNode->getOriginalLayers());
             auto subtractConstEdge = subtractConstNode->getChildEdges()[0].lock();
@@ -474,6 +486,8 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         graph.RemoveEdge(multiplyConstEdge);
 
         graph.DropNode(convertNode);
+        if (withSubtractConvert)
+            graph.DropNode(subtractConvertNode);
         if (withSubtract)
             graph.DropNode(subtractNode);
         if (withPowerStatic)
@@ -617,11 +631,11 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
                     // Bias -> Reshape -> Conv/Deconv/FC
                     const VectorDims flattenShape = {biasOutputShape.getElementsCount()};
                     // Construct Ngraph Reshape node and CPU Reshape node.
-                    auto reshapeConstInput = std::make_shared<ngraph::opset1::Constant>(ov::element::i32, ngraph::Shape{1}, flattenShape);
-                    auto reshapeDummyInput = std::make_shared<ngraph::opset1::Parameter>(
+                    auto reshapeConstInput = std::make_shared<ov::opset1::Constant>(ov::element::i32, ov::Shape{1}, flattenShape);
+                    auto reshapeDummyInput = std::make_shared<ov::opset1::Parameter>(
                                                 details::convertPrecision(biasNode->getOriginalOutputPrecisionAtPort(0)),
                                                 biasOutputShape.toPartialShape());
-                    const auto reshape = std::make_shared<ngraph::opset1::Reshape>(reshapeDummyInput, reshapeConstInput, false);
+                    const auto reshape = std::make_shared<ov::opset1::Reshape>(reshapeDummyInput, reshapeConstInput, false);
                     reshape->set_friendly_name(biasNode->getName() + "_flatten_reshape");
                     const auto cpuReshapeNode = std::make_shared<ov::intel_cpu::node::Reshape>(reshape, graph.getGraphContext());
                     // Insert Reshape between bias node and Conv/Deconv/FC
@@ -2647,9 +2661,9 @@ void GraphOptimizer::reshapeRnnSeq(Graph &graph) {
             auto edge = childrenEdges[j];
             auto childNode = edge->getChild();
 
-            const auto secondInput = std::make_shared<ngraph::opset1::Constant>(ov::element::i32, ngraph::Shape{1}, std::vector<int>{1});
-            const auto unsqueeze = std::make_shared<ngraph::opset1::Unsqueeze>(
-                std::make_shared<ngraph::opset1::Parameter>(details::convertPrecision(parentNode->getOriginalOutputPrecisionAtPort(0)),
+            const auto secondInput = std::make_shared<ov::opset1::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{1});
+            const auto unsqueeze = std::make_shared<ov::opset1::Unsqueeze>(
+                std::make_shared<ov::opset1::Parameter>(details::convertPrecision(parentNode->getOriginalOutputPrecisionAtPort(0)),
                                                             parentNode->getOutputShapeAtPort(0).toPartialShape()), secondInput);
             unsqueeze->set_friendly_name(parentNode->getName() + "_abc_a1bc_" + std::to_string(j));
 
