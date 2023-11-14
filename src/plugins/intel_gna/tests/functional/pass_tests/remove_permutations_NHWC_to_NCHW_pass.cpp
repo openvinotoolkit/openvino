@@ -481,7 +481,8 @@ protected:
             std::accumulate(std::begin(inputShape), std::end(inputShape), 1, std::multiplies<double>());
         ov::ParameterVector params{
             std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 2 * in_total_dims_size})};
-        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto split_axis_op =
+            std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
         auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, 2);
 
         auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64,

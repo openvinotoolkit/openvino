@@ -92,7 +92,8 @@ protected:
         auto etlwise_result_node = std::make_shared<ngraph::opset9::Multiply>(concat, etlwise_node);
 
         ov::ResultVector results{std::make_shared<ngraph::opset9::Result>(etlwise_result_node)};
-        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{axis});
+        auto split_axis_op =
+            std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{axis});
         auto split_node = std::make_shared<ov::op::v1::Split>(concat, split_axis_op, 2);
 
         auto assign_node = std::make_shared<ngraph::opset9::Assign>(split_node->output(1), var);

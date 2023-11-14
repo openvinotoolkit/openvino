@@ -34,7 +34,8 @@ namespace SubgraphTestsDefinitions {
         configuration.insert(config.begin(), config.end());
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::ParameterVector input {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{splitAxis});
+        auto split_axis_op =
+            std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{static_cast<int64_t>(splitAxis)});
         auto split = std::make_shared<ov::op::v1::Split>(input[0], split_axis_op, 2);
 
         auto permute_in_params = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64,

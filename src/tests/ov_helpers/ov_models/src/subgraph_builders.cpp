@@ -237,9 +237,9 @@ std::shared_ptr<ov::Model> makeSplitConvConcat(std::vector<size_t> inputShape, o
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     params.front()->set_friendly_name("Param_1");
     params.front()->get_output_tensor(0).set_names({"input_tensor"});
-    auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+    auto split_axis_op =
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
     auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, 2);
-
 
     auto conv1 = ngraph::builder::makeConvolution(split->output(0),
                                                   ngPrc,
@@ -301,9 +301,9 @@ std::shared_ptr<ov::Model> makeSplitMultiConvConcat(std::vector<size_t> inputSha
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     params.front()->set_friendly_name("Param_1");
     params.front()->get_output_tensor(0).set_names({"input_tensor"});
-    auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+    auto split_axis_op =
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
     auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, 2);
-
 
     auto conv1_0 = ngraph::builder::makeConvolution(split->output(0),
                                                     ngPrc,
@@ -700,9 +700,9 @@ std::shared_ptr<ov::Model> makeNestedBranchConvConcat(std::vector<size_t> inputS
 
 std::shared_ptr<ov::Model> makeNestedSplitConvConcat(std::vector<size_t> inputShape, ov::element::Type ngPrc) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+    auto split_axis_op =
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
     auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, 2);
-
 
     auto conv1 = ngraph::builder::makeConvolution(split->output(0),
                                                   ngPrc,
@@ -726,7 +726,8 @@ std::shared_ptr<ov::Model> makeNestedSplitConvConcat(std::vector<size_t> inputSh
                                                   10);
     auto relu2 = std::make_shared<ov::op::v0::Relu>(conv2);
 
-    auto split2_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+    auto split2_axis_op =
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
     auto split2 = std::make_shared<ov::op::v1::Split>(relu2, split2_axis_op, 2);
 
     auto conv3 = ngraph::builder::makeConvolution(split2->output(0),
@@ -763,9 +764,9 @@ std::shared_ptr<ov::Model> makeNestedSplitConvConcat(std::vector<size_t> inputSh
 std::shared_ptr<ov::Model> makeSplitConvConcatInputInBranch(std::vector<size_t> inputShape, ov::element::Type ngPrc) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape)),
                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+    auto split_axis_op =
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
     auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, 2);
-
 
     auto conv1 = ngraph::builder::makeConvolution(split->output(0),
                                                   ngPrc,
@@ -825,7 +826,8 @@ std::shared_ptr<ov::Model> makeSplitConvConcatNestedInBranch(std::vector<size_t>
                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     int localId = 0;
 #define SET_NAME(node) node->set_friendly_name(#node + std::to_string(localId++));
-    auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+    auto split_axis_op =
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
     auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, 2);
 
     SET_NAME(split);
@@ -857,7 +859,8 @@ std::shared_ptr<ov::Model> makeSplitConvConcatNestedInBranch(std::vector<size_t>
     SET_NAME(relu2);
 
     auto nestedSubgraph = [&] {
-        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto split_axis_op =
+            std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
         auto split = std::make_shared<ov::op::v1::Split>(params[1], split_axis_op, 2);
 
         SET_NAME(split);
@@ -888,7 +891,8 @@ std::shared_ptr<ov::Model> makeSplitConvConcatNestedInBranch(std::vector<size_t>
         auto relu2 = std::make_shared<ov::op::v0::Relu>(conv2);
         SET_NAME(relu2);
 
-        auto split2_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto split2_axis_op =
+            std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
         auto split2 = std::make_shared<ov::op::v1::Split>(relu2, split2_axis_op, 2);
 
         SET_NAME(split2);
@@ -971,7 +975,8 @@ std::shared_ptr<ov::Model> makeSplitConvConcatNestedInBranchNestedOut(std::vecto
                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     int localId = 0;
 #define SET_NAME(node) node->set_friendly_name(#node + std::to_string(localId++));
-    auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+    auto split_axis_op =
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
     auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, 2);
 
     SET_NAME(split);
@@ -1002,7 +1007,8 @@ std::shared_ptr<ov::Model> makeSplitConvConcatNestedInBranchNestedOut(std::vecto
     auto relu2 = std::make_shared<ov::op::v0::Relu>(conv2);
     SET_NAME(relu2);
 
-    auto split3_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+    auto split3_axis_op =
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
     auto split3 = std::make_shared<ov::op::v1::Split>(relu2, split3_axis_op, 2);
     SET_NAME(split3);
 
@@ -1020,7 +1026,8 @@ std::shared_ptr<ov::Model> makeSplitConvConcatNestedInBranchNestedOut(std::vecto
     SET_NAME(relu32);
 
     auto nestedSubgraph = [&] {
-        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto split_axis_op =
+            std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
         auto split = std::make_shared<ov::op::v1::Split>(params[1], split_axis_op, 2);
         SET_NAME(split);
 
@@ -1050,7 +1057,8 @@ std::shared_ptr<ov::Model> makeSplitConvConcatNestedInBranchNestedOut(std::vecto
         auto relu2 = std::make_shared<ov::op::v0::Relu>(conv2);
         SET_NAME(relu2);
 
-        auto split2_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto split2_axis_op =
+            std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
         auto split2 = std::make_shared<ov::op::v1::Split>(relu2, split2_axis_op, 2);
         SET_NAME(split2);
 
@@ -1103,7 +1111,8 @@ std::shared_ptr<ov::Model> makeSplitConvConcatNestedInBranchNestedOut(std::vecto
     }();
 
     auto nestedSubgraph1 = [&] {
-        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto split_axis_op =
+            std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
         auto split = std::make_shared<ov::op::v1::Split>(relu32, split_axis_op, 2);
         SET_NAME(split);
 
@@ -1133,7 +1142,8 @@ std::shared_ptr<ov::Model> makeSplitConvConcatNestedInBranchNestedOut(std::vecto
         auto relu2 = std::make_shared<ov::op::v0::Relu>(conv2);
         SET_NAME(relu2);
 
-        auto split2_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto split2_axis_op =
+            std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
         auto split2 = std::make_shared<ov::op::v1::Split>(relu2, split2_axis_op, 2);
         SET_NAME(split2);
 
