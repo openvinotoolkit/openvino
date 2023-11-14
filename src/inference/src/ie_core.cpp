@@ -109,49 +109,6 @@ std::string resolve_extension_path(const std::string& path) {
     return retvalue;
 }
 
-ov::util::FilePath getPluginPath(const std::string& pluginName, bool needAddSuffixes = false) {
-    const auto ieLibraryPath = ie::getInferenceEngineLibraryPath();
-
-    auto pluginPath = ov::util::to_file_path(pluginName.c_str());
-
-    // 0. user can provide a full path
-
-#ifndef _WIN32
-    try {
-        // dlopen works with absolute paths; otherwise searches from LD_LIBRARY_PATH
-        pluginPath = ov::util::to_file_path(ov::util::get_absolute_file_path(pluginName));
-    } catch (const std::runtime_error&) {
-        // failed to resolve absolute path; not critical
-    }
-#endif  // _WIN32
-
-    if (FileUtils::fileExist(pluginPath))
-        return pluginPath;
-
-    // ov::Core::register_plugin(plugin_name, device_name) case
-    if (needAddSuffixes)
-        pluginPath = FileUtils::makePluginLibraryName({}, pluginPath);
-
-    // plugin can be found either:
-
-    // 1. in openvino-X.Y.Z folder relative to libopenvino.so
-    std::ostringstream str;
-    str << "openvino-" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH;
-    const auto subFolder = ov::util::to_file_path(str.str());
-
-    ov::util::FilePath absFilePath = FileUtils::makePath(FileUtils::makePath(ieLibraryPath, subFolder), pluginPath);
-    if (FileUtils::fileExist(absFilePath))
-        return absFilePath;
-
-    // 2. in the openvino.so location
-    absFilePath = FileUtils::makePath(ieLibraryPath, pluginPath);
-    if (FileUtils::fileExist(absFilePath))
-        return absFilePath;
-
-    // 3. in LD_LIBRARY_PATH on Linux / PATH on Windows
-    return pluginPath;
-}
-
 template <typename T = ie::Parameter>
 Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::map<std::string, T>& config = {}) {
     auto config_ = config;
@@ -571,8 +528,9 @@ public:
      * @brief Register plugins for devices which are located in .xml configuration file.
      * @note The function supports UNICODE path
      * @param xmlConfigFile An .xml configuraion with device / plugin information
+     * @param ByAbsPath A boolean value - register plugins by absolute file path or not
      */
-    void RegisterPluginsInRegistry(const std::string& xmlConfigFile) {
+    void RegisterPluginsInRegistry(const std::string& xmlConfigFile, const bool& ByAbsPath = false) {
         std::lock_guard<std::mutex> lock(get_mutex());
 
         auto parse_result = ParseXml(xmlConfigFile.c_str());
@@ -588,7 +546,8 @@ public:
 
         FOREACH_CHILD (pluginNode, devicesNode, "plugin") {
             std::string deviceName = GetStrAttr(pluginNode, "name");
-            ov::util::FilePath pluginPath = getPluginPath(GetStrAttr(pluginNode, "location"));
+            ov::util::FilePath pluginPath =
+                ov::util::get_plugin_path(GetStrAttr(pluginNode, "location"), xmlConfigFile, ByAbsPath);
 
             if (deviceName.find('.') != std::string::npos) {
                 IE_THROW() << "Device name must not contain dot '.' symbol";
@@ -1286,7 +1245,7 @@ public:
             IE_THROW() << "Device name must not contain dot '.' symbol";
         }
 
-        PluginDescriptor desc{getPluginPath(pluginName, true)};
+        PluginDescriptor desc{ov::util::get_plugin_path(pluginName)};
         pluginRegistry[deviceName] = desc;
         add_mutex(deviceName);
     }
@@ -1665,7 +1624,9 @@ Core::Core(const std::string& xmlConfigFile) {
 #ifdef OPENVINO_STATIC_LIBRARY
     _impl->RegisterPluginsInRegistry(::getStaticPluginsRegistry());
 #else
-    RegisterPlugins(ov::findPluginXML(xmlConfigFile));
+    // If XML is default, load default plugins by absolute paths
+    auto loadByAbsPath = xmlConfigFile.empty();
+    _impl->RegisterPluginsInRegistry(ov::findPluginXML(xmlConfigFile), loadByAbsPath);
 #endif
 }
 
@@ -1943,9 +1904,13 @@ Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
 
 #ifdef OPENVINO_STATIC_LIBRARY
-    _impl->RegisterPluginsInRegistry(::getStaticPluginsRegistry());
+    OV_CORE_CALL_STATEMENT(_impl->RegisterPluginsInRegistry(::getStaticPluginsRegistry());)
 #else
-    register_plugins(findPluginXML(xmlConfigFile));
+    OV_CORE_CALL_STATEMENT({
+        // If XML is default, load default plugins by absolute paths
+        auto loadByAbsPath = xmlConfigFile.empty();
+        _impl->RegisterPluginsInRegistry(findPluginXML(xmlConfigFile), loadByAbsPath);
+    })
 #endif
 }
 

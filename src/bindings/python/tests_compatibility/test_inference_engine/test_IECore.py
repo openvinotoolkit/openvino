@@ -85,16 +85,16 @@ def test_query_network(device):
 
 
 @pytest.mark.dynamic_library
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
 def test_register_plugin():
-    ie = IECore()
-    if ie.get_metric("CPU", "FULL_DEVICE_NAME") == "arm_compute::NEON":
-        pytest.skip("Can't run on ARM plugin due-to openvino_intel_cpu_plugin specific test")
-    ie.register_plugin("openvino_intel_cpu_plugin", "BLA")
-    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    exec_net = ie.load_network(net, "BLA")
-    assert isinstance(exec_net, ExecutableNetwork), "Cannot load the network to the registered plugin with name 'BLA'"
+    device = "TEST_DEVICE"
+    lib_name = "test_plugin"
+    full_lib_name = lib_name + ".dll" if sys.platform == "win32" else "lib" + lib_name + ".so"
 
+    ie = IECore()
+    ie.register_plugin(lib_name, device)
+    with pytest.raises(RuntimeError) as e:
+        ie.get_versions(device)
+    assert f"Cannot load library '{full_lib_name}'" in str(e.value)
 
 @pytest.mark.dynamic_library
 def test_register_plugins():
@@ -119,17 +119,15 @@ def test_register_plugins():
 
     with pytest.raises(RuntimeError) as e:
         ie.get_versions(device)
-    assert f"Cannot load library '{full_lib_name}" in str(e.value)
+    assert f"Cannot load library '{full_lib_name}'" in str(e.value)
 
 
-@pytest.mark.skip(reason="Need to figure out if it's expected behaviour (fails with C++ API as well")
-def test_unregister_plugin(device):
+def test_unload_plugin(device):
     ie = IECore()
+    # Trigger plugin loading
+    ie.get_versions(device)
+    # Unload plugin
     ie.unregister_plugin(device)
-    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    with pytest.raises(RuntimeError) as e:
-        ie.load_network(net, device)
-    assert f"Device with '{device}' name is not registered in the OpenVINO Runtime" in str(e.value)
 
 
 def test_available_devices(device):

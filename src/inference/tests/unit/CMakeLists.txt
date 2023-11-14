@@ -32,6 +32,8 @@ ov_add_test_target(
         LINK_LIBRARIES
             unitTestUtils
         INCLUDES
+            # for static ie_plugins.hpp
+            "${CMAKE_BINARY_DIR}/src/inference/"
         LABELS
             OV
 )
