@@ -70,7 +70,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVCompiledModelBaseTest.*canCompileModelFromMemory.*)",
         R"(.*OVCompiledModelBaseTest.*canSetOutputPrecisionForNetwork.*)",
         R"(.*OVCompiledModelBaseTest.*canSetInputPrecisionForNetwork.*)",
-        R"(.*OVCompiledModelBaseTest.*CanCreateTwoExeNetworksAndCheckFunction.*)",
+        R"(.*OVCompiledModelBaseTest.*CanCreateTwoCompiledModelsAndCheckRuntimeModel.*)",
         R"(.*(OVClass|IEClass)HeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*GetMetricNoThrow.*)",
         R"(.*LoadNetwork*.*LoadNetwork(HETEROWithDeviceIDNoThrow|WithBigDeviceID|WithInvalidDeviceID)*.*)",
         R"(.*QueryNetwork*.*QueryNetwork(HETEROWithDeviceIDNoThrow|WithBigDeviceID|WithInvalidDeviceID)*.*)",
