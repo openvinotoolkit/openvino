@@ -11,6 +11,10 @@ from openvino.runtime import PartialShape, Model, Dimension
 from common.mo_convert_test_class import CommonMOConvertTest
 from common.layer_test_class import CommonLayerTest
 import tensorflow as tf
+from common.tf_layer_test_class import save_to_pb
+import tempfile
+from common import constants
+from pathlib import Path
 
 
 def create_tf_graph_def(tmp_dir):
@@ -1023,3 +1027,52 @@ class TestTFConversionParams(CommonMOConvertTest):
 
         test_params.update({'input_model': fw_model})
         self._test_by_ref_graph(temp_dir, test_params, ref_model, compare_tensor_names=False)
+
+
+class TestOutputTensorName(unittest.TestCase):
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf1_from_file_single_tensor_name(self):
+
+        Path(constants.out_path).mkdir(parents=True, exist_ok=True)
+        tmp_dir = tempfile.TemporaryDirectory(dir=constants.out_path).name
+
+        from openvino import convert_model
+
+        model, _, _ = create_tf_graph_def(None)
+        path = save_to_pb(model, tmp_dir)
+
+        ov_model = convert_model(path)
+        out_tensors = ov_model.outputs[0].get_names()
+
+        assert len(out_tensors) == 1
+        assert list(out_tensors)[0].endswith(":0")
+
+        out_tensor_name = list(out_tensors)[0]
+
+        ov_model = convert_model(path, output=out_tensor_name)
+        out_tensors = ov_model.outputs[0].get_names()
+
+        assert len(out_tensors) == 1
+        assert list(out_tensors)[0].endswith(":0")
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf1_from_memory_single_tensor_name(self):
+        from openvino import convert_model
+
+        model, _, _ = create_tf_graph_def(None)
+
+        ov_model = convert_model(model)
+        out_tensors = ov_model.outputs[0].get_names()
+
+        assert len(out_tensors) == 1
+        assert list(out_tensors)[0].endswith(":0")
+
+        out_tensor_name = list(out_tensors)[0]
+
+        ov_model = convert_model(model, output=out_tensor_name)
+        out_tensors = ov_model.outputs[0].get_names()
+
+        assert len(out_tensors) == 1
+        assert list(out_tensors)[0].endswith(":0")

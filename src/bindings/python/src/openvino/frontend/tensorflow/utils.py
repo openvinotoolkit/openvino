@@ -292,7 +292,7 @@ def create_tf_graph_iterator(input_model, placeholder_shapes, placeholder_data_t
     if model_is_graph_iterator(input_model):
         return input_model
     if isinstance(input_model, tf.Graph):
-        return GraphIteratorTFGraph(input_model, share_weights)
+        return GraphIteratorTFGraph(input_model, share_weights, tensors_need_indices=True)
     elif isinstance(input_model, tf.types.experimental.ConcreteFunction):
         # create a map for inputs to map internal tensor name to external one
         # collect all internal tensor names in a given order

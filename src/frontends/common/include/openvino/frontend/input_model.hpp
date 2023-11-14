@@ -214,6 +214,9 @@ public:
     /// \param min_value Lower bound of partial value for tensor place
     /// \param max_value Upper bound of partial value for tensor place
     virtual void set_tensor_partial_value(const Place::Ptr& place, const void* min_value, const void* max_value);
+
+    /// \brief Defines if indices tensor names need output indices
+    virtual bool tensor_names_need_indices() const;
 };
 
 }  // namespace frontend

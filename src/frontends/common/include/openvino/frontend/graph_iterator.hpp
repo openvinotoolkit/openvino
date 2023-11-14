@@ -56,6 +56,9 @@ public:
     virtual std::map<std::string, std::string> get_output_names_map() const {
         return {};
     }
+
+    /// \brief Defines if indices tensor names need output indices
+    virtual bool tensor_names_need_indices() const = 0;
 };
 
 }  // namespace tensorflow

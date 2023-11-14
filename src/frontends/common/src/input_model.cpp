@@ -154,3 +154,11 @@ void InputModel::set_tensor_partial_value(const Place::Ptr& place, const void* m
     FRONT_END_CHECK_IMPLEMENTED(m_actual, set_tensor_partial_value);
     FRONTEND_CALL_STATEMENT("set_tensor_partial_value", m_actual->set_tensor_partial_value(place, min_value, max_value))
 }
+
+bool InputModel::tensor_names_need_indices() const {
+    if (!m_actual) {
+        return false;
+    }
+    FRONT_END_CHECK_IMPLEMENTED(m_actual, tensor_names_need_indices);
+    FRONTEND_RETURN_STATEMENT("tensor_names_need_indices", m_actual->tensor_names_need_indices())
+}

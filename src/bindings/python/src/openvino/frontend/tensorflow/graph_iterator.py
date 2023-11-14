@@ -11,7 +11,7 @@ from openvino.frontend.tensorflow.py_tensorflow_frontend import _FrontEndPyGraph
 
 class GraphIteratorTFGraph(GraphIterator):
     def __init__(self, tf_graph: tf.Graph, share_weights: bool, inner_graph: bool = False,
-                 input_names_map: dict = None, output_names_map: dict = None):
+                 input_names_map: dict = None, output_names_map: dict = None, tensors_need_indices: bool = False):
         GraphIterator.__init__(self)
         self.m_graph = tf_graph
         self.m_node_index = 0
@@ -20,6 +20,7 @@ class GraphIteratorTFGraph(GraphIterator):
         self.m_share_weights = share_weights
         self.m_input_names_map = input_names_map or {}
         self.m_output_names_map = output_names_map or {}
+        self.m_tensors_need_indices = tensors_need_indices
         self.m_vars = None
         if hasattr(tf_graph, "variables"):
             # This field is needed to keep the link to graph variables,
@@ -112,5 +113,9 @@ class GraphIteratorTFGraph(GraphIterator):
         if self.m_iterators[func_name] is None:
             self.m_iterators[func_name] = GraphIteratorTFGraph(self.m_graph._functions[func_name].graph,
                                                                self.m_share_weights,
-                                                               True)
+                                                               True,
+                                                               tensors_need_indices=self.m_tensors_need_indices)
         return self.m_iterators[func_name]
+
+    def tensor_names_need_indices(self) -> bool:
+        return self.m_tensors_need_indices
