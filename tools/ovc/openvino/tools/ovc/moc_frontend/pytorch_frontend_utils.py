@@ -13,6 +13,8 @@ from openvino.tools.ovc.error import Error
 def get_pytorch_decoder(model, example_inputs, args):
     try:
         from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+        from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+        import torch
     except Exception as e:
         log.error("PyTorch frontend loading failed")
         raise e
@@ -31,8 +33,24 @@ def get_pytorch_decoder(model, example_inputs, args):
             raise RuntimeError(
                 "NNCF models produced by nncf<2.6 are not supported directly. Please upgrade nncf or export to ONNX first.")
     inputs = prepare_torch_inputs(example_inputs)
-    if not isinstance(model, TorchScriptPythonDecoder):
-        decoder = TorchScriptPythonDecoder(model, example_input=inputs, shared_memory=args.get("share_weights", True))
+    if not isinstance(model, (TorchScriptPythonDecoder, TorchFXPythonDecoder)):
+        if isinstance(model, torch.export.ExportedProgram):
+            from torch.fx.experimental.proxy_tensor import make_fx
+            
+            try:
+                gm = make_fx(model)(*inputs)
+            except:
+                gm = make_fx(model, tracing_mode='symbolic')(*inputs)
+
+            input_shapes = []
+            input_types = []
+            for input_data in inputs:
+                input_types.append(input_data.type())
+                input_shapes.append(input_data.size())
+            
+            decoder = TorchFXPythonDecoder(gm, gm, input_shapes=input_shapes, input_types=input_types)
+        else:
+            decoder = TorchScriptPythonDecoder(model, example_input=inputs, shared_memory=args.get("share_weights", True))
     else:
         decoder = model
     args['input_model'] = decoder

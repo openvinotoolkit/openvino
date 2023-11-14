@@ -10,6 +10,8 @@ from models_hub_common.constants import hf_hub_cache_dir
 from models_hub_common.utils import cleanup_dir, get_models_list
 
 from torch_utils import TestTorchConvertModel, process_pytest_marks
+from openvino import convert_model
+from torch.export import export
 
 
 def filter_timm(timm_list: list) -> list:
@@ -55,6 +57,14 @@ class TestTimmConvertModel(TestTorchConvertModel):
         self.inputs = (torch.randn(shape),)
         return m
 
+    def convert_model_impl(self, model_obj):
+        if self.mode == "export":
+            graph = export(model_obj, self.example).run_decompositions()
+            ov_model = convert_model(graph, example_input=self.example)
+        else:
+            ov_model = super().convert_model_impl(model_obj)
+        return ov_model
+
     def infer_fw_model(self, model_obj, inputs):
         fw_outputs = model_obj(*[torch.from_numpy(i) for i in inputs])
         if isinstance(fw_outputs, dict):
@@ -71,18 +81,16 @@ class TestTimmConvertModel(TestTorchConvertModel):
         cleanup_dir(hf_hub_cache_dir)
         super().teardown_method()
 
-    @pytest.mark.parametrize("name", ["mobilevitv2_050.cvnets_in1k",
-                                      "poolformerv2_s12.sail_in1k",
-                                      "vit_base_patch8_224.augreg_in21k",
-                                      "beit_base_patch16_224.in22k_ft_in22k",
-                                      "sequencer2d_l.in1k"])
+    @pytest.mark.parametrize("name", ["hardcorenas_a.miil_green_in1k"])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, ie_device):
+        self.mode = "export"
         self.run(name, None, ie_device)
 
     @pytest.mark.nightly
     @pytest.mark.parametrize("name", get_all_models())
     def test_convert_model_all_models(self, name, ie_device):
+        self.mode = "export"
         self.run(name, None, ie_device)
 
     @pytest.mark.nightly

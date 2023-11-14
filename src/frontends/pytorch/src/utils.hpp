@@ -242,8 +242,17 @@ public:
     virtual bool may_produce_alias(size_t in_index, size_t out_index) const override {
         FRONT_END_NOT_IMPLEMENTED(may_produce_alias);
     }
-    virtual OutputVector inlined_inputs(size_t start_index) const override {
-        FRONT_END_NOT_IMPLEMENTED(inlined_inputs);
+    bool is_input_inlined(size_t index) const override {
+        FRONT_END_NOT_IMPLEMENTED(is_input_inlined);
+    }
+    virtual OutputVector inlined_input(size_t index) const override {
+        FRONT_END_NOT_IMPLEMENTED(inlined_input);
+    }
+    virtual ov::Any get_attribute(const std::string &name) const override {
+        FRONT_END_NOT_IMPLEMENTED(get_attribute);
+    }
+    virtual size_t get_named_input(const std::string &name) const override {
+        FRONT_END_NOT_IMPLEMENTED(get_named_input);
     }
 
 private:

@@ -9,6 +9,8 @@ import torch
 import torchvision.transforms.functional as F
 
 from torch_utils import process_pytest_marks, TestTorchConvertModel
+from openvino import convert_model
+from torch.export import export
 
 
 def get_all_models() -> list:
@@ -86,6 +88,39 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
             self.inputs = (torch.randn(1, 3, 224, 224),)
         return m
 
+    def convert_model_impl(self, model_obj):
+        if self.mode == "export":
+            graph = export(model_obj, self.example).run_decompositions()
+            try:
+                ov_model = convert_model(graph, example_input=self.example)
+            except Exception as e:
+                from torch.fx.experimental.proxy_tensor import make_fx
+                from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+                from openvino.frontend import FrontEndManager
+                gm = make_fx(graph)(*self.example)
+                input_shapes = []
+                input_types = []
+                for input_data in self.example:
+                    input_types.append(input_data.type())
+                    input_shapes.append(input_data.size())
+                
+                decoder = TorchFXPythonDecoder(gm, gm, input_shapes=input_shapes, input_types=input_types)
+                fem = FrontEndManager()
+                fe = fem.load_by_framework("pytorch")
+                im = fe.load(decoder)
+                ov_pmodel = fe.convert_partially(im)
+                from openvino import serialize
+                serialize(ov_pmodel, "model_p_debug.xml")
+                raise e
+            #from openvino import serialize
+            #serialize(ov_model, "model_export_debug.xml")
+            #print(ov_model)
+        else:
+            ov_model = super().convert_model_impl(model_obj)
+            #from openvino import serialize
+            #serialize(ov_model, "model_convert_debug.xml")
+        return ov_model
+
     def infer_fw_model(self, model_obj, inputs):
         fw_outputs = model_obj(*[torch.from_numpy(i) for i in inputs])
         if isinstance(fw_outputs, dict):
@@ -105,10 +140,19 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
     @pytest.mark.parametrize("model_name", ["efficientnet_b7", "raft_small", "swin_v2_s"])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, model_name, ie_device):
+        self.mode = "trace"
         self.run(model_name, None, ie_device)
 
     @pytest.mark.parametrize("name",
                              process_pytest_marks(os.path.join(os.path.dirname(__file__), "torchvision_models")))
     @pytest.mark.nightly
     def test_convert_model_all_models(self, name, ie_device):
+        self.mode = "trace"
+        self.run(name, None, ie_device)
+
+    @pytest.mark.parametrize("name",
+                             process_pytest_marks(os.path.join(os.path.dirname(__file__), "torchvision_models")))
+    @pytest.mark.precommit
+    def test_convert_model_export_all_models(self, name, ie_device):
+        self.mode = "export"
         self.run(name, None, ie_device)

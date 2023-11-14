@@ -74,26 +74,41 @@ class PytorchLayerTest:
                     return True
             return False
 
+        def use_torch_export():
+            torch_compile_env = os.getenv("PYTORCH_TRACING_MODE")
+            if torch_compile_env is not None:
+                return torch_compile_env == "EXPORT"
+            return False
+
         ov_inputs = flattenize_inputs(inputs)
 
         if use_torch_compile_backend():
             self.torch_compile_backend_test(model, torch_inputs, custom_eps)
         else:
-            trace_model = kwargs.get('trace_model', False)
-            freeze_model = kwargs.get('freeze_model', True)
-            with torch.no_grad():
-                if kwargs.get('use_convert_model', False):
-                    smodel, converted_model = self.convert_via_mo(
-                        model, torch_inputs, trace_model, dynamic_shapes, ov_inputs, freeze_model)
-                else:
-                    smodel, converted_model = self.convert_directly_via_frontend(
-                        model, torch_inputs, trace_model, dynamic_shapes, ov_inputs, freeze_model)
+            if use_torch_export():
+                from openvino import convert_model
+                from torch.export import export
 
-            if kind is not None and not isinstance(kind, (tuple, list)):
-                kind = [kind]
-            if kind is not None:
-                for op in kind:
-                    assert self._check_kind_exist(
+                em = export(model, tuple(torch_inputs)).run_decompositions()
+                print(em.graph_module.code)
+                converted_model = convert_model(em, example_input=torch_inputs)
+                self._resolve_input_shape_dtype(converted_model, ov_inputs, dynamic_shapes)
+                smodel = model
+            else:
+                trace_model = kwargs.get('trace_model', False)
+                freeze_model = kwargs.get('freeze_model', True)
+                with torch.no_grad():
+                    if kwargs.get('use_convert_model', False):
+                        smodel, converted_model = self.convert_via_mo(
+                        model, torch_inputs, trace_model, dynamic_shapes, ov_inputs, freeze_model)
+                    else:
+                        smodel, converted_model = self.convert_directly_via_frontend(
+                        model, torch_inputs, trace_model, dynamic_shapes, ov_inputs, freeze_model)
+                if kind is not None and not isinstance(kind, (tuple, list)):
+                    kind = [kind]
+                if kind is not None:
+                    for op in kind:
+                        assert self._check_kind_exist(
                         smodel.inlined_graph, op), f"Operation {op} type doesn't exist in provided graph"
             # OV infer:
             core = Core()
@@ -147,6 +162,7 @@ class PytorchLayerTest:
                     continue
                 cur_ov_res = infer_res[compiled.output(i)]
                 print(f"fw_res: {cur_fw_res};\n ov_res: {cur_ov_res}")
+                assert cur_ov_res.shape == cur_fw_res.shape, "Shapes are not equal: {} vs {}".format(cur_ov_res.shape, cur_fw_res.shape)
                 n_is_not_close = np.array(cur_fw_res).size - np.isclose(cur_ov_res, cur_fw_res,
                                                                         atol=fw_eps,
                                                                         rtol=fw_eps, equal_nan=True).sum()
