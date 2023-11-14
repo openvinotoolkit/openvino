@@ -3,7 +3,7 @@
 //
 
 #include "acl_deconv.hpp"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 
 namespace ov {
 namespace intel_cpu {

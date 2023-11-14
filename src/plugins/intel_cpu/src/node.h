@@ -22,8 +22,7 @@
 #include "dnnl_scratch_pad.h"
 #include <openvino/itt.hpp>
 #include "utils/ngraph_utils.hpp"
-#include <ngraph/ops.hpp>
-#include <ngraph/node.hpp>
+#include "openvino/core/node.hpp"
 #include <ie_precision.hpp>
 #include <nodes/common/blocked_desc_creator.h>
 #include "cpu_types.h"
@@ -71,7 +70,7 @@ private:
     static ov::intel_cpu::BlockedDescCreator::CreatorConstPtr getBlockedDescCreator(ov::intel_cpu::LayoutType blockedDescType) {
         auto& creators = ov::intel_cpu::BlockedDescCreator::getCommonCreators();
         if (creators.find(blockedDescType) == creators.end()) {
-            IE_THROW() << "Cannot find tensor descriptor creator";
+            OPENVINO_THROW("Cannot find tensor descriptor creator");
         }
         return creators.at(blockedDescType);
     }
@@ -111,7 +110,7 @@ public:
     std::shared_ptr<T> getExecutorFactoryAs() {
         auto casted = std::dynamic_pointer_cast<T>(executorFactory);
         if (!casted)
-            IE_THROW() << "Cannot dynamically cast ExecutorFactory";
+            OPENVINO_THROW("Cannot dynamically cast ExecutorFactory");
         return casted;
     }
 
@@ -244,7 +243,7 @@ public:
         }
 
         if (getFusingPort() == -1) {
-            IE_THROW() << "Cannot determine fusing port between nodes: " << parentNode->getName() << " and " << getName();
+            OPENVINO_THROW("Cannot determine fusing port between nodes: ", parentNode->getName(), " and ", getName());
         }
 
         parentNode->addFusedNode(getParentEdgesAtPort(getFusingPort())[0]->getChild());
@@ -442,27 +441,27 @@ public:
 
     InferenceEngine::Precision getOriginalInputPrecisionAtPort(size_t port) const {
         if (originalInputPrecisions.size() <= port) {
-            IE_THROW() << "Incorrect input port number for node " << getName();
+            OPENVINO_THROW("Incorrect input port number for node ", getName());
         }
         return originalInputPrecisions[port];
     }
     InferenceEngine::Precision getOriginalOutputPrecisionAtPort(size_t port) const {
         if (originalOutputPrecisions.size() <= port) {
-            IE_THROW() << "Incorrect output port number for node " << getName();
+            OPENVINO_THROW("Incorrect output port number for node ", getName());
         }
         return originalOutputPrecisions[port];
     }
 
     void setOriginalInputPrecisionAtPort(size_t port, InferenceEngine::Precision precision) {
         if (originalInputPrecisions.size() <= port) {
-            IE_THROW() << "Incorrect input port number for node " << getName();
+            OPENVINO_THROW("Incorrect input port number for node ", getName());
         }
         originalInputPrecisions[port] = precision;
     }
 
     void setOriginalOutputPrecisionAtPort(size_t port, InferenceEngine::Precision precision) {
         if (originalOutputPrecisions.size() <= port) {
-            IE_THROW() << "Incorrect output port number for node " << getName();
+            OPENVINO_THROW("Incorrect output port number for node ", getName());
         }
         originalOutputPrecisions[port] = precision;
     }
@@ -516,14 +515,14 @@ public:
 
     const Shape& getInputShapeAtPort(size_t port) const {
         if (inputShapes.size() <= port) {
-            IE_THROW() << "Incorrect input port number for node " << getName();
+            OPENVINO_THROW("Incorrect input port number for node ", getName());
         }
         return inputShapes[port];
     }
 
     const Shape& getOutputShapeAtPort(size_t port) const {
         if (outputShapes.size() <= port) {
-            IE_THROW() << "Incorrect output port number for node " << getName();
+            OPENVINO_THROW("Incorrect output port number for node ", getName());
         }
         return outputShapes[port];
     }
@@ -554,7 +553,8 @@ public:
     virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem, const int channelAxis = 1);
     virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1);
     virtual bool canBeExecutedInInt8() const {
-        IE_THROW(NotImplemented) << "canBeExecutedInInt8 not implemented for node with type " << NameFromType(getType());
+        OPENVINO_THROW_NOT_IMPLEMENTED("canBeExecutedInInt8 not implemented for node with type ",
+                                       NameFromType(getType()));
         return false;
     }
 
@@ -588,7 +588,7 @@ protected:
 
     std::string originalLayers;  // contains names of the original layers separated by comma
 
-    Node(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory);
+    Node(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory);
     Node(const std::string& type, const std::string& name, const GraphContext::CPtr ctx);
 
     int selectedPrimitiveDescriptorIndex = -1;
@@ -677,14 +677,15 @@ protected:
     IShapeInfer::Result shapeInfer() const;
     // TODO [DS] : make pure after all nodes will be support dynamic shapes
     virtual void executeDynamicImpl(dnnl::stream strm) {
-        IE_THROW(NotImplemented) << "[DS] executeDynamicImpl not implemented for node with type: " << getTypeStr();
+        OPENVINO_THROW_NOT_IMPLEMENTED("[DS] executeDynamicImpl not implemented for node with type: ", getTypeStr());
     }
 
     virtual bool needPrepareParams() const;
     // TODO [mandrono]: add description
     // called after memory allocation/reallocation
     virtual void prepareParams() {
-        IE_THROW(NotImplemented) << "[DS] prapareParams not implemented for node with type " << NameFromType(getType());
+        OPENVINO_THROW_NOT_IMPLEMENTED("[DS] prapareParams not implemented for node with type ",
+                                       NameFromType(getType()));
     }
 
     MemoryPtr getScratchPadMem(const DnnlMemoryDescPtr& desc) {
@@ -744,17 +745,17 @@ constexpr uint64_t PortMask(T... rest) {
 }
 
 class Node::NodesFactory : public openvino::cc::Factory<Type,
-                                            Node*(const std::shared_ptr<ngraph::Node>& op,
+                                            Node*(const std::shared_ptr<ov::Node>& op,
                                                   const GraphContext::CPtr)> {
 public:
     NodesFactory();
 
-    Node* create(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Node* create(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 };
 
 template<typename NodeType>
 struct NodeImpl : public NodeType {
-    NodeImpl(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    NodeImpl(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : NodeType(op, context) {
         NodeType::perfCounters().template buildClassCounters<NodeType>(NameFromType(NodeType::getType()));
     }

@@ -6,7 +6,7 @@
 #include <vector>
 #include <string>
 #include "embedding_bag_packed_sum.h"
-#include <ngraph/opsets/opset3.hpp>
+#include <openvino/opsets/opset3.hpp>
 
 using namespace InferenceEngine;
 
@@ -14,9 +14,9 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool EmbeddingBagPackedSum::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool EmbeddingBagPackedSum::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto embBagPackedSumOp = ngraph::as_type_ptr<const ngraph::op::v3::EmbeddingBagPackedSum>(op);
+        const auto embBagPackedSumOp = ov::as_type_ptr<const ov::op::v3::EmbeddingBagPackedSum>(op);
         if (!embBagPackedSumOp) {
             errorMessage = "Node is not an instance of the EmbeddingBagPackedSum operation from opset v3.";
             return false;
@@ -27,16 +27,16 @@ bool EmbeddingBagPackedSum::isSupportedOperation(const std::shared_ptr<const ngr
     return true;
 }
 
-EmbeddingBagPackedSum::EmbeddingBagPackedSum(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+EmbeddingBagPackedSum::EmbeddingBagPackedSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)),
       EmbeddingBagSum(op, 2lu, 1lu, 2lu, 3lu) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     if (getInputShapeAtPort(INDICES_IDX).getRank() != 2ul)
-        IE_THROW() << "'" << _layerName << "' layer has indices data with invalid rank.";
+        OPENVINO_THROW("'", _layerName, "' layer has indices data with invalid rank.");
 }
 
 void EmbeddingBagPackedSum::initSupportedPrimitiveDescriptors() {
@@ -52,12 +52,12 @@ void EmbeddingBagPackedSum::initSupportedPrimitiveDescriptors() {
         inDataPrecision = Precision::FP32;
     if (!supportedPrecisions.empty()) {
         if (supportedPrecisions.find(inDataPrecision) == supportedPrecisions.end())
-            IE_THROW() << logPrefix << "has unsupported precision: " << inDataPrecision.name();
+            OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.name());
     } else {
         static const std::set<Precision> defaultSupportedPrecisions =
                 {Precision::FP32, Precision::I8, Precision::U8, Precision::I32};
         if (defaultSupportedPrecisions.find(inDataPrecision) == defaultSupportedPrecisions.end())
-            IE_THROW() << logPrefix << "has unsupported precision: " << inDataPrecision.name();
+            OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.name());
     }
 
     std::vector<PortConfigurator> inDataConfigurators({{LayoutType::ncsp, inDataPrecision},
@@ -80,7 +80,7 @@ void EmbeddingBagPackedSum::initFromInputs() {
 
 void EmbeddingBagPackedSum::getIndices(size_t embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
     if (static_cast<size_t>(embIndex) >= _batch * _indicesPerBag)
-        IE_THROW() << "Invalid embedding bag index.";
+        OPENVINO_THROW("Invalid embedding bag index.");
 
     withWeight = true;
 
