@@ -423,8 +423,6 @@ std::shared_ptr<ov::Node> makeEmbeddingSegmentsSum(const element::Type& dataType
                                                    bool with_weights,
                                                    bool with_default_index);
 
-std::shared_ptr<Node> makeShuffleChannels(const ov::Output<Node>& in, int axis, int group);
-
 std::shared_ptr<Node> makeMatMul(const Output<Node>& A,
                                  const Output<Node>& B,
                                  bool transpose_a = false,
