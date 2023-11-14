@@ -58,6 +58,8 @@ private:
 
     void PostSnippets(void);
 
+    bool is_decompression_multiply(const std::shared_ptr<const ov::Node>& node) const;
+
     static bool fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 };
 
