@@ -257,7 +257,7 @@ void condition_inst::postprocess_output_memory(network::ptr executed_net, cldnn:
     for (auto out_mem_map : branch.output_map) {
         auto out_mem_idx = out_mem_map.first;
         auto inner_out_id = out_mem_map.second;
-        auto mem_ptr = executed_net->get_output(inner_out_id).get_memory();
+        auto mem_ptr = executed_net->get_output_memory(inner_out_id);
         if (mem_ptr) {
             auto layout = _impl_params->get_output_layout(out_mem_idx);
             GPU_DEBUG_LOG << "Reshape output from " << mem_ptr->get_layout().to_short_string()
