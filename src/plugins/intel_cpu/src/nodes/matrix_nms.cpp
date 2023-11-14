@@ -11,8 +11,8 @@
 #include <string>
 #include <vector>
 
-#include "ie_parallel.hpp"
-#include "ngraph/opsets/opset8.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "utils/general_utils.h"
 #include <shape_inference/shape_inference_internal_dyn.hpp>
 
@@ -22,12 +22,12 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-using ngNmsSortResultType = ngraph::op::v8::MatrixNms::SortResultType;
-using ngNmseDcayFunction = ngraph::op::v8::MatrixNms::DecayFunction;
+using ngNmsSortResultType = ov::op::v8::MatrixNms::SortResultType;
+using ngNmseDcayFunction = ov::op::v8::MatrixNms::DecayFunction;
 
-bool MatrixNms::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MatrixNms::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto nms = std::dynamic_pointer_cast<const ngraph::op::v8::MatrixNms>(op);
+        const auto nms = std::dynamic_pointer_cast<const ov::op::v8::MatrixNms>(op);
         if (!nms) {
             errorMessage = "Only MatrixNms operation is supported";
             return false;
@@ -35,12 +35,12 @@ bool MatrixNms::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
         const auto& attrs = nms->get_attrs();
         const auto& sortType = attrs.sort_result_type;
         if (!one_of(sortType, ngNmsSortResultType::NONE, ngNmsSortResultType::SCORE, ngNmsSortResultType::CLASSID)) {
-            errorMessage = "Does not support SortResultType mode: " + ngraph::as_string(sortType);
+            errorMessage = "Does not support SortResultType mode: " + ov::as_string(sortType);
             return false;
         }
         const auto& decayType = attrs.decay_function;
         if (!one_of(decayType, ngNmseDcayFunction::LINEAR, ngNmseDcayFunction::GAUSSIAN)) {
-            errorMessage = "Does not support DcayFunction " + ngraph::as_string(decayType);
+            errorMessage = "Does not support DcayFunction " + ov::as_string(decayType);
             return false;
         }
     } catch (...) {
@@ -49,7 +49,7 @@ bool MatrixNms::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
     return true;
 }
 
-MatrixNms::MatrixNms(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+MatrixNms::MatrixNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -58,7 +58,7 @@ MatrixNms::MatrixNms(const std::shared_ptr<ngraph::Node>& op, const GraphContext
 
     m_errorPrefix = "MatrixNMS layer with name '" + getName() + "' ";
 
-    if (one_of(op->get_type_info(), ov::op::internal::NmsStaticShapeIE<ngraph::op::v8::MatrixNms>::get_type_info_static()))
+    if (one_of(op->get_type_info(), ov::op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>::get_type_info_static()))
         m_outStaticShape = true;
 
     if (getOriginalInputsNumber() != 2)
@@ -67,19 +67,19 @@ MatrixNms::MatrixNms(const std::shared_ptr<ngraph::Node>& op, const GraphContext
     if (getOriginalOutputsNumber() != 3)
         IE_THROW() << m_errorPrefix << "has incorrect number of output edges: " << getOriginalOutputsNumber();
 
-    const auto matrix_nms = std::dynamic_pointer_cast<const ngraph::op::v8::MatrixNms>(op);
+    const auto matrix_nms = std::dynamic_pointer_cast<const ov::op::v8::MatrixNms>(op);
 
     auto& attrs = matrix_nms->get_attrs();
-    if (attrs.sort_result_type == ngraph::op::v8::MatrixNms::SortResultType::CLASSID)
+    if (attrs.sort_result_type == ov::op::v8::MatrixNms::SortResultType::CLASSID)
         m_sortResultType = MatrixNmsSortResultType::CLASSID;
-    else if (attrs.sort_result_type == ngraph::op::v8::MatrixNms::SortResultType::SCORE)
+    else if (attrs.sort_result_type == ov::op::v8::MatrixNms::SortResultType::SCORE)
         m_sortResultType = MatrixNmsSortResultType::SCORE;
-    else if (attrs.sort_result_type == ngraph::op::v8::MatrixNms::SortResultType::NONE)
+    else if (attrs.sort_result_type == ov::op::v8::MatrixNms::SortResultType::NONE)
         m_sortResultType = MatrixNmsSortResultType::NONE;
 
-    if (attrs.decay_function == ngraph::op::v8::MatrixNms::DecayFunction::GAUSSIAN)
+    if (attrs.decay_function == ov::op::v8::MatrixNms::DecayFunction::GAUSSIAN)
         m_decayFunction = GAUSSIAN;
-    else if (attrs.decay_function == ngraph::op::v8::MatrixNms::DecayFunction::LINEAR)
+    else if (attrs.decay_function == ov::op::v8::MatrixNms::DecayFunction::LINEAR)
         m_decayFunction = LINEAR;
 
     m_sortResultAcrossBatch = attrs.sort_result_across_batch;
@@ -115,7 +115,7 @@ void MatrixNms::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    const std::vector<Precision> supportedFloatPrecision = {Precision::FP32};
+    const std::vector<Precision> supportedFloatPrecision = {Precision::FP32, Precision::FP16};
     const std::vector<Precision> supportedIntOutputPrecision = {Precision::I32, Precision::I64};
 
     checkPrecision(getOriginalInputPrecisionAtPort(NMS_BOXES), supportedFloatPrecision, "boxes", m_inType);
@@ -195,7 +195,7 @@ size_t MatrixNms::nmsMatrix(const float* boxesData, const float* scoresData, Box
     std::vector<float> iouMax(originalSize);
 
     iouMax[0] = 0.;
-    InferenceEngine::parallel_for(originalSize - 1, [&](size_t i) {
+    ov::parallel_for(originalSize - 1, [&](size_t i) {
         float max_iou = 0.;
         size_t actual_index = i + 1;
         auto idx_a = candidateIndex[actual_index];
@@ -305,7 +305,7 @@ void MatrixNms::execute(dnnl::stream strm) {
     const float* boxes = reinterpret_cast<const float*>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->getData());
     const float* scores = reinterpret_cast<const float*>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->getData());
 
-    InferenceEngine::parallel_for2d(m_numBatches, m_numClasses, [&](size_t batchIdx, size_t classIdx) {
+    ov::parallel_for2d(m_numBatches, m_numClasses, [&](size_t batchIdx, size_t classIdx) {
         if (classIdx == static_cast<size_t>(m_backgroundClass)) {
             m_numPerBatchClass[batchIdx][classIdx] = 0;
             return;
@@ -318,7 +318,7 @@ void MatrixNms::execute(dnnl::stream strm) {
         m_numPerBatchClass[batchIdx][classIdx] = classNumDet;
     });
 
-    InferenceEngine::parallel_for(m_numBatches, [&](size_t batchIdx) {
+    ov::parallel_for(m_numBatches, [&](size_t batchIdx) {
         size_t batchOffset = batchIdx * m_realNumClasses * m_realNumBoxes;
         BoxInfo* batchFilteredBox = m_filteredBoxes.data() + batchOffset;
         auto& numPerClass = m_numPerBatchClass[batchIdx];

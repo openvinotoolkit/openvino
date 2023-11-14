@@ -63,7 +63,8 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
     : ov::ICompiledModel(model,
                          plugin,
                          wrap_if_old_api(context, plugin->is_new_api()),
-                         create_task_executor(plugin, config))
+                         create_task_executor(plugin, config),
+                         nullptr)
     , m_context(context)
     , m_config(config)
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
@@ -86,7 +87,8 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer ib,
     : ov::ICompiledModel(nullptr,
                          plugin,
                          wrap_if_old_api(context, plugin->is_new_api()),
-                         create_task_executor(plugin, config))
+                         create_task_executor(plugin, config),
+                         nullptr)
     , m_context(context)
     , m_config(config)
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
@@ -169,7 +171,7 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer ib,
     auto pos = ib.tellg();
     for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
         ib.seekg(pos);
-        auto graph = std::make_shared<Graph>(ib, context, m_config, 0);
+        auto graph = std::make_shared<Graph>(ib, context, m_config, n);
         m_graphs.push_back(graph);
     }
 }

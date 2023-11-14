@@ -24,7 +24,7 @@ namespace node {
 /// precision: fp32
 class Snippet : public Node {
 public:
-    Snippet(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr& context);
+    Snippet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
     ~Snippet() override = default;
 
     void getSupportedDescriptors() override {};
@@ -48,30 +48,23 @@ public:
         // Local copy of subgraph node for canonization & code generation
         std::shared_ptr<snippets::op::Subgraph> snippet;
         uint64_t bodyHash;
-        std::vector<std::vector<size_t>> inMemBlockedDims;
-        std::vector<std::vector<size_t>> inMemOrders;
+        std::vector<VectorDims> inMemBlockedDims;
+        std::vector<VectorDims> inMemOrders;
         std::vector<InferenceEngine::Precision> inMemPrecs;
-        std::vector<std::vector<size_t>> outMemBlockedDims;
-        std::vector<std::vector<size_t>> outMemOrders;
+        std::vector<VectorDims> outMemBlockedDims;
+        std::vector<VectorDims> outMemOrders;
         std::vector<InferenceEngine::Precision> outMemPrecs;
+        // todo: used flag if we need extra shape infer, can be removed after [121670]
+        bool has_non_planar_inputs;
     };
 
 private:
-    static const size_t rank6D {6};
-
     typedef void (*kernel)(const void *, const void *);
 
-    // Create a deep local copy of the input snippet to perform canonicalization & code generation
-    // TODO: Probably better to implement a proper copy constructor
-    void copy_snippet() const;
-    void init_body_hash();
+    static uint64_t get_body_hash(const std::shared_ptr<snippets::op::Subgraph>& snippet);
 
     size_t inputNum = 0;
     size_t outputNum = 0;
-
-    // Original subgraph node
-    std::shared_ptr<snippets::op::Subgraph> original_snippet;
-    mutable std::shared_ptr<snippets::op::Subgraph> local_snippet;
 
     // Holds ISA version used is codeGeneration target
     dnnl::impl::cpu::x64::cpu_isa_t host_isa;
@@ -80,18 +73,17 @@ private:
     std::vector<MemoryPtr> dstMemPtrs = {};
 
     mutable SnippetAttrs snippetAttrs;
-    mutable bool is_canonicalized = false;
     bool is_dynamic = false;
 
     class SnippetExecutor {
         public:
-            SnippetExecutor(const SnippetAttrs& attrs, bool is_canonicalized, bool is_dynamic, bool enforceBF16);
+            SnippetExecutor(SnippetAttrs attrs, bool is_dynamic, bool enforceBF16);
             virtual void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
             virtual ~SnippetExecutor() = default;
+            std::shared_ptr<IShapeInfer> shapeInference = nullptr;
 
         protected:
             SnippetAttrs snippetAttrs;
-            bool is_canonicalized = false;
             bool is_dynamic = false;
             bool enforceBF16 = false;
     };
@@ -100,7 +92,7 @@ private:
 
     class SnippetJitExecutor : public SnippetExecutor {
         public:
-            SnippetJitExecutor(const SnippetAttrs& attrs, bool is_canonicalized, bool is_dynamic, bool enforceBF16);
+            SnippetJitExecutor(SnippetAttrs attrs, bool is_dynamic, bool enforceBF16);
             void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
 
             bool schedule_created();
@@ -113,15 +105,11 @@ private:
             size_t numInput = 0;
             size_t numOutput = 0;
 
-            ov::PartialShape canonicalizeBody(bool reshape);
-
             void generate(const jit_snippets_compile_args*);
             inline void update_ptrs(jit_snippets_call_args&, const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
             // Evaluates generated snippet using parallel backend
             void schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
             void schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
-
-            std::shared_ptr<snippets::op::Subgraph> snippet_for_generation;
 
             // Holds generated snippet with information about how to schedule it
             snippets::Schedule schedule;

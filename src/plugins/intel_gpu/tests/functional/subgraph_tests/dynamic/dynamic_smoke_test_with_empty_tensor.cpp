@@ -91,19 +91,17 @@ protected:
           const auto AllZeroData = inputDynamicShapes[0];
           const auto ConcatInputData = inputDynamicShapes[1];
           ov::ParameterVector params;
-          for (auto&& shape : {AllZeroData, ConcatInputData}) {
+          for (auto&& shape : {AllZeroData, ConcatInputData})
               params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
-          }
-          auto paramOuts =
-              helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
+
           const ElementType intInputsPrecision = ElementType::i32;
-          auto nonzeroEmptyResultOp = std::make_shared<ngraph::opset3::NonZero>(paramOuts[0]);
+          auto nonzeroEmptyResultOp = std::make_shared<ngraph::opset3::NonZero>(params[0]);
 
           auto convertEmptyInputOp = ngraph::builder::makeConversion(nonzeroEmptyResultOp,
                                                                      ElementType::i32,
                                                                      ngraph::helpers::ConversionTypes::CONVERT);
           auto concatPartialInputEmptyOp =
-              ngraph::builder::makeConcat({convertEmptyInputOp, paramOuts[1], convertEmptyInputOp},
+              ngraph::builder::makeConcat({convertEmptyInputOp, params[1], convertEmptyInputOp},
                                           1);  // partially empty input / non empty output
           auto concatEmptyInputEmptyOutputOp =
               ngraph::builder::makeConcat({convertEmptyInputOp, convertEmptyInputOp, convertEmptyInputOp},
@@ -117,14 +115,14 @@ protected:
 
           auto axisNode = ngraph::builder::makeConstant<int64_t>(intInputsPrecision, ov::Shape({1}), {0});
           auto gatherEmptyIndicesOp =
-              std::make_shared<ov::op::v7::Gather>(paramOuts[0], squeezeEmptyInputOp, axisNode, 0);
+              std::make_shared<ov::op::v7::Gather>(params[0], squeezeEmptyInputOp, axisNode, 0);
           auto shapeofEmptyInputOp = std::make_shared<ngraph::opset3::ShapeOf>(gatherEmptyIndicesOp, ElementType::i32);
           ngraph::ResultVector results = {std::make_shared<ngraph::opset1::Result>(shapeofEmptyInputOp),
                                           std::make_shared<ngraph::opset1::Result>(concatPartialInputEmptyOp),
                                           std::make_shared<ngraph::opset1::Result>(concatEmptyInputEmptyOutputOp)};
           function = std::make_shared<ngraph::Function>(results, params, "result");
 
-          auto nonzero = std::make_shared<ngraph::opset3::NonZero>(paramOuts[0]);
+          auto nonzero = std::make_shared<ngraph::opset3::NonZero>(params[0]);
      }
 };
 

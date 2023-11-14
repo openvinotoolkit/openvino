@@ -182,8 +182,8 @@ public:
 class asBoolCheck : public PortChecker {
 public:
     asBoolCheck(const MemoryPtr &mem) {
-        IE_ASSERT(mem->getDataType() == memory::data_type::u8);
-        IE_ASSERT(mem->getShape() == Shape(InferenceEngine::SizeVector{1}));
+        OPENVINO_ASSERT(mem->getDataType() == memory::data_type::u8);
+        OPENVINO_ASSERT(mem->getShape() == Shape(VectorDims{1}));
         mem_holder = mem->getPrimitive();
     }
 
@@ -199,8 +199,8 @@ public:
 class asIntCheck : public PortChecker {
 public:
     asIntCheck(const MemoryPtr &mem) {
-        IE_ASSERT(mem->getDataType() == memory::data_type::s32);
-        IE_ASSERT(mem->getShape() == Shape(InferenceEngine::SizeVector{1}));
+        OPENVINO_ASSERT(mem->getDataType() == memory::data_type::s32);
+        OPENVINO_ASSERT(mem->getShape() == Shape(VectorDims{1}));
         mem_holder = mem->getPrimitive();
     }
 
@@ -513,7 +513,7 @@ void TensorIterator::createPrimitive() {
         lastUsedCond = initial_cond_check->getStatus();
     }
 
-    if (isDynamicNode())
+    if (runAsDynamic())
         prepareDynamicBuffers();
 
     Node::createPrimitive();
@@ -556,7 +556,7 @@ void TensorIterator::prepareParams() {
         prepareContinueCond();
         prepareLoopBodyCurrentIteration();
 
-        if (!isDynamicNode()) {
+        if (!runAsDynamic()) {
             prepareOutputPorts();
             prepareBackEdges();
         }
@@ -568,6 +568,12 @@ void TensorIterator::prepareParams() {
 }
 
 void TensorIterator::execute(dnnl::stream strm) {
+    //Special case, the subgraph is dynamic while the node has all static shapes
+    if (runAsDynamic()) {
+        executeDynamicImpl(strm);
+        return;
+    }
+
     sub_graph.ResetInferCount();
 
     bool continue_cond = initial_cond_check->getStatus();
@@ -870,6 +876,10 @@ int TensorIterator::getNumIteration(const std::vector<PortMap>& inputPortMap, co
     }
 
     return numIterations;
+}
+
+bool TensorIterator::runAsDynamic() const {
+    return isDynamicNode() || Graph::Status::ReadyDynamic == sub_graph.getStatus();
 }
 
 bool TensorIterator::created() const {

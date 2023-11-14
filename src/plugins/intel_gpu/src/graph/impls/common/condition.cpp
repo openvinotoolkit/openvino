@@ -37,8 +37,9 @@ struct condition_impl : typed_primitive_impl<condition> {
         set_node_params(instance.get_node());
 
         auto pred = condition_inst::get_pred_from_memory(instance.pred_memory_ptr(), instance.get_network().get_stream());
-        network::ptr executed_net = pred? instance.get_net_true() : instance.get_net_false();
-        auto branch = pred? instance.get_branch_true() : instance.get_branch_false();
+        network::ptr executed_net = pred ? instance.get_net_true() : instance.get_net_false();
+        auto branch = pred ? instance.get_branch_true() : instance.get_branch_false();
+        executed_net->set_shape_predictor(instance.get_network().get_shape_predictor());
         GPU_DEBUG_LOG << "predicate: " << (pred ? "True" : "False") << std::endl;
 
         // Set input memory of inner network before its execution
@@ -48,6 +49,14 @@ struct condition_impl : typed_primitive_impl<condition> {
             if (iter != branch.input_map.end()) {
                 const primitive_id& input_internal_id = iter->second;
                 auto mem_ptr = instance.input_memory_ptr(mem_idx);
+                if (mem_ptr) {
+                    auto dep = instance.dependencies()[mem_idx];
+                    auto layout = dep.first->get_impl_params()->get_output_layout(dep.second);
+                    GPU_DEBUG_LOG << "Reshape input from " << mem_ptr->get_layout().to_short_string()
+                                << " to " << layout.to_short_string() << std::endl;
+                    // Preallocation logic may allocate more memory than actually produced on current iteration, so we need to adjust input buffers layout
+                    mem_ptr = instance.get_network().get_engine().reinterpret_buffer(*mem_ptr, layout);
+                }
                 executed_net->set_input_data(input_internal_id, mem_ptr);
                 GPU_DEBUG_LOG << "Inner net - Inputs[" << mem_idx << "]" << mem_ptr->get_layout().to_short_string() << std::endl;
             }
@@ -59,13 +68,7 @@ struct condition_impl : typed_primitive_impl<condition> {
         instance.update_output_layout();
 
         // Set output memory of condition_inst to inner network output memory after inner network execution
-        for (auto out_mem_map : branch.output_map) {
-            auto out_mem_idx = out_mem_map.first;
-            auto inner_out_id = out_mem_map.second;
-            auto mem_ptr = executed_net->get_output(inner_out_id).get_memory();
-            instance.set_output_memory(mem_ptr, false, out_mem_idx);
-            GPU_DEBUG_LOG << "Inner net - Outputs[" << out_mem_idx << "]" << mem_ptr->get_layout().to_short_string() << std::endl;
-        }
+        instance.postprocess_output_memory(executed_net, branch);
 
         ev->set();
         return ev;

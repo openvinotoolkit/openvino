@@ -12,7 +12,7 @@
 #include "memory_desc/dnnl_memory_desc.h"
 #include "reorder.h"
 #include "transformations/cpu_opset/common/op/fully_connected.hpp"
-#include "ngraph/opsets/opset1.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "dnnl_extension_utils.h"
 #include "onednn/dnnl.h"
 #include "utils/general_utils.h"
@@ -98,14 +98,14 @@ bool FCKey::operator==(const FCKey &rhs) const {
 
 } // namespace
 
-bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto fc = std::dynamic_pointer_cast<const FullyConnectedNode>(op);
         if (!fc) {
             errorMessage = "Only legacy FullyConnected operation is supported";
             return false;
         }
-        if (fc->get_input_size() == 3 && std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fc->get_input_node_shared_ptr(BIAS_ID)) == nullptr) {
+        if (fc->get_input_size() == 3 && std::dynamic_pointer_cast<const ov::op::v0::Constant>(fc->get_input_node_shared_ptr(BIAS_ID)) == nullptr) {
             errorMessage = "Only Constant operation on 'bias' input is supported";
             return false;
         }
@@ -126,7 +126,7 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ngraph::No
     return true;
 }
 
-FullyConnected::FullyConnected(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, FCShapeInferFactory(op)), withBiases(false) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage))
@@ -208,7 +208,8 @@ void FullyConnected::getSupportedDescriptors() {
     useSparseWeights = useSparseWeightsDecompression();
     useWeightsDecompressionImpl = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
                                   one_of(inputDataType, memory::data_type::f32, memory::data_type::bf16) &&
-                                  weightsDataType == memory::data_type::u8;
+                                  one_of(weightsDataType, memory::data_type::u8, memory::data_type::nf4,
+                                                          memory::data_type::u4, memory::data_type::s4);
 
     // revert back outputDataType on special cases
     if (inputDataType == memory::data_type::f32) {
@@ -724,15 +725,10 @@ void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& di
     NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
-    // OneDNN API doesn't provide an abilitiy to query optimal layout for runtime attributes
-    // As workaround we assume that all AMX IP implementations use equal internal IC block size for weights layout
-    // and prepack runtime attributes accordingly for better performance
-    bool withAMX = selected_pd->getImplementationType() & impl_desc_type::amx;
-    int icBlock = withAMX ? 2 : 1;
     if (decompressionMultiplyPtr)
-        dnnlpoc.appendDecompressionScales(decompressionMultiplyPtr, icBlock);
+        dnnlpoc.appendDecompressionScales(decompressionMultiplyPtr, !weightsNonTransposed);
     if (decompressionSubtractPtr)
-        dnnlpoc.appendDecompressionZeroPoints(decompressionSubtractPtr, icBlock);
+        dnnlpoc.appendDecompressionZeroPoints(decompressionSubtractPtr, !weightsNonTransposed);
 
     for (size_t i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
@@ -1132,30 +1128,25 @@ bool FullyConnected::useSparseWeightsDecompression() {
     return true;
 }
 
-void FullyConnected::fuseDecompressionMultiply(const NodePtr& constData) {
-    fuseDecompressionConstant(constData, decompressionMultiplyPtr);
+void FullyConnected::fuseDecompressionMultiply(const MemoryCPtr& memory) {
+    fuseDecompressionConstant(memory, decompressionMultiplyPtr);
 }
 
-void FullyConnected::fuseDecompressionSubtract(const NodePtr& constData) {
-    fuseDecompressionConstant(constData, decompressionSubtractPtr);
+void FullyConnected::fuseDecompressionSubtract(const MemoryCPtr& memory) {
+    fuseDecompressionConstant(memory, decompressionSubtractPtr);
 }
 
-void FullyConnected::fuseDecompressionConstant(const NodePtr& constData, MemoryCPtr& decompressionValuesPtr) {
-    auto *constInputNode = dynamic_cast<node::Input *>(constData.get());
-    if (!constInputNode) {
-        IE_THROW() << "Cannot cast " << constData->getName() << " to Input";
-    }
+void FullyConnected::fuseDecompressionConstant(const MemoryCPtr& memory, MemoryCPtr& decompressionValuesPtr) {
     const auto decompression_prc = InferenceEngine::Precision::FP32;
-    if (constInputNode->getOriginalOutputPrecisionAtPort(0) == decompression_prc) {
-        decompressionValuesPtr = constInputNode->getMemoryPtr();
+    if (memory->getDesc().getPrecision() == decompression_prc) {
+        decompressionValuesPtr = memory;
     } else {
-        const auto constBlob = constInputNode->getMemoryPtr();
-        DnnlBlockedMemoryDesc memoryDesc(decompression_prc, constBlob->getShape());
+        DnnlBlockedMemoryDesc memoryDesc(decompression_prc, memory->getShape());
         decompressionValuesPtr = std::make_shared<Memory>(getEngine(), memoryDesc, nullptr, false);
-        const auto elementsCount = constBlob->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
-        cpu_convert(constBlob->getData(),
+        const auto elementsCount = memory->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+        cpu_convert(memory->getData(),
                     decompressionValuesPtr->getData(),
-                    DnnlExtensionUtils::DataTypeToIEPrecision(constBlob->getDataType()),
+                    DnnlExtensionUtils::DataTypeToIEPrecision(memory->getDataType()),
                     Precision::FP32,
                     elementsCount);
     }

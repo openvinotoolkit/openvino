@@ -122,6 +122,59 @@ LinearIR::container LinearIR::deep_copy_range(LinearIR::container::const_iterato
     return result;
 }
 
+LinearIR LinearIR::deep_copy() const {
+    // todo: implement the same functionality using standard copy constructor
+    auto clone_ports_descriptors = [](std::vector<PortDescriptorPtr>& ports) {
+        std::for_each(ports.begin(), ports.end(), [](PortDescriptorPtr& pd) { pd = pd->clone(); });
+    };
+    const auto& original_lir = *this;
+    LinearIR new_lir;
+    new_lir.m_config = original_lir.m_config;
+    new_lir.m_shape_infer = original_lir.m_shape_infer;
+    NodeVector original_nodes;
+    original_nodes.reserve(original_lir.m_expressions.size());
+    std::unordered_map<PortConnectorPtr, PortConnectorPtr> connectors_map;
+    for (const auto& orig_expr : original_lir) {
+        original_nodes.push_back(orig_expr->get_node());
+        const auto& copy_expr = ExpressionFactory::shallow_copy(orig_expr);
+        clone_ports_descriptors(copy_expr->m_input_port_descriptors);
+        clone_ports_descriptors(copy_expr->m_output_port_descriptors);
+
+        for (auto& orig_con : copy_expr->m_output_port_connectors) {
+            const auto& copy_source = copy_expr->get_output_port(orig_con->get_source().get_index());
+            const auto& copy_con = std::make_shared<PortConnector>(copy_source);
+            connectors_map[orig_con] = copy_con;
+            orig_con = copy_con;
+        }
+        for (size_t i = 0; i < copy_expr->get_input_count(); i++) {
+            const auto& copy_connector = connectors_map[copy_expr->get_input_port_connector(i)];
+            const auto& copy_consumer = copy_expr->get_input_port(i);
+            copy_connector->add_consumer(copy_consumer);
+            copy_expr->replace_input(i, copy_connector);
+        }
+
+        if (auto io_expr = std::dynamic_pointer_cast<IOExpression>(copy_expr))
+            new_lir.m_io_expressions.push_back(io_expr);
+        new_lir.m_expressions.push_back(copy_expr);
+    }
+    // node_map and expr_map map original node pointer (expression) to a new pointer (expression)
+    ngraph::NodeMap node_map;
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    ngraph::clone_nodes(original_nodes,  node_map);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    new_lir.m_node2expression_map.clear();
+    for (const auto& copy_expr : new_lir.m_expressions) {
+        copy_expr->m_source_node = node_map[copy_expr->m_source_node.get()];
+        new_lir.m_node2expression_map[copy_expr->m_source_node] = copy_expr;
+    }
+    new_lir.m_loop_manager = std::make_shared<LoopManager>();
+    // It's Ok to share shapeInfer factory, since LIR doesn't change it
+    new_lir.m_shape_infer_factory = m_shape_infer_factory;
+    // Note: shapeInfer stores expression pointers. we re-create it, so shape inference is performed on cloned exprs.
+    new_lir.m_shape_infer = std::make_shared<LIRShapeInfer>(new_lir.m_expressions, new_lir.m_io_expressions);
+    return new_lir;
+}
+
 void LinearIR::debug_print(bool tds_as_pointers) const {
     auto print_rinfo = [](const RegInfo& rinfo) {
         std::cerr << " : {";
@@ -312,15 +365,15 @@ VectorDims LinearIR::get_master_shape() const {
     }
     // Note: Snippets would benefit from a more generic master_shape calculation approach.
     //  It will be implemented in the scope of ROI propagation activity (ticket 120505)
-    const auto& result_parent = out_exprs[0]->get_input_port_connector(0)->get_source().get_expr();
+    const auto& source = out_exprs[0]->get_input_port_connector(0)->get_source();
     if (!m_config.m_enable_domain_optimization && out_exprs.size() == 1 &&
-        ov::is_type<snippets::op::Brgemm>(result_parent->get_node())) {
-        master_shape = utils::get_planar_vdims(out_exprs[0]->get_input_port_descriptor(0));
+        ov::is_type<snippets::op::Brgemm>(source.get_expr()->get_node())) {
+        master_shape = utils::get_preordered_vdims(source);
     } else {
         for (const auto& oe : out_exprs) {
             const auto& port_desc = oe->get_input_port_descriptor(0);
             OPENVINO_ASSERT(ov::snippets::broadcast_merge_into(master_shape, port_desc->get_shape()),
-                            "Failed to merge input shapes in OptimizeDomain pass");
+                            "Failed to merge input shapes in infer_master_shape");
         }
     }
     return master_shape;
@@ -339,6 +392,19 @@ LinearIR::LIRShapeInfer::LIRShapeInfer(container& body_exprs, io_container& io_e
             OPENVINO_THROW("Invalid io expression type detected");
         }
     }
+    // Note that if all output shapes are static, as in the case when the first shape infer was performed on nGraph,
+    // we can treat them as the last result
+    std::vector<VectorDims> outputDims;
+    outputDims.reserve(m_output_exprs.size());
+    for (const auto& expr : m_output_exprs) {
+        const auto &shape = expr->get_input_port_descriptor(0)->get_shape();
+        if (utils::is_dynamic_vdims(shape)) {
+            outputDims.clear();
+            break;
+        }
+        outputDims.push_back(shape);
+    }
+    m_last_result = {outputDims, ShapeInferStatus::success};
 }
 
 IShapeInferSnippets::Result LinearIR::LIRShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {

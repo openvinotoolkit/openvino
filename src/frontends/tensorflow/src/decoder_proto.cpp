@@ -4,12 +4,12 @@
 
 #include "decoder_proto.hpp"
 
-#include "attr_value.pb.h"
-#include "node_def.pb.h"
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/frontend/tensorflow/special_types.hpp"
+#include "ov_tensorflow/attr_value.pb.h"
+#include "ov_tensorflow/node_def.pb.h"
+#include "ov_tensorflow/types.pb.h"
 #include "tf_utils.hpp"
-#include "types.pb.h"
 
 namespace ov {
 namespace frontend {
@@ -38,7 +38,7 @@ void extract_tensor_content(const std::string& tensor_content, ov::Tensor* value
 #    pragma warning(disable : 4267)  // possible loss of data
 #endif
 template <typename T>
-void extract_compressed_tensor_content(const ::ov_tensorflow::TensorProto& tensor_proto,
+void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_proto,
                                        int64_t val_size,
                                        ov::Tensor* values) {
     auto val_lastsaved = static_cast<T>(0);
@@ -90,15 +90,15 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
     }
 
     switch (attrs[0].value_case()) {
-    case ::ov_tensorflow::AttrValue::ValueCase::kB:
+    case ::tensorflow::AttrValue::ValueCase::kB:
         return attrs[0].b();
-    case ::ov_tensorflow::AttrValue::ValueCase::kF:
+    case ::tensorflow::AttrValue::ValueCase::kF:
         return attrs[0].f();
-    case ::ov_tensorflow::AttrValue::ValueCase::kS:
+    case ::tensorflow::AttrValue::ValueCase::kS:
         return attrs[0].s();
-    case ::ov_tensorflow::AttrValue::ValueCase::kI:
+    case ::tensorflow::AttrValue::ValueCase::kI:
         return attrs[0].i();
-    case ::ov_tensorflow::AttrValue::ValueCase::kShape: {
+    case ::tensorflow::AttrValue::ValueCase::kShape: {
         const auto& tf_shape = attrs[0].shape();
         if (tf_shape.unknown_rank()) {
             return ov::PartialShape::dynamic();
@@ -111,16 +111,20 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         return ov::PartialShape(dims);
     }
 
-    case ::ov_tensorflow::AttrValue::ValueCase::kType: {
+    case ::tensorflow::AttrValue::ValueCase::kType: {
         auto atype = attrs[0].type();
-        if (atype != ::ov_tensorflow::DT_STRING) {
-            return get_ov_type(attrs[0].type());
-        } else {
+        if (atype == ::tensorflow::DT_STRING) {
             return ov::Any("DT_STRING");
+        } else if (atype == ::tensorflow::DT_COMPLEX64) {
+            return ov::Any("DT_COMPLEX64");
+        } else if (atype == ::tensorflow::DT_COMPLEX128) {
+            return ov::Any("DT_COMPLEX128");
+        } else {
+            return get_ov_type(atype);
         }
     }
 
-    case ::ov_tensorflow::AttrValue::ValueCase::kList: {
+    case ::tensorflow::AttrValue::ValueCase::kList: {
         const auto& list = attrs[0].list();
         if (list.i_size())
             return std::vector<int64_t>(list.i().begin(), list.i().end());
@@ -156,7 +160,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         if (list.type_size()) {
             std::vector<ov::element::Type> res;
             for (int idx = 0; idx < list.type_size(); ++idx) {
-                if (list.type(idx) != ::ov_tensorflow::DataType::DT_STRING) {
+                if (list.type(idx) != ::tensorflow::DataType::DT_STRING) {
                     res.emplace_back(get_ov_type(list.type(idx)));
                 } else {
                     res.emplace_back(ov::element::dynamic);
@@ -176,15 +180,15 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         return EmptyList();
     }
 
-    case ::ov_tensorflow::AttrValue::ValueCase::kTensor: {
+    case ::tensorflow::AttrValue::ValueCase::kTensor: {
         return unpack_tensor_proto(attrs[0].tensor());
     }
-    case ::ov_tensorflow::AttrValue::ValueCase::kPlaceholder:
+    case ::tensorflow::AttrValue::ValueCase::kPlaceholder:
         FRONT_END_GENERAL_CHECK(false,
                                 "Conversion from Tensorflow to OpenVINO data type failed: Placeholder type for '",
                                 name,
                                 "' attribute is not supported.");
-    case ::ov_tensorflow::AttrValue::ValueCase::kFunc:
+    case ::tensorflow::AttrValue::ValueCase::kFunc:
         // attrs[0].func() returns NameAttrList object from which
         // we retrieve the function name
         // Further, InputModel object is created for FunctionDef with this name
@@ -251,7 +255,7 @@ const std::string& DecoderProto::get_op_name() const {
     return m_node_def->name();
 }
 
-std::vector<::ov_tensorflow::AttrValue> DecoderProto::decode_attribute_helper(const std::string& name) const {
+std::vector<::tensorflow::AttrValue> DecoderProto::decode_attribute_helper(const std::string& name) const {
     auto attr_map = m_node_def->attr();
     if (attr_map.contains(name)) {
         auto value = m_node_def->attr().at(name);

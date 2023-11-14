@@ -67,7 +67,7 @@ class TorchScriptPythonDecoder (Decoder):
         preserved_attributes = []
         for name, module in model.named_modules():
             if hasattr(module, "weight"):
-                if module.weight is not None and module.weight.dtype in [torch.int8, torch.uint8]:
+                if module.weight is not None and getattr(module.weight, "dtype", None) in [torch.int8, torch.uint8]:
                     preserved_attributes.append(name)
         return preserved_attributes
 
@@ -107,9 +107,10 @@ class TorchScriptPythonDecoder (Decoder):
                         gptq.unpatch_model(pt_module)
 
             if not skip_freeze:
+                ops_kind_no_freeze = ["quantize", "aten::as_strided"]
                 for n in scripted.inlined_graph.nodes():
                     # TODO: switch off freezing for all traced models
-                    if "quantize" in n.kind():
+                    if any(kind in n.kind() for kind in ops_kind_no_freeze):
                         # do not freeze quantized models
                         skip_freeze = True
                         break
@@ -149,6 +150,16 @@ class TorchScriptPythonDecoder (Decoder):
     def get_input_shape(self, index: int):
         raw_input = self._raw_input(index)
         return self.get_shape_for_value(raw_input)
+
+    def get_input_strides(self, index: int) -> typing.List[int]:
+        raw_input = self._raw_input(index)
+        if isinstance(raw_input, torch.Value):
+            inp_type = raw_input.type()
+            if isinstance(inp_type, torch.TensorType):
+                strides = inp_type.strides()
+                if strides:
+                    return strides
+        return []
 
     def get_input_type(self, index: int):
         raw_input = self._raw_input(index)
@@ -361,8 +372,8 @@ class TorchScriptPythonDecoder (Decoder):
         return False
 
     def may_produce_alias(self, in_index: int, out_index: int) -> bool:
-        if self.get_op_type() in ["aten::conv1d", "aten::conv2d", "aten::conv3d", "aten::matmul"]:
-            # AliasDB::may_contain_alias sometimes return True for tensors produced by convnd, we have to workaround that
+        if self.get_op_type() in ["aten::conv1d", "aten::conv2d", "aten::conv3d", "aten::_convolution", "aten::matmul"]:
+            # AliasDB::may_contain_alias sometimes return True for tensors produced by convolution or matmul, we have to workaround that
             return False
         try:
             return self.alias_db.may_contain_alias(self._raw_input(in_index), self._raw_output(out_index))
