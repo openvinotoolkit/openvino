@@ -6,7 +6,7 @@ import sys
 
 path_to_model_dir = os.path.join(sys.argv[1], "bad_header")
 if not os.path.exists(path_to_model_dir):
-    os.mkdir(path_to_model_dir)
+    os.makedirs(path_to_model_dir, exist_ok=True)
 
 # Correct FOURCC is 'TFL3', it should be in first 4 bytes or
 # in second 4 bytes in case of size prefixed
