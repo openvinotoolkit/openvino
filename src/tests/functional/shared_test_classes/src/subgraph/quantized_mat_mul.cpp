@@ -7,8 +7,6 @@
 
 namespace SubgraphTestsDefinitions {
 
-using ngraph::helpers::QuantizationGranularity;
-
 std::string QuantMatMulTest::getTestCaseName(const testing::TestParamInfo<QuantMatMulLayerTestParamsSet> &obj) {
     QuantParams quantParams0;
     QuantParams quantParams1;
@@ -24,8 +22,8 @@ std::string QuantMatMulTest::getTestCaseName(const testing::TestParamInfo<QuantM
 
     size_t quantLevels0;
     size_t quantLevels1;
-    QuantizationGranularity quantGranularity0;
-    QuantizationGranularity quantGranularity1;
+    ov::test::utils::QuantizationGranularity quantGranularity0;
+    ov::test::utils::QuantizationGranularity quantGranularity1;
     InferenceEngine::Precision fqPrec0;
     InferenceEngine::Precision fqPrec1;
     std::tie(quantLevels0, inputRange0, outputRange0, quantGranularity0, fqPrec0) = quantParams0;
@@ -63,8 +61,8 @@ void QuantMatMulTest::SetUp() {
     QuantRange inputRange1;
     QuantRange outputRange0;
     QuantRange outputRange1;
-    QuantizationGranularity quantGranularity0;
-    QuantizationGranularity quantGranularity1;
+    ov::test::utils::QuantizationGranularity quantGranularity0;
+    ov::test::utils::QuantizationGranularity quantGranularity1;
     InferenceEngine::Precision fqPrec0;
     InferenceEngine::Precision fqPrec1;
     std::tie(quantLevels0, inputRange0, outputRange0, quantGranularity0, fqPrec0) = quantParams0;
@@ -75,10 +73,10 @@ void QuantMatMulTest::SetUp() {
                                 std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape1))};
 
     auto makeFakeQuantizeNode = [ngPrc](size_t quantLevels, QuantRange inputRange, QuantRange outputRange,
-            QuantizationGranularity quantGranularity, const ngraph::Output<ngraph::Node> &in, std::vector<size_t> inputShape,
+            ov::test::utils::QuantizationGranularity quantGranularity, const ngraph::Output<ngraph::Node> &in, std::vector<size_t> inputShape,
             InferenceEngine::Precision prec) -> std::shared_ptr<ngraph::Node> {
         std::vector<size_t> dataFqConstShapes(inputShape.size(), 1);
-        if (quantGranularity == QuantizationGranularity::Perchannel)
+        if (quantGranularity == ov::test::utils::QuantizationGranularity::Perchannel)
             dataFqConstShapes[1] = inputShape[1];
         size_t constDataSize = ngraph::shape_size(dataFqConstShapes);
         std::vector<float> inputLowData(constDataSize), inputHighData(constDataSize), outputLowData(constDataSize), outputHighData(constDataSize);
