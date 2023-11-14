@@ -350,8 +350,11 @@ void remove_redundant_reorders::run(program& p) {
                 !user->has_fused_primitives()) {
                 auto l1 = node->get_output_layout();
                 auto l2 = user->get_output_layout();
+                // in multiple outputs, remove redundant reorder is only allowed for same output port idx
+                auto l1_port_idx = node->get_dependency_with_port(0).second;
+                auto l2_port_idx = user->get_dependency_with_port(0).second;
 
-                if (l1.identical(l2))
+                if (l1.identical(l2) && (l1_port_idx == l2_port_idx))
                     r_nodes_to_remove.push_back(user);
             }
         }
