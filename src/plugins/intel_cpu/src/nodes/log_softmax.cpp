@@ -4,8 +4,8 @@
 
 #include <cmath>
 
-#include <ngraph/opsets/opset5.hpp>
-#include "ie_parallel.hpp"
+#include <openvino/opsets/opset5.hpp>
+#include "openvino/core/parallel.hpp"
 #include "log_softmax.h"
 
 using namespace InferenceEngine;
@@ -14,9 +14,9 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool LogSoftmax::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool LogSoftmax::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto logSoftMax = std::dynamic_pointer_cast<const ngraph::opset5::LogSoftmax>(op);
+        const auto logSoftMax = std::dynamic_pointer_cast<const ov::opset5::LogSoftmax>(op);
         if (!logSoftMax) {
             errorMessage = "Only opset5 LogSoftmax operation is supported";
             return false;
@@ -27,7 +27,7 @@ bool LogSoftmax::isSupportedOperation(const std::shared_ptr<const ngraph::Node>&
     return true;
 }
 
-LogSoftmax::LogSoftmax(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+LogSoftmax::LogSoftmax(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -35,7 +35,7 @@ LogSoftmax::LogSoftmax(const std::shared_ptr<ngraph::Node>& op, const GraphConte
     }
 
     errorPrefix = "LogSoftmax layer with name '" + op->get_friendly_name() + "'";
-    const auto logSoftMax = std::dynamic_pointer_cast<const ngraph::opset5::LogSoftmax>(op);
+    const auto logSoftMax = std::dynamic_pointer_cast<const ov::opset5::LogSoftmax>(op);
     if (logSoftMax == nullptr)
         IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
             "' is not an instance of LogSoftmax from opset5.";

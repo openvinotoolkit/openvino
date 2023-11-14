@@ -148,7 +148,7 @@ Please file a github Issue on these with the label “pre-release” so we can g
    * PyTorch FE: 
 
      * Added support for 6 new operations. To know how to enjoy PyTorch models conversion follow 
-       this `Link <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html#experimental-converting-a-pytorch-model-with-pytorch-frontend>`__ 
+       this `Link <https://docs.openvino.ai/2023.2/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html#experimental-converting-a-pytorch-model-with-pytorch-frontend>`__ 
 
        * aten::concat 
        * aten::masked_scatter 

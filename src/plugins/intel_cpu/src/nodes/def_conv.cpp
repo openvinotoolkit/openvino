@@ -8,7 +8,7 @@
 #include <vector>
 #include <math.h>
 
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <common/primitive_hashing_utils.hpp>
 
@@ -670,11 +670,11 @@ private:
     }
 };
 #endif
-bool DeformableConvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool DeformableConvolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(),
-                ngraph::op::v1::DeformableConvolution::get_type_info_static(),
-                ngraph::op::v8::DeformableConvolution::get_type_info_static())) {
+                ov::op::v1::DeformableConvolution::get_type_info_static(),
+                ov::op::v8::DeformableConvolution::get_type_info_static())) {
             errorMessage = "Node is not an instance of DeformableConvolution form the operation set v1 or v8.";
             return false;
         }
@@ -742,14 +742,14 @@ bool DefConvKey::operator==(const DefConvKey &rhs) const {
 
 } // namespace
 
-DeformableConvolution::DeformableConvolution(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+DeformableConvolution::DeformableConvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
     errorPrefix = "Deformable convolution with name '" + op->get_friendly_name() + "'";
-    auto defConvNodeBase = std::dynamic_pointer_cast<ngraph::op::util::DeformableConvolutionBase>(op);
+    auto defConvNodeBase = std::dynamic_pointer_cast<ov::op::util::DeformableConvolutionBase>(op);
     if (defConvNodeBase == nullptr)
         IE_THROW() << errorPrefix << " is not an instance of DeformableConvolutionBase.";
 
@@ -769,8 +769,8 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ngraph::Node>
 
     autoPadding = one_of(defConvNodeBase->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
 
-    if (op->get_type_info() == ngraph::op::v8::DeformableConvolution::get_type_info_static()) {
-        auto defConvNode = std::dynamic_pointer_cast<ngraph::op::v8::DeformableConvolution>(op);
+    if (op->get_type_info() == ov::op::v8::DeformableConvolution::get_type_info_static()) {
+        auto defConvNode = std::dynamic_pointer_cast<ov::op::v8::DeformableConvolution>(op);
         if (defConvNode == nullptr)
             IE_THROW() << errorPrefix << " is not an instance of DeformableConvolution from opset8.";
         defConvAttr.with_bilinear_pad = defConvNode->get_bilinear_interpolation_pad();

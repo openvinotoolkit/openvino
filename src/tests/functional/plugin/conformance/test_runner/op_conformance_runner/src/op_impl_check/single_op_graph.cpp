@@ -1013,6 +1013,20 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v7::Roll> &nod
     return std::make_shared<ov::Model>(results, params, "RollGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v13::ScaledDotProductAttention> &node) {
+    const auto query = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3, 4});
+    const auto key = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 5, 4});
+    const auto value = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 5, 6});
+    const auto attention_mask = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 5});
+    const auto scale = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
+    auto causal = false;
+
+    const auto op =
+        std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(op)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{query, key, value, attention_mask, scale}, "ScaledDotProductAttentionGraph");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v3::ScatterElementsUpdate> &node) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{2, 2}}),
                                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{2, 2}})};

@@ -182,8 +182,8 @@ public:
 class asBoolCheck : public PortChecker {
 public:
     asBoolCheck(const MemoryPtr &mem) {
-        IE_ASSERT(mem->getDataType() == memory::data_type::u8);
-        IE_ASSERT(mem->getShape() == Shape(InferenceEngine::SizeVector{1}));
+        OPENVINO_ASSERT(mem->getDataType() == memory::data_type::u8);
+        OPENVINO_ASSERT(mem->getShape() == Shape(VectorDims{1}));
         mem_holder = mem->getPrimitive();
     }
 
@@ -199,8 +199,8 @@ public:
 class asIntCheck : public PortChecker {
 public:
     asIntCheck(const MemoryPtr &mem) {
-        IE_ASSERT(mem->getDataType() == memory::data_type::s32);
-        IE_ASSERT(mem->getShape() == Shape(InferenceEngine::SizeVector{1}));
+        OPENVINO_ASSERT(mem->getDataType() == memory::data_type::s32);
+        OPENVINO_ASSERT(mem->getShape() == Shape(VectorDims{1}));
         mem_holder = mem->getPrimitive();
     }
 
