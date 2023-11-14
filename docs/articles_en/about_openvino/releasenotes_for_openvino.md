@@ -2,23 +2,13 @@
 
 @sphinxdirective
 
-
-The Intel® Distribution of OpenVINO™ toolkit is an open-source solution for optimizing and
-deploying AI inference, in domains such as computer vision, automatic speech recognition,
-natural language processing, recommendation systems, and now generative AI with the release
-of 2023.2. With its plug-in architecture, OpenVINO allows developers to write once and
-deploy anywhere.  We are proud to announce the release of OpenVINO 2023.2 introducing a
-range of new features, improvements, and deprecations aimed at enhancing the developer
-experience.
-
-* Enables the use of models trained with popular frameworks, such as TensorFlow and PyTorch.   
-* Optimizes inference of deep learning models by applying model retraining or fine-tuning, 
-  like post-training quantization.  
-* Supports heterogeneous execution across Intel hardware, using a common API for the 
-  Intel CPU, Intel Integrated Graphics, Intel Discrete Graphics, and other commonly 
-  used accelerators.  
-
-
+The Intel® Distribution of OpenVINO™ toolkit is an open-source solution for
+optimizing and deploying AI inference in domains such as computer vision,
+automatic speech recognition, natural language processing, recommendation
+systems, and generative AI. With its plug-in architecture, OpenVINO enables
+developers to write once and deploy anywhere.  We are proud to announce the
+release of OpenVINO 2023.2 introducing a range of new features, improvements,
+and deprecations aimed at enhancing the developer experience.   
 
 2023.2
 ########## 
@@ -26,95 +16,146 @@ experience.
 Summary of major features and improvements
 ++++++++++++++++++++++++++++++++++++++++++
 
-* MSG1 
-* MSG2 
-* MSG3 
+* More Generative AI coverage and framework integrations to minimize code changes 
 
+  * **Expanded model support for direct PyTorch* model conversion** - easily convert 
+    additional models directly from PyTorch or execute via torch.compile with
+    OpenVINO as the backend.
+  * **New and noteworthy models supported** - we have enabled models used for chatbots,
+    instruction following, code generation, and many more, including prominent models 
+    like Llava, chatGLM, Bark (text to audio) and LCM (Latent Consistency Models, 
+    an optimized version of Stable Diffusion).
+  * **Easier optimization and conversion of Hugging Face models** - compress LLM models
+    to int8 with the Hugging Face Optimum command line interface and export models 
+    to the OpenVINO IR format.
+  * **OpenVINO is now available on Conan**, a package manager which allows more seamless
+    package management for large scale projects for C and C++ developers.
+
+* Broader Large Language Model (LLM) support and more model compression techniques 
+
+  * Accelerate inference for LLM models on CPU and iGPU with the use of int8 and int4 
+    model weight compression. 
+  * Expanded model support for dynamic shapes for improved performance on GPU.
+  * Int4 model format is now supported. Int4 optimized model weights are now 
+    supported on Intel® Core™ CPU and iGPU, to accelerate models like
+    Llama 2 and chatGLM2.
+  * The following int4 model compression formats are supported for inference
+    in runtime:
+    
+    * Generative Pre-training Transformer Quantization (GPTQ); with GPTQ-compressed
+      models, you can access them through the Hugging Face repositories.
+    * Native int4 compression through Neural Network Compression Framework (NNCF).
+
+* More portability and performance to run AI at the edge, in the cloud, or locally
+  
+  * In 2023.1 we announced full support for ARM architecture, now we have improved
+    performance by enabling FP16 model formats for LLMs and integrating additional 
+    acceleration libraries to improve latency.
+ 
 Support Change and Deprecation Notices
-++++++++++++++++++++++++++++++++++++++++++  
+++++++++++++++++++++++++++++++++++++++++++
 
-* The OpenVINO™ Development Tools package (pip install openvino-dev) is currently being deprecated 
-  and will be removed from installation options and distribution channels with 2025.0. 
+* The OpenVINO™ Development Tools package (pip install openvino-dev) is currently being 
+  deprecated and will be removed from installation options and distribution channels
+  with 2025.0. 
 
 * Tools:  
 
-  * Deployment Manager is deprecated and will be removed in 2024.0 release.
-  * Model Optimizer is being deprecated and will be fully supported till the 2025.0 release.
-    From that point, model conversion to the IR should be performed through OpenVINO Model
-    Converter (OVC) which is part of the PyPi package. Follow the MO to OVC transition guide
-    for smoother transition by 2025.0. Known limitations are TensorFlow model with TF1 Control
-    flow and Object Detection models. These limitations relate to the gap in TensorFlow
-    Frontend capabilities which will be addressed in upcoming releases. 
+  * :doc:`Deployment Manager <openvino_docs_install_guides_deployment_manager_tool>` is
+    currently being deprecated and will be removed in the 2024.0 release.
+  * Model Optimizer is being deprecated and will be fully supported until the 2025.0
+    release. Model conversion to the OpenVINO IR format should be performed through
+    OpenVINO Model Converter, which is part of the PyPI package. Follow the 
+    :doc:`Model Optimizer to OpenVINO Model Converter transition <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`
+    guide for smoother transition. Known limitations are TensorFlow model with
+    TF1 Control flow and object detection models. These limitations relate to the
+    gap in TensorFlow direct conversion capabilities which will be addressed in
+    upcoming releases.
+  * Deprecated support for PyTorch 1.13 in Neural Network Compression Framework (NNCF)
 
 * Runtime:
 
-  * Python 3.7 support has been dropped. 
+  * Python 3.7 support has been discontinued. 
 
 OpenVINO™ Development Tools
-++++++++++++++++++++++++++++++++++++++++++  
+++++++++++++++++++++++++++++++++++++++++++
 
 List of components and their changes:
 ------------------------------------------
 
-* Improved OpenVINO converter tool (OVC) so it now can support original framework shape format 
-* Neural Network Compression Framework (NNCF) 
+* :doc:`OpenVINO Model Converter tool <openvino_docs_model_processing_introduction>`
+  supports the original framework shape format 
+* `Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`__
   
-  * Added data-free INT4 weights compression support for LLMs in OpenVINO format with nncf.compress_weights(). 
-  * Preview feature was added to compress model weights to NF4 of LLMs in OpenVINO format with nncf.compress_weights(). 
-  * Improved quantization time of LLMs with NNCF PTQ API for nncf.quantize() and nncf.quantize_with_accuracy_control(). 
-  * Added support for SmoothQuant and ChannelAlighnment algorithms in NNCF HyperParameter Tuner for automatic optimization
-    of their hyperparameters during the quantization.   
-  * Added quantization support for IF operation of models in OpenVINO format to speed up such models.  
-  * NNCF Post-training Quantization for PyTorch backend is now supported with nncf.quantize() and the 
-    common implementation of quantization algorithms. Deprecated create_compressed_model() method for Post-training
-    Quantization in PyTorch backend. 
-  * Added support for PyTorch 2.1. PyTorch 1.13 support has been deprecated.  
+  * Added data-free INT4 weights compression support for LLMs in OpenVINO format
+    with nncf.compress_weights().
+  * Preview feature was added to compress model weights to NF4 of LLMs in OpenVINO
+    format with nncf.compress_weights().
+  * Improved quantization time of LLMs with NNCF PTQ API for nncf.quantize() and 
+    nncf.quantize_with_accuracy_control().
+  * Added support for SmoothQuant and ChannelAlighnment algorithms in NNCF
+    HyperParameter Tuner for automatic optimization of their hyperparameters
+    during quantization.  
+  * Added quantization support for IF operation of models in OpenVINO format to
+    speed up such models.
+  * NNCF Post-training Quantization for PyTorch backend is now supported with
+    nncf.quantize() and the common implementation of quantization algorithms. 
+  * Added support for PyTorch 2.1. PyTorch 1.13 support has been deprecated. 
+
 
 OpenVINO™ Runtime (previously known as Inference Engine) 
 ---------------------------------------------------------
 
 * OpenVINO Core 
 
-  * Operations reference implementations updated from legacy API to API 2.0 API 
-  * Symbolic transformation introduced a removing Reshape operations surrounding MatMul operations 
+  * Operations for reference implementations updated from legacy API to API 2.0.
+  * Symbolic transformation introduced the ability to remove Reshape operations surrounding MatMul operations.
 
 * OpenVINO Python API 
 
-  * Better support for `openvino.properties` submodule, which now allow to use properties directly 
-    without additional parenthesis. Example dictionary use-case: `{openvino.properties.cache_dir: “./some_path/”}`. 
-  * Added missing properties: `execution_devices`, `loaded_from_cache` 
-  * Improved error propagation on imports from OpenVINO package. 
+  * Better support for the ``openvino.properties`` submodule, which now allows the use
+    of properties directly, without additional parenthesis. Example use-case: 
+    ``{openvino.properties.cache_dir: “./some_path/”}``.
+  * Added missing properties: ``execution_devices`` and ``loaded_from_cache``.
+  * Improved error propagation on imports from OpenVINO package.
 
 * AUTO device plug-in (AUTO) 
 
-  * Provided additional option to improve performance of cumulative throughput (or MULTI), 
-    where part of CPU resources can be reserved for GPU inference when GPU and CPU are both 
-    used for inference. This avoids the performance issue of CPU resource contention where 
-    there is not enough CPU resource to schedule tasks for GPU (PR#19214). 
-
-  * Improved support of NPU plugin: Get optimal_number_of_infer_requests from NPU plugin 
-    instead of estimating by AUTO in CPU acceleration scenario (when running inference 
-    with AUTO:NPU,CPU and without other configurations). 
+  * Provided additional option to improve performance of cumulative throughput
+    (or MULTI), where part of CPU resources can be reserved for GPU inference
+    when GPU and CPU are both used for inference. This avoids the performance
+    issue of CPU resource contention where there is not enough CPU resources to
+    schedule tasks for GPU (`PR#19214 <https://github.com/openvinotoolkit/openvino/pull/19214>`__).
+  * Improved support of the NPU plugin: Get optimal_number_of_infer_requests from
+    NPU plugin instead of estimating by AUTO in CPU acceleration scenario (when
+    running inference with AUTO:NPU,CPU and without other configurations).
 
 * Intel® CPU
 
-  * Introduced support of GPTQ quantized INT4 models, with improved performance comparing
-    to INT8 weight compressed or FP16 models. In CPU plugin, such performance gain is 
-    achieved by FullyConnected acceleration with 4bit weights decompression (PR #20607) 
-  * Improved performance of INT8 weight compressed large language models on memory constraint 
-    platforms, such as Intel 13th Generation of Core platform (PR #20607).  
-  * Further reduced memory consumption of selected large language models on CPU platforms with
-    AMX and AVX512 ISA, by eliminating extra memory copy with unified weight layout in matrix 
-    multiplication operator (PR #19575).  
-  * Fixed some of the performance issue observed in 2023.1 release on selected Xeon CPU platform
-    with improved thread workload partitioning matching L2 cache utilization for operator like 
-    inner_product (PR #20436)  
-  * Extended support of configuration (enable_cpu_pinning) on Windows platforms to allow 
-    fine-grained control on CPU resource used for inference workload, by binding inference 
-    thread to CPU cores (PR #19418)   
-  * Optimized Yolov8n and YoloV8s model performance for BF16/FP32 precision. 
-  * Optimized Falcon model on 4th Generation Intel® Xeon® Scalable Processors. 
-  * Enabled support for FP16 inference precision on ARM. 
+  * Introduced support of GPTQ quantized INT4 models, with improved performance
+    compared to INT8 weight compressed or FP16 models. In the CPU plugin, the
+    gain in performance is achieved by FullyConnected acceleration with 4bit
+    weight decompression (`PR #20607 <https://github.com/openvinotoolkit/openvino/pull/20607>`__).
+  * Improved performance of INT8 weight-compressed large language models on
+    memory constraint platforms, such as 13th Gen Intel Core (`PR #20607 <https://github.com/openvinotoolkit/openvino/pull/20607>`__). 
+  * Further reduced memory consumption of select large language models on CPU
+    platforms with AMX and AVX512 ISA, by eliminating extra memory copy with
+    unified weight layout in matrix multiplication operator (`PR #19575 <https://github.com/openvinotoolkit/openvino/pull/19575>`__). 
+  * Fixed performance issue observed in 2023.1 release on selected Xeon CPU
+    platform with improved thread workload partitioning matching L2 cache
+    utilization for operator like inner_product (`PR #20436 <https://github.com/openvinotoolkit/openvino/pull/20436>`__).
+  * Extended support of configuration (enable_cpu_pinning) on Windows platforms
+    to allow fine-grain control on CPU resource used for inference workload,
+    by binding inference thread to CPU cores (`PR #19418 <https://github.com/openvinotoolkit/openvino/pull/19418>`__).
+  * Optimized YoloV8n and YoloV8s model performance for BF16/FP32 precision.
+  * Optimized Falcon model on 4th Gen Intel® Xeon® Scalable Processors.
+  * Enabled support for FP16 inference precision on ARM.
+
+
+
+
+
+
 
 * Intel® GPU
 
