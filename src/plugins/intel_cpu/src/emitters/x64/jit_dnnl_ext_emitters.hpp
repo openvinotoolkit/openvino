@@ -167,7 +167,7 @@ public:
         dnnl::impl::cpu::x64::cpu_isa_t host_isa,
         const std::shared_ptr<ov::Node>& n,
         ov::element::Type exec_prc = ov::element::f32) : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
-        const auto round = getNgraphOpAs<ngraph::op::v5::Round>(n);
+        const auto round = getNgraphOpAs<ov::op::v5::Round>(n);
         const auto mode = round->get_mode();
         if ((mode != ov::opset5::Round::RoundMode::HALF_AWAY_FROM_ZERO) &&
             (mode != ov::opset5::Round::RoundMode::HALF_TO_EVEN)) {
