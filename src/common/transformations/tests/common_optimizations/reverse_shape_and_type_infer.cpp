@@ -43,6 +43,36 @@ TEST_F(TransformationTestsF, ConvolutionReverseInfer) {
     }
 }
 
+TEST_F(TransformationTestsF, ConvolutionReverseInferUpdateShape) {
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic(4));
+        auto weights =
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
+        auto conv = std::make_shared<opset10::Convolution>(data,
+                                                           weights,
+                                                           Strides{2, 2},
+                                                           CoordinateDiff{3, 3},
+                                                           CoordinateDiff{3, 3},
+                                                           Strides{1, 1});
+        auto result = std::make_shared<opset10::Result>(conv);
+        model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+        manager.register_pass<pass::ReverseShapeAndTypeInfer>();
+    }
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{DYN, 3, DYN, DYN});
+        auto weights =
+            opset10::Constant::create(element::f32, Shape{64, 3, 7, 7}, std::vector<float>(64 * 3 * 7 * 7, 0.1f));
+        auto conv = std::make_shared<opset10::Convolution>(data,
+                                                           weights,
+                                                           Strides{2, 2},
+                                                           CoordinateDiff{3, 3},
+                                                           CoordinateDiff{3, 3},
+                                                           Strides{1, 1});
+        auto result = std::make_shared<opset10::Result>(conv);
+        model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+    }
+}
+
 TEST_F(TransformationTestsF, ConvolutionBackpropDataReverseInfer) {
     {
         auto data = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());

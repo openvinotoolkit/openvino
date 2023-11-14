@@ -28,8 +28,8 @@ bool ov::pass::ReverseShapeAndTypeInfer::inherit_output_shape(const std::shared_
     auto output_shape = node->get_output_partial_shape(0);
 
     for (auto idx : input_idxs) {
-        if (idx < node->get_input_size() && node->get_input_partial_shape(idx).rank().is_dynamic()) {
-            node->get_input_tensor(idx).m_partial_shape = output_shape;
+        if (idx < node->get_input_size() && node->get_input_partial_shape(idx).compatible(output_shape)) {
+            PartialShape::merge_into(node->get_input_tensor(idx).m_partial_shape, output_shape);
             is_changed = true;
         }
     }
@@ -73,8 +73,10 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
         auto output_shape = op->get_output_partial_shape(0);
         auto output_type = op->get_output_element_type(0);
         if (const auto& param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(op)) {
-            if (param->get_partial_shape().rank().is_dynamic()) {
-                param->set_partial_shape(output_shape);
+            if (param->get_partial_shape().compatible(output_shape)) {
+                auto shape = param->get_partial_shape();
+                PartialShape::merge_into(shape, output_shape);
+                param->set_partial_shape(shape);
                 is_changed = true;
             }
             if (param->get_element_type().is_dynamic()) {
@@ -166,8 +168,8 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                 auto input_pshape = output_shape;
                 input_pshape[axis] = Dimension::dynamic();
                 for (auto idx : input_idxs) {
-                    if (idx < op->get_input_size() && op->get_input_partial_shape(idx).rank().is_dynamic()) {
-                        op->get_input_tensor(idx).m_partial_shape = input_pshape;
+                    if (idx < op->get_input_size() && op->get_input_partial_shape(idx).compatible(input_pshape)) {
+                        PartialShape::merge_into(op->get_input_tensor(idx).m_partial_shape, input_pshape);
                         is_changed = true;
                     }
                 }
@@ -247,28 +249,28 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
             for (const auto& in_desc : then_in_desc) {
                 const auto& in_indx = in_desc->m_input_index;
                 const auto& body_indx = in_desc->m_body_parameter_index;
-                if (if_op->get_input_tensor(in_indx).get_partial_shape().rank().is_dynamic()) {
-                    if_op->get_input_tensor(in_indx).m_partial_shape =
-                        then_body_params.at(body_indx)->get_partial_shape();
+                auto then_p = then_body_params.at(body_indx);
+                if (if_op->get_input_tensor(in_indx).get_partial_shape().compatible(then_p->get_partial_shape())) {
+                    PartialShape::merge_into(if_op->get_input_tensor(in_indx).m_partial_shape,
+                                             then_p->get_partial_shape());
                     is_changed = true;
                 }
                 if (if_op->get_input_tensor(in_indx).get_element_type().is_dynamic()) {
-                    if_op->get_input_tensor(in_indx).m_element_type =
-                        then_body_params.at(body_indx)->get_element_type();
+                    if_op->get_input_tensor(in_indx).m_element_type = then_p->get_element_type();
                     is_changed = true;
                 }
             }
             for (const auto& in_desc : else_in_desc) {
                 const auto& in_indx = in_desc->m_input_index;
                 const auto& body_indx = in_desc->m_body_parameter_index;
-                if (if_op->get_input_tensor(in_indx).get_partial_shape().rank().is_dynamic()) {
-                    if_op->get_input_tensor(in_indx).m_partial_shape =
-                        else_body_params.at(body_indx)->get_partial_shape();
+                auto else_p = else_body_params.at(body_indx);
+                if (if_op->get_input_tensor(in_indx).get_partial_shape().compatible(else_p->get_partial_shape())) {
+                    PartialShape::merge_into(if_op->get_input_tensor(in_indx).m_partial_shape,
+                                             else_p->get_partial_shape());
                     is_changed = true;
                 }
                 if (if_op->get_input_tensor(in_indx).get_element_type().is_dynamic()) {
-                    if_op->get_input_tensor(in_indx).m_element_type =
-                        else_body_params.at(body_indx)->get_element_type();
+                    if_op->get_input_tensor(in_indx).m_element_type = else_p->get_element_type();
                     is_changed = true;
                 }
             }
@@ -289,7 +291,8 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                     // set more precise dimensions during reverse infer
                     // if transpose order is known
                     int64_t rank_length = output_shape.rank().get_length();
-                    op->get_input_tensor(0).m_partial_shape = PartialShape::dynamic(output_shape.rank());
+                    PartialShape::merge_into(op->get_input_tensor(0).m_partial_shape,
+                                             PartialShape::dynamic(output_shape.rank()));
                     auto order_value = transpose_order->cast_vector<int64_t>();
                     OPENVINO_ASSERT(order_value.size() == static_cast<size_t>(rank_length),
                                     "The length of Transpose order and the input rank mismatch");
@@ -304,7 +307,8 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                 }
             } else if (transpose_order) {
                 auto order_value = transpose_order->cast_vector<int64_t>();
-                op->get_input_tensor(0).m_partial_shape = PartialShape::dynamic(order_value.size());
+                PartialShape::merge_into(op->get_input_tensor(0).m_partial_shape,
+                                         PartialShape::dynamic(order_value.size()));
                 is_changed = true;
             }
             is_changed |= inherit_output_type(op, {0});
