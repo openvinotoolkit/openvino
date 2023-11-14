@@ -37,33 +37,6 @@ typedef std::tuple<
         fusingSpecificParams,
         std::map<std::string, std::string> > convLayerCPUTestParamsSet;
 
-typedef testing::internal::CartesianProductHolder<
-        testing::internal::ParamGenerator<std::vector<unsigned long>>,
-        testing::internal::ParamGenerator<std::vector<unsigned long>>,
-        testing::internal::ParamGenerator<std::vector<long>>,
-        testing::internal::ParamGenerator<std::vector<long>>,
-        testing::internal::ParamGenerator<std::vector<unsigned long>>,
-        testing::internal::ParamGenerator<unsigned long>,
-        testing::internal::ValueArray<ov::op::PadType>> convParams_ExplicitPaddingType;
-
-typedef testing::internal::CartesianProductHolder<
-        testing::internal::ParamGenerator<std::vector<unsigned long>>,
-        testing::internal::ParamGenerator<std::vector<unsigned long>>,
-        testing::internal::ParamGenerator<std::vector<long>>,
-        testing::internal::ParamGenerator<std::vector<long>>,
-        testing::internal::ValueArray<std::vector<unsigned long>>,
-        testing::internal::ParamGenerator<unsigned long>,
-        testing::internal::ValueArray<ov::op::PadType>> convParams_ExplicitPaddingDilatedType;
-
-typedef testing::internal::CartesianProductHolder<
-        testing::internal::ValueArray<std::vector<unsigned long>>,
-        testing::internal::ValueArray<std::vector<unsigned long>>,
-        testing::internal::ValueArray<std::vector<long>>,
-        testing::internal::ValueArray<std::vector<long>>,
-        testing::internal::ValueArray<std::vector<unsigned long>>,
-        testing::internal::ValueArray<int>,
-        testing::internal::ValueArray<ov::op::PadType>> convParams_ExplicitPadding_1x1_Type;
-
 class ConvolutionLayerCPUTest : public testing::WithParamInterface<convLayerCPUTestParamsSet>,
                                 virtual public SubgraphBaseTest, public CpuTestWithFusing {
 public:
@@ -124,6 +97,30 @@ namespace Convolution {
 
     const std::vector<fusingSpecificParams>& fusingParamsSetWithEmpty();
 
+    using convParams_ExplicitPaddingType = decltype(::testing::Combine(
+                                                        ::testing::ValuesIn(kernels2d()),
+                                                        ::testing::ValuesIn(strides2d()),
+                                                        ::testing::ValuesIn(padBegins2d()),
+                                                        ::testing::ValuesIn(padEnds2d()),
+                                                        ::testing::ValuesIn(dilations2d()),
+                                                        ::testing::ValuesIn(numOutChannels_Gemm()),
+                                                        ::testing::Values(ngraph::op::PadType::EXPLICIT)));
+    using convParams_ExplicitPaddingDilatedType = decltype(::testing::Combine(
+                                                                ::testing::ValuesIn(kernels2d()),
+                                                                ::testing::ValuesIn(strides2d()),
+                                                                ::testing::ValuesIn(padBegins2d()),
+                                                                ::testing::ValuesIn(padEnds2d()),
+                                                                ::testing::Values(SizeVector{2, 2}),
+                                                                ::testing::ValuesIn(numOutChannels_Gemm()),
+                                                                ::testing::Values(ngraph::op::PadType::EXPLICIT)));
+    using convParams_ExplicitPadding_1x1_Type = decltype(::testing::Combine(
+                                                                ::testing::Values(SizeVector({1})),
+                                                                ::testing::Values(SizeVector({1})),
+                                                                ::testing::Values(std::vector<ptrdiff_t>({0})),
+                                                                ::testing::Values(std::vector<ptrdiff_t>({0})),
+                                                                ::testing::Values(SizeVector({1})),
+                                                                ::testing::Values(63),
+                                                                ::testing::Values(ngraph::op::PadType::EXPLICIT)));
     const convParams_ExplicitPaddingType& convParams_ExplicitPadding_GEMM_1D();
     const convParams_ExplicitPaddingType& convParams_ExplicitPadding_GEMM_2D();
     const convParams_ExplicitPaddingType& convParams_ExplicitPadding_GEMM_3D();
