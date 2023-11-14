@@ -573,6 +573,23 @@ void loop_inst::preprocess_backedge_memory() {
             GPU_DEBUG_LOG << idx << ") add back_edge mapping with SINGLE_SHARED type, backedge_mem("
                             << backedge_mem << "), initial_mem(" << initial_mem << ")" << std::endl;
         }
+        // Add _exec_deps for backedge primitives
+        for (auto user : backedge_to_prim->get_node().get_users()) {
+            cldnn::primitive_id user_primitive_id;
+            if (user->can_be_optimized()) {
+                // When user is optimized out, use user's user.
+                user_primitive_id = user->get_users().front()->get_primitive()->id;
+            } else {
+                user_primitive_id = user->get_primitive()->id;
+            }
+            auto user_primitive = body_network->get_primitive(user_primitive_id);
+
+            if (std::find(backedge_from_prim->_exec_deps.begin(), backedge_from_prim->_exec_deps.end(), user_primitive)
+               != backedge_from_prim->_exec_deps.end()) {
+                backedge_from_prim->_exec_dep_ids.push_back(user_primitive_id);
+                backedge_from_prim->_exec_deps.push_back(user_primitive);
+               }
+        }
     }
 }
 
