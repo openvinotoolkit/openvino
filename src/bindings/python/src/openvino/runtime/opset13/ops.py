@@ -259,8 +259,8 @@ def constant(
     if isinstance(value, np.ndarray):
         _value, _shared_memory = value, shared_memory
     else:
-        log.warning(f"Converting scalar to corresponding type. Memory sharing is disabled by default.")
         _value, _shared_memory = np.array(value), False
+        log.warning(f"Converting scalar to corresponding type of {_value.dtype}. Memory sharing is disabled by default.")
     # Handle type casting, when dtype is not None:
     if dtype:
         _dtype = dtype.to_dtype() if isinstance(dtype, Type) else dtype
