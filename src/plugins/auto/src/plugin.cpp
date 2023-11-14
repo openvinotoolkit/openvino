@@ -465,7 +465,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     std::list<DeviceInformation> devices_with_priority(support_devices.begin(), support_devices.end());
     std::shared_ptr<ov::Model> cloned_model, ppp_model;
     if (model_path.empty()) {
-        support_devices = filter_device_by_model(support_devices_by_property, model);
+        support_devices = filter_device_by_model(support_devices_by_property, model, load_config);
         cloned_model = model->clone();
         ppp_model = cloned_model->clone();
 
@@ -911,7 +911,8 @@ std::vector<DeviceInformation> Plugin::filter_device(const std::vector<DeviceInf
 }
 
 std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<DeviceInformation>& meta_devices,
-                                                                const std::shared_ptr<const ov::Model>& model) const {
+                                                              const std::shared_ptr<const ov::Model>& model,
+                                                              PluginConfig& load_config) const {
     if (meta_devices.empty()) {
         OPENVINO_THROW("No available device to filter ", get_device_name(), " plugin");
     }
@@ -945,6 +946,11 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
         return meta_devices;
     }
 
+    // disable CPU_HELP if model is stateful
+    load_config.set_property(ov::intel_auto::enable_startup_fallback(false));
+    if (meta_devices.size() == 1)
+        return meta_devices;
+
     auto is_supported_stateful = [&](const std::string& device_name, const ov::AnyMap& config) {
         auto device_qm = get_core()->query_model(model, device_name, config);
         for (auto&& node_name : stateful_node_names) {
@@ -958,14 +964,15 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
         if (is_supported_stateful(item.device_name, item.config))
             filter_device.push_back(item);
     }
+    if (get_device_name() == "MULTI") {
+        if (filter_device.empty() || filter_device.size() > 1)
+            OPENVINO_THROW("AUTO cumulative model didn't support stateful model.");
+        else
+            return filter_device;
+    }
     if (filter_device.empty()) {
         return meta_devices;
     }
-
-    if (get_device_name() == "MULTI") {
-        OPENVINO_THROW("AUTO cumulative model didn't support stateful model.");
-    }
-
     return filter_device;
 }
 
