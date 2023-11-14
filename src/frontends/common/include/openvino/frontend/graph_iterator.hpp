@@ -57,7 +57,7 @@ public:
         return {};
     }
 
-    /// \brief Defines if indices tensor names need output indices
+    /// \brief Defines if tensor names need output indices
     virtual bool tensor_names_need_indices() const = 0;
 };
 

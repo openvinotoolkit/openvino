@@ -8,8 +8,8 @@ import openvino.runtime as ov
 import pytest
 from openvino.runtime import PartialShape, Model, Dimension
 
-from common.layer_test_class import CommonLayerTest
 from common.mo_convert_test_class import CommonMOConvertTest
+from common.layer_test_class import CommonLayerTest
 
 
 def create_tf_graph_def(tmp_dir):

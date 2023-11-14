@@ -74,7 +74,7 @@ class PyGraphIterator : public ov::frontend::tensorflow::GraphIterator {
         PYBIND11_OVERRIDE_PURE(map_str_to_str, GraphIterator, get_output_names_map);
     }
 
-    /// \brief Defines if indices tensor names need output indices
+    /// \brief Defines if tensor names need output indices
     bool tensor_names_need_indices() const override {
         PYBIND11_OVERRIDE_PURE(bool, GraphIterator, tensor_names_need_indices);
     }
