@@ -1391,7 +1391,7 @@ std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* up
     auto impl_params = updated_params != nullptr ? *updated_params : *_impl_params;
     auto& out_layouts = impl_params.output_layouts;
     for (size_t i = 0; i < get_node().get_outputs_count() ; ++i) {
-        if (out_layouts[i].is_dynamic()) {
+        if (out_layouts[i].is_dynamic() && !out_layouts[i].has_upper_bound()) {
             outputs.push_back(memory::ptr());
         } else {
             auto current_memory_ptr = _outputs.size() > i ? output_memory_ptr(i).get() : nullptr;
