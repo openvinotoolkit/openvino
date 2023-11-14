@@ -256,11 +256,10 @@ MemoryPtr Deconvolution::createWeiBlobAsIO(const VectorDims& dims) {
     for (size_t i = 2 + withGroups; i < dimsForBlockedDesc.size(); i++)
         orderForBlockedDesc.push_back(i);
 
-    auto desc =
-        MemoryDescUtils::createDnnlBlockedMemoryDesc(DnnlExtensionUtils::DataTypeToIEPrecision(blb->getDataType()),
-                                                     Shape(dims),
-                                                     dimsForBlockedDesc,
-                                                     orderForBlockedDesc);
+    auto desc = CpuBlockedMemoryDesc(DnnlExtensionUtils::DataTypeToIEPrecision(blb->getDataType()),
+                                     Shape(dims),
+                                     dimsForBlockedDesc,
+                                     orderForBlockedDesc);
     MemoryPtr mem_ptr = std::make_shared<Memory>(getEngine(), desc);
     char* data = static_cast<char *>(mem_ptr->getData());
     size_t intBuffSize = mem_ptr->getSize();

@@ -41,19 +41,6 @@ public:
     static DnnlBlockedMemoryDesc convertToDnnlBlockedMemoryDesc(const MemoryDesc& desc);
 
     /**
-     * @brief Create DnnlBlockedMemoryDesc from prcision, shape, blockedDims and blockedOrder
-     * @param prc precision for DnnlBlockedMemoryDesc
-     * @param shape shape for DnnlBlockedMemoryDesc
-     * @param blockedDims blocked dim for DnnlBlockedMemoryDesc
-     * @param blockedOrder blocked order for DnnlBlockedMemoryDesc
-     * @return created DnnlBockedMemoryDesc
-     */
-    static DnnlBlockedMemoryDesc createDnnlBlockedMemoryDesc(InferenceEngine::Precision prc,
-                                                             const Shape& shape,
-                                                             const VectorDims& blockedDims,
-                                                             const VectorDims& blockedOrder);
-
-    /**
      * @brief Converts MemoryDesc to BlockedMemoryDesc
      * @param desc MemoryDesc to be converted
      * @return converted BlockedMemoryDesc

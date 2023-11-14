@@ -821,7 +821,7 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
     const auto& internalBlob = internalBlobs[indx];
 
     auto create = [&]() {
-        auto newDesc = internalBlob->getDescWithType<DnnlMemoryDesc>();
+        auto newDesc = internalBlob->getDescPtr();
         Memory memory{engine, newDesc, internalBlob->getData()};
 
         MemoryPtr _ptr = std::make_shared<Memory>(engine, intDesc);
@@ -837,8 +837,10 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
             weightCache->GetHashFunc().hash(static_cast<const unsigned char*>(internalBlob->getData()),
                                             internalBlob->getSize());
 
-        const std::string string_hash = name + "_" + std::to_string(indx) + "_" + format + "_" +
-                                        std::to_string(internalBlob->getSize()) + "_" + std::to_string(data_hash);
+        const std::string string_hash = name + "_" + std::to_string(indx)
+                                        + "_" + format
+                                        + "_" + std::to_string(internalBlob->getSize())
+                                        + "_" + std::to_string(data_hash);
 
         ptr = *weightCache->findOrCreate(string_hash, create);
     } else {

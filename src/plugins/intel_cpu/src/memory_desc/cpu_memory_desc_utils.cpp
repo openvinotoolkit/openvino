@@ -7,7 +7,8 @@
 #include "cpu_memory_desc.h"
 #include "ie_ngraph_utils.hpp"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/itensor.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
 
@@ -46,13 +47,6 @@ DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const Memo
     } else {
         IE_THROW() << "Cannot convert MemoryDesc to DnnlMemoryDesc";
     }
-}
-
-DnnlBlockedMemoryDesc MemoryDescUtils::createDnnlBlockedMemoryDesc(InferenceEngine::Precision prc,
-                                                                   const Shape& shape,
-                                                                   const VectorDims& blockedDims,
-                                                                   const VectorDims& blockedOrder) {
-    return DnnlBlockedMemoryDesc(prc, shape, blockedDims, blockedOrder);
 }
 
 CpuBlockedMemoryDesc MemoryDescUtils::createCpuBlockedMemoryDesc(const ov::SoPtr<ITensor>& tensor,
