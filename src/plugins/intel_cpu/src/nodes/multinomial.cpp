@@ -24,7 +24,6 @@ Multinomial::Multinomial(const std::shared_ptr<ov::Node>& op, const GraphContext
     m_global_seed = multinomial_op->get_global_seed();
     m_log_probs = multinomial_op->get_log_probs();
     m_op_seed = multinomial_op->get_op_seed();
-    m_output_precision = InferenceEngine::details::convertPrecision(multinomial_op->get_convert_type());
 
     for (size_t i = 0lu; i < op->get_input_size(); i++) {
         if (is_type<op::v0::Constant>(op->get_input_node_ptr(i))) {
@@ -68,7 +67,6 @@ void Multinomial::initSupportedPrimitiveDescriptors() {
         m_num_samples_precision = InferenceEngine::Precision::I32;
     }
 
-    m_output_precision = InferenceEngine::Precision::I32;
     addSupportedPrimDesc({{LayoutType::ncsp, m_probs_precision, m_const_inputs[PROBS_PORT]},
                           {LayoutType::ncsp, m_num_samples_precision, m_const_inputs[NUM_SAMPLES_PORT]}},
                          {{LayoutType::ncsp, m_output_precision}},
