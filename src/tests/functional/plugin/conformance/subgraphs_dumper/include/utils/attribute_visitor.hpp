@@ -19,6 +19,7 @@ namespace util {
 
 class ReadAttributes : public ov::AttributeVisitor {
     std::map<std::string, std::string> attributes_map;
+    std::map<std::string, std::shared_ptr<ov::Model>> model_attributes_map;
 
     template <typename Container>
     std::string join(const Container& c, const char* glue = ", ") {
@@ -40,6 +41,7 @@ public:
     ReadAttributes() = default;
 
     std::map<std::string, std::string> get_attributes_map() { return attributes_map; }
+    std::map<std::string, std::shared_ptr<ov::Model>> get_model_attributes_map() { return model_attributes_map; }
     
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
         attributes_map.insert({ name, "" });
@@ -73,10 +75,7 @@ public:
         attributes_map.insert({ name, create_atribute_list(adapter) });
     }
     void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
-        std::ostringstream result;
-        ov::pass::StreamSerialize(result, std::function<void(std::ostream&)>())
-            .run_on_model(std::const_pointer_cast<ov::Model>(adapter.get()));
-        attributes_map.insert({ name, result.str() });
+        model_attributes_map.insert({ name, adapter.get() });
     }
 };
 

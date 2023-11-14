@@ -37,3 +37,4 @@ ov_add_test_target(
 )
 
 ov_build_target_faster(${TARGET_NAME} UNITY)
+ov_build_target_faster(${OLD_TARGET_NAME} UNITY)

@@ -48,6 +48,7 @@ public:
                 const std::map<std::string, InputInfo> &in_info_ref);
                                 
     void set_match_coefficient(float _match_coefficient);
+    float get_match_coefficient() { return match_coefficient; }
     void set_shape_strict_match(bool is_shape_strict_match);
 
 protected:

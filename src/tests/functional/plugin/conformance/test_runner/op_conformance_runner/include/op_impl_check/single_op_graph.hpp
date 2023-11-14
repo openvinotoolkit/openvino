@@ -4,9 +4,6 @@
 
 #pragma once
 
-// #include <functional_test_utils/summary/op_summary.hpp>
-// #include <ov_models/subgraph_builders.hpp>
-
 namespace ov {
 namespace test {
 namespace op_conformance {
