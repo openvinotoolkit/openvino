@@ -38,6 +38,8 @@ public:
     static Napi::Object Wrap(Napi::Env env, ov::PartialShape partial_shape);
 
     Napi::Value is_static(const Napi::CallbackInfo& info);
+    Napi::Value is_dynamic(const Napi::CallbackInfo& info);
+    Napi::Value to_string(const Napi::CallbackInfo& info);
 
 private:
     ov::PartialShape _partial_shape;       

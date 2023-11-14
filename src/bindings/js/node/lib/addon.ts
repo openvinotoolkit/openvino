@@ -124,6 +124,8 @@ interface PrePostProcessorConstructor {
 
 interface PartialShape {
   isStatic(): boolean;
+  isDynamic(): boolean;
+  toString(): string;
 }
 interface PartialShapeConstructor {
   new(shape: string): PartialShape;

@@ -26,7 +26,9 @@ Napi::Function PartialShapeWrap::GetClassConstructor(Napi::Env env) {
     return DefineClass(env,
                        "PartialShapeWrap",
                        {
-                           InstanceMethod("isStatic", &PartialShapeWrap::is_static)
+                           InstanceMethod("isStatic", &PartialShapeWrap::is_static),
+                           InstanceMethod("isDynamic", &PartialShapeWrap::is_dynamic),
+                           InstanceMethod("toString", &PartialShapeWrap::to_string),
                        });
 }
 
@@ -58,5 +60,15 @@ Napi::Object PartialShapeWrap::Wrap(Napi::Env env, ov::PartialShape partial_shap
 }
 
 Napi::Value PartialShapeWrap::is_static(const Napi::CallbackInfo& info) {
-  return cpp_to_js<bool, Napi::Boolean>(info, _partial_shape.is_static());
+    return cpp_to_js<bool, Napi::Boolean>(info, _partial_shape.is_static());
 }
+
+Napi::Value PartialShapeWrap::is_dynamic(const Napi::CallbackInfo& info) {
+    return cpp_to_js<bool, Napi::Boolean>(info, _partial_shape.is_dynamic());
+}
+
+Napi::Value PartialShapeWrap::to_string(const Napi::CallbackInfo& info) {
+    return Napi::String::New(info.Env(), _partial_shape.to_string());
+}
+
+
