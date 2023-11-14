@@ -18,18 +18,35 @@ namespace intel_cpu {
 namespace node {
 
 If::PortMapHelper::PortMapHelper(const MemoryPtr &from, const std::deque<MemoryPtr>& to,
-                                           const dnnl::engine& eng) : srcMemPtr(from), dstMemPtrs(to) {
-    size = 0;
-    if (srcMemPtr->getDesc().isDefined())
-        size = srcMemPtr->getSize();
+                                           const dnnl::engine& eng, int from_port, int to_port) : srcMemPtr(from), dstMemPtrs(to), src_port(from_port), dst_port(to_port) {
+    // size = 0;
+    // if (srcMemPtr->getDesc().isDefined())
+    //     size = srcMemPtr->getSize();
+}
+
+void If::PortMapHelper::update(ProxyMemoryMngrPtr dstMemMngr) {
+    auto srcDesc = srcMemPtr->getDescPtr();
+
+    // FIXME: do we need all dstMemDesc compatible?
+    auto dstDesc = dstMemPtrs.front()->getDescPtr();
+    if (dstDesc->isCompatible(*srcDesc)) {
+        dstMemMngr->setMemMngr(srcMemPtr->getMemoryMngr());  // TODO: setMemMngrResize
+    } else {
+        dstMemMngr->reset();
+    }
 }
 
 void If::PortMapHelper::execute(dnnl::stream& strm) {
     // if output shapes are changed,
     // after subgraph inference we should redefine out memory of 'If'
-    redefineTo();
+    // redefineTo();
 
-    cpu_memcpy(dstMemPtrs.front()->getData(), srcMemPtr->getData(), size);
+    // cpu_memcpy(dstMemPtrs.front()->getData(), srcMemPtr->getData(), size);
+
+    if (dstMemPtrs.front()->getData() != srcMemPtr->getData()) {
+        redefineTo();
+        dstMemPtrs.front()->load(*srcMemPtr);
+    }
 }
 
 void If::PortMapHelper::redefineTo() {
@@ -41,7 +58,7 @@ void If::PortMapHelper::redefineTo() {
             dstMemPtrs[j]->redefineDesc(memDesc);
         }
 
-        size = srcMemPtr->getSize();
+        // size = srcMemPtr->getSize();
     }
 }
 
@@ -71,6 +88,8 @@ void If::getSupportedDescriptors() {
 
     const std::shared_ptr<const ov::Model>& thenBody = ifOp->get_then_body();
     const std::shared_ptr<const ov::Model>& elseBody = ifOp->get_else_body();
+    subGraphThen.IsSubgraphOf(this);
+    subGraphElse.IsSubgraphOf(this);
     subGraphThen.CreateGraph(thenBody, context);
     subGraphElse.CreateGraph(elseBody, context);
 
@@ -146,6 +165,28 @@ void If::getSupportedDescriptors() {
         elseInputPortMap.emplace_back(PortMap {
             static_cast<int>(desc->m_input_index), static_cast<int>(body_input_index)});
     }
+
+    //
+    const auto &paramsThen = ifOp->get_then_body()->get_parameters();
+    for (int i = 0; i < paramsThen.size(); i++) {
+        auto inNode = subGraphThen.inputNodesMemMngrMap.find(paramsThen[i]->get_friendly_name());
+        if (inNode != subGraphThen.inputNodesMemMngrMap.end()) {
+            inputThenMemMngrs[i] = inNode->second;
+        } else {
+            IE_THROW() << "Then body of node If with name " << getName() << " does not have proxy memory manager for input with name: "
+                    << paramsThen[i]->get_friendly_name();
+        }
+    }
+    const auto &paramsElse = ifOp->get_else_body()->get_parameters();
+    for (int i = 0; i < paramsElse.size(); i++) {
+        auto inNode = subGraphElse.inputNodesMemMngrMap.find(paramsElse[i]->get_friendly_name());
+        if (inNode != subGraphElse.inputNodesMemMngrMap.end()) {
+            inputElseMemMngrs[i] = inNode->second;
+        } else {
+            IE_THROW() << "Else body of node If with name " << getName() << " does not have proxy memory manager for input with name: "
+                    << paramsElse[i]->get_friendly_name();
+        }
+    }
 }
 
 void If::initSupportedPrimitiveDescriptors() {
@@ -193,7 +234,7 @@ void If::prepareBeforeMappers(const bool isThen, const dnnl::engine& eng) {
         auto fromMem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
         auto &toMems = inputMems[map_rule.to];
 
-        beforeMappers.emplace_back(std::make_shared<PortMapHelper>(fromMem, toMems, eng));
+        beforeMappers.emplace_back(std::make_shared<PortMapHelper>(fromMem, toMems, eng, map_rule.from, map_rule.to));
     }
 }
 
@@ -205,7 +246,7 @@ void If::prepareAfterMappers(const bool isThen, const dnnl::engine& eng) {
         auto toMems = getToMemories(this, map_rule.from);
         auto &fromMem = outputMems[map_rule.to];
 
-        afterMappers.emplace_back(std::make_shared<PortMapHelper>(fromMem, toMems, eng));
+        afterMappers.emplace_back(std::make_shared<PortMapHelper>(fromMem, toMems, eng, map_rule.to, map_rule.from));
     }
 }
 
@@ -222,9 +263,14 @@ void If::execute(dnnl::stream strm) {
     auto& beforeMappers = condition ? beforeThenMappers : beforeElseMappers;
     auto& afterMappers = condition ? afterThenMappers : afterElseMappers;
     auto& subGraph = condition ? subGraphThen : subGraphElse;
+    auto& inputMemMngrs = condition ? inputThenMemMngrs : inputElseMemMngrs;
 
-    for (auto &mapper : beforeMappers)
+    for (auto &mapper : beforeMappers) {
+        mapper->update(inputMemMngrs[mapper->dst_port]);
         mapper->execute(strm);
+    }
+    for (auto &mapper : afterMappers)
+        mapper->update(outputMemMngrs[mapper->dst_port]);
     subGraph.ResetInferCount();
     subGraph.Infer();
     for (auto &mapper : afterMappers)
@@ -237,6 +283,36 @@ void If::executeDynamicImpl(dnnl::stream strm) {
 
 bool If::created() const {
     return getType() == Type::If;
+}
+
+void If::resolveInPlaceEdges(Edge::LOOK look) {
+    if (!(look & Edge::LOOK_UP)) {
+        Node::resolveInPlaceEdges(look);
+        return;
+    }
+
+    auto selected_pd = getSelectedPrimitiveDescriptor();
+    OPENVINO_ASSERT(selected_pd,
+        "If ",
+        getName(),
+        " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
+
+    for (auto& map_rule : thenOutputPortMap) {
+        const auto output_index = map_rule.from;
+
+        auto memDesc = selected_pd->getConfig().outConfs.at(output_index).getMemDesc();
+        const auto memMngr = std::make_shared<ProxyMemoryMngr>();
+
+        outputMemMngrs[map_rule.from] = memMngr;
+
+        for (auto&& edge : getChildEdgesAtPort(output_index)) {
+            OPENVINO_ASSERT(one_of(edge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
+                " Unexpected inplace resolve call to an allocated edge: ", edge->name());
+
+            auto edgeMem = std::make_shared<Memory>(getEngine(), memDesc, memMngr);
+            edge->reuse(edgeMem);
+        }
+    }
 }
 
 }   // namespace node

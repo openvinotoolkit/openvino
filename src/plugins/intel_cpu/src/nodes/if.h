@@ -27,6 +27,8 @@ public:
     void execute(dnnl::stream strm) override;
     bool isExecutable() const override { return true; }
 
+    void resolveInPlaceEdges(Edge::LOOK look) override;
+
 protected:
     void executeDynamicImpl(dnnl::stream strm) override;
     bool needPrepareParams() const override { return false; };
@@ -45,17 +47,20 @@ private:
 
     class PortMapHelper {
     public:
-        PortMapHelper(const MemoryPtr& from, const std::deque<MemoryPtr>& to, const dnnl::engine& eng);
+        PortMapHelper(const MemoryPtr& from, const std::deque<MemoryPtr>& to, const dnnl::engine& eng, int src_port, int dst_port);
         ~PortMapHelper() = default;
         void execute(dnnl::stream& strm);
+
+        void update(ProxyMemoryMngrPtr dstMemMngr);
+
+        int src_port;
+        int dst_port;
 
     private:
         void redefineTo();
 
         MemoryPtr srcMemPtr;
         std::deque<MemoryPtr> dstMemPtrs;
-
-        ptrdiff_t size;
     };
 
     ExtensionManager::Ptr ext_mng;
@@ -77,6 +82,9 @@ private:
         elseOutputPortMap;
 
     const std::shared_ptr<ov::Node> ovOp;
+
+    std::unordered_map<int, ProxyMemoryMngrPtr> outputMemMngrs;
+    std::unordered_map<int, ProxyMemoryMngrPtr> inputThenMemMngrs, inputElseMemMngrs;
 };
 
 }   // namespace node

@@ -45,6 +45,13 @@ public:
         return (status != Status::NotReady);
     }
 
+    void IsSubgraphOf(const Node* node) {
+        parent_node = node;
+
+        if (parent_node->getType() == Type::If)
+            reuse_io_tensors = false;
+    }
+
     const Config & getConfig() const {
         return context->getConfig();
     }
@@ -195,6 +202,8 @@ public:
 
     Status getStatus() const {return status;}
 
+    std::unordered_map<std::string, ProxyMemoryMngrPtr> inputNodesMemMngrMap;
+
 protected:
     void VisitNode(NodePtr node, std::vector<NodePtr>& sortedNodes);
 
@@ -251,6 +260,7 @@ private:
     std::map<std::string, NodePtr> outputNodesMap;
 
     std::unordered_map<std::string, ProxyMemoryMngrPtr> outputNodesMemMngrMap;
+    // std::unordered_map<std::string, ProxyMemoryMngrPtr> inputNodesMemMngrMap;
 
     // these node pointers (from graphNodes) are to avoid regular checking for
     // constantness of nodes in Infer methods and calls of
@@ -260,6 +270,8 @@ private:
     std::unordered_map<Node*, size_t> syncNodesInds;
 
     GraphContext::CPtr context;
+
+    const Node* parent_node = nullptr;
 
     void EnforceInferencePrecision();
     void EnforceBF16();

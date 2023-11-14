@@ -681,17 +681,36 @@ void Graph::AllocateWithReuse() {
         int count = 0;
         for (auto& edge : edge_clusters[box.id]) {
             if (edge->getStatus() == Edge::Status::NeedAllocation) {
-                int64_t offset = staticMemSolver.getOffset(box.id);
-                // !! Fallback to individual memory allocation !!
-                // if you like to check infer without reuse just call this function without arguments.
-                edge->allocate(workspace_ptr + offset * alignment);  // alignment in byte
+                const auto parent = edge->getParent();
+                // share input memory of subgraph of If node from its portmap
+                if (parent->getType() == Type::Input &&
+                    parent_node != nullptr && parent_node->getType() == Type::If  /* subgraph of If */) {
+                    auto proxyMemMngr =
+                        std::make_shared<ProxyMemoryMngr>();
+                    DEBUG_LOG("ProxyMemoryMngr ", proxyMemMngr, " ", this);
+                    edge->allocate(proxyMemMngr);
 
-                // TODO: WA for some test (like strided_slice_test) which use tensors with
-                //       shapes {0}. And it is implisitly converted into {1} tensor.
-                //       Zeroing of input data allow pass tests.
-                if (edge->getParent()->type == Type::Input && edge->hasDefinedMaxSize())
-                    edge->getMemoryPtr()->nullify();
+                    int count = 0;
+                    for (auto &input : inputNodesMap) {
+                        if (input.second == parent) {
+                            inputNodesMemMngrMap[input.first] = proxyMemMngr;
+                            count++;
+                        }
+                    }
+                    // sometimes there are unused output ports.
+                    IE_ASSERT(count <= 1) << "cannot find output node. count " << count;
+                } else {
+                    int64_t offset = staticMemSolver.getOffset(box.id);
+                    // !! Fallback to individual memory allocation !!
+                    // if you like to check infer without reuse just call this function without arguments.
+                    edge->allocate(workspace_ptr + offset * alignment);  // alignment in byte
 
+                    // TODO: WA for some test (like strided_slice_test) which use tensors with
+                    //       shapes {0}. And it is implisitly converted into {1} tensor.
+                    //       Zeroing of input data allow pass tests.
+                    if (edge->getParent()->type == Type::Input && edge->hasDefinedMaxSize())
+                        edge->getMemoryPtr()->nullify();
+                }
                 count++;
             }
         }
@@ -702,9 +721,11 @@ void Graph::AllocateWithReuse() {
         // Use proxy memory manager for output edges
         for (auto& box : undefinedBoxes) {
             for (auto& edge : edge_clusters[box.id]) {
+                // share output memory of main graph from infer request
                 const auto child = edge->getChild();
                 if (child->getType() == Type::Output &&
-                    edge->getStatus() == Edge::Status::NeedAllocation) {
+                    edge->getStatus() == Edge::Status::NeedAllocation &&
+                    parent_node == nullptr /* the main graph */) {
                     auto proxyMemMngr =
                         std::make_shared<ProxyMemoryMngr>();
                     DEBUG_LOG("ProxyMemoryMngr ", proxyMemMngr, " ", this);
@@ -716,6 +737,26 @@ void Graph::AllocateWithReuse() {
                     for (auto &output : outputNodesMap) {
                         if (output.second == child) {
                             outputNodesMemMngrMap[output.first] = proxyMemMngr;
+                            count++;
+                        }
+                    }
+                    // sometimes there are unused output ports.
+                    IE_ASSERT(count <= 1) << "cannot find output node. count " << count;
+                }
+
+                // share input memory of subgraph of If node from its portmap
+                const auto parent = edge->getParent();
+                if (parent->getType() == Type::Input &&
+                    parent_node != nullptr && parent_node->getType() == Type::If  /* subgraph of If */) {
+                    auto proxyMemMngr =
+                        std::make_shared<ProxyMemoryMngr>();
+                    DEBUG_LOG("ProxyMemoryMngr ", proxyMemMngr, " ", this);
+                    edge->allocate(proxyMemMngr);
+
+                    int count = 0;
+                    for (auto &input : inputNodesMap) {
+                        if (input.second == parent) {
+                            inputNodesMemMngrMap[input.first] = proxyMemMngr;
                             count++;
                         }
                     }
