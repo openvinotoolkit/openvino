@@ -78,6 +78,12 @@ class TestMultinomial(PytorchLayerTest):
                 True,
                 "shape",
             ),
+            (
+                np.array([[1, 2, 3, 4]], dtype=np.float32),
+                256,
+                True,
+                "shape",
+            ),
         ],
     )
     @pytest.mark.parametrize("out", [True, False])
