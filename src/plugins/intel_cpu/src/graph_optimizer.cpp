@@ -433,21 +433,21 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         // Fusion processing
         auto *multiplyInputNode = dynamic_cast<node::Input *>(multiplyConstNode.get());
         if (!multiplyInputNode) {
-            IE_THROW() << "Cannot cast " << multiplyInputNode->getName() << " to Input node";
+            OPENVINO_THROW("Cannot cast ", multiplyInputNode->getName(), " to Input node.");
         }
         fcNode->fuseDecompressionMultiply(multiplyInputNode->getMemoryPtr());
 
         if (withSubtract) {
             auto *subtractInputNode = dynamic_cast<node::Input *>(subtractConstNode.get());
             if (!subtractInputNode) {
-                IE_THROW() << "Cannot cast " << subtractInputNode->getName() << " to Input node";
+                OPENVINO_THROW("Cannot cast ", subtractInputNode->getName(), " to Input node.");
             }
             fcNode->fuseDecompressionSubtract(subtractInputNode->getMemoryPtr());
         }
         if (withPowerStatic) {
             auto *eltwiseNode = dynamic_cast<node::Eltwise *>(powerStaticNode.get());
             if (!eltwiseNode) {
-                IE_THROW() << "Cannot cast " << eltwiseNode->getName() << " to Eltwise node";
+                OPENVINO_THROW("Cannot cast ", eltwiseNode->getName(), " to Eltwise node.");
             }
 
             VectorDims memoryDims(decompressionConstShape.size(), 1);
