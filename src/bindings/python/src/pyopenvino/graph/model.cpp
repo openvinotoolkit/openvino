@@ -71,6 +71,7 @@ static void set_correct_variables_for_assign_ops(const std::shared_ptr<ov::Model
                 auto info = variable->get_info();
                 if (assign->get_variable_id() == info.variable_id && variable != assign->get_variable()) {
                     assign->set_variable(variable);
+                    break;
                 }
             }
         }
@@ -99,7 +100,7 @@ void regclass_graph_Model(py::module m) {
               py::arg("results"),
               py::arg("sinks"),
               py::arg("parameters"),
-              py::arg("name"),
+              py::arg("name") = "",
               R"(
                     Create user-defined Model which is a representation of a model.
 
