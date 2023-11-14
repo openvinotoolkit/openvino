@@ -247,8 +247,8 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
                 ov::Any value = num_requests->second.as<std::string>();
                 val = value.as<int>();
                 if (val < 0)
-                    throw std::logic_error("invalid value!");
-            } catch (const std::exception&) {
+                    OPENVINO_THROW("invalid value!");
+            } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value of ",
                                num_requests->second.as<std::string>(),
                                " for property key ",
@@ -365,7 +365,7 @@ void Engine::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& m
             if (it_model_prefer != hints_config.end()) {
                 try {
                     cache_model_prefer = it_model_prefer->second.as<int>();
-                } catch (const std::exception&) {
+                } catch (const ov::Exception&) {
                     OPENVINO_THROW("Cache file doesn't have valid value for " + model_prefer_name);
                 }
 

@@ -81,7 +81,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                     enableCpuPinning =
                         (affinity_val == ov::Affinity::CORE || affinity_val == ov::Affinity::HYBRID_AWARE) ? true
                                                                                                            : false;
-                } catch (const std::exception&) {
+                } catch (const ov::Exception&) {
                     OPENVINO_THROW("Wrong value ",
                                    val.as<std::string>(),
                                    "for property key ",
@@ -92,7 +92,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         } else if (key == ov::hint::performance_mode.name()) {
             try {
                 hintPerfMode = val.as<ov::hint::PerformanceMode>();
-            } catch (const std::exception&) {
+            } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
                                "for property key ",
@@ -104,9 +104,9 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 ov::Any value = val.as<std::string>();
                 int val_i = value.as<int>();
                 if (val_i < 0)
-                    throw std::logic_error("invalid value.");
+                    OPENVINO_THROW("invalid value.");
                 hintNumRequests = static_cast<uint32_t>(val_i);
-            } catch (const std::exception&) {
+            } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
                                "for property key ",
@@ -149,7 +149,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             float val_f = 0.0f;
             try {
                 val_f = val.as<float>();
-            } catch (const std::exception&) {
+            } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value for property key ",
                                ov::intel_cpu::sparse_weights_decompression_rate.name(),
                                ". Expected only float numbers");
@@ -244,7 +244,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 } else if (prec == ov::element::f32) {
                     inferencePrecision = ov::element::f32;
                 } else {
-                    throw std::logic_error("wrong val");
+                    OPENVINO_THROW("invalid value");
                 }
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
@@ -258,7 +258,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             try {
                 ov::Any value = val.as<std::string>();
                 val_i = value.as<int>();
-            } catch (const std::exception&) {
+            } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
                                " for property key ",
@@ -289,7 +289,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 else if (mode == ov::intel_cpu::SnippetsMode::DISABLE)
                     snippetsMode = SnippetsMode::Disable;
                 else
-                    throw std::logic_error("wrong val");
+                    OPENVINO_THROW("invalid value");
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
