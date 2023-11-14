@@ -423,11 +423,6 @@ std::shared_ptr<ov::Node> makeEmbeddingSegmentsSum(const element::Type& dataType
                                                    bool with_weights,
                                                    bool with_default_index);
 
-std::shared_ptr<Node> makeMatMul(const Output<Node>& A,
-                                 const Output<Node>& B,
-                                 bool transpose_a = false,
-                                 bool transpose_b = false);
-
 std::shared_ptr<ov::Node> makeReduce(const ov::Output<Node>& data,
                                      const ov::Output<Node>& axes,
                                      bool keepDims,
