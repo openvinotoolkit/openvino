@@ -6,9 +6,9 @@
 #include <vector>
 #include <algorithm>
 
-#include <ngraph/opsets/opset3.hpp>
+#include <openvino/opsets/opset3.hpp>
 #include <shape_inference/shape_inference_pass_through.hpp>
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "bucketize.h"
 
 using namespace InferenceEngine;
@@ -17,9 +17,9 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool Bucketize::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Bucketize::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto bucketsize = std::dynamic_pointer_cast<const ngraph::opset3::Bucketize>(op);
+        const auto bucketsize = std::dynamic_pointer_cast<const ov::opset3::Bucketize>(op);
         if (!bucketsize) {
             errorMessage = "Only opset3 Bucketize operation is supported";
             return false;
@@ -30,7 +30,7 @@ bool Bucketize::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
     return true;
 }
 
-Bucketize::Bucketize(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+Bucketize::Bucketize(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -38,7 +38,7 @@ Bucketize::Bucketize(const std::shared_ptr<ngraph::Node>& op, const GraphContext
     }
 
     errorPrefix = "Bucketize layer with name '" + op->get_friendly_name() + "' ";
-    const auto bucketsize = std::dynamic_pointer_cast<const ngraph::opset3::Bucketize>(op);
+    const auto bucketsize = std::dynamic_pointer_cast<const ov::opset3::Bucketize>(op);
     if (bucketsize == nullptr)
         IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
             "' is not an instance of Bucketize from opset3.";

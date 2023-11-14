@@ -8,7 +8,7 @@
 #include <cmath>
 #include <ie_precision.hpp>
 #include "defs.h"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -17,7 +17,7 @@ struct jit_uni_softmax_kernel;
 
 static inline
 void softmax_many_batches(const float *src_data, float *dst_data, int B, int C, int H, int W) {
-    InferenceEngine::parallel_for(B * H * W, [&](size_t i) {
+    ov::parallel_for(B * H * W, [&](size_t i) {
         const float *psrc = src_data + (i / (H * W)) * C * H * W - (i / (H * W)) * H * W;
         float *pdst = dst_data + (i / (H * W)) * C * H * W - (i / (H * W)) * H * W;
 

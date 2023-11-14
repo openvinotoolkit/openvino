@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 
-#include <ngraph/opsets/opset1.hpp>
-#include "ie_parallel.hpp"
+#include <openvino/opsets/opset1.hpp>
+#include "openvino/core/parallel.hpp"
 #include "reverse_sequence.h"
 
 using namespace InferenceEngine;
@@ -15,9 +15,9 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool ReverseSequence::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool ReverseSequence::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto revSeq = std::dynamic_pointer_cast<const ngraph::opset1::ReverseSequence>(op);
+        const auto revSeq = std::dynamic_pointer_cast<const ov::opset1::ReverseSequence>(op);
         if (!revSeq) {
             errorMessage = "Only opset1 ReverseSequence operation is supported";
             return false;
@@ -28,7 +28,7 @@ bool ReverseSequence::isSupportedOperation(const std::shared_ptr<const ngraph::N
     return true;
 }
 
-ReverseSequence::ReverseSequence(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+ReverseSequence::ReverseSequence(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -36,7 +36,7 @@ ReverseSequence::ReverseSequence(const std::shared_ptr<ngraph::Node>& op, const 
     }
 
     errorPrefix = "ReverseSequence layer with name '" + op->get_friendly_name() + "'";
-    const auto revSeq = std::dynamic_pointer_cast<const ngraph::opset1::ReverseSequence>(op);
+    const auto revSeq = std::dynamic_pointer_cast<const ov::opset1::ReverseSequence>(op);
     if (revSeq == nullptr)
         IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
             "' is not an instance of ReverseSequence from opset1.";

@@ -114,7 +114,7 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         }
 
         brgemm_cpu->set_friendly_name(brgemm->get_friendly_name());
-        ngraph::replace_node(brgemm, brgemm_cpu);
+        ov::replace_node(brgemm, brgemm_cpu);
 
         // Transfer ports
         set_port_desc(brgemm_cpu->input(0), brgemm_in0_desc->get_shape(), brgemm_in0_desc->get_subtensor(), brgemm_in0_desc->get_layout());
