@@ -342,17 +342,16 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHAEnforceBF16.*)");
     }
-    if (InferenceEngine::with_cpu_x86_avx512_core()) {
+    // RNN/LSTM/GRU/AUGRU BF16 tests on avx512 core ISA would fail when gemm_avx512 fall back to gemm_avx2
+    if (InferenceEngine::with_cpu_x86_avx512_core()&& !InferenceEngine::with_cpu_x86_avx512_core_amx_bf16()) {
         retVector.emplace_back(R"(smoke.*(AUGRUCellCPUTest|GRUCellCPUTest|LSTMCellLayerCPUTest).CompareWithRefs.*ENFORCE_BF16=YES.*)");
         retVector.emplace_back(R"(nightly.*bf16.*/(AUGRUSequenceCPUTest|GRUSequenceCPUTest|LSTMSequenceCPUTest|RNNSequenceCPUTest).CompareWithRefs.*ENFORCE_BF16=YES.*)");
-        retVector.emplace_back(R"(nightly.*bf16.*/(AUGRUSequenceCPUTest|GRUSequenceCPUTest|LSTMSequenceCPUTest|RNNSequenceCPUTest).CompareWithRefs.*ENFORCE_BF16=YES.*)");
-        retVector.emplace_back(R"(.*primitive=jit_gemm.*(ENFORCE_BF16=YES|ENFORCE_BF16, YES).*)");
-        retVector.emplace_back(R"(.*(ENFORCE_BF16=YES|ENFORCE_BF16, YES).*(primitive=jit_gemm).*)");
-        retVector.emplace_back(R"(smoke_GroupDeconv_2D_AMX_BF16/GroupDeconvolutionLayerCPUTest\.CompareWithRefs/IS=\[\?\.64\.\?\.\?\]_TS=\(\(2\.64\.7\.7\)\)_\(\(2\.64\.5\.7\)\)_\(\(1\.64\.9\.5\)\)_PRC=f32_K=\(3\.3\)_S=\(2\.2\)_PB=\(0\.0\)_PE=\(0\.0\)_D=\(1\.1\)_OP=\(\)_O=64_G=2_AP=explicit_OUT_SH=PARAMETER_OUT_D=\(\(15\.15\)\)_\(\(9\.10\)\)_\(\(19\.9\)\)__inFmts=nhwc_outFmts=nhwc_primitive=jit_avx512_PluginConf_ENFORCE_BF16=YES)");
-        retVector.emplace_back(R"(smoke_GroupDeconv_3D_nspc_BF16/GroupDeconvolutionLayerCPUTest\.CompareWithRefs/IS=\[\?\.64\.\?\.\?\.\?\]_TS=\(\(1\.64\.5\.5\.5\)\)_\(\(2\.64\.5\.7\.5\)\)_PRC=f32_K=\(1\.1\.1\)_S=\(2\.2\.2\)_PB=\(0\.0\.0\)_PE=\(0\.0\.0\)_D=\(1\.1\.1\)_OP=\(\)_O=64_G=2_AP=explicit_OUT_SH=PARAMETER_OUT_D=\(\(7\.7\.7\)\)_\(\(7\.9\.7\)\)__inFmts=ndhwc_outFmts=ndhwc_primitive=jit_avx512_PluginConf_ENFORCE_BF16=YES)");
-        retVector.emplace_back(R"(smoke_GroupDeconv_3D_nspc_BF16/GroupDeconvolutionLayerCPUTest\.CompareWithRefs/IS=\[\?\.64\.\?\.\?\.\?\]_TS=\(\(1\.64\.5\.5\.5\)\)_\(\(2\.64\.5\.7\.5\)\)_PRC=f32_K=\(3\.3\.3\)_S=\(2\.2\.2\)_PB=\(0\.0\.0\)_PE=\(0\.0\.0\)_D=\(1\.1\.1\)_OP=\(\)_O=64_G=2_AP=explicit_OUT_SH=PARAMETER_OUT_D=\(\(7\.7\.7\)\)_\(\(7\.9\.7\)\)__inFmts=ndhwc_outFmts=ndhwc_primitive=jit_avx512_PluginConf_ENFORCE_BF16=YES)");
-        retVector.emplace_back(R"(smoke_GroupDeconv_2D_Blocked_BF16/GroupDeconvolutionLayerCPUTest\.CompareWithRefs/IS=\[\?\.64\.\?\.\?\]_TS=\(\(2\.64\.7\.7\)\)_\(\(2\.64\.5\.7\)\)_\(\(1\.64\.9\.5\)\)_PRC=f32_K=\(3\.3\)_S=\(1\.1\)_PB=\(0\.0\)_PE=\(0\.0\)_D=\(1\.1\)_OP=\(\)_O=64_G=4_AP=explicit_OUT_SH=PARAMETER_OUT_D=\(\(15\.15\)\)_\(\(9\.10\)\)_\(\(19\.9\)\)__inFmts=nChw16c_outFmts=nChw16c_primitive=jit_avx512_PluginConf_ENFORCE_BF16=YES)");
-        retVector.emplace_back(R"(smoke_GroupDeconv_2D_AMX_BF16/GroupDeconvolutionLayerCPUTest\.CompareWithRefs/IS=\[\?\.64\.\?\.\?\]_TS=\(\(2\.64\.7\.7\)\)_\(\(2\.64\.5\.7\)\)_\(\(1\.64\.9\.5\)\)_PRC=f32_K=\(1\.1\)_S=\(1\.1\)_PB=\(0\.0\)_PE=\(0\.0\)_D=\(1\.1\)_OP=\(\)_O=64_G=2_AP=explicit_OUT_SH=PARAMETER_OUT_D=\(\(15\.15\)\)_\(\(9\.10\)\)_\(\(19\.9\)\)__inFmts=nhwc_outFmts=nhwc_primitive=jit_avx512_PluginConf_ENFORCE_BF16=YES)");
+    }
+    if (InferenceEngine::with_cpu_x86_avx512_core_amx_bf16()) {
+        // GRUCell and GRUSequence BF16 tests on SPR would fail when gemm_avx512 fall back to gemm_avx2
+        retVector.emplace_back(R"(.*/GRU.*ENFORCE_BF16=YES.*)");
+        // GroupDeconv 3D would fail on BF16 when gemm_avx512 fall back to gemm_avx2
+        retVector.emplace_back(R"(nightly_GroupDeconv_3D_Planar_BF16/GroupDeconvolutionLayerCPUTest\.CompareWithRefs/IS=\[\?.12.\?.\?.\?\]_TS=\(\(2.12.7.7.7\)\)_\(\(2.12.5.7.7\)\)_\(\(1.12.9.4.9\)\)_\(\(2.12.5.7.7\)\)_PRC=f32.*S=\(2.2.2\)_PB=\(0.0.0\)_PE=\(0.0.0\)_D=\(1.1.1\)_OP=\(\)_O=6_G.*primitive=jit_gemm.*_ENFORCE_BF16=YES)");
     }
     return retVector;
 }
