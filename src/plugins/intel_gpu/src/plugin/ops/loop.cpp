@@ -199,12 +199,9 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     bool is_dynamic = p.use_new_shape_infer() || op->is_dynamic();
 
     int64_t num_iterations = op->get_num_iterations();
-<<<<<<< HEAD
-=======
 //    OPENVINO_ASSERT((is_dynamic || num_iterations > 0), "loop's num_iteration should be positive on static shape model");
->>>>>>> b57e22291b (Temp fix)
 
-    auto num_outputs = is_dynamic? op->get_output_size() : 1;
+    auto num_outputs = is_dynamic ? op->get_output_size() : 1;
     auto ov_model = op->get_function();
 
     // Set special body ports: current_iteration input , execution condition output
@@ -231,6 +228,10 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
         }
 
         trip_count_id = layer_type_name_ID(loop_op->get_input_node_shared_ptr(0));
+
+        // Update trip_count_id for cached constant primitive
+        if (trip_count_id != p.primitive_ids[trip_count_id])
+            trip_count_id = p.primitive_ids[trip_count_id];
         first_execution_condition_id = layer_type_name_ID(loop_op->get_input_node_shared_ptr(1));
     }
 
