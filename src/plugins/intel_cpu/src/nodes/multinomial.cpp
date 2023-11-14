@@ -4,9 +4,8 @@
 
 #include "multinomial.hpp"
 
-#include <openvino/op/multinomial.hpp>
-
 #include "ie_ngraph_utils.hpp"
+#include "openvino/op/multinomial.hpp"
 #include "shape_inference/custom/multinomial.hpp"
 
 namespace ov {
@@ -17,7 +16,7 @@ Multinomial::Multinomial(const std::shared_ptr<ov::Node>& op, const GraphContext
     : Node(op, context, MultinomialShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << (errorMessage);
+        THROW_CPU_NODE_ERR(errorMessage);
     }
 
     auto multinomial_op = as_type_ptr<op::v13::Multinomial>(op);
@@ -69,10 +68,7 @@ void Multinomial::initSupportedPrimitiveDescriptors() {
         m_num_samples_precision = InferenceEngine::Precision::I32;
     }
 
-    if (!one_of(m_output_precision, InferenceEngine::Precision::I32)) {
-        m_output_precision = InferenceEngine::Precision::I32;
-    }
-
+    m_output_precision = InferenceEngine::Precision::I32;
     addSupportedPrimDesc({{LayoutType::ncsp, m_probs_precision, m_const_inputs[PROBS_PORT]},
                           {LayoutType::ncsp, m_num_samples_precision, m_const_inputs[NUM_SAMPLES_PORT]}},
                          {{LayoutType::ncsp, m_output_precision}},
@@ -124,8 +120,8 @@ bool Multinomial::needPrepareParams() const {
 }
 
 void Multinomial::prepareParams() {
-    const auto probs_shape = getParentEdgeAt(PROBS_PORT)->getMemory().getStaticDims();
-    const auto num_samples_shape = getParentEdgeAt(NUM_SAMPLES_PORT)->getMemory().getStaticDims();
+    const auto& probs_shape = getParentEdgeAt(PROBS_PORT)->getMemory().getStaticDims();
+    const auto& num_samples_shape = getParentEdgeAt(NUM_SAMPLES_PORT)->getMemory().getStaticDims();
 
     if (probs_shape.size() != 2) {
         THROW_CPU_NODE_ERR("has incompatible 'probs' shape ",
@@ -140,11 +136,11 @@ void Multinomial::prepareParams() {
     }
 
     if (m_num_samples_precision == InferenceEngine::Precision::I32) {
-        m_samples_count = reinterpret_cast<const int32_t*>(
-            getParentEdgeAt(NUM_SAMPLES_PORT)->getMemoryPtr()->getData())[0];
+        m_samples_count =
+            reinterpret_cast<const int32_t*>(getParentEdgeAt(NUM_SAMPLES_PORT)->getMemoryPtr()->getData())[0];
     } else {
-        m_samples_count = reinterpret_cast<const int64_t*>(
-            getParentEdgeAt(NUM_SAMPLES_PORT)->getMemoryPtr()->getData())[0];
+        m_samples_count =
+            reinterpret_cast<const int64_t*>(getParentEdgeAt(NUM_SAMPLES_PORT)->getMemoryPtr()->getData())[0];
     }
 
     m_batches_count = probs_shape[0];
@@ -152,19 +148,19 @@ void Multinomial::prepareParams() {
     m_samples_probs_count = m_samples_count * m_probs_count;
     m_input_elements_count = m_batches_count * m_probs_count;
     m_output_elements_count = m_batches_count * m_samples_count;
-    m_batches_samples_probs_count = m_batches_count * m_samples_count * m_probs_count;
+    m_batches_samples_probs_count = m_output_elements_count * m_probs_count;
 }
 
 void Multinomial::execute(dnnl::stream strm) {
-    switch(m_probs_precision) {
-        case InferenceEngine::Precision::FP32:
-            return execute_types<float>();
-        case InferenceEngine::Precision::FP16:
-            return execute_types<float16>();
-        case InferenceEngine::Precision::BF16:
-            return execute_types<bfloat16>();
-        default:
-            THROW_CPU_NODE_ERR("Multinomial CPU implementation does not support probs element type: ", m_probs_precision);
+    switch (m_probs_precision) {
+    case InferenceEngine::Precision::FP32:
+        return execute_types<float>();
+    case InferenceEngine::Precision::FP16:
+        return execute_types<float16>();
+    case InferenceEngine::Precision::BF16:
+        return execute_types<bfloat16>();
+    default:
+        THROW_CPU_NODE_ERR("Multinomial CPU implementation does not support probs element type: ", m_probs_precision);
     }
 }
 

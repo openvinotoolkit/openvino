@@ -3,6 +3,7 @@
 //
 
 #include "multinomial.hpp"
+
 #include "ov_models/builders.hpp"
 
 using namespace ov::test;
@@ -39,7 +40,7 @@ std::string MultinomialLayerTestCPU::getTestCaseName(const testing::TestParamInf
     result << "probs_shape=" << probs.get_shape().to_string() << separator;
     if (num_samples.get_element_type() == ov::test::ElementType::i32) {
         result << "num_samples=" << static_cast<int*>(num_samples.data())[0] << separator;
-    } else { // i64
+    } else {  // i64
         result << "num_samples=" << static_cast<long*>(num_samples.data())[0] << separator;
     }
     result << "convert_type=" << convert_type << separator;
@@ -96,9 +97,10 @@ void MultinomialLayerTestCPU::SetUp() {
     if (test_type == "static") {
         probs_shape = {ov::PartialShape(probs_tensor_shape), {probs_tensor_shape}};
         num_samples_shape = {ov::PartialShape(num_samples_tensor_shape), {num_samples_tensor_shape}};
-    } else { // dynamic
+    } else {  // dynamic
         probs_shape = {ov::PartialShape::dynamic(ov::Rank(probs_tensor_shape.size())), {probs_tensor_shape}};
-        num_samples_shape = {ov::PartialShape::dynamic(ov::Rank(num_samples_tensor_shape.size())), {num_samples_tensor_shape}};
+        num_samples_shape = {ov::PartialShape::dynamic(ov::Rank(num_samples_tensor_shape.size())),
+                             {num_samples_tensor_shape}};
     }
     init_input_shapes({probs_shape, num_samples_shape});
 
@@ -110,7 +112,8 @@ void MultinomialLayerTestCPU::SetUp() {
     inputs.push_back(probs_param);
     params.push_back(probs_param);
 
-    auto num_samples_param = std::make_shared<ov::op::v0::Parameter>(num_samples.get_element_type(), num_samples_shape.first);
+    auto num_samples_param =
+        std::make_shared<ov::op::v0::Parameter>(num_samples.get_element_type(), num_samples_shape.first);
     num_samples_param->set_friendly_name("num_samples");
     inputs.push_back(num_samples_param);
     params.push_back(num_samples_param);
@@ -138,13 +141,15 @@ void MultinomialLayerTestCPU::generate_inputs(const std::vector<ov::Shape>& targ
 };
 
 void MultinomialLayerTestCPU::compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) {
-    for(size_t i = 0; i < expected.size(); i++) {
-        for(size_t j = 0; j < expected[i].get_size(); j++) {
+    for (size_t i = 0; i < expected.size(); i++) {
+        for (size_t j = 0; j < expected[i].get_size(); j++) {
             std::cout << ((int*)expected[i].data())[j] << " ";
-        } std::cout << "\n";
-        for(size_t j = 0; j < actual[i].get_size(); j++) {
+        }
+        std::cout << "\n";
+        for (size_t j = 0; j < actual[i].get_size(); j++) {
             std::cout << ((int*)actual[i].data())[j] << " ";
-        } std::cout << "\n";
+        }
+        std::cout << "\n";
     }
     SubgraphBaseTest::compare(expected, actual);
 };

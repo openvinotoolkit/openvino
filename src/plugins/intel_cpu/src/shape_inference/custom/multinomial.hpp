@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <node.h>
-
-#include <openvino/op/multinomial.hpp>
-
+#include "node.h"
+#include "openvino/op/multinomial.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
@@ -16,7 +14,7 @@ namespace node {
 using Result = IShapeInfer::Result;
 class MultinomialShapeInfer : public ShapeInferEmptyPads {
 public:
-    MultinomialShapeInfer() {};
+    MultinomialShapeInfer(){};
 
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;

@@ -225,9 +225,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_Snippets_MHA_.?D_SplitDimensionM.*)",
         // Issue: 122356
         R"(.*NmsRotatedOpTest.*(SortDesc=True|Clockwise=False).*)",
-        // Temporary; debugging
-        R"(.*MultinomialLayerTestCPU.*OutPrc=i64.*)",
-        R"(.*MultinomialLayerTestCPU.*OutPrc=i32.*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)

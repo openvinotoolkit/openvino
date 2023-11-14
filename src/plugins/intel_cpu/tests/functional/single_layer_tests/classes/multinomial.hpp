@@ -4,9 +4,10 @@
 
 #pragma once
 
+#include <openvino/runtime/tensor.hpp>
+
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
-#include <openvino/runtime/tensor.hpp>
 
 using namespace ov::test;
 using namespace CPUTestUtils;

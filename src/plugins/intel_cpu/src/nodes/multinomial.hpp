@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <random>
-#include "ie_parallel.hpp"
-#include <node.h>
-
 #include <string>
+
+#include "ie_common.h"
+#include "ie_parallel.hpp"
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -67,14 +67,14 @@ private:
     size_t m_output_elements_count = 0;
     size_t m_batches_samples_probs_count = 0;
 
-
     template <typename P>
     void execute_types() {
-        switch(m_output_precision) {
-            case InferenceEngine::Precision::I32:
-                return execute_internal<P, int32_t>();
-            default:
-                THROW_CPU_NODE_ERR("Multinomial CPU implementation does not support output convert type: ", m_output_precision);
+        switch (m_output_precision) {
+        case InferenceEngine::Precision::I32:
+            return execute_internal<P, int32_t>();
+        default:
+            THROW_CPU_NODE_ERR("Multinomial CPU implementation does not support output convert type: ",
+                               m_output_precision);
         }
     }
 
@@ -87,11 +87,14 @@ private:
         std::vector<P> m_max_per_batch(m_batches_count);
         std::vector<P> m_random_samples(m_output_elements_count);
 
-        std::cout << "probs" << "\n";
-        for(size_t q = 0; q < m_input_elements_count; q++) {
+        std::cout << "probs"
+                  << "\n";
+        for (size_t q = 0; q < m_input_elements_count; q++) {
             std::cout << probs[q] << " ";
-        } std::cout << "\n";
-        std::cout << "num_samples" << "\n";
+        }
+        std::cout << "\n";
+        std::cout << "num_samples"
+                  << "\n";
         std::cout << m_samples_count << " ";
         std::cout << "\n";
 
@@ -114,10 +117,12 @@ private:
             });
         }
 
-        std::cout << "cdf" << "\n";
-        for(size_t q = 0; q < m_input_elements_count; q++) {
+        std::cout << "cdf"
+                  << "\n";
+        for (size_t q = 0; q < m_input_elements_count; q++) {
             std::cout << m_cdf[q] << " ";
-        } std::cout << "\n";
+        }
+        std::cout << "\n";
 
         // TODO RandomUniform - should use RandomUniform kernel to match other frameworks' seed results
         std::srand(m_op_seed);
@@ -125,21 +130,25 @@ private:
             m_random_samples[idx] = static_cast<P>(std::rand()) / static_cast<P>(RAND_MAX);
         };
 
-        std::cout << "rand" << "\n";
-        for(size_t q = 0; q < m_output_elements_count; q++) {
+        std::cout << "rand"
+                  << "\n";
+        for (size_t q = 0; q < m_output_elements_count; q++) {
             std::cout << m_random_samples[q] << " ";
-        } std::cout << "\n";
+        }
+        std::cout << "\n";
 
         std::mt19937 gen(m_op_seed);
-        std::uniform_real_distribution<> dist(0.0, 1.0);
+        std::uniform_real_distribution<float> dist(0.0, 1.0);
         for (size_t idx = 0lu; idx < m_output_elements_count; ++idx) {
             m_random_samples[idx] = static_cast<P>(dist(gen));
         };
 
-        std::cout << "rand_mersenne" << "\n";
-        for(size_t q = 0; q < m_output_elements_count; q++) {
+        std::cout << "rand_mersenne"
+                  << "\n";
+        for (size_t q = 0; q < m_output_elements_count; q++) {
             std::cout << m_random_samples[q] << " ";
-        } std::cout << "\n";
+        }
+        std::cout << "\n";
 
         // max & divide
         const auto min_value_of_max = std::numeric_limits<P>::min();
@@ -151,14 +160,18 @@ private:
             m_cdf[idx] /= m_max_per_batch[idx_max_elem];
         });
 
-        std::cout << "max" << "\n";
-        for(size_t q = 0; q < m_batches_count; q++) {
+        std::cout << "max"
+                  << "\n";
+        for (size_t q = 0; q < m_batches_count; q++) {
             std::cout << m_max_per_batch[q] << " ";
-        } std::cout << "\n";
-        std::cout << "cdf_2" << "\n";
-        for(size_t q = 0; q < m_input_elements_count; q++) {
+        }
+        std::cout << "\n";
+        std::cout << "cdf_2"
+                  << "\n";
+        for (size_t q = 0; q < m_input_elements_count; q++) {
             std::cout << m_cdf[q] << " ";
-        } std::cout << "\n";
+        }
+        std::cout << "\n";
 
         if (m_with_replacement) {
             parallel_for(m_batches_samples_probs_count, [&](size_t idx) {
@@ -169,20 +182,21 @@ private:
 
                 size_t idx_input = idx_batch * m_probs_count + idx_prob;
                 size_t idx_output = idx_batch * m_samples_count + idx_sample;
-                if (m_random_samples[idx_output] <= m_cdf[idx_input] && (!idx_prob || m_random_samples[idx_output] > m_cdf[idx_input - 1])) {
+                if (m_random_samples[idx_output] <= m_cdf[idx_input] &&
+                    (!idx_prob || m_random_samples[idx_output] > m_cdf[idx_input - 1])) {
                     output[idx_output] = static_cast<O>(idx_prob);
                 }
             });
         } else {
             parallel_for(m_batches_count, [&](size_t idx_batch) {
-                for(size_t idx_sample = 0LU; idx_sample < m_samples_count; ++idx_sample) {
+                for (size_t idx_sample = 0LU; idx_sample < m_samples_count; ++idx_sample) {
                     size_t idx_input = idx_batch * m_probs_count;
                     size_t idx_output = idx_batch * m_samples_count + idx_sample;
 
                     bool class_selected = false;
                     size_t selected_class = m_probs_count;
                     P sample_value = m_random_samples[idx_output];
-                    for(size_t idx_prob = 0LU; idx_prob < m_probs_count; ++idx_prob) {
+                    for (size_t idx_prob = 0LU; idx_prob < m_probs_count; ++idx_prob) {
                         if (sample_value <= m_cdf[idx_input + idx_prob]) {
                             output[idx_output] = static_cast<O>(idx_prob);
                             selected_class = idx_prob;
@@ -192,9 +206,9 @@ private:
                     }
 
                     if (class_selected) {
-                        P class_probability = selected_class ? m_cdf[idx_input + selected_class] -
-                                                               m_cdf[idx_input + selected_class - 1]
-                                                               : m_cdf[idx_input];
+                        P class_probability =
+                            selected_class ? m_cdf[idx_input + selected_class] - m_cdf[idx_input + selected_class - 1]
+                                           : m_cdf[idx_input];
                         P divisor = 1 - class_probability;
                         for (size_t idx_prob = 0LU; idx_prob < m_probs_count; ++idx_prob) {
                             if (idx_prob >= selected_class) {
@@ -206,7 +220,7 @@ private:
                 }
             });
         }
-    } 
+    }
 };
 
 }  // namespace node
