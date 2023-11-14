@@ -102,6 +102,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         // note: BinaryOp translator declaration for each op must to be added in binary_op.cpp file
         {"Add", CreatorFunction(translate_binary_op<opset8::Add>)},
         {"AddV2", CreatorFunction(translate_binary_op<opset8::Add>)},
+        {"Atan2", CreatorFunction(translate_binary_op<opset8::Atan>)},
         {"BitwiseAnd", CreatorFunction(translate_binary_op<opset13::BitwiseAnd>)},
         {"BitwiseOr", CreatorFunction(translate_binary_op<opset13::BitwiseOr>)},
         {"BitwiseXor", CreatorFunction(translate_binary_op<opset13::BitwiseXor>)},
