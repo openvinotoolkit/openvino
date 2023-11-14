@@ -16,9 +16,12 @@ from consts import (
     no_binder_template,
     repo_directory,
     repo_name,
-    repo_branch,
+    openvino_notebooks_json,
     repo_owner,
-    github_api_link,
+    notebooks_repo,
+    notebooks_binder,
+    notebooks_colab,
+
 )
 from notebook import Notebook
 from section import Section
@@ -32,6 +35,8 @@ import re
 import sys
 import json
 
+matching_notebooks_paths = []
+openvino_notebooks_paths_list = json.loads(open(openvino_notebooks_json, 'r').read())
 
 class NbTravisDownloader:
     @staticmethod
@@ -79,17 +84,23 @@ class NbTravisDownloader:
 class NbProcessor:
     def __init__(self, nb_path: str = notebooks_path):
         self.nb_path = nb_path
-        self.binder_data = {
-            "owner": repo_owner,
-            "repo": repo_name,
-            "folder": repo_directory,
-            "branch": repo_branch,
-        }
-        self.colab_data = {
-            "owner": repo_owner,
-            "repo": repo_name,
-            "folder": repo_directory,
-        }
+
+        for notebook_name in [
+            nb for nb in os.listdir(self.nb_path) if
+            verify_notebook_name(nb)
+        ]:
+
+            if "tree" in openvino_notebooks_paths_list:
+                notebooks_paths_listing = [p.get('path') for p in openvino_notebooks_paths_list['tree'] if
+                                           p.get('path')]
+                notebooks_listing = [x for x in notebooks_paths_listing if re.match("notebooks/[0-9]{3}.*\.ipynb$", x)]
+                ipynb_notebook = notebook_name[:-16] + ".ipynb"
+                matching_notebooks = [match for match in notebooks_listing if ipynb_notebook in match]
+            else:
+                raise Exception('Key "tree" is not present in the JSON file')
+            if matching_notebooks is not None:
+                for n in matching_notebooks:
+                    matching_notebooks_paths.append(n)
 
     def fetch_binder_list(self, file) -> list:
         """Function that fetches list of notebooks with binder buttons
@@ -134,51 +145,48 @@ class NbProcessor:
         :raises FileNotFoundError: In case of failure of adding content, error will appear
 
         """
-
-        for notebook in [
+        for notebook_file, nb_path in zip([
             nb for nb in os.listdir(self.nb_path) if verify_notebook_name(nb)
-        ]:
-            notebook_item = '-'.join(notebook.split('-')[:-2])
+        ], matching_notebooks_paths):
+
+            notebook_item = '-'.join(notebook_file.split('-')[:-2])
+
+            binder_data = {
+                "owner": repo_owner,
+                "repo": repo_name,
+                "folder": repo_directory,
+                "link_git": notebooks_repo + nb_path,
+                "link_binder": notebooks_binder + nb_path,
+                "link_colab ": notebooks_colab + nb_path,
+            }
 
             if notebook_item in buttons_list:
                 template = template_with_colab_and_binder if notebook_item in cbuttons_list else template_with_binder
             else:
                 template = template_with_colab if notebook_item in cbuttons_list else template_without_binder
 
-            button_text = create_content(template, self.binder_data, notebook)
-            if not add_content_below(button_text, f"{self.nb_path}/{notebook}"):
+            button_text = create_content(template, binder_data, notebook_file)
+            if not add_content_below(button_text, f"{self.nb_path}/{notebook_file}"):
                 raise FileNotFoundError("Unable to modify file")
 
 
-def create_nb_json_file(request_link):
-    """Function that creates a json file with a list of notebooks on openvino_notebooks repo.
-       The function is used for automatic generation of github, binder and colab badges in articles.
-    """
-    try:
-        result = requests.get(request_link)
-    except requests.exceptions.RequestException as e:
-        raise SystemExit(e)
-    result.raise_for_status()
-    response_to_json = result.json()
-    paths_list = response_to_json
-    file = Path(__file__).parent.parent.joinpath('notebooks').joinpath('openvino_notebooks.json')
-    with open(file, "w") as f:
-        f.write(json.dumps(paths_list))
-
-
-def add_glob_directive(tutorials_file):
+def add_glob_directive():
     """This function modifies toctrees of the five node articles in tutorials 
        section. It adds the notebooks found in docs/notebooks directory to the menu.
     """
-    with open(tutorials_file, 'r+', encoding='cp437') as mainfile:
-        section_number = ''.join(c for c in str(tutorials_file) if c.isdigit())
-        readfile = mainfile.read()
-        if ':glob:' not in readfile:
-            add_glob = readfile\
-                .replace(":hidden:\n", ":hidden:\n   :glob:\n   :reversed:\n\n   notebooks/" + section_number +"*\n")
-            mainfile.seek(0)
-            mainfile.write(add_glob)
-            mainfile.truncate()
+    tutorials_path = Path('../../docs/articles_en/learn_openvino/tutorials').resolve(strict=True)
+    tutorials_files = [x for x in os.listdir(tutorials_path) if re.match("notebooks_section_[0-9]{1}\.md$", x)]
+    for tutorials_file in tutorials_files:
+        file_name = os.path.join(tutorials_path, tutorials_file)
+        with open(file_name, 'r+', encoding='cp437') as section_file:
+            section_number = ''.join(c for c in str(tutorials_file) if c.isdigit())
+            read_file = section_file.read()
+            if ':glob:' not in read_file:
+                add_glob = read_file\
+                    .replace(":hidden:\n", ":hidden:\n   :glob:\n   :reversed:\n\n   notebooks/" + section_number +"*\n")
+                section_file.seek(0)
+                section_file.write(add_glob)
+                section_file.truncate()
 
 def main():
     parser = argparse.ArgumentParser()
@@ -189,19 +197,7 @@ def main():
     sourcedir = args.sourcedir
     outdir = args.outdir
 
-    create_nb_json_file(github_api_link)
-
-    section_0_tutorials_file = Path('../../docs/articles_en/learn_openvino/tutorials/notebooks_section_0.md').resolve(strict=True)
-    section_1_tutorials_file = Path('../../docs/articles_en/learn_openvino/tutorials/notebooks_section_1.md').resolve(strict=True)
-    section_2_tutorials_file = Path('../../docs/articles_en/learn_openvino/tutorials/notebooks_section_2.md').resolve(strict=True)
-    section_3_tutorials_file = Path('../../docs/articles_en/learn_openvino/tutorials/notebooks_section_3.md').resolve(strict=True)
-    section_4_tutorials_file = Path('../../docs/articles_en/learn_openvino/tutorials/notebooks_section_4.md').resolve(strict=True)
-
-    add_glob_directive(section_0_tutorials_file)
-    add_glob_directive(section_1_tutorials_file)
-    add_glob_directive(section_2_tutorials_file)
-    add_glob_directive(section_3_tutorials_file)
-    add_glob_directive(section_4_tutorials_file)
+    add_glob_directive()
 
     if args.download:
         outdir.mkdir(parents=True, exist_ok=True)

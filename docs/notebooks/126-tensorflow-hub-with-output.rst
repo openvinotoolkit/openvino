@@ -1,8 +1,6 @@
 Convert of TensorFlow Hub models to OpenVINO Intermediate Representation (IR)
 =============================================================================
 
-|Colab| |Binder|
-
 This tutorial demonstrates step-by-step instructions on how to convert
 models loaded from TensorFlow Hub using OpenVINO Runtime.
 
@@ -40,11 +38,6 @@ independently.
 - `Convert the model to OpenVINO IR <#convert-the-model-to-openvino-ir>`__
 - `Select inference device <#select-inference-device>`__
 - `Inference <#inference>`__
-
-.. |Colab| image:: https://colab.research.google.com/assets/colab-badge.svg
-   :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/126-tensorflow-hub/126-tensorflow-hub.ipynb
-.. |Binder| image:: https://mybinder.org/badge_logo.svg
-   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F126-tensorflow-hub%2F126-tensorflow-hub.ipynb
 
 Image classification 
 --------------------------------------------------------------
