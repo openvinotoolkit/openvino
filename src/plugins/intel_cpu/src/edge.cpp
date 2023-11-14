@@ -5,7 +5,6 @@
 #include "edge.h"
 #include "node.h"
 #include "dnnl_extension_utils.h"
-#include <blob_factory.hpp>
 #include "nodes/input.h"
 
 using namespace dnnl;

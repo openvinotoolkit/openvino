@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "utils/general_utils.h"
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include "nodes/common/cpu_memcpy.h"

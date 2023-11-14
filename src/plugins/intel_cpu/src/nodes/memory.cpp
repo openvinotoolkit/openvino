@@ -22,9 +22,9 @@ namespace node {
 std::mutex MemoryNodeVirtualEdge::holderMutex;
 
 MemoryNode::MemoryNode(const std::shared_ptr<ov::Node>& op) {
-    if (auto assignOp = ov::as_type_ptr<ngraph::op::AssignBase>(op)) {
+    if (auto assignOp = ov::as_type_ptr<ov::op::util::AssignBase>(op)) {
         _id = assignOp->get_variable_id();
-    } else if (auto readValueOp = ov::as_type_ptr<ngraph::op::ReadValueBase>(op)) {
+    } else if (auto readValueOp = ov::as_type_ptr<ov::op::util::ReadValueBase>(op)) {
         _id = readValueOp->get_variable_id();
     } else {
         OPENVINO_THROW("Unexpected ov::Node type: ", op->get_type_info().name, " in MemoryNode");
@@ -34,8 +34,8 @@ MemoryNode::MemoryNode(const std::shared_ptr<ov::Node>& op) {
 bool MemoryOutput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(),
-                ngraph::op::v3::Assign::get_type_info_static(),
-                ngraph::op::v6::Assign::get_type_info_static())) {
+                ov::op::v3::Assign::get_type_info_static(),
+                ov::op::v6::Assign::get_type_info_static())) {
             errorMessage = "Node is not an instance of Assign from the operation set v3 or v6.";
             return false;
         }
@@ -211,8 +211,8 @@ void MemoryOutput::deregisterSibling(MemoryNode* node) {
 bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(),
-                ngraph::op::v3::ReadValue::get_type_info_static(),
-                ngraph::op::v6::ReadValue::get_type_info_static())) {
+                ov::op::v3::ReadValue::get_type_info_static(),
+                ov::op::v6::ReadValue::get_type_info_static())) {
             errorMessage = "Node is not an instance of ReadValue from the operation set v3 or v6.";
             return false;
         }
