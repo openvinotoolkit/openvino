@@ -239,7 +239,10 @@ Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr conte
             v0::Result::get_type_info_static(),
             v3::ReadValue::get_type_info_static(),
             v6::ReadValue::get_type_info_static()))
-        IE_THROW(NotImplemented) << "CPU Input node doesn't support ngraph operation " << op->get_type_name() << " with name " << op->get_friendly_name();
+        OPENVINO_THROW_NOT_IMPLEMENTED("CPU Input node doesn't support ngraph operation ",
+                                       op->get_type_name(),
+                                       " with name ",
+                                       op->get_friendly_name());
 
     constant = ConstantType::NoConst;
 
@@ -413,14 +416,14 @@ MemoryCPtr Input::getMemoryPtr() const {
 void Input::getSupportedDescriptors() {
     if (getType() == Type::Input) {
         if (!getParentEdges().empty())
-            IE_THROW() << "Incorrect number of input edges for layer " << getName();
+            OPENVINO_THROW("Incorrect number of input edges for layer ", getName());
         if (getChildEdges().empty())
-            IE_THROW() << "Incorrect number of output edges for layer " << getName();
+            OPENVINO_THROW("Incorrect number of output edges for layer ", getName());
     } else if (getType() == Type::Output) {
         if (getParentEdges().size() != 1)
-            IE_THROW() << "Incorrect number of input edges for layer " << getName();
+            OPENVINO_THROW("Incorrect number of input edges for layer ", getName());
         if (!getChildEdges().empty())
-            IE_THROW() << "Incorrect number of output edges for layer " << getName();
+            OPENVINO_THROW("Incorrect number of output edges for layer ", getName());
     }
 }
 
@@ -439,19 +442,19 @@ void Input::createPrimitive() {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
         if (!dstMemPtr || !dstMemPtr->isAllocated())
-            IE_THROW() << "Destination memory didn't allocate for node " << getName()
-                               << " to node " << getChildEdgeAt(i)->getChild()->getName() << ".";
+            OPENVINO_THROW("Destination memory didn't allocate for node ", getName()
+                              , " to node ", getChildEdgeAt(i)->getChild()->getName(), ".");
     }
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
         if (!srcMemPtr || !srcMemPtr->isAllocated())
-            IE_THROW() << "Destination memory didn't allocate for node " << getName()
-                               << " from node " << getParentEdgeAt(i)->getParent()->getName() << ".";
+            OPENVINO_THROW("Destination memory didn't allocate for node ", getName()
+                              , " from node ", getParentEdgeAt(i)->getParent()->getName(), ".");
     }
 
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
+        OPENVINO_THROW("Preferable primitive descriptor is not set for node ", getName(), ".");
 }
 
 bool Input::created() const {

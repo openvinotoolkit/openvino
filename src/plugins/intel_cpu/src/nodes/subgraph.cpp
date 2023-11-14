@@ -134,6 +134,7 @@ Snippet::Snippet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
     snippetAttrs.snippet->set_generator(std::make_shared<CPUGenerator>(host_isa));
 #else
     OPENVINO_THROW("CPU plugin: Snippets code-generator is not supported on non-x64 platforms");
+
 #endif // OPENVINO_ARCH_X86_64
 
     // Note: we have to update shapeInfer, so it uses the per-thread op::Subgraph copy
@@ -231,7 +232,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
                 static_cast<InferenceEngine::Precision>(InferenceEngine::Precision::BF16) :
                 originalInputPrecision;
             if (supportedPrecisions.count(precision) == 0)
-                IE_THROW() << "Subgraph node with name `" << getName() << "` doesn't support " << precision << " precision.";
+                OPENVINO_THROW("Subgraph node with name `", getName(), "` doesn't support ", precision, " precision.");
 
             const auto equalPrecisions = getOriginalOutputPrecisions().size() == 1 &&
                     precision == getOriginalOutputPrecisionAtPort(0);
@@ -250,7 +251,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
         for (size_t i = 0; i < outputShapes.size(); i++) {
             auto precision = getOriginalOutputPrecisionAtPort(i);
             if (supportedPrecisions.count(precision) == 0)
-                IE_THROW() << "Subgraph node with name `" << getName() << "` doesn't support " << precision << " precision.";
+                OPENVINO_THROW("Subgraph node with name `", getName(), "` doesn't support ", precision, " precision.");
 
             BlockedMemoryDesc::CmpMask outputMask = BlockedMemoryDesc::SKIP_OFFSET_MASK;
             PortConfig portConfig;
@@ -398,7 +399,7 @@ void Snippet::prepareParams() {
     auto result = cache->getOrCreate(key, builder);
     execPtr = result.first;
     if (!execPtr) {
-        IE_THROW() << "Executor is not created for node " << getName() << ".";
+        OPENVINO_THROW("Executor is not created for node ", getName(), ".");
     }
 }
 
@@ -438,7 +439,7 @@ bool Snippet::created() const {
 
 void Snippet::execute(dnnl::stream strm) {
     if (!execPtr) {
-        IE_THROW() << "Can't execute Subgraph node. Primitive didn't created";
+        OPENVINO_THROW("Can't execute Subgraph node. Primitive didn't created");
     }
     for (size_t i = 0; i < inputNum; i++)
         srcMemPtrs[i] = getParentEdgeAt(i)->getMemoryPtr();
@@ -454,7 +455,7 @@ void Snippet::executeDynamicImpl(dnnl::stream strm) {
 
 void Snippet::SnippetJitExecutor::exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
     if (schedule.lowering_result.compiled_snippet->empty()) {
-        IE_THROW() << "Snippet can't use Optimized implementation and can't fallback to reference";
+        OPENVINO_THROW("Snippet can't use Optimized implementation and can't fallback to reference");
     }
     auto initStartMemoryOffsets = [this, &inMemPtrs, &outMemPtrs]() {
         for (size_t i = 0; i < numInput; i++) {
@@ -559,8 +560,9 @@ Snippet::SnippetJitExecutor::SnippetJitExecutor(SnippetAttrs attrs, bool is_dyna
 
     if (std::any_of(canonicalShape.begin(), canonicalShape.end(),
                     [](size_t x){return x == snippets::IShapeInferSnippets::DYNAMIC_DIMENSION;}))
-        IE_THROW() << "Snippets: Canonicalization returned dynamic shape in static pipeline";
+        OPENVINO_THROW("Snippets: Canonicalization returned dynamic shape in static pipeline");
     snippetAttrs.snippet->set_min_parallel_work_amount(static_cast<size_t>(parallel_get_max_threads()));
+
     // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work amount)
     // needed to cover kernel call overhead. It is used for balancing between parallel and JIT work amounts in domain optimization.
     snippetAttrs.snippet->set_min_jit_work_amount(256);
