@@ -20,45 +20,70 @@
 using namespace testing;
 using namespace ov::intel_cpu;
 
+enum class ZeroPointType { NO_ZP, ZP_WEIGHTS_PRC, ZP_DECOMPRESSION_PRC };
+inline std::ostream& operator<<(std::ostream& os, ZeroPointType type) {
+    switch (type) {
+        case ZeroPointType::NO_ZP:
+            os << "NO_ZP";
+            break;
+        case ZeroPointType::ZP_WEIGHTS_PRC:
+            os << "ZP_WEIGHTS_PRC";
+            break;
+        case ZeroPointType::ZP_DECOMPRESSION_PRC:
+            os << "ZP_DECOMPRESSION_PRC";
+            break;
+        default:
+            OPENVINO_THROW("Unknown ZeroPointType");
+    }
+    return os;
+}
+
 using MoveFCReshapeToWeightsParams = std::tuple<std::pair<ov::PartialShape, ov::Shape>,  // data_shape - weights_shape
                                                 bool,                                    // add transpose
-                                                bool>;                                   // add subtract
+                                                ZeroPointType>;
 
 class MoveFCReshapeToWeightsTests : public TransformationTestsF, public WithParamInterface<MoveFCReshapeToWeightsParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<MoveFCReshapeToWeightsParams> obj) {
         std::pair<ov::PartialShape, ov::Shape> input_shapes;
         bool add_transpose;
-        bool add_subtract;
-        std::tie(input_shapes, add_transpose, add_subtract) = obj.param;
+        ZeroPointType zp_type;
+        std::tie(input_shapes, add_transpose, zp_type) = obj.param;
 
         std::ostringstream result;
         result << "Input_shape=(" << input_shapes.first << ")_Weights_shape=(" << input_shapes.second
-               << ")_add_transpose=" << add_transpose << "_add_subtract=" << add_subtract;
+               << ")_add_transpose=" << add_transpose << "_zp_type=" << zp_type;
         return result.str();
     }
 
     static std::shared_ptr<ov::Model> initModel(const ov::PartialShape& data_shape,
                                                 const ov::Shape& weights_shape,
                                                 const bool add_transpose,
-                                                const bool add_subtract,
+                                                const ZeroPointType zp_type,
                                                 const bool add_reshape) {
-        auto data = std::make_shared<ov::opset1::Parameter>(ov::element::f32, data_shape);
+        const auto decompression_prc = ov::element::f32;
+        const auto weights_prc = ov::element::u8;
+        auto data = std::make_shared<ov::opset1::Parameter>(decompression_prc, data_shape);
         auto transposed_shape = weights_shape;
         if (add_transpose)
             std::swap(*(transposed_shape.rbegin() + 1), *transposed_shape.rbegin());
-        std::shared_ptr<ov::Node> weights_path = ov::opset1::Constant::create(ov::element::u8, transposed_shape, {1});
-        weights_path = std::make_shared<ov::opset1::Convert>(weights_path, ov::element::f32);
+        std::shared_ptr<ov::Node> weights_path = ov::opset1::Constant::create(weights_prc, transposed_shape, {1});
+        weights_path = std::make_shared<ov::opset1::Convert>(weights_path, decompression_prc);
 
         ov::Shape decompression_shape(weights_shape.size(), 1);
         const size_t n_idx = add_transpose ? transposed_shape.size() - 1 : transposed_shape.size() - 2;
         decompression_shape[n_idx] = transposed_shape[n_idx];
 
-        if (add_subtract) {
-            auto sub_const = ov::opset1::Constant::create(ov::element::f32, decompression_shape, {1});
+        if (zp_type == ZeroPointType::ZP_DECOMPRESSION_PRC) {
+            auto sub_const = ov::opset1::Constant::create(weights_prc, decompression_shape, {1});
+            auto sub_convert = std::make_shared<ov::opset1::Convert>(sub_const, decompression_prc);
+            weights_path = std::make_shared<ov::opset1::Subtract>(weights_path, sub_convert);
+        } else if (zp_type == ZeroPointType::ZP_WEIGHTS_PRC) {
+            auto sub_const = ov::opset1::Constant::create(decompression_prc, decompression_shape, {1});
             weights_path = std::make_shared<ov::opset1::Subtract>(weights_path, sub_const);
         }
-        auto mul_const = ov::opset1::Constant::create(ov::element::f32, decompression_shape, {1});
+
+        auto mul_const = ov::opset1::Constant::create(decompression_prc, decompression_shape, {1});
         weights_path = std::make_shared<ov::opset1::Multiply>(weights_path, mul_const);
 
         if (add_reshape) {
@@ -80,13 +105,13 @@ protected:
         TransformationTestsF::SetUp();
         std::pair<ov::PartialShape, ov::Shape> input_shapes;
         bool add_transpose;
-        bool add_subtract;
-        std::tie(input_shapes, add_transpose, add_subtract) = this->GetParam();
+        ZeroPointType zp_type;
+        std::tie(input_shapes, add_transpose, zp_type) = this->GetParam();
 
         ov::Shape ref_weights_shape = input_shapes.second;
         ref_weights_shape.erase(ref_weights_shape.begin());
-        model = initModel(input_shapes.first, input_shapes.second, add_transpose, add_subtract, true);
-        model_ref = initModel(input_shapes.first, ref_weights_shape, add_transpose, add_subtract, false);
+        model = initModel(input_shapes.first, input_shapes.second, add_transpose, zp_type, true);
+        model_ref = initModel(input_shapes.first, ref_weights_shape, add_transpose, zp_type, false);
         manager.register_pass<MoveFCReshapeToWeights>();
     }
 };
@@ -97,11 +122,15 @@ const std::vector<std::pair<ov::PartialShape, ov::Shape>> input_shapes_wo_transp
     {{-1, -1, -1}, {1, 4, 3}}
 };
 const std::vector<bool> add_transpose = {false, true};
-const std::vector<bool> add_subtract = {false, true};
+const std::vector<ZeroPointType> zp_types = {
+    ZeroPointType::NO_ZP,
+    ZeroPointType::ZP_DECOMPRESSION_PRC,
+    ZeroPointType::ZP_WEIGHTS_PRC
+};
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests_wo_transpose, MoveFCReshapeToWeightsTests,
                         ::testing::Combine(
                                 ::testing::ValuesIn(input_shapes_wo_transpose),
                                 ::testing::ValuesIn(add_transpose),
-                                ::testing::ValuesIn(add_subtract)),
+                                ::testing::ValuesIn(zp_types)),
                             MoveFCReshapeToWeightsTests::getTestCaseName);
