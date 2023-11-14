@@ -118,18 +118,35 @@ struct loop_impl : typed_primitive_impl<loop> {
 
         auto body_network = instance.get_body_network();
         int64_t current_iteration_idx = 0;
-
         auto ev = stream.create_user_event(false);
+        const auto is_dynamic = instance.is_dynamic();
+
+        if (is_dynamic) {
+            instance.update_shape();
+            if (instance.shape_changed()) {
+                instance.preproc_memories_done = false;
+                instance.reset_memory();
+            }
+        }
 
         body_network->set_shape_predictor(outer_network.get_shape_predictor());
         OPENVINO_ASSERT(!primitive->num_iteration_id.empty(), "loop operation should have num_iteration_id");
 
+        // shortcut of execution_condition memory in body network
+        memory::ptr body_execution_condition_mem = nullptr;
+        if (!primitive->body_execution_condition_id.empty()) {
+            body_execution_condition_mem = body_network->get_primitive(primitive->body_execution_condition_id)->output_memory_ptr();
+        }
+
+        // shortcut of current_iteration memory in body network
+        if (!primitive->body_current_iteration_id.empty()) {
+            memory::ptr body_current_iteration_mem = body_network->get_primitive(primitive->body_current_iteration_id)->output_memory_ptr();
+            write_scalar_value(body_current_iteration_mem, body_network->get_stream(), 0);
+        }
+
         auto num_iterations = instance.get_num_iterations();
         GPU_DEBUG_LOG << "num_iterations : " << num_iterations << std::endl;
 
-        //////////////////////////////////////////
-        // memory pointers for outer network
-        //////////////////////////////////////////
         // read trip_count from outer network
         int64_t trip_count = -1;
         if (!primitive->trip_count_id.empty()) {
@@ -164,30 +181,6 @@ struct loop_impl : typed_primitive_impl<loop> {
             instance.update_output_layout();
             ev->set();
             return ev;
-        }
-
-        //////////////////////////////////////////
-        // memory pointers for body network
-        //////////////////////////////////////////
-        // shortcut of execution_condition memory in body network
-        memory::ptr body_execution_condition_mem = nullptr;
-        if (!primitive->body_execution_condition_id.empty()) {
-            body_execution_condition_mem = body_network->get_primitive(primitive->body_execution_condition_id)->output_memory_ptr();
-        }
-
-        // shortcut of current_iteration memory in body network
-        if (!primitive->body_current_iteration_id.empty()) {
-            memory::ptr body_current_iteration_mem = body_network->get_primitive(primitive->body_current_iteration_id)->output_memory_ptr();
-            write_scalar_value(body_current_iteration_mem, body_network->get_stream(), 0);
-        }
-
-        const auto is_dynamic = instance.is_dynamic();
-        if (is_dynamic) {
-            instance.update_shape();
-            if (instance.shape_changed()) {
-                instance.preproc_memories_done = false;
-                instance.reset_memory();
-            }
         }
 
         if (!instance.preproc_memories_done) {

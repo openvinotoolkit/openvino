@@ -315,7 +315,8 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             p.replace(prev_node, new_node);
             // Insert bias_node into 3-rd position in dependencies vector to get correct order in case of asymmetric quantization
             // which means that node can have > 2 dependencies even without bias
-            new_node.dependencies.insert(new_node.dependencies.begin() + 2, {&bias_node, 0});
+            auto port_idx = new_node.get_port_from_deps(bias_node.id());
+            new_node.dependencies.insert(new_node.dependencies.begin() + 2, {&bias_node, port_idx});
             bias_node.users.push_back(&new_node);
 
             // Remove all edges connected with peer node

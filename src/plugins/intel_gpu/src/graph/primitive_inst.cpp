@@ -1011,6 +1011,17 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
         allocate_memory = false;
     }
     _mem_allocated = allocate_memory;
+    if (!_mem_allocated && (node.is_dynamic() && _outputs_memory_count > 1)) {
+        auto avaiable_allocate_memory = [&](std::vector<cldnn::layout>& layouts) -> bool {
+            for (auto& l : layouts) {
+                if (l.is_static())
+                    return true;
+            }
+            return false;
+        };
+        allocate_memory = _mem_allocated = avaiable_allocate_memory(_impl_params->output_layouts);
+    }
+
     if (allocate_memory) {
         // In case when output is mutable_data primitive, and other users dependencies are only used for
         // synchronization, The output memory of such primitive will be fused with mutable_data
@@ -1377,23 +1388,28 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
 
 std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* updated_params, bool reset_mem, bool runtime_alloc) {
     std::vector<memory::ptr> outputs;
+    auto impl_params = updated_params != nullptr ? *updated_params : *_impl_params;
+    auto& out_layouts = impl_params.output_layouts;
     for (size_t i = 0; i < get_node().get_outputs_count() ; ++i) {
-        auto impl_params = updated_params != nullptr ? *updated_params : *_impl_params;
-        auto current_memory_ptr = _outputs.size() > i ? output_memory_ptr(i).get() : nullptr;
-        auto is_output = is_output_buffer(this, runtime_alloc);
+        if (out_layouts[i].is_dynamic() && !out_layouts[i].has_upper_bound()) {
+            outputs.push_back(memory::ptr());
+        } else {
+            auto current_memory_ptr = _outputs.size() > i ? output_memory_ptr(i).get() : nullptr;
+            auto is_output = is_output_buffer(this, runtime_alloc);
 
-        outputs.push_back(allocate_output(_network.get_engine(),
-                                          _network.get_memory_pool(),
-                                          *_node,
-                                          impl_params,
-                                          _runtime_memory_dependencies,
-                                          get_network_id(),
-                                          _network.is_internal(),
-                                          i,
-                                          reset_mem,
-                                          is_output,
-                                          current_memory_ptr,
-                                          runtime_alloc));
+            outputs.push_back(allocate_output(_network.get_engine(),
+                                            _network.get_memory_pool(),
+                                            *_node,
+                                            impl_params,
+                                            _runtime_memory_dependencies,
+                                            get_network_id(),
+                                            _network.is_internal(),
+                                            i,
+                                            reset_mem,
+                                            is_output,
+                                            current_memory_ptr,
+                                            runtime_alloc));
+        }
     }
     return outputs;
 }

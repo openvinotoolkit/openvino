@@ -273,10 +273,6 @@ struct loop : public primitive_base<loop> {
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
-        ret.push_back(std::ref(num_iteration_id));
-        if (!trip_count_id.empty()) ret.push_back(std::ref(trip_count_id));
-        if (!first_execution_condition_id.empty()) ret.push_back(std::ref(first_execution_condition_id));
-
         // add external_id in dependencies if not exist
         for (const auto& mapping : input_primitive_maps) {
             auto target = std::find_if(input.begin(), input.end(),

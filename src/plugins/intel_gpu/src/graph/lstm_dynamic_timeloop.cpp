@@ -38,7 +38,8 @@ void lstm_dynamic_timeloop_node::reverse_optional_outputs_connections() {
         }));
         mutable_data_node.users.push_back(this);
         users.remove(&mutable_data_node);
-        dependencies.insert(dependencies.begin() + index_to_insert, {&mutable_data_node, 0});
+        auto port_idx = get_port_from_deps(mutable_data_node.id());
+        dependencies.insert(dependencies.begin() + index_to_insert, {&mutable_data_node, port_idx});
         // fix inputs/outputs
         if (mutable_data_node.get_dependencies().empty()) {
             myprog.get_inputs().push_back(&mutable_data_node);

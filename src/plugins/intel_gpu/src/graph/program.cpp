@@ -850,7 +850,8 @@ void program::add_intermediate(program_node& node,
 
 void program::add_connection(program_node& prev, program_node& next) {
     prev.users.push_back(&next);
-    next.dependencies.push_back({&prev, 0});
+    auto port_idx = next.get_port_from_deps(prev.id());
+    next.dependencies.push_back({&prev, port_idx});
 }
 
 void program::remove_connection(program_node& prev, program_node& next) {
@@ -1131,7 +1132,9 @@ void program::fuse_nodes(program_node &fused_node,
                     continue;
             }
         }
-        fused_node.dependencies.push_back({&dep, 0});
+
+        auto port_idx = fused_node.get_port_from_deps(dep.id());
+        fused_node.dependencies.push_back({&dep, port_idx});
         local_desc.deps.emplace_back(dep.id(), deps_idx++);
         dep.users.push_back(&fused_node);
     }
