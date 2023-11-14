@@ -14,7 +14,7 @@
 #include <vector>
 #include <memory>
 #include "common/cpu_memcpy.h"
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "fake_quantize.h"
 #include "utils/general_utils.h"
@@ -87,9 +87,9 @@ bool MatMul::canBeExecutedInInt8() const {
     return one_of(firstInputPrecision, Precision::U8, Precision::I8) && secondInputPrecision == Precision::I8;
 }
 
-bool MatMul::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MatMul::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto matMul = std::dynamic_pointer_cast<const ngraph::opset1::MatMul>(op);
+        const auto matMul = std::dynamic_pointer_cast<const ov::opset1::MatMul>(op);
         if (!matMul) {
             errorMessage = "Only opset1 MatMul operation is supported";
             return false;
@@ -114,7 +114,7 @@ bool MatMul::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-MatMul::MatMul(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+MatMul::MatMul(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
     Node(op, context, MMShapeInferFactory(op)), withBiases(false) {
     std::string errorMessage;
     errorPrefix = "MatMul node with name '" + getName() + "'";
@@ -122,7 +122,7 @@ MatMul::MatMul(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
     if (!isSupportedOperation(op, errorMessage))
         IE_THROW(NotImplemented) << errorMessage;
 
-    const auto matMul = std::dynamic_pointer_cast<const ngraph::opset1::MatMul>(op);
+    const auto matMul = std::dynamic_pointer_cast<const ov::opset1::MatMul>(op);
 
     if (!matMul) {
         IE_THROW(NotImplemented) << "Operation with name " << op->get_friendly_name() << ":" << op->get_type_name() <<
