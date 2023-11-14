@@ -5,6 +5,7 @@
 #include "single_layer_tests/classes/convolution.hpp"
 #include "shared_test_classes/single_layer/convolution.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "test_utils/filter_cpu_info.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
