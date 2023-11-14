@@ -5,9 +5,9 @@
 #include "internal/op/conditional_block.hpp"
 
 #include <algorithm>
-#include <ngraph/validation_util.hpp>
 
-#include "ngraph/op/constant.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;

@@ -4,7 +4,7 @@
 
 #include "cpu_convert.h"
 #include "cpu_memcpy.h"
-#include <ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 #include <utils/bfloat16.hpp>
 #include <utils/general_utils.h>
 #include <selective_build.h>
@@ -223,8 +223,15 @@ const std::tuple<U, U> & Range<T, U>::fit(const Precision & prec) {
             default:
                 IE_THROW() << "Unsupported precision";
         }
-        std::get<0>(_range) = static_cast<U>(std::max(static_cast<double>(std::get<0>(_range)), lbound));
-        std::get<1>(_range) = static_cast<U>(std::min(static_cast<double>(std::get<1>(_range)), ubound));
+        // If U is integral, its range always less than float, so not need update _range
+        // Else it will be overflow, for example static_cast double to int64_t:
+        //         int64_t ubound = 9223372036854775807
+        //         double  dd_ubound = static_cast<double>(ubbound)
+        //         static_cast<int64_t>(dd_ubound) will return -9223372036854775808
+        if (!std::is_integral<U>::value) {
+                std::get<0>(_range) = static_cast<U>(std::max(static_cast<double>(std::get<0>(_range)), lbound));
+                std::get<1>(_range) = static_cast<U>(std::min(static_cast<double>(std::get<1>(_range)), ubound));
+        }
     } else {
         int64_t lbound;
         uint64_t ubound;

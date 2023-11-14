@@ -4,8 +4,6 @@
 
 #include "shared_test_classes/subgraph/quantized_group_convolution.hpp"
 
-using ngraph::helpers::QuantizationGranularity;
-
 namespace SubgraphTestsDefinitions {
 
 std::string QuantGroupConvLayerTest::getTestCaseName(const testing::TestParamInfo<quantGroupConvLayerTestParamsSet>& obj) {
@@ -19,7 +17,7 @@ std::string QuantGroupConvLayerTest::getTestCaseName(const testing::TestParamInf
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t convOutChannels, numGroups;
     size_t quantLevels;
-    QuantizationGranularity quantGranularity;
+    ov::test::utils::QuantizationGranularity quantGranularity;
     bool quantizeWeights;
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, quantLevels, quantGranularity, quantizeWeights) = groupConvParams;
 
@@ -53,17 +51,16 @@ void QuantGroupConvLayerTest::SetUp() {
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t convOutChannels, numGroups;
     size_t quantLevels;
-    size_t quantGranularity;
+    ov::test::utils::QuantizationGranularity quantGranularity;
     bool quantizeWeights;
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, quantLevels, quantGranularity, quantizeWeights) = groupConvParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     std::vector<size_t> dataFqConstShapes(inputShape.size(), 1);
-    if (quantGranularity == ngraph::helpers::Perchannel)
+    if (quantGranularity == ov::test::utils::QuantizationGranularity::Perchannel)
         dataFqConstShapes[1] = inputShape[1];
-    auto dataFq = ngraph::builder::makeFakeQuantize(paramOuts[0], ngPrc, quantLevels, dataFqConstShapes);
+    auto dataFq = ngraph::builder::makeFakeQuantize(params[0], ngPrc, quantLevels, dataFqConstShapes);
 
     std::vector<size_t> weightsShapes = {convOutChannels, inputShape[1]};
     if (weightsShapes[0] % numGroups || weightsShapes[1] % numGroups)
@@ -77,7 +74,7 @@ void QuantGroupConvLayerTest::SetUp() {
     auto weightsNode = ngraph::builder::makeConstant(ngPrc, weightsShapes, weightsData, weightsData.empty());
 
     std::vector<size_t> weightsFqConstShapes(weightsShapes.size(), 1);
-    if (quantGranularity == ngraph::helpers::Perchannel)
+    if (quantGranularity == ov::test::utils::QuantizationGranularity::Perchannel)
         weightsFqConstShapes[0] = weightsShapes[0];
 
     std::shared_ptr<ngraph::Node> weights;
