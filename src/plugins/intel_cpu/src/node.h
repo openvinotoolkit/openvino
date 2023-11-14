@@ -22,8 +22,7 @@
 #include "dnnl_scratch_pad.h"
 #include <openvino/itt.hpp>
 #include "utils/ngraph_utils.hpp"
-#include <ngraph/ops.hpp>
-#include <ngraph/node.hpp>
+#include "openvino/core/node.hpp"
 #include <ie_precision.hpp>
 #include <nodes/common/blocked_desc_creator.h>
 #include "cpu_types.h"
@@ -42,6 +41,7 @@
 #include "nodes/executors/executor.hpp"
 
 #define THROW_CPU_NODE_ERR(...) OPENVINO_THROW(getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
+#define CPU_NODE_ASSERT(condition, ...) OPENVINO_ASSERT(condition, getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
 
 namespace ov {
 namespace intel_cpu {
@@ -587,7 +587,7 @@ protected:
 
     std::string originalLayers;  // contains names of the original layers separated by comma
 
-    Node(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory);
+    Node(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory);
     Node(const std::string& type, const std::string& name, const GraphContext::CPtr ctx);
 
     int selectedPrimitiveDescriptorIndex = -1;
@@ -743,17 +743,17 @@ constexpr uint64_t PortMask(T... rest) {
 }
 
 class Node::NodesFactory : public openvino::cc::Factory<Type,
-                                            Node*(const std::shared_ptr<ngraph::Node>& op,
+                                            Node*(const std::shared_ptr<ov::Node>& op,
                                                   const GraphContext::CPtr)> {
 public:
     NodesFactory();
 
-    Node* create(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Node* create(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 };
 
 template<typename NodeType>
 struct NodeImpl : public NodeType {
-    NodeImpl(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    NodeImpl(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : NodeType(op, context) {
         NodeType::perfCounters().template buildClassCounters<NodeType>(NameFromType(NodeType::getType()));
     }

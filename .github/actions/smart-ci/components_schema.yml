@@ -1,0 +1,35 @@
+# YAML schema for Smart CI configuration file components.yml (see https://json-schema.org)
+
+definitions:
+  component_name:
+    type: string
+    pattern: "^[a-zA-Z_][a-zA-Z0-9_]*$"
+
+  component_data:
+    type: object  # dict
+    additionalProperties: false
+    properties:
+      cmake:
+        type: array
+        uniqueItems: true
+        items:
+          '$ref': '#/definitions/component_name'
+
+      revalidate:
+        type: array
+        uniqueItems: true
+        items:
+          '$ref': '#/definitions/component_name'
+
+      build:
+        type: array
+        uniqueItems: true
+        items:
+          '$ref': '#/definitions/component_name'
+
+propertyNames:  # Validates component names
+  '$ref': '#/definitions/component_name'
+patternProperties:
+  ".*":  # Component (name validated via propertyNames)
+    '$ref': '#/definitions/component_data'
+additionalProperties: false

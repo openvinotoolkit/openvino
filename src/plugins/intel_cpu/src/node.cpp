@@ -52,7 +52,7 @@
 
 #include "nodes/common/cpu_memcpy.h"
 #include "utils/rt_info/memory_formats_attribute.hpp"
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 
 #include <dnnl_types.h>
 #include <dnnl_debug.h>
@@ -80,7 +80,7 @@ Node::NodesFactory & Node::factory() {
     return factoryInstance;
 }
 
-Node::Node(const std::shared_ptr<ngraph::Node>& op,
+Node::Node(const std::shared_ptr<ov::Node>& op,
            const GraphContext::CPtr ctx,
            const ShapeInferFactory& shapeInferFactory)
     : selectedPrimitiveDescriptorIndex(-1),
@@ -102,7 +102,7 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
         }
 
         bool isScalar = shape.rank().get_length() == 0;
-        inputShapes.emplace_back(isScalar ? ngraph::PartialShape{1} : shape);
+        inputShapes.emplace_back(isScalar ? ov::PartialShape{1} : shape);
         originalInputPrecisions.emplace_back(details::convertPrecision(op->get_input_element_type(i)));
     }
 
@@ -117,7 +117,7 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
             }
 
             bool isScalar = shape.rank().get_length() == 0;
-            outputShapes.emplace_back(isScalar ? ngraph::PartialShape{1} : shape);
+            outputShapes.emplace_back(isScalar ? ov::PartialShape{1} : shape);
             originalOutputPrecisions.emplace_back(details::convertPrecision(op->get_output_element_type(i)));
         }
     }
@@ -1039,6 +1039,7 @@ const std::vector<impl_desc_type>& Node::getDefaultImplPriority() {
         impl_desc_type::gemm_avx2,
         impl_desc_type::gemm_avx,
         impl_desc_type::gemm_sse42,
+        impl_desc_type::gemm_acl,
         impl_desc_type::acl,
         impl_desc_type::jit_gemm,
         impl_desc_type::ref_any,
@@ -1247,7 +1248,7 @@ std::vector<InferenceEngine::Precision> Node::getInputPrecisions() const {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated) {
-            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->getDataType())));
+            inputPrecisions.emplace_back(parentEdge->getMemoryPtr()->getDesc().getPrecision());
         }
     }
     return inputPrecisions;
@@ -1258,7 +1259,7 @@ std::vector<InferenceEngine::Precision> Node::getOutputPrecisions() const {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto childEdge = getChildEdgeAt(i);
         if (childEdge && childEdge->getStatus() == Edge::Status::Validated) {
-            outputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((childEdge->getMemoryPtr()->getDataType())));
+            outputPrecisions.emplace_back(childEdge->getMemoryPtr()->getDesc().getPrecision());
         }
     }
     return outputPrecisions;
@@ -1281,7 +1282,7 @@ InferenceEngine::Precision Node::getRuntimePrecision() const {
     return runtimePrecision;
 }
 
-Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) {
+Node* Node::NodesFactory::create(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) {
     // getExceptionDescWithoutStatus removes redundant information from the exception message. For instance, the NotImplemented
     // exception is generated in the form: full_path_to_src_file:line_number [ NOT_IMPLEMENTED ] reason.
     // An example for gather node:
