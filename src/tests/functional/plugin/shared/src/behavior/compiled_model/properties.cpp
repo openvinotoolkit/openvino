@@ -258,14 +258,14 @@ TEST_P(OVClassCompiledModelGetPropertyTest, GetMetricNoThrow_OPTIMAL_NUMBER_OF_I
 }
 
 TEST_P(OVClassCompiledModelGetPropertyTest, CanCompileModelWithEmptyProperties) {
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core core = createCoreWithTemplate();
 
-    OV_ASSERT_NO_THROW(auto compiled_model = ie.compile_model(simpleNetwork, target_device, ov::AnyMap{}));
+    OV_ASSERT_NO_THROW(core.compile_model(simpleNetwork, target_device, ov::AnyMap{}));
 }
 
-TEST_P(OVClassCompiledModelGetPropertyTest, LoadNetworkWithBigDeviceIDThrows) {
-    ov::Core ie = createCoreWithTemplate();
-    ASSERT_THROW(ie.compile_model(actualNetwork, target_device + ".10"), ov::Exception);
+TEST_P(OVClassCompiledModelGetPropertyTest, CompileModelWithBigDeviceIDThrows) {
+    ov::Core core = createCoreWithTemplate();
+    ASSERT_THROW(core.compile_model(actualNetwork, target_device + ".10"), ov::Exception);
 }
 
 TEST_P(OVClassCompiledModelGetIncorrectPropertyTest, GetConfigThrows) {
@@ -364,13 +364,13 @@ TEST_P(OVCompileModelGetExecutionDeviceTests, CanGetExecutionDeviceInfo) {
         ASSERT_FALSE(property.empty());
 }
 
-TEST_P(OVClassCompiledModelGetConfigTest, CanLoadNetworkWithCustomLocale) {
+TEST_P(OVClassCompiledModelGetConfigTest, CanCompileModelWithCustomLocale) {
     auto prev = std::locale().name();
     setlocale(LC_ALL, "en_GB.UTF-8");
 
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core core = createCoreWithTemplate();
 
-    ASSERT_NO_THROW(auto compiled_model = ie.compile_model(simpleNetwork, target_device););
+    ASSERT_NO_THROW(core.compile_model(simpleNetwork, target_device););
 
     setlocale(LC_ALL, prev.c_str());
 }

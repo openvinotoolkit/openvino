@@ -271,12 +271,12 @@ TEST_P(OVCompiledModelBaseTest, CanGetInputsInfo) {
 
 TEST_P(OVCompiledModelBaseTest, CanGetProperty) {
     auto execNet = core->compile_model(function, target_device, configuration);
-    EXPECT_NO_THROW(auto inInfo = execNet.get_property(ov::supported_properties));
+    EXPECT_NO_THROW(execNet.get_property(ov::supported_properties));
 }
 
-TEST_P(OVCompiledModelBaseTest, CanCreateTwoExeNetworksAndCheckFunction) {
+TEST_P(OVCompiledModelBaseTest, CanCreateTwoCompiledModelsAndCheckRuntimeModel) {
     std::vector<ov::CompiledModel> vec;
-    for (auto i = 0; i < 2; i++) {
+    for (size_t i = 0; i < 2; i++) {
         EXPECT_NO_THROW(vec.push_back(core->compile_model(function, target_device, configuration)));
         EXPECT_NE(nullptr, vec[i].get_runtime_model());
         EXPECT_NE(vec.begin()->get_runtime_model(), vec[i].get_runtime_model());
