@@ -79,7 +79,7 @@ struct jit_uni_topk_kernel {
 
 class TopK : public Node {
 public:
-    TopK(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
     ~TopK() override = default;
 
     void getSupportedDescriptors() override;
@@ -95,7 +95,7 @@ public:
         return false;
     }
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node> &op, std::string &errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node> &op, std::string &errorMessage) noexcept;
 
 private:
     void topk_process(const uint8_t *in_ptr, uint8_t *out_ptr, uint8_t *dst_idx);

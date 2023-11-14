@@ -5,7 +5,7 @@
 #include <dnnl_extension_utils.h>
 #include "convert.h"
 #include "common/blocked_desc_creator.h"
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <ie_ngraph_utils.hpp>
 #include <utils/ngraph_utils.hpp>
 #include <shape_inference/shape_inference_pass_through.hpp>
@@ -17,9 +17,9 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool Convert::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Convert::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto convert = std::dynamic_pointer_cast<const ngraph::opset1::Convert>(op);
+        const auto convert = std::dynamic_pointer_cast<const ov::opset1::Convert>(op);
         if (!convert) {
             errorMessage = "Only opset1 Convert operation is supported";
             return false;
@@ -30,7 +30,7 @@ bool Convert::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-Convert::Convert(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+Convert::Convert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -39,8 +39,8 @@ Convert::Convert(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CP
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    auto convert = ov::as_type_ptr<const ngraph::opset1::Convert>(op);
-    convertParams.origPrc = convert->get_destination_type();
+    auto convert = ov::as_type_ptr<const ov::opset1::Convert>(op);
+    convertParams.origPrc = details::convertPrecision(convert->get_destination_type());
 }
 
 Convert::Convert(const Shape &shape, const ov::element::Type &inPrc, const ov::element::Type &outPrc,

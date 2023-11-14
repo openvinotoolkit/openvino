@@ -49,7 +49,7 @@ public:
      * Precisions are ordered, the first bigger bitness precision with the same type will be selected.
      * Empty collection means the emitter supports any input precisions.
      */
-    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
+    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
 
 protected:
     virtual size_t aux_gprs_count() const;

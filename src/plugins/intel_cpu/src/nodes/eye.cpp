@@ -5,7 +5,7 @@
 #include "eye.h"
 #include <ie_ngraph_utils.hpp>
 #include <utils/bfloat16.hpp>
-#include <ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 #include <shape_inference/shape_inference_ngraph.hpp>
 
 #define THROW_ERROR IE_THROW() << NameFromType(getType()) << " node with name '" << getName() << "' "
@@ -20,7 +20,7 @@ using namespace InferenceEngine::details;
 
 bool Eye::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (op->get_type_info() != ngraph::op::v9::Eye::get_type_info_static()) {
+        if (op->get_type_info() != ov::op::v9::Eye::get_type_info_static()) {
             errorMessage = "Node is not an instance of Eye form the operation set v9.";
             return false;
         }
@@ -55,8 +55,8 @@ Eye::Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) 
     }
     outType = op->get_output_element_type(0);
     withBatchShape = (op->get_input_size() == 4);
-    if (!one_of(outType, ngraph::element::f32, ngraph::element::bf16,
-        ngraph::element::i32, ngraph::element::i8, ngraph::element::u8)) {
+    if (!one_of(outType, ov::element::f32, ov::element::bf16,
+        ov::element::i32, ov::element::i8, ov::element::u8)) {
         THROW_ERROR << errorPrefix << "doesn't support demanded output precision";
     }
 }

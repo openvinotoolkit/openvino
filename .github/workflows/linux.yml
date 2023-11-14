@@ -5,21 +5,7 @@ on:
     - cron: '0 0 * * 3,6'
   workflow_dispatch:
   pull_request:
-    paths:
-      - '**'
-      - '!**/docs/**'
-      - '!docs/**'
-      - 'docs/snippets/**'
-      - '!**/**.md'
-      - '!**.md'
   push:
-    paths:
-      - '**'
-      - '!docs/**'
-      - '!**/docs/**'
-      - 'docs/snippets/**'
-      - '!**/**.md'
-      - '!**.md'
     branches:
       - master
       - 'releases/**'
@@ -60,6 +46,7 @@ jobs:
         shell: bash
 
   Build:
+    needs: Smart_CI
     timeout-minutes: 150
     defaults:
       run:
@@ -85,6 +72,7 @@ jobs:
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/.ci/azure/ci_utils/onnxruntime
+    if: "!fromJSON(needs.smart_ci.outputs.affected_components).docs_only"
 
     steps:
       - name: Install git

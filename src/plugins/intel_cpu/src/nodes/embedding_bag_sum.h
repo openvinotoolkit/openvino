@@ -17,14 +17,14 @@ namespace node {
 class EmbeddingBagSum {
 public:
     EmbeddingBagSum(
-            const std::shared_ptr<ngraph::Node>&,
+            const std::shared_ptr<ov::Node>&,
             size_t requiredInputsNum,
             size_t indicesIdx,
             size_t perSampleWeightsIdx,
             size_t defaultIndexIdx);
 
     void execute(const uint8_t* srcData, const uint8_t* weightsData, const ov::element::Type &srcPrc,
-                 const InferenceEngine::SizeVector& inDims, const MemoryPtr& outMemory);
+                 const VectorDims& inDims, const MemoryPtr& outMemory);
 
     ~EmbeddingBagSum() = default;
 
@@ -41,7 +41,7 @@ protected:
 
     template<typename T>
     void processData(const T* srcData, const T* weightsData,
-                     const InferenceEngine::SizeVector& inDataDims, const MemoryPtr& outMemory);
+                     const VectorDims& inDataDims, const MemoryPtr& outMemory);
 
     const size_t EMB_TABLE_IDX = 0lu;
     const size_t INDICES_IDX;

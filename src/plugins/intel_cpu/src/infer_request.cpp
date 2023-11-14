@@ -568,7 +568,9 @@ void SyncInferRequest::init_tensor(const std::string& name) {
             const bool isDynamic = shape.is_dynamic();
             ov::Shape tensor_shape;
             if (isDynamic) {
-                tensor_shape = ov::Shape(shape.rank().get_length(), 0);
+                for (auto&& item : shape) {
+                    tensor_shape.push_back(item.is_static() ? item.get_length() : 0);
+                }
             } else {
                 tensor_shape = shape.to_shape();
             }
@@ -697,12 +699,17 @@ SyncInferRequest::OutputControlBlock::OutputControlBlock(const ov::element::Type
     m_buffers[m_buffIndx] = std::make_shared<MemoryMngrWithReuse>();
     m_proxyMemMngr = std::make_shared<ProxyMemoryMngr>(m_buffers[m_buffIndx]);
 
-    Shape memShape = shape.isDynamic() ?
-        Shape{VectorDims(shape.getRank(), 0)} : // this is a WA since the ITensor doesn't allow dyn shapes
-        Shape{shape};
+    VectorDims memDims;
+    if (shape.isDynamic()) { // this is a WA since the ITensor doesn't allow dyn shapes
+        for (auto&& item : shape.getDims()) {
+            memDims.push_back(item != Shape::UNDEFINED_DIM ? item : 0);
+        }
+    } else {
+        memDims = shape.getStaticDims();
+    }
 
     CpuBlockedMemoryDescPtr desc =
-        std::make_shared<CpuBlockedMemoryDesc>(precision, memShape);
+        std::make_shared<CpuBlockedMemoryDesc>(precision, Shape{memDims});
 
     auto memory = std::make_shared<Memory>(eng, desc, m_proxyMemMngr);
     m_tensor = std::make_shared<Tensor>(memory);

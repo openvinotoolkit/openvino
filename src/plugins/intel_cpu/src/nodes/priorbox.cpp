@@ -9,10 +9,9 @@
 #include <memory>
 #include <vector>
 
-#include <ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 #include <dnnl_types.h>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include "shape_inference/custom/priorbox.hpp"
 
 using namespace InferenceEngine;
@@ -33,9 +32,9 @@ float clip_less(float x, float threshold) {
 
 }   // namespace
 
-bool PriorBox::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool PriorBox::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto priorBox = std::dynamic_pointer_cast<const ngraph::opset1::PriorBox>(op);
+        const auto priorBox = std::dynamic_pointer_cast<const ov::opset1::PriorBox>(op);
         if (!priorBox) {
             errorMessage = "Only opset1 PriorBox operation is supported";
             return false;
@@ -46,15 +45,15 @@ bool PriorBox::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& o
     return true;
 }
 
-PriorBox::PriorBox(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+PriorBox::PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, PriorBoxShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    const auto priorBox = std::dynamic_pointer_cast<const ngraph::opset1::PriorBox>(op);
-    const ngraph::opset1::PriorBox::Attributes& attrs = priorBox->get_attrs();
+    const auto priorBox = std::dynamic_pointer_cast<const ov::opset1::PriorBox>(op);
+    const ov::opset1::PriorBox::Attributes& attrs = priorBox->get_attrs();
     offset = attrs.offset;
     step = attrs.step;
     min_size = attrs.min_size;
@@ -92,7 +91,7 @@ PriorBox::PriorBox(const std::shared_ptr<ngraph::Node>& op, const GraphContext::
         }
     }
 
-    number_of_priors = ngraph::opset1::PriorBox::number_of_priors(attrs);
+    number_of_priors = ov::opset1::PriorBox::number_of_priors(attrs);
 
     if (attrs.variance.size() == 1 || attrs.variance.size() == 4) {
         for (float i : attrs.variance) {

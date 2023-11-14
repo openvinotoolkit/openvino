@@ -24,7 +24,7 @@ typedef std::tuple<
         size_t,
         ngraph::op::PadType,
         size_t,
-        ngraph::helpers::QuantizationGranularity> quantConvBackpropDataSpecificParams;
+        ov::test::utils::QuantizationGranularity> quantConvBackpropDataSpecificParams;
 typedef std::tuple<
         quantConvBackpropDataSpecificParams,
         InferenceEngine::Precision,

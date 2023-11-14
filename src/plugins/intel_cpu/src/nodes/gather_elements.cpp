@@ -5,9 +5,9 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "gather_elements.h"
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <precision_utils.h>
 #include <utils/general_utils.h>
 #include "common/cpu_memcpy.h"
@@ -32,7 +32,7 @@ bool GatherElements::isSupportedOperation(const std::shared_ptr<const ov::Node>&
     return true;
 }
 
-GatherElements::GatherElements(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+GatherElements::GatherElements(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

@@ -67,7 +67,7 @@ struct jit_uni_roi_align_kernel {
 
 class ROIAlign : public Node {
 public:
-    ROIAlign(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    ROIAlign(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -78,7 +78,7 @@ public:
     bool needPrepareParams() const override;
     void executeDynamicImpl(dnnl::stream strm) override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     int pooledH = 7;

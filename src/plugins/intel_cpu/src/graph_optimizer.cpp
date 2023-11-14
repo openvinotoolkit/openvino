@@ -26,12 +26,11 @@
 
 #include "onednn/dnnl.h"
 
-#include <blob_factory.hpp>
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <ie_ngraph_utils.hpp>
 
 // WA for xbyak.h
@@ -616,11 +615,11 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
                     // Bias -> Reshape -> Conv/Deconv/FC
                     const VectorDims flattenShape = {biasOutputShape.getElementsCount()};
                     // Construct Ngraph Reshape node and CPU Reshape node.
-                    auto reshapeConstInput = std::make_shared<ngraph::opset1::Constant>(ov::element::i32, ngraph::Shape{1}, flattenShape);
-                    auto reshapeDummyInput = std::make_shared<ngraph::opset1::Parameter>(
-                                                biasNode->getOriginalOutputPrecisionAtPort(0),
+                    auto reshapeConstInput = std::make_shared<ov::opset1::Constant>(ov::element::i32, ov::Shape{1}, flattenShape);
+                    auto reshapeDummyInput = std::make_shared<ov::opset1::Parameter>(
+                                                details::convertPrecision(biasNode->getOriginalOutputPrecisionAtPort(0)),
                                                 biasOutputShape.toPartialShape());
-                    const auto reshape = std::make_shared<ngraph::opset1::Reshape>(reshapeDummyInput, reshapeConstInput, false);
+                    const auto reshape = std::make_shared<ov::opset1::Reshape>(reshapeDummyInput, reshapeConstInput, false);
                     reshape->set_friendly_name(biasNode->getName() + "_flatten_reshape");
                     const auto cpuReshapeNode = std::make_shared<ov::intel_cpu::node::Reshape>(reshape, graph.getGraphContext());
                     // Insert Reshape between bias node and Conv/Deconv/FC
@@ -2646,9 +2645,9 @@ void GraphOptimizer::reshapeRnnSeq(Graph &graph) {
             auto edge = childrenEdges[j];
             auto childNode = edge->getChild();
 
-            const auto secondInput = std::make_shared<ngraph::opset1::Constant>(ov::element::i32, ngraph::Shape{1}, std::vector<int>{1});
-            const auto unsqueeze = std::make_shared<ngraph::opset1::Unsqueeze>(
-                std::make_shared<ngraph::opset1::Parameter>(parentNode->getOriginalOutputPrecisionAtPort(0),
+            const auto secondInput = std::make_shared<ov::opset1::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{1});
+            const auto unsqueeze = std::make_shared<ov::opset1::Unsqueeze>(
+                std::make_shared<ov::opset1::Parameter>(details::convertPrecision(parentNode->getOriginalOutputPrecisionAtPort(0)),
                                                             parentNode->getOutputShapeAtPort(0).toPartialShape()), secondInput);
             unsqueeze->set_friendly_name(parentNode->getName() + "_abc_a1bc_" + std::to_string(j));
 

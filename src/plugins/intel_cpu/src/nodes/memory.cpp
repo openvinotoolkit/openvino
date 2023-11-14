@@ -21,15 +21,15 @@ namespace node {
 
 std::mutex MemoryNodeVirtualEdge::holderMutex;
 
-MemoryNode::MemoryNode(const std::shared_ptr<ngraph::Node>& op) {
-    if (auto assignOp = std::dynamic_pointer_cast<ngraph::op::AssignBase>(op)) {
+MemoryNode::MemoryNode(const std::shared_ptr<ov::Node>& op) {
+    if (auto assignOp = std::dynamic_pointer_cast<ov::op::util::AssignBase>(op)) {
         _id = assignOp->get_variable_id();
-    } else if (auto readValueOp = std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(op)) {
+    } else if (auto readValueOp = std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(op)) {
         _id = readValueOp->get_variable_id();
     }
 }
 
-bool MemoryOutput::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MemoryOutput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -37,8 +37,8 @@ bool MemoryOutput::isSupportedOperation(const std::shared_ptr<const ngraph::Node
         }
 
         if (!one_of(op->get_type_info(),
-                ngraph::op::v3::Assign::get_type_info_static(),
-                ngraph::op::v6::Assign::get_type_info_static())) {
+                ov::op::v3::Assign::get_type_info_static(),
+                ov::op::v6::Assign::get_type_info_static())) {
             errorMessage = "Node is not an instance of Assign from the operation set v3 or v6.";
             return false;
         }
@@ -48,7 +48,7 @@ bool MemoryOutput::isSupportedOperation(const std::shared_ptr<const ngraph::Node
     return true;
 }
 
-MemoryOutput::MemoryOutput(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+MemoryOutput::MemoryOutput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) , MemoryNode(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -86,7 +86,7 @@ void MemoryOutput::execute(dnnl::stream strm)  {
     inputMemoryNode->storeState(srcMemory);
 }
 
-bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -94,8 +94,8 @@ bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
         }
 
         if (!one_of(op->get_type_info(),
-                ngraph::op::v3::ReadValue::get_type_info_static(),
-                ngraph::op::v6::ReadValue::get_type_info_static())) {
+                ov::op::v3::ReadValue::get_type_info_static(),
+                ov::op::v6::ReadValue::get_type_info_static())) {
             errorMessage = "Node is not an instance of ReadValue from the operation set v3 or v6.";
             return false;
         }
@@ -105,7 +105,7 @@ bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
     return true;
 }
 
-MemoryInput::MemoryInput(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr ctx)
+MemoryInput::MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr ctx)
         : Input(op, ctx), MemoryNode(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

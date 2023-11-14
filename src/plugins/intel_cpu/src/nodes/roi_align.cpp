@@ -10,9 +10,9 @@
 #include <dnnl_extension_utils.h>
 #include <utils/bfloat16.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include <selective_build.h>
-#include <ngraph/opsets/opset9.hpp>
+#include <openvino/opsets/opset9.hpp>
 
 #include <cpu/x64/jit_generator.hpp>
 #include "emitters/x64/jit_load_store_emitters.hpp"
@@ -29,8 +29,8 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-using ngPoolingMode = ngraph::opset9::ROIAlign::PoolingMode;
-using ngAlignedMode = ngraph::opset9::ROIAlign::AlignedMode;
+using ngPoolingMode = ov::opset9::ROIAlign::PoolingMode;
+using ngAlignedMode = ov::opset9::ROIAlign::AlignedMode;
 #if defined(OPENVINO_ARCH_X86_64)
 #define GET_OFF(field) offsetof(jit_roi_align_call_args, field)
 
@@ -649,9 +649,9 @@ private:
     }
 };
 #endif
-bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto roiAlign = ngraph::as_type_ptr<const ngraph::opset9::ROIAlign>(op);
+        auto roiAlign = ov::as_type_ptr<const ov::opset9::ROIAlign>(op);
         if (!roiAlign) {
             errorMessage = "Only opset9 ROIAlign operation is supported";
             return false;
@@ -659,13 +659,13 @@ bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& o
 
         const ngPoolingMode mode = roiAlign->get_mode();
         if (mode != ngPoolingMode::AVG && mode != ngPoolingMode::MAX) {
-            errorMessage = "Doesn't support mode: " + ngraph::as_string(mode);
+            errorMessage = "Doesn't support mode: " + ov::as_string(mode);
             return false;
         }
 
         const ngAlignedMode alignedMode = roiAlign->get_aligned_mode();
         if (alignedMode != ngAlignedMode::ASYMMETRIC && alignedMode != ngAlignedMode::HALF_PIXEL_FOR_NN && alignedMode != ngAlignedMode::HALF_PIXEL) {
-            errorMessage = "Doesn't support mode: " + ngraph::as_string(alignedMode);
+            errorMessage = "Doesn't support mode: " + ov::as_string(alignedMode);
             return false;
         }
     } catch (...) {
@@ -674,13 +674,13 @@ bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& o
     return true;
 }
 
-ROIAlign::ROIAlign(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+ROIAlign::ROIAlign(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
 
-        auto roiAlign = ngraph::as_type_ptr<const ngraph::opset9::ROIAlign>(op);
+        auto roiAlign = ov::as_type_ptr<const ov::opset9::ROIAlign>(op);
         pooledH = roiAlign->get_pooled_h();
         pooledW = roiAlign->get_pooled_w();
         spatialScale = roiAlign->get_spatial_scale();
