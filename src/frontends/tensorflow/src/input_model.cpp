@@ -10,8 +10,6 @@
 
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
-#include "graph_iterator_saved_model.hpp"
-#include "graph_iterator_proto.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "openvino/util/log.hpp"
@@ -296,11 +294,6 @@ void InputModel::InputModelTFImpl::load_places() {
                             op_names_with_consumers.begin(),
                             op_names_with_consumers.end(),
                             std::inserter(op_names_without_consumers, op_names_without_consumers.begin()));
-
-        bool tf2_format = false;
-        if (std::dynamic_pointer_cast<GraphIteratorSavedModel>(m_graph_iterator)) {
-            tf2_format = true;
-        }
         for (const auto& output_name : op_names_without_consumers) {
             auto output_place = std::make_shared<TensorPlace>(m_input_model,
                                                               ov::PartialShape({}),
@@ -515,7 +508,14 @@ std::shared_ptr<InputModel> InputModel::InputModelTFImpl::get_body_input_model(
     if (!body_graph_iterator) {
         return nullptr;
     }
-    return std::make_shared<InputModel>(body_graph_iterator, m_telemetry, std::shared_ptr<ov::frontend::tensorflow::VariablesIndex>{}, nullptr, nullptr, nullptr, false, m_graph_iterator->tensor_names_need_indices());
+    return std::make_shared<InputModel>(body_graph_iterator,
+                                        m_telemetry,
+                                        std::shared_ptr<ov::frontend::tensorflow::VariablesIndex>{},
+                                        nullptr,
+                                        nullptr,
+                                        nullptr,
+                                        false,
+                                        m_graph_iterator->tensor_names_need_indices());
 }
 
 InputModel::InputModelTFImpl::InputModelTFImpl(
