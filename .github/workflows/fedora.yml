@@ -111,7 +111,6 @@ jobs:
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DENABLE_SYSTEM_TBB=ON \
             -DENABLE_SYSTEM_OPENCL=ON \
-            -DENABLE_SYSTEM_PUGIXML=ON \
             -DENABLE_PYTHON_PACKAGING=ON \
             -DCPACK_GENERATOR=TGZ \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
@@ -180,7 +179,7 @@ jobs:
 
   RPM_Packages:
     needs: Build
-    timeout-minutes: 5
+    timeout-minutes: 10
     defaults:
       run:
         shell: bash
