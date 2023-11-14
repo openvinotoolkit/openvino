@@ -65,6 +65,7 @@ def test_simple_loop():
     assert list(loop.get_output_shape(1)) == out1_shape
     assert list(loop.get_output_shape(2)) == out2_shape
 
+
 def test_loop_inputs_are_nodes():
     param_x = ov.parameter(Shape([32, 1, 10]), np.float32, "X")
     param_y = ov.parameter(Shape([32, 1, 10]), np.float32, "Y")
@@ -116,6 +117,7 @@ def test_loop_inputs_are_nodes():
     assert list(loop.get_output_shape(0)) == out0_shape
     assert list(loop.get_output_shape(1)) == out1_shape
     assert list(loop.get_output_shape(2)) == out2_shape
+
 
 def test_loop_basic():
     bool_val = np.array([1], dtype=bool)
