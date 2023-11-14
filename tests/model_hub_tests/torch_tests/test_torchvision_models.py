@@ -56,7 +56,8 @@ class TestTorchHubConvertModel(TestConvertModel):
     def setup_class(self):
         self.cache_dir = tempfile.TemporaryDirectory()
         # set temp dir for torch cache
-        torch.hub.set_dir(str(self.cache_dir.name))
+        if os.environ.get('USE_SYSTEM_CACHE', 'True') == 'False':
+            torch.hub.set_dir(str(self.cache_dir.name))
 
     def load_model(self, model_name, model_link):
         m = torch.hub.load("pytorch/vision", model_name,
