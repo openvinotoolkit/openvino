@@ -45,7 +45,7 @@ def execute(
     *args,
     executor: str = "openvino",
     executor_parameters: Optional[dict] = None,
-    options: Optional[Any] = None
+    options: Optional[Any] = None,
 ):
     if executor == "openvino":
         return openvino_execute_partitioned(gm, *args, executor_parameters=executor_parameters, options=options)
