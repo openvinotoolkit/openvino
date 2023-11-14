@@ -7,6 +7,7 @@
 import numpy as np
 import sys
 from save_model import saveModel
+import paddle
 
 
 def elementwise_add(name: str, x, y, in_dtype, axis=-1):
