@@ -4,7 +4,7 @@
 
 #include "cpu_convert.h"
 #include "cpu_memcpy.h"
-#include <ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 #include <utils/bfloat16.hpp>
 #include <utils/general_utils.h>
 #include <selective_build.h>
@@ -221,10 +221,17 @@ const std::tuple<U, U> & Range<T, U>::fit(const Precision & prec) {
                 ubound = std::numeric_limits<double>::max();
                 break;
             default:
-                IE_THROW() << "Unsupported precision";
+                OPENVINO_THROW("Unsupported precision");
         }
-        std::get<0>(_range) = static_cast<U>(std::max(static_cast<double>(std::get<0>(_range)), lbound));
-        std::get<1>(_range) = static_cast<U>(std::min(static_cast<double>(std::get<1>(_range)), ubound));
+        // If U is integral, its range always less than float, so not need update _range
+        // Else it will be overflow, for example static_cast double to int64_t:
+        //         int64_t ubound = 9223372036854775807
+        //         double  dd_ubound = static_cast<double>(ubbound)
+        //         static_cast<int64_t>(dd_ubound) will return -9223372036854775808
+        if (!std::is_integral<U>::value) {
+                std::get<0>(_range) = static_cast<U>(std::max(static_cast<double>(std::get<0>(_range)), lbound));
+                std::get<1>(_range) = static_cast<U>(std::min(static_cast<double>(std::get<1>(_range)), ubound));
+        }
     } else {
         int64_t lbound;
         uint64_t ubound;
@@ -263,7 +270,7 @@ const std::tuple<U, U> & Range<T, U>::fit(const Precision & prec) {
                 ubound = static_cast<uint64_t>(std::numeric_limits<int64_t>::max());
                 break;
             default:
-                IE_THROW() << "Unsupported precision";
+                OPENVINO_THROW("Unsupported precision");
         }
         using ltype = typename std::conditional<
                             std::is_floating_point<U>::value,
@@ -567,7 +574,7 @@ void cpu_convert(const void *srcPtr,
                  InferenceEngine::Precision dstPrc,
                  const size_t size) {
     if (srcPtr == nullptr || dstPtr == nullptr)
-        IE_THROW() << "cpu_convert has null data pointer";
+        OPENVINO_THROW("cpu_convert has null data pointer");
 
     if (srcPrc == dstPrc && srcPrc == interimPrc) {
         const size_t L2_cache_size = dnnl::utils::get_cache_size(2, true);
@@ -585,8 +592,13 @@ void cpu_convert(const void *srcPtr,
         }
     } else if (srcPrc == Precision::BIN) {
         if (srcPrc.bitsSize() != 1)
-            IE_THROW() << "cpu_convert can't convert from: " << srcPrc << " <bitsSize == " << srcPrc.bitsSize()
-                << "> precision to: " << dstPrc << ". Not implemented.";
+            OPENVINO_THROW("cpu_convert can't convert from: ",
+                           srcPrc,
+                           " <bitsSize == ",
+                           srcPrc.bitsSize(),
+                           "> precision to: ",
+                           dstPrc,
+                           ". Not implemented.");
         ConvertFromBinContext ctx {
                 srcPtr,
                 dstPtr,
@@ -595,8 +607,12 @@ void cpu_convert(const void *srcPtr,
         };
         OV_SWITCH(intel_cpu, ConvertFromBinPrecision, ctx, dstPrc, INTEL_CPU_CVT_FROM_BIN_LIST);
         if (!ctx.converted)
-            IE_THROW() << "cpu_convert can't convert from: " << srcPrc << " <bitsSize == " << srcPrc.bitsSize()
-                                                             << "> precision to: " << dstPrc;
+            OPENVINO_THROW("cpu_convert can't convert from: ",
+                           srcPrc,
+                           " <bitsSize == ",
+                           srcPrc.bitsSize(),
+                           "> precision to: ",
+                           dstPrc);
     } else {
         ConvertContext ctx {
             srcPtr,
@@ -608,7 +624,7 @@ void cpu_convert(const void *srcPtr,
         };
         OV_SWITCH(intel_cpu, ConvertPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_LIST);
         if (!ctx.converted)
-            IE_THROW() << "cpu_convert can't convert from: " << srcPrc << " precision to: " << dstPrc;
+            OPENVINO_THROW("cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
     }
 }
 

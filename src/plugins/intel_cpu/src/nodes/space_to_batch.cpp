@@ -4,7 +4,7 @@
 
 #include "space_to_batch.h"
 
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include <openvino/op/space_to_batch.hpp>
 
 using namespace InferenceEngine;
@@ -30,20 +30,20 @@ SpaceToBatch::SpaceToBatch(const std::shared_ptr<ov::Node>& op, const GraphConte
     : Node(op, context, NgraphShapeInferFactory(op, PortMask(1, 2, 3))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = "BatchToSpace layer with name '" + op->get_friendly_name() + "'";
 
     if (inputShapes.size() != 4 || outputShapes.size() != 1)
-        IE_THROW() << errorPrefix << " has incorrect number of input or output edges!";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input or output edges!");
 
     const size_t srcRank = getInputShapeAtPort(0).getRank();
     const size_t dstRank = getOutputShapeAtPort(0).getRank();
     if (srcRank < 4 || srcRank > 5)
-        IE_THROW() << errorPrefix << " has unsupported 'data' input rank: " << srcRank;
+        OPENVINO_THROW(errorPrefix, " has unsupported 'data' input rank: ", srcRank);
     if (srcRank != dstRank)
-        IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output dimensions");
 }
 
 void SpaceToBatch::initSupportedPrimitiveDescriptors() {
@@ -54,7 +54,7 @@ void SpaceToBatch::initSupportedPrimitiveDescriptors() {
     const auto precision = getOriginalInputPrecisionAtPort(0);
     const std::set<size_t> supported_precision_sizes = {1, 2, 4, 8};
     if (supported_precision_sizes.find(precision.size()) == supported_precision_sizes.end())
-        IE_THROW() << errorPrefix << " has unsupported precision: " << precision.name();
+        OPENVINO_THROW(errorPrefix, " has unsupported precision: ", precision.name());
 
     addSupportedPrimDesc({{LayoutType::nspc, precision},
                           {LayoutType::ncsp, Precision::I32},
@@ -249,8 +249,8 @@ void SpaceToBatch::execute(dnnl::stream strm) {
         case 2: SpaceToBatchKernel<PrecisionTrait<Precision::U16>::value_type>(); break;
         case 4: SpaceToBatchKernel<PrecisionTrait<Precision::I32>::value_type>(); break;
         default:
-            IE_THROW() << "SpaceToBatch layer does not support precision '" + std::string(getParentEdgeAt(0)->getMemory().getDesc().getPrecision().name())
-                          + "'";
+            OPENVINO_THROW("SpaceToBatch layer does not support precision '" +
+                           std::string(getParentEdgeAt(0)->getMemory().getDesc().getPrecision().name()) + "'");
     }
 }
 

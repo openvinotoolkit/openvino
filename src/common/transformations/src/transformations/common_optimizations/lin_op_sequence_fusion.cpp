@@ -17,6 +17,13 @@
 
 using namespace ov;
 
+namespace {
+const auto is_eltwise_supported_type = [](const Output<Node>& output) -> bool {
+    const auto is_single_output = pass::pattern::consumers_count(1);
+    return is_single_output(output) && output.get_node()->has_evaluate();
+};
+}
+
 ov::pass::AddMultiplyFusion::AddMultiplyFusion() {
     MATCHER_SCOPE(AddMultiplyFusion);
     // Create Add->Multiply pattern where Add has exactly one consumer
@@ -105,7 +112,7 @@ ov::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
     auto m_data = pass::pattern::any_input();
     auto m_mul1_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto m_mul1 =
-        ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({m_data, m_mul1_constant}, pattern::consumers_count(1));
+        ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({m_data, m_mul1_constant}, is_eltwise_supported_type);
     auto m_mul2_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto m_mul2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({m_mul1, m_mul2_constant});
 

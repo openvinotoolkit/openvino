@@ -6,9 +6,9 @@
 #include <vector>
 #include <algorithm>
 
-#include <ngraph/opsets/opset3.hpp>
+#include <openvino/opsets/opset3.hpp>
 #include <shape_inference/shape_inference_pass_through.hpp>
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "bucketize.h"
 
 using namespace InferenceEngine;
@@ -17,9 +17,9 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool Bucketize::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Bucketize::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto bucketsize = std::dynamic_pointer_cast<const ngraph::opset3::Bucketize>(op);
+        const auto bucketsize = std::dynamic_pointer_cast<const ov::opset3::Bucketize>(op);
         if (!bucketsize) {
             errorMessage = "Only opset3 Bucketize operation is supported";
             return false;
@@ -30,21 +30,22 @@ bool Bucketize::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
     return true;
 }
 
-Bucketize::Bucketize(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+Bucketize::Bucketize(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = "Bucketize layer with name '" + op->get_friendly_name() + "' ";
-    const auto bucketsize = std::dynamic_pointer_cast<const ngraph::opset3::Bucketize>(op);
+    const auto bucketsize = std::dynamic_pointer_cast<const ov::opset3::Bucketize>(op);
     if (bucketsize == nullptr)
-        IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
-            "' is not an instance of Bucketize from opset3.";
+        OPENVINO_THROW("Operation with name '",
+                       op->get_friendly_name(),
+                       "' is not an instance of Bucketize from opset3.");
 
     if (getOriginalInputsNumber() != 2 || getOriginalOutputsNumber() != 1) {
-        IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
     }
 
     // check one attribute
@@ -172,7 +173,7 @@ void Bucketize::execute(dnnl::stream strm) {
                     PrecisionTrait<Precision::I64>::value_type>();
             break;
         default:
-            IE_THROW() << errorPrefix << " has unsupported precision: " << precision_mask;
+            OPENVINO_THROW(errorPrefix, " has unsupported precision: ", precision_mask);
     }
 }
 
@@ -181,22 +182,22 @@ void Bucketize::prepareParams() {
     auto inputBinsMemPtr = getParentEdgeAt(INPUT_BINS_PORT)->getMemoryPtr();
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << "Destination memory didn't allocate.";
+        OPENVINO_THROW("Destination memory didn't allocate.");
     if (!inputTensorMemPtr || !inputTensorMemPtr->isAllocated())
-        IE_THROW() << "Input tensor didn't allocate.";
+        OPENVINO_THROW("Input tensor didn't allocate.");
     if (!inputBinsMemPtr || !inputBinsMemPtr->isAllocated())
-        IE_THROW() << "Input bins didn't allocate.";
+        OPENVINO_THROW("Input bins didn't allocate.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
+        OPENVINO_THROW("Preferable primitive descriptor is not set.");
 
     // update with_bins/num_values/num_bin_values
     auto input_tensor_dims = inputTensorMemPtr->getStaticDims();
     if (input_tensor_dims.size() < 1) {
-        IE_THROW() << errorPrefix << " has incorrect dimensions of the input.";
+        OPENVINO_THROW(errorPrefix, " has incorrect dimensions of the input.");
     }
     auto input_bin_dims = inputBinsMemPtr->getStaticDims();
     if (input_bin_dims.size() != 1) {
-        IE_THROW() << errorPrefix << " has incorrect dimensions of the boundaries tensor.";
+        OPENVINO_THROW(errorPrefix, " has incorrect dimensions of the boundaries tensor.");
     }
     if (input_bin_dims[0] != 0) {
         with_bins = true;

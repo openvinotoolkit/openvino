@@ -6,10 +6,10 @@
 #include <vector>
 #include <string>
 #include <dnnl_types.h>
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "region_yolo.h"
 #include <nodes/common/blocked_desc_creator.h>
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include "common/cpu_convert.h"
 #include <cpu/x64/jit_generator.hpp>
 #include "emitters/x64/jit_bf16_emitters.hpp"
@@ -230,9 +230,9 @@ private:
 };
 #endif
 
-bool RegionYolo::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool RegionYolo::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto regionYolo = std::dynamic_pointer_cast<const ngraph::opset1::RegionYolo>(op);
+        const auto regionYolo = std::dynamic_pointer_cast<const ov::opset1::RegionYolo>(op);
         if (!regionYolo) {
             errorMessage = "Only opset1 RegionYolo operation is supported";
             return false;
@@ -247,18 +247,18 @@ bool RegionYolo::needPrepareParams() const {
     return false;
 }
 
-RegionYolo::RegionYolo(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+RegionYolo::RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = std::string(op->get_type_name()) + " node with name '" + op->get_friendly_name() + "'";
     if (op->get_input_size() != 1 || op->get_output_size() != 1)
-        IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
 
-    const auto regionYolo = std::dynamic_pointer_cast<const ngraph::opset1::RegionYolo>(op);
+    const auto regionYolo = std::dynamic_pointer_cast<const ov::opset1::RegionYolo>(op);
     classes = regionYolo->get_num_classes();
     coords = regionYolo->get_num_coords();
     num = regionYolo->get_num_regions();
@@ -374,7 +374,7 @@ inline void RegionYolo::calculate_logistic(size_t start_index, int count, uint8_
                 bf16_dst_data[i + start_index] = logistic_scalar(bf16_dst_data[i + start_index]);
             }
         } else {
-            IE_THROW() << "Unsupported precision configuration outPrc=" << output_prec.name();
+            OPENVINO_THROW("Unsupported precision configuration outPrc=", output_prec.name());
         }
     }
 }
@@ -404,8 +404,10 @@ void RegionYolo::execute(dnnl::stream strm) {
     }
 
     if (output_size != getChildEdgeAt(0)->getMemoryPtr()->getShape().getElementsCount())
-        IE_THROW() << "Incorrect layer configuration or output dimensions. " << output_size << " != "
-                   << getChildEdgeAt(0)->getMemoryPtr()->getShape().getElementsCount();
+        OPENVINO_THROW("Incorrect layer configuration or output dimensions. ",
+                       output_size,
+                       " != ",
+                       getChildEdgeAt(0)->getMemoryPtr()->getShape().getElementsCount());
 
     size_t inputs_size = IH * IW * num_ * (classes + coords + 1);
     size_t total_size = 2 * IH * IW;

@@ -3,6 +3,7 @@
 //
 
 #include "test_utils/convolution_params.hpp"
+#include "test_utils/filter_cpu_info.hpp"
 #include "subgraph_tests/include/conv_concat.hpp"
 
 using namespace InferenceEngine;

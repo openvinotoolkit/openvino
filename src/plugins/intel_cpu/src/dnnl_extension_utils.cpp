@@ -20,6 +20,8 @@ namespace intel_cpu {
 
 uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
     switch (dataType) {
+    case dnnl::memory::data_type::f64:
+        return 8;
     case dnnl::memory::data_type::f32:
     case dnnl::memory::data_type::s32:
         return 4;
@@ -36,7 +38,7 @@ uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
     case dnnl::memory::data_type::undef:
         return 0;
     default:
-        IE_THROW() << "Unsupported data type.";
+        OPENVINO_THROW("Unsupported data type.");
     }
 }
 
@@ -66,7 +68,7 @@ memory::data_type DnnlExtensionUtils::IEPrecisionToDataType(const InferenceEngin
         case InferenceEngine::Precision::UNSPECIFIED:
             return memory::data_type::undef;
         default: {
-            IE_THROW() << "The plugin does not support " << prec.name();
+            OPENVINO_THROW("The plugin does not support ", prec.name());
         }
     }
 }
@@ -87,6 +89,8 @@ InferenceEngine::Precision DnnlExtensionUtils::DataTypeToIEPrecision(memory::dat
             return InferenceEngine::Precision::BIN;
         case memory::data_type::f16:
             return InferenceEngine::Precision::FP16;
+        case memory::data_type::f64:
+            return InferenceEngine::Precision::FP64;
         case memory::data_type::nf4:
             return InferenceEngine::Precision::NF4;
         case memory::data_type::s4:
@@ -96,7 +100,7 @@ InferenceEngine::Precision DnnlExtensionUtils::DataTypeToIEPrecision(memory::dat
         case memory::data_type::undef:
             return InferenceEngine::Precision::UNSPECIFIED;
         default: {
-            IE_THROW() << "Unsupported data type.";
+            OPENVINO_THROW("Unsupported data type.");
         }
     }
 }
@@ -174,7 +178,7 @@ std::shared_ptr<DnnlBlockedMemoryDesc> DnnlExtensionUtils::makeUndefinedDesc(con
     if (desc.get_format_kind() == memory::format_kind::blocked) {
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(desc, shape));
     } else {
-        IE_THROW(Unexpected) << "Cannot make undefined descriptor. Only dnnl_blocked type is allowed.";
+        OPENVINO_THROW("Unexpected: Cannot make undefined descriptor. Only dnnl_blocked type is allowed.");
     }
 }
 
@@ -183,7 +187,7 @@ DnnlMemoryDescPtr DnnlExtensionUtils::query_md(const const_dnnl_primitive_desc_t
     const auto* cdesc = dnnl_primitive_desc_query_md(pd, query, idx);
 
     if (!cdesc)
-        IE_THROW() << "query_md failed for query=" << query << " idx=" << idx << ".";
+        OPENVINO_THROW("query_md failed for query=", query, " idx=", idx, ".");
 
     return DnnlExtensionUtils::makeDescriptor(cdesc);
 }
@@ -192,7 +196,7 @@ std::string DnnlExtensionUtils::query_impl_info_str(const const_dnnl_primitive_d
     const char *res;
     dnnl_status_t status = dnnl_primitive_desc_query(pd, dnnl_query_impl_info_str, 0, &res);
     if (status != dnnl_success)
-        IE_THROW() << "query_impl_info_str failed.";
+        OPENVINO_THROW("query_impl_info_str failed.");
     return std::string(res);
 }
 

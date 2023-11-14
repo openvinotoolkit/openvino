@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
 
 /*
  * Description:
@@ -56,7 +56,7 @@ class ConvertConv1DBase: public ov::pass::MatcherPass {
 protected:
     OPENVINO_RTTI("ConvertConv1DBase", "0");
     template <class Conv>
-    ngraph::matcher_pass_callback convert_conv1d_to_conv2d();
+    ov::matcher_pass_callback convert_conv1d_to_conv2d();
 };
 
 class ConvertConv1D: public ConvertConv1DBase {
