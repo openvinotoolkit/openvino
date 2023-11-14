@@ -252,7 +252,7 @@ Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr conte
 
 void Input::cloneBlobIfRequired() {
     Shape shape(constOp->get_shape().empty() ? ov::Shape(1, 1) : constOp->get_shape());
-    const auto prec = convertPrecision(constOp->get_element_type());
+    const auto prec = constOp->get_element_type();
     const size_t size = shape.getElementsCount();
     CpuBlockedMemoryDesc memDesc(prec, shape);
 

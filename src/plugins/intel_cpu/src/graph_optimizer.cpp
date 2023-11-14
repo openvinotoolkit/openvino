@@ -617,7 +617,7 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
                     // Construct Ngraph Reshape node and CPU Reshape node.
                     auto reshapeConstInput = std::make_shared<ov::opset1::Constant>(ov::element::i32, ov::Shape{1}, flattenShape);
                     auto reshapeDummyInput = std::make_shared<ov::opset1::Parameter>(
-                                                details::convertPrecision(biasNode->getOriginalOutputPrecisionAtPort(0)),
+                                                biasNode->getOriginalOutputPrecisionAtPort(0),
                                                 biasOutputShape.toPartialShape());
                     const auto reshape = std::make_shared<ov::opset1::Reshape>(reshapeDummyInput, reshapeConstInput, false);
                     reshape->set_friendly_name(biasNode->getName() + "_flatten_reshape");
@@ -2647,7 +2647,7 @@ void GraphOptimizer::reshapeRnnSeq(Graph &graph) {
 
             const auto secondInput = std::make_shared<ov::opset1::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{1});
             const auto unsqueeze = std::make_shared<ov::opset1::Unsqueeze>(
-                std::make_shared<ov::opset1::Parameter>(details::convertPrecision(parentNode->getOriginalOutputPrecisionAtPort(0)),
+                std::make_shared<ov::opset1::Parameter>(parentNode->getOriginalOutputPrecisionAtPort(0),
                                                             parentNode->getOutputShapeAtPort(0).toPartialShape()), secondInput);
             unsqueeze->set_friendly_name(parentNode->getName() + "_abc_a1bc_" + std::to_string(j));
 

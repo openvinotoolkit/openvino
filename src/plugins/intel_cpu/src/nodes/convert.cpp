@@ -40,7 +40,7 @@ Convert::Convert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
     }
 
     auto convert = ov::as_type_ptr<const ov::opset1::Convert>(op);
-    convertParams.origPrc = details::convertPrecision(convert->get_destination_type());
+    convertParams.origPrc = convert->get_destination_type();
 }
 
 Convert::Convert(const Shape &shape, const ov::element::Type &inPrc, const ov::element::Type &outPrc,

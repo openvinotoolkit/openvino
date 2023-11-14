@@ -164,7 +164,7 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph) {
         std::shared_ptr<ov::Node> return_node;
         if (is_input) {
             auto& desc = node->getChildEdgeAt(0)->getMemory().getDesc();
-            auto param = std::make_shared<ngraph::op::Parameter>(details::convertPrecision(desc.getPrecision()), desc.getShape().toPartialShape());
+            auto param = std::make_shared<ov::op::v0::Parameter>(desc.getPrecision(), desc.getShape().toPartialShape());
             return_node = param;
             params.push_back(param);
         } else if (is_output) {

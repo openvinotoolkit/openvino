@@ -103,7 +103,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op,
 
         bool isScalar = shape.rank().get_length() == 0;
         inputShapes.emplace_back(isScalar ? ov::PartialShape{1} : shape);
-        originalInputPrecisions.emplace_back(details::convertPrecision(op->get_input_element_type(i)));
+        originalInputPrecisions.emplace_back(op->get_input_element_type(i));
     }
 
     if (typeStr != "Result" && typeStr != "Assign") {
@@ -118,7 +118,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op,
 
             bool isScalar = shape.rank().get_length() == 0;
             outputShapes.emplace_back(isScalar ? ov::PartialShape{1} : shape);
-            originalOutputPrecisions.emplace_back(details::convertPrecision(op->get_output_element_type(i)));
+            originalOutputPrecisions.emplace_back(op->get_output_element_type(i));
         }
     }
 
