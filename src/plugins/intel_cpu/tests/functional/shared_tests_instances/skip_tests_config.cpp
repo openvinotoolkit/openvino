@@ -342,20 +342,17 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHAEnforceBF16.*)");
     }
-    if (InferenceEngine::with_cpu_x86_avx512_core() && !InferenceEngine::with_cpu_x86_avx512_core_amx_bf16()) {
-        // On platforms which do not support amxbf16, ignore RNN/GRU/AUGRU/LSTM BF16 tests to pass CI.
-        // After removing legacy gemm kernel on avx512 and fall jit_gemm_avx512 kernel to jit_gemm_avx2,
-        // bf16 rnn onednn kernel still can't be created because of rnn support limitation.
+    if (InferenceEngine::with_cpu_x86_avx512_core()) {
         retVector.emplace_back(R"(smoke.*(AUGRUCellCPUTest|GRUCellCPUTest|LSTMCellLayerCPUTest).CompareWithRefs.*ENFORCE_BF16=YES.*)");
         retVector.emplace_back(R"(nightly.*bf16.*/(AUGRUSequenceCPUTest|GRUSequenceCPUTest|LSTMSequenceCPUTest|RNNSequenceCPUTest).CompareWithRefs.*ENFORCE_BF16=YES.*)");
         retVector.emplace_back(R"(nightly.*bf16.*/(AUGRUSequenceCPUTest|GRUSequenceCPUTest|LSTMSequenceCPUTest|RNNSequenceCPUTest).CompareWithRefs.*ENFORCE_BF16=YES.*)");
-    }
-    if (InferenceEngine::with_cpu_x86_avx512_core()) {
-        retVector.emplace_back(R"(.*primitive=jit_gemm.*ENFORCE_BF16=YES.*)");
-        retVector.emplace_back(R"(.*ENFORCE_BF16=YES.*primitive=jit_gemm.*)");
+        retVector.emplace_back(R"(.*primitive=jit_gemm.*(ENFORCE_BF16=YES|ENFORCE_BF16, YES).*)");
+        retVector.emplace_back(R"(.*(ENFORCE_BF16=YES|ENFORCE_BF16, YES).*(primitive=jit_gemm).*)");
         retVector.emplace_back(R"(smoke_GroupDeconv_2D_AMX_BF16/GroupDeconvolutionLayerCPUTest\.CompareWithRefs/IS=\[\?\.64\.\?\.\?\]_TS=\(\(2\.64\.7\.7\)\)_\(\(2\.64\.5\.7\)\)_\(\(1\.64\.9\.5\)\)_PRC=f32_K=\(3\.3\)_S=\(2\.2\)_PB=\(0\.0\)_PE=\(0\.0\)_D=\(1\.1\)_OP=\(\)_O=64_G=2_AP=explicit_OUT_SH=PARAMETER_OUT_D=\(\(15\.15\)\)_\(\(9\.10\)\)_\(\(19\.9\)\)__inFmts=nhwc_outFmts=nhwc_primitive=jit_avx512_PluginConf_ENFORCE_BF16=YES)");
         retVector.emplace_back(R"(smoke_GroupDeconv_3D_nspc_BF16/GroupDeconvolutionLayerCPUTest\.CompareWithRefs/IS=\[\?\.64\.\?\.\?\.\?\]_TS=\(\(1\.64\.5\.5\.5\)\)_\(\(2\.64\.5\.7\.5\)\)_PRC=f32_K=\(1\.1\.1\)_S=\(2\.2\.2\)_PB=\(0\.0\.0\)_PE=\(0\.0\.0\)_D=\(1\.1\.1\)_OP=\(\)_O=64_G=2_AP=explicit_OUT_SH=PARAMETER_OUT_D=\(\(7\.7\.7\)\)_\(\(7\.9\.7\)\)__inFmts=ndhwc_outFmts=ndhwc_primitive=jit_avx512_PluginConf_ENFORCE_BF16=YES)");
         retVector.emplace_back(R"(smoke_GroupDeconv_3D_nspc_BF16/GroupDeconvolutionLayerCPUTest\.CompareWithRefs/IS=\[\?\.64\.\?\.\?\.\?\]_TS=\(\(1\.64\.5\.5\.5\)\)_\(\(2\.64\.5\.7\.5\)\)_PRC=f32_K=\(3\.3\.3\)_S=\(2\.2\.2\)_PB=\(0\.0\.0\)_PE=\(0\.0\.0\)_D=\(1\.1\.1\)_OP=\(\)_O=64_G=2_AP=explicit_OUT_SH=PARAMETER_OUT_D=\(\(7\.7\.7\)\)_\(\(7\.9\.7\)\)__inFmts=ndhwc_outFmts=ndhwc_primitive=jit_avx512_PluginConf_ENFORCE_BF16=YES)");
+        retVector.emplace_back(R"(smoke_GroupDeconv_2D_Blocked_BF16/GroupDeconvolutionLayerCPUTest\.CompareWithRefs/IS=\[\?\.64\.\?\.\?\]_TS=\(\(2\.64\.7\.7\)\)_\(\(2\.64\.5\.7\)\)_\(\(1\.64\.9\.5\)\)_PRC=f32_K=\(3\.3\)_S=\(1\.1\)_PB=\(0\.0\)_PE=\(0\.0\)_D=\(1\.1\)_OP=\(\)_O=64_G=4_AP=explicit_OUT_SH=PARAMETER_OUT_D=\(\(15\.15\)\)_\(\(9\.10\)\)_\(\(19\.9\)\)__inFmts=nChw16c_outFmts=nChw16c_primitive=jit_avx512_PluginConf_ENFORCE_BF16=YES)");
+        retVector.emplace_back(R"(smoke_GroupDeconv_2D_AMX_BF16/GroupDeconvolutionLayerCPUTest\.CompareWithRefs/IS=\[\?\.64\.\?\.\?\]_TS=\(\(2\.64\.7\.7\)\)_\(\(2\.64\.5\.7\)\)_\(\(1\.64\.9\.5\)\)_PRC=f32_K=\(1\.1\)_S=\(1\.1\)_PB=\(0\.0\)_PE=\(0\.0\)_D=\(1\.1\)_OP=\(\)_O=64_G=2_AP=explicit_OUT_SH=PARAMETER_OUT_D=\(\(15\.15\)\)_\(\(9\.10\)\)_\(\(19\.9\)\)__inFmts=nhwc_outFmts=nhwc_primitive=jit_avx512_PluginConf_ENFORCE_BF16=YES)");
     }
     return retVector;
 }
