@@ -10,6 +10,30 @@
 Tutorials that explain how to optimize and quantize models with OpenVINO tools.
 
 .. showcase::
+   :title: 126-tensorflow-hub
+   :img: _static/images/notebook_eye.png
+
+   Convert TensorFlow Hub models to OpenVINO Intermediate Representation (IR).
+
+.. showcase::
+   :title: 125-convnext-classification
+   :img: _static/images/notebook_eye.png
+
+   Classification with ConvNeXt and OpenVINO.
+
+.. showcase::
+   :title: 124-hugging-face-hub
+   :img: _static/images/notebook_eye.png
+
+   Hugging Face Model Hub with OpenVINO™.
+
+.. showcase::
+   :title: 123-detectron2-to-openvino
+   :img: _static/images/notebook_eye.png
+
+   Convert Detectron2 Models to OpenVINO™.
+
+.. showcase::
    :title: 122-yolov8-quantization-with-accuracy-control
    :img: _static/images/notebook_eye.png
 
