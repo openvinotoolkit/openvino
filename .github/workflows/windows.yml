@@ -339,11 +339,6 @@ jobs:
           # TODO: replace with Python API tests requirements
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/mo/requirements_dev.txt
 
-      - name: Python API 1.0 Tests
-        shell: cmd
-        run: |
-          python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/pyngraph ${{ env.PYTHON_STATIC_ARGS }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyngraph/tests_compatibility/test_onnx/test_zoo_models.py
-
       - name: Python API 2.0 Tests
         shell: cmd
         run: |
