@@ -15,7 +15,7 @@ def create_multi_output_model():
     num_splits = 20
     inp_blob_1 = np.random.randn(2, num_splits, 4, 4).astype(np.float32)
 
-    if if paddle.__version__ >= '2.0.0':
+    if paddle.__version__ >= '2.0.0':
         x = paddle.static.data(name='x', shape=[2, num_splits, 4, 4], dtype='float32')
         test_layer = paddle.split(x, num_or_sections=num_splits, axis=1)
     else:
