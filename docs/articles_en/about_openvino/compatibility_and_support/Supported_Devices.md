@@ -46,7 +46,7 @@ Currently, processors of the 11th generation and later (up to the 13th generatio
 ||                                                                    | Intel® Core™ i3-1005G1 Processor, Intel® Core™ i3-1000G1 Processor,                                  |
 ||                                                                    | Intel® Core™ i3-1000G4 Processor                                                                     |
 +---------------------------------------------------------------------+------------------------------------------------------------------------------------------------------+
-|| :doc:`NPU <openvino_docs_OV_UG_supported_plugins_NPU>`             |                                                                                                      |
+|| NPU                                                                |                                                                                                      |
 ||                                                                    |                                                                                                      |
 ||                                                                    |                                                                                                      |
 ||                                                                    |                                                                                                      |
