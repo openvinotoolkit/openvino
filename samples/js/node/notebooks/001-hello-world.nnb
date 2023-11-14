@@ -17,7 +17,7 @@
         {
             "language": "javascript",
             "source": [
-                "const { cv } = require('opencv-wasm');\nconst { display } = require('node-kernel');\nconst { getImageData, displayImage, downloadFile } = require('../helpers.js');\n\nconst { addon: ov } = require('openvinojs-node');\n"
+                "const { cv } = require('opencv-wasm');\nconst { display } = require('node-kernel');\nconst { getImageData, displayImage, downloadFile } = require('../helpers.js');\n\nconst { addon: ov } = require('openvinojs-node');"
             ],
             "outputs": []
         },
@@ -31,7 +31,7 @@
         {
             "language": "javascript",
             "source": [
-                "const baseArtifactsDir = '../../assets/models';\n\nconst modelName = 'v3-small_224_1.0_float';\nconst modelXMLName = `${modelName}.xml`;\nconst modelBINName = `${modelName}.bin`;\n\nconst modelXMLPath = baseArtifactsDir + '/' + modelXMLName;\n\nconst baseURL = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/mobelinet-v3-tf/FP32/';\n\nawait downloadFile(baseURL + modelXMLName, modelXMLName, baseArtifactsDir);\nawait downloadFile(baseURL + modelBINName, modelBINName, baseArtifactsDir);\n"
+                "const baseArtifactsDir = '../../assets/models';\n\nconst modelName = 'v3-small_224_1.0_float';\nconst modelXMLName = `${modelName}.xml`;\nconst modelBINName = `${modelName}.bin`;\n\nconst modelXMLPath = baseArtifactsDir + '/' + modelXMLName;\n\nconst baseURL = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/mobelinet-v3-tf/FP32/';\n\nawait downloadFile(baseURL + modelXMLName, modelXMLName, baseArtifactsDir);\nawait downloadFile(baseURL + modelBINName, modelBINName, baseArtifactsDir);"
             ],
             "outputs": [
                 {
@@ -59,7 +59,7 @@
         {
             "language": "javascript",
             "source": [
-                "const imgUrl = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg';\nconst classesUrl = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/datasets/imagenet/imagenet_class_index.json';\n\nawait downloadFile(imgUrl, 'coco.jpg', '../../assets/images');\nawait downloadFile(classesUrl, 'imagenet_class_index.json', '../../assets/datasets');\n"
+                "const imgUrl = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg';\nconst classesUrl = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/datasets/imagenet/imagenet_class_index.json';\n\nawait downloadFile(imgUrl, 'coco.jpg', '../../assets/images');\nawait downloadFile(classesUrl, 'imagenet_class_index.json', '../../assets/datasets');"
             ],
             "outputs": [
                 {
@@ -87,7 +87,7 @@
         {
             "language": "javascript",
             "source": [
-                "const core = new ov.Core();\nconst model = await core.readModel(modelXMLPath);\nconst compiledModel = await core.compileModel(model, 'CPU');\n\nconst outputLayer = compiledModel.outputs[0];\n"
+                "const core = new ov.Core();\nconst model = await core.readModel(modelXMLPath);\nconst compiledModel = await core.compileModel(model, 'CPU');\n\nconst outputLayer = compiledModel.outputs[0];"
             ],
             "outputs": []
         },
@@ -101,7 +101,7 @@
         {
             "language": "javascript",
             "source": [
-                "const imgData = await getImageData('../../assets/images/coco.jpg');\n\n// Use opencv-wasm to preprocess image.\nconst originalImage = cv.matFromImageData(imgData);\nconst image = new cv.Mat();\n// The MobileNet model expects images in RGB format.\ncv.cvtColor(originalImage, image, cv.COLOR_RGBA2RGB);\n// Resize to MobileNet image shape.\ncv.resize(image, image, new cv.Size(224, 224));\n\ndisplayImage(imgData, display);\n"
+                "const imgData = await getImageData('../../assets/images/coco.jpg');\n\n// Use opencv-wasm to preprocess image.\nconst originalImage = cv.matFromImageData(imgData);\nconst image = new cv.Mat();\n// The MobileNet model expects images in RGB format.\ncv.cvtColor(originalImage, image, cv.COLOR_RGBA2RGB);\n// Resize to MobileNet image shape.\ncv.resize(image, image, new cv.Size(224, 224));\n\ndisplayImage(imgData, display);"
             ],
             "outputs": [
                 {
@@ -124,7 +124,7 @@
         {
             "language": "javascript",
             "source": [
-                "const tensorData = new Float32Array(image.data);\nconst tensor = new ov.Tensor(ov.element.f32, Int32Array.from([1, 224, 224, 3]), tensorData);\n"
+                "const tensorData = new Float32Array(image.data);\nconst tensor = new ov.Tensor(ov.element.f32, Int32Array.from([1, 224, 224, 3]), tensorData);"
             ],
             "outputs": []
         },
@@ -138,14 +138,14 @@
         {
             "language": "javascript",
             "source": [
-                "const inferRequest = compiledModel.createInferRequest();\ninferRequest.setInputTensor(tensor);\ninferRequest.inferSync();\n\nconst resultInfer = inferRequest.getTensor(outputLayer);\nconst resultIndex = resultInfer.data.indexOf(Math.max(...resultInfer.data));\n"
+                "const inferRequest = compiledModel.createInferRequest();\ninferRequest.setInputTensor(tensor);\ninferRequest.infer();\n\nconst resultInfer = inferRequest.getTensor(outputLayer);\nconst resultIndex = resultInfer.data.indexOf(Math.max(...resultInfer.data));"
             ],
             "outputs": []
         },
         {
             "language": "javascript",
             "source": [
-                "const imagenetClassesMap = require('../../assets/datasets/imagenet_class_index.json');\nconst imagenetClasses = ['background', ...Object.values(imagenetClassesMap)];\n\nconsole.log(`Result: ${imagenetClasses[resultIndex][1]}`);\n"
+                "const imagenetClassesMap = require('../../assets/datasets/imagenet_class_index.json');\nconst imagenetClasses = ['background', ...Object.values(imagenetClassesMap)];\n\nconsole.log(`Result: ${imagenetClasses[resultIndex][1]}`);"
             ],
             "outputs": [
                 {

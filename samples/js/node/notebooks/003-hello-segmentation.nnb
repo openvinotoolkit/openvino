@@ -17,7 +17,7 @@
         {
             "language": "typescript",
             "source": [
-                "const {\n  getImageData, \n  displayArrayAsImage, \n  arrayToImageData,\n  transform,\n  downloadFile,\n} = require('../helpers');\n\nconst { cv } = require('opencv-wasm');\nconst { display } = require('node-kernel');\n\nconst { addon: ov } = require('openvinojs-node'); \n"
+                "const {\n  getImageData, \n  displayArrayAsImage, \n  arrayToImageData,\n  transform,\n  downloadFile,\n} = require('../helpers');\n\nconst { cv } = require('opencv-wasm');\nconst { display } = require('node-kernel');\n\nconst { addon: ov } = require('openvinojs-node'); "
             ],
             "outputs": []
         },
@@ -31,7 +31,7 @@
         {
             "language": "typescript",
             "source": [
-                "const baseArtifactsDir = '../../assets/models';\n\nconst modelName = 'road-segmentation-adas-0001';\nconst modelXMLName = `${modelName}.xml`;\nconst modelBINName = `${modelName}.bin`;\n\nconst modelXMLPath = baseArtifactsDir + '/' + modelXMLName;\n\nconst baseURL = 'https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.3/models_bin/1/road-segmentation-adas-0001/FP32/';\n\n\nawait downloadFile(baseURL + modelXMLName, modelXMLName, baseArtifactsDir);\nawait downloadFile(baseURL + modelBINName, modelBINName, baseArtifactsDir);\n"
+                "const baseArtifactsDir = '../../assets/models';\n\nconst modelName = 'road-segmentation-adas-0001';\nconst modelXMLName = `${modelName}.xml`;\nconst modelBINName = `${modelName}.bin`;\n\nconst modelXMLPath = baseArtifactsDir + '/' + modelXMLName;\n\nconst baseURL = 'https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.3/models_bin/1/road-segmentation-adas-0001/FP32/';\n\n\nawait downloadFile(baseURL + modelXMLName, modelXMLName, baseArtifactsDir);\nawait downloadFile(baseURL + modelBINName, modelBINName, baseArtifactsDir);"
             ],
             "outputs": [
                 {
@@ -59,7 +59,7 @@
         {
             "language": "typescript",
             "source": [
-                "const baseImagesDir = '../../assets/images';\nconst imgUrl = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/empty_road_mapillary.jpg';\n\nawait downloadFile(imgUrl, 'empty_road_mapillary.jpg', baseImagesDir);\n"
+                "const baseImagesDir = '../../assets/images';\nconst imgUrl = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/empty_road_mapillary.jpg';\n\nawait downloadFile(imgUrl, 'empty_road_mapillary.jpg', baseImagesDir);"
             ],
             "outputs": [
                 {
@@ -86,7 +86,7 @@
         {
             "language": "typescript",
             "source": [
-                "const core = new ov.Core();\nconst model = await core.readModel(modelXMLPath);\nconst compiledModel = await core.compileModel(model, 'CPU');\n\nconst inputLayer = compiledModel.input(0);\nconst outputLayer = compiledModel.output(0);\n"
+                "const core = new ov.Core();\nconst model = await core.readModel(modelXMLPath);\nconst compiledModel = await core.compileModel(model, 'CPU');\n\nconst inputLayer = compiledModel.input(0);\nconst outputLayer = compiledModel.output(0);"
             ],
             "outputs": []
         },
@@ -100,7 +100,7 @@
         {
             "language": "typescript",
             "source": [
-                "const imgData = await getImageData('../../assets/images/empty_road_mapillary.jpg');\n\nconst originalImage = cv.matFromImageData(imgData);\nconst { cols: originalWidth, rows: originalHeight } = originalImage;\n\nconst image = new cv.Mat();\ncv.cvtColor(originalImage, image, cv.COLOR_RGBA2RGB);\ncv.cvtColor(image, image, cv.COLOR_BGR2RGB); \n\nconst [B, C, H, W] = inputLayer.shape;\n\ncv.resize(image, image, new cv.Size(W, H));\n\nconst inputImage = transform(image.data, { width: W, height: H }, [0, 1, 2]); // NHWC to NCHW\n\ndisplayArrayAsImage(originalImage.data, originalWidth, originalHeight, display);\n"
+                "const imgData = await getImageData('../../assets/images/empty_road_mapillary.jpg');\n\nconst originalImage = cv.matFromImageData(imgData);\nconst { cols: originalWidth, rows: originalHeight } = originalImage;\n\nconst image = new cv.Mat();\ncv.cvtColor(originalImage, image, cv.COLOR_RGBA2RGB);\ncv.cvtColor(image, image, cv.COLOR_BGR2RGB); \n\nconst [B, C, H, W] = inputLayer.shape;\n\ncv.resize(image, image, new cv.Size(W, H));\n\nconst inputImage = transform(image.data, { width: W, height: H }, [0, 1, 2]); // NHWC to NCHW\n\ndisplayArrayAsImage(originalImage.data, originalWidth, originalHeight, display);"
             ],
             "outputs": [
                 {
@@ -123,7 +123,7 @@
         {
             "language": "typescript",
             "source": [
-                "const tensor_data = new Float32Array(inputImage);\nconst tensor = new ov.Tensor(ov.element.f32, inputLayer.shape, tensor_data);\n\nconst inferRequest = compiledModel.createInferRequest();\ninferRequest.setInputTensor(tensor);\ninferRequest.inferSync();\n\nconst output = inferRequest.getTensor(outputLayer);\n\nconst { data: outputData } = output;\nconst layers = { bg: [], c: [], h: [], w: [] };\nconst resultLayer = [];\nconst colormap = [[68, 1, 84, 255], [48, 103, 141, 255], [53, 183, 120, 255], [199, 216, 52, 255]];\n\nconst size = outputData.length/4;\n\nfor (let i = 0; i < size; i++) {\n  const valueAt = (i, number) => outputData[i + number*size];\n\n  const currentValues = { \n    bg: valueAt(i, 0),\n    c: valueAt(i, 1),\n    h: valueAt(i, 2),\n    w: valueAt(i, 3),\n  };\n  const values = Object.values(currentValues);\n  const maxIndex = values.indexOf(Math.max(...values));\n\n  resultLayer.push(maxIndex);\n}\n\nconst pixels = [];\nresultLayer.forEach(i => pixels.push(...colormap[i]));\n\ndisplayArrayAsImage(pixels, W, H, display);\n"
+                "const tensor_data = new Float32Array(inputImage);\nconst tensor = new ov.Tensor(ov.element.f32, inputLayer.shape, tensor_data);\n\nconst inferRequest = compiledModel.createInferRequest();\ninferRequest.setInputTensor(tensor);\ninferRequest.infer();\n\nconst output = inferRequest.getTensor(outputLayer);\n\nconst { data: outputData } = output;\nconst layers = { bg: [], c: [], h: [], w: [] };\nconst resultLayer = [];\nconst colormap = [[68, 1, 84, 255], [48, 103, 141, 255], [53, 183, 120, 255], [199, 216, 52, 255]];\n\nconst size = outputData.length/4;\n\nfor (let i = 0; i < size; i++) {\n  const valueAt = (i, number) => outputData[i + number*size];\n\n  const currentValues = { \n    bg: valueAt(i, 0),\n    c: valueAt(i, 1),\n    h: valueAt(i, 2),\n    w: valueAt(i, 3),\n  };\n  const values = Object.values(currentValues);\n  const maxIndex = values.indexOf(Math.max(...values));\n\n  resultLayer.push(maxIndex);\n}\n\nconst pixels = [];\nresultLayer.forEach(i => pixels.push(...colormap[i]));\n\ndisplayArrayAsImage(pixels, W, H, display);\n"
             ],
             "outputs": [
                 {
@@ -146,7 +146,7 @@
         {
             "language": "typescript",
             "source": [
-                "const alpha = 0.3;\n\nconst pixelsAsImageData = arrayToImageData(pixels, W, H);\nconst mask = cv.matFromImageData(pixelsAsImageData);\n\ncv.resize(mask, mask, new cv.Size(originalWidth, originalHeight));\n\ncv.addWeighted(mask, alpha, originalImage, 1 - alpha, 0, mask);\n\ndisplayArrayAsImage(mask.data, originalWidth, originalHeight, display);\n"
+                "const alpha = 0.3;\n\nconst pixelsAsImageData = arrayToImageData(pixels, W, H);\nconst mask = cv.matFromImageData(pixelsAsImageData);\n\ncv.resize(mask, mask, new cv.Size(originalWidth, originalHeight));\n\ncv.addWeighted(mask, alpha, originalImage, 1 - alpha, 0, mask);\n\ndisplayArrayAsImage(mask.data, originalWidth, originalHeight, display);"
             ],
             "outputs": [
                 {
