@@ -4,47 +4,47 @@
 
 #pragma once
 
-#include <ngraph/op/op.hpp>
+#include "openvino/op/op.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-class MHANode : public ngraph::op::Op {
+class MHANode : public ov::op::Op {
 public:
     OPENVINO_OP("MHA", "cpu_plugin_opset");
 
     MHANode() = default;
 
-    MHANode(const ngraph::Output<ngraph::Node> &in0,
-            const ngraph::Output<ngraph::Node> &in1,
-            const ngraph::Output<ngraph::Node> &in2,
-            const ngraph::Output<ngraph::Node> &in3,
+    MHANode(const ov::Output<ov::Node> &in0,
+            const ov::Output<ov::Node> &in1,
+            const ov::Output<ov::Node> &in2,
+            const ov::Output<ov::Node> &in3,
             const std::vector<float> &mul_scales,
             bool is_mul_first,
-            const ngraph::element::Type output_type);
+            const ov::element::Type output_type);
 
-    MHANode(const ngraph::Output<ngraph::Node> &in0,
-            const ngraph::Output<ngraph::Node> &in1,
-            const ngraph::Output<ngraph::Node> &in2,
-            const ngraph::Output<ngraph::Node> &in3,
+    MHANode(const ov::Output<ov::Node> &in0,
+            const ov::Output<ov::Node> &in1,
+            const ov::Output<ov::Node> &in2,
+            const ov::Output<ov::Node> &in3,
             const std::vector<float> &mul_scales,
             bool is_mul_first,
             const std::vector<float> &fq_scales0,
             const std::vector<float> &fq_scales1,
             const std::vector<float> &fq_scales2,
             const std::vector<float> &fq_scales3,
-            const ngraph::element::Type fq0_output_type,
-            const ngraph::element::Type fq1_output_type,
-            const ngraph::element::Type fq2_output_type,
-            const ngraph::element::Type output_type);
+            const ov::element::Type fq0_output_type,
+            const ov::element::Type fq1_output_type,
+            const ov::element::Type fq2_output_type,
+            const ov::element::Type output_type);
 
     void validate_and_infer_types() override;
 
-    bool visit_attributes(ngraph::AttributeVisitor &visitor) override;
+    bool visit_attributes(ov::AttributeVisitor &visitor) override;
 
-    std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector &new_args) const override;
+    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector &new_args) const override;
 
-    ngraph::element::Type get_output_type() const { return m_output_type; }
+    ov::element::Type get_output_type() const { return m_output_type; }
 
     const std::vector<float>& get_mul_scales() const {
         return mul_scales;
@@ -67,27 +67,27 @@ public:
         return is_mul_first;
     }
 
-    ngraph::element::Type get_fq0_output_type() const {
+    ov::element::Type get_fq0_output_type() const {
         return fq0_output_type;
     }
-    ngraph::element::Type get_fq1_output_type() const {
+    ov::element::Type get_fq1_output_type() const {
         return fq1_output_type;
     }
-    ngraph::element::Type get_fq2_output_type() const {
+    ov::element::Type get_fq2_output_type() const {
         return fq2_output_type;
     }
 
 private:
-    ngraph::element::Type m_output_type;
+    ov::element::Type m_output_type;
     std::vector<float> mul_scales;
     bool is_mul_first;
     std::vector<float> fq_scales0;
     std::vector<float> fq_scales1;
     std::vector<float> fq_scales2;
     std::vector<float> fq_scales3;
-    ngraph::element::Type fq0_output_type;
-    ngraph::element::Type fq1_output_type;
-    ngraph::element::Type fq2_output_type;
+    ov::element::Type fq0_output_type;
+    ov::element::Type fq1_output_type;
+    ov::element::Type fq2_output_type;
 };
 
 }   // namespace intel_cpu
