@@ -366,6 +366,25 @@ TEST_F(TransformationTestsF, ConcatReverseInfer) {
     }
 }
 
+TEST_F(TransformationTestsF, ConcatReverseInferUpdateShape) {
+    {
+        auto data1 = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape{DYN, DYN, 224, DYN});
+        // Specify rank and type in one of Concat input to inherit in another
+        auto data2 = std::make_shared<opset10::Parameter>(element::f32, PartialShape{DYN, 3, DYN, 224});
+        auto concat = std::make_shared<opset10::Concat>(OutputVector{data1, data2}, 0);
+        auto result = std::make_shared<opset10::Result>(concat);
+        model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data1, data2});
+        manager.register_pass<pass::ReverseShapeAndTypeInfer>();
+    }
+    {
+        auto data1 = std::make_shared<opset10::Parameter>(element::f32, PartialShape{DYN, 3, 224, 224});
+        auto data2 = std::make_shared<opset10::Parameter>(element::f32, PartialShape{DYN, 3, 224, 224});
+        auto concat = std::make_shared<opset10::Concat>(OutputVector{data1, data2}, 0);
+        auto result = std::make_shared<opset10::Result>(concat);
+        model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data1, data2});
+    }
+}
+
 TEST_F(TransformationTestsF, SliceReverseInfer) {
     {
         auto data = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
