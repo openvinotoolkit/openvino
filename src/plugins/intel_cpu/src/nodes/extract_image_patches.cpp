@@ -6,8 +6,8 @@
 #include <string>
 #include <cmath>
 
-#include <ngraph/opsets/opset3.hpp>
-#include "ie_parallel.hpp"
+#include <openvino/opsets/opset3.hpp>
+#include "openvino/core/parallel.hpp"
 #include "extract_image_patches.h"
 #include <cpu/x64/jit_generator.hpp>
 #include "caseless.hpp"
@@ -279,13 +279,13 @@ private:
 
 bool ExtractImagePatches::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto extImgPatcher = ov::as_type_ptr<const ngraph::opset3::ExtractImagePatches>(op);
+        auto extImgPatcher = ov::as_type_ptr<const ov::opset3::ExtractImagePatches>(op);
         if (!extImgPatcher) {
             errorMessage = "Only opset3 ExtractImagePatches operation is supported";
             return false;
         }
         const auto padValue = extImgPatcher->get_auto_pad();
-        if (!one_of(padValue, ngraph::op::PadType::VALID, ngraph::op::PadType::SAME_LOWER, ngraph::op::PadType::SAME_UPPER)) {
+        if (!one_of(padValue, ov::op::PadType::VALID, ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER)) {
             errorMessage = "Does not support pad type: " + ov::as_string(padValue);
             return false;
         }
@@ -341,7 +341,7 @@ ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ov::Node>& op, co
     }
 
     errorPrefix = "ExtractImagePatches layer with name '" + op->get_friendly_name() + "' ";
-    auto extImgPatcher = ov::as_type_ptr<const ngraph::opset3::ExtractImagePatches>(op);
+    auto extImgPatcher = ov::as_type_ptr<const ov::opset3::ExtractImagePatches>(op);
 
     if (inputShapes.size() != 1 || outputShapes.size() != 1)
         OPENVINO_THROW(errorPrefix,
@@ -357,11 +357,11 @@ ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ov::Node>& op, co
     if (getOutputShapeAtPort(0).getRank() != 4)
         OPENVINO_THROW(errorPrefix, "must have 4D output tensor. Actual: ", getOutputShapeAtPort(0).getRank());
 
-    if (extImgPatcher->get_auto_pad() == ngraph::op::PadType::VALID) {
+    if (extImgPatcher->get_auto_pad() == ov::op::PadType::VALID) {
         _auto_pad = ExtImgPatcherPadType::VALID;
-    } else if (extImgPatcher->get_auto_pad() == ngraph::op::PadType::SAME_LOWER) {
+    } else if (extImgPatcher->get_auto_pad() == ov::op::PadType::SAME_LOWER) {
         _auto_pad = ExtImgPatcherPadType::SAME_LOWER;
-    } else if (extImgPatcher->get_auto_pad() == ngraph::op::PadType::SAME_UPPER) {
+    } else if (extImgPatcher->get_auto_pad() == ov::op::PadType::SAME_UPPER) {
         _auto_pad = ExtImgPatcherPadType::SAME_UPPER;
     } else {
         OPENVINO_THROW(errorPrefix, "has unsupported pad type: ", extImgPatcher->get_auto_pad());

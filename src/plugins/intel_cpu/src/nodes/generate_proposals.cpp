@@ -14,8 +14,8 @@
 #include <immintrin.h>
 #endif
 
-#include <ngraph/op/generate_proposals.hpp>
-#include "ie_parallel.hpp"
+#include "openvino/op/generate_proposals.hpp"
+#include "openvino/core/parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "generate_proposals.h"
 #include <shape_inference/shape_inference_internal_dyn.hpp>
@@ -279,7 +279,7 @@ void fill_output_blobs(const float* proposals, const int* roi_indices,
 bool GenerateProposals::isSupportedOperation
             (const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ov::as_type_ptr<const ngraph::op::v9::GenerateProposals>(op)) {
+        if (!ov::as_type_ptr<const ov::op::v9::GenerateProposals>(op)) {
             errorMessage = "Node is not an instance of the Proposal from the operations set v0.";
             return false;
         }
@@ -296,7 +296,7 @@ GenerateProposals::GenerateProposals(const std::shared_ptr<ov::Node>& op, const 
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    auto proposalOp = ov::as_type_ptr<const ngraph::op::v9::GenerateProposals>(op);
+    auto proposalOp = ov::as_type_ptr<const ov::op::v9::GenerateProposals>(op);
     auto proposalAttrs = proposalOp->get_attrs();
 
     min_size_ = proposalAttrs.min_size;

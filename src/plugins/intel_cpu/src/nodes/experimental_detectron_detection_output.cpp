@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 
-#include <ngraph/op/experimental_detectron_detection_output.hpp>
-#include "ie_parallel.hpp"
+#include "openvino/op/experimental_detectron_detection_output.hpp"
+#include "openvino/core/parallel.hpp"
 #include "experimental_detectron_detection_output.h"
 
 using namespace InferenceEngine;
@@ -225,7 +225,7 @@ bool ExperimentalDetectronDetectionOutput::needPrepareParams() const {
 
 bool ExperimentalDetectronDetectionOutput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto doOp = ov::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronDetectionOutput>(op);
+        const auto doOp = ov::as_type_ptr<const ov::op::v6::ExperimentalDetectronDetectionOutput>(op);
         if (!doOp) {
             errorMessage = "Node is not an instance of the ExperimentalDetectronDetectionOutput from the operations set v6.";
             return false;
@@ -243,7 +243,7 @@ ExperimentalDetectronDetectionOutput::ExperimentalDetectronDetectionOutput(const
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    auto doOp = ov::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronDetectionOutput>(op);
+    auto doOp = ov::as_type_ptr<const ov::op::v6::ExperimentalDetectronDetectionOutput>(op);
     auto attributes = doOp->get_attrs();
 
     score_threshold_ = attributes.score_threshold;

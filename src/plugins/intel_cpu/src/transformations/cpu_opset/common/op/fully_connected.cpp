@@ -48,7 +48,7 @@ void ov::intel_cpu::FullyConnectedNode::validate_and_infer_types() {
     const auto activations_pshape = get_input_partial_shape(0);
 
     // Result shape: [B1, ..., Bn, O]
-    ngraph::PartialShape output_pshape;
+    ov::PartialShape output_pshape;
     if (activations_pshape.rank().is_static()) {
         size_t output_channels_dimensions_count = weights_shape.size() - 1;
         for (size_t i = 0; i < activations_pshape.size() - output_channels_dimensions_count; ++i) {
@@ -64,7 +64,7 @@ void ov::intel_cpu::FullyConnectedNode::validate_and_infer_types() {
             output_pshape.insert(output_pshape.begin(), 1);
         }
     } else {
-        output_pshape = ngraph::PartialShape::dynamic();
+        output_pshape = ov::PartialShape::dynamic();
     }
 
     auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;

@@ -5,11 +5,11 @@
 #include <vector>
 #include <string>
 #include <dnnl_types.h>
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include <selective_build.h>
 #include "batch_to_space.h"
 #include <nodes/common/blocked_desc_creator.h>
-#include <ngraph/opsets/opset2.hpp>
+#include <openvino/opsets/opset2.hpp>
 
 using namespace InferenceEngine;
 
@@ -19,7 +19,7 @@ namespace node {
 
 bool BatchToSpace::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto batchToSpace = std::dynamic_pointer_cast<const ngraph::opset2::BatchToSpace>(op);
+        const auto batchToSpace = std::dynamic_pointer_cast<const ov::opset2::BatchToSpace>(op);
         if (!batchToSpace) {
             errorMessage = "Only opset2 BatchToSpace operation is supported";
             return false;

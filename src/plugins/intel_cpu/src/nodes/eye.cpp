@@ -5,7 +5,7 @@
 #include "eye.h"
 #include <ie_ngraph_utils.hpp>
 #include <utils/bfloat16.hpp>
-#include <ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 #include <shape_inference/shape_inference_ngraph.hpp>
 
 #define THROW_ERROR(...) OPENVINO_THROW(NameFromType(getType()), " node with name '", getName(), "' ", __VA_ARGS__)
@@ -20,7 +20,7 @@ using namespace InferenceEngine::details;
 
 bool Eye::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (op->get_type_info() != ngraph::op::v9::Eye::get_type_info_static()) {
+        if (op->get_type_info() != ov::op::v9::Eye::get_type_info_static()) {
             errorMessage = "Node is not an instance of Eye form the operation set v9.";
             return false;
         }

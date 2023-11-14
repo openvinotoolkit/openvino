@@ -3,13 +3,13 @@
 //
 
 #include "adaptive_pooling.h"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <math.h>
 #include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
 #include <selective_build.h>
-#include <ngraph/opsets/opset8.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <string>
 #include <utils/bfloat16.hpp>
 #include <utils/general_utils.h>
@@ -26,14 +26,14 @@ namespace node {
 
 bool AdaptivePooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (one_of(op->get_type_info(), ngraph::op::v8::AdaptiveAvgPool::get_type_info_static())) {
-            auto adaPool = std::dynamic_pointer_cast<const ngraph::opset8::AdaptiveAvgPool>(op);
+        if (one_of(op->get_type_info(), ov::op::v8::AdaptiveAvgPool::get_type_info_static())) {
+            auto adaPool = std::dynamic_pointer_cast<const ov::opset8::AdaptiveAvgPool>(op);
             if (!adaPool) {
                 errorMessage = "Only opset8 AdaptiveAvgPooling operation is supported";
                 return false;
             }
-        } else if (one_of(op->get_type_info(), ngraph::op::v8::AdaptiveMaxPool::get_type_info_static())) {
-            auto adaPool = std::dynamic_pointer_cast<const ngraph::opset8::AdaptiveMaxPool>(op);
+        } else if (one_of(op->get_type_info(), ov::op::v8::AdaptiveMaxPool::get_type_info_static())) {
+            auto adaPool = std::dynamic_pointer_cast<const ov::opset8::AdaptiveMaxPool>(op);
             if (!adaPool) {
                 errorMessage = "Only opset8 AdaptiveMaxPooling operation is supported";
                 return false;
@@ -56,9 +56,9 @@ AdaptivePooling::AdaptivePooling(const std::shared_ptr<ov::Node>& op, const Grap
     } else {
       OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    if (one_of(op->get_type_info(), ngraph::op::v8::AdaptiveAvgPool::get_type_info_static())) {
+    if (one_of(op->get_type_info(), ov::op::v8::AdaptiveAvgPool::get_type_info_static())) {
         algorithm = Algorithm::AdaptivePoolingAvg;
-    } else if (one_of(op->get_type_info(), ngraph::op::v8::AdaptiveMaxPool::get_type_info_static())) {
+    } else if (one_of(op->get_type_info(), ov::op::v8::AdaptiveMaxPool::get_type_info_static())) {
         algorithm = Algorithm::AdaptivePoolingMax;
     }
     spatialDimsCount = getInputShapeAtPort(0).getRank() - 2;

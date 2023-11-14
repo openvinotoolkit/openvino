@@ -5,7 +5,7 @@
 #include "matmul.hpp"
 #include "utils.hpp"
 #include "ie_ngraph_utils.hpp"
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 
 namespace ov {
 namespace intel_cpu {
@@ -54,7 +54,7 @@ Result MMShapeInfer::infer(
 }
 
 ShapeInferPtr MMShapeInferFactory::makeShapeInfer() const {
-    if (const auto matmul = ov::as_type_ptr<const ngraph::opset1::MatMul>(m_op)) {
+    if (const auto matmul = ov::as_type_ptr<const ov::opset1::MatMul>(m_op)) {
         const auto output_rank = matmul->get_output_partial_shape(0).rank().get_length();
         const bool transpose_a = matmul->get_transpose_a();
         const bool transpose_b = matmul->get_transpose_b();

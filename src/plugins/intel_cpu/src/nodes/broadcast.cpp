@@ -6,12 +6,12 @@
 #include <vector>
 #include <string>
 #include <dnnl_types.h>
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "utils/bfloat16.hpp"
 #include <selective_build.h>
 #include "broadcast.h"
 #include <nodes/common/blocked_desc_creator.h>
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include "common/cpu_memcpy.h"
 
 using namespace InferenceEngine;

@@ -4,8 +4,8 @@
 
 #include <cmath>
 
-#include <ngraph/opsets/opset5.hpp>
-#include "ie_parallel.hpp"
+#include <openvino/opsets/opset5.hpp>
+#include "openvino/core/parallel.hpp"
 #include "log_softmax.h"
 
 using namespace InferenceEngine;
@@ -16,7 +16,7 @@ namespace node {
 
 bool LogSoftmax::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto logSoftMax = std::dynamic_pointer_cast<const ngraph::opset5::LogSoftmax>(op);
+        const auto logSoftMax = std::dynamic_pointer_cast<const ov::opset5::LogSoftmax>(op);
         if (!logSoftMax) {
             errorMessage = "Only opset5 LogSoftmax operation is supported";
             return false;
@@ -35,7 +35,7 @@ LogSoftmax::LogSoftmax(const std::shared_ptr<ov::Node>& op, const GraphContext::
     }
 
     errorPrefix = "LogSoftmax layer with name '" + op->get_friendly_name() + "'";
-    const auto logSoftMax = std::dynamic_pointer_cast<const ngraph::opset5::LogSoftmax>(op);
+    const auto logSoftMax = std::dynamic_pointer_cast<const ov::opset5::LogSoftmax>(op);
     if (logSoftMax == nullptr)
         OPENVINO_THROW("Operation with name '",
                        op->get_friendly_name(),

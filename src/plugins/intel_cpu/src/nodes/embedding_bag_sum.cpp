@@ -6,9 +6,9 @@
 #include <vector>
 #include <string>
 #include <dnnl_types.h>
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "embedding_bag_sum.h"
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include "common/cpu_memcpy.h"
 
 using namespace InferenceEngine;

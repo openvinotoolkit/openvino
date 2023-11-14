@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 
-#include <ngraph/opsets/opset1.hpp>
-#include "ie_parallel.hpp"
+#include <openvino/opsets/opset1.hpp>
+#include "openvino/core/parallel.hpp"
 #include "reverse_sequence.h"
 
 using namespace InferenceEngine;
@@ -17,7 +17,7 @@ namespace node {
 
 bool ReverseSequence::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto revSeq = std::dynamic_pointer_cast<const ngraph::opset1::ReverseSequence>(op);
+        const auto revSeq = std::dynamic_pointer_cast<const ov::opset1::ReverseSequence>(op);
         if (!revSeq) {
             errorMessage = "Only opset1 ReverseSequence operation is supported";
             return false;
@@ -36,7 +36,7 @@ ReverseSequence::ReverseSequence(const std::shared_ptr<ov::Node>& op, const Grap
     }
 
     errorPrefix = "ReverseSequence layer with name '" + op->get_friendly_name() + "'";
-    const auto revSeq = std::dynamic_pointer_cast<const ngraph::opset1::ReverseSequence>(op);
+    const auto revSeq = std::dynamic_pointer_cast<const ov::opset1::ReverseSequence>(op);
     if (revSeq == nullptr)
         OPENVINO_THROW("Operation with name '",
                        op->get_friendly_name(),

@@ -4,7 +4,7 @@
 
 #include "shuffle_channels.h"
 
-#include <ie_parallel.hpp>
+#include "openvino/core/parallel.hpp"
 #include <dnnl_extension_utils.h>
 #include <cpu/x64/jit_generator.hpp>
 #include "common/blocked_desc_creator.h"
@@ -54,7 +54,7 @@ bool ShuffleChannels::ShuffleChannelsAttributes::operator==(const ShuffleChannel
 
 bool ShuffleChannels::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto shuffleChannels = ov::as_type_ptr<const ngraph::op::v0::ShuffleChannels>(op);
+        auto shuffleChannels = ov::as_type_ptr<const ov::op::v0::ShuffleChannels>(op);
         if (!shuffleChannels) {
             errorMessage = "Only opset1 ShuffleChannels operation is supported";
             return false;
@@ -75,7 +75,7 @@ ShuffleChannels::ShuffleChannels(const std::shared_ptr<ov::Node>& op, const Grap
     if (inputShapes.size() != 1 || outputShapes.size() != 1)
         THROW_SHCH_ERROR("has incorrect number of input/output edges.");
 
-    auto shuffleChannels = ov::as_type_ptr<const ngraph::op::v0::ShuffleChannels>(op);
+    auto shuffleChannels = ov::as_type_ptr<const ov::op::v0::ShuffleChannels>(op);
     attrs.group = shuffleChannels->get_group();
     attrs.axis = shuffleChannels->get_axis();
     attrs.dataRank = getInputShapeAtPort(0).getRank();

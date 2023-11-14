@@ -6,8 +6,8 @@
 #include <vector>
 #include <algorithm>
 
-#include <ngraph/opsets/opset6.hpp>
-#include "ie_parallel.hpp"
+#include <openvino/opsets/opset6.hpp>
+#include "openvino/core/parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "experimental_detectron_topkrois.h"
 
@@ -19,7 +19,7 @@ namespace node {
 
 bool ExperimentalDetectronTopKROIs::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto topKROI = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronTopKROIs>(op);
+        const auto topKROI = std::dynamic_pointer_cast<const ov::opset6::ExperimentalDetectronTopKROIs>(op);
         if (!topKROI) {
             errorMessage = "Only opset6 ExperimentalDetectronTopKROIs operation is supported";
             return false;
@@ -39,7 +39,7 @@ ExperimentalDetectronTopKROIs::ExperimentalDetectronTopKROIs(const std::shared_p
     }
 
     errorPrefix = "ExperimentalDetectronTopKROIs layer with name '" + op->get_friendly_name() + "'";
-    const auto topKROI = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronTopKROIs>(op);
+    const auto topKROI = std::dynamic_pointer_cast<const ov::opset6::ExperimentalDetectronTopKROIs>(op);
     if (topKROI == nullptr)
         OPENVINO_THROW("Operation with name '",
                        op->get_friendly_name(),

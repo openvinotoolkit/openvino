@@ -10,7 +10,7 @@
 #include <cmath>
 #include <common/primitive_hashing_utils.hpp>
 #include <cpu/x64/jit_generator.hpp>
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <string>
 
 #include "common/blocked_desc_creator.h"
@@ -54,15 +54,15 @@ bool SpaceToDepth::SpaceToDepthAttrs::operator==(const SpaceToDepthAttrs& rhs) c
 bool SpaceToDepth::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                   std::string& errorMessage) noexcept {
     try {
-        const auto spaceToDepth = ov::as_type_ptr<const ngraph::opset1::SpaceToDepth>(op);
+        const auto spaceToDepth = ov::as_type_ptr<const ov::opset1::SpaceToDepth>(op);
         if (!spaceToDepth) {
             errorMessage = "Only opset1 SpaceToDepth operation is supported";
             return false;
         }
         const auto mode = spaceToDepth->get_mode();
         if (!one_of(mode,
-                    ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST,
-                    ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST)) {
+                    ov::op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST,
+                    ov::op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST)) {
             errorMessage = "Does not support mode: " + ov::as_string(mode);
             return false;
         }
@@ -81,14 +81,14 @@ SpaceToDepth::SpaceToDepth(const std::shared_ptr<ov::Node>& op, const GraphConte
     if (inputShapes.size() != 1 || outputShapes.size() != 1)
         THROW_ERROR("has incorrect number of input/output edges!");
 
-    auto spaceToDepth = ov::as_type_ptr<const ngraph::opset1::SpaceToDepth>(op);
+    auto spaceToDepth = ov::as_type_ptr<const ov::opset1::SpaceToDepth>(op);
     if (!spaceToDepth)
         THROW_ERROR("supports only opset1");
 
     const auto modeNgraph = spaceToDepth->get_mode();
-    if (modeNgraph == ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST) {
+    if (modeNgraph == ov::op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST) {
         attrs.mode = Mode::BLOCKS_FIRST;
-    } else if (modeNgraph == ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST) {
+    } else if (modeNgraph == ov::op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST) {
         attrs.mode = Mode::DEPTH_FIRST;
     } else {
         THROW_ERROR("doesn't support mode: ", ngraph::as_string(modeNgraph));

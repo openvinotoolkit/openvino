@@ -16,7 +16,7 @@
 #include <cpu/x64/jit_generator.hpp>
 #include <common/dnnl_thread.hpp>
 
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
 #include <memory_desc/cpu_memory_desc_utils.h>
@@ -25,7 +25,7 @@
 #include <common/primitive_hashing_utils.hpp>
 #include <shape_inference/shape_inference_pass_through.hpp>
 
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include "utils/ngraph_utils.hpp"
 
 // Quantization ranges validation is switched off by default in order to avoid regressions on user side
@@ -36,6 +36,7 @@
 
 using namespace dnnl;
 using namespace InferenceEngine;
+using namespace ov;
 using namespace details;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
@@ -866,7 +867,7 @@ private:
 #endif
 bool FakeQuantize::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto fq = std::dynamic_pointer_cast<const ngraph::opset1::FakeQuantize>(op);
+        const auto fq = std::dynamic_pointer_cast<const ov::opset1::FakeQuantize>(op);
         if (!fq) {
             errorMessage = "Only opset1 FakeQuantize operation is supported";
             return false;
@@ -883,7 +884,7 @@ bool FakeQuantize::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
             }
         }
         for (size_t i = 1; i < fq->get_input_size(); i++) {
-            if (!std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(i))) {
+            if (!std::dynamic_pointer_cast<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(i))) {
                 errorMessage = "Has non const 'range' input on " + std::to_string(i) + " port";
                 return false;
             }
@@ -914,8 +915,8 @@ bool FakeQuantize::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
                 }
             }
         }
-        if (fq->get_auto_broadcast().m_type != ngraph::op::AutoBroadcastType::NONE &&
-            fq->get_auto_broadcast().m_type != ngraph::op::AutoBroadcastType::NUMPY) {
+        if (fq->get_auto_broadcast().m_type != ov::op::AutoBroadcastType::NONE &&
+            fq->get_auto_broadcast().m_type != ov::op::AutoBroadcastType::NUMPY) {
             errorMessage = "Doesn't support broadcast type: " + ov::as_string(fq->get_auto_broadcast().m_type);
             return false;
         }
@@ -965,7 +966,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         algorithm = Algorithm::FQCommon;
-        const auto fq = std::dynamic_pointer_cast<const ngraph::opset1::FakeQuantize>(op);
+        const auto fq = std::dynamic_pointer_cast<const ov::opset1::FakeQuantize>(op);
 
         errorPrefix = "FakeQuantize node with name '" + getName() + "' ";
         levels = fq->get_levels();
@@ -1033,16 +1034,16 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
             OPENVINO_THROW(errorPrefix, "has different quantization axis size on 'data' and 'range' inputs");
         }
 
-        const auto inputLowNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(1));
+        const auto inputLowNode = std::dynamic_pointer_cast<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(1));
         auto inputLowData = inputLowNode->cast_vector<float>();
 
-        const auto inputHighNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(2));
+        const auto inputHighNode = std::dynamic_pointer_cast<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(2));
         auto inputHighData = inputHighNode->cast_vector<float>();
 
-        const auto outputLowNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(3));
+        const auto outputLowNode = std::dynamic_pointer_cast<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(3));
         auto outputLowData = outputLowNode->cast_vector<float>();
 
-        const auto outputHighNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(4));
+        const auto outputHighNode = std::dynamic_pointer_cast<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(4));
         auto outputHighData = outputHighNode->cast_vector<float>();
 
         binarization = levels == 2;

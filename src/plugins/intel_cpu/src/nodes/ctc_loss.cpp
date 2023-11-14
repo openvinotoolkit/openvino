@@ -4,8 +4,8 @@
 
 #include <cmath>
 
-#include <ngraph/op/ctc_loss.hpp>
-#include "ie_parallel.hpp"
+#include "openvino/op/ctc_loss.hpp"
+#include "openvino/core/parallel.hpp"
 #include "ctc_loss.h"
 
 using namespace InferenceEngine;
@@ -16,7 +16,7 @@ namespace node {
 
 bool CTCLoss::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto ctcLossOp = ov::as_type_ptr<const ngraph::op::v4::CTCLoss>(op);
+        const auto ctcLossOp = ov::as_type_ptr<const ov::op::v4::CTCLoss>(op);
         if (!ctcLossOp) {
             errorMessage = "Node is not an instance of the CTCLoss operation from operation set v4.";
             return false;
@@ -39,7 +39,7 @@ CTCLoss::CTCLoss(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
     if (getOriginalInputsNumber() != 4 && getOriginalInputsNumber() != 5)
         OPENVINO_THROW(errorPrefix, " has invalid inputs number.");
 
-    auto ctcLossOp = ov::as_type_ptr<const ngraph::op::v4::CTCLoss>(op);
+    auto ctcLossOp = ov::as_type_ptr<const ov::op::v4::CTCLoss>(op);
     ctcMergeRepeated = ctcLossOp->get_ctc_merge_repeated();
     preprocessCollapseRepeated = ctcLossOp->get_preprocess_collapse_repeated();
     unique = ctcLossOp->get_unique();

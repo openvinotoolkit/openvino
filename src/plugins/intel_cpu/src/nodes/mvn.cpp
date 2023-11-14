@@ -13,7 +13,7 @@
 #include "eltwise.h"
 #include <dnnl_extension_utils.h>
 #include "utils/bfloat16.hpp"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "emitters/x64/jit_load_store_emitters.hpp"
 #include "emitters/x64/jit_bf16_emitters.hpp"
 
@@ -23,7 +23,7 @@
 #include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 
-#include <ngraph/opsets/opset6.hpp>
+#include <openvino/opsets/opset6.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/cpu_utils.hpp"
 
@@ -1718,16 +1718,16 @@ bool MVN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
             return false;
         }
 
-        if (auto mvnOp = ov::as_type_ptr<const ngraph::op::v6::MVN>(op)) {
-            auto axesOp = ov::as_type_ptr<ngraph::op::Constant>(mvnOp->get_input_node_shared_ptr(1));
+        if (auto mvnOp = ov::as_type_ptr<const ov::op::v6::MVN>(op)) {
+            auto axesOp = ov::as_type_ptr<ov::op::v0::Constant>(mvnOp->get_input_node_shared_ptr(1));
             if (!axesOp) {
                 errorMessage = "Constant expected as the second input.";
                 return false;
             }
 
             auto epsMode = mvnOp->get_eps_mode();
-            if (epsMode != ngraph::op::MVNEpsMode::INSIDE_SQRT &&
-                    epsMode != ngraph::op::MVNEpsMode::OUTSIDE_SQRT) {
+            if (epsMode != ov::op::MVNEpsMode::INSIDE_SQRT &&
+                    epsMode != ov::op::MVNEpsMode::OUTSIDE_SQRT) {
                 errorMessage = std::string("Just INSIDE_SQRT and OUTSIDE_SQRT epsilon mods are supported. Actual: ") +
                         std::to_string(static_cast<int>(epsMode));
                 return false;
@@ -1762,7 +1762,7 @@ bool MVN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                     }
                 }
             }
-        } else if (auto mvnOp = ov::as_type_ptr<const ngraph::op::v0::MVN>(op)) {
+        } else if (auto mvnOp = ov::as_type_ptr<const ov::op::v0::MVN>(op)) {
         } else {
             errorMessage = "Node is not an instance of the MVN operation.";
             return false;
@@ -1781,10 +1781,10 @@ MVN::MVN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     }
 
     mvnAttrs.epsMode_ = INSIDE_SQRT;
-    if (auto mvnOp = ov::as_type_ptr<ngraph::op::v6::MVN>(op)) {
+    if (auto mvnOp = ov::as_type_ptr<ov::op::v6::MVN>(op)) {
         mvnAttrs.normalizeVariance_ = mvnOp->get_normalize_variance();
         mvnAttrs.epsValue_ = mvnOp->get_eps();
-        if (mvnOp->get_eps_mode() == ngraph::op::MVNEpsMode::OUTSIDE_SQRT) {
+        if (mvnOp->get_eps_mode() == ov::op::MVNEpsMode::OUTSIDE_SQRT) {
             mvnAttrs.epsMode_ = OUTSIDE_SQRT;
         }
 
@@ -1792,7 +1792,7 @@ MVN::MVN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         const auto& inDataShapeSize = getInputShapeAtPort(0).getRank();
         if (inDataShapeSize == mvnOp->input_value(1).get_shape()[0] + 1 || inDataShapeSize == 1)
             mvnAttrs.initAcrossChannels_ = true;
-    } else if (auto mvnOp = ov::as_type_ptr<ngraph::op::v0::MVN>(op)) {
+    } else if (auto mvnOp = ov::as_type_ptr<ov::op::v0::MVN>(op)) {
         mvnAttrs.normalizeVariance_ = mvnOp->get_normalize_variance();
         mvnAttrs.epsValue_ = mvnOp->get_eps();
         mvnAttrs.initAcrossChannels_ = mvnOp->get_across_channels();

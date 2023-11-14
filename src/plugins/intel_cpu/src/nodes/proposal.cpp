@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 
-#include <ngraph/op/proposal.hpp>
-#include "ie_parallel.hpp"
+#include "openvino/op/proposal.hpp"
+#include "openvino/core/parallel.hpp"
 #include "proposal.h"
 
 using namespace InferenceEngine;
@@ -76,13 +76,13 @@ static std::vector<float> generate_anchors(proposal_conf &conf) {
 
 bool Proposal::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto proposal0Op = ov::as_type_ptr<const ngraph::op::v0::Proposal>(op);
-        const auto proposal4Op = ov::as_type_ptr<const ngraph::op::v4::Proposal>(op);
+        const auto proposal0Op = ov::as_type_ptr<const ov::op::v0::Proposal>(op);
+        const auto proposal4Op = ov::as_type_ptr<const ov::op::v4::Proposal>(op);
         if (!proposal0Op && !proposal4Op) {
             errorMessage = "Node is not an instance of the Proposal from the operations set v0 or v4.";
             return false;
         }
-        auto proposalOp = std::dynamic_pointer_cast<const ngraph::op::v0::Proposal>(op);
+        auto proposalOp = std::dynamic_pointer_cast<const ov::op::v0::Proposal>(op);
         if (proposalOp->get_attrs().framework != "tensorflow" && !proposalOp->get_attrs().framework.empty()) {
             errorMessage = "Unsupported framework attribute: " + proposalOp->get_attrs().framework;
             return false;
@@ -100,7 +100,7 @@ Proposal::Proposal(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    auto proposalOp = std::dynamic_pointer_cast<const ngraph::op::v0::Proposal>(op);
+    auto proposalOp = std::dynamic_pointer_cast<const ov::op::v0::Proposal>(op);
     auto proposalAttrs = proposalOp->get_attrs();
 
     conf.feat_stride_ = proposalAttrs.feat_stride;
@@ -189,7 +189,7 @@ void Proposal::execute(dnnl::stream strm) {
             OPENVINO_THROW("Proposal operation image info input must have non negative scales.");
         }
 
-        InferenceEngine::Extensions::Cpu::XARCH::proposal_exec(probabilitiesData, anchorsData, inProbDims,
+        ov::Extensions::Cpu::XARCH::proposal_exec(probabilitiesData, anchorsData, inProbDims,
                 {imgHeight, imgWidth, scaleHeight, scaleWidth}, anchors.data(), roi_indices.data(), outRoiData, outProbData, conf);
     } catch (const ov::Exception& e) {
         std::string errorMsg = e.what();

@@ -6,8 +6,8 @@
 #include <vector>
 #include <algorithm>
 
-#include <ngraph/opsets/opset6.hpp>
-#include "ie_parallel.hpp"
+#include <openvino/opsets/opset6.hpp>
+#include "openvino/core/parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "experimental_detectron_roifeatureextractor.h"
 
@@ -284,7 +284,7 @@ void split_points(const std::vector<int>& ids, std::vector<int>& rois_per_level,
 bool ExperimentalDetectronROIFeatureExtractor::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                                               std::string& errorMessage) noexcept {
     try {
-        const auto roiFeatureExtractor = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
+        const auto roiFeatureExtractor = std::dynamic_pointer_cast<const ov::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
         if (!roiFeatureExtractor) {
             errorMessage = "Only opset6 ExperimentalDetectronROIFeatureExtractor operation is supported";
             return false;
@@ -304,7 +304,7 @@ ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatureExtract
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto roiFeatureExtractor = std::dynamic_pointer_cast<const ngraph::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
+    const auto roiFeatureExtractor = std::dynamic_pointer_cast<const ov::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
     const auto &attr = roiFeatureExtractor->get_attrs();
     output_dim_ = attr.output_size;
     pyramid_scales_ = attr.pyramid_scales;
