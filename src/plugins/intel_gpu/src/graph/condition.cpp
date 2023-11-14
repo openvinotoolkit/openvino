@@ -219,8 +219,8 @@ Condition primitive is reusing memory with the input.
 */
 condition_inst::typed_primitive_inst(network& network, condition_node const& node)
     : parent(network, node),
-      _net_true(network::allocate_network(node.get_program().get_engine(), node.get_branch_true().inner_program)),
-      _net_false(network::allocate_network(node.get_program().get_engine(), node.get_branch_false().inner_program)) {
+      _net_true(network::allocate_network(network.get_stream_ptr(), node.get_branch_true().inner_program)),
+      _net_false(network::allocate_network(network.get_stream_ptr(), node.get_branch_false().inner_program)) {
     this->set_inner_networks({_net_true, _net_false});
 }
 
