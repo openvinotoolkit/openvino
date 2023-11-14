@@ -358,10 +358,12 @@ std::shared_ptr<ov::Node> makeSqueezeUnsqueeze(const ov::Output<Node>& in,
                                                const std::vector<int>& squeeze_indices,
                                                ov::test::utils::SqueezeOpType opType);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeMinMax(const ov::Output<Node>& in1,
                                      const ov::Output<Node>& in2,
                                      ov::test::utils::MinMaxOpType opType);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeProposal(const ov::Output<Node>& class_probs,
                                        const ov::Output<Node>& class_logits,
                                        const std::vector<float>& image_info,
