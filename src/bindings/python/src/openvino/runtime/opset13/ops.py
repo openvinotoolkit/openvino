@@ -256,31 +256,26 @@ def constant(
                           Requires data to be C_CONTIGUOUS if `True`.
     :return: The Constant node initialized with provided data.
     """
-    # Convert scalars:
-    if isinstance(value, int):
-        log.warning("Converting scalar type of undefined bitwidth to 32-bit integer. Memory sharing is disabled by default.")
-        _value, _shared_memory = np.array(value, dtype=np.int32), False
-    elif isinstance(value, float):
-        log.warning("Converting scalar type of undefined bitwidth to 32-bit float. Memory sharing is disabled by default.")
-        _value, _shared_memory = np.array(value, dtype=np.float32), False
-    elif isinstance(value, bool):
-        log.warning("Converting bool type to numpy bool. Memory sharing is disabled by default.")
-        _value, _shared_memory = np.array(value, dtype=np.bool_), False
-    elif isinstance(value, (np.number, np.bool_)):
-        log.warning(f"Converting numpy scalar of {value.dtype} to corresponding type. Memory sharing is disabled by default.")
-        _value, _shared_memory = np.array(value, dtype=value.dtype), False
-    # Convert containers:
-    elif isinstance(value, list):
-        log.warning("Converting list type of undefined bitwidth to 32-bit float array. Memory sharing is disabled by default.")
-        _value, _shared_memory = np.array(value, dtype=np.float32), False
-    # If value is numpy array:
-    else:
+    if isinstance(value, np.ndarray):
         _value, _shared_memory = value, shared_memory
+    else:
+        log.warning(f"Converting scalar to corresponding type. Memory sharing is disabled by default.")
+        _value, _shared_memory = np.array(value), False
     # Handle type casting, when dtype is not None:
     if dtype:
         _dtype = dtype.to_dtype() if isinstance(dtype, Type) else dtype
-        if _dtype != _value.dtype:
-            log.warning(f"Converting value of {_value.dtype} to {_dtype}. Memory sharing is disabled by default.")
-            _value, _shared_memory = _value.astype(_dtype), False
+        if _dtype is int:
+            log.warning("Converting scalar type of undefined bitwidth to 32-bit integer. Memory sharing is disabled by default.")
+            _value, _shared_memory = _value.astype(np.int32), False
+        elif _dtype is float:
+            log.warning("Converting scalar type of undefined bitwidth to 32-bit float. Memory sharing is disabled by default.")
+            _value, _shared_memory = _value.astype(np.float32), False
+        elif _dtype is bool:
+            log.warning("Converting bool type to numpy bool. Memory sharing is disabled by default.")
+            _value, _shared_memory = _value.astype(np.bool_), False
+        else:
+            if _dtype != _value.dtype:
+                log.warning(f"Converting value of {_value.dtype} to {_dtype}. Memory sharing is disabled by default.")
+                _value, _shared_memory = _value.astype(_dtype), False
     # Create Constant itself:
     return Constant(_value, shared_memory=_shared_memory)
