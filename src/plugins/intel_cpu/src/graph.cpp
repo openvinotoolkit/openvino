@@ -518,7 +518,8 @@ void Graph::ResolveEdgeConflicts() {
                     pEdgePeer->collectConsumers(vecConsumers);
 
                     for (auto node : vecConsumers) {
-                        if (node->getExecIndex() >= execIndex) {
+                        if (node->getExecIndex() >= execIndex ||
+                            one_of(node->getType(), Type::MemoryOutput, Type::Output)) {
                             return true;
                         }
                     }
