@@ -105,7 +105,6 @@ jobs:
   - script: |
       $(PYTHON_EXE) -m pip install --upgrade pip
       rem For running Python API tests
-      $(PYTHON_EXE) -m pip install -r $(REPO_DIR)\src\bindings\python\src\compatibility\openvino\requirements-dev.txt
       $(PYTHON_EXE) -m pip install -r $(REPO_DIR)\src\bindings\python\wheel\requirements-dev.txt
       $(PYTHON_EXE) -m pip install -r $(REPO_DIR)\src\bindings\python\requirements.txt
       rem For running Paddle frontend unit tests

@@ -130,7 +130,6 @@ function(ov_check_init_files_alignment init_files)
 endfunction()
 
 set(INIT_FILES_RUNTIME "${OpenVINOPython_SOURCE_DIR}/src/openvino/__init__.py"
-                       "${OpenVINOPython_SOURCE_DIR}/src/compatibility/openvino/__init__.py"
                        "${OpenVINO_SOURCE_DIR}/tools/ovc/openvino/__init__.py"
                        "${OpenVINO_SOURCE_DIR}/tools/benchmark_tool/openvino/__init__.py")
 
@@ -211,7 +210,6 @@ if(NOT pybind11_FOUND)
     add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
 endif()
 
-add_subdirectory(src/compatibility/pyngraph)
 add_subdirectory(src/pyopenvino)
 
 #
@@ -281,7 +279,6 @@ macro(ov_define_setup_py_dependencies)
         endif()
     endforeach()
 
-    file(GLOB_RECURSE compat_ngraph_py_files ${OpenVINOPython_SOURCE_DIR}/src/compatibility/*.py)
     file(GLOB_RECURSE openvino_py_files ${OpenVINOPython_SOURCE_DIR}/src/openvino/*.py)
 
     list(APPEND ov_setup_py_deps

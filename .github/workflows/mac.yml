@@ -624,8 +624,6 @@ jobs:
         run: |
           python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/pyngraph \
             --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml \
-            --ignore=${{ env.INSTALL_TEST_DIR }}/pyngraph/tests_compatibility/test_onnx/test_zoo_models.py \
-            --ignore=${{ env.INSTALL_TEST_DIR }}/pyngraph/tests_compatibility/test_onnx/test_backend.py
 
       - name: Python API 2.0 Tests
         run: |
