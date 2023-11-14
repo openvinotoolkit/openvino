@@ -383,9 +383,6 @@ std::shared_ptr<ov::Node> makeProposal(const ov::Output<Node>& class_probs,
                                        float box_coordinate_scale,
                                        std::string framework);
 
-std::shared_ptr<ov::Node> makeSelect(std::vector<ov::Output<Node>>& in,
-                                     const ov::op::AutoBroadcastSpec& auto_broadcast);
-
 std::shared_ptr<Node> makeFakeQuantize(const ov::Output<Node>& in,
                                        const element::Type& type,
                                        std::size_t levels,
@@ -400,11 +397,6 @@ std::shared_ptr<Node> makeFakeQuantize(const ov::Output<Node>& in,
                                        std::size_t levels,
                                        std::vector<size_t> constShapes,
                                        const int32_t seed = 1);
-
-std::shared_ptr<ov::Node> makeCumSum(const ov::Output<Node>& in,
-                                     const ov::Output<Node>& axis,
-                                     bool exclusive,
-                                     bool reverse);
 
 std::shared_ptr<ov::Node> makeEmbeddingBagOffsetsSum(const element::Type& dataType,
                                                      const element::Type& indicesType,
