@@ -49,7 +49,7 @@ namespace {
         if (!ftz) {
             return;
         }
-        if (src.getDesc().getPrecision() != Precision::FP32 || dst.getDesc().getPrecision() == Precision::BF16) {
+        if (src.getDesc().getPrecision() != ov::element::f32 || dst.getDesc().getPrecision() == ov::element::bf16) {
             return;
         }
         size_t offset = 0;
@@ -95,7 +95,7 @@ Memory::Memory(const dnnl::engine& eng, const MemoryDesc& desc, MemoryMngrPtr mn
 size_t Memory::getSize() const {
     auto size = getDesc().getCurrentMemSize();
     if (size  == MemoryDesc::UNDEFINED_SIZE) {
-        IE_THROW() << "Can't get memory size for undefined shape";
+        OPENVINO_THROW("Can't get memory size for undefined shape");
     }
     return size;
 }
@@ -132,7 +132,7 @@ void Memory::nullify() {
 
 void Memory::redefineDesc(MemoryDescPtr desc) {
     if (!desc->hasDefinedMaxSize()) {
-        IE_THROW() << "Can not reset descriptor, memory upper bound is unknown.";
+        OPENVINO_THROW("Can not reset descriptor, memory upper bound is unknown.");
     }
 
     this->create(desc, nullptr, false);
@@ -162,7 +162,7 @@ dnnl::memory Memory::DnnlMemPrimHandle::getPrim() const {
     std::lock_guard<std::mutex> guard(m_primCachingLock);
     if (!m_prim) {
         if (!m_memObjPtr->getDesc().isDefined()) {
-            IE_THROW() << "Can not create oneDNN memory from undefined memory descriptor";
+            OPENVINO_THROW("Can not create oneDNN memory from undefined memory descriptor");
         }
 
         // ========================
@@ -205,7 +205,7 @@ void* Memory::getData() const {
     if (data == nullptr &&
         m_pMemDesc->getShape().isStatic() &&
         m_pMemDesc->getShape().getElementsCount() != 0)
-        IE_THROW() << "Memory has not been allocated";
+        OPENVINO_THROW("Memory has not been allocated");
     return data;
 }
 
@@ -225,7 +225,7 @@ bool MemoryMngrWithReuse::resize(size_t size) {
     if (size > m_memUpperBound) {
         void *ptr = dnnl::impl::malloc(size, cacheLineSize);
         if (!ptr) {
-            IE_THROW() << "Failed to allocate " << size << " bytes of memory";
+            OPENVINO_THROW("Failed to allocate ", size, " bytes of memory");
         }
         m_memUpperBound = size;
         m_useExternalStorage = false;
@@ -289,7 +289,7 @@ void DnnlMemoryMngr::notifyUpdate() {
 StaticMemory::StaticMemory(const dnnl::engine& eng, MemoryDescPtr desc, const void* data, bool pads_zeroing) :
     m_eng(eng), m_pMemDesc(desc) {
     if (!m_pMemDesc->isDefined()) {
-        IE_THROW() << "Can not create StaticMemory object. The memory desc is undefined";
+        OPENVINO_THROW("Can not create StaticMemory object. The memory desc is undefined");
     }
 
     m_size = m_pMemDesc->getCurrentMemSize();
@@ -350,7 +350,7 @@ const VectorDims& StaticMemory::getStaticDims() const {
 }
 
 void StaticMemory::redefineDesc(MemoryDescPtr desc) {
-    IE_THROW(Unexpected) << "Memory descriptor may not be modified in StaticMemory object";
+    OPENVINO_THROW("Unexpected: Memory descriptor may not be modified in StaticMemory object");
 }
 
 void StaticMemory::load(const IMemory& src, bool ftz) const {
@@ -388,12 +388,12 @@ void* StaticMemory::StaticMemoryMngr::getRawPtr() const noexcept {
 }
 
 void StaticMemory::StaticMemoryMngr::setExtBuff(void* ptr, size_t size) {
-    IE_THROW(Unexpected) << "StaticMemoryMngr may not be modified";
+    OPENVINO_THROW("Unexpected: StaticMemoryMngr may not be modified");
 }
 
 bool StaticMemory::StaticMemoryMngr::resize(size_t size) {
     if (size != m_size) {
-        IE_THROW(Unexpected) << "StaticMemoryMngr may not resize the memory";
+        OPENVINO_THROW("Unexpected: StaticMemoryMngr may not resize the memory");
     }
     return false;
 }
