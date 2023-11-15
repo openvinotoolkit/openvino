@@ -143,17 +143,17 @@ void Proposal::initSupportedPrimitiveDescriptors() {
         return;
 
     if (store_prob) {
-        addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
-                              {LayoutType::ncsp, Precision::FP32},
-                              {LayoutType::ncsp, Precision::FP32}},
-                             {{LayoutType::ncsp, Precision::FP32},
-                              {LayoutType::ncsp, Precision::FP32}},
+        addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
+                              {LayoutType::ncsp, ov::element::f32},
+                              {LayoutType::ncsp, ov::element::f32}},
+                             {{LayoutType::ncsp, ov::element::f32},
+                              {LayoutType::ncsp, ov::element::f32}},
                              impl_desc_type::ref_any);
     } else {
-        addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
-                              {LayoutType::ncsp, Precision::FP32},
-                              {LayoutType::ncsp, Precision::FP32}},
-                             {{LayoutType::ncsp, Precision::FP32}},
+        addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
+                              {LayoutType::ncsp, ov::element::f32},
+                              {LayoutType::ncsp, ov::element::f32}},
+                             {{LayoutType::ncsp, ov::element::f32}},
                              impl_desc_type::ref_any);
     }
 }

@@ -16,8 +16,8 @@ namespace kernel {
 
 template <x64::cpu_isa_t isa>
 void NonMaxSuppression<isa>::generate() {
-    load_vector_emitter.reset(new jit_load_emitter(this, isa, Precision::FP32, Precision::FP32, vector_step));
-    load_scalar_emitter.reset(new jit_load_emitter(this, isa, Precision::FP32, Precision::FP32, scalar_step));
+    load_vector_emitter.reset(new jit_load_emitter(this, isa, ov::element::f32, ov::element::f32, vector_step));
+    load_scalar_emitter.reset(new jit_load_emitter(this, isa, ov::element::f32, ov::element::f32, scalar_step));
 
     exp_injector.reset(new x64::jit_uni_eltwise_injector_f32<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f));
 

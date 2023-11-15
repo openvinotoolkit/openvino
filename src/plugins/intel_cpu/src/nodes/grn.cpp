@@ -54,8 +54,8 @@ void GRN::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32, false, 0}},
-                         {{LayoutType::ncsp, Precision::FP32, false, 0}},
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32, false, 0}},
+                         {{LayoutType::ncsp, ov::element::f32, false, 0}},
                          impl_desc_type::ref_any);
 }
 
