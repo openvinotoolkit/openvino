@@ -206,6 +206,8 @@ std::ostream& operator<<(std::ostream& os, ov::op::v8::MatrixNms::DecayFunction 
 
 std::ostream& operator<<(std::ostream& os, TensorIteratorBody type);
 
+std::ostream& operator<<(std::ostream& os, QuantizationGranularity type);
+
 std::ostream& operator<<(std::ostream& os, MemoryTransformation type);
 
 }  // namespace utils

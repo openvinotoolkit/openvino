@@ -19,7 +19,8 @@ Reference::Reference(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
                                          const std::string& errorMessage) :
         Node(op, context, NgraphShapeInferFactory(op, FULL_PORT_MASK)), ovCoreNode(op), additionalErrorMessage(errorMessage) {
     if (!op->has_evaluate()) {
-        IE_THROW(NotImplemented) << "Cannot fallback on ngraph reference implementation (Ngraph::Node::evaluate() is not implemented)";
+        OPENVINO_THROW_NOT_IMPLEMENTED(
+            "Cannot fallback on ngraph reference implementation (Ngraph::Node::evaluate() is not implemented");
     }
 
     setType(Type::Reference);
@@ -35,13 +36,13 @@ void Reference::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> inputConfigurators;
     inputConfigurators.reserve(inputShapes.size());
     for (size_t i = 0; i < inputShapes.size(); i++) {
-        inputConfigurators.emplace_back(LayoutType::ncsp, convertPrecision(ovCoreNode->get_input_element_type(i)), inputShapes[i]);
+        inputConfigurators.emplace_back(LayoutType::ncsp, ovCoreNode->get_input_element_type(i), inputShapes[i]);
     }
 
     std::vector<PortConfigurator> outputConfigurators;
     outputConfigurators.reserve(inputShapes.size());
     for (size_t i = 0; i < outputShapes.size(); i++) {
-        outputConfigurators.emplace_back(LayoutType::ncsp, convertPrecision(ovCoreNode->get_output_element_type(i)), outputShapes[i]);
+        outputConfigurators.emplace_back(LayoutType::ncsp, ovCoreNode->get_output_element_type(i), outputShapes[i]);
     }
 
     addSupportedPrimDesc(inputConfigurators, outputConfigurators, impl_desc_type::ref);
