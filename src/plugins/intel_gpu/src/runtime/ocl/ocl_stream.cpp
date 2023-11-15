@@ -61,7 +61,9 @@ cl_int set_kernel_arg(ocl_kernel_type& kernel, uint32_t idx, cldnn::memory::cptr
         return kernel.setArg(idx, buf);
     } else if (memory_capabilities::is_usm_type(mem->get_allocation_type())) {
         auto buf = std::dynamic_pointer_cast<const ocl::gpu_usm>(mem)->get_buffer();
-        GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set arg (usm) " << idx << " mem: " << buf.get() << " size: " << mem->size() << std::endl;
+        auto mem_type = std::dynamic_pointer_cast<const ocl::gpu_usm>(mem)->get_allocation_type();
+        GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set arg (" << mem_type << ") " << idx
+                               << " mem: " << buf.get() << " size: " << mem->size() << std::endl;
         return kernel.setArgUsm(idx, buf);
     } else {
         auto buf = std::dynamic_pointer_cast<const ocl::gpu_buffer>(mem)->get_buffer();
