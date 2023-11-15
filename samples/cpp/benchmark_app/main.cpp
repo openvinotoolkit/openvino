@@ -563,7 +563,6 @@ int main(int argc, char* argv[]) {
 
         if (!FLAGS_sp.empty()) {
             slog::info << "Inference schedule policy is " << FLAGS_sp << slog::endl;
-            device_config["SCHEDULE_POLICY"] = FLAGS_sp;
         }
 
         bool isDynamicNetwork = false;
