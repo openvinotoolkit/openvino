@@ -13,10 +13,15 @@ PartialShapeWrap::PartialShapeWrap(const Napi::CallbackInfo& info) : Napi::Objec
     }
 
     if (attrs_length == 1 && info[0].IsString()) {
-        std::string shape = std::string(info[0].ToString());
+        try {
+            std::string shape = std::string(info[0].ToString());
 
-        _partial_shape = ov::PartialShape(shape);
-        return;
+            _partial_shape = ov::PartialShape(shape);
+            return;
+        } catch (std::exception& e) {
+            reportError(info.Env(), e.what());
+            return;
+        }
     }
 
     reportError(info.Env(), "Cannot parse params");
@@ -29,6 +34,7 @@ Napi::Function PartialShapeWrap::GetClassConstructor(Napi::Env env) {
                            InstanceMethod("isStatic", &PartialShapeWrap::is_static),
                            InstanceMethod("isDynamic", &PartialShapeWrap::is_dynamic),
                            InstanceMethod("toString", &PartialShapeWrap::to_string),
+                           InstanceMethod("getDimensions", &PartialShapeWrap::get_dimensions),
                        });
 }
 
@@ -71,4 +77,6 @@ Napi::Value PartialShapeWrap::to_string(const Napi::CallbackInfo& info) {
     return Napi::String::New(info.Env(), _partial_shape.to_string());
 }
 
-
+Napi::Value PartialShapeWrap::get_dimensions(const Napi::CallbackInfo& info) {
+    return cpp_to_js<ov::PartialShape, Napi::Array>(info, _partial_shape);
+}

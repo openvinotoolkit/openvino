@@ -86,13 +86,15 @@ interface InferRequest {
   getCompiledModel(): CompiledModel;
 }
 
+type Dimension = number | [number, number];
+
 interface Output {
   anyName: string;
   shape: number[];
   toString(): string;
   getAnyName(): string;
   getShape(): number[];
-  getPartialShape(): number[];
+  getPartialShape(): Dimension[];
 }
 
 interface InputTensorInfo {
