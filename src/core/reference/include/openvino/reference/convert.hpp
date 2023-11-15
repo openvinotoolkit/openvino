@@ -103,7 +103,7 @@ typename std::enable_if<!std::is_same<TO, char>::value, TO>::type convert(const 
 
 template <typename TI, typename TO>
 typename std::enable_if<std::is_same<TO, char>::value, TO>::type convert(const TI v) {
-    return static_cast<bool>(v);
+    return static_cast<char>(static_cast<bool>(v));
 }
 }  // namespace detail
 
