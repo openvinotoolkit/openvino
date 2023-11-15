@@ -23,25 +23,25 @@
 #define DEFAULT_DOUBLE_TOLERANCE_BITS ${BACKEND_NAME}_DOUBLE_TOLERANCE_BITS
 #endif
 // clang-format on
+#include "common_test_utils/all_close.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/ndarray.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
-#include "ngraph/file_util.hpp"
-#include "default_opset.hpp"
-#include "openvino/opsets/opset12.hpp"
 #include "common_test_utils/test_case.hpp"
+#include "common_test_utils/test_control.hpp"
+#include "common_test_utils/test_tools.hpp"
+#include "common_test_utils/type_prop.hpp"
+#include "default_opset.hpp"
 #include "gtest/gtest.h"
+#include "ngraph/file_util.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "onnx_import/onnx.hpp"
 #include "onnx_import/onnx_utils.hpp"
-#include "common_test_utils/all_close.hpp"
-#include "common_test_utils/ndarray.hpp"
-#include "common_test_utils/test_control.hpp"
-#include "common_test_utils/test_tools.hpp"
-#include "common_test_utils/type_prop.hpp"
 #include "onnx_utils.hpp"
+#include "openvino/opsets/opset12.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 
@@ -6961,4 +6961,29 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_group_normalization_2grp_custom_eps) {
          -1.4463723f, -0.547642f,   -2.768998f,   1.3848708f,  0.97488886f,  2.5446892f, 1.4639623f,  -1.7954159f});
 
     test_case.run_with_tolerance_as_fp(0.000001f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_less_or_equal) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/less_or_equal.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{5}, {1., 2., 3., 4., 5.});
+    test_case.add_input<float>(Shape{5}, {3., 3., 3., 3., 3.});
+    test_case.add_expected_output<bool>(Shape{5}, {true, true, true, false, false});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_less_or_equal_broadcast) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/less_or_equal_broadcast.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{5}, {1., 2., 3., 4., 5.});
+    test_case.add_input<float>(Shape{1}, {3.});
+    test_case.add_expected_output<bool>(Shape{5}, {true, true, true, false, false});
+
+    test_case.run();
 }
