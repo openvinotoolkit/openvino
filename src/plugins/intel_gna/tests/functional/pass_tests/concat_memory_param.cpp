@@ -82,7 +82,7 @@ protected:
 
         const int axis = 1;
         ov::OutputVector to_concat{readValue, reshape};
-        auto concat = ngraph::builder::makeConcat(to_concat, axis);
+        auto concat = std::make_shared<ov::op::v0::Concat>(to_concat, axis);
 
         const auto concat_shape = concat->get_output_shape(0);
         const auto concat_shape_size = ov::shape_size(concat_shape);

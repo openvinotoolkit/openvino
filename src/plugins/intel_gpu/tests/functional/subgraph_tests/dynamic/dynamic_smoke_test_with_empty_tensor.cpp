@@ -99,10 +99,10 @@ protected:
 
           auto convertEmptyInputOp = std::make_shared<ov::op::v0::Convert>(nonzeroEmptyResultOp, ElementType::i32);
           auto concatPartialInputEmptyOp =
-              ngraph::builder::makeConcat({convertEmptyInputOp, params[1], convertEmptyInputOp},
+              std::make_shared<ov::op::v0::Concat>(ov::NodeVector{convertEmptyInputOp, params[1], convertEmptyInputOp},
                                           1);  // partially empty input / non empty output
           auto concatEmptyInputEmptyOutputOp =
-              ngraph::builder::makeConcat({convertEmptyInputOp, convertEmptyInputOp, convertEmptyInputOp},
+              std::make_shared<ov::op::v0::Concat>(ov::NodeVector{convertEmptyInputOp, convertEmptyInputOp, convertEmptyInputOp},
                                           1);  // all empty input/ all empty output
 
           std::vector<int64_t> squeezeDims = {0};

@@ -457,8 +457,6 @@ std::shared_ptr<ov::Node> makeFullyConnected(const ov::Output<Node>& in,
                                              const std::vector<float>& weights = {},
                                              const std::vector<float>& biasWeights = {});
 
-std::shared_ptr<ov::Node> makeConcat(const std::vector<ov::Output<Node>>& in, const int& axis);
-
 std::shared_ptr<ov::Node> makePad(const ov::Output<Node>& data,
                                   const std::vector<int64_t>& padsBegin,
                                   const std::vector<int64_t>& padsEnd,

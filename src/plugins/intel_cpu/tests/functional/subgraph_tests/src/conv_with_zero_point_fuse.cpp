@@ -122,7 +122,7 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
         }
     }
 
-    auto concat = ngraph::builder::makeConcat(ngraph::OutputVector{branches[0], branches[1]}, 1);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{branches[0], branches[1]}, 1);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(concat)};
     function = std::make_shared<ngraph::Function>(results, inputParams, "ConvWithZeroPointFuseSubgraphTest");

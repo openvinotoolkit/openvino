@@ -618,7 +618,7 @@ protected:
                                                                    ngraph::Shape{1, conv2_out_size});
         auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(permute2, pattern2, false);
 
-        auto concat = ngraph::builder::makeConcat({reshape1, reshape2}, 1);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{reshape1, reshape2}, 1);
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat)};
         function = std::make_shared<ngraph::Function>(results, params, "RemoveSharedPermutationTest");
