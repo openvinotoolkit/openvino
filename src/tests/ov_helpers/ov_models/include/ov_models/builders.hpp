@@ -574,8 +574,6 @@ std::shared_ptr<ov::Node> makeGatherND8(const ov::Output<Node>& dataNode,
                                         const element::Type& indicesType,
                                         const std::size_t batchDims);
 
-std::shared_ptr<ov::Node> makeTile(const ov::Output<Node>& in, const std::vector<int64_t>& repeats);
-
 std::shared_ptr<ov::Node> makeNormalizeL2(const ov::Output<Node>& data,
                                           const std::vector<int64_t>& axes,
                                           float eps,
