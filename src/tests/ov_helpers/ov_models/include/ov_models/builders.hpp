@@ -439,13 +439,6 @@ std::shared_ptr<Node> makePooling(const ov::Output<Node>& in,
                                   bool excludePad,
                                   const ov::test::utils::PoolingTypes& poolType);
 
-std::shared_ptr<ov::Node> makeScatterUpdate(const ov::Output<Node>& in,
-                                            const element::Type& indicesType,
-                                            const std::vector<size_t>& indicesShape,
-                                            const std::vector<int64_t>& indices,
-                                            const ov::Output<Node>& update,
-                                            int64_t axis);
-
 std::shared_ptr<ov::Node> makeScatterElementsUpdate(const ov::Output<Node>& in,
                                                     const element::Type& indicesType,
                                                     const std::vector<size_t>& indicesShape,
