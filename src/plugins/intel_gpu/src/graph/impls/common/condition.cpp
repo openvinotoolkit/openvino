@@ -30,13 +30,15 @@ struct condition_impl : typed_primitive_impl<condition> {
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, condition_inst& instance) override {
-        for (auto& a : events) {
-            a->wait();
-        }
-        auto ev = instance.get_network().get_stream().create_user_event(false);
+        // Wait for condition statement event only, and pass all other events to sub-network directly
+        if (!events.empty())
+            events[0]->wait();
+
+        auto& stream = instance.get_network().get_stream();
+        auto ev = stream.create_user_event(false);
         set_node_params(instance.get_node());
 
-        auto pred = condition_inst::get_pred_from_memory(instance.pred_memory_ptr(), instance.get_network().get_stream());
+        auto pred = condition_inst::get_pred_from_memory(instance.pred_memory_ptr(), stream);
         network::ptr executed_net = pred ? instance.get_net_true() : instance.get_net_false();
         auto branch = pred ? instance.get_branch_true() : instance.get_branch_false();
         executed_net->set_shape_predictor(instance.get_network().get_shape_predictor());
@@ -62,7 +64,7 @@ struct condition_impl : typed_primitive_impl<condition> {
             }
         }
 
-        executed_net->execute({});
+        auto sub_net_results = executed_net->execute(events);
 
         // Update output layout of impl_param in condition_inst
         instance.update_output_layout();
@@ -70,8 +72,12 @@ struct condition_impl : typed_primitive_impl<condition> {
         // Set output memory of condition_inst to inner network output memory after inner network execution
         instance.postprocess_output_memory(executed_net, branch);
 
-        ev->set();
-        return ev;
+        std::vector<event::ptr> output_events;
+        for (auto& output : sub_net_results)
+            if (output.second.get_event() != nullptr)
+                output_events.push_back(output.second.get_event());
+
+        return stream.group_events(output_events);
     }
 
     static std::unique_ptr<primitive_impl> create(const condition_node& arg, const kernel_impl_params&) {

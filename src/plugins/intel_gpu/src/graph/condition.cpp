@@ -219,8 +219,8 @@ Condition primitive is reusing memory with the input.
 */
 condition_inst::typed_primitive_inst(network& network, condition_node const& node)
     : parent(network, node),
-      _net_true(network::allocate_network(node.get_program().get_engine(), node.get_branch_true().inner_program)),
-      _net_false(network::allocate_network(node.get_program().get_engine(), node.get_branch_false().inner_program)) {
+      _net_true(network::allocate_network(network.get_stream_ptr(), node.get_branch_true().inner_program)),
+      _net_false(network::allocate_network(network.get_stream_ptr(), node.get_branch_false().inner_program)) {
     this->set_inner_networks({_net_true, _net_false});
 }
 
@@ -257,7 +257,7 @@ void condition_inst::postprocess_output_memory(network::ptr executed_net, cldnn:
     for (auto out_mem_map : branch.output_map) {
         auto out_mem_idx = out_mem_map.first;
         auto inner_out_id = out_mem_map.second;
-        auto mem_ptr = executed_net->get_output(inner_out_id).get_memory();
+        auto mem_ptr = executed_net->get_output_memory(inner_out_id);
         if (mem_ptr) {
             auto layout = _impl_params->get_output_layout(out_mem_idx);
             GPU_DEBUG_LOG << "Reshape output from " << mem_ptr->get_layout().to_short_string()
