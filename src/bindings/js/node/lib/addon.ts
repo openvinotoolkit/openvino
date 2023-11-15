@@ -94,7 +94,7 @@ interface Output {
   toString(): string;
   getAnyName(): string;
   getShape(): number[];
-  getPartialShape(): Dimension[];
+  getPartialShape(): PartialShape;
 }
 
 interface InputTensorInfo {
@@ -128,6 +128,7 @@ interface PartialShape {
   isStatic(): boolean;
   isDynamic(): boolean;
   toString(): string;
+  getDimensions(): Dimension[];
 }
 interface PartialShapeConstructor {
   new(shape: string): PartialShape;

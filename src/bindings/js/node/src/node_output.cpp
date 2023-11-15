@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "node_output.hpp"
+#include "partial_shape_wrap.hpp"
 
 #include "helper.hpp"
 
@@ -47,7 +48,7 @@ Napi::Value Output<ov::Node>::get_shape(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value Output<ov::Node>::get_partial_shape(const Napi::CallbackInfo& info) {
-    return cpp_to_js<ov::PartialShape, Napi::Array>(info, _output.get_partial_shape());
+    return PartialShapeWrap::Wrap(info.Env(), _output.get_partial_shape());
 }
 
 Napi::Value Output<ov::Node>::get_any_name(const Napi::CallbackInfo& info) {
@@ -96,7 +97,7 @@ Napi::Value Output<const ov::Node>::get_shape(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value Output<const ov::Node>::get_partial_shape(const Napi::CallbackInfo& info) {
-    return cpp_to_js<ov::PartialShape, Napi::Array>(info, _output.get_partial_shape());
+    return PartialShapeWrap::Wrap(info.Env(), _output.get_partial_shape());
 }
 
 Napi::Value Output<const ov::Node>::get_any_name(const Napi::CallbackInfo& info) {
