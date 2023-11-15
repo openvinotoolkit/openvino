@@ -675,7 +675,8 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
     if (input_model->tensor_names_need_indices()) {
         for (auto result : ov_model->outputs()) {
-            auto model_output_name = result.get_any_name();
+            auto model_output_name = result.get_names().size() > 0 ? result.get_any_name() : result.get_node()->get_name();
+            
             std::string operation_name;
             std::string port_type;
             size_t port_index;
