@@ -590,14 +590,6 @@ std::shared_ptr<ov::Node> makeNms(const ov::Output<Node>& boxes,
                                   const ov::element::Type& outType,
                                   const NmsVersion nmsVersion = NmsVersion::NmsVersion5);
 
-std::shared_ptr<ov::Node> makeOneHot(const ov::Output<Node>& indices,
-                                     const element::Type& depth_type,
-                                     const int64_t& depth_val,
-                                     const element::Type& set_type,
-                                     const float& on_val,
-                                     const float& off_val,
-                                     const int64_t& axis);
-
 std::shared_ptr<ov::Node> makeDFT(const ov::Output<Node>& dataNode,
                                   const std::vector<int64_t>& axes,
                                   const std::vector<int64_t>& signalSize,
