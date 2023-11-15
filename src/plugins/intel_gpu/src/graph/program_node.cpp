@@ -368,7 +368,7 @@ bool program_node::recalc_output_layouts(bool invalidate_users_if_changed) {
 
 bool program_node::is_dynamic() const {
     for (const auto& input : get_dependencies()) {
-        if (input.first->is_dynamic_output_layout())
+        if (input.first->is_dynamic_output_layout(input.second))
             return true;
     }
 
@@ -381,7 +381,7 @@ bool program_node::is_dynamic() const {
 
 bool program_node::is_dynamic() {
     for (auto& input : get_dependencies()) {
-        if (input.first->is_dynamic_output_layout())
+        if (input.first->is_dynamic_output_layout(input.second))
             return true;
     }
 

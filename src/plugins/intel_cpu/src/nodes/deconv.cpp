@@ -165,7 +165,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op,
     std::string errorMessage;
     errorPrefix = "Deconvolution node with name '" + getName() + "' ";
     if (!isSupportedOperation(op, errorMessage))
-        IE_THROW(NotImplemented) << errorPrefix + errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorPrefix + errorMessage);
 
     const auto& weightDims = getWeightDims();
 
@@ -227,7 +227,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op,
         }
         const auto spDimsNum = getInputShapeAtPort(0).getRank() - 2;
         if (getInputShapeAtPort(2).getStaticDims()[0] != spDimsNum || (isConstOutShape && lastOutputSpatialDims.size() != spDimsNum)) {
-            IE_THROW() << errorPrefix << "'output_shape' input has incorrect number of elements. Expected = " << spDimsNum;
+            OPENVINO_THROW(errorPrefix, "'output_shape' input has incorrect number of elements. Expected = ", spDimsNum);
         }
     }
     attr = std::make_shared<dnnl::primitive_attr>();
@@ -236,10 +236,10 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op,
 InferenceEngine::Blob::Ptr Deconvolution::createWeiBlobAsIO(InferenceEngine::SizeVector dims) {
     auto constNode = std::dynamic_pointer_cast<Input>(getParentEdgeAt(1)->getParent());
     if (!constNode)
-        IE_THROW() << "Cannot cast const input node for node " << getName() << ".";
+        OPENVINO_THROW("Cannot cast const input node for node ", getName(), ".");
     auto blb = constNode->getMemoryPtr();
     if (!blb)
-        IE_THROW() << "Cannot get const weights blob for node " << getName() << ".";
+        OPENVINO_THROW("Cannot get const weights blob for node ", getName(), ".");
 
     auto const blbSize = blb->getSize();
 
@@ -268,7 +268,7 @@ InferenceEngine::Blob::Ptr Deconvolution::createWeiBlobAsIO(InferenceEngine::Siz
 
     size_t offset = blbSize;
     if (intBuffSize < offset) {
-        IE_THROW() << "Cannot create internal buffer. Buffer can be overrun.";
+        OPENVINO_THROW("Cannot create internal buffer. Buffer can be overrun.");
     }
     cpu_memcpy_s(data, intBuffSize, blb->getData(), blbSize);
 
@@ -375,7 +375,7 @@ std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
                         if (origInMaxDims[i + 2] != Shape::UNDEFINED_DIM) {
                             auto upper_bound = deconvAttrs.stride[i] * static_cast<int32_t>(origInMaxDims[i + 2] - 1) - c1;
                             if (upper_bound < 0) {
-                                IE_THROW() << errorPrefix << ": paddings for dummy shapes can't be computed";
+                                OPENVINO_THROW(errorPrefix, ": paddings for dummy shapes can't be computed");
                             }
                         }
 
@@ -431,7 +431,7 @@ void Deconvolution::getSupportedDescriptors() {
     //ONEDNN convolution_data_bwd_t can't support bias fusing.
     //Current only int8 precision choose deconvolution_fwd_t.
     if (withBiases && !isInt8) {
-        IE_THROW() << errorPrefix << " supports bias fusing only for int8 execution precision";
+        OPENVINO_THROW(errorPrefix, " supports bias fusing only for int8 execution precision");
     }
 
     InferenceEngine::Precision inPrecision = getOriginalInputPrecisionAtPort(0);
@@ -458,10 +458,10 @@ void Deconvolution::getSupportedDescriptors() {
         outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
     }
     if (getParentEdges().size() != (withBiases ? (biasPort + 1) : biasPort)) {
-        IE_THROW() << errorPrefix << " has incorrect number of input edges";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input edges");
     }
     if (getChildEdges().empty()) {
-        IE_THROW() << errorPrefix << " has incorrect number of output edges";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of output edges");
     }
     VectorDims inDims, outDims;
     std::tie(inDims, outDims) = makeDummyInOutShape();
@@ -579,8 +579,11 @@ void Deconvolution::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dim
             continue;
         }
 
-        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType())
-                   << " node is not implemented";
+        OPENVINO_THROW("Fusing of ",
+                       NameFromType(node->getType()),
+                       " operation to ",
+                       NameFromType(this->getType()),
+                       " node is not implemented");
     }
 
     attr.set_post_ops(ops);
@@ -613,8 +616,10 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims &inDims, std::vect
         for (size_t i = 0; i < inputShapes.size(); ++i) {
             if (port_mask & 1 << i) {
                 if (outSpDims.size() != getInputShapeAtPort(i).getStaticDims()[0]) {
-                    IE_THROW() << "Can't compute output shape for node with name: " << getName()
-                            << ", because the node has 'output_shape' input, but provided output spatial dims number is incorrect";
+                    OPENVINO_THROW("Can't compute output shape for node with name: ",
+                                   getName(),
+                                   ", because the node has 'output_shape' input, but provided output spatial dims "
+                                   "number is incorrect");
                 }
                 outSpDimsVecShape = {outSpDims.size()};
                 inputShapesRefs.push_back(std::cref(outSpDimsVecShape));
@@ -628,7 +633,10 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims &inDims, std::vect
 
     auto result = shapeInference->infer(inputShapesRefs, inputValues);
     if (ShapeInferStatus::success != result.status) {
-        IE_THROW(Unexpected) << "Unexpected shape inference result status in node of type " << getTypeStr() << " with name " << getName();
+        OPENVINO_THROW("Unexpected: Unexpected shape inference result status in node of type ",
+                       getTypeStr(),
+                       " with name ",
+                       getName());
     }
     return std::move(result.dims.back());
 }
@@ -649,7 +657,7 @@ void Deconvolution::execute(dnnl::stream strm) {
     }
 
     if (!execPtr) {
-        IE_THROW() << "Can't execute Deconvolution node with name: " << getName() << ", because executor is not compiled";
+        OPENVINO_THROW("Can't execute Deconvolution node with name: ", getName(), ", because executor is not compiled");
     }
 
     execPtr->exec(primArgs, strm);
@@ -757,7 +765,7 @@ DefaultDeconvDescs createDefaultMkldnnDeconvDesc(const dnnl::memory::desc& srcDe
     convolution_forward::primitive_desc fwd_conv_pd;
     std::tie(deconv_desc, fwd_conv_pd) = createDescriptorInternalDefault(srcDesc, wghDesc, dstDesc, alg, stride, dilation, paddingL, paddingR, attr, engine);
     if (fwd_conv_pd.get(true) == nullptr) {
-        IE_THROW() << "Forward convolution primitive descriptor is nullable";
+        OPENVINO_THROW("Forward convolution primitive descriptor is nullable");
     }
 
     return {deconv_desc, fwd_conv_pd};
@@ -800,7 +808,7 @@ void Deconvolution::createPrimitive() {
 
         const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
         if (selected_pd == nullptr) {
-            IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
+            OPENVINO_THROW("Preferable primitive descriptor is not set for node ", getName(), ".");
         }
 
         const auto selectedImpl = selected_pd->getImplementationType();
@@ -852,14 +860,14 @@ void Deconvolution::prepareParams() {
     auto wghMemPtr = getParentEdgesAtPort(1)[0]->getMemoryPtr();
     auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << "Destination memory has not been allocated.";
+        OPENVINO_THROW("Destination memory has not been allocated.");
     if (!srcMemPtr || !srcMemPtr->isAllocated())
-        IE_THROW() << "Input memory has not been allocated.";
+        OPENVINO_THROW("Input memory has not been allocated.");
     if (!wghMemPtr || !wghMemPtr->isAllocated())
-        IE_THROW() << "Weight memory has not been allocated.";
+        OPENVINO_THROW("Weight memory has not been allocated.");
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
+        OPENVINO_THROW("Preferable primitive descriptor is not set for node ", getName(), ".");
 
     if (useACL) {
         std::vector<MemoryDescPtr> srcMemoryDescs;
@@ -905,7 +913,7 @@ void Deconvolution::prepareParams() {
         if (withBiases) {
             biasMemPtr = getParentEdgesAtPort(biasPort)[0]->getMemoryPtr();
             if (!biasMemPtr || !biasMemPtr->isAllocated())
-                IE_THROW() << "Bias memory  memory didn't allocate.";
+                OPENVINO_THROW("Bias memory  memory didn't allocate.");
             biasDesc = biasMemPtr->getDescWithType<DnnlMemoryDesc>();
         }
     } else {
@@ -1051,7 +1059,7 @@ void Deconvolution::prepareParams() {
         }
 #endif
     } else {
-        IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+        OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
     }
 }
 
@@ -1175,15 +1183,15 @@ Deconvolution::DeconvExecutorInt8::DeconvExecutorInt8(const dnnl::deconvolution_
 
 std::vector<int32_t> Deconvolution::readOutputSpatialDims() const {
     if (getParentEdges().size() < 3) {
-        IE_THROW() << "Can't get output spatial dims. Inputs number = " << getParentEdges().size();
+        OPENVINO_THROW("Can't get output spatial dims. Inputs number = ", getParentEdges().size());
     }
     const auto &shapeMemPtr = getParentEdgesAtPort(2)[0]->getMemoryPtr();
     if (!shapeMemPtr || !shapeMemPtr->isAllocated()) {
-        IE_THROW() << "'output_shape' input memory is not allocated.";
+        OPENVINO_THROW("'output_shape' input memory is not allocated.");
     }
     const auto spDimsNum = getInputShapeAtPort(0).getRank() - 2;
     if (shapeMemPtr->getStaticDims()[0] != spDimsNum) {
-        IE_THROW() << "Can't read output spatial dims, beause 'output_shape' input has incorrect number of elements";
+        OPENVINO_THROW("Can't read output spatial dims, beause 'output_shape' input has incorrect number of elements");
     }
     const int32_t *outShapePtr = reinterpret_cast<const int32_t *>(shapeMemPtr->getData());
     std::vector<int32_t> outSpDims(outShapePtr, outShapePtr + shapeMemPtr->getStaticDims()[0]);
