@@ -44,6 +44,25 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model, const std::shared_pt
     m_shape_infer = std::make_shared<LIRShapeInfer>(m_expressions, m_io_expressions);
 }
 
+std::shared_ptr<LinearIR> LinearIR::clone() const {
+    auto cloned = std::make_shared<LinearIR>();
+    cloned->m_config = m_config;
+
+    ExressionMap expression_map;
+    cloned->m_expressions = deep_copy_range(m_expressions.cbegin(), m_expressions.cend(), expression_map);
+    for (const auto& expr : cloned->m_expressions) {
+        cloned->m_node2expression_map[expr->get_node()] = expr;
+        if (const auto& io = std::dynamic_pointer_cast<IOExpression>(expr))
+            cloned->m_io_expressions.push_back(io);
+    }
+
+    cloned->m_loop_manager = m_loop_manager->clone_with_new_expr(expression_map);
+    // It's Ok to share shapeInfer factory ptr, since the factory doesn't depend on LIR in any way
+    cloned->m_shape_infer_factory = m_shape_infer_factory;
+    cloned->m_shape_infer = std::make_shared<LIRShapeInfer>(cloned->m_expressions, cloned->m_io_expressions);
+    return cloned;
+}
+
 ExpressionPtr LinearIR::create_expression(const std::shared_ptr<Node>& n, const std::shared_ptr<ov::Model>& model) {
     return ExpressionFactory::build(n, *this, model);
 }
@@ -99,80 +118,28 @@ void LinearIR::serialize(const std::string& xml, const std::string& bin) const {
     ov::pass::Serialize(xml, bin).run_on_model(tmp_model);
 }
 
-LinearIR::container LinearIR::deep_copy_range(LinearIR::container::const_iterator begin, LinearIR::container::const_iterator end) {
-    auto deep_clone_ports = [](std::vector<PortDescriptorPtr>& ports) {
-        for (auto& port : ports) { port = port->clone(); }
-    };
+LinearIR::container LinearIR::deep_copy_range(LinearIR::container::const_iterator begin,
+                                              LinearIR::container::const_iterator end,
+                                              ExressionMap& expression_map) {
+    OPENVINO_ASSERT(expression_map.empty(), "deep_copy_range expects empty expression_map as an input");
     LinearIR::container result;
     NodeVector original_nodes;
     for (auto it = begin; it != end; it++)
         original_nodes.push_back((*it)->get_node());
-    ngraph::NodeMap node_map;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ngraph::clone_nodes(original_nodes,  node_map);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    for (auto it = begin; it != end; it++) {
-        // copy by value, so result shared_pointer point to new objects
-        Expression new_expr = **it;
-        new_expr.m_source_node = node_map[(*it)->get_node().get()];
-        deep_clone_ports(new_expr.m_input_port_descriptors);
-        deep_clone_ports(new_expr.m_output_port_descriptors);
-        result.emplace_back(std::make_shared<Expression>(new_expr));
-    }
-    return result;
-}
 
-LinearIR LinearIR::deep_copy() const {
-    // todo: implement the same functionality using standard copy constructor
-    auto clone_ports_descriptors = [](std::vector<PortDescriptorPtr>& ports) {
-        std::for_each(ports.begin(), ports.end(), [](PortDescriptorPtr& pd) { pd = pd->clone(); });
-    };
-    const auto& original_lir = *this;
-    LinearIR new_lir;
-    new_lir.m_config = original_lir.m_config;
-    new_lir.m_shape_infer = original_lir.m_shape_infer;
-    NodeVector original_nodes;
-    original_nodes.reserve(original_lir.m_expressions.size());
-    std::unordered_map<PortConnectorPtr, PortConnectorPtr> connectors_map;
-    for (const auto& orig_expr : original_lir) {
-        original_nodes.push_back(orig_expr->get_node());
-        const auto& copy_expr = ExpressionFactory::shallow_copy(orig_expr);
-        clone_ports_descriptors(copy_expr->m_input_port_descriptors);
-        clone_ports_descriptors(copy_expr->m_output_port_descriptors);
-
-        for (auto& orig_con : copy_expr->m_output_port_connectors) {
-            const auto& copy_source = copy_expr->get_output_port(orig_con->get_source().get_index());
-            const auto& copy_con = std::make_shared<PortConnector>(copy_source);
-            connectors_map[orig_con] = copy_con;
-            orig_con = copy_con;
-        }
-        for (size_t i = 0; i < copy_expr->get_input_count(); i++) {
-            const auto& copy_connector = connectors_map[copy_expr->get_input_port_connector(i)];
-            const auto& copy_consumer = copy_expr->get_input_port(i);
-            copy_connector->add_consumer(copy_consumer);
-            copy_expr->replace_input(i, copy_connector);
-        }
-
-        if (auto io_expr = std::dynamic_pointer_cast<IOExpression>(copy_expr))
-            new_lir.m_io_expressions.push_back(io_expr);
-        new_lir.m_expressions.push_back(copy_expr);
-    }
     // node_map and expr_map map original node pointer (expression) to a new pointer (expression)
     ngraph::NodeMap node_map;
     OPENVINO_SUPPRESS_DEPRECATED_START
     ngraph::clone_nodes(original_nodes,  node_map);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    new_lir.m_node2expression_map.clear();
-    for (const auto& copy_expr : new_lir.m_expressions) {
-        copy_expr->m_source_node = node_map[copy_expr->m_source_node.get()];
-        new_lir.m_node2expression_map[copy_expr->m_source_node] = copy_expr;
+
+    for (auto it = begin; it != end; it++) {
+        const auto& expr = *it;
+        const auto& new_expr = expr->clone_with_new_inputs(expression_map, node_map[expr->get_node().get()]);
+        result.push_back(new_expr);
+        expression_map[expr.get()] = new_expr;
     }
-    new_lir.m_loop_manager = std::make_shared<LoopManager>();
-    // It's Ok to share shapeInfer factory, since LIR doesn't change it
-    new_lir.m_shape_infer_factory = m_shape_infer_factory;
-    // Note: shapeInfer stores expression pointers. we re-create it, so shape inference is performed on cloned exprs.
-    new_lir.m_shape_infer = std::make_shared<LIRShapeInfer>(new_lir.m_expressions, new_lir.m_io_expressions);
-    return new_lir;
+    return result;
 }
 
 void LinearIR::debug_print(bool tds_as_pointers) const {
