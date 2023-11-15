@@ -64,11 +64,11 @@ Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
 
 void Unique::initSupportedPrimitiveDescriptors() {
     dataPrecision = getOriginalInputPrecisionAtPort(IN_DATA);
-    if (dataPrecision != Precision::I32 && dataPrecision != Precision::I8 && dataPrecision != Precision::U8) {
-        dataPrecision = Precision::FP32;
+    if (dataPrecision != ov::element::i32 && dataPrecision != ov::element::i8 && dataPrecision != ov::element::u8) {
+        dataPrecision = ov::element::f32;
     }
     dataTypeSize = dataPrecision.size();
-    const InferenceEngine::Precision axisPrecision = Precision::I32;
+    const ov::element::Type axisPrecision = ov::element::i32;
 
     impl_desc_type implType = ref;
 
@@ -134,16 +134,16 @@ struct Unique::slicedExec {
 void Unique::execute(dnnl::stream strm) {
     if (flattened) {
         OV_SWITCH(intel_cpu, flattenExec, this, dataPrecision,
-              OV_CASE(Precision::FP32, float),
-              OV_CASE(Precision::I32, int32_t),
-              OV_CASE(Precision::I8, int8_t),
-              OV_CASE(Precision::U8, uint8_t))
+              OV_CASE(ov::element::f32, float),
+              OV_CASE(ov::element::i32, int32_t),
+              OV_CASE(ov::element::i8, int8_t),
+              OV_CASE(ov::element::u8, uint8_t))
     } else {
         OV_SWITCH(intel_cpu, slicedExec, this, dataPrecision,
-              OV_CASE(Precision::FP32, float),
-              OV_CASE(Precision::I32, int32_t),
-              OV_CASE(Precision::I8, int8_t),
-              OV_CASE(Precision::U8, uint8_t))
+              OV_CASE(ov::element::f32, float),
+              OV_CASE(ov::element::i32, int32_t),
+              OV_CASE(ov::element::i8, int8_t),
+              OV_CASE(ov::element::u8, uint8_t))
     }
 }
 

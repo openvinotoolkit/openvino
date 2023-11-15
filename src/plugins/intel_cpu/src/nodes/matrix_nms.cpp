@@ -115,8 +115,8 @@ void MatrixNms::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    const std::vector<Precision> supportedFloatPrecision = {Precision::FP32, Precision::FP16};
-    const std::vector<Precision> supportedIntOutputPrecision = {Precision::I32, Precision::I64};
+    const std::vector<ov::element::Type> supportedFloatPrecision = {ov::element::f32, ov::element::f16};
+    const std::vector<ov::element::Type> supportedIntOutputPrecision = {ov::element::i32, ov::element::i64};
 
     checkPrecision(getOriginalInputPrecisionAtPort(NMS_BOXES), supportedFloatPrecision, "boxes", m_inType);
     checkPrecision(getOriginalInputPrecisionAtPort(NMS_SCORES), supportedFloatPrecision, "scores", m_inType);
@@ -125,11 +125,11 @@ void MatrixNms::initSupportedPrimitiveDescriptors() {
     checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTED_OUTPUTS), supportedFloatPrecision, "selected_outputs", m_outType);
     checkPrecision(getOriginalOutputPrecisionAtPort(NMS_VALID_OUTPUTS), supportedIntOutputPrecision, "valid_outputs", m_outType);
 
-    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32}},
-                         {{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::I32},
-                          {LayoutType::ncsp, Precision::I32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
+                          {LayoutType::ncsp, ov::element::f32}},
+                         {{LayoutType::ncsp, ov::element::f32},
+                          {LayoutType::ncsp, ov::element::i32},
+                          {LayoutType::ncsp, ov::element::i32}},
                          impl_desc_type::ref_any);
 }
 
@@ -414,7 +414,7 @@ void MatrixNms::execute(dnnl::stream strm) {
     }
 }
 
-void MatrixNms::checkPrecision(const Precision prec, const std::vector<Precision> precList, const std::string name, const std::string type) {
+void MatrixNms::checkPrecision(const ov::element::Type prec, const std::vector<ov::element::Type> precList, const std::string name, const std::string type) {
     if (std::find(precList.begin(), precList.end(), prec) == precList.end())
         OPENVINO_THROW(m_errorPrefix, "has unsupported '", name, "' ", type, " precision: ", prec);
 }

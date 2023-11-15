@@ -540,16 +540,16 @@ void ScalarEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<si
 
 MemoryEmitter::MemoryEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
     const auto n = expr->get_node();
-    src_prc = InferenceEngine::details::convertPrecision(n->get_input_element_type(0));
-    dst_prc = InferenceEngine::details::convertPrecision(n->get_output_element_type(0));
+    src_prc = n->get_input_element_type(0);
+    dst_prc = n->get_output_element_type(0);
 }
 
 StoreEmitter::StoreEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : MemoryEmitter(h, isa, expr) {
     if (src_prc != dst_prc)
         OPENVINO_THROW("StoreEmitter supports only equal input and output types but gets: ",
-                       src_prc.name(),
+                       src_prc.get_type_name(),
                        " and ",
-                       dst_prc.name());
+                       dst_prc.get_type_name());
 
     const auto store = ov::as_type_ptr<snippets::op::Store>(expr->get_node());
     count = store->get_count();
@@ -585,9 +585,9 @@ void StoreEmitter::emit_data() const {
 LoadEmitter::LoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : MemoryEmitter(h, isa, expr) {
     if (src_prc != dst_prc)
         OPENVINO_THROW("LoadEmitter supports only equal input and output types but gets: ",
-                       src_prc.name(),
+                       src_prc.get_type_name(),
                        " and ",
-                       dst_prc.name());
+                       dst_prc.get_type_name());
 
     const auto load = std::dynamic_pointer_cast<snippets::op::Load>(expr->get_node());
     count = load->get_count();
@@ -624,9 +624,9 @@ BroadcastLoadEmitter::BroadcastLoadEmitter(jit_generator* h, cpu_isa_t isa, cons
     : MemoryEmitter(h, isa, expr) {
     if (src_prc != dst_prc)
         OPENVINO_THROW("BroadcastEmitters support only equal input and output types but gets: ",
-                       src_prc.name(),
+                       src_prc.get_type_name(),
                        " and ",
-                       dst_prc.name());
+                       dst_prc.get_type_name());
 
     const auto broadcast_load = std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(expr->get_node());
     byte_offset = broadcast_load->get_offset();
@@ -820,9 +820,8 @@ BrgemmEmitter::BrgemmEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
 
     if (brgemm_node->is_with_data_repacking())
         leading_dimensions[1] = rnd_up(m_N, brgemm_copy->get_n_block_size());
-
-    auto brg0Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(0));
-    auto brg1Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(1));
+    auto brg0Prc = brgemm_node->get_input_element_type(0);
+    auto brg1Prc = brgemm_node->get_input_element_type(1);
     m_brg0VnniFactor = 4 / brg0Prc.size();
     bool brgWithAMX = brgemm_node->is_amx();
 
@@ -873,8 +872,8 @@ BrgemmEmitter::BrgemmEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
             brgemmCtx.LDA = leading_dimensions[0];
             brgemmCtx.LDB = leading_dimensions[1];
             brgemmCtx.LDC = leading_dimensions[2];
-            brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg0Prc));
-            brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1Prc));
+            brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brg0Prc));
+            brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brg1Prc));
             brgemmCtx.beta = has_K_kernel ? 1 : 0;
 
             if (brgemmCtx.N == 0 || brgemmCtx.N > m_N ||
@@ -1283,8 +1282,8 @@ BrgemmCopyBEmitter::BrgemmCopyBEmitter(jit_generator* h, cpu_isa_t isa, const Ex
     m_K_tail = m_K % m_K_blk;
     m_LDB = m_brgemm_prc_in1 == ov::element::f32 ? leading_dimension : rnd_up(m_N, m_N_blk);
 
-    const auto dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(InferenceEngine::details::convertPrecision(m_brgemm_prc_in0)));
-    const auto dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(InferenceEngine::details::convertPrecision(m_brgemm_prc_in1)));
+    const auto dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(m_brgemm_prc_in0));
+    const auto dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(m_brgemm_prc_in1));
 
     const bool isAMXSupported = mayiuse(avx512_core_amx);
     const auto use_amx = isAMXSupported && m_brgemm_prc_in0 != ov::element::f32 && (m_K % m_brgemmVNNIFactor == 0) && (m_N % m_brgemmVNNIFactor == 0);
@@ -1491,7 +1490,7 @@ void BrgemmCopyBEmitter::execute(matmul::jit_brgemm_matmul_copy_b_t *kernel, con
 }
 
 HorizonEmitter::HorizonEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
-    : jit_emitter(h, isa, Precision::FP32, emitter_in_out_map::vec_to_vec) {
+    : jit_emitter(h, isa, ov::element::f32, emitter_in_out_map::vec_to_vec) {
     if (ov::is_type<const snippets::op::HorizonMax>(expr->get_node())) {
         m_op_type = OpType::max;
     } else if (ov::is_type<const snippets::op::HorizonSum>(expr->get_node())) {
@@ -1559,7 +1558,7 @@ void HorizonEmitter::perform_op(const Vmm &vmm1, const Vmm &vmm2, const Vmm &vmm
 }
 
 FillEmitter::FillEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
-    : jit_emitter(h, isa, Precision::FP32, emitter_in_out_map::vec_to_vec) {
+    : jit_emitter(h, isa, ov::element::f32, emitter_in_out_map::vec_to_vec) {
     const auto fill = ov::as_type_ptr<snippets::op::Fill>(expr->get_node());
     if (fill->get_element_type().size() != 4) {
         OPENVINO_THROW("Fill emitter supports only 4 Byte element types but gets: ", fill->get_element_type());

@@ -59,8 +59,8 @@ private:
 
     uint64_t dataTypeSize = 1lu;
     uint64_t gridTypeSize = 1lu;
-    InferenceEngine::Precision dataPrecision;
-    InferenceEngine::Precision gridPrecision = InferenceEngine::Precision::FP32;
+    ov::element::Type dataPrecision;
+    ov::element::Type gridPrecision = ov::element::f32;
 
     int nthr = 1;
     std::vector<threadExecParams> execParamsPerThread;

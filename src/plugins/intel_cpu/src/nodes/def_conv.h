@@ -84,7 +84,7 @@ public:
     bool enforceRef = false;
     constexpr static int sampledPointsPerPixel = 4;  // count of sampling points ({top|bottom}, {left|right})
 
-    InferenceEngine::Precision getRuntimePrecision() const override;
+    ov::element::Type getRuntimePrecision() const override;
 
     struct DefConvAttr {
         size_t group = 1;

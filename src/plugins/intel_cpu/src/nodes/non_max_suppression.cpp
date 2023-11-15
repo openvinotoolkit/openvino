@@ -133,14 +133,14 @@ void NonMaxSuppression::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputs_num);
     for (size_t i = 0; i < inputs_num; ++i) {
-        Precision inPrecision = i == NMS_MAX_OUTPUT_BOXES_PER_CLASS ? Precision::I32 : Precision::FP32;
+        ov::element::Type inPrecision = i == NMS_MAX_OUTPUT_BOXES_PER_CLASS ? ov::element::i32 : ov::element::f32;
         inDataConf.emplace_back(LayoutType::ncsp, inPrecision);
     }
 
     std::vector<PortConfigurator> outDataConf;
     outDataConf.reserve(outputShapes.size());
     for (size_t i = 0; i < outputShapes.size(); ++i) {
-        Precision outPrecision = i == NMS_SELECTED_SCORES ? Precision::FP32 : Precision::I32;
+        ov::element::Type outPrecision = i == NMS_SELECTED_SCORES ? ov::element::f32 : ov::element::i32;
         outDataConf.emplace_back(LayoutType::ncsp, outPrecision);
     }
 

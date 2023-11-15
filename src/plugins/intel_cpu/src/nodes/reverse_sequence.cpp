@@ -72,12 +72,12 @@ void ReverseSequence::initSupportedPrimitiveDescriptors() {
         return;
 
     lengthsPrecision = getOriginalInputPrecisionAtPort(REVERSESEQUENCE_LENGTHS);
-    if (lengthsPrecision != Precision::I32 && lengthsPrecision != Precision::FP32)
-        lengthsPrecision = Precision::I32;
+    if (lengthsPrecision != ov::element::i32 && lengthsPrecision != ov::element::f32)
+        lengthsPrecision = ov::element::i32;
 
-    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
                           {LayoutType::ncsp, lengthsPrecision}},
-                         {{LayoutType::ncsp, Precision::FP32}},
+                         {{LayoutType::ncsp, ov::element::f32}},
                          impl_desc_type::ref_any);
 }
 
@@ -172,10 +172,10 @@ void ReverseSequence::execute(dnnl::stream strm) {
         OPENVINO_THROW(errorPrefix, " has no compiled executor");
 
     const auto precision = getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemory().getDesc().getPrecision();
-    if (!one_of(precision, Precision::FP32, Precision::I32))
+    if (!one_of(precision, ov::element::f32, ov::element::i32))
         OPENVINO_THROW("ReverseSequence layer does not support ", precision , " precision");
 
-    if (precision == Precision::FP32)
+    if (precision == ov::element::f32)
         execPtr->exec<float>(getParentEdgeAt(REVERSESEQUENCE_DATA)->getMemoryPtr(),
                              getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemoryPtr(),
                              getChildEdgeAt(0)->getMemoryPtr());

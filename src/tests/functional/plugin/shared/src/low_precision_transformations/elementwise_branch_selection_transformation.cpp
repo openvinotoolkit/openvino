@@ -100,7 +100,7 @@ void ElementwiseBranchSelectionTransformation::Run() {
             } else if (type == "Convolution") {
                 const auto& precisionIt = it.second.find("runtimePrecision");
                 const auto precision = precisionIt->second.as<std::string>();
-                ASSERT_EQ("U8", precision);
+                ASSERT_EQ("u8", precision);
             }
         }
 

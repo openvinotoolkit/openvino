@@ -12,27 +12,27 @@ namespace ov {
 namespace intel_cpu {
 
 struct load_emitter_params : public emitter_params {
-    load_emitter_params(InferenceEngine::Precision src_prc, InferenceEngine::Precision dst_prc,
+    load_emitter_params(ov::element::Type src_prc, ov::element::Type dst_prc,
                         int load_num, bool is_fill = false, std::string fill_value = "zero"):
         src_prc_(src_prc), dst_prc_(dst_prc), load_num_(load_num), is_fill_(is_fill), fill_value_(fill_value) {}
 
     size_t hash() const override;
 
-    InferenceEngine::Precision src_prc_;
-    InferenceEngine::Precision dst_prc_;
+    ov::element::Type src_prc_;
+    ov::element::Type dst_prc_;
     int load_num_;
     bool is_fill_;
     std::string fill_value_;
 };
 
 struct store_emitter_params : public emitter_params {
-    store_emitter_params(InferenceEngine::Precision src_prc, InferenceEngine::Precision dst_prc, int store_num):
+    store_emitter_params(ov::element::Type src_prc, ov::element::Type dst_prc, int store_num):
         src_prc_(src_prc), dst_prc_(dst_prc), store_num_(store_num) {}
 
     size_t hash() const override;
 
-    InferenceEngine::Precision src_prc_;
-    InferenceEngine::Precision dst_prc_;
+    ov::element::Type src_prc_;
+    ov::element::Type dst_prc_;
     int store_num_;
 };
 
@@ -45,8 +45,8 @@ enum arithmetic_mode {
 class jit_load_emitter : public jit_emitter {
 public:
     jit_load_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                     InferenceEngine::Precision src_prc, InferenceEngine::Precision dst_prc, int load_num,
-                     InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32,
+                     ov::element::Type src_prc, ov::element::Type dst_prc, int load_num,
+                     ov::element::Type exec_prc = ov::element::f32,
                      bool is_fill = false, std::string fill_value = "zero",
                      emitter_in_out_map in_out_type = emitter_in_out_map::gpr_to_vec);
     /**
@@ -82,7 +82,7 @@ private:
     void load_bytes_to_dword_extension(const Vmm &vmm, const Xbyak::Reg64 &reg, int offset, bool is_signed, int load_size) const;
 
     template <typename Vmm>
-    void load_words_to_dword_extension(const Vmm &vmm, const Xbyak::Reg64 &reg, int offset, InferenceEngine::Precision prc, int load_size) const;
+    void load_words_to_dword_extension(const Vmm &vmm, const Xbyak::Reg64 &reg, int offset, ov::element::Type prc, int load_size) const;
 
     template <typename Vmm>
     void fill_with_default(const Vmm &vmm, std::string fill_value, const int &load_num) const;
@@ -95,8 +95,8 @@ private:
     int v_len_elt_;  // 4/8/16
     int load_num_;
     int load_size_;
-    InferenceEngine::Precision src_prc_;
-    InferenceEngine::Precision dst_prc_;
+    ov::element::Type src_prc_;
+    ov::element::Type dst_prc_;
     bool is_fill_;
     std::string fill_value_;
 };
@@ -104,9 +104,9 @@ private:
 class jit_store_emitter : public jit_emitter {
 public:
     jit_store_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                      InferenceEngine::Precision src_prc, InferenceEngine::Precision dst_prc, int store_num,
+                      ov::element::Type src_prc, ov::element::Type dst_prc, int store_num,
                       arithmetic_mode mode = arithmetic_mode::saturation,
-                      InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32,
+                      ov::element::Type exec_prc = ov::element::f32,
                       emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_gpr);
 
     /**
@@ -145,7 +145,7 @@ private:
     void store_dword_to_byte_extension(const Xbyak::Reg64 &reg, int offset, bool is_signed, int store_size) const;
 
     template <typename Vmm>
-    void store_dword_to_word_extension(const Xbyak::Reg64 &reg, int offset, InferenceEngine::Precision precision, int store_size) const;
+    void store_dword_to_word_extension(const Xbyak::Reg64 &reg, int offset, ov::element::Type precision, int store_size) const;
 
     void register_table_entries() override;
 
@@ -159,8 +159,8 @@ private:
     int v_len_elt_;  // 4/8/16
     int store_num_;
     int store_size_;
-    InferenceEngine::Precision src_prc_;
-    InferenceEngine::Precision dst_prc_;
+    ov::element::Type src_prc_;
+    ov::element::Type dst_prc_;
     arithmetic_mode mode_ = arithmetic_mode::saturation;
     std::shared_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16_;
     // below members are to keep original vector values

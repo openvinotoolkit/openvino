@@ -38,7 +38,7 @@ const std::vector<PullReshapeThroughDequantizationTestValues> params = {
         ngraph::element::f32,
         {},
         "output_original",
-        "U8"
+        "u8"
     },
     {
         ngraph::element::f32,
@@ -57,7 +57,7 @@ const std::vector<PullReshapeThroughDequantizationTestValues> params = {
         ngraph::element::f32,
         {},
         "output_original",
-        "FP32"
+        "f32"
     }
 };
 

@@ -192,7 +192,7 @@ TEST(MemDescTest, KeepOrder) {
     using dnnl::memory;
     Shape dims(VectorDims{7, 3, 1, 5});
     memory::data_type dataType = memory::data_type::u8;
-    DnnlBlockedMemoryDesc descPalanar(DnnlExtensionUtils::DataTypeToIEPrecision(dataType), dims);
+    DnnlBlockedMemoryDesc descPalanar(DnnlExtensionUtils::DataTypeToElementType(dataType), dims);
     ASSERT_THAT(descPalanar.getOrder(), ElementsAre(0, 1, 2, 3));
 
     DnnlBlockedMemoryDesc descTailC(dims, dataType, memory::format_tag::acdb);
@@ -235,7 +235,7 @@ TEST(MemDescTest, UndefinedState) {
     ASSERT_TRUE(definedDesc->isDefined());
 
     auto creator = BlockedDescCreator::getCommonCreators().at(LayoutType::nCsp8c);
-    auto cpuBlockedDesc = creator->createSharedDesc(Precision::FP32, pluginShape);
+    auto cpuBlockedDesc = creator->createSharedDesc(ov::element::f32, pluginShape);
 
     ASSERT_FALSE(cpuBlockedDesc->isDefined());
 
@@ -258,7 +258,7 @@ TEST(MemDescTest, UndefinedState) {
 TEST(MemDescTest, MemSize) {
     constexpr size_t undefSize = MemoryDesc::UNDEFINED_SIZE;
     static const auto dnnlDataType = dnnl::memory::data_type::f32;
-    static const Precision iePrc = Precision::FP32;
+    static const ov::element::Type iePrc = ov::element::f32;
 
 
     ngraph::PartialShape ngraphShapeUndef({{16}, {-1, -1}, {20, 30}, {7}});

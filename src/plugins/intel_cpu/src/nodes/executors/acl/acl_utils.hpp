@@ -3,10 +3,9 @@
 //
 #pragma once
 
-#include "ie_precision.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "arm_compute/core/Types.h"
-
+// #include "openvino/core/type/element_type.hpp"
 namespace ov {
 namespace intel_cpu {
 
@@ -76,19 +75,19 @@ inline Dim vectorProduct(const VectorDims& vec, size_t size) {
 * @param precision precision to be converted
 * @return ComputeLibrary DataType or UNKNOWN if precision is not mapped to DataType
 */
-inline arm_compute::DataType precisionToAclDataType(InferenceEngine::Precision precision) {
+inline arm_compute::DataType precisionToAclDataType(ov::element::Type precision) {
     switch (precision) {
-        case InferenceEngine::Precision::I8:    return arm_compute::DataType::S8;
-        case InferenceEngine::Precision::U8:    return arm_compute::DataType::U8;
-        case InferenceEngine::Precision::I16:   return arm_compute::DataType::S16;
-        case InferenceEngine::Precision::U16:   return arm_compute::DataType::U16;
-        case InferenceEngine::Precision::I32:   return arm_compute::DataType::S32;
-        case InferenceEngine::Precision::U32:   return arm_compute::DataType::U32;
-        case InferenceEngine::Precision::FP16:  return arm_compute::DataType::F16;
-        case InferenceEngine::Precision::FP32:  return arm_compute::DataType::F32;
-        case InferenceEngine::Precision::FP64:  return arm_compute::DataType::F64;
-        case InferenceEngine::Precision::I64:   return arm_compute::DataType::S64;
-        case InferenceEngine::Precision::BF16:  return arm_compute::DataType::BFLOAT16;
+        case ov::element::i8:    return arm_compute::DataType::S8;
+        case ov::element::u8:    return arm_compute::DataType::U8;
+        case ov::element::i16:   return arm_compute::DataType::S16;
+        case ov::element::u16:   return arm_compute::DataType::U16;
+        case ov::element::i32:   return arm_compute::DataType::S32;
+        case ov::element::u32:   return arm_compute::DataType::U32;
+        case ov::element::f16:  return arm_compute::DataType::F16;
+        case ov::element::f32:  return arm_compute::DataType::F32;
+        case ov::element::f64:  return arm_compute::DataType::F64;
+        case ov::element::i64:   return arm_compute::DataType::S64;
+        case ov::element::bf16:  return arm_compute::DataType::BFLOAT16;
         default:                                return arm_compute::DataType::UNKNOWN;
     }
 }

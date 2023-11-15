@@ -254,8 +254,8 @@ public:
                   const ov::snippets::lowered::ExpressionPtr& expr);
 
 protected:
-    InferenceEngine::Precision src_prc;
-    InferenceEngine::Precision dst_prc;
+    ov::element::Type src_prc;
+    ov::element::Type dst_prc;
 
     size_t count = 0;
     size_t byte_offset = 0;

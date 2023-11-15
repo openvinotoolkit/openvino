@@ -49,8 +49,8 @@ struct jit_uni_roi_pooling_kernel_f32 : public jit_uni_roi_pooling_kernel, publi
     };
 
     void generate() override {
-        load_emitter.reset(new jit_load_emitter(this, isa, jpp_.src_prc, Precision::FP32, step));
-        store_emitter.reset(new jit_store_emitter(this, isa, Precision::FP32, jpp_.dst_prc, step));
+        load_emitter.reset(new jit_load_emitter(this, isa, jpp_.src_prc, ov::element::f32, step));
+        store_emitter.reset(new jit_store_emitter(this, isa, ov::element::f32, jpp_.dst_prc, step));
         store_empty_roi_emitter.reset(new jit_store_emitter(this, isa, jpp_.src_prc, jpp_.dst_prc, step));
 
         this->preamble();
@@ -335,8 +335,8 @@ size_t RoiPoolingKey::hash() const {
     seed = hash_combine(seed, refParams.oh);
     seed = hash_combine(seed, refParams.ow);
     seed = hash_combine(seed, refParams.alg);
-    seed = hash_combine(seed, refParams.src_prc.getPrecVal());
-    seed = hash_combine(seed, refParams.dst_prc.getPrecVal());
+    seed = hash_combine(seed, refParams.src_prc.hash());
+    seed = hash_combine(seed, refParams.dst_prc.hash());
     seed = hash_combine(seed, refParams.spatial_scale);
     seed = hash_combine(seed, refParams.pooled_h);
     seed = hash_combine(seed, refParams.pooled_w);
@@ -449,12 +449,12 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
     refParams.src_prc = getOriginalInputPrecisionAtPort(0);
 
     if (!mayiuse(avx512_core)) {
-        if (refParams.src_prc == Precision::BF16)
-            refParams.src_prc = Precision::FP32;
+        if (refParams.src_prc == ov::element::bf16)
+            refParams.src_prc = ov::element::f32;
     }
 
-    if (impl_type != impl_desc_type::ref && refParams.src_prc == Precision::FP16) {
-        refParams.src_prc = Precision::FP32;
+    if (impl_type != impl_desc_type::ref && refParams.src_prc == ov::element::f16) {
+        refParams.src_prc = ov::element::f32;
     }
 
     addSupportedPrimDesc({{format, refParams.src_prc},
@@ -829,9 +829,9 @@ std::shared_ptr<ROIPooling::ROIPoolingExecutor> ROIPooling::ROIPoolingExecutor::
     ROIPoolingContext ctx = { nullptr, jpp };
 
     OV_SWITCH(intel_cpu, ROIPoolingExecutorCreation, ctx, jpp.src_prc,
-              OV_CASE(Precision::FP32, float),
-              OV_CASE(Precision::BF16, bfloat16_t),
-              OV_CASE(Precision::FP16, float16_t))
+              OV_CASE(ov::element::f32, float),
+              OV_CASE(ov::element::bf16, bfloat16_t),
+              OV_CASE(ov::element::f16, float16_t))
 
     return ctx.executor;
 }

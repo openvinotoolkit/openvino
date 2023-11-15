@@ -77,13 +77,13 @@ void MultiplyTransformation::Run() {
     auto to_string = [](const ngraph::element::Type& precision) -> std::string {
         switch (precision) {
             case ngraph::element::f32: {
-                return "FP32";
+                return "f32";
             }
             case ngraph::element::i8: {
-                return "I8";
+                return "i8";
             }
             case ngraph::element::u8: {
-                return "U8";
+                return "u8";
             }
             default: {
                 return "";

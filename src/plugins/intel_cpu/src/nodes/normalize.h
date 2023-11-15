@@ -108,8 +108,8 @@ public:
         bool cornerCase = false;
         float eps = 1e-10f;
 
-        InferenceEngine::Precision input_prec = InferenceEngine::Precision::UNSPECIFIED;
-        InferenceEngine::Precision output_prec = InferenceEngine::Precision::UNSPECIFIED;
+        ov::element::Type input_prec = ov::element::undefined;
+        ov::element::Type output_prec = ov::element::undefined;
         size_t src_data_size = 0lu;
         size_t dst_data_size = 0lu;
     };

@@ -1327,7 +1327,7 @@ bool DeformableConvolution::created() const {
     return getType() == Type::DeformableConvolution;
 }
 
-InferenceEngine::Precision DeformableConvolution::getRuntimePrecision() const {
+ov::element::Type DeformableConvolution::getRuntimePrecision() const {
     return getMaxPrecision(getInputPrecisions());
 }
 

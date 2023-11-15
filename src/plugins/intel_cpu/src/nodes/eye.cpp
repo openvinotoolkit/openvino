@@ -78,11 +78,11 @@ struct Eye::EyeExecute {
 void Eye::execute(dnnl::stream strm) {
     auto outputPrec = getChildEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
     OV_SWITCH(intel_cpu, EyeExecute, this, outputPrec,
-              OV_CASE(Precision::FP32, float),
-              OV_CASE(Precision::BF16, bfloat16_t),
-              OV_CASE(Precision::I32, int),
-              OV_CASE(Precision::I8, int8_t),
-              OV_CASE(Precision::U8, uint8_t))
+              OV_CASE(ov::element::f32, float),
+              OV_CASE(ov::element::bf16, bfloat16_t),
+              OV_CASE(ov::element::i32, int),
+              OV_CASE(ov::element::i8, int8_t),
+              OV_CASE(ov::element::u8, uint8_t))
 }
 
 void Eye::initSupportedPrimitiveDescriptors() {
@@ -93,9 +93,9 @@ void Eye::initSupportedPrimitiveDescriptors() {
 
     inDataConf.reserve(inputShapes.size());
     for (size_t i = 0; i < inputShapes.size(); ++i)
-        inDataConf.emplace_back(LayoutType::ncsp, Precision::I32);
+        inDataConf.emplace_back(LayoutType::ncsp, ov::element::i32);
     outDataConf.reserve(1);
-    outDataConf.emplace_back(LayoutType::ncsp, convertPrecision(outType));
+    outDataConf.emplace_back(LayoutType::ncsp, outType);
 
     addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref);
 }

@@ -49,7 +49,7 @@ namespace {
         if (!ftz) {
             return;
         }
-        if (src.getDesc().getPrecision() != Precision::FP32 || dst.getDesc().getPrecision() == Precision::BF16) {
+        if (src.getDesc().getPrecision() != ov::element::f32 || dst.getDesc().getPrecision() == ov::element::bf16) {
             return;
         }
         size_t offset = 0;

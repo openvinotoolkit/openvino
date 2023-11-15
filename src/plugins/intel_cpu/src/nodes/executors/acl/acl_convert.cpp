@@ -79,48 +79,48 @@ bool ACLConvertExecutorBuilder::isSupported(const ConvertParams& convertParams,
                                             const MemoryDescPtr& dstDesc) const {
     if (convertParams.srcPrc != convertParams.dstPrc) {
         if (!one_of(convertParams.srcPrc,
-                    Precision::I8,
-                    Precision::U8,
-                    Precision::U16,
-                    Precision::I16,
-                    Precision::FP16,
-                    Precision::I32,
-                    Precision::FP32)) {
+                    ov::element::i8,
+                    ov::element::u8,
+                    ov::element::u16,
+                    ov::element::i16,
+                    ov::element::f16,
+                    ov::element::i32,
+                    ov::element::f32)) {
             DEBUG_LOG("NECopy does not support source precision: ", convertParams.srcPrc.name());
             return false;
         }
-        if ((convertParams.srcPrc == Precision::I8 && !one_of(convertParams.dstPrc,
-                                                              Precision::I16,
-                                                              Precision::I32,
-                                                              Precision::FP16,
-                                                              Precision::FP32)) ||
-            (convertParams.srcPrc == Precision::U8 && !one_of(convertParams.dstPrc,
-                                                              Precision::U16,
-                                                              Precision::I16,
-                                                              Precision::I32,
-                                                              Precision::FP16,
-                                                              Precision::FP32)) ||
-            (convertParams.srcPrc == Precision::U16 && !one_of(convertParams.dstPrc,
-                                                               Precision::U8,
-                                                               Precision::U32)) ||
-            (convertParams.srcPrc == Precision::I16 && !one_of(convertParams.dstPrc,
-                                                               Precision::I8,
-                                                               Precision::U8,
-                                                               Precision::I32)) ||
-            (convertParams.srcPrc == Precision::FP16 && !one_of(convertParams.dstPrc,
-                                                                Precision::I8,
-                                                                Precision::FP32,
-                                                                Precision::I32,
-                                                                Precision::U8)) ||
-            (convertParams.srcPrc == Precision::I32 && !one_of(convertParams.dstPrc,
-                                                               Precision::I8,
-                                                               Precision::FP16,
-                                                               Precision::FP32,
-                                                               Precision::U8)) ||
-            (convertParams.srcPrc == Precision::FP32 && !one_of(convertParams.dstPrc,
-                                                                Precision::BF16,
-                                                                Precision::FP16,
-                                                                Precision::I32))) {
+        if ((convertParams.srcPrc == ov::element::i8 && !one_of(convertParams.dstPrc,
+                                                              ov::element::i16,
+                                                              ov::element::i32,
+                                                              ov::element::f16,
+                                                              ov::element::f32)) ||
+            (convertParams.srcPrc == ov::element::u8 && !one_of(convertParams.dstPrc,
+                                                              ov::element::u16,
+                                                              ov::element::i16,
+                                                              ov::element::i32,
+                                                              ov::element::f16,
+                                                              ov::element::f32)) ||
+            (convertParams.srcPrc == ov::element::u16 && !one_of(convertParams.dstPrc,
+                                                               ov::element::u8,
+                                                               ov::element::u32)) ||
+            (convertParams.srcPrc == ov::element::i16 && !one_of(convertParams.dstPrc,
+                                                               ov::element::i8,
+                                                               ov::element::u8,
+                                                               ov::element::i32)) ||
+            (convertParams.srcPrc == ov::element::f16 && !one_of(convertParams.dstPrc,
+                                                                ov::element::i8,
+                                                                ov::element::f32,
+                                                                ov::element::i32,
+                                                                ov::element::u8)) ||
+            (convertParams.srcPrc == ov::element::i32 && !one_of(convertParams.dstPrc,
+                                                               ov::element::i8,
+                                                               ov::element::f16,
+                                                               ov::element::f32,
+                                                               ov::element::u8)) ||
+            (convertParams.srcPrc == ov::element::f32 && !one_of(convertParams.dstPrc,
+                                                                ov::element::bf16,
+                                                                ov::element::f16,
+                                                                ov::element::i32))) {
             DEBUG_LOG("NECopy does not support passed combination of source and destination precisions. ",
                       "source precision: ", convertParams.srcPrc.name(), " destination precsion: ", convertParams.dstPrc.name());
             return false;

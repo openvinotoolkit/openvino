@@ -47,9 +47,9 @@ const std::vector<LayerTestsDefinitions::ElementwiseBranchSelectionTestValues> p
             {"maxPool", "result"}
         },
         {
-            {"convolution1", "U8"},
-            {"convolution2", "U8"},
-            {"eltwise", "U8"}
+            {"convolution1", "u8"},
+            {"convolution2", "u8"},
+            {"eltwise", "u8"}
         }
     },
     {
@@ -78,9 +78,9 @@ const std::vector<LayerTestsDefinitions::ElementwiseBranchSelectionTestValues> p
             {"maxPool", "result"}
         },
         {
-            {"convolution1", "U8"},
-            {"convolution2", "U8"},
-            {"eltwise", "U8"}
+            {"convolution1", "u8"},
+            {"convolution2", "u8"},
+            {"eltwise", "u8"}
         }
     }
 };

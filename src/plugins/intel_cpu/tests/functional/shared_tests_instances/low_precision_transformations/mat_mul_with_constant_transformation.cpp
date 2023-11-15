@@ -22,7 +22,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { 256ul, {{1}, {1}, {2, 1}, {2, 1}}, {-128.f}, {127.f}, {-128.f, -12.8f}, {127.f, 12.7f} },
         { {}, {}, {} },
         "FullyConnected",
-        "U8"
+        "u8"
     },
     // 3D with dequantize on weights
     {
@@ -32,7 +32,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         {},
         { ngraph::element::f32, {}, {0.1f} },
         "FullyConnected",
-        "U8"
+        "u8"
     },
     // 3D with different values
     {
@@ -42,7 +42,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { 256ul, {{1}, {1}, {2, 1}, {2, 1}}, {-128.f}, {127.f}, {-128.f, -12.8f}, {127.f, 12.7f} },
         { {}, {}, {} },
         "FullyConnected",
-        "U8"
+        "u8"
     },
     // 4D with different values
     {
@@ -52,7 +52,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { 256ul, {{1}, {1}, {2, 1}, {2, 1}}, {-128.f}, {127.f}, {-128.f, -12.8f}, {127.f, 12.7f} },
         { {}, {}, {} },
         "MatMul",
-        "U8"
+        "u8"
     },
     // 4D with Dq on weights
     {
@@ -62,7 +62,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         {},
         { ngraph::element::f32, {}, {{0.1f, 0.01f}, ngraph::element::f32, ngraph::Shape{ 2, 1 }} },
         "MatMul",
-        "U8"
+        "u8"
     },
     // 3D with the same values
     {
@@ -72,7 +72,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { 256ul, {{1}, {1}, {1}, {1}}, {-128.f}, {127.f}, {-128.f}, {127.f} },
         { {}, {}, {} },
         "FullyConnected",
-        "U8"
+        "u8"
     },
     // 2D with subtract on activations
     {
@@ -82,7 +82,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { 256ul, {{1}, {1}, {1}, {1}}, {-128.f}, {127.f}, {-12.8f}, {12.7f} },
         { {}, {}, {} },
         "FullyConnected",
-        "U8"
+        "u8"
     },
     // 2D with subtract on activations & Dq on weights
     {
@@ -92,7 +92,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         {},
         { ngraph::element::f32, {}, {0.1f} },
         "FullyConnected",
-        "U8"
+        "u8"
     }
 };
 

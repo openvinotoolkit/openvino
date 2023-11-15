@@ -197,7 +197,7 @@ protected:
         auto concat = builder::makeConcat({lastNode0, lastNode1}, 0);
 
         if (selectedType.empty()) {
-           selectedType = getPrimitiveType() + "_FP32";
+           selectedType = getPrimitiveType() + "_f32";
         }
 
         function = std::make_shared<Function>(concat, ngraphParam, "fq_cache");

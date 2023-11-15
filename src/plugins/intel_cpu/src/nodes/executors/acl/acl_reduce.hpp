@@ -46,8 +46,8 @@ public:
                      const std::vector<MemoryDescPtr>& dstDescs) const override {
         if (reduceAttrs.operation == Algorithm::ReduceMean) {
             if (srcDescs[0]->getPrecision() != dstDescs[0]->getPrecision() ||
-               (srcDescs[0]->getPrecision() != InferenceEngine::Precision::FP32 &&
-                srcDescs[0]->getPrecision() != InferenceEngine::Precision::FP16)) {
+               (srcDescs[0]->getPrecision() != ov::element::f32 &&
+                srcDescs[0]->getPrecision() != ov::element::f16)) {
                 DEBUG_LOG("NEReduceMean does not support precisions:",
                         " src[0]=", srcDescs[0]->getPrecision(),
                         " dst[0]=", dstDescs[0]->getPrecision());
@@ -55,9 +55,9 @@ public:
             }
         } else {
             if (srcDescs[0]->getPrecision() != dstDescs[0]->getPrecision() ||
-               (srcDescs[0]->getPrecision() != InferenceEngine::Precision::FP32 &&
-                srcDescs[0]->getPrecision() != InferenceEngine::Precision::FP16 &&
-                srcDescs[0]->getPrecision() != InferenceEngine::Precision::I32)) {
+               (srcDescs[0]->getPrecision() != ov::element::f32 &&
+                srcDescs[0]->getPrecision() != ov::element::f16 &&
+                srcDescs[0]->getPrecision() != ov::element::i32)) {
                 DEBUG_LOG("NEReductionOperation does not support precisions:",
                         " src[0]=", srcDescs[0]->getPrecision(),
                         " dst[0]=", dstDescs[0]->getPrecision());

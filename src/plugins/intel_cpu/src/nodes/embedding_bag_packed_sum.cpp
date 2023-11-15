@@ -44,24 +44,24 @@ void EmbeddingBagPackedSum::initSupportedPrimitiveDescriptors() {
         return;
 
     std::string logPrefix = std::string("Layer EmbeddingBagSum with name '") + _layerName + "' ";
-    static const std::set<Precision> supportedPrecisions =
-            {Precision::FP32, Precision::I8, Precision::U8, Precision::I32};
+    static const std::set<ov::element::Type> supportedPrecisions =
+            {ov::element::f32, ov::element::i8, ov::element::u8, ov::element::i32};
 
     auto inDataPrecision = getOriginalInputPrecisionAtPort(EMB_TABLE_IDX);
-    if (inDataPrecision == Precision::BF16)
-        inDataPrecision = Precision::FP32;
+    if (inDataPrecision == ov::element::bf16)
+        inDataPrecision = ov::element::f32;
     if (!supportedPrecisions.empty()) {
         if (supportedPrecisions.find(inDataPrecision) == supportedPrecisions.end())
-            OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.name());
+            OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.get_type_name());
     } else {
-        static const std::set<Precision> defaultSupportedPrecisions =
-                {Precision::FP32, Precision::I8, Precision::U8, Precision::I32};
+        static const std::set<ov::element::Type> defaultSupportedPrecisions =
+                {ov::element::f32, ov::element::i8, ov::element::u8, ov::element::i32};
         if (defaultSupportedPrecisions.find(inDataPrecision) == defaultSupportedPrecisions.end())
-            OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.name());
+            OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.get_type_name());
     }
 
     std::vector<PortConfigurator> inDataConfigurators({{LayoutType::ncsp, inDataPrecision},
-                                                       {LayoutType::ncsp, Precision::I32}});
+                                                       {LayoutType::ncsp, ov::element::i32}});
     if (inputShapes.size() > PER_SAMPLE_WEIGHTS_IDX)
         inDataConfigurators.push_back({LayoutType::ncsp, inDataPrecision});
 

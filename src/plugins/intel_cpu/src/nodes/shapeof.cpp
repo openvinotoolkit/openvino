@@ -49,12 +49,12 @@ void ShapeOf::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    Precision precision = getOriginalInputPrecisionAtPort(0);
+    ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
 
     const LayoutType dataFormats[4] = { LayoutType::ncsp, LayoutType::nspc, LayoutType::nCsp16c, LayoutType::nCsp8c };
     for (const auto &df : dataFormats) {
         addSupportedPrimDesc({{df, precision}},
-                             {{LayoutType::ncsp, Precision::I32}},
+                             {{LayoutType::ncsp, ov::element::i32}},
                              impl_desc_type::ref);
     }
 }

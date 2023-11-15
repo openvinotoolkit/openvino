@@ -4,7 +4,6 @@
 
 #include "rnn.h"
 #include <utils/general_utils.h>
-#include "ie_precision.hpp"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/common/cpu_convert.h"
 #include "utils/bfloat16.hpp"
@@ -487,21 +486,21 @@ bool RNN::created() const {
 }
 
 void RNN::configurePortDataTypes() {
-    inDataTypes[xIdx] = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(0));
-    inDataTypes[hIdx] = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(1));
+    inDataTypes[xIdx] = DnnlExtensionUtils::ElementTypeToDataType(getOriginalInputPrecisionAtPort(0));
+    inDataTypes[hIdx] = DnnlExtensionUtils::ElementTypeToDataType(getOriginalInputPrecisionAtPort(1));
     if (haveCellState(cell_type))
         inDataTypes[cIdx] = memory::data_type::f32; // @todo bf16 is also allowed, should be tried out
     if (!is_cell)
         inDataTypes[sIdx] = memory::data_type::s32;
-    inDataTypes[wIdx] = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(wIdx));
-    inDataTypes[rIdx] = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(rIdx));
+    inDataTypes[wIdx] = DnnlExtensionUtils::ElementTypeToDataType(getOriginalInputPrecisionAtPort(wIdx));
+    inDataTypes[rIdx] = DnnlExtensionUtils::ElementTypeToDataType(getOriginalInputPrecisionAtPort(rIdx));
 
     inDataTypes[bIdx] = memory::data_type::f32; // @todo bf16 is also allowed, should be tried out
     if (haveAttention(cell_type))
-        inDataTypes[aIdx] = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(aIdx));
+        inDataTypes[aIdx] = DnnlExtensionUtils::ElementTypeToDataType(getOriginalInputPrecisionAtPort(aIdx));
 
     if (!is_cell)
-        outDataTypes[yIdx] = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(0));
+        outDataTypes[yIdx] = DnnlExtensionUtils::ElementTypeToDataType(getOriginalOutputPrecisionAtPort(0));
 
     outDataTypes[hoIdx] = inDataTypes[hIdx]; // required by oneDNN. Output hidden state is a input hidden state for the next iteration
 
@@ -747,12 +746,12 @@ void RNN::fillSequenceDesc() {
 
 template <typename Prec>
 void RNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t rIdx) {
-    const auto& weightPrec       = DnnlExtensionUtils::DataTypeToIEPrecision(inDataTypes[wIdx]);
-    const auto& targetWeightPrec = DnnlExtensionUtils::DataTypeToIEPrecision(weightsByinputDataType.at(inDataTypes[xIdx]));
+    const auto& weightPrec       = DnnlExtensionUtils::DataTypeToElementType(inDataTypes[wIdx]);
+    const auto& targetWeightPrec = DnnlExtensionUtils::DataTypeToElementType(weightsByinputDataType.at(inDataTypes[xIdx]));
 
     // create weight blobs (data and state part)
     const VectorDims dims_w = { L, D, DC, G, SC };
-    TensorDesc w_data_desc(targetWeightPrec, dims_w, getWeightsLayoutByDims(dims_w, false));
+    TensorDesc w_data_desc(InferenceEngine::details::convertPrecision(targetWeightPrec), dims_w, getWeightsLayoutByDims(dims_w, false));
 
     Blob::Ptr w_data_mem = make_shared_blob<Prec>(w_data_desc);
     w_data_mem->allocate();
@@ -761,7 +760,7 @@ void RNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t rIdx)
         IE_THROW(NotAllocated) << "Internal blob was not allocated for node " << getName() << ".";
 
     const VectorDims dims_s = { L, D, SC, G, SC };
-    TensorDesc w_state_desc(targetWeightPrec, dims_s, getWeightsLayoutByDims(dims_s, false));
+    TensorDesc w_state_desc(InferenceEngine::details::convertPrecision(targetWeightPrec), dims_s, getWeightsLayoutByDims(dims_s, false));
     Blob::Ptr w_state_mem = make_shared_blob<Prec>(w_state_desc);
     w_state_mem->allocate();
     auto r_ptr = static_cast<Prec*>(w_state_mem->buffer());
@@ -809,16 +808,16 @@ void RNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t rIdx)
     internalBlobs.push_back(w_state_mem);
 }
 
-template <Precision::ePrecision Prec>
+template <ov::element::Type_t Prec>
 void RNN::fillBiases(const int *gate_map) {
-    using dataType = typename PrecisionTrait<Prec>::value_type;
+    using dataType = typename element_type_traits<Prec>::value_type;
 
     if (inDataTypes[bIdx] != memory::data_type::f32) {
-        THROW_ERROR("doesn't support bias data type: ", DnnlExtensionUtils::DataTypeToIEPrecision(inDataTypes[bIdx]));
+        THROW_ERROR("doesn't support bias data type: ", DnnlExtensionUtils::DataTypeToElementType(inDataTypes[bIdx]));
     }
 
     VectorDims dims_b = { L, D, Gb, SC };
-    TensorDesc w_bias_data_desc(Prec, dims_b, getWeightsLayoutByDims(dims_b, false));
+    TensorDesc w_bias_data_desc(InferenceEngine::details::convertPrecision(Prec), dims_b, getWeightsLayoutByDims(dims_b, false));
     Blob::Ptr w_bias_data_mem = make_shared_blob<dataType>(w_bias_data_desc);
     w_bias_data_mem->allocate();
     auto b_ptr = static_cast<dataType*>(w_bias_data_mem->buffer());
@@ -832,14 +831,14 @@ void RNN::fillBiases(const int *gate_map) {
     std::vector<dataType> ie_b_vec(elementsCount);
     cpu_convert(constBlob->getData(),
                 &ie_b_vec[0],
-                DnnlExtensionUtils::DataTypeToIEPrecision(constBlob->getDataType()),
+                DnnlExtensionUtils::DataTypeToElementType(constBlob->getDataType()),
                 Prec,
                 elementsCount);
 
     for (size_t g = 0; g < Gb; g++) {
         dataType *l_b_ptr = b_ptr + gate_map[g] * SC;
         const dataType *l_ie_b_ptr = &ie_b_vec[g * SC];
-        cpu_memcpy(l_b_ptr, l_ie_b_ptr, SC * sizeof(typename PrecisionTrait<Prec>::value_type));
+        cpu_memcpy(l_b_ptr, l_ie_b_ptr, SC * sizeof(typename element_type_traits<Prec>::value_type));
     }
     // @todo replace push_back with copy assignment by index, since order matters
     internalBlobs.push_back(w_bias_data_mem);
@@ -910,10 +909,10 @@ void RNN::copyWeightsData() {
     } else if (dataType == memory::data_type::u8 || dataType == memory::data_type::s8) {
         fillWeights<int8_t>(gate_map, wIdx, rIdx);
     } else {
-        THROW_ERROR("has unsupported data type: ", DnnlExtensionUtils::DataTypeToIEPrecision(dataType));
+        THROW_ERROR("has unsupported data type: ", DnnlExtensionUtils::DataTypeToElementType(dataType));
     }
 
-    fillBiases<Precision::FP32>(gate_map);
+    fillBiases<ov::element::f32>(gate_map);
 }
 
 namespace {

@@ -59,8 +59,8 @@ size_t MVNKey::hash() const {
     seed = hash_combine(seed, mvnAttrs.normalizeVariance_);
     seed = hash_combine(seed, mvnAttrs.epsValue_);
     seed = hash_combine(seed, mvnAttrs.epsMode_);
-    seed = hash_combine(seed, mvnAttrs.src_prc.getPrecVal());
-    seed = hash_combine(seed, mvnAttrs.dst_prc.getPrecVal());
+    seed = hash_combine(seed, mvnAttrs.src_prc.hash());
+    seed = hash_combine(seed, mvnAttrs.dst_prc.hash());
     seed = hash_combine(seed, mvnAttrs.layout);
     seed = hash_combine(seed, get_attr_hash(*attr.get()));
     return seed;
@@ -85,8 +85,8 @@ bool MVNKey::operator==(const MVNKey& rhs) const {
 #if defined(OPENVINO_ARCH_X86_64)
 
 // some utility functions
-static inline bool isFloatCompatible(Precision prc) {
-    return one_of(prc, Precision::FP32, Precision::BF16, Precision::FP16);
+static inline bool isFloatCompatible(ov::element::Type prc) {
+    return one_of(prc, ov::element::f32, ov::element::bf16, ov::element::f16);
 }
 
 // 8/4/2/1 tile
@@ -119,16 +119,16 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
     }
 
     void generate() override {
-        Precision dst_prc = isFloatCompatible(jcp_.src_prc) ? Precision::FP32 : Precision::I32;
+        ov::element::Type dst_prc = isFloatCompatible(jcp_.src_prc) ? ov::element::f32 : ov::element::i32;
         load_emitter[VECTOR] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, vector_step));
         load_emitter[TAIL8] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 8));
         load_emitter[TAIL4] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 4));
         load_emitter[TAIL2] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 2));
         load_emitter[TAIL1] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 1));
-        load_emitter[TAIL8_FILL] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 8, Precision::FP32, true, "zero"));
-        load_emitter[TAIL4_FILL] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 4, Precision::FP32, true, "zero"));
-        load_emitter[TAIL2_FILL] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 2, Precision::FP32, true, "zero"));
-        load_emitter[TAIL1_FILL] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 1, Precision::FP32, true, "zero"));
+        load_emitter[TAIL8_FILL] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 8, ov::element::f32, true, "zero"));
+        load_emitter[TAIL4_FILL] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 4, ov::element::f32, true, "zero"));
+        load_emitter[TAIL2_FILL] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 2, ov::element::f32, true, "zero"));
+        load_emitter[TAIL1_FILL] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 1, ov::element::f32, true, "zero"));
 
         this->preamble();
         mov(reg_table, l_table);
@@ -662,7 +662,7 @@ private:
                     cmp(reg_work_amount, 4);
                     jl(loop_8bit_end_label, T_NEAR);
 
-                    if (jcp_.src_prc == Precision::I8) {
+                    if (jcp_.src_prc == ov::element::i8) {
                         vpdpbusd(vmm_sum, vmm_one, ptr[reg_src]);
                     } else {
                         uni_vmovdqu(vmm_val, ptr[reg_src]);
@@ -677,7 +677,7 @@ private:
                 L(loop_8bit_end_label);
             }
             // bf16 fast path
-            if (mayiuse(avx512_core_bf16) && jcp_.src_prc == Precision::BF16) {
+            if (mayiuse(avx512_core_bf16) && jcp_.src_prc == ov::element::bf16) {
                 uni_vmovups(vmm_one, ptr[reg_table]);
                 Xbyak::Label loop_bf16_label;
                 Xbyak::Label loop_bf16_end_label;
@@ -869,12 +869,12 @@ private:
         align(64);
         L(l_table);
 
-        if (mayiuse(avx512_core_vnni) && (jcp_.src_prc == Precision::U8 || jcp_.src_prc == Precision::I8)) {
+        if (mayiuse(avx512_core_vnni) && (jcp_.src_prc == ov::element::u8 || jcp_.src_prc == ov::element::i8)) {
             for (int d = 0; d < vector_step; ++d) {
                 dd(cvals[0]);
             }
         }
-        if (mayiuse(avx512_core_bf16) && jcp_.src_prc == Precision::BF16) {
+        if (mayiuse(avx512_core_bf16) && jcp_.src_prc == ov::element::bf16) {
             for (int d = 0; d < vector_step; ++d) {
                 dd(cvals[1]);
             }
@@ -925,16 +925,16 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
             }
         }
 
-        load_emitter[VECTOR] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, vector_step));
-        load_emitter[TAIL8] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, 8));
-        load_emitter[TAIL4] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, 4));
-        load_emitter[TAIL2] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, 2));
-        load_emitter[TAIL1] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, 1));
-        store_emitter[VECTOR] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, vector_step));
-        store_emitter[TAIL8] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, 8));
-        store_emitter[TAIL4] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, 4));
-        store_emitter[TAIL2] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, 2));
-        store_emitter[TAIL1] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, 1));
+        load_emitter[VECTOR] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, vector_step));
+        load_emitter[TAIL8] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, 8));
+        load_emitter[TAIL4] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, 4));
+        load_emitter[TAIL2] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, 2));
+        load_emitter[TAIL1] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, 1));
+        store_emitter[VECTOR] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, vector_step));
+        store_emitter[TAIL8] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, 8));
+        store_emitter[TAIL4] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, 4));
+        store_emitter[TAIL2] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, 2));
+        store_emitter[TAIL1] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, 1));
 
         this->preamble();
 
@@ -1657,7 +1657,7 @@ private:
         }
     }
 
-    void apply_post_ops(InferenceEngine::Precision dst_prc, size_t vmm_idx, bool is_broadcast) {
+    void apply_post_ops(ov::element::Type dst_prc, size_t vmm_idx, bool is_broadcast) {
         const auto &p = attr_.post_ops_;
         int eltwise_inj_idx = 0;
         int depthwise_inj_idx = 0;
@@ -1827,11 +1827,11 @@ void MVN::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    Precision inputPrecision = getOriginalInputPrecisionAtPort(0);
-    Precision outputPrecision = getOriginalOutputPrecisionAtPort(0);
+    ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(0);
+    ov::element::Type outputPrecision = getOriginalOutputPrecisionAtPort(0);
     if (!mayiuse(avx512_core)) {
-        if (outputPrecision == Precision::BF16)
-            outputPrecision = Precision::FP32;
+        if (outputPrecision == ov::element::bf16)
+            outputPrecision = ov::element::f32;
     }
 
     if (!fusedWith.empty()) {
@@ -1849,7 +1849,7 @@ void MVN::initSupportedPrimitiveDescriptors() {
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     // ref with float planar and no fusion
     if (!mayiuse(cpu::x64::sse41)) {
-        inputPrecision = outputPrecision = Precision::FP32;
+        inputPrecision = outputPrecision = ov::element::f32;
     }
 #endif
 //Output precision has to be equal to input precision in ACL MVN
@@ -1870,7 +1870,7 @@ void MVN::initSupportedPrimitiveDescriptors() {
     config.inConfs[0].inPlace(-1);
     config.outConfs[0].inPlace(canBeInplace ? 0 : -1);
     if (inputsNum == 2) {
-        config.inConfs[1].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(InferenceEngine::Precision::I32, getInputShapeAtPort(1)));
+        config.inConfs[1].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, getInputShapeAtPort(1)));
         config.inConfs[1].constant(true);
     }
 
@@ -1907,7 +1907,7 @@ void MVN::initSupportedPrimitiveDescriptors() {
             return;
         else
             // Reference MVN implementation does not support fp16, so set fp32 explicitly
-            inputPrecision = outputPrecision = Precision::FP32;
+            inputPrecision = outputPrecision = ov::element::f32;
 #endif // OV_CPU_WITH_ACL
 
     impl_desc_type impl_type;

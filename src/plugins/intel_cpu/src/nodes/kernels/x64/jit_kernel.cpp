@@ -125,28 +125,28 @@ const registers<Zmm> & zmmregs() {
 namespace internal {
 
 template<>
-InferenceEngine::Precision type2precision<float>() {
-    return InferenceEngine::Precision::FP32;
+ov::element::Type type2precision<float>() {
+    return ov::element::f32;
 }
 
 template<>
-InferenceEngine::Precision type2precision<int32_t>() {
-    return InferenceEngine::Precision::I32;
+ov::element::Type type2precision<int32_t>() {
+    return ov::element::i32;
 }
 
 template<>
-InferenceEngine::Precision type2precision<bfloat16_t>() {
-    return InferenceEngine::Precision::BF16;
+ov::element::Type type2precision<bfloat16_t>() {
+    return ov::element::bf16;
 }
 
 template<>
-InferenceEngine::Precision type2precision<uint8_t>() {
-    return InferenceEngine::Precision::U8;
+ov::element::Type type2precision<uint8_t>() {
+    return ov::element::u8;
 }
 
 template<>
-InferenceEngine::Precision type2precision<int8_t>() {
-    return InferenceEngine::Precision::I8;
+ov::element::Type type2precision<int8_t>() {
+    return ov::element::i8;
 }
 
 cpu_isa_t get_current_isa() {
