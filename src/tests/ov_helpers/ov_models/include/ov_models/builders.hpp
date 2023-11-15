@@ -599,7 +599,5 @@ std::shared_ptr<ov::Node> makeRDFT(const ov::Output<Node>& dataNode,
                                    const std::vector<int64_t>& axes,
                                    const std::vector<int64_t>& signalSize,
                                    const ov::test::utils::DFTOpType opType);
-
-std::shared_ptr<ov::Node> makeEinsum(const OutputVector& inputs, const std::string& equation);
 }  // namespace builder
 }  // namespace ngraph
