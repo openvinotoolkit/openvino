@@ -59,7 +59,7 @@ public:
     std::map<std::string, std::shared_ptr<TensorPlace>> get_tensor_places() const;
     std::shared_ptr<InputModel> get_body_input_model(const std::string& body_input_model_name) const;
     std::vector<std::string> get_input_names() const;
-    bool tensor_names_need_indices() const;
+    bool tensor_names_need_indices() const override;
 };
 
 }  // namespace tensorflow
