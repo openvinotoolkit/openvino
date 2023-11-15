@@ -87,17 +87,6 @@ private:
         std::vector<P> m_max_per_batch(m_batches_count);
         std::vector<P> m_random_samples(m_output_elements_count);
 
-        std::cout << "probs"
-                  << "\n";
-        for (size_t q = 0; q < m_input_elements_count; q++) {
-            std::cout << probs[q] << " ";
-        }
-        std::cout << "\n";
-        std::cout << "num_samples"
-                  << "\n";
-        std::cout << m_samples_count << " ";
-        std::cout << "\n";
-
         // exp & cumsum
         if (m_log_probs) {
             parallel_for(m_batches_count, [&](size_t idx) {
@@ -117,38 +106,12 @@ private:
             });
         }
 
-        std::cout << "cdf"
-                  << "\n";
-        for (size_t q = 0; q < m_input_elements_count; q++) {
-            std::cout << m_cdf[q] << " ";
-        }
-        std::cout << "\n";
-
         // TODO RandomUniform - should use RandomUniform kernel to match other frameworks' seed results
-        std::srand(m_op_seed);
-        for (size_t idx = 0lu; idx < m_output_elements_count; ++idx) {
-            m_random_samples[idx] = static_cast<P>(std::rand()) / static_cast<P>(RAND_MAX);
-        };
-
-        std::cout << "rand"
-                  << "\n";
-        for (size_t q = 0; q < m_output_elements_count; q++) {
-            std::cout << m_random_samples[q] << " ";
-        }
-        std::cout << "\n";
-
         std::mt19937 gen(m_op_seed);
-        std::uniform_real_distribution<float> dist(0.0, 1.0);
+        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
         for (size_t idx = 0lu; idx < m_output_elements_count; ++idx) {
             m_random_samples[idx] = static_cast<P>(dist(gen));
         };
-
-        std::cout << "rand_mersenne"
-                  << "\n";
-        for (size_t q = 0; q < m_output_elements_count; q++) {
-            std::cout << m_random_samples[q] << " ";
-        }
-        std::cout << "\n";
 
         // max & divide
         const auto min_value_of_max = std::numeric_limits<P>::min();
@@ -159,19 +122,6 @@ private:
             size_t idx_max_elem = idx / m_probs_count;
             m_cdf[idx] /= m_max_per_batch[idx_max_elem];
         });
-
-        std::cout << "max"
-                  << "\n";
-        for (size_t q = 0; q < m_batches_count; q++) {
-            std::cout << m_max_per_batch[q] << " ";
-        }
-        std::cout << "\n";
-        std::cout << "cdf_2"
-                  << "\n";
-        for (size_t q = 0; q < m_input_elements_count; q++) {
-            std::cout << m_cdf[q] << " ";
-        }
-        std::cout << "\n";
 
         if (m_with_replacement) {
             parallel_for(m_batches_samples_probs_count, [&](size_t idx) {

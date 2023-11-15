@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include <openvino/runtime/tensor.hpp>
-
+#include "openvino/runtime/tensor.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
@@ -15,8 +14,8 @@ using namespace CPUTestUtils;
 namespace CPULayerTestsDefinitions {
 
 typedef std::tuple<std::string,                      // test type
-                   ov::Tensor,                       // probs_shape
-                   ov::Tensor,                       // num_samples_shape
+                   ov::Tensor,                       // probs
+                   ov::Tensor,                       // num_samples
                    ov::test::ElementType,            // convert_type
                    bool,                             // with_replacement
                    bool,                             // log_probs
