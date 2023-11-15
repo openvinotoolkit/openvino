@@ -48,7 +48,7 @@ protected:
         auto mmConst = ngraph::opset5::Constant::create(ngraph::element::f32, mmShape2, mmInData);
         ov::ParameterVector mmParams {std::make_shared<ov::op::v0::Parameter>(ngPrec, mmShape)};
 
-        const auto mm = builder::makeMatMul(mmParams[0], mmConst, false, false);
+        const auto mm = std::make_shared<ov::op::v0::MatMul>(mmParams[0], mmConst, false, false);
         auto sum = ngraph::builder::makeEltwise(constShift, mm, ngraph::helpers::EltwiseTypes::ADD);
         auto fq = ngraph::builder::makeFakeQuantize(sum, ngraph::element::f32, 256, {}, {-8.0f}, {7.0f}, {-8.0f}, {7.0f});
 

@@ -40,8 +40,7 @@ void ShuffleChannelsLayerTest::SetUp() {
     std::tie(axis, group) = shuffleChannelsParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto shuffleChannels = std::dynamic_pointer_cast<ngraph::opset3::ShuffleChannels>(
-            ngraph::builder::makeShuffleChannels(params[0], axis, group));
+    auto shuffleChannels = std::make_shared<ov::op::v0::ShuffleChannels>(params[0], axis, group);
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(shuffleChannels)};
     function = std::make_shared<ngraph::Function>(results, params, "shuffleChannels");
 }

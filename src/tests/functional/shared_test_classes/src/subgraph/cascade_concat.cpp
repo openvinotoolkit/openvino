@@ -42,8 +42,12 @@ void CascadeConcat::SetUp() {
     auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu1->output(0),
                                                                                 relu2->output(0)},
                                                                                 1);
-    auto reshape = ngraph::builder::makeSqueezeUnsqueeze(concat, ngraph::element::i64, {0}, ngraph::helpers::SqueezeOpType::UNSQUEEZE);
-    auto reshape2 = ngraph::builder::makeSqueezeUnsqueeze(reshape, ngraph::element::i64, {0}, ngraph::helpers::SqueezeOpType::SQUEEZE);
+
+    auto reshape_constant = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+    auto reshape = std::make_shared<ov::op::v0::Squeeze>(concat, reshape_constant);
+    auto reshape2_constant = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+    auto reshape2 = std::make_shared<ov::op::v0::Unsqueeze>(reshape, reshape2_constant);
+
     auto concat2 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{reshape2->output(0),
                                                                                  relu3->output(0)},
                                                                                  1);
@@ -108,10 +112,13 @@ void CascadeConcatWithMultiConnReshape::SetUp() {
     auto const1 = ngraph::builder::makeConstant(ngPrc, inputShapeSqueezed, std::vector<float>{}, true);
     auto concat1 = ngraph::builder::makeConcat({relu, const1}, inputShapeSqueezed.size() - 1);
 
-    auto squeeze = ngraph::builder::makeSqueezeUnsqueeze(concat1, ngraph::element::i64, {0}, ngraph::helpers::SqueezeOpType::SQUEEZE);
+    auto squeeze_constant = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+    auto squeeze = std::make_shared<ov::op::v0::Squeeze>(concat1, squeeze_constant);
 
     auto relu1 = std::make_shared<ngraph::opset8::Relu>(squeeze);
-    auto unsqueeze1 = ngraph::builder::makeSqueezeUnsqueeze(relu1, ngraph::element::i64, {0}, ngraph::helpers::SqueezeOpType::UNSQUEEZE);
+
+    auto unsqueeze1_constant = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+    auto unsqueeze1 = std::make_shared<ov::op::v0::Unsqueeze>(relu1, unsqueeze1_constant);
 
     auto const2 = ngraph::builder::makeConstant(ngPrc, inputShape, std::vector<float>{}, true);
     auto concat2 = ngraph::builder::makeConcat({squeeze, const2}, 1);
@@ -119,7 +126,10 @@ void CascadeConcatWithMultiConnReshape::SetUp() {
     concat2->set_friendly_name("XConcat");
 
     auto relu2 = std::make_shared<ngraph::opset8::Relu>(concat2);
-    auto unsqueeze2 = ngraph::builder::makeSqueezeUnsqueeze(relu2, ngraph::element::i64, {0}, ngraph::helpers::SqueezeOpType::UNSQUEEZE);
+
+    auto unsqueeze2_constant = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+    auto unsqueeze2 = std::make_shared<ov::op::v0::Unsqueeze>(relu2, unsqueeze2_constant);
+
     ngraph::ResultVector results = {std::make_shared<ngraph::opset1::Result>(unsqueeze1),
                                     std::make_shared<ngraph::opset1::Result>(unsqueeze2)};
 

@@ -345,21 +345,25 @@ std::shared_ptr<ov::Node> makeMVN(const ov::Output<Node>& in,
                                   bool normalizeVariance,
                                   double eps);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeMVN6(const Output<Node>& in,
                                    const Output<Node>& axesNode,
                                    bool normalizeVariance,
                                    float eps,
                                    std::string& epsMode);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeSqueezeUnsqueeze(const ov::Output<Node>& in,
                                                const element::Type& type,
                                                const std::vector<int>& squeeze_indices,
                                                ov::test::utils::SqueezeOpType opType);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeMinMax(const ov::Output<Node>& in1,
                                      const ov::Output<Node>& in2,
                                      ov::test::utils::MinMaxOpType opType);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeProposal(const ov::Output<Node>& class_probs,
                                        const ov::Output<Node>& class_logits,
                                        const std::vector<float>& image_info,
@@ -379,9 +383,6 @@ std::shared_ptr<ov::Node> makeProposal(const ov::Output<Node>& class_probs,
                                        float box_coordinate_scale,
                                        std::string framework);
 
-std::shared_ptr<ov::Node> makeSelect(std::vector<ov::Output<Node>>& in,
-                                     const ov::op::AutoBroadcastSpec& auto_broadcast);
-
 std::shared_ptr<Node> makeFakeQuantize(const ov::Output<Node>& in,
                                        const element::Type& type,
                                        std::size_t levels,
@@ -396,11 +397,6 @@ std::shared_ptr<Node> makeFakeQuantize(const ov::Output<Node>& in,
                                        std::size_t levels,
                                        std::vector<size_t> constShapes,
                                        const int32_t seed = 1);
-
-std::shared_ptr<ov::Node> makeCumSum(const ov::Output<Node>& in,
-                                     const ov::Output<Node>& axis,
-                                     bool exclusive,
-                                     bool reverse);
 
 std::shared_ptr<ov::Node> makeEmbeddingBagOffsetsSum(const element::Type& dataType,
                                                      const element::Type& indicesType,
@@ -426,17 +422,6 @@ std::shared_ptr<ov::Node> makeEmbeddingSegmentsSum(const element::Type& dataType
                                                    size_t default_index,
                                                    bool with_weights,
                                                    bool with_default_index);
-
-std::shared_ptr<ov::Node> makeSpaceToDepth(const ov::Output<Node>& in,
-                                           ov::op::v0::SpaceToDepth::SpaceToDepthMode mode,
-                                           size_t blockSize);
-
-std::shared_ptr<Node> makeShuffleChannels(const ov::Output<Node>& in, int axis, int group);
-
-std::shared_ptr<Node> makeMatMul(const Output<Node>& A,
-                                 const Output<Node>& B,
-                                 bool transpose_a = false,
-                                 bool transpose_b = false);
 
 std::shared_ptr<ov::Node> makeReduce(const ov::Output<Node>& data,
                                      const ov::Output<Node>& axes,

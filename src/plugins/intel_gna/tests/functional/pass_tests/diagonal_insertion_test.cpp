@@ -136,7 +136,7 @@ protected:
         auto mm_const = makeConstant<float>(precision, {height, width}, {}, true);
         auto mm_const_fq = CreateFQNode(precision, mm_const, fq_min_max[1][0], fq_min_max[1][1], fq_levels);
 
-        auto matmul = makeMatMul(mm_const_fq, reshape);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(mm_const_fq, reshape);
         auto matmul_fq = CreateFQNode(precision, matmul, fq_min_max[2][0], fq_min_max[2][1], fq_levels);
         auto add_mm_reshape = CreateReshapeNode(ngraph::element::Type_t::i32, matmul, {height});
 

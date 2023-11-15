@@ -40,7 +40,7 @@ void FqWithMixedLevelsTest::SetUp() {
         std::vector<float> weights = ov::test::utils::generate_float_numbers(shapes[1][0] * shapes[1][1], weights_min, weights_max);
         auto constant = std::make_shared<ngraph::opset7::Constant>(ngPrc, ngraph::Shape{shapes[1][0], shapes[1][1]}, weights);
         auto fake2 = ngraph::builder::makeFakeQuantize(constant, ngPrc, level2, { 1 }, data2[0], data2[1], data2[2], data2[3]);
-        auto matmul = ngraph::builder::makeMatMul(fake1, fake2, false, true);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(fake1, fake2, false, true);
         auto bias = ngraph::builder::makeConstant(ngPrc, std::vector<size_t>{shapes[0][0], shapes[1][0]}, std::vector<float>{ 1.0 });
         auto add = ngraph::builder::makeEltwise(matmul, bias, ngraph::helpers::EltwiseTypes::ADD);
         return ngraph::builder::makeFakeQuantize(add, ngPrc, level3, { 1 }, data3[0], data3[1], data3[2], data3[3]);

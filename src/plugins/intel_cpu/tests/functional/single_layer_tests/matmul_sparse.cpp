@@ -133,7 +133,7 @@ protected:
         auto matrixBFP32 = builder::makeDynamicInputLayer(element::f32, helpers::InputLayerType::CONSTANT, inShapeB);
 
         auto matMulRelaxed = std::make_shared<ov::op::TypeRelaxed<opset3::MatMul>>(
-            *as_type_ptr<opset3::MatMul>(builder::makeMatMul(inputParamsFP32, matrixBFP32, transpose_a, transpose_b)),
+            *std::make_shared<ov::op::v0::MatMul>(inputParamsFP32, matrixBFP32, transpose_a, transpose_b),
             element::f32);
 
         auto matrixB = ngraph::builder::makeConstant<int8_t>(weiType, inShapeB.get_shape(), weiData);
