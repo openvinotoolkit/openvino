@@ -14,11 +14,30 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/divide.hpp"
 
+#include "snippets/lowered/port_descriptor.hpp"
+
 
 namespace ov {
 namespace intel_cpu {
 namespace tpp {
 namespace pass {
+// todo: this is copied from brgemm_to_brgemm_cpu. move to common utils.
+namespace {
+using namespace snippets::lowered;
+std::vector<size_t> make_subtensor(const ov::Shape& tensor) {
+    return {std::min(tensor.size(), size_t(2)), PortDescriptor::ServiceDimensions::FULL_DIM};
+}
+template<typename T>
+void set_full_port_desc(const T& port) {
+    const auto& shape = port.get_shape();
+    const std::vector<size_t> full_subtensor(2, PortDescriptor::ServiceDimensions::FULL_DIM);
+    PortDescriptorUtils::set_port_descriptor_ptr(port, std::make_shared<PortDescriptor>(shape, full_subtensor));
+}
+template<typename T, typename... Args>
+void set_port_desc(const T& port, Args... params) {
+    PortDescriptorUtils::set_port_descriptor_ptr(port, std::make_shared<PortDescriptor>(params...));
+}
+} // namespace
 
 EltwiseToEltwiseTPP::EltwiseToEltwiseTPP() {
     MATCHER_SCOPE(EltwiseToEltwiseTPP);
@@ -54,6 +73,9 @@ EltwiseToEltwiseTPP::EltwiseToEltwiseTPP() {
 
         tpp_eltwise->set_friendly_name(node->get_friendly_name());
         ngraph::replace_node(node, tpp_eltwise);
+        set_full_port_desc(tpp_eltwise->input(0));
+        set_full_port_desc(tpp_eltwise->input(1));
+        set_full_port_desc(tpp_eltwise->output(0));
 
         // Transfer ports
 //        set_port_desc(brgemm_cpu->input(0), brgemm_in0_desc->get_shape(), brgemm_in0_desc->get_subtensor(), brgemm_in0_desc->get_layout());

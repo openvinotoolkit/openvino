@@ -501,6 +501,11 @@ void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMe
     const auto& dom = parallel_exec_domain;
     // < N, C, H, W > < 1, 1, N, C*H*W>
     const auto& callable = schedule.get_callable<kernel>();
+//    int64_t indexes[] = {0, 0, 0, 0, 0};
+//    jit_snippets_call_args call_args;
+//    update_ptrs(call_args, inMemPtrs, outMemPtrs);
+//    callable(indexes, &call_args);
+
     parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
         [&](int64_t d0, int64_t d1, int64_t d2, int64_t d3, int64_t d4) {
             int64_t indexes[] = {d0, d1, d2, d3, d4};

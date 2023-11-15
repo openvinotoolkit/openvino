@@ -11,6 +11,11 @@ namespace intel_cpu {
 namespace tpp {
 namespace op {
 
+BinaryEltwiseTPP::BinaryEltwiseTPP() {
+    // Initialize input/output ports as memory access ports
+    ctor_initialize(std::set<size_t>{0, 1}, std::set<size_t>{0});
+}
+
 bool BinaryEltwiseTPP::is_supported(const std::shared_ptr<ov::Node>& node) {
     return ov::is_type<ov::op::v1::Add>(node) ||
            ov::is_type<ov::op::v1::Add>(node);

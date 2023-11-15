@@ -118,8 +118,8 @@ BrgemmTppEmitter::BrgemmTppEmitter(jit_generator* h, cpu_isa_t isa, const Expres
 //    if (brgemm_node->is_with_data_repacking())
 //        leading_dimensions[1] = rnd_up(m_N, brgemm_copy->get_n_block_size());
 
-    auto brg0Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(0));
-    auto brg1Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(1));
+    auto brg0Prc = brgemm_node->get_input_element_type(0);
+    auto brg1Prc = brgemm_node->get_input_element_type(1);
     bool brgWithAMX = brgemm_node->is_amx();
 
     io_data_size = {brg0Prc.size(), brg1Prc.size()};
@@ -171,8 +171,8 @@ BrgemmTppEmitter::BrgemmTppEmitter(jit_generator* h, cpu_isa_t isa, const Expres
             brgemmCtx.LDA = leading_dimensions[0];
             brgemmCtx.LDB = leading_dimensions[1];
             brgemmCtx.LDC = leading_dimensions[2];
-            brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg0Prc));
-            brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1Prc));
+            brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brg0Prc));
+            brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brg1Prc));
             brgemmCtx.beta = has_K_kernel ? 1 : 0;
 
             if (brgemmCtx.N == 0 || brgemmCtx.N > m_N ||
@@ -561,16 +561,17 @@ BinaryEltwiseTppEmitter::BinaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_gener
 
     const auto& shape_in0 = expr->get_input_port_descriptor(0)->get_shape();
     const auto& shape_in1 = expr->get_input_port_descriptor(1)->get_shape();
-    const libxsmm_blasint ld_in0 = static_cast<libxsmm_blasint>(*++shape_in0.rbegin());
-    const libxsmm_blasint ld_in1 = static_cast<libxsmm_blasint>(*++shape_in1.rbegin());
-
     std::pair<bool, bool> n_bcast_flags, m_bcast_flags;
-    const auto N = get_broadcasted_dim(static_cast<libxsmm_blasint>(shape_in0.back()),
-                                       static_cast<libxsmm_blasint>(shape_in1.back()),
+    const auto N = get_broadcasted_dim(static_cast<libxsmm_blasint>(*shape_in0.rbegin()),
+                                       static_cast<libxsmm_blasint>(*shape_in1.rbegin()),
                                        n_bcast_flags);
-    const auto M = get_broadcasted_dim(ld_in0, ld_in1, m_bcast_flags);
-
-    const libxsmm_blasint ld_out0 = N;
+    const auto M = get_broadcasted_dim(static_cast<libxsmm_blasint>(*++shape_in0.rbegin()),
+                                       static_cast<libxsmm_blasint>(*++shape_in1.rbegin()),
+                                       m_bcast_flags);
+    // todo: why expecting leading dimensions are M while the strides between columns are N?
+    const libxsmm_blasint ld_in0 = M;
+    const libxsmm_blasint ld_in1 = M;
+    const libxsmm_blasint ld_out0 = M;
     libxsmm_bitfield libxsmm_flags{LIBXSMM_MELTW_FLAG_BINARY_NONE};
     if (n_bcast_flags.first && m_bcast_flags.first) {
         libxsmm_flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_SCALAR_IN_0;
@@ -590,6 +591,7 @@ BinaryEltwiseTppEmitter::BinaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_gener
     const auto& libxsmm_shape = libxsmm_create_meltw_binary_shape(M, N, ld_in0, ld_in1, ld_out0, dtype_in0, dtype_in1, dtype_out0, dtype_comp);
     libxsmm_kernel = libxsmm_dispatch_meltw_binary_v2(libxsmm_op_type, libxsmm_shape, libxsmm_flags);
     OPENVINO_ASSERT(libxsmm_kernel, "Failed to dispatch libxsmm_kernel in BinaryEltwiseTppEmitter");
+    in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
 void BinaryEltwiseTppEmitter::emit_code(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
@@ -612,9 +614,9 @@ void BinaryEltwiseTppEmitter::execute_libxsmm_kernel(libxsmm_meltwfunction_binar
     // todo: how do we initialize the libxsmm_meltw_binary_param.op field?
     //  In general, how to use the libxsmm_matrix_arg type? What is the purpose of these primary/secondary/ternary fields?
     libxsmm_meltw_binary_param binary_param;
-    binary_param.in0.primary = reinterpret_cast<void*>(in0);
-    binary_param.in1.primary = reinterpret_cast<void*>(in1);
-    binary_param.out.primary = reinterpret_cast<void*>(out0);
+    binary_param.in0.primary = in0;
+    binary_param.in1.primary = in1;
+    binary_param.out.primary = out0;
     assert(eltwise_kernel);
     (*eltwise_kernel)(&binary_param);
 }
@@ -639,7 +641,7 @@ void BinaryEltwiseTppEmitter::emit_impl(const std::vector<size_t>& in, const std
         h->uni_vmovq(reg, xmm);
         if (bytes_offset) h->add(reg, bytes_offset);
     };
-    h->mov(abi_param1, reinterpret_cast<uintptr_t>(libxsmm_kernel));
+    h->mov(abi_param1, reinterpret_cast<uintptr_t>(&libxsmm_kernel));
 //    data_ptr_reg(Xmm(0), abi_param2, in0_kernel_offset);
 //    data_ptr_reg(Xmm(1), abi_param3, in1_kernel_offset);
 //    data_ptr_reg(Xmm(2), abi_param4, out0_kernel_offset);

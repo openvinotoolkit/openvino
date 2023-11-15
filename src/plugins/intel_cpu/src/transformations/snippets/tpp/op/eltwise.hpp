@@ -20,6 +20,7 @@ using AutoBroadcastSpec = ov::op::AutoBroadcastSpec;
 using AutoBroadcastType = ov::op::AutoBroadcastType;
 class BinaryEltwiseTPP : public TensorProcessingPrimitive {
 public:
+    BinaryEltwiseTPP();
     static bool is_supported(const std::shared_ptr<ov::Node>& node);
     virtual libxsmm_meltw_binary_type get_op_type() const = 0;
 };
