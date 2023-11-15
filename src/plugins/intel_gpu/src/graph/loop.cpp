@@ -359,6 +359,7 @@ event::ptr loop_inst::set_output_memory(memory::ptr mem, bool check, size_t idx)
 loop_inst::concatenated_memory_mapping::ptr loop_inst::create_concat_memory_map(const cldnn::loop::io_primitive_map& io_prim_map,
                                                                                     memory::ptr mem_ptr,
                                                                                     const int64_t num_iterations) {
+    OPENVINO_ASSERT(io_prim_map.axis >= 0, "axis should not be negative");
     const auto& external_id = io_prim_map.external_id;
     const auto& internal_id = io_prim_map.internal_id;
     auto& engine = body_network->get_engine();
@@ -371,16 +372,33 @@ loop_inst::concatenated_memory_mapping::ptr loop_inst::create_concat_memory_map(
     // In dynamic model, we can't calculate num_element_iteration, start, and sliced_layout.
     // will recalculate that parameters in backedge preprocessing map after first execution.
     if (mem_ptr != nullptr) {
-        auto& out_mem = prim->output_memory(internal_id.idx);
-        layout sliced_layout = out_mem.get_layout();
+        layout sliced_layout = prim->get_output_layout(internal_id.idx);
+        auto out_mem_ptr = prim->output_memory_ptr(internal_id.idx);
+        if (out_mem_ptr != nullptr) {
+            sliced_layout = out_mem_ptr->get_layout();
+        } else {
+            // if
+            auto updated_sliced_layout = sliced_layout.get_partial_shape();
+            OPENVINO_ASSERT(updated_sliced_layout[io_prim_map.axis].is_static() || num_iterations > 0,
+                                    "Not allowed dynamic dimension for axis when num_iteraiont is negative");
+            auto concat_mem_pshape = mem_ptr->get_layout().get_partial_shape();
+            const auto shape_size = concat_mem_pshape.size();
+            for (size_t i = 0; i < shape_size; i++) {
+                if (updated_sliced_layout[i].is_dynamic()) {
+                    updated_sliced_layout[i] = concat_mem_pshape[i];
+                }
+            }
+            sliced_layout.set_partial_shape(updated_sliced_layout);
+            out_mem_ptr = engine.allocate_memory(sliced_layout);
+        }
 
-        // When trip_count is -1, allocate first sliced_mem and allocate sliced memory if additional sliced mem is required
+        // When num_iterations is -1, allocate first sliced_mem and allocate sliced memory if additional sliced mem is required
         if (num_iterations < 0) {
-            memory::ptr sliced_mem = engine.allocate_memory(sliced_layout);
-            sliced_mems.push_back(sliced_mem);
+            sliced_mems.push_back(out_mem_ptr);
         } else {
             sliced_mems.reserve(num_iterations);
-            for (int j=0; j < num_iterations; ++j) {
+            sliced_mems.push_back(out_mem_ptr);
+            for (int j=1; j < num_iterations; ++j) {
                 memory::ptr sliced_mem = engine.allocate_memory(sliced_layout);
                 sliced_mems.push_back(sliced_mem);
             }
