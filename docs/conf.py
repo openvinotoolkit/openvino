@@ -28,7 +28,7 @@ copyright = '2023, Intel®'
 author = 'Intel®'
 
 language = 'en'
-version_name = 'nightly'
+version_name = '2023.2'
 
 # -- General configuration ---------------------------------------------------
 
