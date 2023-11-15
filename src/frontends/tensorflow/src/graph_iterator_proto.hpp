@@ -201,7 +201,7 @@ public:
         return m_output_names;
     }
 
-    bool tensor_names_need_indices() const {
+    bool tensor_names_need_indices() const override {
         return true;
     }
 };

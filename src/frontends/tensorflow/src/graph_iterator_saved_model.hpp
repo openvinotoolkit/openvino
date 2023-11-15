@@ -65,7 +65,7 @@ public:
         return m_outputs_map;
     }
 
-    bool tensor_names_need_indices() const {
+    bool tensor_names_need_indices() const override {
         return false;
     }
 
