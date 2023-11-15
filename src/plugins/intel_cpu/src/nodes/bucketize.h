@@ -13,7 +13,7 @@ namespace node {
 
 class Bucketize : public Node {
 public:
-    Bucketize(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Bucketize(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -26,7 +26,7 @@ public:
     void prepareParams() override;
 
     bool isExecutable() const override;
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     template <typename T, typename T_BOUNDARIES, typename T_IND>
@@ -41,9 +41,9 @@ private:
     bool with_right = false;
     bool with_bins = false;
 
-    InferenceEngine::Precision input_precision;
-    InferenceEngine::Precision boundaries_precision;
-    InferenceEngine::Precision output_precision;
+    ov::element::Type input_precision;
+    ov::element::Type boundaries_precision;
+    ov::element::Type output_precision;
     std::string errorPrefix;
 };
 

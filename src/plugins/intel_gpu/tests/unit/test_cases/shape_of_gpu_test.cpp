@@ -23,7 +23,7 @@ TEST(shape_of_gpu, bfyx) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(shape_of("shape_of", input_info("input"), 4, data_types::i32));
+    topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
 
     network network(engine, topology, get_test_default_config(engine));
 
@@ -48,7 +48,7 @@ TEST(shape_of_gpu, bfyx_i64) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(shape_of("shape_of", input_info("input"), 4, data_types::i64));
+    topology.add(shape_of("shape_of", input_info("input"), data_types::i64));
 
     network network(engine, topology, get_test_default_config(engine));
 
@@ -73,7 +73,7 @@ TEST(shape_of_cpu_impl, bfyx_i64) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(shape_of("shape_of", input_info("input"), 4, data_types::i64));
+    topology.add(shape_of("shape_of", input_info("input"), data_types::i64));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"shape_of", {format::bfyx, "", impl_types::cpu}} }));
@@ -101,7 +101,7 @@ TEST(shape_of_gpu, yxfb) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(shape_of("shape_of", input_info("input"), 4, data_types::i32));
+    topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
 
     network network(engine, topology, get_test_default_config(engine));
 
@@ -126,7 +126,7 @@ TEST(shape_of_gpu, bfzyx) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(shape_of("shape_of", input_info("input"), 5, data_types::i32));
+    topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
 
     network network(engine, topology, get_test_default_config(engine));
 
@@ -155,7 +155,7 @@ TEST(shape_of_gpu, dynamic) {
 
     cldnn::topology topology;
     topology.add(input_layout("input", in_layout));
-    topology.add(shape_of("shape_of", input_info("input"), 4, data_types::i32));
+    topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -204,7 +204,7 @@ TEST(shape_of_gpu, shape_infer_optimization_dynamic) {
 
     cldnn::topology topology;
     topology.add(input_layout("input", in_layout));
-    topology.add(shape_of("shape_of", input_info("input"), 4, data_types::i32));
+    topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));

@@ -5,21 +5,7 @@ on:
     - cron: '0 0 * * 3,6'
   workflow_dispatch:
   pull_request:
-    paths:
-      - '**'
-      - '!**/docs/**'
-      - '!docs/**'
-      - 'docs/snippets/**'
-      - '!**/**.md'
-      - '!**.md'
   push:
-    paths:
-      - '**'
-      - '!docs/**'
-      - '!**/docs/**'
-      - 'docs/snippets/**'
-      - '!**/**.md'
-      - '!**.md'
     branches:
       - master
       - 'releases/**'
@@ -60,6 +46,7 @@ jobs:
         shell: bash
 
   Build:
+    needs: Smart_CI
     timeout-minutes: 150
     defaults:
       run:
@@ -85,6 +72,7 @@ jobs:
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/.ci/azure/ci_utils/onnxruntime
+    if: "!fromJSON(needs.smart_ci.outputs.affected_components).docs_only"
 
     steps:
       - name: Install git
@@ -432,7 +420,7 @@ jobs:
           if-no-files-found: 'warn'
 
   Conformance:
-    needs: Build
+    needs: [Build, Smart_CI]
     timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 5 || 15 }}
     defaults:
       run:
@@ -452,6 +440,7 @@ jobs:
       CONFORMANCE_TOOLS_DIR: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary
       CONFORMANCE_ARTIFACTS_DIR: ${{ github.workspace }}/install/conformance_artifacts
       TEST_DEVICE: 'CPU'
+    if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
 
     steps:
       - name: Create Directories
@@ -1002,7 +991,7 @@ jobs:
       #
 
       - name: Python API 1.0 Tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
+        #if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
         run: |
           python3 -m pytest -s ${INSTALL_TEST_DIR}/pyngraph \
             --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
@@ -1010,7 +999,7 @@ jobs:
             --ignore=${INSTALL_TEST_DIR}/pyngraph/tests_compatibility/test_onnx/test_backend.py
 
       - name: Python API 2.0 Tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
+        #if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
         run: |
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
@@ -1028,6 +1017,8 @@ jobs:
               --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml
 
       - name: Python ONNX operators tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test ||
+            fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE.test
         run: |
           # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
           python3 -m pytest -sv ${INSTALL_TEST_DIR}/onnx -k 'not cuda' \
@@ -1074,6 +1065,7 @@ jobs:
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/py_frontend_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
 
       - name: PyTorch Layer Tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -n logical -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
@@ -1443,6 +1435,7 @@ jobs:
         env:
           TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
+          USE_SYSTEM_CACHE: False
 
       - name: Available storage after tests
         run: |

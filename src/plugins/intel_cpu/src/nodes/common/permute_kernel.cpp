@@ -5,7 +5,7 @@
 #include "permute_kernel.h"
 
 #include <vector>
-#include <ie_parallel.hpp>
+
 #include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
 #include "cpu_memcpy.h"
