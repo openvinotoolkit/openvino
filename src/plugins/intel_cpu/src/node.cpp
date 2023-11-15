@@ -1339,6 +1339,11 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ov::Node>& op, const Grap
     };
     Node *newNode = nullptr;
     std::string errorMessage;
+    {
+        std::unique_ptr<Node> ol(createNodeIfRegistered(intel_cpu, Type::Generic, op, context));
+        if (ol != nullptr && ol->created(context->getExtensionManager()))
+            newNode = ol.release();
+    }
 
     if (newNode == nullptr) {
         try {
