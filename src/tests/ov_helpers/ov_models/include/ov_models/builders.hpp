@@ -465,8 +465,6 @@ std::shared_ptr<ov::Node> makePad(const ov::Output<Node>& data,
                                   ov::test::utils::PadMode padMode,
                                   const bool allow_negative_pad = false);
 
-std::shared_ptr<ov::Node> makeBatchNormInference(const ov::Output<Node>& data, double epsilon);
-
 std::shared_ptr<ov::Node> makeLSTM(
     const OutputVector& in,
     const std::vector<ov::Shape>& constants,
