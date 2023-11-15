@@ -439,12 +439,6 @@ std::shared_ptr<Node> makePooling(const ov::Output<Node>& in,
                                   bool excludePad,
                                   const ov::test::utils::PoolingTypes& poolType);
 
-std::shared_ptr<Node> makeROIPooling(const Output<Node>& input,
-                                     const Output<Node>& coords,
-                                     const Shape& output_size,
-                                     const float spatial_scale,
-                                     const ov::test::utils::ROIPoolingTypes& roi_pool_type);
-
 std::shared_ptr<ov::Node> makeScatterUpdate(const ov::Output<Node>& in,
                                             const element::Type& indicesType,
                                             const std::vector<size_t>& indicesShape,
