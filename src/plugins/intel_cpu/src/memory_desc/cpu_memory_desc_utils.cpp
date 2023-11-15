@@ -4,7 +4,6 @@
 
 #include <ie_ngraph_utils.hpp>
 #include "cpu_memory_desc.h"
-#include "ie_ngraph_utils.hpp"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include <cpu_memory.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -71,8 +70,6 @@ CpuBlockedMemoryDesc MemoryDescUtils::convertToCpuBlockedMemoryDesc(const Infere
 }
 
 CpuBlockedMemoryDescPtr MemoryDescUtils::generateCpuBlockedMemoryDesc(const ov::SoPtr<ov::ITensor>& tensor) {
-    using InferenceEngine::details::convertPrecision;
-
     const auto& shape = tensor->get_shape().empty() ?  ov::Shape{tensor->get_size()} : tensor->get_shape();
 
     VectorDims blk_order(shape.size());
@@ -102,7 +99,7 @@ CpuBlockedMemoryDescPtr MemoryDescUtils::generateCpuBlockedMemoryDesc(const ov::
     }
 
     return std::make_shared<CpuBlockedMemoryDesc>(
-        convertPrecision(element_type),
+        element_type,
         Shape{shape},
         shape,
         blk_order,
