@@ -16,7 +16,7 @@ namespace node {
 
 class ColorConvert : public Node {
 public:
-    ColorConvert(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    ColorConvert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
     class Converter;
 
 public:
@@ -28,7 +28,7 @@ public:
     bool needPrepareParams() const override;
     void executeDynamicImpl(dnnl::stream strm) override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     void initSupportedNV12Impls();

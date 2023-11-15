@@ -8,9 +8,9 @@
 #include <dnnl_extension_utils.h>
 #include <selective_build.h>
 
-#include <ngraph/opsets/opset2.hpp>
+#include <openvino/opsets/opset2.hpp>
 
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "utils/bfloat16.hpp"
 #include "emitters/x64/jit_load_store_emitters.hpp"
 
@@ -367,9 +367,9 @@ bool jit_roi_pooling_params::operator==(const jit_roi_pooling_params &rhs) const
            alg == rhs.alg;
 }
 
-bool ROIPooling::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool ROIPooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto roiPooling = ngraph::as_type_ptr<const ngraph::opset2::ROIPooling>(op);
+        auto roiPooling = ov::as_type_ptr<const ov::opset2::ROIPooling>(op);
         if (!roiPooling) {
             errorMessage = "Only opset2 ROIPooling operation is supported";
             return false;
@@ -385,16 +385,16 @@ bool ROIPooling::isSupportedOperation(const std::shared_ptr<const ngraph::Node>&
     return true;
 }
 
-ROIPooling::ROIPooling(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+ROIPooling::ROIPooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     std::string errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
 
-    auto roiPooling = ngraph::as_type_ptr<const ngraph::opset2::ROIPooling>(op);
+    auto roiPooling = ov::as_type_ptr<const ov::opset2::ROIPooling>(op);
     refParams.pooled_h = roiPooling->get_output_roi()[0];
     refParams.pooled_w = roiPooling->get_output_roi()[1];
     refParams.spatial_scale = roiPooling->get_spatial_scale();
@@ -408,38 +408,31 @@ ROIPooling::ROIPooling(const std::shared_ptr<ngraph::Node>& op, const GraphConte
 
 void ROIPooling::getSupportedDescriptors() {
     if (getParentEdges().size() != 2)
-        IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
+        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges: ", getParentEdges().size());
     if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
+        OPENVINO_THROW(errorPrefix, "has incorrect number of output edges: ", getChildEdges().size());
 
     if (getInputShapeAtPort(0).getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getInputShapeAtPort(0).getRank();
+        OPENVINO_THROW(errorPrefix, "doesn't support 0th input with rank: ", getInputShapeAtPort(0).getRank());
     }
 
     if (getInputShapeAtPort(1).getRank() != 2) {
-        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getInputShapeAtPort(1).getRank();
+        OPENVINO_THROW(errorPrefix, "doesn't support 1st input with rank: ", getInputShapeAtPort(1).getRank());
     }
 
     if (getOutputShapeAtPort(0).getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getOutputShapeAtPort(0).getRank();
+        OPENVINO_THROW(errorPrefix, "doesn't support output with rank: ", getOutputShapeAtPort(0).getRank());
     }
 
     const auto& dims = getInputShapeAtPort(1).getDims();
     if (dims[1] != 5) {
-        IE_THROW() << errorPrefix << "has invalid shape on 1st input: [" << dims[0] << "," << dims[1] << "]";
+        OPENVINO_THROW(errorPrefix, "has invalid shape on 1st input: [", dims[0], ",", dims[1], "]");
     }
 }
 
 void ROIPooling::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
-
-    refParams.src_prc = getOriginalInputPrecisionAtPort(0);
-
-    if (!mayiuse(avx512_core)) {
-        if (refParams.src_prc == Precision::BF16)
-            refParams.src_prc = Precision::FP32;
-    }
 
     auto format = mayiuse(avx512_core) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
     impl_desc_type impl_type;
@@ -453,6 +446,17 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
         impl_type = impl_desc_type::ref;
     }
 
+    refParams.src_prc = getOriginalInputPrecisionAtPort(0);
+
+    if (!mayiuse(avx512_core)) {
+        if (refParams.src_prc == Precision::BF16)
+            refParams.src_prc = Precision::FP32;
+    }
+
+    if (impl_type != impl_desc_type::ref && refParams.src_prc == Precision::FP16) {
+        refParams.src_prc = Precision::FP32;
+    }
+
     addSupportedPrimDesc({{format, refParams.src_prc},
                           {LayoutType::ncsp, refParams.src_prc}},
                          {{format, refParams.src_prc}},
@@ -462,7 +466,7 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
 void ROIPooling::createPrimitive() {
     auto selectedPD = getSelectedPrimitiveDescriptor();
     if (!selectedPD)
-        IE_THROW() << "CPU ROI Pooling node with name '" << getName() << "' doesn't have primitive descriptors.";
+        OPENVINO_THROW("CPU ROI Pooling node with name '", getName(), "' doesn't have primitive descriptors.");
 
     refParams.c_block = mayiuse(cpu::x64::avx512_core) ? 16 : 8;;
     refParams.nb_c_blocking = mayiuse(cpu::x64::avx512_core) ? 15 : 7;
@@ -486,7 +490,7 @@ void ROIPooling::execute(dnnl::stream strm) {
         const auto &dstMemory = getChildEdgeAt(0)->getMemory();
         execPtr->exec(srcMemory0, srcMemory1, dstMemory);
     } else {
-        IE_THROW() << "Can't execute ROI Pooling node. Primitive wasn't created";
+        OPENVINO_THROW("Can't execute ROI Pooling node. Primitive wasn't created");
     }
 }
 
@@ -499,13 +503,13 @@ void ROIPooling::prepareParams() {
     const auto& srcMemPtr1 = getParentEdgeAt(0)->getMemoryPtr();
     const auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!srcMemPtr0 || !srcMemPtr0->isAllocated())
-        IE_THROW() << "Input memory has not been allocated.";
+        OPENVINO_THROW("Input memory has not been allocated.");
     if (!srcMemPtr1 || !srcMemPtr1->isAllocated())
-        IE_THROW() << "Input memory has not been allocated.";
+        OPENVINO_THROW("Input memory has not been allocated.");
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << "Destination has not been allocated.";
+        OPENVINO_THROW("Destination has not been allocated.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
+        OPENVINO_THROW("Preferable primitive descriptor is not set.");
 
     const auto& inDims = getParentEdgeAt(0)->getMemory().getStaticDims();
     const auto& outDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
@@ -539,7 +543,7 @@ public:
         } else if (mayiuse(cpu::x64::sse41)) {
             roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::sse41>(jpp));
         } else {
-            IE_THROW() << "Can't create jit RoiPooling kernel";
+            OPENVINO_THROW("Can't create jit RoiPooling kernel");
         }
 
         if (roi_pooling_kernel)
@@ -552,7 +556,7 @@ public:
         const IMemory& srcRoi,
         const IMemory& dst) override {
         if (!roi_pooling_kernel)
-            IE_THROW() << "Could not execute. Kernel for RoiPooling node was not compiled.";
+            OPENVINO_THROW("Could not execute. Kernel for RoiPooling node was not compiled.");
 
         auto src_strides = srcData.getDescWithType<BlockedMemoryDesc>()->getStrides();
         auto src_roi_step = srcRoi.getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
@@ -826,7 +830,8 @@ std::shared_ptr<ROIPooling::ROIPoolingExecutor> ROIPooling::ROIPoolingExecutor::
 
     OV_SWITCH(intel_cpu, ROIPoolingExecutorCreation, ctx, jpp.src_prc,
               OV_CASE(Precision::FP32, float),
-              OV_CASE(Precision::BF16, bfloat16_t))
+              OV_CASE(Precision::BF16, bfloat16_t),
+              OV_CASE(Precision::FP16, float16_t))
 
     return ctx.executor;
 }

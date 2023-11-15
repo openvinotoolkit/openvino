@@ -25,7 +25,6 @@
 #include "read_value_inst.h"
 #include "condition_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
-#include "compilation_context.hpp"
 #include "implementation_map.hpp"
 #include "graph_optimizer/prepare_buffer_fusing.h"
 
@@ -36,6 +35,7 @@
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/compilation_context.hpp"
 
 #include "json_object.h"
 #include <string>
@@ -354,7 +354,7 @@ void primitive_inst::update_shape() {
 
     auto update_output_layout = [&](layout& layout, size_t idx) {
         auto data_padding = padding::max(_impl_params->get_output_layout(idx).data_padding, layout.data_padding);
-        layout.data_padding = padding::max(_node->get_primitive()->output_paddings[idx], data_padding);
+        layout.data_padding = padding::max(_node->get_primitive()->get_output_padding(idx), data_padding);
         if (_impl_params->get_output_layout(idx) != layout) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": update shape: was: " << _impl_params->get_output_layout(idx).to_short_string()
                                    << " now: " << layout.to_short_string() << std::endl;
@@ -427,7 +427,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
 
     auto current_shape = actual_layout.get_shape();
-    auto& sp = get_network().get_shape_predictor();
+    auto& sp = *get_network().get_shape_predictor();
     auto dt_size = ov::element::Type(actual_layout.data_type).bitwidth();
     auto prealloc_info = sp.predict_preallocation_shape(id(), current_shape, dt_size, can_reuse_buffer);
     if (prealloc_info.first && sp.can_preallocate(ov::shape_size(prealloc_info.second) * dt_size)) {
@@ -1011,9 +1011,20 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
         allocate_memory = false;
     }
     _mem_allocated = allocate_memory;
+    if (!_mem_allocated && (node.is_dynamic() && _outputs_memory_count > 1)) {
+        auto avaiable_allocate_memory = [&](std::vector<cldnn::layout>& layouts) -> bool {
+            for (auto& l : layouts) {
+                if (l.is_static())
+                    return true;
+            }
+            return false;
+        };
+        allocate_memory = _mem_allocated = avaiable_allocate_memory(_impl_params->output_layouts);
+    }
+
     if (allocate_memory) {
         // In case when output is mutable_data primitive, and other users dependencies are only used for
-        // suychronization, The output memory of such primitive will be fused with mutable_data
+        // synchronization, The output memory of such primitive will be fused with mutable_data
         auto users = node.get_users();
         auto user_count = users.size();
         uint32_t mutable_data_count = 0;
@@ -1377,23 +1388,28 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
 
 std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* updated_params, bool reset_mem, bool runtime_alloc) {
     std::vector<memory::ptr> outputs;
+    auto impl_params = updated_params != nullptr ? *updated_params : *_impl_params;
+    auto& out_layouts = impl_params.output_layouts;
     for (size_t i = 0; i < get_node().get_outputs_count() ; ++i) {
-        auto impl_params = updated_params != nullptr ? *updated_params : *_impl_params;
-        auto current_memory_ptr = _outputs.size() > i ? output_memory_ptr(i).get() : nullptr;
-        auto is_output = is_output_buffer(this, runtime_alloc);
+        if (out_layouts[i].is_dynamic() && !out_layouts[i].has_upper_bound()) {
+            outputs.push_back(memory::ptr());
+        } else {
+            auto current_memory_ptr = _outputs.size() > i ? output_memory_ptr(i).get() : nullptr;
+            auto is_output = is_output_buffer(this, runtime_alloc);
 
-        outputs.push_back(allocate_output(_network.get_engine(),
-                                          _network.get_memory_pool(),
-                                          *_node,
-                                          impl_params,
-                                          _runtime_memory_dependencies,
-                                          get_network_id(),
-                                          _network.is_internal(),
-                                          i,
-                                          reset_mem,
-                                          is_output,
-                                          current_memory_ptr,
-                                          runtime_alloc));
+            outputs.push_back(allocate_output(_network.get_engine(),
+                                            _network.get_memory_pool(),
+                                            *_node,
+                                            impl_params,
+                                            _runtime_memory_dependencies,
+                                            get_network_id(),
+                                            _network.is_internal(),
+                                            i,
+                                            reset_mem,
+                                            is_output,
+                                            current_memory_ptr,
+                                            runtime_alloc));
+        }
     }
     return outputs;
 }
@@ -1502,7 +1518,13 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
             ov::intel_gpu::allow_static_input_reorder(true),
             ov::intel_gpu::allow_new_shape_infer(true)
         };
-        auto prog = program::build_program(get_network().get_engine(), t, subgraph_config, get_network().get_program()->get_task_executor(), true, false);
+        auto prog = program::build_program(get_network().get_engine(),
+                                           t,
+                                           subgraph_config,
+                                           get_network().get_program()->get_task_executor(),
+                                           get_network().get_program()->get_compilation_context_ptr(),
+                                           true,
+                                           false);
 
         _unfused_subgraph = network::allocate_network(get_network().get_stream_ptr(), prog, true, get_network().is_primary_stream());
     }
