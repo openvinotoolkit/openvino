@@ -107,6 +107,9 @@ jobs:
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         uses: ilammy/msvc-dev-cmd@v1
 
+      - name: Create directory for sccache
+          run: mkdir C:\Users\ContainerAdministrator\.cargo\bin\
+          
       - name: Setup sccache
         uses: hendrikmuhs/ccache-action@v1.2
         with:
