@@ -1,6 +1,6 @@
 # Supported Devices {#openvino_docs_OV_UG_supported_plugins_Supported_Devices}
 
-
+ 
 @sphinxdirective
 
 .. meta::
@@ -15,7 +15,7 @@ utilizing various hardware. It currently supports the following processing units
 * :doc:`CPU <openvino_docs_OV_UG_supported_plugins_CPU>`            
 * :doc:`GPU <openvino_docs_OV_UG_supported_plugins_GPU>`            
 * :doc:`GNA <openvino_docs_OV_UG_supported_plugins_GNA>`         
-* :doc:`NPU <openvino_docs_OV_UG_supported_plugins_NPU>` 
+ 
 
 .. note::
 

@@ -1,5 +1,5 @@
 # OpenVINO Releease Notes {#openvino_release_notes}
-
+ 
 @sphinxdirective
 
 The Intel® Distribution of OpenVINO™ toolkit is an open-source solution for
@@ -135,7 +135,7 @@ OpenVINO™ Runtime (previously known as Inference Engine)
     when GPU and CPU are both used for inference (using ov::hint::enable_cpu_pinning(true)).
     This avoids the performance issue of CPU resource contention where there is
     not enough CPU resources to schedule tasks for GPU 
-    (`PR#19214 <https://github.com/openvinotoolkit/openvino/pull/19214>`__).
+    (`PR #19214 <https://github.com/openvinotoolkit/openvino/pull/19214>`__).
 
 * CPU
 
@@ -186,7 +186,7 @@ OpenVINO™ Runtime (previously known as Inference Engine)
     * Supported conversion of models from memory in keras.Model and tf.function formats.
       `PR #19903 <https://github.com/openvinotoolkit/openvino/pull/19903>`__
     * Supported TF 2.14.
-      `PR#20385 <>`__
+      `PR #20385 <https://github.com/openvinotoolkit/openvino/pull/20385>`__
     * New operations supported. 
 
     * Fixes:
@@ -400,6 +400,6 @@ provides easy access to the right packages that match your desired OS, version,
 and distribution options.
 
 
-
+ 
 
 @endsphinxdirective
