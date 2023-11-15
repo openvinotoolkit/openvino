@@ -98,19 +98,22 @@ bool OneHot::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v1_OneHot_evaluate);
     OPENVINO_ASSERT(inputs.size() == 4 && outputs.size() == 1);
 
-    const auto& output = outputs[0];
-    const auto& output_shape = output.get_shape();
+    const auto output_shape = shape_infer(this, ov::util::get_tensors_partial_shapes(inputs)).front().to_shape();
     const auto axis = get_axis();
     OPENVINO_ASSERT(axis >= 0 && static_cast<size_t>(axis) < output_shape.size(), "Invalid axis value.");
+
     const auto depth = v0::Constant{inputs[1]}.cast_vector<int64_t>()[0];
+    OPENVINO_ASSERT(static_cast<int64_t>(output_shape[axis]) == depth, "Incompatible axis and depth values.");
+
     const auto& indices = inputs[0];
     const auto& indices_shape = indices.get_shape();
     OPENVINO_ASSERT(shape_size(indices_shape) * depth == shape_size(output_shape),
                     "Incompatible I/O shapes or wrong depth value.");
-    OPENVINO_ASSERT(static_cast<int64_t>(output_shape[axis]) == depth, "Incompatible axis and depth values.");
 
     const auto on_value = static_cast<const char*>(inputs[2].data());
     const auto off_value = static_cast<const char*>(inputs[3].data());
+    auto& output = outputs[0];
+    output.set_shape(output_shape);
     using namespace ov::element;
     return IfTypeOf<i32, i64>::apply<one_hot::Evaluate>(indices.get_element_type(),
                                                         indices,
