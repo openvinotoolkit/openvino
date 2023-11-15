@@ -449,9 +449,6 @@ std::shared_ptr<ov::Node> makeLogical(const ov::Output<Node>& in0,
 
 std::shared_ptr<ov::Node> makeLogical(const ov::ParameterVector& inputs, ov::test::utils::LogicalTypes logicalType);
 
-std::shared_ptr<ov::Node> makeDetectionOutput(const ov::OutputVector& inputs,
-                                              const ov::op::v0::DetectionOutput::Attributes& attrs);
-
 std::shared_ptr<ov::Node> makeFullyConnected(const ov::Output<Node>& in,
                                              const element::Type& type,
                                              const size_t outputSize,
