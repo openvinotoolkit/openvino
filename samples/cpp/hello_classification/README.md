@@ -4,6 +4,8 @@ This sample demonstrates how to do inference of image classification models usin
 
 Models with only one input and output are supported.
 
+For more detailed information on how this sample works, check the dedicated [article](..\..\..\docs\articles_en\learn_openvino\openvino_samples\cpp_sample_hello_classification.md)
+
 ## Requirements
 
 | Options                     | Values                                                                                                |
