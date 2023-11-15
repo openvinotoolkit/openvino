@@ -55,13 +55,13 @@ void Ngram::initSupportedPrimitiveDescriptors() {
         return;
 
     idcesPrecision = getOriginalInputPrecisionAtPort(1);
-    if (idcesPrecision != InferenceEngine::Precision::I32 && idcesPrecision != InferenceEngine::Precision::I64) {
-        idcesPrecision = InferenceEngine::Precision::I32;
+    if (idcesPrecision != ov::element::i32 && idcesPrecision != ov::element::i64) {
+        idcesPrecision = ov::element::i32;
     }
 
-    addSupportedPrimDesc({{LayoutType::ncsp, InferenceEngine::Precision::FP32},
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
                           {LayoutType::ncsp, idcesPrecision}},
-                         {{LayoutType::ncsp, InferenceEngine::Precision::FP32}},
+                         {{LayoutType::ncsp, ov::element::f32}},
                          ref_any);
 }
 
@@ -102,9 +102,9 @@ void Ngram::execute(dnnl::stream strm) {
     auto* dstData = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     std::vector<size_t> batchLenghts;
-    if (idcesPrecision == InferenceEngine::Precision::I32) {
+    if (idcesPrecision == ov::element::i32) {
         batchLenghts = computeBatchLenghts<std::int32_t>();
-    } else if (idcesPrecision == InferenceEngine::Precision::I64) {
+    } else if (idcesPrecision == ov::element::i64) {
         batchLenghts = computeBatchLenghts<std::int64_t>();
     } else {
         OPENVINO_THROW("Unsupported idces precision: ", idcesPrecision);
