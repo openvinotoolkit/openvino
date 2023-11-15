@@ -300,7 +300,7 @@ TEST_P(OVCompiledModelBaseTest, CanSetInputPrecisionForNetwork) {
     ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
 }
 
-TEST_P(OVCompiledModelBaseTest, canSetOutputPrecisionForNetwork) {
+TEST_P(OVCompiledModelBaseTest, CanSetOutputPrecisionForNetwork) {
     std::shared_ptr<ov::Model> model = ngraph::builder::subgraph::makeSingleConcatWithConstant();
     ov::Core core = createCoreWithTemplate();
     auto ppp = ov::preprocess::PrePostProcessor(model);
