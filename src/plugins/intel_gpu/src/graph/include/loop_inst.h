@@ -271,6 +271,14 @@ private:
 
 private:
         void validate_backedge_memory() {
+            bool is_dynamic = (from_primitive->is_dynamic() || to_primitive->is_dynamic());
+            if (!is_dynamic && from_mem) {
+                const size_t from_mem_bytes = from_mem->get_layout().bytes_count();
+                OPENVINO_ASSERT((from_mem_bytes == total_bytes), "Invalid backedge memory layout: size(",
+                        from_mem_bytes, ",", from_mem->get_layout().to_short_string(),
+                        ") not matched with that of initial_mem(", total_bytes,
+                        ",", initial_mem->get_layout().to_short_string(), ")");
+            }
             if (concat_mem_mapping) {
                 for (const auto& from_mem : concat_mem_mapping->get_sliced_mems()) {
                     const size_t from_mem_bytes = from_mem->get_layout().bytes_count();
