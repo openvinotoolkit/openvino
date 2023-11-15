@@ -9,18 +9,18 @@
 #include <string>
 #include <memory>
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ov_models/builders.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
+#include "common_test_utils/test_enums.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace ov {
+namespace test {
 
 typedef std::tuple<
-        InferenceEngine::SizeVector,
-        InferenceEngine::SizeVector,
+        ov::Shape,
+        ov::Shape,
         std::vector<ptrdiff_t>,
         std::vector<ptrdiff_t>,
-        InferenceEngine::SizeVector,
+        ov::Shape,
         size_t,
         size_t,
         size_t,
@@ -28,12 +28,12 @@ typedef std::tuple<
         bool> quantGroupConvSpecificParams;
 typedef std::tuple<
         quantGroupConvSpecificParams,
-        InferenceEngine::Precision,
-        InferenceEngine::SizeVector,
-        LayerTestsUtils::TargetDevice> quantGroupConvLayerTestParamsSet;
+        ov::element::Type,
+        ov::Shape,
+        std::string> quantGroupConvLayerTestParamsSet;
 
 class QuantGroupConvLayerTest : public testing::WithParamInterface<quantGroupConvLayerTestParamsSet>,
-                                            virtual public LayerTestsUtils::LayerTestsCommon {
+                                            virtual public ov::test::SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<quantGroupConvLayerTestParamsSet>& obj);
 
@@ -41,4 +41,5 @@ protected:
     void SetUp() override;
 };
 
-}  // namespace SubgraphTestsDefinitions
+}  // namespace test
+}  // namespace ov
