@@ -809,6 +809,16 @@ private:
 #    pragma GCC diagnostic pop
 #endif
     }
+
+    template <class T>
+    void fill_or_write(const bool fill, const element::Type& et, const std::vector<T>& values) {
+        if (fill) {
+            fill_data(et, values[0]);
+        } else {
+            write_values(values);
+        }
+    }
+
     template <ov::element::Type_t Type,
               typename ValueT,
               typename std::enable_if<Type == ov::element::Type_t::u4 || Type == ov::element::Type_t::u4 ||

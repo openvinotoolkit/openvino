@@ -43,12 +43,23 @@ std::string to_cpp_string(T value) {
     }
 }
 
-std::vector<double> from_string_vector(const std::vector<std::string>& str_values) {
-    std::vector<double> values;
+template <class T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
+T str_to_value(const std::string& s, size_t* pos) {
+    return static_cast<T>(std::is_signed<T>::value ? std::stol(s, pos) : std::stoul(s, pos));
+}
+
+template <class T, typename std::enable_if<std::is_floating_point<T>::value>::type* = nullptr>
+T str_to_value(const std::string& s, size_t* pos) {
+    return static_cast<T>(std::stod(s, pos));
+}
+
+template <class T>
+std::vector<T> from_string_vector(const std::vector<std::string>& str_values) {
+    std::vector<T> values;
     values.reserve(str_values.size());
     std::transform(str_values.cbegin(), str_values.cend(), std::back_inserter(values), [](const std::string& s) {
         size_t pos;
-        auto v = std::stold(s, &pos);
+        auto v = str_to_value<T>(s, &pos);
         OPENVINO_ASSERT(s.size() == pos, "Could not parse literal '", s, "'");
         return v;
     });
@@ -93,8 +104,29 @@ Constant::Constant(const Tensor& tensor)
 }
 
 Constant::Constant(const element::Type& type, const Shape& shape, const std::vector<std::string>& values)
-    : Constant(type, shape, from_string_vector(values)) {
-    const auto is_checked_and_identical = (values.size() == 1) && (shape_size(m_shape) != 1);
+    : Constant(false, type, shape) {
+    const auto this_shape_size = shape_size(m_shape);
+    const auto values_size = values.size();
+    const auto has_single_value = (values_size == 1);
+    NODE_VALIDATION_CHECK(this,
+                          has_single_value || values_size == this_shape_size,
+                          "Did not get the expected number of literals for a constant of shape ",
+                          m_shape,
+                          " (got ",
+                          values_size,
+                          ", expected ",
+                          (this_shape_size == 1 ? "" : "1 or "),
+                          this_shape_size,
+                          ").");
+    const auto is_checked_and_identical = has_single_value && (this_shape_size != 1);
+
+    if (type.is_real()) {
+        fill_or_write(is_checked_and_identical, type, from_string_vector<double>(values));
+    } else if (type.is_signed()) {
+        fill_or_write(is_checked_and_identical, type, from_string_vector<int64_t>(values));
+    } else {
+        fill_or_write(is_checked_and_identical, type, from_string_vector<uint64_t>(values));
+    }
     update_identical_flags(is_checked_and_identical, is_checked_and_identical);
 }
 
