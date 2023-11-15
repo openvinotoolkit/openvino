@@ -6976,3 +6976,31 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mm_nms_rotated) {
 
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_greater_or_equal_int) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/greater_or_equal_int.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+
+    test_case.add_input<int64_t>(Shape{2}, {10, 20});
+    test_case.add_input<int64_t>(Shape{2}, {15, 15});
+    test_case.add_expected_output<bool>(Shape{2}, {false, true});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_greater_or_equal_float) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/greater_or_equal_float.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+
+    test_case.add_input<float>(Shape{2}, {12.03513f, 22.03513f});
+    test_case.add_input<float>(Shape{2}, {5.84916f, 22.03513f});
+    test_case.add_expected_output<bool>(Shape{2}, {true, true});
+
+    test_case.run();
+}
