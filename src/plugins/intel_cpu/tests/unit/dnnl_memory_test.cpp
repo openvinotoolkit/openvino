@@ -81,7 +81,7 @@ TEST(MemoryTest, ConcurrentResizeGetPrimitive) {
 TEST(StaticMemoryTest, UnsupportedDnnlPrecision) {
     // in the context of this test, unsupported precision means a precision unsupported by oneDNN
     const dnnl::engine eng(dnnl::engine::kind::cpu, 0);
-    CpuBlockedMemoryDesc memDescSupportedPrc(Precision::FP32, {5, 4, 7, 10});
+    CpuBlockedMemoryDesc memDescSupportedPrc(ov::element::f32, {5, 4, 7, 10});
     MemoryPtr testMemory;
     ASSERT_NO_THROW(testMemory = std::make_shared<StaticMemory>(eng, memDescSupportedPrc));
     ASSERT_TRUE(testMemory->isAllocated());
@@ -92,7 +92,7 @@ TEST(StaticMemoryTest, UnsupportedDnnlPrecision) {
     ASSERT_NO_THROW(dnnl_memory = testMemory->getPrimitive());
     ASSERT_TRUE(dnnl_memory);
 
-    CpuBlockedMemoryDesc memDescUnSupportedPrc(Precision::I64, {5, 4, 7, 10});
+    CpuBlockedMemoryDesc memDescUnSupportedPrc(ov::element::i64, {5, 4, 7, 10});
     ASSERT_NO_THROW(testMemory = std::make_shared<StaticMemory>(eng, memDescUnSupportedPrc));
     ASSERT_TRUE(testMemory->isAllocated());
     raw_data_ptr = nullptr;
