@@ -53,18 +53,6 @@ jobs:
           name: samples_diff
           path: samples_diff.diff
 
-      - uses: actions/upload-artifact@v3
-        if: failure()
-        with:
-          name: ie_python_diff
-          path: ie_python_diff.diff
-
-      - uses: actions/upload-artifact@v3
-        if: failure()
-        with:
-          name: pyngraph_diff
-          path: pyngraph_diff.diff
-
       # Python API 2.0 Flake code-style
       - name: Run flake8 on Python API 2.0
         run: python -m flake8 ./src/openvino --config=setup.cfg
