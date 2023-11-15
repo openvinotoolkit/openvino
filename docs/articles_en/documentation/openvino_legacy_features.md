@@ -8,6 +8,7 @@
 
    OpenVINO Development Tools package <openvino_docs_install_guides_install_dev_tools>
    Model Optimizer / Conversion API <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>
+   Deploy Application with Deployment Manager <openvino_docs_install_guides_deployment_manager_tool>
    OpenVINO API 2.0 transition <openvino_2_0_transition_guide>
    Open Model ZOO <model_zoo>
    Apache MXNet, Caffe, and Kaldi <mxnet_caffe_kaldi>
@@ -48,6 +49,14 @@ offering.
 
 |   :doc:`See how to use OVC <openvino_docs_model_processing_introduction>`
 |   :doc:`See how to transition from the legacy solution <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`
+
+| **OpenVINO Deployment Manager**
+|   *New solution:* the tool is no longer needed
+|   *Old solution:* discontinuation planned for OpenVINO 2024.0 
+|
+|   It is recommended to explore alternative deployment solutions available in OpenVINO.
+|   :doc:`See how to deploy locally <openvino_deployment_guide>`
+
 
 
 | **Open Model ZOO**
