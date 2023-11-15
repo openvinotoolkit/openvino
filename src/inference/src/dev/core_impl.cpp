@@ -1081,7 +1081,7 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
         deviceNameWithBatchSize = deviceName.substr(pos + 1);
         deviceNameWithoutBatch = ov::DeviceIDParser::get_batch_device(deviceNameWithBatchSize);
         if (deviceName.find("(") == std::string::npos) {
-            auto supported_properties = ICore::get_property(deviceName.substr(pos + 1), ov::supported_properties, {});
+            auto supported_properties = ICore::get_property(deviceNameWithoutBatch, ov::supported_properties, {});
             if (std::find(supported_properties.begin(), supported_properties.end(), ov::optimal_batch_size) ==
                 supported_properties.end())
                 return model;
