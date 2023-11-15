@@ -91,6 +91,17 @@ static std::vector<layout> get_output_layouts(kernel_impl_params const& impl_par
             auto shape = loop_output_layout.get_partial_shape();
             shape[axis_to_iterate_through] = static_cast<int32_t>(num_iterations);
             loop_output_layout.set_partial_shape(shape);
+        } else {
+            // if num_iterations is zero, it means loop does not run inner body network.
+            // in the case of dynamic output layout, dynamic dimension will be replaced to zero.
+            if (num_iterations == 0) {
+                auto shape = loop_output_layout.get_partial_shape();
+                for (size_t i = 0; i < shape.size(); i++) {
+                    if (shape[i].is_dynamic())
+                        shape[i] = 0;
+                }
+                loop_output_layout.set_partial_shape(shape);
+            }
         }
         output_layouts.push_back(loop_output_layout);
     }
