@@ -1,6 +1,6 @@
 # Torchvision to OpenVINO preprocessing converter
 
-Torchvision to OpenVINO preprocessing converter allows you to use an existing `torchvision.transforms` object to automatically translate it to OpenVINO preprocessing. It is then being embedded into the model, resulting in better inference performance.
+The Torchvision to OpenVINO preprocessing converter enables the use of an existing `torchvision.transforms` object to automatically translate it to OpenVINO preprocessing. It is then being embedded into the model, resulting in better inference performance.
 
 
 ## Supported transforms
