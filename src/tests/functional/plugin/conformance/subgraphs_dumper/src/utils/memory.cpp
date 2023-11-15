@@ -17,7 +17,7 @@
 namespace ov {
 namespace util {
 
-uint64_t get_ram_size() {
+size_t get_ram_size() {
     size_t ram_mem_size_bytes = 0;
 #ifdef _WIN32
     MEMORYSTATUSEX status;

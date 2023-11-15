@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <stddef.h>
+
 namespace ov {
 namespace util {
 
