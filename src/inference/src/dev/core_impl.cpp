@@ -801,14 +801,78 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_with_preprocess(ov::Pl
                                                                           const ov::AnyMap& config) const {
     std::shared_ptr<const ov::Model> preprocessed_model = model;
 
+    bool has_string = false;
+    for(const auto& p: preprocessed_model->get_parameters()) {
+        if(p->get_element_type() == element::string) {
+            has_string = true;
+            break;
+        }
+    }
+
+    if(!has_string) {
+        for(const auto& r: preprocessed_model->get_results()) {
+            if(r->get_element_type() == element::string) {
+                has_string = true;
+                break;
+            }
+        }
+    }
+
+    auto mark_tensor = [](descriptor::Tensor& tensor, const PartialShape& original_shape) {
+        // Add a new tensor name to recognize this changed parameter in the infer_request
+        std::string name = tensor.get_any_name();
+        name = "__overriden_string_port_prefix__" + name;
+        tensor.add_names({name});
+        tensor.get_rt_info()["__original_partial_shape"] = original_shape;;
+        std::cerr << "Patched a parameter/result of type element::string with new name " << name << "\n";
+    };
+
     // Disable conversion for proxy plugin and virtual devices to add pre-processing based on API of internal plugins
     if (!is_new_api() && !std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr) &&
-        !is_virtual_device(plugin.get_name()) && !is_proxy_device(plugin)) {
+        !is_virtual_device(plugin.get_name()) && !is_proxy_device(plugin) || has_string) {
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::AddPreprocessing>();
 
         auto cloned_model = model->clone();
         manager.run_passes(cloned_model);
+
+        for (size_t i = 0; i < cloned_model->get_parameters().size(); ++i) {
+            //std::cerr << model->get_parameters()[i]->get_friendly_name() << "\n";
+            //auto& tensor = model->get_parameters()[i]->output(0).get_tensor();
+            //std::cerr << "name before: " << tensor.get_any_name() << "\n";
+            //tensor.set_names({tensor.get_any_name() + "/postfix"});
+            //std::cerr << "name after: " << tensor.get_any_name() << "\n";
+            auto parameter = cloned_model->get_parameters()[i];
+            if(parameter->get_element_type() == element::string) {
+                std::cerr << "Detected parameter with name " << parameter->output(0).get_any_name() << " with string type\n";
+                // Store shape as a RT attribute, otherwise the validation of next nodes cannot deduce shape from a new parameter
+                PartialShape original_shape = parameter->get_partial_shape();
+                //parameter->get_rt_info()["original_partial_shape"] = original_shape;  // Not universal in case if the wrapping happens not for Parameter
+                parameter->set_element_type(element::u8);
+                parameter->set_partial_shape(PartialShape{sizeof(void*)});
+                parameter->validate_and_infer_types();
+                mark_tensor(parameter->get_output_tensor(0), original_shape);
+            }
+        }
+        for (size_t i = 0; i < cloned_model->get_results().size(); ++i) {
+            //std::cerr << model->get_parameters()[i]->get_friendly_name() << "\n";
+            //auto& tensor = model->get_parameters()[i]->output(0).get_tensor();
+            //std::cerr << "name before: " << tensor.get_any_name() << "\n";
+            //tensor.set_names({tensor.get_any_name() + "/postfix"});
+            //std::cerr << "name after: " << tensor.get_any_name() << "\n";
+            auto result = cloned_model->get_results()[i];
+            if(result->get_element_type() == element::string) {
+                std::cerr << "Detected result with name " << result->output(0).get_any_name() << " with string type\n";
+                // Store shape as a RT attribute, otherwise the validation of next nodes cannot deduce shape from a new parameter
+                PartialShape original_shape = result->get_output_partial_shape(0);
+                //parameter->get_rt_info()["original_partial_shape"] = original_shape;  // Not universal in case if the wrapping happens not for Parameter
+                result->set_output_type(0, element::u8, PartialShape{sizeof(void*)});   // FIXME: Weak, will be elimnated by the next validate and infer
+
+                // Add a new tensor name to recognize this changed parameter in the infer_request
+                mark_tensor(result->get_output_tensor(0), original_shape);
+            }
+        }
+
         preprocessed_model = cloned_model;
     }
 
