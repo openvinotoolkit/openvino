@@ -61,12 +61,13 @@ def get_test_default_frontends():
 
 
 class TestMoFreezePlaceholder():
-    def setUp(self):
+    @classmethod
+    def setup_method(cls):
         tm.Telemetry.__init__ = Mock(return_value=None)
         tm.Telemetry.send_event = Mock()
         FrontEnd.add_extension = Mock()
 
-        self.models = {}
+        cls.models = {}
         add = onnx.helper.make_node("Add", inputs=["in1", "in2"], outputs=["add_out"])
         input_tensors = [
             make_tensor_value_info("in1", onnx.TensorProto.FLOAT, (2, 2)),
@@ -81,7 +82,7 @@ class TestMoFreezePlaceholder():
             producer_name="MO tests",
             opset_imports=[onnx.helper.make_opsetid("", 13)],
         )
-        self.models["test_model.onnx"] = model
+        cls.models["test_model.onnx"] = model
 
         input_tensors_2 = [
             make_tensor_value_info("in1", onnx.TensorProto.FLOAT, (1, 1, 3)),
@@ -97,7 +98,7 @@ class TestMoFreezePlaceholder():
             producer_name="MO tests",
             opset_imports=[onnx.helper.make_opsetid("", 13)],
         )
-        self.models["test_model_2.onnx"] = model_2
+        cls.models["test_model_2.onnx"] = model_2
 
         input_tensors_3 = [
             make_tensor_value_info("in1", onnx.TensorProto.INT32, (2, 3)),
@@ -113,13 +114,13 @@ class TestMoFreezePlaceholder():
             producer_name="MO tests",
             opset_imports=[onnx.helper.make_opsetid("", 13)],
         )
-        self.models["test_model_int.onnx"] = model_3
+        cls.models["test_model_int.onnx"] = model_3
 
-        for name, model in self.models.items():
+        for name, model in cls.models.items():
             onnx.save(model, name)
-
-    def tearDown(self):
-        for name in self.models.keys():
+    @classmethod
+    def teardown_method(cls):
+        for name in cls.models.keys():
             os.remove(name)
 
     @pytest.mark.parametrize(
