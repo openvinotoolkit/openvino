@@ -231,6 +231,7 @@ void AutoSchedule::init() {
                     m_worker_requests["CPU_HELP"].clear();
                     m_compile_context[CPU].m_compiled_model._ptr.reset();
                     m_compile_context[CPU].m_compiled_model._so.reset();
+                    m_compile_context[CPU].m_is_already = false;
                     LOG_INFO_TAG("helper released!!");
                     break;
                 }
