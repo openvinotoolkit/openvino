@@ -49,7 +49,7 @@ public:
     ChannelBlockedCreator(size_t blockSize) : _blockSize(blockSize) {}
     CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision, const Shape& srcShape) const override {
         if (srcShape.getRank() < 2) {
-            IE_THROW() << "Can't create blocked tensor descriptor!";
+            OPENVINO_THROW("Can't create blocked tensor descriptor!");
         }
 
         SizeVector order(srcShape.getRank());

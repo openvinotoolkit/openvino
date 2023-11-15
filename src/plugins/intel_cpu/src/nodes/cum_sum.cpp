@@ -35,24 +35,23 @@ bool CumSum::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
 CumSum::CumSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = "CumSum layer with name '" + op->get_friendly_name() + "' ";
 
     if ((getOriginalInputsNumber() != numOfInputs && getOriginalInputsNumber() != (numOfInputs - 1)) || getOriginalOutputsNumber() != 1)
-        IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
 
     const auto &dataShape = getInputShapeAtPort(CUM_SUM_DATA);
     numOfDims = dataShape.getRank();
     if (numOfDims < 1) {
-        IE_THROW() << errorPrefix << " doesn't support 'data' input tensor with rank: " << numOfDims;
+        OPENVINO_THROW(errorPrefix, " doesn't support 'data' input tensor with rank: ", numOfDims);
     }
 
     const auto cumsum = std::dynamic_pointer_cast<const ov::opset3::CumSum>(op);
     if (cumsum == nullptr)
-        IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
-            "' is not an instance of CumSum from opset3.";
+        OPENVINO_THROW("Operation with name '", op->get_friendly_name(), "' is not an instance of CumSum from opset3.");
 
     exclusive = cumsum->is_exclusive();
     reverse = cumsum->is_reverse();
@@ -64,7 +63,7 @@ CumSum::CumSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
     }
 
     if (dataShape != getOutputShapeAtPort(0))
-        IE_THROW() << errorPrefix << " has different 'data' input and output dimensions";
+        OPENVINO_THROW(errorPrefix, " has different 'data' input and output dimensions");
 }
 
 void CumSum::initSupportedPrimitiveDescriptors() {
@@ -76,12 +75,12 @@ void CumSum::initSupportedPrimitiveDescriptors() {
                 ov::element::i8, ov::element::u8,
                 ov::element::i16, ov::element::i32, ov::element::i64, ov::element::u64,
                 ov::element::bf16, ov::element::f16, ov::element::f32))
-        IE_THROW() << errorPrefix << " has unsupported 'data' input precision: " << dataPrecision.get_type_name();
+        OPENVINO_THROW(errorPrefix, " has unsupported 'data' input precision: ", dataPrecision.get_type_name());
 
     if (inputShapes.size() == numOfInputs) {
         const auto &axisTensorPrec = getOriginalInputPrecisionAtPort(AXIS);
         if (axisTensorPrec != ov::element::i32 && axisTensorPrec != ov::element::i64)
-            IE_THROW() << errorPrefix << " has unsupported 'axis' input precision: " << axisTensorPrec.get_type_name();
+            OPENVINO_THROW(errorPrefix, " has unsupported 'axis' input precision: ", axisTensorPrec.get_type_name());
     }
 
     std::vector<PortConfigurator> inDataConf;
@@ -246,11 +245,11 @@ size_t CumSum::getAxis(const IMemory& _axis, const IMemory& _data) const {
             break;
         }
         default : {
-            IE_THROW() << errorPrefix << "  doesn't support 'axis' input with precision: " << axisPrecision.get_type_name();
+            OPENVINO_THROW(errorPrefix, "  doesn't support 'axis' input with precision: ", axisPrecision.get_type_name());
         }
     }
     if (axisValueFromBlob < -dataShapeSize || axisValueFromBlob > dataShapeSize - 1)
-        IE_THROW() << errorPrefix << "  has axis with a value out of range: " << axisValueFromBlob;
+        OPENVINO_THROW(errorPrefix, "  has axis with a value out of range: ", axisValueFromBlob);
     return axisValueFromBlob >= 0 ? axisValueFromBlob : (axisValueFromBlob + dataShapeSize);
 }
 

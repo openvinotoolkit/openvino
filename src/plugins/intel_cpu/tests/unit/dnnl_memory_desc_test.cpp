@@ -226,9 +226,9 @@ TEST(MemDescTest, UndefinedState) {
 
     ASSERT_FALSE(memDesc.isDefined());
 
-    ASSERT_THROW(memDesc.cloneWithNewDims({16, 7, 40, 7}), InferenceEngine::ParameterMismatch);
-    ASSERT_THROW(memDesc.cloneWithNewDims({16, 7, 25}), InferenceEngine::ParameterMismatch);
-    ASSERT_THROW(memDesc.cloneWithNewDims({16, 7, 25, 5}), InferenceEngine::ParameterMismatch);
+    ASSERT_THROW(memDesc.cloneWithNewDims({16, 7, 40, 7}), ov::Exception);
+    ASSERT_THROW(memDesc.cloneWithNewDims({16, 7, 25}), ov::Exception);
+    ASSERT_THROW(memDesc.cloneWithNewDims({16, 7, 25, 5}), ov::Exception);
 
     auto definedDesc = memDesc.cloneWithNewDims({16, 15, 25, 7});
 
@@ -241,9 +241,9 @@ TEST(MemDescTest, UndefinedState) {
 
     ASSERT_TRUE(cpuBlockedDesc->isCompatible(memDesc));
 
-    ASSERT_THROW(cpuBlockedDesc->cloneWithNewDims({16, 7, 40, 7}), InferenceEngine::ParameterMismatch);
-    ASSERT_THROW(cpuBlockedDesc->cloneWithNewDims({16, 7, 25}), InferenceEngine::ParameterMismatch);
-    ASSERT_THROW(cpuBlockedDesc->cloneWithNewDims({16, 7, 25, 5}), InferenceEngine::ParameterMismatch);
+    ASSERT_THROW(cpuBlockedDesc->cloneWithNewDims({16, 7, 40, 7}), ov::Exception);
+    ASSERT_THROW(cpuBlockedDesc->cloneWithNewDims({16, 7, 25}), ov::Exception);
+    ASSERT_THROW(cpuBlockedDesc->cloneWithNewDims({16, 7, 25, 5}), ov::Exception);
 
     auto definedBlockedDesc = cpuBlockedDesc->cloneWithNewDims({16, 15, 25, 7});
 
@@ -318,7 +318,7 @@ TEST(MakeUndefinedDnnlDesc, checkRank) {
     const memory::desc origin({10, 20, 15, 7}, dataType, memory::format_tag::nChw16c);
 
     ov::intel_cpu::Shape pluginShapeWrongRank(ngraph::PartialShape{{-1, -1}, {-1, -1}, {-1, -1}});
-    ASSERT_THROW(DnnlExtensionUtils::makeUndefinedDesc(origin, pluginShapeWrongRank), InferenceEngine::ParameterMismatch);
+    ASSERT_THROW(DnnlExtensionUtils::makeUndefinedDesc(origin, pluginShapeWrongRank), ov::Exception);
 
     ov::intel_cpu::Shape pluginShapeRightRank(ngraph::PartialShape{{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}});
     MemoryDescPtr memDesc;
@@ -335,7 +335,7 @@ TEST(MakeUndefinedDnnlDesc, checkDims) {
     for (size_t i = 0; i < fullyUndef.size(); ++i) {
         auto partialShape = fullyUndef;
         partialShape[i] = {3}; // just a number which is not equal to any origin dims
-        ASSERT_THROW(DnnlExtensionUtils::makeUndefinedDesc(origin, ov::intel_cpu::Shape(partialShape)), InferenceEngine::ParameterMismatch);
+        ASSERT_THROW(DnnlExtensionUtils::makeUndefinedDesc(origin, ov::intel_cpu::Shape(partialShape)), ov::Exception);
     }
 
     const auto dims = origin.get_dims();

@@ -97,7 +97,7 @@ Proposal::Proposal(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     auto proposalOp = std::dynamic_pointer_cast<const ov::op::v0::Proposal>(op);
@@ -179,21 +179,21 @@ void Proposal::execute(dnnl::stream strm) {
         const float imgHeight = imgInfoData[0];
         const float imgWidth = imgInfoData[1];
         if (!std::isnormal(imgHeight) || !std::isnormal(imgWidth) || (imgHeight < 0.f) || (imgWidth < 0.f)) {
-            IE_THROW() << "Proposal operation image info input must have positive image height and width.";
+            OPENVINO_THROW("Proposal operation image info input must have positive image height and width.");
         }
 
         // scale factor for height & width
         const float scaleHeight = imgInfoData[2];
         const float scaleWidth = imgInfoSize == 4 ? imgInfoData[3] : scaleHeight;
         if (!std::isfinite(scaleHeight) || !std::isfinite(scaleWidth) || (scaleHeight < 0.f) || (scaleWidth < 0.f)) {
-            IE_THROW() << "Proposal operation image info input must have non negative scales.";
+            OPENVINO_THROW("Proposal operation image info input must have non negative scales.");
         }
 
         ov::Extensions::Cpu::XARCH::proposal_exec(probabilitiesData, anchorsData, inProbDims,
                 {imgHeight, imgWidth, scaleHeight, scaleWidth}, anchors.data(), roi_indices.data(), outRoiData, outProbData, conf);
-    } catch (const InferenceEngine::Exception& e) {
+    } catch (const ov::Exception& e) {
         std::string errorMsg = e.what();
-        IE_THROW() << errorMsg;
+        OPENVINO_THROW(errorMsg);
     }
 }
 

@@ -47,32 +47,32 @@ DFT::DFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) 
                Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     layerErrorPrefix = "DFT layer with name '" + op->get_name() + "'";
     const size_t inputsNumber = getOriginalInputsNumber();
     if (inputsNumber != 2 && inputsNumber != 3) {
-        IE_THROW() << layerErrorPrefix << " has invalid number of input/output edges: " << inputsNumber;
+        OPENVINO_THROW(layerErrorPrefix, " has invalid number of input/output edges: ", inputsNumber);
     }
 
     /* Data */
     inputShape = inputShapes[DATA_INDEX].getStaticDims();
     if (inputShape.size() < 2) {
-        IE_THROW() << layerErrorPrefix << " has invalid 'data' input tensor with rank: " << inputShape.size();
+        OPENVINO_THROW(layerErrorPrefix, " has invalid 'data' input tensor with rank: ", inputShape.size());
     }
 
     /* Axes */
     const auto axesRank = inputShapes[AXES_INDEX].getRank();
     if (axesRank != 1) {
-        IE_THROW() << layerErrorPrefix << " has invalid 'axes' input tensor with rank: " << axesRank;
+        OPENVINO_THROW(layerErrorPrefix, " has invalid 'axes' input tensor with rank: ", axesRank);
     }
 
     /* Signal size */
     if (inputsNumber > SIGNAL_SIZE_INDEX) {
         const auto signalSizeRank = inputShapes[SIGNAL_SIZE_INDEX].getRank();
         if (signalSizeRank != 1) {
-            IE_THROW() << layerErrorPrefix << " has invalid 'signal_size' input tensor with rank: " << signalSizeRank;
+            OPENVINO_THROW(layerErrorPrefix, " has invalid 'signal_size' input tensor with rank: ", signalSizeRank);
         }
     }
 
@@ -88,18 +88,20 @@ void DFT::initSupportedPrimitiveDescriptors() {
 
     const auto& dataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
     if (!dataPrecision.is_real()) {
-        IE_THROW() << layerErrorPrefix << " has unsupported 'data' input precision: " << dataPrecision.get_type_name();
+        OPENVINO_THROW(layerErrorPrefix, " has unsupported 'data' input precision: ", dataPrecision.get_type_name());
     }
 
     const auto& axesPrecision = getOriginalInputPrecisionAtPort(AXES_INDEX);
     if (axesPrecision != ov::element::i32 && axesPrecision != ov::element::i64) {
-        IE_THROW() << layerErrorPrefix << " has unsupported 'axes' input precision: " << axesPrecision.get_type_name();
+        OPENVINO_THROW(layerErrorPrefix, " has unsupported 'axes' input precision: ", axesPrecision.get_type_name());
     }
 
     if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
         const auto& signalSizeTensorPrec = getOriginalInputPrecisionAtPort(SIGNAL_SIZE_INDEX);
         if (signalSizeTensorPrec != ov::element::i32 && signalSizeTensorPrec != ov::element::i64) {
-            IE_THROW() << layerErrorPrefix << " has unsupported 'signal_size' input precision: " << signalSizeTensorPrec.get_type_name();
+            OPENVINO_THROW(layerErrorPrefix,
+                           " has unsupported 'signal_size' input precision: ",
+                           signalSizeTensorPrec.get_type_name());
         }
     }
 
@@ -561,7 +563,7 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
         } else if (mayiuse(cpu::x64::sse41)) {
             dftKernel.reset(new jit_uni_dft_kernel_f32<cpu::x64::sse41>());
         } else {
-            IE_THROW() << "Can't create jit DFT kernel";
+            OPENVINO_THROW("Can't create jit DFT kernel");
         }
 
         if (dftKernel)
@@ -576,7 +578,7 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
         } else if (mayiuse(cpu::x64::sse41)) {
             fftKernel.reset(new jit_uni_fft_kernel_f32<cpu::x64::sse41>());
         } else {
-            IE_THROW() << "Can't create jit FFT kernel";
+            OPENVINO_THROW("Can't create jit FFT kernel");
         }
 
         if (fftKernel)

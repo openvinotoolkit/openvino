@@ -241,7 +241,7 @@ ExperimentalDetectronDetectionOutput::ExperimentalDetectronDetectionOutput(const
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     auto doOp = ov::as_type_ptr<const ov::op::v6::ExperimentalDetectronDetectionOutput>(op);
     auto attributes = doOp->get_attrs();

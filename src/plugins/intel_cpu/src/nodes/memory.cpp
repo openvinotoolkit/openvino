@@ -52,7 +52,7 @@ MemoryOutput::MemoryOutput(const std::shared_ptr<ov::Node>& op, const GraphConte
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) , MemoryNode(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     if (created()) {
         holder = MemoryNodeVirtualEdge::registerOutput(this);
@@ -82,7 +82,7 @@ void MemoryOutput::execute(dnnl::stream strm)  {
     auto& srcMemory = getParentEdgeAt(0)->getMemory();
 
     auto inputMemoryNode = dynamic_cast<MemoryInput*>(inputNode);
-    IE_ASSERT(inputMemoryNode != nullptr);
+    OPENVINO_ASSERT(inputMemoryNode != nullptr);
     inputMemoryNode->storeState(srcMemory);
 }
 
@@ -109,7 +109,7 @@ MemoryInput::MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext
         : Input(op, ctx), MemoryNode(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     if (created()) {
         holder = MemoryNodeVirtualEdge::registerInput(this);
@@ -140,7 +140,7 @@ static void simple_copy(const IMemory& dst, const IMemory& src) {
         auto srcSizeInByte = src.getSize();
         auto dstSizeInByte = dst.getSize();
 
-        IE_ASSERT(srcSizeInByte == dstSizeInByte) << "MemoryNode objects are not compatible. Has different sizes.";
+        OPENVINO_ASSERT(srcSizeInByte == dstSizeInByte, "MemoryNode objects are not compatible. Has different sizes.");
 
         cpu_memcpy(dstPtr, srcPtr, srcSizeInByte);
     } else {
@@ -178,7 +178,7 @@ MemoryNodeVirtualEdge::Holder* MemoryNodeVirtualEdge::registerInput(MemoryInput 
     auto sibling = MemoryNodeVirtualEdge::getByName(holder, node->getId());
     if (sibling != nullptr) {
         auto outputNode = dynamic_cast<MemoryOutput*>(sibling);
-        IE_ASSERT(outputNode != nullptr);
+        OPENVINO_ASSERT(outputNode != nullptr);
         outputNode->setInputNode(node);
     } else {
         holder[node->getId()] = node;
@@ -193,7 +193,7 @@ MemoryNodeVirtualEdge::Holder* MemoryNodeVirtualEdge::registerOutput(MemoryOutpu
     auto sibling = MemoryNodeVirtualEdge::getByName(holder, node->getId());
     if (sibling != nullptr) {
         auto inputNode = dynamic_cast<MemoryInput*>(sibling);
-        IE_ASSERT(inputNode != nullptr);
+        OPENVINO_ASSERT(inputNode != nullptr);
         node->setInputNode(inputNode);
     } else {
         holder[node->getId()] = node;

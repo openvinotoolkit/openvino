@@ -1846,13 +1846,13 @@ Reduce::Reduce(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
             keep_dims = reduce->get_keep_dims();
             auto reduceConst = std::dynamic_pointer_cast<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
             if (!reduceConst)
-                IE_THROW() << errorPrefix << " second tensor is not constant!";
+                OPENVINO_THROW(errorPrefix, " second tensor is not constant!");
             raw_axes = reduceConst->cast_vector<int>();
         } else if (const auto reduce = std::dynamic_pointer_cast<ov::op::util::LogicalReductionKeepDims>(op)) {
             keep_dims = reduce->get_keep_dims();
             auto reduceConst = std::dynamic_pointer_cast<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
             if (!reduceConst)
-                IE_THROW() << errorPrefix << " second tensor is not constant!";
+                OPENVINO_THROW(errorPrefix, " second tensor is not constant!");
             raw_axes = reduceConst->cast_vector<int>();
         }
         set_use_aux_kernel = false;
@@ -1861,29 +1861,29 @@ Reduce::Reduce(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
         vec_reduceCDW_prc.clear();
         setJITBeyond5D();
     } else {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 }
 
 void Reduce::getSupportedDescriptors() {
     if (getParentEdges().size() != 2)
-        IE_THROW() << errorPrefix << " gets incorrect number of input edges!";
+        OPENVINO_THROW(errorPrefix, " gets incorrect number of input edges!");
     if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << " gets incorrect number of output edges!";
+        OPENVINO_THROW(errorPrefix, " gets incorrect number of output edges!");
 
     if (getInputShapeAtPort(REDUCE_INDEXES).getRank() != 1) {
-        IE_THROW() << errorPrefix << " gets incorrect index vector dimension! Index vector should be 1 dimension.";
+        OPENVINO_THROW(errorPrefix, " gets incorrect index vector dimension! Index vector should be 1 dimension.");
     }
 
     if (keep_dims) {
         if (getInputShapeAtPort(REDUCE_DATA).getRank() != getOutputShapeAtPort(0).getRank())
-            IE_THROW() << errorPrefix << " gets incorrect number of input/output dimensions!";
+            OPENVINO_THROW(errorPrefix, " gets incorrect number of input/output dimensions!");
     } else {
         // In fact, after the Reduce operation, the shape must be a scalar if the previous one was 1d.
         // But for now, 0d tensor (scalar) is emulated as 1d tensor. Skip checking in such cases.
         bool is_emulated_0d_as_1d = getInputShapeAtPort(REDUCE_DATA).getRank() == 1 && getOutputShapeAtPort(0).getRank() == 1;
         if (getInputShapeAtPort(REDUCE_DATA).getRank() <= getOutputShapeAtPort(0).getRank() && !is_emulated_0d_as_1d)
-            IE_THROW() << errorPrefix << "gets incorrect number of input/output dimensions!";
+            OPENVINO_THROW(errorPrefix, "gets incorrect number of input/output dimensions!");
     }
 }
 
@@ -2088,7 +2088,7 @@ void Reduce::prepareParams() {
         auto cache = context->getParamsCache();
         auto result = cache->getOrCreate(key, builder);
         if (!result.first) {
-            IE_THROW() << errorPrefix << " has not found jit_uni_reduce_post_kernel_f32.";
+            OPENVINO_THROW(errorPrefix, " has not found jit_uni_reduce_post_kernel_f32.");
         }
 
         reduce_post_kernel = result.first;
@@ -2107,11 +2107,11 @@ void Reduce::createPrimitive() {
     auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto srcMemPtr = getParentEdgeAt(REDUCE_DATA)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << " has not allocated destination memory.";
+        OPENVINO_THROW(errorPrefix, " has not allocated destination memory.");
     if (!srcMemPtr || !srcMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << " has not allocate input memory.";
+        OPENVINO_THROW(errorPrefix, " has not allocate input memory.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << errorPrefix << " has nullable preferable primitive descriptor";
+        OPENVINO_THROW(errorPrefix, " has nullable preferable primitive descriptor");
 
     if (srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
         layout = ReduceLayoutType::reduce_ncsp;
@@ -2227,7 +2227,7 @@ void Reduce::execute(dnnl::stream strm) {
             auto out_ptr = reinterpret_cast<float *>(dst_data);
             reduce_ref(in_ptr, out_ptr);
         } else {
-            IE_THROW() << errorPrefix << " supports only plain layout on machine w/o sse42.";
+            OPENVINO_THROW(errorPrefix, " supports only plain layout on machine w/o sse42.");
         }
     }
 }
@@ -2952,7 +2952,7 @@ inline void Reduce::init_dst_data(uint8_t *out_ptr, size_t dst_size) {
             }
             break;
         default:
-            IE_THROW() << errorPrefix << " gets unsupported reduce mode.";
+            OPENVINO_THROW(errorPrefix, " gets unsupported reduce mode.");
     }
 }
 
@@ -3010,7 +3010,7 @@ inline void Reduce::calc_process_dst_dims(std::vector<int> &reduce_axes, const S
         if (axis < 0)
             axis += src_dims.size();
         if (static_cast<size_t>(axis) > src_dims.size())
-            IE_THROW() << errorPrefix << " exceeds data tensor dimension on index to reduce";
+            OPENVINO_THROW(errorPrefix, " exceeds data tensor dimension on index to reduce");
         axes.insert(static_cast<size_t>(axis));
     }
     for (size_t i = 0; i < src_dims.size(); i++) {
@@ -3033,11 +3033,11 @@ inline void Reduce::calc_process_dst_dims(std::vector<int> &reduce_axes, const S
     if (jit_mode && jit_beyond_5D) {
         if (std::accumulate(out_dims.begin(), out_dims.end(), size_t(1), std::multiplies<size_t>()) !=
             std::accumulate(dst_dims.begin(), dst_dims.end(), size_t(1), std::multiplies<size_t>()))
-            IE_THROW() << errorPrefix << "gets incorrect number of output dimensions!";
+            OPENVINO_THROW(errorPrefix, "gets incorrect number of output dimensions!");
     } else {
         for (size_t i = 0; i < std::min(out_dims.size(), dst_dims.size()); i++) {
             if (out_dims[i] != dst_dims[i])
-                IE_THROW() << errorPrefix << "gets incorrect number of output dimensions!";
+                OPENVINO_THROW(errorPrefix, "gets incorrect number of output dimensions!");
         }
     }
 }
@@ -3144,7 +3144,7 @@ inline void Reduce::reduce_ref(const float *in_ptr, float *out_ptr) {
             reduce_ref_process(in_ptr, out_ptr, 0, [](float old, float y)->float { return old + y * y; });
             break;
     default:
-        IE_THROW() << errorPrefix << "gets unsupported reduce mode.";
+        OPENVINO_THROW(errorPrefix, "gets unsupported reduce mode.");
     }
 }
 
@@ -3231,7 +3231,7 @@ inline void Reduce::reduce_ref_map(float *out_ptr, size_t work_amount_dst, size_
             });
             break;
         default:
-            IE_THROW() << errorPrefix << "gets unsupported reduce mode.";
+            OPENVINO_THROW(errorPrefix, "gets unsupported reduce mode.");
     }
 }
 
@@ -3250,7 +3250,11 @@ void Reduce::setPostOps(dnnl::primitive_attr &attr, const VectorDims &postOpDims
             eltwiseNode->appendPostOps(ops, postOpDims, postOpsDataPtrs, getFusingAxis());
             continue;
         }
-        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
+        OPENVINO_THROW("Fusing of ",
+                       NameFromType(node->getType()),
+                       " operation to ",
+                       NameFromType(this->getType()),
+                       " node is not implemented");
     }
 
     attr.set_post_ops(ops);

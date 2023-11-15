@@ -110,7 +110,8 @@ private:
             case 4: uni_vmovss(vmm_arg, op); break;
             case 2: uni_vpinsrw(xmm_src, xmm_src, op, 0x0); break;
             case 1: uni_vpinsrb(xmm_src, xmm_src, op, 0x0); break;
-            default: IE_THROW() << "The data type of size '" << jpp.dtype_size << "' is not supported.";
+            default:
+                OPENVINO_THROW("The data type of size '", jpp.dtype_size, "' is not supported.");
         }
     }
     inline void store_scalar(const Xbyak::Address &op, Vmm vmm_arg) {
@@ -119,7 +120,8 @@ private:
             case 4: uni_vmovss(op, vmm_arg); break;
             case 2: uni_vpextrw(op, xmm_dst, 0x0); break;
             case 1: uni_vpextrb(op, xmm_dst, 0x0); break;
-            default: IE_THROW() << "The data type of size '" << jpp.dtype_size << "' is not supported.";
+            default:
+                OPENVINO_THROW("The data type of size '", jpp.dtype_size, "' is not supported.");
         }
     }
 
@@ -159,7 +161,8 @@ private:
             case x64::sse41:
                 emulate_gather(vmm_arg, mem_base);
                 break;
-            default: IE_THROW() << "Got unsupported instruction set.";
+            default:
+                OPENVINO_THROW("Got unsupported instruction set.");
         }
     }
 
@@ -168,7 +171,8 @@ private:
             case 4: custom_uni_vgatherdps(vmm, mem_base, vmm_gather_index, vmm_gather_mask); break;
             case 2:
             case 1: emulate_gather(vmm_arg, mem_base); break;
-            default: IE_THROW() << "The data type of size '" << jpp.dtype_size << "' is not supported.";
+            default:
+                OPENVINO_THROW("The data type of size '", jpp.dtype_size, "' is not supported.");
         }
     }
 
@@ -182,7 +186,8 @@ private:
                 case 4: uni_vpinsrd(xmm_arg, xmm_arg, addr, i); break;
                 case 2: uni_vpinsrw(xmm_arg, xmm_arg, addr, i); break;
                 case 1: uni_vpinsrb(xmm_arg, xmm_arg, addr, i); break;
-                default: IE_THROW() << "The data type of size '" << jpp.dtype_size << "' is not supported.";
+                default:
+                    OPENVINO_THROW("The data type of size '", jpp.dtype_size, "' is not supported.");
             }
         }
     }
@@ -332,21 +337,25 @@ ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ov::Node>& op, co
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = "ExtractImagePatches layer with name '" + op->get_friendly_name() + "' ";
     auto extImgPatcher = ov::as_type_ptr<const ov::opset3::ExtractImagePatches>(op);
 
     if (inputShapes.size() != 1 || outputShapes.size() != 1)
-        IE_THROW() << errorPrefix << "has incorrect number of input or output edges!"
-                   << " Input: " << inputShapes.size() << "; Output: " << outputShapes.size();
+        OPENVINO_THROW(errorPrefix,
+                       "has incorrect number of input or output edges!",
+                       " Input: ",
+                       inputShapes.size(),
+                       "); Output: ",
+                       outputShapes.size());
 
     if (getInputShapeAtPort(0).getRank() != 4)
-        IE_THROW() << errorPrefix << "must have 4D input tensor. Actual: " << getInputShapeAtPort(0).getRank();
+        OPENVINO_THROW(errorPrefix, "must have 4D input tensor. Actual: ", getInputShapeAtPort(0).getRank());
 
     if (getOutputShapeAtPort(0).getRank() != 4)
-        IE_THROW() << errorPrefix << "must have 4D output tensor. Actual: " << getOutputShapeAtPort(0).getRank();
+        OPENVINO_THROW(errorPrefix, "must have 4D output tensor. Actual: ", getOutputShapeAtPort(0).getRank());
 
     if (extImgPatcher->get_auto_pad() == ov::op::PadType::VALID) {
         _auto_pad = ExtImgPatcherPadType::VALID;
@@ -355,25 +364,25 @@ ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ov::Node>& op, co
     } else if (extImgPatcher->get_auto_pad() == ov::op::PadType::SAME_UPPER) {
         _auto_pad = ExtImgPatcherPadType::SAME_UPPER;
     } else {
-        IE_THROW() << errorPrefix << "has unsupported pad type: " << extImgPatcher->get_auto_pad();
+        OPENVINO_THROW(errorPrefix, "has unsupported pad type: ", extImgPatcher->get_auto_pad());
     }
 
     _ksizes = extImgPatcher->get_sizes();;
     _strides = extImgPatcher->get_strides();
     _rates = extImgPatcher->get_rates();
     if (_ksizes.size() != 2 || _strides.size() != 2 || _rates.size() != 2)
-        IE_THROW() << errorPrefix << "must have the following attributes with shape {2}: sizes, strides, rates.";
+        OPENVINO_THROW(errorPrefix, "must have the following attributes with shape {2}: sizes, strides, rates.");
 }
 
 void ExtractImagePatches::prepareParams() {
     const auto& srcMemPtr0 = getParentEdgeAt(0)->getMemoryPtr();
     const auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!srcMemPtr0 || !srcMemPtr0->isAllocated())
-        IE_THROW() << "Input memory has not been allocated.";
+        OPENVINO_THROW("Input memory has not been allocated.");
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << "Destination memory has not been allocated.";
+        OPENVINO_THROW("Destination memory has not been allocated.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
+        OPENVINO_THROW("Preferable primitive descriptor is not set.");
 
     const auto& in_dims = getParentEdgeAt(0)->getMemory().getStaticDims();
     const auto& out_dims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
@@ -410,7 +419,7 @@ void ExtractImagePatches::initSupportedPrimitiveDescriptors() {
 
     const auto precision = getOriginalInputPrecisionAtPort(0);
     if (_supported_precisions_sizes.find(precision.size()) == _supported_precisions_sizes.end())
-        IE_THROW() << errorPrefix << "has unsupported precision: " << precision.get_type_name();
+        OPENVINO_THROW(errorPrefix, "has unsupported precision: ", precision.get_type_name());
 
     addSupportedPrimDesc({{LayoutType::ncsp, precision}},
                          {{LayoutType::ncsp, precision}},
@@ -425,7 +434,7 @@ void ExtractImagePatches::execute(dnnl::stream strm) {
         const auto outStrides = getChildEdgesAtPort(0)[0]->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
         execPtr->exec(src, dst, inStrides, outStrides);
     } else {
-        IE_THROW() << "Can't execute extract image patches node. Primitive wasn't created";
+        OPENVINO_THROW("Can't execute extract image patches node. Primitive wasn't created");
     }
 }
 
@@ -597,7 +606,7 @@ ExtractImagePatches::ExtractImagePatchesJitExecutor::ExtractImagePatchesJitExecu
     } else if (mayiuse(x64::sse41)) {
         pKernel.reset(new jit_extract_image_patches_kernel<x64::sse41>(jpp));
     } else {
-        IE_THROW() << "Can't create jit extract image patches kernel";
+        OPENVINO_THROW("Can't create jit extract image patches kernel");
     }
 
     if (pKernel)
@@ -608,7 +617,7 @@ ExtractImagePatches::ExtractImagePatchesJitExecutor::ExtractImagePatchesJitExecu
 void ExtractImagePatches::ExtractImagePatchesJitExecutor::exec(
     void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) {
     if (!pKernel)
-        IE_THROW() << "Can't execute, kernel for extract image patches node is not compiled";
+        OPENVINO_THROW("Can't execute, kernel for extract image patches node is not compiled");
     executeOptimizedGeneric(src, dst, istrides, ostrides);
 }
 

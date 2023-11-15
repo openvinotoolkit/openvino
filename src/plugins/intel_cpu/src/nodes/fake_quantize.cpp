@@ -971,12 +971,12 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
         errorPrefix = "FakeQuantize node with name '" + getName() + "' ";
         levels = fq->get_levels();
         if (levels <= 1)
-            IE_THROW() << errorPrefix << "supports 'levels' attribute greater than or equal to 2";
+            OPENVINO_THROW(errorPrefix, "supports 'levels' attribute greater than or equal to 2");
 
         if (inputShapes.size() != 5)
-            IE_THROW() << errorPrefix << "has incorrect number of input edges: " << inputShapes.size();
+            OPENVINO_THROW(errorPrefix, "has incorrect number of input edges: ", inputShapes.size());
         if (outputShapes.size() != 1)
-            IE_THROW() << errorPrefix << "has incorrect number of output edges: " << outputShapes.size();
+            OPENVINO_THROW(errorPrefix, "has incorrect number of output edges: ", outputShapes.size());
 
         auto initAxisIdx = [&](const VectorDims& inputDims) {
             size_t axisIdx = 0;
@@ -1031,7 +1031,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
         auto outputHighAxisSize = ov::is_scalar(ohShape) ? 1 : ohShape[outputHighAxis];
 
         if (axisSize != -1 && !dimsEqualWeak(axisSize, getInputShapeAtPort(0).getDims()[axis])) {
-            IE_THROW() << errorPrefix << "has different quantization axis size on 'data' and 'range' inputs";
+            OPENVINO_THROW(errorPrefix, "has different quantization axis size on 'data' and 'range' inputs");
         }
 
         const auto inputLowNode = std::dynamic_pointer_cast<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(1));
@@ -1077,7 +1077,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
             if (isInputLowBroadcasted) {
                 binarizationThresholds.push_back(inputLowData[0]);
             } else {
-                IE_ASSERT(axisSize != -1);
+                OPENVINO_ASSERT(axisSize != -1);
                 binarizationThresholds.resize(rnd_up(axisSize, 16));
                 for (int i = 0; i < axisSize; i++) {
                     binarizationThresholds[i] = inputLowData[i];
@@ -1087,7 +1087,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
             if (isOutputHighBroadcasted) {
                 binarizationOutputMask.push_back(outputHighData[0] == 1.f ? 0xffffffff : 0x00000000);
             } else {
-                IE_ASSERT(axisSize != -1);
+                OPENVINO_ASSERT(axisSize != -1);
                 binarizationOutputMask.resize(rnd_up(axisSize, 16));
                 for (int i = 0; i < axisSize; i++) {
                     binarizationOutputMask[i] = outputHighData[i] == 1.f ? 0xffffffff : 0x00000000;
@@ -1170,10 +1170,16 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
                 float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
 
 #if defined(VALIDATE_QUANTIZATION_RANGES)
-            if ((il == ih && levels != 2) || il > ih || std::isnan(il) || std::isnan(ih) || std::isinf(il) || std::isinf(ih)) {
-                IE_THROW() << "Quantize layer with name '" << getName() << "' has invalid input quantize ranges: "
-                                   << "inputLow = " << il << ", inputHigh = " << ih;
-            }
+                if ((il == ih && levels != 2) || il > ih || std::isnan(il) || std::isnan(ih) || std::isinf(il) ||
+                    std::isinf(ih)) {
+                    OPENVINO_THROW("Quantize layer with name '",
+                                   getName(),
+                                   "' has invalid input quantize ranges: ",
+                                   "inputLow = ",
+                                   il,
+                                   ", inputHigh = ",
+                                   ih);
+                }
 #endif
 #ifdef FQ_DOUBLE_PRECISION
                 inputScale[i] = (levels - 1.0) / (static_cast<double>(ih) - il);
@@ -1190,8 +1196,13 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
 
 #if defined(VALIDATE_QUANTIZATION_RANGES)
                 if (std::isnan(ol) || std::isnan(oh) || std::isinf(ol) || std::isinf(oh)) {
-                    IE_THROW() << "Quantize layer with name '" << getName() << "' has wrong output quantize ranges: "
-                                       << "outputLow = " << ol << ", outputHigh = " << oh;
+                    OPENVINO_THROW("Quantize layer with name '",
+                                   getName(),
+                                   "' has wrong output quantize ranges: ",
+                                   "outputLow = ",
+                                   ol,
+                                   ", outputHigh = ",
+                                   oh);
                 }
 #endif
 #ifdef FQ_DOUBLE_PRECISION
@@ -1240,7 +1251,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
             algorithm = quantizationOnly ? Algorithm::FQQuantization : Algorithm::FQCommon;
         }
     } else {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 }
 
@@ -1285,30 +1296,30 @@ void FakeQuantize::init() {
 
 void FakeQuantize::getSupportedDescriptors() {
     if (getParentEdges().size() != 5)
-        IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
+        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges: ", getParentEdges().size());
     if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
+        OPENVINO_THROW(errorPrefix, "has incorrect number of output edges: ", getChildEdges().size());
 
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         if (getParentEdgesAtPort(i).size() != 1)
-            IE_THROW() << errorPrefix << "has unsupported number of parent edges at port " << i;
+            OPENVINO_THROW(errorPrefix, "has unsupported number of parent edges at port ", i);
     }
 
     if (getInputShapeAtPort(0).getRank() != getInputShapeAtPort(0).getRank()) {
-        IE_THROW() << errorPrefix << "has different ranks for input and output tensors";
+        OPENVINO_THROW(errorPrefix, "has different ranks for input and output tensors");
     }
 
     if (isBinarization()) {
         if (getInputShapeAtPort(0).getRank() != 4ul) {
-            IE_THROW() << errorPrefix << "doesn't support input/output rank != 4";
+            OPENVINO_THROW(errorPrefix, "doesn't support input/output rank != 4");
         }
     }
 
     if (getAxis() != 1) {
         if (isBinarization())
-            IE_THROW() << errorPrefix << "doesn't support non per-tensor binarization for axis: " << getAxis();
+            OPENVINO_THROW(errorPrefix, "doesn't support non per-tensor binarization for axis: ", getAxis());
         if (getAxis() != 0)
-            IE_THROW() << errorPrefix << "doesn't support non per-tensor quantization for axis: " << getAxis();
+            OPENVINO_THROW(errorPrefix, "doesn't support non per-tensor quantization for axis: ", getAxis());
     }
 }
 
@@ -1375,7 +1386,7 @@ bool FakeQuantize::needPrepareParams() const {
     if (isBinarization()) {
         auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
         if (!selectedPrimitiveDescriptor)
-            IE_THROW() << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
+            OPENVINO_THROW("CPU quantize node with name '", getName(), "' doesn't have primitive descriptors.");
 
         if (internalBlobMemory.empty() || (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref && inputShapesModified())) {
             return true;
@@ -1394,7 +1405,7 @@ void FakeQuantize::prepareParams() {
     if (isBinarization()) {
         const size_t axisSize = getParentEdgeAt(0)->getMemory().getShape().getStaticDims()[getAxis()];
         const size_t newPaddedSize = rnd_up(axisSize, 16);
-        IE_ASSERT(newPaddedSize != 0);
+        OPENVINO_ASSERT(newPaddedSize != 0);
 
         if (internalBlobMemory.empty() || newPaddedSize != rnd_up(currentAxisSize, 16) ||
                 ((isInputLowBroadcasted || isOutputHighBroadcasted) && axisSize != currentAxisSize)) {
@@ -1441,7 +1452,7 @@ void FakeQuantize::createPrimitive() {
     Node::createPrimitive();
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
-        IE_THROW() << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
+        OPENVINO_THROW("CPU quantize node with name '", getName(), "' doesn't have primitive descriptors.");
     if (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref) {
         const auto& config = getSelectedPrimitiveDescriptor()->getConfig();
 
@@ -1895,7 +1906,7 @@ void FakeQuantize::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDi
     std::vector<MemoryPtr> postOpsMemPtrs;
     appendPostOpsImpl(ops, postOpDims, postOpsMemPtrs);
 
-    IE_ASSERT(postOpsMemPtrs.size() <= 1) << "at most 1 post ops memory args can be appended.";
+    OPENVINO_ASSERT(postOpsMemPtrs.size() <= 1, "at most 1 post ops memory args can be appended.");
 
     if (!postOpsMemPtrs.empty()) {
         postOpsMem[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = postOpsMemPtrs[0];
@@ -1938,12 +1949,12 @@ void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
                           outputScale.size(),
                           outputShift.size()});
 
-    IE_ASSERT(inputScale.size() == 1 || inputScale.size() == OC);
-    IE_ASSERT(inputShift.size() == 1 || inputShift.size() == OC);
-    IE_ASSERT(cropLow.size() == 1 || cropLow.size() == OC);
-    IE_ASSERT(cropHigh.size() == 1 || cropHigh.size() == OC);
-    IE_ASSERT(outputScale.size() == 1 || outputScale.size() == OC);
-    IE_ASSERT(outputShift.size() == 1 || outputShift.size() == OC);
+    OPENVINO_ASSERT(inputScale.size() == 1 || inputScale.size() == OC);
+    OPENVINO_ASSERT(inputShift.size() == 1 || inputShift.size() == OC);
+    OPENVINO_ASSERT(cropLow.size() == 1 || cropLow.size() == OC);
+    OPENVINO_ASSERT(cropHigh.size() == 1 || cropHigh.size() == OC);
+    OPENVINO_ASSERT(outputScale.size() == 1 || outputScale.size() == OC);
+    OPENVINO_ASSERT(outputShift.size() == 1 || outputShift.size() == OC);
 
     // WA: a per-Tensor input shift may little drift away randomly
     //     from it's orginal value when FQ was fused with any
@@ -2130,7 +2141,7 @@ FakeQuantize::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor(const jit_quantiz
         else
             pKernel.reset(new jit_uni_quantization_kernel<cpu::x64::sse41>(_jqp));
     } else {
-        IE_THROW() << "Can't create jit fake quantize kernel";
+        OPENVINO_THROW("Can't create jit fake quantize kernel");
     }
     if (pKernel) {
         pKernel->create_ker();
@@ -2140,7 +2151,7 @@ FakeQuantize::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor(const jit_quantiz
 
 void FakeQuantize::FakeQuantizeJitExecutor::exec(const FakeQuantize& node) {
     if (!pKernel)
-        IE_THROW() << "Can't execute, kernel for fake quantize node is not compiled";
+        OPENVINO_THROW("Can't execute, kernel for fake quantize node is not compiled");
 
     if (pKernel->jqp_.op_type == Algorithm::FQBinarization) {
         node.executeBinarization(pKernel);

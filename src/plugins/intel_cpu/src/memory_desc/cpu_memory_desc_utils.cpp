@@ -30,7 +30,7 @@ DnnlMemoryDescPtr MemoryDescUtils::convertToDnnlMemoryDesc(const MemoryDescPtr &
     } else if (MemoryDescType::Dnnl & desc->getType()) {
         return std::dynamic_pointer_cast<DnnlMemoryDesc>(desc);
     } else {
-        IE_THROW() << "Cannot convert MemoryDesc to DnnlMemoryDesc";
+        OPENVINO_THROW("Cannot convert MemoryDesc to DnnlMemoryDesc");
     }
 }
 
@@ -42,7 +42,7 @@ DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const Memo
         return DnnlBlockedMemoryDesc(cpuDesc->getPrecision(), cpuDesc->getShape(), cpuDesc->getBlockDims(), cpuDesc->getOrder(), cpuDesc->getOffsetPadding(),
                                      cpuDesc->getOffsetPaddingToData(), cpuDesc->getStrides());
     } else {
-        IE_THROW() << "Cannot convert MemoryDesc to DnnlMemoryDesc";
+        OPENVINO_THROW("Cannot convert MemoryDesc to DnnlMemoryDesc");
     }
 }
 
@@ -96,7 +96,7 @@ BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDes
     if (desc->getType() & MemoryDescType::Blocked) {
         return std::dynamic_pointer_cast<BlockedMemoryDesc>(desc);
     } else {
-        IE_THROW() << "Can not convert unsupported memory descriptor";
+        OPENVINO_THROW("Can not convert unsupported memory descriptor");
     }
 }
 
@@ -173,7 +173,7 @@ Shape MemoryDescUtils::makeDummyShape(const Shape &shape, Dim dummyVal) {
 
 Shape MemoryDescUtils::makeDummyShape(const Shape &shape, const VectorDims& dummyVals) {
     if (shape.getRank() != dummyVals.size()) {
-        IE_THROW() << "makeDummyShape(): dummyVals vector size and shape ranks mismatch";
+        OPENVINO_THROW("makeDummyShape(): dummyVals vector size and shape ranks mismatch");
     }
     const auto& minDims = shape.getMinDims();
     const auto& maxDims = shape.getMaxDims();

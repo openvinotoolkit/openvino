@@ -92,7 +92,7 @@ static void dump(const BlobDumper& bd, const std::string& file, const DebugCapsC
         break;
     }
     default:
-        IE_THROW() << "NodeDumper: Unknown dump format";
+        OPENVINO_THROW("NodeDumper: Unknown dump format");
     }
 }
 

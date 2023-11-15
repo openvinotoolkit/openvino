@@ -29,7 +29,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-#define THROW_ERROR IE_THROW() << getTypeStr() << " node with name '" << getName() << "' "
+#define THROW_ERROR(...) OPENVINO_THROW(getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
 
 #if defined(OPENVINO_ARCH_X86_64)
 
@@ -168,7 +168,7 @@ Interaction::Interaction(const std::shared_ptr<ov::Node>& op, const GraphContext
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     errorPrefix = "Interaction node with name '" + getName() + "'";
     const auto interaction = std::dynamic_pointer_cast<const InteractionNode>(op);
@@ -343,7 +343,7 @@ void Interaction::prepareParams() {
         moveFeatureKernel->create_ker();
         moveInteractKernel->create_ker();
     } else {
-        THROW_ERROR << "cannot create jit eltwise kernel";
+        THROW_ERROR("cannot create jit eltwise kernel");
     }
 #ifdef CPU_DEBUG_CAPS
     if (prim) {

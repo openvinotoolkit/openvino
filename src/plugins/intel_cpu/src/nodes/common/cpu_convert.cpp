@@ -221,7 +221,7 @@ const std::tuple<U, U> & Range<T, U>::fit(const ov::element::Type & prec) {
                 ubound = std::numeric_limits<double>::max();
                 break;
             default:
-                IE_THROW() << "Unsupported precision";
+                OPENVINO_THROW("Unsupported precision");
         }
         // If U is integral, its range always less than float, so not need update _range
         // Else it will be overflow, for example static_cast double to int64_t:
@@ -270,7 +270,7 @@ const std::tuple<U, U> & Range<T, U>::fit(const ov::element::Type & prec) {
                 ubound = static_cast<uint64_t>(std::numeric_limits<int64_t>::max());
                 break;
             default:
-                IE_THROW() << "Unsupported precision";
+                OPENVINO_THROW("Unsupported precision");
         }
         using ltype = typename std::conditional<
                             std::is_floating_point<U>::value,
@@ -578,7 +578,7 @@ void cpu_convert(const void *srcPtr,
                  ov::element::Type dstPrc,
                  const size_t size) {
     if (srcPtr == nullptr || dstPtr == nullptr)
-        IE_THROW() << "cpu_convert has null data pointer";
+        OPENVINO_THROW("cpu_convert has null data pointer");
 
     if (srcPrc == dstPrc && srcPrc == interimPrc) {
         const size_t L2_cache_size = dnnl::utils::get_cache_size(2, true);
@@ -596,8 +596,13 @@ void cpu_convert(const void *srcPtr,
         }
     } else if (srcPrc == ov::element::u1) {
         if (srcPrc.bitwidth() != 1)
-            IE_THROW() << "cpu_convert can't convert from: " << srcPrc << " <bitsSize == " << srcPrc.bitwidth()
-                << "> precision to: " << dstPrc << ". Not implemented.";
+            OPENVINO_THROW("cpu_convert can't convert from: ",
+                           srcPrc,
+                           " <bitsSize == ",
+                           srcPrc.bitwidth(),
+                           "> precision to: ",
+                           dstPrc,
+                           ". Not implemented.");
         ConvertFromBinContext ctx {
                 srcPtr,
                 dstPtr,
@@ -606,8 +611,12 @@ void cpu_convert(const void *srcPtr,
         };
         OV_SWITCH(intel_cpu, ConvertFromBinPrecision, ctx, dstPrc, INTEL_CPU_CVT_FROM_BIN_LIST);
         if (!ctx.converted)
-            IE_THROW() << "cpu_convert can't convert from: " << srcPrc << " <bitsSize == " << srcPrc.bitwidth()
-                                                             << "> precision to: " << dstPrc;
+            OPENVINO_THROW("cpu_convert can't convert from: ",
+                           srcPrc,
+                           " <bitsSize == ",
+                           srcPrc.bitwidth(),
+                           "> precision to: ",
+                           dstPrc);
     } else {
         ConvertContext ctx {
             srcPtr,
@@ -619,7 +628,7 @@ void cpu_convert(const void *srcPtr,
         };
         OV_SWITCH(intel_cpu, ConvertPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_LIST);
         if (!ctx.converted)
-            IE_THROW() << "cpu_convert can't convert from: " << srcPrc << " precision to: " << dstPrc;
+            OPENVINO_THROW("cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
     }
 }
 
