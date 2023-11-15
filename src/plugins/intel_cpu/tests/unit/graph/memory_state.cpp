@@ -79,7 +79,4 @@ TEST(MemStateGraphTest, smoke_Check_Memory_Modification_Guard) {
 
     auto state_mem = state->get_state()->data();
     ASSERT_EQ(state_mem, memory_output_inp_mem);
-
-    ov::pass::Serialize serializer("graph.xml", "graph.bin");
-    serializer.run_on_model(graph.dump());
 }
