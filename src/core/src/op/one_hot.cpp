@@ -98,7 +98,10 @@ bool OneHot::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v1_OneHot_evaluate);
     OPENVINO_ASSERT(inputs.size() == 4 && outputs.size() == 1);
 
-    const auto output_shape = shape_infer(this, ov::util::get_tensors_partial_shapes(inputs)).front().to_shape();
+    const auto output_shape =
+        shape_infer(this, ov::util::get_tensors_partial_shapes(inputs), make_tensor_accessor(inputs))
+            .front()
+            .to_shape();
     const auto axis = get_axis();
     OPENVINO_ASSERT(axis >= 0 && static_cast<size_t>(axis) < output_shape.size(), "Invalid axis value.");
 
