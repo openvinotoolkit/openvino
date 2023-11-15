@@ -24,7 +24,7 @@ namespace node {
 /// precision: fp32
 class Snippet : public Node {
 public:
-    Snippet(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr& context);
+    Snippet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
     ~Snippet() override = default;
 
     void getSupportedDescriptors() override {};

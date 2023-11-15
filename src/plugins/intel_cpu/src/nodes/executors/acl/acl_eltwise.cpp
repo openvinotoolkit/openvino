@@ -497,7 +497,8 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
             };
             break;
         default:
-            IE_THROW() << "Unsupported operation type for ACL Eltwise executor: " << static_cast<int>(aclEltwiseAttrs.algorithm);
+            OPENVINO_THROW("Unsupported operation type for ACL Eltwise executor: ",
+                           static_cast<int>(aclEltwiseAttrs.algorithm));
     }
 
     // We get a problem (seg. faults, data race etc) for eltwise operations when we use several configure(...) functions in parallel.

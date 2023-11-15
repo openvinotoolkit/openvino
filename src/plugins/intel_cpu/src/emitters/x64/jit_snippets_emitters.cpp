@@ -43,7 +43,7 @@ jit_container_emitter::jit_container_emitter(jit_generator* h, cpu_isa_t isa, co
 void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  mapping_info& vec_map_pool,
                                                    snippets::lowered::LinearIR::container& expressions) const {
     if (expressions.empty())
-        IE_THROW() << "Cannot map registers when there is no allocated_emitters provided";
+        OPENVINO_THROW("Cannot map registers when there is no allocated_emitters provided");
     auto map_regs = [](const std::vector<size_t>& abstract_regs, mapping_info& mapping) {
         auto& abstract_to_physical = mapping.first;
         auto& regs_pool = mapping.second;
@@ -53,7 +53,7 @@ void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  
             auto& physical = physical_regs[i];
             if (abstract_to_physical.count(abstract) == 0) {
                 if (regs_pool.empty())
-                    IE_THROW() << "Cannot map registers for jit_container_emitter: not enough regs in the pool";
+                    OPENVINO_THROW("Cannot map registers for jit_container_emitter: not enough regs in the pool");
                 physical = regs_pool.back();
                 regs_pool.pop_back();
                 abstract_to_physical[abstract] = physical;
@@ -90,7 +90,7 @@ void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  
                 out_physical_regs = map_regs(out_abstract_regs, vec_map_pool);
                 break;
             default:
-                IE_THROW() << "Unhandled in_out type";
+                OPENVINO_THROW("Unhandled in_out type");
         }
         expression->set_reg_info({in_physical_regs, out_physical_regs});
         if (auto container = std::dynamic_pointer_cast<jit_container_emitter>(expression->get_emitter()))
@@ -104,11 +104,11 @@ KernelEmitter::KernelEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
       reg_const_params_idx(abi_param2.getIdx()) {
     const auto kernel = ov::as_type_ptr<snippets::op::Kernel>(expr->get_node());
     if (!kernel)
-        IE_THROW() << "KernelEmitter invoked with invalid op argument";
+        OPENVINO_THROW("KernelEmitter invoked with invalid op argument");
     if (kernel->region.empty())
-        IE_THROW() << "KernelEmitter invoked with empty body";
+        OPENVINO_THROW("KernelEmitter invoked with empty body");
     if (kernel->compile_params == nullptr)
-        IE_THROW() << "KernelEmitter invoked with op::Kernel that contains no compile_params";
+        OPENVINO_THROW("KernelEmitter invoked with op::Kernel that contains no compile_params");
     body = kernel->region;
     jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
     master_shape = body.get_master_shape();
@@ -139,7 +139,7 @@ KernelEmitter::KernelEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
                 etype = expr->get_node()->get_input_element_type(0);
                 break;
             } default : {
-                IE_THROW() << "Kernel detected unsupported io_type";
+                OPENVINO_THROW("Kernel detected unsupported io_type");
             }
         }
         const auto& shape = desc->get_shape();
@@ -214,14 +214,17 @@ void KernelEmitter::emit_code(const std::vector<size_t> &in,
 void KernelEmitter::validate_arguments(const std::vector<size_t> &in,
                                        const std::vector<size_t> &out) const {
     if (!in.empty())
-        IE_THROW() << "KernelEmitter got invalid number of inputs. Expected 0, got " << in.size();
+        OPENVINO_THROW("KernelEmitter got invalid number of inputs. Expected 0, got ", in.size());
     if (!out.empty())
-        IE_THROW() << "KernelEmitter got invalid number of outputs. Expected 0, got " << out.size();
+        OPENVINO_THROW("KernelEmitter got invalid number of outputs. Expected 0, got ", out.size());
     const auto num_params = num_inputs + num_outputs + num_unique_buffers;
     // The number of used gpr may be >= num_params since LoopBegin+LoopEnd could also use gpr to store work_amount
     if (data_ptr_regs_idx.size() != num_params)
-        IE_THROW() << "KernelEmitter: number of inputs and outputs is inconsistent with the number of allocated registers "
-        << num_params << " data_ptr_regs_idx.size() = " << data_ptr_regs_idx.size();
+        OPENVINO_THROW(
+            "KernelEmitter: number of inputs and outputs is inconsistent with the number of allocated registers ",
+            num_params,
+            " data_ptr_regs_idx.size() = ",
+            data_ptr_regs_idx.size());
 }
 
 void KernelEmitter::init_data_pointers(const Xbyak::Reg64& reg_indexes, const Xbyak::Reg64& reg_const_params,
@@ -334,14 +337,15 @@ void KernelEmitter::emit_impl(const std::vector<size_t>& in,
 LoopBeginEmitter::LoopBeginEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
     loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(expr->get_node());
     if (!loop_begin)
-        IE_THROW() << "LoopBeginEmitter invoked with invalid op argument";
+        OPENVINO_THROW("LoopBeginEmitter invoked with invalid op argument");
     const auto& target_inputs = loop_begin->output(loop_begin->get_output_size() - 1).get_target_inputs();
     // todo: this check could be excessive, since we check for it in validate_and_infer_types()
     if (target_inputs.size() != 1)
-        IE_THROW() << "LoopBeginEmitter invoked with invalid configuration: the last output must have exactly one input attached";
+        OPENVINO_THROW("LoopBeginEmitter invoked with invalid configuration: the last output must have exactly one "
+                       "input attached");
     const auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(target_inputs.begin()->get_node()->shared_from_this());
     if (!loop_end)
-        IE_THROW() << "LoopBeginEmitter invoked with invalid configuration: the last output must be LoopEnd";
+        OPENVINO_THROW("LoopBeginEmitter invoked with invalid configuration: the last output must be LoopEnd");
     work_amount = loop_end->get_work_amount();
     evaluate_once = loop_end->get_evaluate_once();
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
@@ -356,9 +360,9 @@ void LoopBeginEmitter::emit_code(const std::vector<size_t> &in,
 void LoopBeginEmitter::validate_arguments(const std::vector<size_t> &in,
                                           const std::vector<size_t> &out) const {
     if (!in.empty())
-        IE_THROW() << "Invalid inputs size: expected 0 got " << in.size();
+        OPENVINO_THROW("Invalid inputs size: expected 0 got ", in.size());
     if (out.size() != 1)
-        IE_THROW() << "Invalid outputs size: expected 1 got " << out.size();
+        OPENVINO_THROW("Invalid outputs size: expected 1 got ", out.size());
 }
 
 void LoopBeginEmitter::emit_impl(const std::vector<size_t>& in,
@@ -379,11 +383,11 @@ void LoopBeginEmitter::emit_impl(const std::vector<size_t>& in,
 LoopEndEmitter::LoopEndEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
     loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(expr->get_node());
     if (!loop_end)
-        IE_THROW() << "LoopEndEmitter invoked with invalid op argument";
+        OPENVINO_THROW("LoopEndEmitter invoked with invalid op argument");
     loop_begin = loop_end->get_loop_begin();
     // todo: this check could be excessive, since we check for it in validate_and_infer_types()
     if (!loop_begin)
-        IE_THROW() << "LoopEndEmitter invoked with invalid configuration: the last arg must be LoopBegin";
+        OPENVINO_THROW("LoopEndEmitter invoked with invalid configuration: the last arg must be LoopBegin");
     // Note that 1 edge connects LoopBegin and LoopEnd
     num_inputs = loop_end->get_input_num();
     num_outputs = loop_end->get_output_num();
@@ -406,14 +410,14 @@ void LoopEndEmitter::emit_code(const std::vector<size_t> &in,
 void LoopEndEmitter::validate_arguments(const std::vector<size_t> &in,
                                         const std::vector<size_t> &out) const {
     if (out.size() != num_outputs)
-        IE_THROW() << "Invalid number of out arguments: expected " << num_outputs << " got " << out.size();
+        OPENVINO_THROW("Invalid number of out arguments: expected ", num_outputs, " got ", out.size());
     if (in.size() != num_inputs)
-        IE_THROW() << "Invalid number of in arguments: expected " << num_inputs  << " got " << in.size();
+        OPENVINO_THROW("Invalid number of in arguments: expected ", num_inputs , " got ", in.size());
     const auto io_size = num_inputs - 1;
     if (ptr_increments.size() != io_size)
-        IE_THROW() << "Invalid ptr_increments size: expected " << io_size << " got " << ptr_increments.size();
+        OPENVINO_THROW("Invalid ptr_increments size: expected ", io_size, " got ", ptr_increments.size());
     if (finalization_offsets.size() != io_size)
-        IE_THROW() << "Invalid finalization_offsets size: expected: " << io_size << " got " << finalization_offsets.size();
+        OPENVINO_THROW("Invalid finalization_offsets size: expected: ", io_size, " got ", finalization_offsets.size());
 }
 
 void LoopEndEmitter::emit_impl(const std::vector<size_t>& in,
@@ -458,8 +462,10 @@ BroadcastMoveEmitter::BroadcastMoveEmitter(jit_generator* h, cpu_isa_t isa, cons
     : jit_emitter(h, isa) {
     const auto n = expr->get_node();
     if (n->get_input_element_type(0) != n->get_output_element_type(0))
-        IE_THROW() << "BroadcastMoveEmitter supports only equal input and output types but gets: "
-            << n->get_input_element_type(0) << " and " << n->get_output_element_type(0);
+        OPENVINO_THROW("BroadcastMoveEmitter supports only equal input and output types but gets: ",
+                       n->get_input_element_type(0),
+                       " and ",
+                       n->get_output_element_type(0));
     byte_size = n->get_input_element_type(0).size();
 }
 
@@ -472,7 +478,7 @@ void BroadcastMoveEmitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        IE_THROW() << "BroadcastMove emitter doesn't support " << host_isa_;
+        OPENVINO_THROW("BroadcastMove emitter doesn't support ", host_isa_);
     }
 }
 
@@ -504,7 +510,7 @@ ScalarEmitter::ScalarEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
             break;
         }
         default: {
-            IE_THROW() << "Scalar emitter doesn't support " << precision;
+            OPENVINO_THROW("Scalar emitter doesn't support ", precision);
         }
     }
     push_arg_entry_of("scalar", value, true);
@@ -520,7 +526,7 @@ void ScalarEmitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        IE_THROW() << "Scalar emitter doesn't support " << host_isa_;
+        OPENVINO_THROW("Scalar emitter doesn't support ", host_isa_);
     }
 }
 
@@ -540,7 +546,10 @@ MemoryEmitter::MemoryEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
 
 StoreEmitter::StoreEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : MemoryEmitter(h, isa, expr) {
     if (src_prc != dst_prc)
-        IE_THROW() << "StoreEmitter supports only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
+        OPENVINO_THROW("StoreEmitter supports only equal input and output types but gets: ",
+                       src_prc.name(),
+                       " and ",
+                       dst_prc.name());
 
     const auto store = ov::as_type_ptr<snippets::op::Store>(expr->get_node());
     count = store->get_count();
@@ -558,14 +567,14 @@ void StoreEmitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        IE_THROW() << "Store emitter doesn't support " << host_isa_;
+        OPENVINO_THROW("Store emitter doesn't support ", host_isa_);
     }
 }
 
 template <cpu_isa_t isa>
 void StoreEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     if (!store_emitter)
-        IE_THROW() << "Store CPU emitter isn't initialized for StoreEmitter!";
+        OPENVINO_THROW("Store CPU emitter isn't initialized for StoreEmitter!");
     store_emitter->emit_code({in[0], byte_offset}, {out[0]}, aux_vec_idxs, aux_gpr_idxs);
 }
 
@@ -575,7 +584,10 @@ void StoreEmitter::emit_data() const {
 
 LoadEmitter::LoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : MemoryEmitter(h, isa, expr) {
     if (src_prc != dst_prc)
-        IE_THROW() << "LoadEmitter supports only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
+        OPENVINO_THROW("LoadEmitter supports only equal input and output types but gets: ",
+                       src_prc.name(),
+                       " and ",
+                       dst_prc.name());
 
     const auto load = std::dynamic_pointer_cast<snippets::op::Load>(expr->get_node());
     count = load->get_count();
@@ -593,14 +605,14 @@ void LoadEmitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        IE_THROW() << "Load emitter doesn't support " << host_isa_;
+        OPENVINO_THROW("Load emitter doesn't support ", host_isa_);
     }
 }
 
 template <cpu_isa_t isa>
 void LoadEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     if (!load_emitter)
-        IE_THROW() << "Load CPU emitter isn't initialized for LoadEmitter!";
+        OPENVINO_THROW("Load CPU emitter isn't initialized for LoadEmitter!");
     load_emitter->emit_code({in[0], byte_offset}, {out[0]}, aux_vec_idxs, aux_gpr_idxs);
 }
 
@@ -611,7 +623,10 @@ void LoadEmitter::emit_data() const {
 BroadcastLoadEmitter::BroadcastLoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : MemoryEmitter(h, isa, expr) {
     if (src_prc != dst_prc)
-        IE_THROW() << "BroadcastEmitters support only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
+        OPENVINO_THROW("BroadcastEmitters support only equal input and output types but gets: ",
+                       src_prc.name(),
+                       " and ",
+                       dst_prc.name());
 
     const auto broadcast_load = std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(expr->get_node());
     byte_offset = broadcast_load->get_offset();
@@ -627,7 +642,7 @@ void BroadcastLoadEmitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        IE_THROW() << "BroadcastLoad emitter doesn't support " << host_isa_;
+        OPENVINO_THROW("BroadcastLoad emitter doesn't support ", host_isa_);
     }
 }
 
@@ -666,14 +681,14 @@ void LoadConvertEmitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        IE_THROW() << "LoadConvert emitter doesn't support " << host_isa_;
+        OPENVINO_THROW("LoadConvert emitter doesn't support ", host_isa_);
     }
 }
 
 template <cpu_isa_t isa>
 void LoadConvertEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     if (!load_emitter)
-        IE_THROW() << "Load CPU emitter isn't initialized for LoadEmitter!";
+        OPENVINO_THROW("Load CPU emitter isn't initialized for LoadEmitter!");
     load_emitter->emit_code({in[0], byte_offset}, {out[0]}, aux_vec_idxs, aux_gpr_idxs);
 }
 
@@ -704,14 +719,14 @@ void StoreConvertEmitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        IE_THROW() << "StoreConvert emitter doesn't support " << host_isa_;
+        OPENVINO_THROW("StoreConvert emitter doesn't support ", host_isa_);
     }
 }
 
 template <cpu_isa_t isa>
 void StoreConvertEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     if (!store_emitter)
-        IE_THROW() << "Store CPU emitter isn't initialized for StoreEmitter!";
+        OPENVINO_THROW("Store CPU emitter isn't initialized for StoreEmitter!");
     store_emitter->emit_code({in[0], byte_offset}, {out[0]}, aux_vec_idxs, aux_gpr_idxs);
 }
 
@@ -755,7 +770,7 @@ BrgemmEmitter::BrgemmEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
     if (brgemm_node->is_dynamic())
-        IE_THROW() << "Snippets don't support code generation for dynamic Brgemm";
+        OPENVINO_THROW("Snippets don't support code generation for dynamic Brgemm");
     const auto brgemm_copy = brgemm_node->is_with_data_repacking() ? brgemm_node->get_brgemm_copy() : nullptr;
 
     std::vector<size_t> leading_dimensions;
@@ -841,7 +856,7 @@ BrgemmEmitter::BrgemmEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
             case 0: return m_K_blk;
             case 1: return m_K >= 2 * m_K_blk ? m_K_blk : 0;
             case 2: return m_K_tail;
-            default:  IE_THROW() << "BrgemmEmitter detected unsupported K value";
+            default:  OPENVINO_THROW("BrgemmEmitter detected unsupported K value");
         }
     };
 
@@ -880,7 +895,7 @@ BrgemmEmitter::BrgemmEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
         m_load_offset_scratch = brgemm_node->get_offset_scratch();
 }
 
-std::set<std::vector<element::Type>> BrgemmEmitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
+std::set<std::vector<element::Type>> BrgemmEmitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     const auto brgemm = as_type_ptr<ov::intel_cpu::BrgemmCPU>(node);
     OPENVINO_ASSERT(brgemm, "BrgemmEmitter::get_supported_precisions() expects BrgemmCPU node");
     switch (brgemm->get_type()) {
@@ -910,7 +925,7 @@ void BrgemmEmitter::validate_arguments(const std::vector<size_t> &in, const std:
 
     if (m_N_blk_loop || m_K_blk_loop) {
         if (aux_gpr_idxs.size() < static_cast<size_t>(m_N_blk_loop) + static_cast<size_t>(m_K_blk_loop))
-            IE_THROW() << "BRGEMM Emitter requires extra gpr which was not allocated";
+            OPENVINO_THROW("BRGEMM Emitter requires extra gpr which was not allocated");
         if (m_N_blk_loop)
             add_reg_to_unique_ids(aux_gpr_idxs[0]);
         if (m_K_blk_loop)
@@ -918,11 +933,11 @@ void BrgemmEmitter::validate_arguments(const std::vector<size_t> &in, const std:
     }
     if (m_with_scratch) {
         if (in.size() != 3)
-            IE_THROW() << "BRGEMM Emitter expects 3 inputs if there are compensations/wsp";
+            OPENVINO_THROW("BRGEMM Emitter expects 3 inputs if there are compensations/wsp");
         add_reg_to_unique_ids(in[2]);
     }
     if (unique_ids.size() != unique_ids_count) {
-        IE_THROW() << "BRGEMM Emitter expects that all input/output registers are unique";
+        OPENVINO_THROW("BRGEMM Emitter expects that all input/output registers are unique");
     }
 }
 
@@ -934,7 +949,7 @@ void BrgemmEmitter::initBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>&
     auto status = brgemm_desc_init(&brgDesc, isa, brgemm_strd, ctx.dt_in0, ctx.dt_in1,
                                    false, false, brgemm_row_major, 1.f, ctx.beta, ctx.LDA, ctx.LDB, ctx.LDC, ctx.M, ctx.N, ctx.K, nullptr);
     if (status != dnnl_success)
-        IE_THROW() << "BrgemmEmitter cannot initialize brgemm descriptor due to invalid params";
+        OPENVINO_THROW("BrgemmEmitter cannot initialize brgemm descriptor due to invalid params");
 
     ctx.is_with_amx = use_amx;
     status = brgemm_init_tiles(brgDesc, ctx.palette);
@@ -946,7 +961,7 @@ void BrgemmEmitter::initBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>&
     brgemm_kernel_t* brgKernel_ = nullptr;
     status = brgemm_kernel_create(&brgKernel_, brgDesc);
     if (status != dnnl_success)
-        IE_THROW() << "BrgemmEmitter cannot create brgemm kernel due to invalid params";
+        OPENVINO_THROW("BrgemmEmitter cannot create brgemm kernel due to invalid params");
     brgKernel.reset(brgKernel_);
 }
 
@@ -1063,7 +1078,7 @@ void BrgemmEmitter::emit_impl(const std::vector<size_t>& in,
             h->sub(input_2, m_load_offset_scratch);
         h->sub(output_0, m_store_offset_c);
     } else {
-        IE_THROW() << "BrgemmEmitter requires at least avx512_core instruction set";
+        OPENVINO_THROW("BrgemmEmitter requires at least avx512_core instruction set");
     }
 }
 
@@ -1237,7 +1252,7 @@ BrgemmCopyBEmitter::BrgemmCopyBEmitter(jit_generator* h, cpu_isa_t isa, const Ex
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto brgemm_repack = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(expr->get_node());
     if (!brgemm_repack)
-        IE_THROW() << "BrgemmCopyBEmitters expects BrgemmCopyB node";
+        OPENVINO_THROW("BrgemmCopyBEmitters expects BrgemmCopyB node");
 
     m_brgemm_prc_in0 = brgemm_repack->get_src_element_type();
     m_brgemm_prc_in1 = brgemm_repack->get_input_element_type(0);
@@ -1310,7 +1325,7 @@ void BrgemmCopyBEmitter::init_brgemm_copy(std::unique_ptr<matmul::jit_brgemm_mat
 
     auto status = matmul::create_brgemm_matmul_copy_b(kernel, &brgCopyKernelConf);
     if (status != dnnl_success)
-        IE_THROW() << "BrgemmRepackEmitter cannot create kernel due to invalid params";
+        OPENVINO_THROW("BrgemmRepackEmitter cannot create kernel due to invalid params");
 }
 
 void BrgemmCopyBEmitter::emit_impl(const std::vector<size_t>& in,
@@ -1321,7 +1336,7 @@ void BrgemmCopyBEmitter::emit_impl(const std::vector<size_t>& in,
         Xbyak::Reg64 comp(static_cast<int>(0));  // Compensations. Default reg idx is 0 if there aren't the compensations
         if (m_with_comp) {
             if (out.size() != 2) {
-                IE_THROW() << "BrgemmCopyBEmitter with compensations requires separate register for them";
+                OPENVINO_THROW("BrgemmCopyBEmitter with compensations requires separate register for them");
             }
             comp = Xbyak::Reg64(static_cast<int>(out[1]));
         }
@@ -1338,7 +1353,7 @@ void BrgemmCopyBEmitter::emit_impl(const std::vector<size_t>& in,
             emit_kernel_call(m_kernel.get(), src, dst, comp, current_N_blk, m_K, offset_in, offset_out, offset_comp);
         }
     } else {
-        IE_THROW() << "BrgemmCopyBEmitter requires at least avx512_core instruction set";
+        OPENVINO_THROW("BrgemmCopyBEmitter requires at least avx512_core instruction set");
     }
 }
 
@@ -1460,7 +1475,7 @@ void BrgemmCopyBEmitter::emit_kernel_call(const matmul::jit_brgemm_matmul_copy_b
 void BrgemmCopyBEmitter::execute(matmul::jit_brgemm_matmul_copy_b_t *kernel, const void *src,
                                  const void *dst, const void *comp, size_t N, size_t K) {
     if (!kernel)
-        IE_THROW() << "Kernel for `brgemm_copy_b` hasn't been created";
+        OPENVINO_THROW("Kernel for `brgemm_copy_b` hasn't been created");
 
     auto ctx = dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t::ctx_t();
     ctx.current_N_blk = N;
@@ -1495,7 +1510,7 @@ void HorizonEmitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        IE_THROW() << "HorizonMax emitter doesn't support " << host_isa_;
+        OPENVINO_THROW("HorizonMax emitter doesn't support ", host_isa_);
     }
 }
 
@@ -1547,7 +1562,7 @@ FillEmitter::FillEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& e
     : jit_emitter(h, isa, Precision::FP32, emitter_in_out_map::vec_to_vec) {
     const auto fill = ov::as_type_ptr<snippets::op::Fill>(expr->get_node());
     if (fill->get_element_type().size() != 4) {
-        IE_THROW() << "Fill emitter supports only 4 Byte element types but gets: " << fill->get_element_type();
+        OPENVINO_THROW("Fill emitter supports only 4 Byte element types but gets: ", fill->get_element_type());
     }
 
     offset = fill->get_offset();
@@ -1577,7 +1592,7 @@ void FillEmitter::emit_impl(const std::vector<size_t>& in,
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
     } else {
-        IE_THROW() << "Fill emitter doesn't support " << host_isa_;
+        OPENVINO_THROW("Fill emitter doesn't support ", host_isa_);
     }
 }
 
