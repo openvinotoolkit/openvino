@@ -5,7 +5,7 @@ The Torchvision to OpenVINO preprocessing converter enables the use of an existi
 
 ## Supported transforms
 
-Current torchvision to OpenVINO preprocessing converter does not support all torchvision transforms.
+Currently, the torchvision to OpenVINO preprocessing converter does not support all torchvision transforms.
 
 Supported operations:
 - `transforms.Compose`
