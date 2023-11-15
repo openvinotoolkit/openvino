@@ -22,7 +22,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 
-OutputVector translate_Atan2_op(const NodeContext& node) {
+OutputVector translate_atan2_op(const NodeContext& node) {
     // handle the first condition
     auto div_y_x = make_shared<Divide>(y, x);
     auto atan = make_shared<Atan>(div_y_x);
