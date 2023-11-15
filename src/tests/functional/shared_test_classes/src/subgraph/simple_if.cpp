@@ -249,7 +249,11 @@ void SimpleIfNotConstConditionAndDimsIncreaseTest::SetUp() {
 
     // then body
     const std::vector<int64_t> pads(p1->get_partial_shape().rank().get_length(), 2);
-    auto thenOp = ngraph::builder::makePad(p1, pads, pads, 0, ngraph::helpers::PadMode::CONSTANT);
+    auto pads_begin = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{pads.size()}, pads.data());
+    auto pads_end = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{pads.size()}, pads.data());
+    auto arg_pad_value = std::make_shared<ov::op::v0::Constant>(inType, ov::Shape{}, std::vector<int64_t>{0});
+    auto thenOp = std::make_shared<ov::op::v1::Pad>(p1, pads_begin, pads_end, arg_pad_value, ov::op::PadMode::CONSTANT);
+
     auto thenRes = std::make_shared<ov::op::v0::Result>(thenOp);
     auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{thenRes}, ov::ParameterVector{p1});
 

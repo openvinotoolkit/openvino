@@ -457,17 +457,11 @@ std::shared_ptr<ov::Node> makeFullyConnected(const ov::Output<Node>& in,
                                              const std::vector<float>& weights = {},
                                              const std::vector<float>& biasWeights = {});
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makePad(const ov::Output<Node>& data,
                                   const std::vector<int64_t>& padsBegin,
                                   const std::vector<int64_t>& padsEnd,
                                   float argPadValue,
-                                  ov::test::utils::PadMode padMode,
-                                  const bool allow_negative_pad = false);
-
-std::shared_ptr<ov::Node> makePad(const ov::Output<Node>& in,
-                                  const ov::Output<Node>& beginNode,
-                                  const ov::Output<Node>& endNode,
-                                  const ov::Output<Node>& valueNode,
                                   ov::test::utils::PadMode padMode,
                                   const bool allow_negative_pad = false);
 
