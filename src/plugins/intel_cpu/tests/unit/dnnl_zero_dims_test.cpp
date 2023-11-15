@@ -19,7 +19,7 @@ class MemDescWithZeroDimsBaseTest: public ::testing::Test {
 protected:
     Shape shape;
     dnnl::memory::format_tag fmt;
-    const InferenceEngine::Precision precision = InferenceEngine::Precision::FP32;
+    const ov::element::Type precision = ov::element::f32;
 
     void validate(const BlockedMemoryDesc& desc, const VectorDims& expectedStrieds, size_t offsetSize, size_t offsetPaddingSize,
                   size_t maxMemSize, bool orderCheckSkip = false) {
@@ -30,7 +30,7 @@ protected:
             auto replaceShape = origShape;
             std::replace(replaceShape.begin(), replaceShape.end(), ngraph::Dimension(0), ngraph::Dimension(3));
             Shape dummyShape(replaceShape);
-            DnnlBlockedMemoryDesc dummyDesc(dummyShape, DnnlExtensionUtils::IEPrecisionToDataType(precision), fmt);
+            DnnlBlockedMemoryDesc dummyDesc(dummyShape, DnnlExtensionUtils::ElementTypeToDataType(precision), fmt);
             expectedBlkDims = dummyDesc.getBlockDims();
             expectedOrder = dummyDesc.getOrder();
             for (size_t i = 0; i < dummyShape.getRank(); i++) {
@@ -134,7 +134,7 @@ public:
     }
 
     std::pair<DnnlBlockedMemoryDesc, CpuBlockedMemoryDesc> createDescs() const override {
-        DnnlBlockedMemoryDesc descDnnl(shape, DnnlExtensionUtils::IEPrecisionToDataType(precision), fmt);
+        DnnlBlockedMemoryDesc descDnnl(shape, DnnlExtensionUtils::ElementTypeToDataType(precision), fmt);
         CpuBlockedMemoryDesc descCpu(precision, shape, descDnnl.getBlockDims(), descDnnl.getOrder());
         return {descDnnl, descCpu};
     }
@@ -213,7 +213,7 @@ protected:
 };
 
 TEST_P(MemDescWithZeroDimsCloneNewDimsTest, CloneWithNewDims) {
-    DnnlBlockedMemoryDesc dynamicDescDnnl(shapeDynamic, DnnlExtensionUtils::IEPrecisionToDataType(precision), fmt);
+    DnnlBlockedMemoryDesc dynamicDescDnnl(shapeDynamic, DnnlExtensionUtils::ElementTypeToDataType(precision), fmt);
     CpuBlockedMemoryDesc dynamicDescCpu(precision, shape, dynamicDescDnnl.getBlockDims(), dynamicDescDnnl.getOrder());
     const size_t offset = 0, offsetPadding = 0;
     VectorDims zeroStrides(dynamicDescDnnl.getBlockDims().size(), 0);

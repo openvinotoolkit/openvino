@@ -87,10 +87,12 @@
 #include "low_precision/add.hpp"
 #include "low_precision/convert_subtract_constant.hpp"
 #include "low_precision/convolution_backprop_data.hpp"
+#include "low_precision/fold_convert.hpp"
+#include "low_precision/fuse_convert.hpp"
 #include "low_precision/group_convolution.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
-#include "low_precision/recurrent_cell.hpp"
 #include "low_precision/network_helper.hpp"
+#include "low_precision/recurrent_cell.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
@@ -129,6 +131,35 @@ namespace ov {
 namespace intel_cpu {
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
+
+bool Transformations::is_decompression_multiply(const_node_ptr& node) const {
+    auto get_single_consumer = [](const_node_ptr& node) -> std::shared_ptr<ov::Node> {
+        const auto consumers = node->get_output_target_inputs(0);
+        if (consumers.size() != 1)
+            return nullptr;
+        return consumers.begin()->get_node()->shared_from_this();
+    };
+
+    auto consumer = get_single_consumer(node);
+    if (!consumer)
+        return false;
+
+    if (ov::is_type<ov::opset1::MatMul>(consumer)) {
+        return true;
+    } else if (ov::is_type<ov::opset1::Reshape>(consumer)) {
+        consumer = get_single_consumer(consumer);
+        if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
+            return true;
+        }
+    }
+    if (consumer != nullptr && ov::is_type<ov::opset1::Convert>(consumer)) {
+        consumer = get_single_consumer(consumer);
+        if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
+            return true;
+        }
+    }
+    return false;
+}
 
 bool Transformations::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
     auto convert = ov::as_type_ptr<ov::opset10::Convert>(node);
@@ -206,59 +237,35 @@ void Transformations::CpuSpecificOpSet(void) {
 void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecisions, const bool isLegacyApi) {
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, PreLpt);
 
+    // Decompression handling related transformations must be run separately from common preLPT pipeline
+    // since there is used the same transformations as in LPT related transformations, but with the specific settings.
+    // This must be done in order to keep compressed MatMul weights with decompression operations as is
+    ov::pass::Manager decompression_handling_manager;
+    decompression_handling_manager.set_per_pass_validation(false);
+    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::InitNodeInfo);
+    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::MarkShapeOfSubgraphs);
+    // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
+    CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::TransposeMatMul);
+    ov::element::TypeVector decompression_precisions{ov::element::u8};
+    // We don't have BF16/FP16 FullyConnected kernels to work with 4bits compressed weights
+    // Convert node doesn't support 4bit precisions -> fallback on constant folding
+    if (inferencePrecision == ov::element::f32) {
+        decompression_precisions.push_back(ov::element::u4);
+        decompression_precisions.push_back(ov::element::i4);
+        decompression_precisions.push_back(ov::element::nf4);
+    }
+    // Ticket 124834: set fold_subtract_const to false when cpu_convert supports i4/u4/nf4 precisions
+    CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::MarkDequantizationSubgraph, decompression_precisions, true);
+    CPU_SET_CALLBACK_X64(decompression_handling_manager, [&](const_node_ptr &node) -> bool {
+        return !is_decompression_multiply(node);
+    }, ov::pass::MarkDequantizationSubgraph);
+    decompression_handling_manager.run_passes(model);
+
     ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::InitNodeInfo);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkShapeOfSubgraphs);
-
     const bool useLpt = !defaultPrecisions.empty();
-    if (useLpt) {
+    if (useLpt)
         CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkDequantizationSubgraph, defaultPrecisions);
-    } else {
-        // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
-        CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeMatMul);
-        ov::element::TypeVector decompression_precisions{
-            ov::element::u8
-        };
-        // We don't have BF16/FP16 FullyConnected kernels to work with 4bits compressed weights
-        // Convert node doesn't support 4bit precisions -> fallback on constant folding
-        if (inferencePrecision == ov::element::f32) {
-            decompression_precisions.push_back(ov::element::u4);
-            decompression_precisions.push_back(ov::element::i4);
-            decompression_precisions.push_back(ov::element::nf4);
-        }
-        // MarkDequantizationSubgraph is used even in non-LPT pipeline on X64 platforms
-        // in order to keep compressed MatMul weights with decompression operations as is
-        CPU_REGISTER_PASS_X64(manager, ov::pass::MarkDequantizationSubgraph, decompression_precisions, true);
-        CPU_SET_CALLBACK_X64(manager, [](const_node_ptr &node) -> bool {
-            auto get_single_consumer = [](const_node_ptr &node) -> std::shared_ptr<ov::Node> {
-                const auto consumers = node->get_output_target_inputs(0);
-                if (consumers.size() != 1)
-                    return nullptr;
-                return consumers.begin()->get_node()->shared_from_this();
-            };
-
-            auto consumer = get_single_consumer(node);
-            if (!consumer)
-                return true;
-
-            if (ov::is_type<ov::opset1::MatMul>(consumer)) {
-                return false;
-            } else if (ov::is_type<ov::opset1::Reshape>(consumer)) {
-                consumer = get_single_consumer(consumer);
-                if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
-                    return false;
-                }
-            }
-            if (consumer != nullptr && ov::is_type<ov::opset1::Convert>(consumer)) {
-                consumer = get_single_consumer(consumer);
-                if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
-                    return false;
-                }
-            }
-            return true;
-        }, ov::pass::MarkDequantizationSubgraph);
-    }
 
     auto get_convert_precisions = [&]() {
         precisions_map map = {
@@ -344,7 +351,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // However, if the extension operation produces an output precision that is not natively supported, this may lead to inconsistency during
     // element type propagation. This transformation is called before the ConvertPrecision pass to align the actual precisions with the list of supported ones.
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::InsertConvertAfterExtension);
-    // Precision convert is disabled.
+    // element type convert is disabled.
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse, false, false);
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);
@@ -565,32 +572,47 @@ void Transformations::Lpt(const bool hasINT16orINT32Levels, const std::vector<ov
     }
 
     ov::pass::Manager lptManager;
-    CPU_REGISTER_PASS_COMMON(lptManager, ov::pass::low_precision::LowPrecision,
+    CPU_REGISTER_PASS_COMMON(lptManager, LowPrecision,
         supportedPrecisions,
         quantizationRestrictions,
         LayerTransformation::Params(updatePrecision, ov::element::f32, defaultPrecisions));
-    CPU_SET_CALLBACK_COMMON(lptManager,
-        [](const_node_ptr& node) -> bool {
-            if (const auto mulitply = std::dynamic_pointer_cast<const ov::opset1::Multiply>(node)) {
-                return !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(mulitply);
+
+    CPU_SET_CALLBACK_COMMON(lptManager, [](const_node_ptr& node) -> bool {
+        return ov::is_type<ov::opset1::Multiply>(node) &&
+               !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(node);
+    }, MarkupPrecisions);
+    CPU_SET_CALLBACK_COMMON(lptManager, [&defaultPrecisions](const_node_ptr& node) -> bool {
+        return LayerTransformation::isAsymmetricQuantization(node, defaultPrecisions) ||
+               WeightableLayerTransformation::isAsymmetricOnWeights(node, defaultPrecisions);
+    }, ConvolutionBackpropDataTransformation);
+    CPU_SET_CALLBACK_COMMON(lptManager, [](const_node_ptr& node) -> bool {
+        return ov::marked_as_bias(node);
+    }, AddTransformation);
+
+    CPU_SET_CALLBACK_X64(lptManager, [&](const_node_ptr& node) -> bool {
+        const auto& consumers = node->get_output_target_inputs(0);
+        if (consumers.size() == 1) {
+            const auto consumer = consumers.begin()->get_node()->shared_from_this();
+            return ov::is_type<ov::opset1::Multiply>(consumer) && is_decompression_multiply(consumer);
+        }
+        return false;
+    }, FoldConvertTransformation);
+
+    CPU_SET_CALLBACK_X64(lptManager, [&](const_node_ptr& node) -> bool {
+        if (ov::is_type<ov::opset1::Multiply>(node)) {
+            return ov::is_type<ov::opset1::Multiply>(node) && is_decompression_multiply(node);
+        } else if (ov::is_type<ov::opset1::Subtract>(node)) {
+            const auto& consumers = node->get_output_target_inputs(0);
+            if (consumers.size() == 1) {
+                const auto consumer = consumers.begin()->get_node()->shared_from_this();
+                return ov::is_type<ov::opset1::Multiply>(consumer) && is_decompression_multiply(consumer);
             }
-            return false;
-        },
-        ov::pass::low_precision::MarkupPrecisions);
-    CPU_SET_CALLBACK_COMMON(lptManager,
-        [&defaultPrecisions](const_node_ptr& node) -> bool {
-            return LayerTransformation::isAsymmetricQuantization(node, defaultPrecisions) ||
-                WeightableLayerTransformation::isAsymmetricOnWeights(node, defaultPrecisions);
-        },
-        ov::pass::low_precision::ConvolutionBackpropDataTransformation);
+        }
+        return false;
+    }, FuseConvertTransformation);
 
-    lptManager.get_pass_config()->set_callback<ov::pass::low_precision::AddTransformation>(
-        [](const_node_ptr& node) -> bool {
-            return ov::marked_as_bias(node);
-        });
-
-    CPU_DISABLE_PASS_ARM(lptManager, ov::pass::low_precision::RecurrentCellTransformation);
-    CPU_DISABLE_PASS_COMMON(lptManager, ov::pass::low_precision::MultiplyToGroupConvolutionTransformation);
+    CPU_DISABLE_PASS_ARM(lptManager, RecurrentCellTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
     lptManager.run_passes(model);
 }
