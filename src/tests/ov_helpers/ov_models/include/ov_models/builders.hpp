@@ -564,11 +564,6 @@ std::shared_ptr<ov::Node> makeRNN(
     ov::op::RecurrentSequenceDirection direction = ov::op::RecurrentSequenceDirection::FORWARD,
     ov::test::utils::SequenceTestsMode mode = ov::test::utils::SequenceTestsMode::PURE_SEQ);
 
-std::shared_ptr<ov::Node> makeGatherElements(const ov::Output<Node>& dataNode,
-                                             const ov::Shape& indicesShape,
-                                             const element::Type& indicesType,
-                                             const int axis);
-
 std::shared_ptr<ov::Node> makeGatherND(const ov::Output<Node>& dataNode,
                                        const ov::Shape& indicesShape,
                                        const element::Type& indicesType,
