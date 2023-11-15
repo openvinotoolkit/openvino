@@ -289,7 +289,7 @@ TEST_P(OVCompiledModelBaseTest, pluginDoesNotChangeOriginalNetwork) {
     compare_functions(function, referenceNetwork);
 }
 
-TEST_P(OVCompiledModelBaseTest, canSetInputPrecisionForNetwork) {
+TEST_P(OVCompiledModelBaseTest, CanSetInputPrecisionForNetwork) {
     std::shared_ptr<ov::Model> model = ngraph::builder::subgraph::makeSingleConcatWithConstant();
     ov::Core core = createCoreWithTemplate();
     auto ppp = ov::preprocess::PrePostProcessor(model);
