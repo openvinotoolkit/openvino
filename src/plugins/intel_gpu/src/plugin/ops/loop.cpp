@@ -273,7 +273,8 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     // set trip count, num iteration primitives
     // they should be mutable_data to prevent from being optimized out
     const cldnn::primitive_id num_iteration_id = layerName + "_numIteration";
-    cldnn::mutable_data num_iteration_data = CreateScalarData<cldnn::mutable_data>(p, num_iteration_id, shape, prec, 0, op->get_output_shape(0).size());
+    cldnn::mutable_data num_iteration_data = CreateScalarData<cldnn::mutable_data>(p, num_iteration_id, shape, prec, 0,
+                                                                                   static_cast<int64_t>(op->get_output_partial_shape(0).rank().get_length()));
 
     p.add_primitive(*op, std::move(num_iteration_data));
     inputs.insert(inputs.begin(), cldnn::input_info(num_iteration_id, 0));
