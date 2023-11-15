@@ -12,9 +12,7 @@ namespace op {
 NamedOutputs unstack(const NodeContext& node) {
     auto data = node.get_input("X");
     auto input_shape = data.get_partial_shape();
-    PADDLE_OP_CHECK(node,
-                        input_shape.rank().is_static(),
-                        "rank of input data should be static");
+    PADDLE_OP_CHECK(node, input_shape.rank().is_static(), "rank of input data should be static");
     auto dim = node.get_attribute<int32_t>("axis", 0);
     if (dim < 0) {
         dim = dim + static_cast<int32_t>(input_shape.rank().get_length());
