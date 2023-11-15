@@ -219,6 +219,37 @@ TEST(remove_redundant_reorders, not_to_fuse_permute) {
     network network(engine, topology, config);
 }
 
+TEST(remove_redundant_reorders, not_to_fuse_permute_new_shape_infer) {
+    auto& engine = get_test_engine();
+    auto input1 = engine.allocate_memory({data_types::f16, format::bfyx, {4, 64, 512, 512}});
+    auto input2 = engine.allocate_memory({data_types::f16, format::bfzyx, {1, 4, 64, 512, 512}});
+    layout output_layout_fp16( data_types::f16, format::bfzyx, { 4, 512, 64, 512 } );
+
+    topology topology;
+    topology.add(input_layout("input1", input1->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    topology.add(permute("permute", input_info("input1"), {0, 2, 3, 1}));
+    topology.add(reorder("reorder1", input_info("permute"), output_layout_fp16));
+    topology.add(reshape("reshape", input_info("reorder1"), false, {}, ov::PartialShape{1, 4, 512, 512, 64}));
+    topology.add(concatenation("concat", {input_info("reshape"), input_info("input2")}, 4));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    network.execute();
+
+    auto prog = network.get_program();
+    ASSERT_NE(prog, nullptr);
+    auto& permute_node = prog->get_node("permute");
+    auto permute_layout = permute_node.get_output_layout();
+
+    ASSERT_EQ(permute_layout.format.value, format::bfyx);
+}
+
 TEST(remove_redundant_reorders, remove_fused) {
     auto& engine = get_test_engine();
     layout output_layout_fp16( data_types::f16, format::bfyx, { 1, 3, 2, 2 } );
