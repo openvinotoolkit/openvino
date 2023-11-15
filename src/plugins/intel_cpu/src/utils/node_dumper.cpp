@@ -10,6 +10,7 @@
 #include "ie_common.h"
 #include "utils/blob_dump.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "ie_ngraph_utils.hpp"
 
 #include <regex>
 #include <sstream>
@@ -91,7 +92,7 @@ static void dump(const BlobDumper& bd, const std::string& file, const DebugCapsC
         break;
     }
     default:
-        IE_THROW() << "NodeDumper: Unknown dump format";
+        OPENVINO_THROW("NodeDumper: Unknown dump format");
     }
 }
 
@@ -106,7 +107,7 @@ static void dumpInternalBlobs(const NodePtr& node, const DebugCapsConfig& config
         std::string file_name = NameFromType(node->getType()) + "_" + nodeName + "_blb" + std::to_string(i) + ".ieb";
         auto dump_file = config.blobDumpDir + "/#" + std::to_string(node->getExecIndex()) + "_" + file_name;
 
-        if (blb->getDesc().getPrecision() == InferenceEngine::Precision::BIN)
+        if (blb->getDesc().getPrecision() == ov::element::u1)
             continue;
 
         BlobDumper dumper(blb);
@@ -138,7 +139,7 @@ void dumpInputBlobs(const NodePtr& node, const DebugCapsConfig& config, int coun
         std::cout << "Dump inputs: " << dump_file << std::endl;
 
         auto& desc = prEdge->getMemory().getDesc();
-        if (desc.getPrecision() == Precision::BIN)
+        if (desc.getPrecision() == ov::element::u1)
             continue;
 
         BlobDumper dumper(prEdge->getMemoryPtr());
@@ -171,7 +172,7 @@ void dumpOutputBlobs(const NodePtr& node, const DebugCapsConfig& config, int cou
         std::cout << "Dump outputs:  " << dump_file << std::endl;
 
         auto& desc = childEdge->getMemory().getDesc();
-        if (desc.getPrecision() == Precision::BIN)
+        if (desc.getPrecision() == ov::element::u1)
             continue;
 
         BlobDumper dumper(childEdge->getMemoryPtr());

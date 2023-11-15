@@ -32,7 +32,7 @@ public:
     bool canBeInPlace() const override {
         return false;
     }
-    InferenceEngine::Precision getRuntimePrecision() const override;
+    ov::element::Type getRuntimePrecision() const override;
     std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
 
     dnnl::memory getWeights() const;
@@ -67,7 +67,7 @@ public:
     }
 
 protected:
-    InferenceEngine::Precision fusedEltwisePrecision(const NodePtr& fusingNode) const;
+    ov::element::Type fusedEltwisePrecision(const NodePtr& fusingNode) const;
     void redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) override;
     void addFusedNode(const NodePtr &fusingNode) override;
     const std::vector<impl_desc_type>& getDefaultImplPriority() override;
@@ -156,7 +156,7 @@ private:
     size_t groupIC;
     size_t groupOC;
 
-    InferenceEngine::Precision eltwisePrecision;
+    ov::element::Type eltwisePrecision;
 
     const size_t X_AXIS = 0;
     const size_t Y_AXIS = 1;
@@ -173,7 +173,7 @@ private:
     MemoryPtr legacyOutputCompensationMemPtr;
     MemoryPtr stockInputZeroPointsMemPtr;
     dnnl::memory::data_type outputDataType = dnnl::memory::data_type::undef;
-    InferenceEngine::Precision sumPrc = InferenceEngine::Precision::UNSPECIFIED;
+    ov::element::Type sumPrc = ov::element::undefined;
 
     // TODO: migrate on convolution_auto algorithm for x64
 #if defined(OPENVINO_ARCH_X86_64)

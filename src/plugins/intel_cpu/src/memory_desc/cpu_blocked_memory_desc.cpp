@@ -15,10 +15,10 @@ static VectorDims makeRange(size_t size) {
     return retVec;
 }
 
-CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape) :
+CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(ov::element::Type prc, const Shape& shape) :
     CpuBlockedMemoryDesc(prc, shape, shape.getDims(), makeRange(shape.getDims().size())) {}
 
-CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& blockedDims,
+CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(ov::element::Type prc, const Shape& shape, const VectorDims& blockedDims,
                   const VectorDims& order, size_t offsetPadding, const VectorDims& offsetPaddingToData,
                   const VectorDims& strides) : MemoryDesc(shape, Blocked), precision(prc) {
     if (std::any_of(order.begin(), order.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
@@ -124,7 +124,7 @@ size_t CpuBlockedMemoryDesc::getCurrentMemSizeImp() const {
             e_size += (getBlockDims()[j] - 1) * getStrides()[j];
     }
 
-    e_size *= getPrecision() == InferenceEngine::Precision::BIN ? 1 : getPrecision().size();
+    e_size *= getPrecision() == ov::element::u1 ? 1 : getPrecision().size();
 
     return e_size;
 }
@@ -303,7 +303,7 @@ size_t CpuBlockedMemoryDesc::getPaddedElementsCount() const {
     return std::accumulate(blockedDims.begin(), blockedDims.end(), size_t{1}, std::multiplies<size_t>());
 }
 
-MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewPrecision(const InferenceEngine::Precision prec) const {
+MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewPrecision(const ov::element::Type prec) const {
     auto newDesc = std::make_shared<CpuBlockedMemoryDesc>(*this);
     newDesc->setPrecision(prec);
     return newDesc;

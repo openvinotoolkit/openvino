@@ -21,7 +21,7 @@ class VariableState : public ov::IVariableState {
 public:
     VariableState(std::string name, MemoryPtr storage) : ov::IVariableState{name} {
         const auto& memDesc = storage->getDesc();
-        m_state = ov::make_tensor(InferenceEngine::details::convertPrecision(memDesc.getPrecision()),
+        m_state = ov::make_tensor(memDesc.getPrecision(),
                                   memDesc.getShape().getDims());
         cpu_memcpy(m_state->data(), storage->getData(), storage->getSize());
     }

@@ -13,9 +13,9 @@ namespace intel_cpu {
  * This transformation is applied to the FC with compressed 3D u8 weights. It moves Reshape at the weights path to the constants
  * in order to constant fold the Reshape node.
  * Example:
- *                    Weights(3D)                                            Weights(2D)
- *                       |                                                      |
- *                    Convert    Subtract_const(3D)                          Convert    Subtract_const(2D)
+ *                    Weights(3D)   Subtract_const(3D)                       Weights(2D)   Subtract_const(2D)
+ *                       |             /                                        |             /
+ *                    Convert    Subtract_convert(opt)                       Convert    Subtract_convert(opt)
  *                       |      /                                               |      /
  *                   Subtract(opt)                                          Subtract(opt)
  *                       |      Multiply_const(3D)        ====>                 |      Multiply_const(2D)

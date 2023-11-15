@@ -32,8 +32,8 @@ public:
         // dummy node of the same shape and precision to both input and output.
         outputShapes.emplace_back(shape);
         inputShapes.emplace_back(shape);
-        addOriginalOutputPrecision(InferenceEngine::details::convertPrecision(prc));
-        addOriginalInputPrecision(InferenceEngine::details::convertPrecision(prc));
+        addOriginalOutputPrecision(prc);
+        addOriginalInputPrecision(prc);
     }
 
     void getSupportedDescriptors() override {

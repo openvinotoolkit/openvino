@@ -34,20 +34,20 @@ BatchToSpace::BatchToSpace(const std::shared_ptr<ov::Node>& op, const GraphConte
     : Node(op, context, NgraphShapeInferFactory(op, PortMask(1, 2, 3))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = "BatchToSpace layer with name '" + op->get_friendly_name() + "'";
 
     if (inputShapes.size() != 4 || outputShapes.size() != 1)
-        IE_THROW() << errorPrefix << " has incorrect number of input or output edges!";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input or output edges!");
 
     const auto &inDims = getInputShapeAtPort(0).getDims();
     const auto &outDims = getOutputShapeAtPort(0).getDims();
     if (inDims.size() < 4 || inDims.size() > 5)
-        IE_THROW() << errorPrefix << " has unsupported 'data' input rank: " << inDims.size();
+        OPENVINO_THROW(errorPrefix, " has unsupported 'data' input rank: ", inDims.size());
     if (inDims.size() != outDims.size())
-        IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output dimensions");
 }
 
 void BatchToSpace::initSupportedPrimitiveDescriptors() {
@@ -58,33 +58,33 @@ void BatchToSpace::initSupportedPrimitiveDescriptors() {
     const auto precision = getOriginalInputPrecisionAtPort(0);
     const std::set<size_t> supported_precision_sizes = {1, 2, 4, 8};
     if (supported_precision_sizes.find(precision.size()) == supported_precision_sizes.end())
-        IE_THROW() << errorPrefix << " has unsupported precision: " << precision.name();
+        OPENVINO_THROW(errorPrefix, " has unsupported precision: ", precision.get_type_name());
 
     addSupportedPrimDesc({{LayoutType::nspc, precision},
-                          {LayoutType::ncsp, Precision::I32},
-                          {LayoutType::ncsp, Precision::I32},
-                          {LayoutType::ncsp, Precision::I32}},
+                          {LayoutType::ncsp, ov::element::i32},
+                          {LayoutType::ncsp, ov::element::i32},
+                          {LayoutType::ncsp, ov::element::i32}},
                          {{LayoutType::nspc, precision}},
                          impl_desc_type::ref_any);
     addSupportedPrimDesc({{LayoutType::ncsp, precision},
-                          {LayoutType::ncsp, Precision::I32},
-                          {LayoutType::ncsp, Precision::I32},
-                          {LayoutType::ncsp, Precision::I32}},
+                          {LayoutType::ncsp, ov::element::i32},
+                          {LayoutType::ncsp, ov::element::i32},
+                          {LayoutType::ncsp, ov::element::i32}},
                          {{LayoutType::ncsp, precision}},
                          impl_desc_type::ref_any);
     if (inDims[1] != Shape::UNDEFINED_DIM && inDims[1] % 8 == 0) {
         addSupportedPrimDesc({{LayoutType::nCsp8c, precision},
-                              {LayoutType::ncsp, Precision::I32},
-                              {LayoutType::ncsp, Precision::I32},
-                              {LayoutType::ncsp, Precision::I32}},
+                              {LayoutType::ncsp, ov::element::i32},
+                              {LayoutType::ncsp, ov::element::i32},
+                              {LayoutType::ncsp, ov::element::i32}},
                              {{LayoutType::nCsp8c, precision}},
                              impl_desc_type::ref_any);
     }
     if (inDims[1] != Shape::UNDEFINED_DIM && inDims[1] % 16 == 0) {
         addSupportedPrimDesc({{LayoutType::nCsp16c, precision},
-                              {LayoutType::ncsp, Precision::I32},
-                              {LayoutType::ncsp, Precision::I32},
-                              {LayoutType::ncsp, Precision::I32}},
+                              {LayoutType::ncsp, ov::element::i32},
+                              {LayoutType::ncsp, ov::element::i32},
+                              {LayoutType::ncsp, ov::element::i32}},
                              {{LayoutType::nCsp16c, precision}},
                              impl_desc_type::ref_any);
     }
@@ -238,12 +238,13 @@ void BatchToSpace::executeDynamicImpl(dnnl::stream strm) {
 
 void BatchToSpace::execute(dnnl::stream strm) {
     switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision().size()) {
-        case 1: batchToSpaceKernel<PrecisionTrait<Precision::U8>::value_type>();  break;
-        case 2: batchToSpaceKernel<PrecisionTrait<Precision::U16>::value_type>(); break;
-        case 4: batchToSpaceKernel<PrecisionTrait<Precision::I32>::value_type>(); break;
+        case 1: batchToSpaceKernel<element_type_traits<ov::element::u8>::value_type>();  break;
+        case 2: batchToSpaceKernel<element_type_traits<ov::element::u16>::value_type>(); break;
+        case 4: batchToSpaceKernel<element_type_traits<ov::element::i32>::value_type>(); break;
         default:
-            IE_THROW() << "BatchToSpace layer does not support precision '" <<
-                std::string(getParentEdgeAt(0)->getMemory().getDesc().getPrecision().name()) << "'";
+            OPENVINO_THROW("BatchToSpace layer does not support precision '",
+                           std::string(getParentEdgeAt(0)->getMemory().getDesc().getPrecision().get_type_name()),
+                           "'");
     }
 }
 

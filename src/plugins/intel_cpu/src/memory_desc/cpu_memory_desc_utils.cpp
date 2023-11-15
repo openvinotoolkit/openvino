@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "memory_desc/cpu_memory_desc_utils.h"
-
 #include "cpu_memory_desc.h"
 #include "ie_ngraph_utils.hpp"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -33,7 +32,7 @@ DnnlMemoryDescPtr MemoryDescUtils::convertToDnnlMemoryDesc(const MemoryDescPtr &
     } else if (MemoryDescType::Dnnl & desc->getType()) {
         return std::dynamic_pointer_cast<DnnlMemoryDesc>(desc);
     } else {
-        IE_THROW() << "Cannot convert MemoryDesc to DnnlMemoryDesc";
+        OPENVINO_THROW("Cannot convert MemoryDesc to DnnlMemoryDesc");
     }
 }
 
@@ -45,7 +44,7 @@ DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const Memo
         return DnnlBlockedMemoryDesc(cpuDesc->getPrecision(), cpuDesc->getShape(), cpuDesc->getBlockDims(), cpuDesc->getOrder(), cpuDesc->getOffsetPadding(),
                                      cpuDesc->getOffsetPaddingToData(), cpuDesc->getStrides());
     } else {
-        IE_THROW() << "Cannot convert MemoryDesc to DnnlMemoryDesc";
+        OPENVINO_THROW("Cannot convert MemoryDesc to DnnlMemoryDesc");
     }
 }
 
@@ -79,7 +78,7 @@ CpuBlockedMemoryDesc MemoryDescUtils::createCpuBlockedMemoryDesc(const ov::SoPtr
                            return byte_stride / element_type.size();
                        });
     }
-    return CpuBlockedMemoryDesc(InferenceEngine::details::convertPrecision(element_type),
+    return CpuBlockedMemoryDesc(element_type,
                                 Shape(shape),
                                 shape,
                                 blk_order,
@@ -92,7 +91,7 @@ BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDes
     if (desc->getType() & MemoryDescType::Blocked) {
         return std::dynamic_pointer_cast<BlockedMemoryDesc>(desc);
     } else {
-        IE_THROW() << "Can not convert unsupported memory descriptor";
+        OPENVINO_THROW("Can not convert unsupported memory descriptor");
     }
 }
 
@@ -133,7 +132,7 @@ Shape MemoryDescUtils::makeDummyShape(const Shape &shape, Dim dummyVal) {
 
 Shape MemoryDescUtils::makeDummyShape(const Shape &shape, const VectorDims& dummyVals) {
     if (shape.getRank() != dummyVals.size()) {
-        IE_THROW() << "makeDummyShape(): dummyVals vector size and shape ranks mismatch";
+        OPENVINO_THROW("makeDummyShape(): dummyVals vector size and shape ranks mismatch");
     }
     const auto& minDims = shape.getMinDims();
     const auto& maxDims = shape.getMaxDims();
