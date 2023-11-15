@@ -2,24 +2,20 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
-import numpy
 import os
 import shutil
-import sys
 import tempfile
 import unittest
-from unittest.mock import patch
 
-import numpy as np
+import openvino.runtime as ov
+from openvino.runtime import PartialShape
 
+from openvino.tools.ovc.cli_parser import _InputCutInfo
 from openvino.tools.ovc.cli_parser import input_to_input_cut_info, \
-    readable_file_or_object, get_all_cli_parser, get_mo_convert_params, parse_inputs
+    readable_file_or_object, get_all_cli_parser, get_mo_convert_params, parse_inputs, get_model_name_from_args
 from openvino.tools.ovc.convert_impl import pack_params_to_args_namespace, arguments_post_parsing, args_to_argv
 from openvino.tools.ovc.error import Error
 from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
-from openvino.runtime import PartialShape, Dimension, Layout
-from openvino.tools.ovc.cli_parser import _InputCutInfo
-import openvino.runtime as ov
 
 
 class TestShapesParsing(UnitTestWithMockedTelemetry):
@@ -518,3 +514,76 @@ class TestConvertModelParamsParsing(unittest.TestCase):
                     assert param_name not in cli_parser._option_string_actions
                 else:
                     assert param_name in cli_parser._option_string_actions
+
+
+
+class GetModelNameTest(unittest.TestCase):
+    def test_case1(self):
+        current_dir = os.getcwd()
+        dir = os.path.basename(current_dir)
+        argv = argparse.Namespace(input_model="."+ os.sep)
+        assert get_model_name_from_args(argv) == current_dir + os.sep + dir + ".xml"
+
+    def test_case2(self):
+        current_dir = os.getcwd()
+        argv = argparse.Namespace(input_model="."+ os.sep +"test_model")
+        assert get_model_name_from_args(argv) == current_dir + os.sep + "test_model.xml"
+
+
+    def test_case3(self):
+        current_dir = os.getcwd()
+        argv = argparse.Namespace(input_model="."+ os.sep +"test_model.pb")
+        assert get_model_name_from_args(argv) == current_dir + os.sep + "test_model.xml"
+
+
+    def test_case4(self):
+        current_dir = os.getcwd()
+        dir = os.path.basename(current_dir)
+        argv = argparse.Namespace(input_model="."+ os.sep,
+                                  output_model="."+ os.sep)
+        assert get_model_name_from_args(argv) == "." + os.sep + dir + ".xml"
+
+    def test_case5(self):
+        argv = argparse.Namespace(input_model="test_model.pb",
+                                  output_model="."+ os.sep)
+        assert get_model_name_from_args(argv) == "." + os.sep + "test_model.xml"
+
+
+    def test_case6(self):
+        argv = argparse.Namespace(input_model="test_model",
+                                  output_model="."+ os.sep)
+        assert get_model_name_from_args(argv) == "." + os.sep + "test_model.xml"
+
+
+
+    def test_case7(self):
+        argv = argparse.Namespace(input_model="test_dir" + os.sep,
+                                  output_model="."+ os.sep)
+        assert get_model_name_from_args(argv) == "." + os.sep + "test_dir.xml"
+
+    def test_case8(self):
+        argv = argparse.Namespace(input_model="test_model.pb",
+                                  output_model="new_model")
+        assert get_model_name_from_args(argv) == "new_model.xml"
+
+    def test_case9(self):
+        argv = argparse.Namespace(input_model="test_model",
+                                  output_model="new_dir" + os.sep)
+        assert get_model_name_from_args(argv) == "new_dir" + os.sep + "test_model.xml"
+
+    def test_case10(self):
+        argv = argparse.Namespace(input_model="test_dir" + os.sep,
+                                  output_model="new_model.xml")
+        assert get_model_name_from_args(argv) == "new_model.xml"
+
+    def test_case11(self):
+        argv = argparse.Namespace(input_model="/",
+                                  output_model="new_model")
+        assert get_model_name_from_args(argv) == "new_model.xml"
+
+
+    def test_negative(self):
+
+        argv = argparse.Namespace(input_model="/",)
+        with self.assertRaisesRegex(Exception, ".*Could not derive model name from input model. Please provide 'output_model' parameter.*"):
+            get_model_name_from_args(argv)
