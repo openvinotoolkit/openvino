@@ -102,7 +102,7 @@ dnnl::pooling_forward::primitive_desc createDescriptorHelper(const dnnl::engine&
                                                              const std::vector<ptrdiff_t>& data_pad_end,
                                                              const dnnl::primitive_attr& attr) {
     if (alg == dnnl::algorithm::undef) {
-        IE_THROW() << "Unsupported pooling type";
+        OPENVINO_THROW("Unsupported pooling type");
     }
 
     auto convert = [](std::vector<ptrdiff_t> orig_dims) {
@@ -166,7 +166,7 @@ Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     auto get_attributes = [](std::vector<ptrdiff_t>& internal_attribute, const std::vector<size_t> external_attribute) {
@@ -260,9 +260,9 @@ void Pooling::getSupportedDescriptors() {
         return;
 
     if (getParentEdges().size() != 1)
-        IE_THROW() << "Incorrect number of input edges for layer " << getName();
+        OPENVINO_THROW("Incorrect number of input edges for layer ", getName());
     if (getChildEdges().empty())
-        IE_THROW() << "Incorrect number of output edges for layer " << getName();
+        OPENVINO_THROW("Incorrect number of output edges for layer ", getName());
 
     InferenceEngine::Precision inputPrecision = getOriginalInputPrecisionAtPort(0);
     InferenceEngine::Precision outputPrecision = getOriginalOutputPrecisionAtPort(0);
@@ -322,7 +322,7 @@ void Pooling::getSupportedDescriptors() {
 
     // WA: LPT transformation has WA which allows average pooling has I8/U8 output precision instead of FP32,
     // so we explicitly set output precision as FP32
-    if (outputPrecision != Precision::I8 && inputPrecision != Precision::BF16) {
+    if (!one_of(outputPrecision, Precision::I8, Precision::BF16, Precision::FP16)) {
         if (getAlgorithm() == Algorithm::PoolingMax) {
             // oneDNN supports only equal precisions for input and output
             outputPrecision = inputPrecision;
@@ -330,7 +330,7 @@ void Pooling::getSupportedDescriptors() {
             outputPrecision = Precision::FP32;
         }
     }
-    if (inputPrecision == Precision::BF16) {
+    if (one_of(inputPrecision, Precision::BF16, Precision::FP16)) {
         outputPrecision = inputPrecision;
     }
 
@@ -342,7 +342,7 @@ void Pooling::getSupportedDescriptors() {
     auto outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(outputPrecision);
 
     if ((inputRank < 3) || (inputRank > 5))
-        IE_THROW() << "Pooling layer. Unsupported mode. Only 3D, 4D and 5D blobs are supported as input.";
+        OPENVINO_THROW("Pooling layer. Unsupported mode. Only 3D, 4D and 5D blobs are supported as input.");
 
 
 
@@ -351,7 +351,7 @@ void Pooling::getSupportedDescriptors() {
 
     if (inputPrecision == Precision::I8 || inputPrecision == Precision::U8) {
         //  We have to extend i8i8_pooling_fwd_t from oneDNN to support BF16 output data type
-        if (outputDataType == memory::data_type::bf16)
+        if (one_of(outputDataType, memory::data_type::bf16, memory::data_type::f16))
             outputDataType = memory::data_type::f32;
         // i8 layers supports only ndhwc and nhwc layouts
         const auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, inputRank == 3 ?
@@ -383,7 +383,7 @@ void Pooling::getSupportedDescriptors() {
 void Pooling::prepareParams() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        IE_THROW()  << "Pooling node with name '" << getName() << "' did not set preferable primitive descriptor";
+        OPENVINO_THROW("Pooling node with name '", getName(), "' did not set preferable primitive descriptor");
 
     AttrPtr attr;
     if (isDynamicNode()) {
@@ -404,9 +404,9 @@ void Pooling::prepareParams() {
         auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
         auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
         if (!dstMemPtr || !dstMemPtr->isAllocated())
-            IE_THROW() << "Destination memory didn't allocate.";
+            OPENVINO_THROW("Destination memory didn't allocate.");
         if (!srcMemPtr || !srcMemPtr->isAllocated())
-            IE_THROW() << "Input memory didn't allocate.";
+            OPENVINO_THROW("Input memory didn't allocate.");
 
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
@@ -473,7 +473,7 @@ void Pooling::prepareParams() {
         dnnlExecPtr = result.first;
 
         if (!dnnlExecPtr) {
-            IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+            OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
         }
 
         auto scratchpadMem = getScratchPadMem(dnnlExecPtr->getScratchPadDesc());
@@ -507,7 +507,7 @@ void Pooling::execute(dnnl::stream strm) {
 
         execPtr->exec(srcMemory, dstMemory, postOpsArgs);
     } else {
-        IE_THROW() << "Pooling node with name '" << getName() << "' doesn't have an initialized executor";
+        OPENVINO_THROW("Pooling node with name '", getName(), "' doesn't have an initialized executor");
     }
 }
 
@@ -704,7 +704,11 @@ void Pooling::setPostOps(dnnl::primitive_attr &attr) {
             continue;
         }
 
-        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
+        OPENVINO_THROW("Fusing of ",
+                       NameFromType(node->getType()),
+                       " operation to ",
+                       NameFromType(this->getType()),
+                       " node is not implemented");
     }
 
     attr.set_post_ops(ops);

@@ -95,12 +95,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_HeteroOVGetMetricPropsTest.*OVGetMetricPropsTest.*(AVAILABLE_DEVICES|OPTIMIZATION_CAPABILITIES|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
         // supports only '' as device id
         R"(.*OVClassQueryModelTest.*QueryModelWithDeviceID.*)",
-
         // Issue 67214
         R"(smoke_PrePostProcess.*resize_and_convert_layout_i8.*)",
         // TODO: 67255
         R"(smoke_If.*SimpleIf2OutTest.*)",
-
         // Issue: 69086
         // need to add support convert BIN -> FP32
         // if we set output precision as BIN, when we create output blob precision looks like UNSPECIFIED
@@ -166,23 +164,51 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_Snippets_ConvertStub/ConvertStub\.CompareWithRefImpl/IS.*_OT=\(bf16\)_#N=2_#S=2_targetDevice=CPU.*)",
         R"(.*smoke_Snippets_Convert/Convert\.CompareWithRefImpl/IS.*_IT=\(f32\)_OT=\(u8\)_#N=1_#S=1_targetDevice=CPU.*)",
         R"(.*smoke_Snippets_ConvertManyOnInputs/ConvertManyOnInputs\.CompareWithRefImpl/IS.*_IT=\(f32\.u8\)_OT=\(\)_#N=1_#S=1_targetDevice=CPU.*)",
+        // New plugin work with tensors, so it means that blob in old API can have different pointers
+        R"(.*InferRequestIOBBlobTest.*secondCallGetInputDoNotReAllocateData.*)",
+        R"(.*InferRequestIOBBlobTest.*secondCallGetOutputDoNotReAllocateData.*)",
+        R"(.*InferRequestIOBBlobTest.*secondCallGetInputAfterInferSync.*)",
+        R"(.*InferRequestIOBBlobTest.*secondCallGetOutputAfterInferSync.*)",
         // Issue: 106939
         R"(.*ScatterNDUpdateLayerCPUTest.*-1.-1.-1.-2.-2.-2.*)",
         // New plugin API doesn't support changes of pre-processing
-        R"(.*(Hetero).*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
-        R"(.*(Hetero).*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
-        // TODO: for 22.2 (Issue 68949)
+        R"(.*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
+        R"(.*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
+        // Old API cannot deallocate tensor
+        R"(.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
+        // Plugin version was changed to ov::Version
+        R"(.*VersionTest.*pluginCurrentVersionIsCorrect.*)",
+        // Issue: 120286
+        R"(.*smoke_Basic/FuseTransposeAndReorderTest.CompareWithRefs.*)",
+        // Issue: 113703, 114763
+        R"(.*smoke_If/SimpleIfTest.*Cond=0.*)",
+        // Issue: 114765
+        R"(.*smoke_PSROIPoolingAverageLayoutTest/PSROIPoolingLayerCPUTest.*BF16.*)",
+        R"(.*smoke_PSROIPoolingBilinearLayoutTest/PSROIPoolingLayerCPUTest.*BF16.*)",
+        // TODO: for 22.2 (CVS-68949)
         R"(.*smoke_AutoBatching_CPU/AutoBatching_Test_DetectionOutput.*)",
+        // Issue: 120279
+        R"(.*OVCompiledGraphImportExportTest.*elementType=(i16|u16|u32|u64|i64).*)",
         // Issue: 120222
         R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=1_axis=3_.*_modelType=f16_trgDev=CPU.*)",
         R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=7_axis=3_.*_modelType=f16_trgDev=CPU.*)",
+        R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=1_axis=1_.*_modelType=f16_trgDev=CPU.*)",
+        R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=7_axis=1_.*_modelType=f16_trgDev=CPU.*)",
         R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=18_.*_modelType=f16_trgDev=CPU.*)",
         R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=21_.*_sort=value_modelType=f16_trgDev=CPU.*)",
         // Issue: 121228
         R"(smoke_TestsDFT_(1|2|3|4)d/DFTLayerTest.Inference.*bf16.*)",
+        // Issue: 121363
+        R"(.*smoke_Constant/ConstantLayerTest.*_dataPRC=(u4|u16|u32|i4|i16|f64).*)",
+        R"(.*smoke_Constant_with_negative_values/ConstantLayerTest.*_dataPRC=(u4|u16|u32|i4|i16|f64).*)",
+        R"(.*smoke_Check/ConstantResultSubgraphTest.CompareWithRefs/SubgraphType.*_IT=(u16|i16|u32|i64|u64).*)",
         // Issue: 121313
         R"(smoke_GroupConvBackpropData.*paddingDefined/GroupConvBackpropLayerTest.Inference.*f16.*)",
         R"(smoke_GroupConvBackpropData.*paddingDefined/GroupConvBackpropLayerTest.Inference.*f32.*)",
+        // Issue: 121812
+        R"(.*ConvertCPULayerTest.*outFmts=(nhwc|nChw8c|nChw16c).*)",
+        // Issue: 122321
+        R"(.*smoke_ConvertCPULayerTest_BOOL.*)",
         // Issue: 122177
         R"(smoke_LSTMSequenceCommon.*LSTMSequenceTest.Inference.*CONVERT_TO_TI.*)",
         // Issue: 122081
@@ -195,6 +221,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_RNNSequenceCommonZeroClip/RNNSequenceTest.Inference.*hidden_size=10.*relu.*)",
         // Issue: 123427
         R"(.*RDFTLayerTest.*SignalSize=().*)",
+        // Issue: 123815 (Tests are sensintive to available thread count on testing machines)
+        R"(.*smoke_Snippets_MHA_.?D_SplitDimensionM.*)",
+        // Issue: 122356
+        R"(.*NmsRotatedOpTest.*(SortDesc=True|Clockwise=False).*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)
@@ -229,15 +259,18 @@ std::vector<std::string> disabledTestPatterns() {
 
 #if defined(OV_CPU_ARM_ENABLE_FP16)
     // Issue: 123019
-    retVector.emplace_back(R"(smoke_AvgPool_ExplicitPad_CeilRounding.*modelType=f16.*)");
-    retVector.emplace_back(R"(smoke_AvgPool_ExplicitPad_FloorRounding_5Dinput/PoolingLayerTest.*modelType=f16.*)");
-    retVector.emplace_back(R"(smoke_AvgPool_SameUpperPad_FloorRounding_5Dinput/PoolingLayerTest.*modelType=f16.*)");
-    retVector.emplace_back(R"(smoke_AvgPool_SameLowerPad_CeilRounding_5Dinput/PoolingLayerTest.*modelType=f16.*)");
     retVector.emplace_back(R"(smoke_CompareWithRefs_Mvn.*INFERENCE_PRECISION_HINT=f16.*)");
     retVector.emplace_back(R"(smoke_staticShapes4D.*INFERENCE_PRECISION_HINT=f16.*)");
     retVector.emplace_back(R"(smoke_dynamicShapes4D.*INFERENCE_PRECISION_HINT=f16.*)");
-    // Issue: 123064
-    retVector.emplace_back(R"(smoke_TestsROIPooling_.*/ROIPoolingLayerTest.*modelType=f16.*)");
+    // Issue: 124309
+    retVector.emplace_back(R"(.*InferRequestPreprocessConversionTest.*oLT=NHWC.*)");
+    retVector.emplace_back(R"(.*smoke_NoReshape/ExecGraphUniqueNodeNames.CheckUniqueNodeNames.*)");
+    retVector.emplace_back(R"(.*smoke_BehaviorTests/InferRequestPerfCountersTest.CheckOperationInPerfMap.*)");
+    retVector.emplace_back(R"(smoke_BehaviorTests/ExecutableNetworkBaseTest.CheckExecGraphInfo.*)");
+    retVector.emplace_back(R"(smoke_BehaviorTests/OVCompiledModelBaseTestOptional.CheckExecGraphInfo.*)");
+    retVector.emplace_back(R"(smoke_ExecGraph/ExecGraphRuntimePrecision.CheckRuntimePrecision/Function=FakeQuantizeBinaryConvolution.*)");
+    // Issue: 124395
+    retVector.emplace_back(R"(smoke_VariableStateBasic/InferRequestVariableStateTest.*)");
 #endif
 
 #endif

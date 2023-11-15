@@ -38,7 +38,7 @@ program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
         num_outputs = prim->num_outputs;
         for (size_t i = 0 ; i < num_outputs; ++i) {
             layout output_layout = layout{ov::PartialShape{}, data_types::f32, format::bfyx};
-            output_layout.data_padding = prim->output_paddings[i];
+            output_layout.data_padding = prim->get_output_padding(i);
             output_layouts.push_back(output_layout);
             valid_output_layouts.push_back(false);
         }
@@ -368,7 +368,7 @@ bool program_node::recalc_output_layouts(bool invalidate_users_if_changed) {
 
 bool program_node::is_dynamic() const {
     for (const auto& input : get_dependencies()) {
-        if (input.first->is_dynamic_output_layout())
+        if (input.first->is_dynamic_output_layout(input.second))
             return true;
     }
 
@@ -381,7 +381,7 @@ bool program_node::is_dynamic() const {
 
 bool program_node::is_dynamic() {
     for (auto& input : get_dependencies()) {
-        if (input.first->is_dynamic_output_layout())
+        if (input.first->is_dynamic_output_layout(input.second))
             return true;
     }
 
