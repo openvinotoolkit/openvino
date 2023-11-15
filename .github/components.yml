@@ -196,3 +196,12 @@ docs:
 licensing:
   revalidate: []
   build: []
+
+nvidia:
+  revalidate: []
+  build: []
+
+onnx_runtime:
+  revalidate: []
+  build: []
+

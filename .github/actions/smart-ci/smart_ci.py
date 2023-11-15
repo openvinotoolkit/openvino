@@ -17,7 +17,8 @@ class ComponentConfig:
         self.config = config
         self.log = logging.getLogger(self.__class__.__name__)
         self.all_defined_components = set(self.config.keys())  # already defined in components.yml
-        self.all_possible_components = all_possible_components  # can be added to components.yml (based on labeler.yml)
+        # can be added to components.yml (based on labeler.yml)
+        self.all_possible_components = all_possible_components.union(self.all_defined_components)
 
         self.validate(schema, all_possible_components)
 
@@ -165,6 +166,7 @@ def main():
     for label in labeler_config.keys():
         component_name = component_name_from_label(label, args.pattern)
         all_possible_components.add(component_name if component_name else label)
+        all_possible_components.update({'nvidia', 'onnx_runtime'})
 
     no_match_files_changed = False
     # For now, we don't want to apply smart ci rules for post-commits
@@ -184,6 +186,13 @@ def main():
     all_defined_components = components_config.keys()
     changed_component_names = set(all_defined_components) if run_full_scope else \
         get_changed_component_names(pr, all_possible_components, args.pattern)
+
+    core_components = ['Core', 'transformations', 'preprocessing', 'inference']
+    if any(name in core_components for name in changed_component_names):
+        changed_component_names.add('nvidia')
+    if any(name in core_components + ['CPU'] for name in changed_component_names):
+        changed_component_names.add('onnx_runtime')
+
     logger.info(f"changed_component_names: {changed_component_names}")
 
     cfg = ComponentConfig(components_config, schema, all_possible_components)
