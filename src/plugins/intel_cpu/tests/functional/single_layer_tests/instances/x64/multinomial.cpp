@@ -17,20 +17,20 @@ const int GLOBAL_SEED = 1;
 const int OP_SEED = 2;
 
 const std::vector<float> probs_4x4_f32 =
-    {0.00001, 0.001, 0.1, 10.0, 0.001, 0.00001, 10.0, 0.1, 0.1, 10.0, 0.00001, 0.001, 10.0, 0.1, 0.001, 0.00001};
+    {0.00001f, 0.001f, 0.1f, 10.0f, 0.001f, 0.00001f, 10.0f, 0.1f, 0.1f, 10.0f, 0.00001f, 0.001f, 10.0f, 0.1f, 0.001f, 0.00001f};
 
 const std::vector<ov::float16> probs_2x3_f16 =
-    {(ov::float16)0.001, (ov::float16)0.1, (ov::float16)10.0, (ov::float16)10.0, (ov::float16)0.001, (ov::float16)0.1};
+    {(ov::float16)0.001f, (ov::float16)0.1f, (ov::float16)10.0f, (ov::float16)10.0f, (ov::float16)0.001f, (ov::float16)0.1f};
 
-const std::vector<ov::bfloat16> probs_1x3_bf16 = {(ov::bfloat16)0.001, (ov::bfloat16)0.1, (ov::bfloat16)10.0};
+const std::vector<ov::bfloat16> probs_1x3_bf16 = {(ov::bfloat16)0.001f, (ov::bfloat16)0.1f, (ov::bfloat16)10.0f};
 
 const std::vector<float> probs_4x4_f32_log =
-    {3.0, 6.0, 10.0, 0.0, 3.0, 0.0, 10.0, 6.0, 6.0, 10.0, 0.0, 3.0, 10.0, 6.0, 3.0, 0.0};
+    {3.0f, 6.0f, 10.0f, 0.0f, 3.0f, 0.0f, 10.0f, 6.0f, 6.0f, 10.0f, 0.0f, 3.0f, 10.0f, 6.0f, 3.0f, 0.0f};
 
 const std::vector<ov::float16> probs_2x3_f16_log =
-    {(ov::float16)3.0, (ov::float16)6.0, (ov::float16)10.0, (ov::float16)10.0, (ov::float16)3.0, (ov::float16)6.0};
+    {(ov::float16)3.0f, (ov::float16)6.0f, (ov::float16)10.0f, (ov::float16)10.0f, (ov::float16)3.0f, (ov::float16)6.0f};
 
-const std::vector<ov::bfloat16> probs_1x3_bf16_log = {(ov::bfloat16)3.0, (ov::bfloat16)6.0, (ov::bfloat16)10.0};
+const std::vector<ov::bfloat16> probs_1x3_bf16_log = {(ov::bfloat16)3.0f, (ov::bfloat16)6.0f, (ov::bfloat16)10.0f};
 
 const std::vector<int> num_samples_scalar_i32 = {1};
 const std::vector<int64_t> num_samples_1x1_i64 = {2};
