@@ -21,7 +21,7 @@ def pytest_generate_tests(metafunc):
 def pytest_runtest_makereport(item, call):
     outcome = yield
     report = outcome.get_result()
-    if call.when == 'teardown':
+    if call.when == 'teardown' and getattr(item.obj.__self__, 'result', None) is not None:
         results = item.obj.__self__.result
         report._results = results
 

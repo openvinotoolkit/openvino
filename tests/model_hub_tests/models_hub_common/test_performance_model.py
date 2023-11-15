@@ -42,6 +42,7 @@ class Status(Enum):
     GET_READ_MODEL = 6
     INFER_CONVERTED_MODEL = 7
     INFER_READ_MODEL = 8
+    LARGE_INFER_TIME_DIFF_WITH_LARGE_VAR = 9
 
 
 class Results:
@@ -57,9 +58,10 @@ class Results:
 
 class TestPerformanceModel:
     infer_timeout = 600
-    max_diff = 0.1
-    num_heat_runs = 10
+    threshold_ratio = 0.1
+    num_heat_runs = 100
     num_measure_runs = 100
+    threshold_var = 10.0
 
     def load_model(self, model_name, model_link):
         raise "load_model is not implemented"
@@ -108,7 +110,9 @@ class TestPerformanceModel:
             out_data = ov_model(inputs)
             t1 = time.time()
             results.append(t1 - t0)
-        return np.mean(results), np.var(results)
+        print('result = {}'.format(results))
+        mean = np.mean(results)
+        return mean, np.std(results, ddof=1) * 100 / mean
 
     def compile_model(self, model, ie_device):
         core = ov.Core()
@@ -137,22 +141,29 @@ class TestPerformanceModel:
             results.status = Status.INFER_CONVERTED_MODEL
             converted_model_time, converted_model_time_variance = self.infer_model(converted_model, inputs)
             print('converted model time infer {}'.format(converted_model_time))
+            print('converted model time infer var {}'.format(converted_model_time_variance))
             print("Infer read model")
             results.status = Status.INFER_READ_MODEL
             read_model_time, read_model_time_variance = self.infer_model(read_model, inputs)
             print('read model time infer {}'.format(read_model_time))
+            print('read model time infer var {}'.format(read_model_time_variance))
 
-            diff = converted_model_time/read_model_time
+            infer_time_ratio = converted_model_time/read_model_time
 
             results.converted_infer_time = converted_model_time
             results.converted_model_time_variance = converted_model_time_variance
             results.read_model_infer_time = read_model_time
             results.read_model_infer_time_variance = read_model_time_variance
-            results.infer_time_ratio = diff
+            results.infer_time_ratio = infer_time_ratio
 
-            if abs(diff - 1) > TestPerformanceModel.max_diff:
-                results.status = Status.LARGE_INFER_TIME_DIFF
-                results.error_message = "too large ratio {}".format(diff)
+            if abs(infer_time_ratio - 1) > TestPerformanceModel.threshold_ratio:
+                if (read_model_time_variance > TestPerformanceModel.threshold_var
+                        or converted_model_time_variance > TestPerformanceModel.threshold_var):
+                    results.status = Status.LARGE_INFER_TIME_DIFF_WITH_LARGE_VAR
+                    results.error_message = "too large ratio {} with large variance".format(infer_time_ratio)
+                else:
+                    results.status = Status.LARGE_INFER_TIME_DIFF
+                    results.error_message = "too large ratio {}".format(infer_time_ratio)
             else:
                 results.status = Status.OK
         except:
