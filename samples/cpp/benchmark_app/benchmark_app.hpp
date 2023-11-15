@@ -317,7 +317,7 @@ DEFINE_string(api, "async", api_message);
 /// @brief Number of infer requests in parallel
 DEFINE_uint64(nireq, 0, infer_requests_count_message);
 
-/// @brief inference schedule policy for MULTI 
+/// @brief inference schedule policy for MULTI
 DEFINE_string(sp, "", schedule_policy);
 
 /// @brief Number of streams to use for inference on the CPU (also affects Hetero cases)
