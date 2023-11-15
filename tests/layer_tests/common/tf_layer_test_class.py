@@ -32,6 +32,7 @@ class CommonTFLayerTest(CommonLayerTest):
 
         graph_summary = summarize_graph(model_path=model_path)
         outputs_list = graph_summary["outputs"]
+        outputs_list = [out + ":0" for out in outputs_list]
 
         tf.compat.v1.reset_default_graph()
 
@@ -42,7 +43,7 @@ class CommonTFLayerTest(CommonLayerTest):
                 sess.graph.as_default()
                 tf.compat.v1.import_graph_def(graph_def, name='')
 
-                tf_res = sess.run([out + ":0" for out in outputs_list], inputs_dict)
+                tf_res = sess.run(outputs_list, inputs_dict)
 
                 result = dict()
                 for i, output in enumerate(outputs_list):
