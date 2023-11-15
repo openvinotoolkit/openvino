@@ -42,7 +42,7 @@ TEST_F(TypeRelaxedThreading, TypeRelaxedCloning) {
     auto inp2 = std::make_shared<op::v0::Parameter>(element::i8, PartialShape{-1, -1, -1, -1});
 
     auto matMulRelaxed = std::make_shared<ov::op::TypeRelaxed<ov::op::v0::MatMul>>(
-        *std::make_shared<ov::op::v0::MatMul>(inp1_f32, inp2_f32, false, false),
+        ov::op::v0::MatMul(inp1_f32, inp2_f32, false, false),
         element::f32);
     auto matMul = matMulRelaxed->clone_with_new_inputs({inp1, inp2});
 
