@@ -41,9 +41,14 @@ struct condition_impl : typed_primitive_impl<condition> {
         auto pred = condition_inst::get_pred_from_memory(instance.pred_memory_ptr(), stream);
         network::ptr executed_net = pred ? instance.get_net_true() : instance.get_net_false();
         auto branch = pred ? instance.get_branch_true() : instance.get_branch_false();
-        executed_net->set_shape_predictor(instance.get_network().get_shape_predictor());
-        GPU_DEBUG_LOG << "predicate: " << (pred ? "True" : "False") << std::endl;
+        bool can_skip_subgraph = branch.inner_program->can_be_optimized();
+        if (can_skip_subgraph)
+            executed_net->set_shape_predictor(instance.get_network().get_shape_predictor());
 
+        GPU_DEBUG_LOG << "predicate: " << (pred ? "True" : "False") << std::endl;
+        GPU_DEBUG_LOG << "can_skip_subgraph: " << (can_skip_subgraph ? "True" : "False") << std::endl;
+
+        std::vector<event::ptr> output_events;
         // Set input memory of inner network before its execution
         for (size_t mem_idx = 0; mem_idx < instance.inputs_memory_count(); mem_idx++) {
             const primitive_id& input_external_id = instance.dependencies().at(mem_idx).first->id();
@@ -54,25 +59,41 @@ struct condition_impl : typed_primitive_impl<condition> {
                 if (mem_ptr) {
                     auto dep = instance.dependencies()[mem_idx];
                     auto layout = dep.first->get_impl_params()->get_output_layout(dep.second);
-                    GPU_DEBUG_LOG << "Reshape input from " << mem_ptr->get_layout().to_short_string()
-                                << " to " << layout.to_short_string() << std::endl;
-                    // Preallocation logic may allocate more memory than actually produced on current iteration, so we need to adjust input buffers layout
+                    GPU_DEBUG_LOG << "Reshape input from " << mem_ptr->get_layout().to_short_string() << " to "
+                                  << layout.to_short_string() << std::endl;
+                    // Preallocation logic may allocate more memory than actually produced on current iteration, so
+                    // we need to adjust input buffers layout
                     mem_ptr = instance.get_network().get_engine().reinterpret_buffer(*mem_ptr, layout);
                 }
-                executed_net->set_input_data(input_internal_id, mem_ptr);
-                GPU_DEBUG_LOG << "Inner net - Inputs[" << mem_idx << "]" << mem_ptr->get_layout().to_short_string() << std::endl;
+                if (can_skip_subgraph) {
+                    const auto& input_internal_node = branch.inner_program->get_node(input_internal_id);
+                    // look for corresponding result output
+                    const auto& internal_output_id = (*input_internal_node.get_users().begin())->id();
+                    using out_map_type = std::pair<size_t, cldnn::primitive_id>;
+                    auto outer_output = std::find_if(branch.output_map.begin(), branch.output_map.end(), [&](const out_map_type& m) {
+                        return internal_output_id == m.second;
+                    });
+                    instance.set_output_layout(mem_ptr->get_layout());
+                    instance.set_output_memory(mem_ptr, outer_output->first);
+                    output_events.push_back(events[mem_idx]);
+                } else {
+                    executed_net->set_input_data(input_internal_id, mem_ptr);
+                }
+                GPU_DEBUG_LOG << "Inner net - Inputs[" << mem_idx << "]" << mem_ptr->get_layout().to_short_string()
+                              << std::endl;
             }
+        }
+        if (can_skip_subgraph) {
+            return stream.group_events(output_events);
         }
 
         auto sub_net_results = executed_net->execute(events);
-
         // Update output layout of impl_param in condition_inst
         instance.update_output_layout();
 
         // Set output memory of condition_inst to inner network output memory after inner network execution
         instance.postprocess_output_memory(executed_net, branch);
 
-        std::vector<event::ptr> output_events;
         for (auto& output : sub_net_results)
             if (output.second.get_event() != nullptr)
                 output_events.push_back(output.second.get_event());
