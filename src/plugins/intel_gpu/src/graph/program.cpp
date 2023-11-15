@@ -169,8 +169,10 @@ program::program(engine& engine_ref,
                     continue;
                 } else if (node->is_type<data>()) {
                     continue;
-                } else if (node->is_output() && !node->has_fused_primitives() &&
-                      node->get_input_layout(0).data_type == node->get_output_layouts(false)[0].data_type) {
+                } else if (node->is_output() && node->is_type<reorder>() && !node->has_fused_primitives() &&
+                      node->get_input_layout(0).data_type == node->get_output_layouts(false)[0].data_type &&
+                      node->get_input_layout(0).format == node->get_output_layouts(false)[0].format &&
+                      node->get_input_layout(0).get_partial_shape().size() == node->get_output_layouts(false)[0].get_partial_shape().size()) {
                     continue;
                 }
                 can_be_optimized = false;

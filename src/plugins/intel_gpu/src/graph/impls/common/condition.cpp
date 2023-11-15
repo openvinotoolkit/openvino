@@ -42,7 +42,7 @@ struct condition_impl : typed_primitive_impl<condition> {
         network::ptr executed_net = pred ? instance.get_net_true() : instance.get_net_false();
         auto branch = pred ? instance.get_branch_true() : instance.get_branch_false();
         bool can_skip_subgraph = branch.inner_program->can_be_optimized();
-        if (can_skip_subgraph)
+        if (!can_skip_subgraph)
             executed_net->set_shape_predictor(instance.get_network().get_shape_predictor());
 
         GPU_DEBUG_LOG << "predicate: " << (pred ? "True" : "False") << std::endl;
@@ -73,7 +73,7 @@ struct condition_impl : typed_primitive_impl<condition> {
                     auto outer_output = std::find_if(branch.output_map.begin(), branch.output_map.end(), [&](const out_map_type& m) {
                         return internal_output_id == m.second;
                     });
-                    instance.set_output_layout(mem_ptr->get_layout());
+                    instance.set_output_layout(mem_ptr->get_layout(), outer_output->first);
                     instance.set_output_memory(mem_ptr, outer_output->first);
                     output_events.push_back(events[mem_idx]);
                 } else {
