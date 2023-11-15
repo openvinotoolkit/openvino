@@ -576,6 +576,7 @@ std::shared_ptr<ov::Node> makeGatherND8(const ov::Output<Node>& dataNode,
 
 enum class NmsVersion { NmsVersion5, NmsVersion9 };
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeNms(const ov::Output<Node>& boxes,
                                   const ov::Output<Node>& scores,
                                   const element::Type& maxBoxesPrec,
