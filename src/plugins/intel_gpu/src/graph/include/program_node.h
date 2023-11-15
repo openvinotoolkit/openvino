@@ -120,7 +120,7 @@ public:
         return -1;
     }
 
-    std::map<size_t, memory::ptr> get_const_memory_deps() const;
+    virtual std::map<size_t, memory::ptr> get_const_memory_deps() const;
 
     virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params() const {
         return get_kernel_impl_params(get_input_layouts(), output_layouts);

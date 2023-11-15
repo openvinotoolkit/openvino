@@ -19,8 +19,8 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(loop)
 
-std::map<size_t, memory::ptr> loop_node::get_memory_deps() const {
-    auto memory_deps = get_const_memory_deps();
+std::map<size_t, memory::ptr> loop_node::get_const_memory_deps() const {
+    auto memory_deps = program_node::get_const_memory_deps();
     for (auto& i : get_shape_infer_dependencies()) {
         auto& dep = get_dependency(i);
         auto dep_id = dep.id();
@@ -377,7 +377,8 @@ loop_inst::concatenated_memory_mapping::ptr loop_inst::create_concat_memory_map(
         if (out_mem_ptr != nullptr) {
             sliced_layout = out_mem_ptr->get_layout();
         } else {
-            // if
+            // if inner body prim has no output memory because it has dynamic shape,
+            // calculate inner body prim layout using concat_mem's layout.
             auto updated_sliced_layout = sliced_layout.get_partial_shape();
             OPENVINO_ASSERT(updated_sliced_layout[io_prim_map.axis].is_static() || num_iterations > 0,
                                     "Not allowed dynamic dimension for axis when num_iteraiont is negative");
@@ -388,6 +389,9 @@ loop_inst::concatenated_memory_mapping::ptr loop_inst::create_concat_memory_map(
                     updated_sliced_layout[i] = concat_mem_pshape[i];
                 }
             }
+            GPU_DEBUG_LOG << "output pshape for [" << prim->id() << "] is changed from "
+                            << sliced_layout.get_partial_shape().to_string()
+                            << " to " << updated_sliced_layout.to_string() << std::endl;
             sliced_layout.set_partial_shape(updated_sliced_layout);
             out_mem_ptr = engine.allocate_memory(sliced_layout);
         }
