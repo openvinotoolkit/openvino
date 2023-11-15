@@ -30,9 +30,9 @@ enum class FQ_add_input_type {
 struct jit_quantize_params {
     bool is_planar;
 
-    InferenceEngine::Precision src_prc;
-    InferenceEngine::Precision wei_prc;
-    InferenceEngine::Precision dst_prc;
+    ov::element::Type src_prc;
+    ov::element::Type wei_prc;
+    ov::element::Type dst_prc;
 
     Algorithm op_type;
 
@@ -131,8 +131,8 @@ public:
     bool isOutputLowBroadcast() const { return isOutputLowBroadcasted; }
     bool isOutputHighBroadcast() const { return isOutputHighBroadcasted; }
 
-    InferenceEngine::Precision getInputPrecision() const { return inputPrecision; }
-    InferenceEngine::Precision getOutputPrecision() const { return outputPrecision; }
+    ov::element::Type getInputPrecision() const { return inputPrecision; }
+    ov::element::Type getOutputPrecision() const { return outputPrecision; }
 
     void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem, const int channelAxis = 1) override;
     void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1) override;
@@ -267,8 +267,8 @@ private:
     size_t currentAxisSize = 0;
     size_t axis = 0;
 
-    InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
-    InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
+    ov::element::Type inputPrecision = ov::element::f32;
+    ov::element::Type outputPrecision = ov::element::f32;
 
     std::string errorPrefix;
 

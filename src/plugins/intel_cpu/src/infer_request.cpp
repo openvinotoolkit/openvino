@@ -573,7 +573,7 @@ void SyncInferRequest::init_tensor(const std::string& name) {
             if (!tensor) {
                 ov::Shape tensor_shape;
                 if (isDynamic) {
-                    const auto model_prec = InferenceEngine::details::convertPrecision(port.get_element_type());
+                    const auto model_prec = port.get_element_type();
                     const auto graph_prec =
                         output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
                     OutputControlBlock control_block{model_prec, Shape{shape}};
@@ -659,7 +659,7 @@ void SyncInferRequest::push_input_data() {
     }
 }
 
-SyncInferRequest::OutputControlBlock::OutputControlBlock(const InferenceEngine::Precision& precision, const Shape& shape) {
+SyncInferRequest::OutputControlBlock::OutputControlBlock(const ov::element::Type& precision, const Shape& shape) {
     dnnl::engine eng(dnnl::engine::kind::cpu, 0);
     m_buffers[m_buffIndx] = std::make_shared<MemoryMngrWithReuse>();
     m_proxyMemMngr = std::make_shared<ProxyMemoryMngr>(m_buffers[m_buffIndx]);

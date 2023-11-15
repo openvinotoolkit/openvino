@@ -62,23 +62,23 @@ void GatherND::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    Precision inDataPrecision = getOriginalInputPrecisionAtPort(GATHERND_DATA);
+    ov::element::Type inDataPrecision = getOriginalInputPrecisionAtPort(GATHERND_DATA);
     if (!one_of(inDataPrecision.size(),
-                sizeof(PrecisionTrait<Precision::I32>::value_type),
-                sizeof(PrecisionTrait<Precision::I16>::value_type),
-                sizeof(PrecisionTrait<Precision::I8>::value_type))) {
+                sizeof(element_type_traits<ov::element::i32>::value_type),
+                sizeof(element_type_traits<ov::element::i16>::value_type),
+                sizeof(element_type_traits<ov::element::i8>::value_type))) {
         THROW_ERROR("has unsupported 'data' input precision: ", inDataPrecision);
     }
     attrs.dataSize = inDataPrecision.size();
 
-    Precision indicesPrecision = getOriginalInputPrecisionAtPort(GATHERND_INDEXES);
+    ov::element::Type indicesPrecision = getOriginalInputPrecisionAtPort(GATHERND_INDEXES);
     if (!one_of(indicesPrecision,
-                Precision::I32, Precision::I64, Precision::I16, Precision::U16, Precision::I8, Precision::U8)) {
+                ov::element::i32, ov::element::i64, ov::element::i16, ov::element::u16, ov::element::i8, ov::element::u8)) {
         THROW_ERROR("has unsupported 'indices' input precision: ", indicesPrecision);
     }
 
     addSupportedPrimDesc({{LayoutType::ncsp, inDataPrecision},
-                          {LayoutType::ncsp, Precision::I32}},
+                          {LayoutType::ncsp, ov::element::i32}},
                          {{LayoutType::ncsp, inDataPrecision}},
                          impl_desc_type::ref_any);
 }
@@ -144,9 +144,9 @@ void GatherND::GatherNDExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPt
 
     GatherNDContext ctx { this, srcMemPtr, idxMemPtr, dstMemPtr };
     OV_SWITCH(intel_cpu, GatherNDEmitter, ctx, dataSize,
-              OV_CASE(sizeof(PrecisionTrait<Precision::I32>::value_type), PrecisionTrait<Precision::I32>::value_type),
-              OV_CASE(sizeof(PrecisionTrait<Precision::I16>::value_type), PrecisionTrait<Precision::I16>::value_type),
-              OV_CASE(sizeof(PrecisionTrait<Precision::I8>::value_type), PrecisionTrait<Precision::I8>::value_type));
+              OV_CASE(sizeof(element_type_traits<ov::element::i32>::value_type), element_type_traits<ov::element::i32>::value_type),
+              OV_CASE(sizeof(element_type_traits<ov::element::i16>::value_type), element_type_traits<ov::element::i16>::value_type),
+              OV_CASE(sizeof(element_type_traits<ov::element::i8>::value_type), element_type_traits<ov::element::i8>::value_type));
 }
 
 void GatherND::GatherNDExecutor::gatherBlocks(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr) {
