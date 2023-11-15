@@ -24,7 +24,7 @@ public:
             LayoutType layout = LayoutType::ncsp,
             Edge::LOOK in_place_direction = Edge::LOOK::LOOK_UP,
             bool is_executable = false) :
-        Node(type, name, context) , m_is_executable(is_executable) {
+        Node(type, name, context), m_layout(layout), m_inplace(in_place_direction), m_is_executable(is_executable) {
         // dummy node of the same shape and precision to both input and output.
         outputShapes.emplace_back(shape);
         inputShapes.emplace_back(shape);

@@ -66,7 +66,7 @@ void Edge::drop() {
 }
 
 void Edge::collectConsumers(std::vector<NodePtr>& result) const {
-    if (this->inPlace(LOOK_DOWN)) {
+    if (!this->getChild()->getChildEdges().empty() && this->inPlace(LOOK_DOWN)) {
         if (auto peerChildSPD = this->getChild()->getSelectedPrimitiveDescriptor()) {
             auto peerOutputNum = this->getOutputNum();
             auto peerInPlacePort = peerChildSPD->getConfig().inConfs[peerOutputNum].inPlace();

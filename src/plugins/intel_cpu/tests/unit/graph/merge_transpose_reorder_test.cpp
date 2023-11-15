@@ -89,7 +89,7 @@ protected:
 
             // dummy ncsp + inPlace LOOK_UP
             auto dummyNode1 = std::make_shared<cpu_unit_test::DummyNode>(
-                testShape, testPrec, "reshape", "DummyNode", context);
+                testShape, testPrec, "reshape", "DummyNode", context, LayoutType::ncsp, Edge::LOOK::LOOK_UP);
 
             auto orderNode = std::make_shared<node::Input>(constOrder, context); // const order
             auto transposeNode = std::make_shared<node::Transpose>(transpose, context);
