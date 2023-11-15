@@ -22,14 +22,8 @@ public:
     bool created() const override {
         return getType() == Type::ScaledDotProductAttention;
     }
-    bool needShapeInfer() const override {
-        return false;
-    };
     bool needPrepareParams() const override {
         return false;
-    };
-    bool isExecutable() const override {
-        return true;
     }
     void executeDynamicImpl(dnnl::stream strm) override {
         execute(strm);
@@ -39,7 +33,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
     struct Executor {
-        virtual void execute(dnnl::stream strm, ScaledDotProductAttention* node) = 0;
+        virtual void execute(dnnl::stream strm, const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr>& outputs) = 0;
     };
 
     struct Config {
@@ -47,10 +41,6 @@ public:
         bool fuse_causal_attn = false;
         bool is_causal = false;
     };
-
-    const Config& get_config() const {
-        return m_config;
-    }
 
 private:
     Config m_config;

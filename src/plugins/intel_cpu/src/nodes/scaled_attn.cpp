@@ -26,10 +26,10 @@
 #endif
 
 #include "utils/plain_tensor.hpp"
-#include "scaled_attn_softmax.hpp"
-#include "scaled_attn_dot_product.hpp"
-#include "scaled_attn_acc_value.hpp"
-#include "scaled_attn_reduce.hpp"
+#include "kernels/scaled_attn/softmax.hpp"
+#include "kernels/scaled_attn/dot_product.hpp"
+#include "kernels/scaled_attn/acc_value.hpp"
+#include "kernels/scaled_attn/reduce.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::Extensions::Cpu::XARCH;
@@ -37,8 +37,6 @@ using namespace InferenceEngine::Extensions::Cpu::XARCH;
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
-#define THROW_ERROR IE_THROW() << getTypeStr() << " node with name '" << getName() << "' "
 
 //============================ kernels ============================
 enum KernelTypes { KT_REF, KT_ONEDNN, KT_MLAS};
@@ -303,7 +301,7 @@ struct MHA_kernel<KT_MLAS, float> {
     std::vector<PlainTensor<float>> qk_buffers;
 
     MHA_kernel() {
-        m_block_size = std::getenv("MBLK") ? atoi(std::getenv("MBLK")) : 4;
+        m_block_size = 4;
         qk_buffers.resize(parallel_get_max_threads(), PlainTensor<float>(true));
     }
 
@@ -591,41 +589,41 @@ struct AttentionExecutor : public ScaledDotProductAttention::Executor {
     PlainTensor<T> output_emb;        // f32[B, L1, H*S]
 
     MHA_kernel<KType, T> kernel;
-    MHA_1Token<T> kernel_1tok;
+    MHA_1Token<T> kernel_single_token;
 
     PlainTensor<T> m_query_emb;  // query with RoPE position embedding
 
-    void prepare_attn_mask(ScaledDotProductAttention* node) {
-        auto memory = node->getParentEdgeAt(3)->getMemoryPtr();
-        attn_mask.resize(memory->getStaticDims());
-        auto p = reinterpret_cast<uint8_t*>(node->getParentEdgeAt(3)->getMemoryPtr()->getData());
-        for (size_t i = 0; i < memory->getSize(); i++)
+    ScaledDotProductAttention::Config config;
+    AttentionExecutor(const ScaledDotProductAttention::Config& _config) : config(_config) {}
+
+    void prepare_attn_mask(MemoryPtr attn_input) {
+        attn_mask.resize(attn_input->getStaticDims());
+        auto p = reinterpret_cast<uint8_t*>(attn_input->getData());
+        for (size_t i = 0; i < attn_input->getSize(); i++)
             attn_mask.data()[i] = p[i] ? 0.0f : -FLT_MAX;
     }
 
-    void execute(dnnl::stream strm, ScaledDotProductAttention* node) override {
-        const auto& config = node->get_config();
+    void execute(dnnl::stream strm, const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr>& outputs) override {
         bool has_out_transpose = config.output_BLHxS;
         bool fuse_causal_attn = config.fuse_causal_attn;
         bool is_causal = config.is_causal;
-        auto input_num = node->getOriginalInputsNumber();
-        if (fuse_causal_attn && input_num <= 3)
-            IE_THROW() << node->getTypeStr() << " node with name '" << node->getName() << " no attn mask input";
+        auto input_num = inputs.size();
 
-        q_input.reset(node->getParentEdgeAt(0)->getMemoryPtr());
-        k_input.reset(node->getParentEdgeAt(1)->getMemoryPtr());
-        v_input.reset(node->getParentEdgeAt(2)->getMemoryPtr());
+        q_input.reset(inputs[0]);
+        k_input.reset(inputs[1]);
+        v_input.reset(inputs[2]);
         if (input_num > 3) {
             // attn_mask
-            if (node->getOriginalInputPrecisionAtPort(3) == Precision::U8) {
+            if (inputs[3]->getDesc().getPrecision() == Precision::U8) {
                 // bool->f32
-                prepare_attn_mask(node);
+                prepare_attn_mask(inputs[3]);
             } else {
-                attn_mask.reset(node->getParentEdgeAt(3)->getMemoryPtr());
+                attn_mask.reset(inputs[3]);
             }
-        }
-        if (input_num > 4) {
-            scale_input = *reinterpret_cast<float*>(node->getParentEdgeAt(4)->getMemoryPtr()->getData());
+            // if has scale, attn_mask must be present
+            if (input_num > 4) {
+                scale_input = *reinterpret_cast<float*>(inputs[4]->getData());
+            }
         }
 
         size_t B, H, L1, L0, S;
@@ -637,12 +635,7 @@ struct AttentionExecutor : public ScaledDotProductAttention::Executor {
         L0 = k_input.size(2) - L1;
         S = q_input.size(-1);
 
-        if (has_out_transpose)
-            node->redefineOutputMemory({{B, L1, H * S}});
-        else
-            node->redefineOutputMemory({{B, H, L1, S}});
-
-        ov::intel_cpu::PlainTensor<T> output_emb(node->getChildEdgeAt(0)->getMemoryPtr());
+        ov::intel_cpu::PlainTensor<T> output_emb(outputs[0]);
         PlainTensor<T> present_key, present_value;
 
         q_input.assert_dims({B, H, L1, S});
@@ -689,24 +682,24 @@ struct AttentionExecutor : public ScaledDotProductAttention::Executor {
             //  1, in matrix mutiply, using AMX is not efficency because the M dimension of A will alway be 1
             //  2, using float will save the repack cost which typically is required for bf16/int8 opt
             //  3, using dot product can leverage the SIMD while easily adapt to indirect kv cache
-            kernel_1tok(m_query_emb, present_key, present_value, {}, use_attn_mask ? attn_mask : PlainTensor<float>(),
+            kernel_single_token(m_query_emb, present_key, present_value, {}, use_attn_mask ? attn_mask : PlainTensor<float>(),
                         output_emb, beam_table, has_out_transpose, auto_causal, scale_input);
         }
     }
 };
 
 ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, InternalDynShapeInferFactory()) {
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW("CPU: " + errorMessage);
     }
 
     const auto node = std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op);
     if (node) {
         m_config.is_causal = node->get_causal();
     } else {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW("CPU: cast to v13::ScaledDotProductAttention failed.");
     }
 }
 
@@ -716,14 +709,14 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     auto rtPrecision = getOriginalInputPrecisionAtPort(0);
 
     if (rtPrecision == Precision::BF16) {
-        m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>();
+        m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(m_config);
     } else {
         // only support bf16/f32
         rtPrecision = Precision::FP32;
 #ifdef OV_CPU_WITH_MLAS
-        m_executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>();
+        m_executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(m_config);
 #else
-        m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float>>();
+        m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float>>(m_config);
 #endif
     }
 
@@ -752,7 +745,14 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
 }
 
 void ScaledDotProductAttention::execute(dnnl::stream strm) {
-    m_executor->execute(strm, this);
+    std::vector<MemoryPtr> inputs(getParentEdges().size()), outputs(getChildEdges().size());
+    for (size_t i = 0; i < inputs.size(); i++) {
+        inputs[i] = getParentEdgeAt(i)->getMemoryPtr();
+    }
+    for (size_t i = 0; i < outputs.size(); i++) {
+        outputs[i] = getChildEdgeAt(i)->getMemoryPtr();
+    }
+    m_executor->execute(strm, inputs, outputs);
 }
 
 bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {

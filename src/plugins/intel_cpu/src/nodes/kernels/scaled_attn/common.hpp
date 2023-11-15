@@ -13,6 +13,13 @@ namespace Extensions {
 namespace Cpu {
 namespace XARCH {
 
+// avx512/avx2 register length in byte
+static constexpr size_t vec_len_avx512 = 64lu;
+static constexpr size_t vec_len_avx2 = 32lu;
+// avx512/avx2 register length in float
+static constexpr size_t vec_len_f32_avx512 = vec_len_avx512 / sizeof(float);
+static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
+
 #ifdef HAVE_AVX512F
     inline __m512 mm512_uni_loadu_ps(ov::bfloat16* a) {
         auto vec_bf16 = _mm256_loadu_si256(reinterpret_cast<__m256i*>(a));

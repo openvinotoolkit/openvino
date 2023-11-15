@@ -24,38 +24,38 @@ namespace ov {
 namespace intel_cpu {
 
 template <typename T>
-inline void assert_dt(dnnl::memory::data_type dt) {
+inline void assert_dt(InferenceEngine::Precision dt) {
     IE_ASSERT(false);
 }
 
 template <>
-inline void assert_dt<float>(dnnl::memory::data_type dt) {
-    IE_ASSERT(dt == dnnl::memory::data_type::f32);
+inline void assert_dt<float>(InferenceEngine::Precision dt) {
+    IE_ASSERT(dt == InferenceEngine::Precision::FP32);
 }
 
 template <>
-inline void assert_dt<ov::bfloat16>(dnnl::memory::data_type dt) {
-    IE_ASSERT(dt == dnnl::memory::data_type::bf16);
+inline void assert_dt<ov::bfloat16>(InferenceEngine::Precision dt) {
+    IE_ASSERT(dt == InferenceEngine::Precision::BF16);
 }
 
 template <>
-inline void assert_dt<uint8_t>(dnnl::memory::data_type dt) {
-    IE_ASSERT(dt == dnnl::memory::data_type::u8);
+inline void assert_dt<uint8_t>(InferenceEngine::Precision dt) {
+    IE_ASSERT(dt == InferenceEngine::Precision::U8);
 }
 
 template <>
-inline void assert_dt<int8_t>(dnnl::memory::data_type dt) {
-    IE_ASSERT(dt == dnnl::memory::data_type::s8);
+inline void assert_dt<int8_t>(InferenceEngine::Precision dt) {
+    IE_ASSERT(dt == InferenceEngine::Precision::I8);
 }
 
 template <>
-inline void assert_dt<int32_t>(dnnl::memory::data_type dt) {
-    IE_ASSERT(dt == dnnl::memory::data_type::s32);
+inline void assert_dt<int32_t>(InferenceEngine::Precision dt) {
+    IE_ASSERT(dt == InferenceEngine::Precision::I32);
 }
 
 template <>
-inline void assert_dt<float16>(dnnl::memory::data_type dt) {
-    IE_ASSERT(dt == dnnl::memory::data_type::f16);
+inline void assert_dt<float16>(InferenceEngine::Precision dt) {
+    IE_ASSERT(dt == InferenceEngine::Precision::FP16);
 }
 
 template <typename T>
@@ -135,12 +135,13 @@ struct PlainTensorBase {
         assert(i < m_rank);
         return m_strides[i];
     }
-    virtual InferenceEngine::Precision::ePrecision get_precision(void) = 0;
+    virtual InferenceEngine::Precision get_precision(void) = 0;
     virtual void reset(MemoryPtr mem) = 0;
 };
 
 template <typename DT>
 struct PlainTensor : public PlainTensorBase {
+    MemoryPtr m_mem;        // hold memory ptr reference
     PlainTensor(MemoryPtr mem) {
         reset(mem);
     }
@@ -172,19 +173,15 @@ struct PlainTensor : public PlainTensorBase {
     }
 
     void reset(MemoryPtr mem) override {
-        assert_dt<DT>(mem->getDataType());
+        assert_dt<DT>(mem->getDesc().getPrecision());
+        m_mem = mem;
         // this reshape_to() can do reshape w/o additional cost
         resize(mem->getStaticDims(), reinterpret_cast<DT*>(mem->getData()));
     }
 
-    InferenceEngine::Precision::ePrecision get_precision(void) override {
+    InferenceEngine::Precision get_precision(void) override {
         return precision_of<DT>::value;
     }
-
-    // gives names
-    // define("BLKHS")
-    // index("K", 0)
-    // permute("BHLS")
 
     struct tensor_index {
         int start;

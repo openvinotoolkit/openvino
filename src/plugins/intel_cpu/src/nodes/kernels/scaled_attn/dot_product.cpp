@@ -15,8 +15,8 @@
 #endif
 
 #include "openvino/core/type/bfloat16.hpp"
-#include "scaled_attn_common.hpp"
-#include "scaled_attn_dot_product.hpp"
+#include "common.hpp"
+#include "dot_product.hpp"
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -29,7 +29,7 @@ float dot_product_inner(T* a, T* b, size_t n) {
     float sum = 0.0f;
 #if defined(HAVE_AVX512F)
     auto vsum = _mm512_setzero_ps();
-    for (; i + 16 <= n; i += 16) {
+    for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
         auto va = mm512_uni_loadu_ps(a + i);
         auto vb = mm512_uni_loadu_ps(b + i);
         vsum = _mm512_fmadd_ps(va, vb, vsum);
@@ -37,7 +37,7 @@ float dot_product_inner(T* a, T* b, size_t n) {
     sum = _mm512_reduce_add_ps(vsum);
 #elif defined(HAVE_AVX2)
     auto vsum = _mm256_set1_ps(0.0f);
-    for (; i + 8 <= n; i += 8) {
+    for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
         auto va = mm256_uni_loadu_ps(a + i);
         auto vb = mm256_uni_loadu_ps(b + i);
         vsum = _mm256_fmadd_ps(va, vb, vsum);

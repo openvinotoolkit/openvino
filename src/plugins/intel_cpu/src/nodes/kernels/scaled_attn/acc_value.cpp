@@ -15,8 +15,8 @@
 #endif
 
 #include "openvino/core/type/bfloat16.hpp"
-#include "scaled_attn_common.hpp"
-#include "scaled_attn_acc_value.hpp"
+#include "common.hpp"
+#include "acc_value.hpp"
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -28,7 +28,7 @@ void attn_acc_value_inner(float* out, float weight, T* v, size_t S) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)
     auto attn_w_vec_fp32 = _mm512_set1_ps(weight);
-    for (; i + 16 <= S; i +=16) {
+    for (; i + vec_len_f32_avx512 <= S; i += vec_len_f32_avx512) {
         auto v_value = mm512_uni_loadu_ps(v + i);
         auto v_out = mm512_uni_loadu_ps(out + i);
         v_out = _mm512_fmadd_ps(attn_w_vec_fp32, v_value, v_out);
@@ -36,7 +36,7 @@ void attn_acc_value_inner(float* out, float weight, T* v, size_t S) {
     }
 #elif defined(HAVE_AVX2)
     auto attn_w_vec_fp32 = _mm256_set1_ps(weight);
-    for (; i + 8 <= S; i += 8) {
+    for (; i + vec_len_f32_avx2 <= S; i += vec_len_f32_avx2) {
         auto v_value = mm256_uni_loadu_ps(v + i);
         auto v_out = mm256_uni_loadu_ps(out + i);
         v_out = _mm256_fmadd_ps(attn_w_vec_fp32, v_value, v_out);
