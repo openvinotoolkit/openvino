@@ -150,7 +150,7 @@ cross_compiled_file(${TARGET_NAME}
                     src/nodes/proposal_imp.cpp
         API         src/nodes/proposal_imp.hpp
         NAME        proposal_exec
-        NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
+        NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY

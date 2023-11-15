@@ -12,6 +12,13 @@
 
 namespace ov {
 namespace reference {
+namespace func {
+
+template <class T>
+bool is_negative(const T v) {
+    return v < T{0};
+}
+}  // namespace func
 
 /**
  * @brief Reference implementation of ReLU operator (signed values).
@@ -22,14 +29,7 @@ namespace reference {
  */
 template <class T, typename std::enable_if<ov::is_floating_point<T>() || std::is_signed<T>::value>::type* = nullptr>
 void relu(const T* arg, T* out, const size_t count) {
-    std::replace_copy_if(
-        arg,
-        arg + count,
-        out,
-        [](const T v) {
-            return v < T{0};
-        },
-        T{0});
+    std::replace_copy_if(arg, arg + count, out, func::is_negative<T>, T{0});
 }
 
 /**

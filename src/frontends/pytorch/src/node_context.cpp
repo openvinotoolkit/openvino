@@ -65,25 +65,25 @@ void NodeContext::mutate_input(size_t index, Output<Node> ov_output) const {
     auto back_input_id = input_id;
     auto back_node_input = ov_output;
     while (m_translate_session->m_may_be_alias.count(back_input_id)) {
-        // Create node to backprop data. While loop is needed for the cases when alias to tensor point to another alias
-        // to tensor. In that case we need to create a chain of backprop ops
+        // Create node to reverseprop data. While loop is needed for the cases when alias to tensor point to another
+        // alias to tensor. In that case we need to create a chain of reverseprop ops
         size_t in_tensor;
         std::shared_ptr<TorchDecoder> node;
         Output<Node> node_converted_output;
         std::tie(in_tensor, node, node_converted_output) = m_translate_session->m_may_be_alias.at(back_input_id);
-        auto backprop_node = m_translate_session->get_backprop_op(node, node_converted_output, back_node_input);
+        auto reverseprop_node = m_translate_session->get_reverseprop_op(node, node_converted_output, back_node_input);
         if (m_tensor_map->count(in_tensor)) {
             // Tensor is not found in the scope of this body, need to get it from internal context and mark mutated
             OPENVINO_DEBUG << "Couldn't find in the current body the initial aliased tensor: " << in_tensor
                            << " for operation: " << node->get_op_type() << " creating new body input.";
             get_tensor_from_model_or_create_input(in_tensor);
         }
-        m_translate_session->encode_tensor_name(backprop_node, in_tensor);
-        (*m_tensor_map)[in_tensor] = backprop_node;
+        m_translate_session->encode_tensor_name(reverseprop_node, in_tensor);
+        (*m_tensor_map)[in_tensor] = reverseprop_node;
         m_mutated_tensors->insert(in_tensor);
         OPENVINO_DEBUG << "Propagated back data from tensor: " << back_input_id << " to tensor: " << in_tensor << ".\n";
         back_input_id = in_tensor;
-        back_node_input = backprop_node;
+        back_node_input = reverseprop_node;
     }
 }
 

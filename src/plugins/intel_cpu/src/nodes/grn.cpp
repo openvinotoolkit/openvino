@@ -4,8 +4,8 @@
 
 #include <string>
 
-#include <ngraph/opsets/opset1.hpp>
-#include "ie_parallel.hpp"
+#include <openvino/opsets/opset1.hpp>
+#include "openvino/core/parallel.hpp"
 #include "grn.h"
 
 using namespace InferenceEngine;
@@ -14,9 +14,9 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool GRN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool GRN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto grn = std::dynamic_pointer_cast<const ngraph::opset1::GRN>(op);
+        const auto grn = std::dynamic_pointer_cast<const ov::opset1::GRN>(op);
         if (!grn) {
             errorMessage = "Only opset1 GRN operation is supported";
             return false;
@@ -27,26 +27,25 @@ bool GRN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
     return true;
 }
 
-GRN::GRN(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+GRN::GRN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = "GRN layer with name '" + op->get_friendly_name() + "'";
-    const auto grn = std::dynamic_pointer_cast<const ngraph::opset1::GRN>(op);
+    const auto grn = std::dynamic_pointer_cast<const ov::opset1::GRN>(op);
     if (grn == nullptr)
-        IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
-            "' is not an instance of GRN from opset1.";
+        OPENVINO_THROW("Operation with name '", op->get_friendly_name(), "' is not an instance of GRN from opset1.");
 
     if (inputShapes.size() != 1 || outputShapes.size() != 1)
-        IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
 
     const auto dataRank = getInputShapeAtPort(0).getRank();
 
     if (dataRank != getOutputShapeAtPort(0).getRank())
-        IE_THROW() << errorPrefix << " has input/output rank mismatch";
+        OPENVINO_THROW(errorPrefix, " has input/output rank mismatch");
 
     bias = grn->get_bias();
 }
@@ -65,18 +64,18 @@ void GRN::prepareParams() {
     const auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
 
     if (!dataMemPtr || !dataMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << " has not allocated input memory";
+        OPENVINO_THROW(errorPrefix, " has not allocated input memory");
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << " has not allocated output memory";
+        OPENVINO_THROW(errorPrefix, " has not allocated output memory");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << errorPrefix << " has unidentified preferable primitive descriptor";
+        OPENVINO_THROW(errorPrefix, " has unidentified preferable primitive descriptor");
 
     const VectorDims& dataDims = dataMemPtr->getStaticDims();
     const VectorDims& dstDims = dstMemPtr->getStaticDims();
 
     for (size_t i = 0; i < dataDims.size(); ++i) {
         if (dataDims[i] != dstDims[i])
-            IE_THROW() << errorPrefix << " hsd input/output tensors dimensions mismatch";
+            OPENVINO_THROW(errorPrefix, " hsd input/output tensors dimensions mismatch");
     }
 
     if (dataDims.size() > 0)
