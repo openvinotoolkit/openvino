@@ -57,7 +57,7 @@ private:
     /// General algorithm variables
     InferenceEngine::Precision m_probs_precision;
     InferenceEngine::Precision m_num_samples_precision;
-    const InferenceEngine::Precision m_output_precision = InferenceEngine::Precision::I32;
+    InferenceEngine::Precision m_output_precision;
 
     size_t m_probs_count = 0;
     size_t m_batches_count = 0;
