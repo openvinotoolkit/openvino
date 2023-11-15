@@ -574,11 +574,6 @@ std::shared_ptr<ov::Node> makeGatherND8(const ov::Output<Node>& dataNode,
                                         const element::Type& indicesType,
                                         const std::size_t batchDims);
 
-std::shared_ptr<ov::Node> makeNormalizeL2(const ov::Output<Node>& data,
-                                          const std::vector<int64_t>& axes,
-                                          float eps,
-                                          ov::op::EpsMode epsMode);
-
 enum class NmsVersion { NmsVersion5, NmsVersion9 };
 
 std::shared_ptr<ov::Node> makeNms(const ov::Output<Node>& boxes,
