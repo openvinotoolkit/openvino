@@ -38,13 +38,10 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-//============================ kernels ============================
-enum KernelTypes { KT_REF, KT_ONEDNN, KT_MLAS};
-
 // default implementation: reference
 template <KernelTypes KType, typename T>
-struct MHA_kernel {
-    MHA_kernel() = default;
+struct MHAKernel {
+    MHAKernel() = default;
 
     template <typename D>
     float dot_product(const D* a, const D* b, int len, int stride_b = 1) {
@@ -170,7 +167,7 @@ struct MHA_kernel {
 };
 
 template <typename T>
-struct MHA_kernel<KT_ONEDNN, T> {
+struct MHAKernel<KT_ONEDNN, T> {
     // q: [B, H, q_len, S]
     // k: [B, H, kv_len, S]
     // v: [B, H, kv_len, S]
@@ -295,12 +292,12 @@ struct MHA_kernel<KT_ONEDNN, T> {
 
 #ifdef OV_CPU_WITH_MLAS
 template <>
-struct MHA_kernel<KT_MLAS, float> {
+struct MHAKernel<KT_MLAS, float> {
     size_t m_block_size;
     // buffer to hold qk temp
     std::vector<PlainTensor<float>> qk_buffers;
 
-    MHA_kernel() {
+    MHAKernel() {
         m_block_size = 4;
         qk_buffers.resize(parallel_get_max_threads(), PlainTensor<float>(true));
     }
@@ -448,11 +445,11 @@ struct MHA_kernel<KT_MLAS, float> {
 
 // 2nd token case : only 1 token in query
 template <typename RT>
-struct MHA_1Token {
+struct MHASingleToken {
     PlainTensor<float> m_attn_w;
     PlainTensor<float> m_temp;
 
-    MHA_1Token() : m_attn_w(true), m_temp(true) {}
+    MHASingleToken() : m_attn_w(true), m_temp(true) {}
 
     PlainTensor<uint8_t> causal_mask;
     bool select_nfltmax_at_0;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
@@ -574,7 +571,7 @@ struct MHA_1Token {
 };
 
 template <KernelTypes KType, typename T>
-struct AttentionExecutor : public ScaledDotProductAttention::Executor {
+struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAttention::Executor {
     PlainTensor<T> q_input;           // f32[B, L1, H*S] / [B, H, L1, S]
     PlainTensor<T> k_input;           // f32[B, L1, H*S]
     PlainTensor<T> v_input;           // f32[B, L1, H*S]
@@ -588,8 +585,8 @@ struct AttentionExecutor : public ScaledDotProductAttention::Executor {
 
     PlainTensor<T> output_emb;        // f32[B, L1, H*S]
 
-    MHA_kernel<KType, T> kernel;
-    MHA_1Token<T> kernel_single_token;
+    MHAKernel<KType, T> kernel;
+    MHASingleToken<T> kernel_single_token;
 
     PlainTensor<T> m_query_emb;  // query with RoPE position embedding
 
@@ -756,6 +753,7 @@ void ScaledDotProductAttention::execute(dnnl::stream strm) {
 }
 
 bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+#if defined(OPENVINO_ARCH_X86_64)
     try {
         if (!std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op)) {
             errorMessage = "Only ScaledDotProductAttention operation are supported";
@@ -771,6 +769,10 @@ bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const
         return false;
     }
     return true;
+#else
+    // current optimization is not suitable for ARM
+    return false;
+#endif
 }
 
 }  // namespace node

@@ -13,15 +13,11 @@ using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
 
-struct ScaledAttnConfig {
-    ov::test::InputShape inputShape;
-    bool is_causal;                    // causal
-    bool has_attn;                     // if attention_mask valid
-    bool has_scale;                    // if scale valid
-};
-
 typedef std::tuple<ElementType,         // netPrecision
-                   ScaledAttnConfig,    // ScaledAttnTestConfig
+                   InputShape,          // shape
+                   bool,                // is_causal
+                   bool,                // has_attn
+                   bool,                // has_scale
                    std::string,         // targetDevice
                    CPUSpecificParams>
     ScaledAttnCPUTestParams;
@@ -35,11 +31,9 @@ public:
 protected:
     void SetUp() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
-    ScaledAttnConfig config;
+    bool is_causal;
+    bool has_attn;
+    bool has_scale;
 };
 
-namespace ScaledAttn {
-
-
-}  // namespace ScaledAttn
 }  // namespace CPULayerTestsDefinitions

@@ -14,6 +14,8 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+enum KernelTypes { KT_REF, KT_ONEDNN, KT_MLAS};
+
 class ScaledDotProductAttention : public Node {
 public:
     ScaledDotProductAttention(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
@@ -32,6 +34,7 @@ public:
     void execute(dnnl::stream strm) override;
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
+private:
     struct Executor {
         virtual void execute(dnnl::stream strm, const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr>& outputs) = 0;
     };
@@ -42,9 +45,9 @@ public:
         bool is_causal = false;
     };
 
-private:
     Config m_config;
     std::shared_ptr<Executor> m_executor;
+    template <KernelTypes KType, typename T> struct AttentionExecutor;
 };
 
 }  // namespace node

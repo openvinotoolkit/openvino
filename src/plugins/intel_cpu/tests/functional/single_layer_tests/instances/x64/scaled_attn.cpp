@@ -14,17 +14,17 @@ namespace CPULayerTestsDefinitions {
 namespace ScaledAttn {
 const auto cpuSpec = CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"};
 
-const std::vector<ScaledAttnConfig> configs{
-    {ov::test::InputShape{ov::PartialShape{1, 8, -1, 64},
-        {ov::Shape{1, 8, 100, 64}}}, true, true, true,
-    },
-    {ov::test::InputShape{ov::PartialShape{2, 8, -1, 64},
-        {ov::Shape{2, 8, 1, 64}}}, false, false, false,
-    },
+const std::vector<InputShape> shapes{
+    {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
+        {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
+    }
 };
 
 const auto params = testing::Combine(testing::Values(ElementType::f32, ElementType::bf16),
-                                                 testing::ValuesIn(configs),
+                                                 testing::ValuesIn(shapes),
+                                                 testing::Values(true, false),
+                                                 testing::Values(true, false),
+                                                 testing::Values(true, false),
                                                  testing::Values(ov::test::utils::DEVICE_CPU),
                                                  testing::Values(cpuSpec));
 
