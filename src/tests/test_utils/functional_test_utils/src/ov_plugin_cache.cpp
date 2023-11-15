@@ -62,7 +62,7 @@ std::shared_ptr<ov::Core> PluginCache::core(const std::string& deviceToCheck) {
             ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                                std::string(ov::test::utils::TEMPLATE_LIB) + OV_BUILD_POSTFIX);
         if (!ov::util::file_exists(plugin_path)) {
-            throw std::runtime_error("[ WARNING ] Plugin: " + plugin_path + " does not exists!");
+            throw std::runtime_error("Plugin: " + plugin_path + " does not exists!");
         }
         ov_core->register_plugin(plugin_path, ov::test::utils::DEVICE_TEMPLATE);
     }
