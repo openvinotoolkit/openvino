@@ -428,6 +428,7 @@ std::shared_ptr<ov::Node> makeReduce(const ov::Output<Node>& data,
                                      bool keepDims,
                                      ov::test::utils::ReductionType reductionType);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<Node> makePooling(const ov::Output<Node>& in,
                                   const std::vector<size_t>& strides,
                                   const std::vector<size_t>& padsBegin,
@@ -437,17 +438,6 @@ std::shared_ptr<Node> makePooling(const ov::Output<Node>& in,
                                   const op::PadType& padType,
                                   bool excludePad,
                                   const ov::test::utils::PoolingTypes& poolType);
-
-std::shared_ptr<Node> makeMaxPoolingV8(const ov::Output<Node>& in,
-                                       const std::vector<size_t>& strides,
-                                       const std::vector<size_t>& dilation,
-                                       const std::vector<size_t>& padsBegin,
-                                       const std::vector<size_t>& padsEnd,
-                                       const std::vector<size_t>& kernel,
-                                       const op::RoundingType& roundingType,
-                                       const op::PadType& padType,
-                                       const ov::element::Type& indexElementType,
-                                       const int64_t axis);
 
 std::shared_ptr<Node> makeROIPooling(const Output<Node>& input,
                                      const Output<Node>& coords,

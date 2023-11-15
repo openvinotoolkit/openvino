@@ -111,6 +111,7 @@ std::shared_ptr<ngraph::Node> CreateConvolution(const ngraph::Output<ngraph::Nod
     }
 
     auto pool_kernal_shape = GetKernelShape(GetLayerTransposedOutputShape(conv), 2, false);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto pool = ngraph::builder::makePooling(conv,
                                              pool_kernal_shape,
                                              std::vector<size_t>(shape_size - 2, 0),
@@ -120,6 +121,7 @@ std::shared_ptr<ngraph::Node> CreateConvolution(const ngraph::Output<ngraph::Nod
                                              ngraph::op::PadType::VALID,
                                              false,
                                              ngraph::helpers::PoolingTypes::MAX);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return withActivation ? std::make_shared<ngraph::opset3::Relu>(pool) : pool;
 }
 
