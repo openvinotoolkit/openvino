@@ -13,13 +13,11 @@ namespace intel_cpu {
 /**
  * @brief Defines how many records can be stored in the CPU runtime parameters cache per CPU runtime parameter type per
  * stream.
- * @ingroup ov_dev_api_plugin_api
  */
 static constexpr Property<int32_t, PropertyMutability::RW> cpu_runtime_cache_capacity{"CPU_RUNTIME_CACHE_CAPACITY"};
 
 /**
  * @brief Allow low precision transform.
- * @ingroup ov_dev_api_plugin_api
  */
 static constexpr Property<bool, PropertyMutability::RW> lp_transforms_mode{"LP_TRANSFORMS_MODE"};
 
@@ -67,7 +65,6 @@ inline std::istream& operator>>(std::istream& is, SnippetsMode& mode) {
  * @param ENABLE - default pipeline
  * @param IGNORE_CALLBACK - disable the Snippets markup transformation and tokenization callback
  * @param DISABLE - turn off the Snippets
- * @ingroup ov_dev_api_plugin_api
  */
 static constexpr Property<SnippetsMode, PropertyMutability::RW> snippets_mode{"SNIPPETS_MODE"};
 
