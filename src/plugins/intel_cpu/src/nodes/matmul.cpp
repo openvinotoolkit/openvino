@@ -4,7 +4,6 @@
 
 #include "matmul.h"
 
-#include "ie_precision.hpp"
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "cpu_types.h"
 #include "eltwise.h"
@@ -84,7 +83,7 @@ bool MatMul::canBeExecutedInInt8() const {
     auto firstInputPrecision = getOriginalInputPrecisionAtPort(0);
     auto secondInputPrecision = getOriginalInputPrecisionAtPort(1);
 
-    return one_of(firstInputPrecision, Precision::U8, Precision::I8) && secondInputPrecision == Precision::I8;
+    return one_of(firstInputPrecision, ov::element::u8, ov::element::i8) && secondInputPrecision == ov::element::i8;
 }
 
 bool MatMul::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -154,9 +153,9 @@ bool MatMul::canFuse(const NodePtr& node) const {
     //  Then the Matmul will change its output precision to fp32. If fusing FQ into matmul, there would be reorder inserted
     //  after matmul. In some bert model, this reorder causes great perf degradation.
     //  Todo: Remove this if onednn primitive support U8 output with floating input.
-    if (node->getType() == Type::FakeQuantize && one_of(node->getOriginalOutputPrecisionAtPort(0), Precision::I8, Precision::U8) &&
+    if (node->getType() == Type::FakeQuantize && one_of(node->getOriginalOutputPrecisionAtPort(0), ov::element::i8, ov::element::u8) &&
         !canBeExecutedInInt8() &&
-        getOriginalInputPrecisionAtPort(0) == InferenceEngine::Precision::FP32 )
+        getOriginalInputPrecisionAtPort(0) == ov::element::f32 )
         return false;
     return canFuseSimpleOperation(node);
 }
@@ -247,7 +246,7 @@ dnnl::memory::desc MatMul::getBiasDescFrom(const DnnlMemoryDescCPtr outMemDesc) 
     const auto outDims = outMemDesc->getShape().getStaticDims();
     const auto chIdx = getFusingAxis();
     biasDims[chIdx] = outDims[chIdx];
-    const auto bdt = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(2));
+    const auto bdt = DnnlExtensionUtils::ElementTypeToDataType(getOriginalInputPrecisionAtPort(2));
 
     return dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(biasDims), bdt, memory::format_tag::any);
 }
@@ -268,12 +267,12 @@ void MatMul::getSupportedDescriptors() {
         firstInPortPrec = secondInPortPrec = getMaxPrecision(getOriginalInputPrecisions());
 
     // fallback to fp32 for any precision that cannot be handled natively
-    if ((!one_of(firstInPortPrec , Precision::U8, Precision::I8, Precision::BF16, Precision::FP16, Precision::FP32) ||
-         !one_of(secondInPortPrec , Precision::I8, Precision::BF16, Precision::FP16, Precision::FP32))) {
-        outPortPrec = firstInPortPrec = secondInPortPrec = Precision::FP32;
+    if ((!one_of(firstInPortPrec , ov::element::u8, ov::element::i8, ov::element::bf16, ov::element::f16, ov::element::f32) ||
+         !one_of(secondInPortPrec , ov::element::i8, ov::element::bf16, ov::element::f16, ov::element::f32))) {
+        outPortPrec = firstInPortPrec = secondInPortPrec = ov::element::f32;
     }
 
-    Precision postOpsPrec = outPortPrec;
+    ov::element::Type postOpsPrec = outPortPrec;
     if (!fusedWith.empty()) {
         postOpsPrec = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
     }
@@ -282,10 +281,10 @@ void MatMul::getSupportedDescriptors() {
         // INT8 mode support wide range of output precisions
         outPortPrec = postOpsPrec;
         // INT8 matmul do not support fp16 output
-        if (outPortPrec == Precision::FP16) {
-            outPortPrec = Precision::FP32;
+        if (outPortPrec == ov::element::f16) {
+            outPortPrec = ov::element::f32;
         }
-    } else if (postOpsPrec == Precision::FP32) {
+    } else if (postOpsPrec == ov::element::f32) {
         // all non-INT8 modes support fp32 output precision
         outPortPrec = postOpsPrec;
     } else {
@@ -491,7 +490,7 @@ MemoryDescPtr MatMul::getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_
 
     if (idx < 2) // inputs
         return std::make_shared<CpuBlockedMemoryDesc>(
-            DnnlExtensionUtils::DataTypeToIEPrecision(desc.get_data_type()),
+            DnnlExtensionUtils::DataTypeToElementType(desc.get_data_type()),
             getInputShapeAtPort(idx)); /* provide initial shapes, so hide transpose effect */
     else // bias
         return DnnlExtensionUtils::makeDescriptor(desc);
@@ -501,7 +500,7 @@ bool MatMul::created() const {
     return getType() == Type::MatMul;
 }
 
-InferenceEngine::Precision MatMul::getRuntimePrecision() const {
+ov::element::Type MatMul::getRuntimePrecision() const {
     return getMaxPrecision(getInputPrecisions());
 }
 

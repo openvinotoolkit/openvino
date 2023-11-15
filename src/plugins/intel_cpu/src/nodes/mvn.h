@@ -19,8 +19,8 @@ struct jit_mvn_config_params {
     MVNLayoutType layout;
     bool across_channels;
     bool normalize_variance;
-    InferenceEngine::Precision src_prc;
-    InferenceEngine::Precision dst_prc;
+    ov::element::Type src_prc;
+    ov::element::Type dst_prc;
     int src_data_size;
     int dst_data_size;
 };

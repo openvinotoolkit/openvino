@@ -353,7 +353,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // However, if the extension operation produces an output precision that is not natively supported, this may lead to inconsistency during
     // element type propagation. This transformation is called before the ConvertPrecision pass to align the actual precisions with the list of supported ones.
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::InsertConvertAfterExtension);
-    // Precision convert is disabled.
+    // element type convert is disabled.
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse, false, false);
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);

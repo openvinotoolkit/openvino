@@ -98,8 +98,8 @@ struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generato
         if (!shape_agnostic_alg)
             mov(reg_table, l_table);
 
-        data_type = DnnlExtensionUtils::IEPrecisionToDataType(jcp_.precision);
-        precision_in_reg = isFloatCompatible(data_type) ? Precision::FP32 : Precision::I32;
+        data_type = DnnlExtensionUtils::ElementTypeToDataType(jcp_.precision);
+        precision_in_reg = isFloatCompatible(data_type) ? ov::element::f32 : ov::element::i32;
         if (!shape_agnostic_alg && jcp_.layout == TopKLayoutType::topk_blocked && jcp_.topk_innermost)
             blk_stride = jcp_.sort_stride * jcp_.blk_size;
 
@@ -133,7 +133,7 @@ private:
             Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits<isa>::vlen;
     dnnl::memory::data_type data_type;
-    Precision precision_in_reg;
+    ov::element::Type precision_in_reg;
 
     Xbyak::Address table_val(int index) { return ptr[reg_table + index * vlen]; }
     Xbyak::Address table_bubble_block_idx(int index) { return ptr[reg_bubble_block_idx + index * vlen]; }
@@ -232,7 +232,7 @@ private:
     }
 
     inline void load_i32(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
-        emit_load(reg_src, vmm_src, Precision::I32, Precision::I32, elt_num, offset);
+        emit_load(reg_src, vmm_src, ov::element::i32, ov::element::i32, elt_num, offset);
     }
 
     inline void store(Vmm vmm_dst, Xbyak::Reg64 reg_dst, const int elt_num, const int offset = 0) {
@@ -240,10 +240,10 @@ private:
     }
 
     inline void store_i32(Vmm vmm_dst, Xbyak::Reg64 reg_dst, const int elt_num, const int offset = 0) {
-        emit_store(vmm_dst, reg_dst, Precision::I32, Precision::I32, elt_num, offset);
+        emit_store(vmm_dst, reg_dst, ov::element::i32, ov::element::i32, elt_num, offset);
     }
 
-    inline void emit_load(Xbyak::Reg64 reg_src, Vmm vmm_src, Precision src_prc, Precision dst_prc, const int elt_num, const int offset = 0) {
+    inline void emit_load(Xbyak::Reg64 reg_src, Vmm vmm_src, ov::element::Type src_prc, ov::element::Type dst_prc, const int elt_num, const int offset = 0) {
         const auto seed = load_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
             emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num));
@@ -253,7 +253,7 @@ private:
                                   {static_cast<size_t>(vmm_src.getIdx())}, {}, {load_pool_gpr_idxs});
     }
 
-    inline void emit_store(Vmm vmm_dst, Xbyak::Reg64 reg_dst, Precision src_prc, Precision dst_prc, const int elt_num, const int offset = 0) {
+    inline void emit_store(Vmm vmm_dst, Xbyak::Reg64 reg_dst, ov::element::Type src_prc, ov::element::Type dst_prc, const int elt_num, const int offset = 0) {
         const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
             emitters[seed].reset(new jit_store_emitter(this, isa, src_prc, dst_prc, elt_num));
@@ -1906,24 +1906,24 @@ void TopK::initSupportedPrimitiveDescriptors() {
     jit_mode = false;
 #endif
 
-    static const Precision supportedPrecision[] = {
-        Precision::FP32,
-        Precision::BF16,
-        Precision::I32,
-        Precision::I8,
-        Precision::U8
+    static const ov::element::Type supportedPrecision[] = {
+        ov::element::f32,
+        ov::element::bf16,
+        ov::element::i32,
+        ov::element::i8,
+        ov::element::u8
     };
 
-    Precision dataPrecision = getOriginalOutputPrecisionAtPort(TOPK_DATA);
-    if (dataPrecision == Precision::BF16 && !mayiuse(avx512_core))
+    ov::element::Type dataPrecision = getOriginalOutputPrecisionAtPort(TOPK_DATA);
+    if (dataPrecision == ov::element::bf16 && !mayiuse(avx512_core))
         OPENVINO_THROW(errorPrefix, " gets incorrect isa for BF16! AVX512 must be supported!");
     bool precisionSupported = std::find(std::begin(supportedPrecision), std::end(supportedPrecision), dataPrecision)
                                      != std::end(supportedPrecision);
     if (!precisionSupported) {
-        if (dataPrecision.is_float()) {
-            dataPrecision = Precision::FP32;
+        if (dataPrecision.is_real()) {
+            dataPrecision = ov::element::f32;
         } else {
-            dataPrecision = Precision::I32;
+            dataPrecision = ov::element::i32;
         }
     }
 
@@ -1937,8 +1937,8 @@ void TopK::initSupportedPrimitiveDescriptors() {
     };
 
     for (const auto &df : dataFomats) {
-        addSupportedPrimDesc({{df.first, dataPrecision}, {LayoutType::ncsp, Precision::I32}},
-                             {{df.second, dataPrecision}, {df.second, Precision::I32}},
+        addSupportedPrimDesc({{df.first, dataPrecision}, {LayoutType::ncsp, ov::element::i32}},
+                             {{df.second, dataPrecision}, {df.second, ov::element::i32}},
                              impl_type);
     }
 }
@@ -1955,7 +1955,7 @@ bool TopK::needPrepareParams() const {
 
 void TopK::preset_params() {
     auto selectedPD = getSelectedPrimitiveDescriptor();
-    auto data_type = DnnlExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[TOPK_DATA].getMemDesc()->getPrecision());
+    auto data_type = DnnlExtensionUtils::ElementTypeToDataType(selectedPD->getConfig().inConfs[TOPK_DATA].getMemDesc()->getPrecision());
     data_size = DnnlExtensionUtils::sizeOfDataType(data_type);
 
     topk_innermost = (layout == TopKLayoutType::topk_ncsp && axis == static_cast<int>(getOutputShapeAtPort(TOPK_DATA).getRank() - 1)) ||
