@@ -1723,6 +1723,8 @@ public:
 
         ExecutionConfig config_blk = get_test_default_config(engine);
         config_blk.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"out_blk_reorder"}));
+        ov::intel_gpu::ImplementationDesc reorder_ref = { params.input_format, "reorder_data" };
+        config_blk.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"input_blk_reorder", reorder_ref} }));
 
         cldnn::network net_blk(engine, topo_blocked, config_blk);
         net_blk.set_input_data("input_blk", in_mem);
@@ -1755,6 +1757,8 @@ INSTANTIATE_TEST_SUITE_P(batching_test,
                             crop_input_test_params{ data_types::u8,  {3, 32, 1, 2, 2}, {1, 32, 1, 2, 2}, format::b_fs_zyx_fsv32 },
                             crop_input_test_params{ data_types::f16, {3, 20, 3, 2, 2}, {1, 16, 3, 2, 2}, format::b_fs_zyx_fsv16 },
                             crop_input_test_params{ data_types::f16, {3, 4, 4, 2, 2},  {1, 4, 4, 2, 2},  format::b_fs_zyx_fsv32 },
+                            crop_input_test_params{ data_types::f16, {3, 16, 2, 2},    {1, 16, 2, 2},    format::bs_fs_yx_bsv32_fsv16 },
+                            crop_input_test_params{ data_types::f16, {3, 32, 2, 2},    {1, 32, 2, 2},    format::bs_fs_yx_bsv16_fsv16 },
                             crop_input_test_params{ data_types::f16, {3, 16, 3, 2, 2}, {1, 16, 3, 2, 2}, format::bs_fs_zyx_bsv32_fsv16 },
                             crop_input_test_params{ data_types::i8,  {3, 32, 1, 2, 2}, {1, 32, 1, 2, 2}, format::bs_fs_zyx_bsv16_fsv32 },
                         }));

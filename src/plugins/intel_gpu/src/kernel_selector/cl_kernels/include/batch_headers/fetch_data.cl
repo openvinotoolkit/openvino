@@ -714,12 +714,15 @@ inline uint get_bs_fs_zyx_bsv_fsv_index_safe(uint b, uint f, uint z, uint y, uin
     const uint total_f_size = f_pad_before + f_size + f_pad_after;
     const uint fs_pitch = z_pitch * (z_pad_before +  z_size + z_pad_after);
     const uint bs_pitch = fs_pitch * ((total_f_size + alignmentF - 1) / alignmentF);
+    const uint bs_pad_before = b_pad_before / alignmentB;
+    const uint bsv_pad_before = b_pad_before % alignmentB;
 
-    const uint output_offset = ((b_pad_before + bs) * bs_pitch) + (bsv * alignmentF) +
+    const uint output_offset = ((bs_pad_before + bs) * bs_pitch) +
                                fs * fs_pitch +
                                (z_pad_before + (z % z_size)) * z_pitch +
                                (y_pad_before + (y % y_size)) * y_pitch +
-                               (x_pad_before + (x % x_size)) * x_pitch
+                               (x_pad_before + (x % x_size)) * x_pitch +
+                               ((bsv_pad_before + bsv) * alignmentF)
                                + fsv;
 
     return output_offset;
@@ -746,13 +749,15 @@ inline uint get_bs_fs_zyx_bsv_fsv_index(uint b, uint f,  uint z, uint y, uint x,
     const uint fs_pitch = z_pitch * (z_pad_before + z_size + z_pad_after);
     const uint total_f_size = f_pad_before + f_size + f_pad_after;
     const uint bs_pitch = fs_pitch * ((total_f_size + f_alignment - 1) / f_alignment);
+    const uint bs_pad_before = b_pad_before / b_alignment;
+    const uint bsv_pad_before = b_pad_before % b_alignment;
 
-    const uint output_offset = (b_pad_before + bs) * bs_pitch +
+    const uint output_offset = (bs_pad_before + bs) * bs_pitch +
                                fs * fs_pitch +
                                (z_pad_before + z) * z_pitch +
                                (y_pad_before + y) * y_pitch +
                                (x_pad_before + x) * x_pitch +
-                               bsv * bsv_pitch
+                               (bsv_pad_before + bsv) * bsv_pitch
                                + fsv;
 
     return output_offset;
