@@ -3,7 +3,7 @@
 //
 
 #include "mlas_transpose.hpp"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "nodes/common/cpu_memcpy.h"
 #include "mlas.h"
 

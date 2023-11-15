@@ -6,6 +6,7 @@
 #include "ie_parallel.hpp"
 #include "nodes/common/cpu_memcpy.h"
 #include "utils/general_utils.h"
+#include "ie_ngraph_utils.hpp"
 
 using namespace InferenceEngine;
 
@@ -47,7 +48,7 @@ void NormalizePreprocess::Load(const Shape& inputShape, InputInfo::Ptr inputInfo
             auto meanWidth = pp[0]->meanData->getTensorDesc().getDims()[pp[0]->meanData->getTensorDesc().getDims().size() - 1];
             auto meanHeight = pp[0]->meanData->getTensorDesc().getDims()[pp[0]->meanData->getTensorDesc().getDims().size() - 2];
 
-            TensorDesc desc(Precision::FP32, {inChannels, meanHeight, meanWidth}, InferenceEngine::Layout::CHW);
+            TensorDesc desc(InferenceEngine::details::convertPrecision(ov::element::f32), {inChannels, meanHeight, meanWidth}, InferenceEngine::Layout::CHW);
 
             meanBuffer = make_shared_blob<float>(desc);
 
@@ -55,7 +56,7 @@ void NormalizePreprocess::Load(const Shape& inputShape, InputInfo::Ptr inputInfo
 
             for (unsigned channel = 0; channel < inChannels; channel++) {
                 Blob::Ptr meanBlob = pp[channel]->meanData;
-                if (!meanBlob || meanBlob->getTensorDesc().getPrecision() != Precision::FP32)
+                if (!meanBlob || InferenceEngine::details::convertPrecision(meanBlob->getTensorDesc().getPrecision()) != ov::element::f32)
                     IE_THROW() << "mean image not provided or not in Float 32";
                 if (meanBlob->size() != meanHeight*meanWidth) {
                     IE_THROW() << "mean image size does not match expected network input, expecting " << meanWidth << " x " << meanHeight;

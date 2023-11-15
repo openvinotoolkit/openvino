@@ -15,8 +15,8 @@ namespace intel_cpu {
 namespace node {
 
 struct jit_move_scale_compile_params {
-    InferenceEngine::Precision src_prc;
-    InferenceEngine::Precision dst_prc;
+    ov::element::Type src_prc;
+    ov::element::Type dst_prc;
     bool with_scales;
     size_t input_size;
     bool broadcast_scales;
@@ -46,13 +46,13 @@ struct jit_uni_move_scale_kernel {
 
 class Interaction : public Node {
 public:
-    Interaction(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Interaction(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     bool isExecutable() const override;
     void executeDynamicImpl(dnnl::stream strm) override;
@@ -71,8 +71,8 @@ private:
     MemoryPtr flatMemPtr;
     MemoryPtr outputMemPtr;
     std::vector<uint32_t> featureSizes;
-    InferenceEngine::Precision dataPrecision;
-    InferenceEngine::Precision outputDataType;
+    ov::element::Type dataPrecision;
+    ov::element::Type outputDataType;
     std::vector<float> fqScales;
     std::unique_ptr<jit_uni_move_scale_kernel> moveFeatureKernel;
     std::unique_ptr<jit_uni_move_scale_kernel> moveInteractKernel;
