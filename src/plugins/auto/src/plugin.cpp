@@ -556,6 +556,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     auto_s_context->m_startup_fallback = load_config.get_property(ov::intel_auto::enable_startup_fallback);
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
     auto_s_context->m_bind_buffer = load_config.get_property(ov::intel_auto::device_bind_buffer);
+    auto_s_context->m_schedule_policy = load_config.get_property(ov::intel_auto::schedule_policy);
     std::shared_ptr<ov::ICompiledModel> impl;
     std::shared_ptr<Schedule> scheduler = is_cumulative ? std::static_pointer_cast<Schedule>(std::make_shared<CumuSchedule>()) :
                                 std::static_pointer_cast<Schedule>(std::make_shared<AutoSchedule>());
