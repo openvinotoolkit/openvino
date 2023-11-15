@@ -27,8 +27,8 @@ Napi::Function InferRequestWrap::GetClassConstructor(Napi::Env env) {
                            InstanceMethod("getTensor", &InferRequestWrap::get_tensor),
                            InstanceMethod("getInputTensor", &InferRequestWrap::get_input_tensor),
                            InstanceMethod("getOutputTensor", &InferRequestWrap::get_output_tensor),
-                           InstanceMethod("inferSync", &InferRequestWrap::infer_sync_dispatch),
-                           InstanceMethod("infer", &InferRequestWrap::infer_async),
+                           InstanceMethod("infer", &InferRequestWrap::infer_dispatch),
+                           InstanceMethod("inferAsync", &InferRequestWrap::infer_async),
                            InstanceMethod("getCompiledModel", &InferRequestWrap::get_compiled_model),
                        });
 }
@@ -149,22 +149,22 @@ Napi::Value InferRequestWrap::get_output_tensors(const Napi::CallbackInfo& info)
     return outputs_obj;
 }
 
-Napi::Value InferRequestWrap::infer_sync_dispatch(const Napi::CallbackInfo& info) {
+Napi::Value InferRequestWrap::infer_dispatch(const Napi::CallbackInfo& info) {
     if (info.Length() == 0)
         _infer_request.infer();
     else if (info.Length() == 1 && info[0].IsTypedArray()) {
-        reportError(info.Env(), "TypedArray cannot be passed directly into inferSync() method.");
+        reportError(info.Env(), "TypedArray cannot be passed directly into infer() method.");
         return info.Env().Null();
     } else if (info.Length() == 1 && info[0].IsArray()) {
         try {
-            infer_sync(info[0].As<Napi::Array>());
+            infer(info[0].As<Napi::Array>());
         } catch (std::exception& e) {
             reportError(info.Env(), e.what());
             return info.Env().Null();
         }
     } else if (info.Length() == 1 && info[0].IsObject()) {
         try {
-            infer_sync(info[0].As<Napi::Object>());
+            infer(info[0].As<Napi::Object>());
         } catch (std::exception& e) {
             reportError(info.Env(), e.what());
             return info.Env().Null();
@@ -175,7 +175,7 @@ Napi::Value InferRequestWrap::infer_sync_dispatch(const Napi::CallbackInfo& info
     return get_output_tensors(info);
 }
 
-void InferRequestWrap::infer_sync(const Napi::Array& inputs) {
+void InferRequestWrap::infer(const Napi::Array& inputs) {
     for (size_t i = 0; i < inputs.Length(); ++i) {
         auto tensor = value_to_tensor(inputs[i], _infer_request, i);
         _infer_request.set_input_tensor(i, tensor);
@@ -183,7 +183,7 @@ void InferRequestWrap::infer_sync(const Napi::Array& inputs) {
     _infer_request.infer();
 }
 
-void InferRequestWrap::infer_sync(const Napi::Object& inputs) {
+void InferRequestWrap::infer(const Napi::Object& inputs) {
     auto keys = inputs.GetPropertyNames();
 
     for (size_t i = 0; i < keys.Length(); ++i) {

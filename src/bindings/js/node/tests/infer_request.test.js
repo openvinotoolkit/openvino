@@ -34,28 +34,28 @@ const tensorLike = [[tensor],
 describe('InferRequest', () => {
 
   tensorLike.forEach(([tl]) => {
-    const result = inferRequest.inferSync({ data: tl });
+    const result = inferRequest.infer({ data: tl });
     const label = tl instanceof Float32Array ? 'TypedArray[]' : 'Tensor[]';
-    it(`Test inferSync(inputData: { [inputName: string]: ${label} })`, () => {
+    it(`Test infer(inputData: { [inputName: string]: ${label} })`, () => {
       assert.deepStrictEqual(Object.keys(result), ['fc_out']);
       assert.deepStrictEqual(result['fc_out'].data.length, 10);
     });
   });
 
   tensorLike.forEach(([tl]) => {
-    const result = inferRequest.inferSync([tl]);
+    const result = inferRequest.infer([tl]);
     const label = tl instanceof Float32Array ? 'TypedArray[]' : 'Tensor[]';
-    it(`Test inferSync(inputData: ${label})`, () => {
+    it(`Test infer(inputData: ${label})`, () => {
       assert.deepStrictEqual(Object.keys(result), ['fc_out']);
       assert.deepStrictEqual(result['fc_out'].data.length, 10);
     });
 
   });
 
-  it('Test inferSync(TypedArray) throws', () => {
+  it('Test infer(TypedArray) throws', () => {
     assert.throws(
-      () => inferRequest.inferSync(tensorData),
-      {message: 'TypedArray cannot be passed directly into inferSync() method.'});
+      () => inferRequest.infer(tensorData),
+      {message: 'TypedArray cannot be passed directly into infer() method.'});
   });
 
   const buffer = new ArrayBuffer(tensorData.length);
@@ -66,42 +66,42 @@ describe('InferRequest', () => {
   ];
 
   inputMessagePairs.forEach( ([tl, msg]) => {
-    it(`Test inferSync([data]) throws ${msg}`, () => {
+    it(`Test infer([data]) throws ${msg}`, () => {
       assert.throws(
-        () => inferRequest.inferSync([tl]),
+        () => inferRequest.infer([tl]),
         {message: new RegExp(msg)});
     });
-    it(`Test inferSync({ data: tl}) throws ${msg}`, () => {
+    it(`Test infer({ data: tl}) throws ${msg}`, () => {
       assert.throws(
-        () => inferRequest.inferSync({data: tl}),
+        () => inferRequest.infer({data: tl}),
         {message: new RegExp(msg)});
     });
   });
 
-  it('Test infer(inputData: { [inputName: string]: Tensor })', () => {
-    inferRequestAsync.infer({ data: tensor }).then(result => {
+  it('Test inferAsync(inputData: { [inputName: string]: Tensor })', () => {
+    inferRequestAsync.inferAsync({ data: tensor }).then(result => {
       assert.deepStrictEqual(Object.keys(result), ['fc_out']);
       assert.deepStrictEqual(result['fc_out'].data.length, 10);}
     );
   });
 
-  it('Test infer(inputData: Tensor[])', () => {
-    inferRequestAsync.infer([ tensor ]).then(result => {
+  it('Test inferAsync(inputData: Tensor[])', () => {
+    inferRequestAsync.inferAsync([ tensor ]).then(result => {
       assert.deepStrictEqual(Object.keys(result), ['fc_out']);
       assert.deepStrictEqual(result['fc_out'].data.length, 10);
     });
   });
 
-  it('Test infer([data]) throws: Cannot create a tensor from the passed Napi::Value.', () => {
+  it('Test inferAsync([data]) throws: Cannot create a tensor from the passed Napi::Value.', () => {
     assert.throws(
-      () => inferRequestAsync.infer(['string']).then(),
+      () => inferRequestAsync.inferAsync(['string']).then(),
       /Cannot create a tensor from the passed Napi::Value./
     );
   });
 
-  it('Test infer({ data: "string"}) throws: Cannot create a tensor from the passed Napi::Value.', () => {
+  it('Test inferAsync({ data: "string"}) throws: Cannot create a tensor from the passed Napi::Value.', () => {
     assert.throws(
-      () => inferRequestAsync.infer({data: 'string'}).then(),
+      () => inferRequestAsync.inferAsync({data: 'string'}).then(),
       /Cannot create a tensor from the passed Napi::Value./
     );
   });
@@ -174,7 +174,7 @@ describe('InferRequest', () => {
 
   const irGetters = compiledModel.createInferRequest();
   irGetters.setInputTensor(tensor);
-  irGetters.inferSync();
+  irGetters.infer();
 
   it('Test getTensor(tensorName)', () => {
     const t1 = irGetters.getTensor('data');
@@ -207,8 +207,8 @@ describe('InferRequest', () => {
     const ir = compiledModel.createInferRequest();
     const cm = ir.getCompiledModel();
     const ir2 = cm.createInferRequest();
-    const res2 = ir2.inferSync([tensorData]);
-    const res1 = ir.inferSync([tensorData]);
+    const res2 = ir2.infer([tensorData]);
+    const res1 = ir.infer([tensorData]);
     assert.deepStrictEqual(res1['fc_out'].data[0], res2['fc_out'].data[0]);
   });
 });
