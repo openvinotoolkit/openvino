@@ -6,11 +6,11 @@
 
 #include <numeric>
 
+#include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/host_tensor.hpp"  // tbr
-#include "ngraph/validation_util.hpp"      // tbr
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/reference/non_zero.hpp"
+#include "validation_util.hpp"
 
 using namespace ngraph;
 
@@ -55,22 +55,20 @@ void NonZero::validate_and_infer_types() {
 
     set_input_is_relevant_to_shape(0);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (const auto& input_constant = get_constant_from_source(input_value(0))) {
+    if (const auto input_constant = ov::util::get_constant_from_source(input_value(0))) {
         // input_value is available to calculate output shape
-        const auto& input_data = std::make_shared<HostTensor>(input_constant);
-        auto output = std::make_shared<HostTensor>(m_output_type, get_output_partial_shape(0));
-        if (!evaluate({output}, {input_data}))
+        const auto inputs = TensorVector{{input_constant->get_element_type(),
+                                          input_constant->get_shape(),
+                                          const_cast<void*>(input_constant->get_data_ptr())}};
+        auto outputs = TensorVector{{m_output_type, {}}};
+        if (!evaluate(outputs, inputs))
             return;
-        set_output_type(0, m_output_type, output->get_partial_shape());
+        const auto& output = outputs[0];
+        set_output_type(0, m_output_type, output.get_shape());
 
-        auto t = Tensor(output->get_element_type(), output->get_shape());
-        memcpy(t.data(), output->get_data_ptr(), t.get_byte_size());
-
-        get_output_tensor(0).set_lower_value(t);
-        get_output_tensor(0).set_upper_value(t);
+        get_output_tensor(0).set_lower_value(output);
+        get_output_tensor(0).set_upper_value(output);
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 std::shared_ptr<Node> NonZero::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -79,86 +77,59 @@ std::shared_ptr<Node> NonZero::clone_with_new_inputs(const OutputVector& new_arg
     return std::make_shared<v3::NonZero>(new_args.at(0), m_output_type);
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace nonzero {
-namespace {
-template <element::Type_t INPUT_ET, element::Type_t OUT_ET>
-bool evaluate_nonzero_execute(const HostTensorPtr& input, const HostTensorPtr& output) {
-    using IN_T = typename element_type_traits<INPUT_ET>::value_type;
-    using OUT_T = typename element_type_traits<OUT_ET>::value_type;
+namespace non_zero {
+struct Evaluate : public element::NoAction<bool> {
+    using element::NoAction<bool>::visit;
 
-    Shape input_shape = input->get_shape();
-    size_t input_rank = input_shape.size();
+    template <element::Type_t ET, class T = fundamental_type_for<ET>>
+    static result_type visit(const Tensor& in, Tensor& out) {
+        const auto& in_shape = in.get_shape();
+        const auto in_rank = in_shape.size();
+        const auto in_data = in.data<const T>();
+        const size_t non_zero_count = reference::non_zero_get_count(in_data, in_shape);
 
-    size_t non_zero_count = reference::non_zero_get_count<IN_T>(input->get_data_ptr<INPUT_ET>(), input_shape);
+        Shape out_shape;
+        if (in_rank == 0 && non_zero_count > 0)
+            out_shape = Shape{1, 1};
+        else
+            out_shape = Shape{in_rank, non_zero_count};
+        out.set_shape(out_shape);
 
-    Shape out_shape;
-    if (input_rank == 0 && non_zero_count > 0) {
-        out_shape = Shape{1, 1};
-    } else {
-        out_shape = Shape{input_rank, non_zero_count};
+        using namespace ov::element;
+        return IfTypeOf<i32, i64>::apply<EvalByIdxType>(out.get_element_type(), in_data, out, in_shape);
     }
 
-    output->set_shape(out_shape);
-    reference::non_zero<IN_T, OUT_T>(input->get_data_ptr<INPUT_ET>(), output->get_data_ptr<OUT_ET>(), input_shape);
+private:
+    struct EvalByIdxType : public element::NoAction<bool> {
+        using element::NoAction<bool>::visit;
 
-    return true;
-}
+        template <element::Type_t ET, class T, class I = fundamental_type_for<ET>>
+        static result_type visit(const T* in, Tensor& out, const Shape& in_shape) {
+            reference::non_zero(in, out.data<I>(), in_shape);
+            return true;
+        }
+    };
+};
+}  // namespace non_zero
 
-#define TYPE_OUT_CASE(a, ...)                                                     \
-    case element::Type_t::a: {                                                    \
-        OV_OP_SCOPE(OV_PP_CAT3(evaluate_nonzero_out, _, a));                      \
-        rc = evaluate_nonzero_execute<INPUT_ET, element::Type_t::a>(__VA_ARGS__); \
-    } break
-
-template <element::Type_t INPUT_ET>
-bool evaluate(const HostTensorPtr& input, const HostTensorPtr& output) {
-    bool rc = true;
-    switch (output->get_element_type()) {
-        TYPE_OUT_CASE(i64, input, output);
-        TYPE_OUT_CASE(i32, input, output);
-    default:
-        rc = false;
-        break;
-    }
-
-    return rc;
-}
-#undef TYPE_OUT_CASE
-bool evaluate_nonzero(const HostTensorPtr& input, const HostTensorPtr& output) {
-    bool rc = true;
-
-    switch (input->get_element_type()) {
-        OPENVINO_TYPE_CASE(evaluate_nonzero, boolean, input, output);
-        OPENVINO_TYPE_CASE(evaluate_nonzero, i8, input, output);
-        OPENVINO_TYPE_CASE(evaluate_nonzero, i16, input, output);
-        OPENVINO_TYPE_CASE(evaluate_nonzero, i32, input, output);
-        OPENVINO_TYPE_CASE(evaluate_nonzero, i64, input, output);
-        OPENVINO_TYPE_CASE(evaluate_nonzero, u8, input, output);
-        OPENVINO_TYPE_CASE(evaluate_nonzero, u16, input, output);
-        OPENVINO_TYPE_CASE(evaluate_nonzero, u32, input, output);
-        OPENVINO_TYPE_CASE(evaluate_nonzero, u64, input, output);
-        OPENVINO_TYPE_CASE(evaluate_nonzero, bf16, input, output);
-        OPENVINO_TYPE_CASE(evaluate_nonzero, f16, input, output);
-        OPENVINO_TYPE_CASE(evaluate_nonzero, f32, input, output);
-        OPENVINO_TYPE_CASE(evaluate_nonzero, f64, input, output);
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
-}
-}  // namespace
-}  // namespace nonzero
-
-bool NonZero::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool NonZero::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v3_NonZero_evaluate);
-    return nonzero::evaluate_nonzero(inputs[0], outputs[0]);
+
+    using namespace ov::element;
+    return IfTypeOf<boolean, bf16, f16, f32, f64, i8, i16, i32, i64, u8, u16, u32, u64>::apply<non_zero::Evaluate>(
+        inputs[0].get_element_type(),
+        inputs[0],
+        outputs[0]);
 }
 
 bool NonZero::has_evaluate() const {
     OV_OP_SCOPE(v3_NonZero_has_evaluate);
     switch (get_input_element_type(0)) {
+    case element::boolean:
+    case element::bf16:
+    case element::f16:
+    case element::f32:
+    case element::f64:
     case element::i8:
     case element::i16:
     case element::i32:
@@ -167,10 +138,6 @@ bool NonZero::has_evaluate() const {
     case element::u16:
     case element::u32:
     case element::u64:
-    case element::bf16:
-    case element::f16:
-    case element::f32:
-    case element::f64:
         return true;
     default:
         return false;
