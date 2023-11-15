@@ -1,4 +1,4 @@
-Network model,Release,IE-Type,Platform name,Throughput-INT8,Throughput-FP16,Throughput-FP32,Value,Efficiency,Price,TDP,Sockets,Price/Socket,TDP/Socket,Latency,UOM_T,UOM_V,UOM_E,UOM_L,Latency_FP16,Latency_FP32,Latency_int4,Latency_int4
+Network model,Release,IE-Type,Platform name,Throughput-INT8,Throughput-FP16,Throughput-FP32,Value,Efficiency,Price,TDP,Sockets,Price/Socket,TDP/Socket,Latency,UOM_T,UOM_V,UOM_E,UOM_L,Latency_FP16,Latency_FP32,Latency_int4,Throughput_INT4
 begin_rec," "," "," "," "," "," "," "," "," "," "," "," "," "," ",FPS,FPS/$,FPS/TDP,msec.,,,,
 bert-base-cased,OV-2023.2,core,"Intel� Core� i3-8100 ",21.27,,,0.181806756,0.327252161,117,65,1,117,65,48.62,FPS,FPS/$,FPS/TDP,msec.,,,,
 bert-base-cased,OV-2023.2,core,"Intel� Core� i5-10500TE ",32.04,,21.72,0.14973184,0.492963288,214,65,1,214,65,36.77,FPS,FPS/$,FPS/TDP,msec.,,,,
