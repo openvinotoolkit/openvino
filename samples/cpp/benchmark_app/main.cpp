@@ -561,6 +561,11 @@ int main(int argc, char* argv[]) {
             device_config.insert(ov::hint::allow_auto_batching(false));
         }
 
+        if (!FLAGS_sp.empty()) {
+            slog::info << "Inference schedule policy is " << FLAGS_sp << slog::endl;
+            device_config["SCHEDULE_POLICY"] = FLAGS_sp;
+        }
+
         bool isDynamicNetwork = false;
 
         if (FLAGS_load_from_file && !isNetworkCompiled) {
@@ -872,7 +877,8 @@ int main(int argc, char* argv[]) {
                 nireq = 1;
             } else {
                 try {
-                    nireq = compiledModel.get_property(ov::optimal_number_of_infer_requests);
+                    nireq = compiledModel.get_property(ov::optimal_number_of_infer_requests) / 2;
+                    nireq = nireq == 0 ? 1 : nireq;
                 } catch (const std::exception& ex) {
                     OPENVINO_THROW("Every device used with the benchmark_app should support " +
                                    std::string(ov::optimal_number_of_infer_requests.name()) +

@@ -233,6 +233,10 @@ static const char exec_graph_path_message[] =
 static const char dump_config_message[] =
     "Optional. Path to JSON file to dump IE parameters, which were set by application.";
 
+// @brief message for schedule policy
+static const char schedule_policy[] =
+    "Optional. schedule policy for MULTI plugin inference, default is DEVICE_PRIORITY.";
+
 // @brief message for load config option
 static const char load_config_message[] =
     "Optional. Path to JSON file to load custom IE parameters."
@@ -312,6 +316,9 @@ DEFINE_string(api, "async", api_message);
 
 /// @brief Number of infer requests in parallel
 DEFINE_uint64(nireq, 0, infer_requests_count_message);
+
+/// @brief inference schedule policy for MULTI 
+DEFINE_string(sp, "", schedule_policy);
 
 /// @brief Number of streams to use for inference on the CPU (also affects Hetero cases)
 DEFINE_string(nstreams, "", infer_num_streams_message);
@@ -441,4 +448,5 @@ static void show_usage() {
     std::cout << "    -exec_graph_path        " << exec_graph_path_message << std::endl;
     std::cout << "    -dump_config            " << dump_config_message << std::endl;
     std::cout << "    -load_config            " << load_config_message << std::endl;
+    std::cout << "    -schedule_policy        " << schedule_policy << std::endl;
 }
