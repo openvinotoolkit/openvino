@@ -76,10 +76,7 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
         const auto weights_const_values = std::vector<int>(ngraph::shape_size(weights_const_shape), 1);
         const auto weights_const = ngraph::builder::makeConstant(ov::element::i8, weights_const_shape, weights_const_values);
 
-        const auto weights_convert = ngraph::builder::makeConversion(
-            weights_const,
-            ov::element::f32,
-            ngraph::helpers::ConversionTypes::CONVERT);
+        const auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
 
         const auto weights_multiply = std::make_shared<ov::opset10::Multiply>(
             weights_convert,

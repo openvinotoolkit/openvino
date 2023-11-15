@@ -443,10 +443,6 @@ std::shared_ptr<ov::Node> makeComparison(const ov::Output<Node>& in0,
                                          const ov::Output<Node>& in1,
                                          ov::test::utils::ComparisonTypes comparisonType);
 
-std::shared_ptr<ov::Node> makeConversion(const ov::Output<Node>& in,
-                                         const element::Type& type,
-                                         const ov::test::utils::ConversionTypes& conversionType);
-
 std::shared_ptr<ov::Node> makeLogical(const ov::Output<Node>& in0,
                                       const ov::Output<Node>& in1,
                                       ov::test::utils::LogicalTypes logicalType);
