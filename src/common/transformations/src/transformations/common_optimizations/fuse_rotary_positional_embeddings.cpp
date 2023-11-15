@@ -15,6 +15,11 @@
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/utils/utils.hpp"
 
+using ov::op::v0::Concat;
+using ov::op::v1::Add;
+using ov::op::v1::Multiply;
+using ov::op::v1::VariadicSplit;
+
 ov::pass::RPE_Fusion::RPE_Fusion() {
     MATCHER_SCOPE(RPE_Fusion);
 
@@ -29,21 +34,21 @@ ov::pass::RPE_Fusion::RPE_Fusion() {
     // Variadic Split into two equal parts
     auto axis = pattern::any_input();
     auto split_length = INT_CONSTANT_WITH_PREDICATE(value.size() == 2 && value[0] == value[1]);
-    auto vsplit = pattern::wrap_type<op::v1::VariadicSplit>({source, axis, split_length});
+    auto vsplit = pattern::wrap_type<VariadicSplit>({source, axis, split_length});
     vsplit->set_output_size(2);
 
     // Negate
     auto minus_1 = FLOAT_CONSTANT_WITH_PREDICATE(value.size() == 1 && value[0] == -1);
-    auto neg = pattern::wrap_type<op::v1::Multiply>({vsplit->output(1), minus_1});
+    auto neg = pattern::wrap_type<Multiply>({vsplit->output(1), minus_1});
 
     // Concat two splitted parts in the opposite order, first of them is negated
-    auto concat = pattern::wrap_type<op::v0::Concat>({neg, vsplit->output(0)});  // make sure axis eq to vsplit eq -1
+    auto concat = pattern::wrap_type<Concat>({neg, vsplit->output(0)});  // make sure axis eq to vsplit eq -1
 
     // END: rotate half
 
-    auto mul_sin = pattern::wrap_type<op::v1::Multiply>({concat, sin});
-    auto mul_cos = pattern::wrap_type<op::v1::Multiply>({source_1, cos});
-    auto add = pattern::wrap_type<op::v1::Add>({mul_cos, mul_sin});
+    auto mul_sin = pattern::wrap_type<Multiply>({concat, sin});
+    auto mul_cos = pattern::wrap_type<Multiply>({source_1, cos});
+    auto add = pattern::wrap_type<Add>({mul_cos, mul_sin});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         auto value_map = m.get_pattern_value_map();
@@ -60,7 +65,7 @@ ov::pass::RPE_Fusion::RPE_Fusion() {
             cos_output = potential_source;
 
         auto input = value_map.at(source);
-        auto concat_node = ov::as_type_ptr<op::v0::Concat>(value_map.at(concat).get_node_shared_ptr());
+        auto concat_node = ov::as_type_ptr<Concat>(value_map.at(concat).get_node_shared_ptr());
         if (!concat_node)
             return false;
         OPENVINO_SUPPRESS_DEPRECATED_START

@@ -22,16 +22,12 @@ public:
     RPE() = default;
     RPE(const Output<Node>& data, const Output<Node>& sin, const Output<Node>& cos, const int64_t axis);
 
+    void set_axis(const int64_t axis);
+    int64_t get_axis() const;
+
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-
-    int64_t get_axis() const {
-        return m_axis;
-    };
-    void set_axis(const int64_t axis) {
-        m_axis = axis;
-    };
 
 private:
     int64_t m_axis{};
