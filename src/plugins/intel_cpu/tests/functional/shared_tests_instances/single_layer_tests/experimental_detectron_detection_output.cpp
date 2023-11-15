@@ -3,12 +3,10 @@
 //
 
 #include <vector>
-#include "single_layer_tests/experimental_detectron_detection_output.hpp"
-
-using namespace ov::test;
-using namespace ov::test::subgraph;
+#include "single_op_tests/experimental_detectron_detection_output.hpp"
 
 namespace {
+using ov::test::ExperimentalDetectronDetectionOutputLayerTest;
 
 const std::vector<float> score_threshold = { 0.01000000074505806f };
 
@@ -34,9 +32,9 @@ const std::vector<bool> class_agnostic_box_regression = { true };
 // specifies deltas of weights
 const std::vector<std::vector<float>> deltas_weights = { {10.0f, 10.0f, 5.0f, 5.0f} };
 
-const std::vector<std::vector<InputShape>> inputShapes = {
+const std::vector<std::vector<ov::test::InputShape>> inputShapes = {
         // inputRois / inputDeltas / inputScores / inputImInfos
-        static_shapes_to_test_representation({{16, 4}, {16, 8}, {16, 2}, {1, 3}}),
+        ov::test::static_shapes_to_test_representation({{16, 4}, {16, 8}, {16, 2}, {1, 3}}),
         {
             {{-1, -1}, {{16, 4}, {16, 4}}},
             {{-1, -1}, {{16, 8}, {16, 8}}},
