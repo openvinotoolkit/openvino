@@ -49,7 +49,7 @@ MemoryOutput::MemoryOutput(const std::shared_ptr<ov::Node>& op, const GraphConte
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) , MemoryNode(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     if (created()) {
         holder = MemoryNodeVirtualEdge::registerOutput(this);
@@ -226,7 +226,7 @@ MemoryInput::MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext
         : Input(op, ctx), MemoryNode(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     if (created()) {
         holder = MemoryNodeVirtualEdge::registerInput(this);
@@ -427,7 +427,7 @@ MemoryNodeVirtualEdge::Holder* MemoryNodeVirtualEdge::registerInput(MemoryInput 
     auto sibling = MemoryNodeVirtualEdge::getByName(holder, node->getId());
     if (sibling != nullptr) {
         auto outputNode = dynamic_cast<MemoryOutput*>(sibling);
-        IE_ASSERT(outputNode != nullptr);
+        OPENVINO_ASSERT(outputNode != nullptr);
         node->registerOutputNode(outputNode);
     } else {
         holder[node->getId()] = node;
@@ -442,7 +442,7 @@ MemoryNodeVirtualEdge::Holder* MemoryNodeVirtualEdge::registerOutput(MemoryOutpu
     auto sibling = MemoryNodeVirtualEdge::getByName(holder, node->getId());
     if (sibling != nullptr) {
         auto inputNode = dynamic_cast<MemoryInput*>(sibling);
-        IE_ASSERT(inputNode != nullptr);
+        OPENVINO_ASSERT(inputNode != nullptr);
         node->registerInputNode(inputNode);
     } else {
         holder[node->getId()] = node;

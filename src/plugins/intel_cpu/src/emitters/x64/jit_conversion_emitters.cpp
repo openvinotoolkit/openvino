@@ -33,9 +33,9 @@ void jit_convert_emitter::validate_types() const {
     };
 
     if (!is_supported_type(input_type))
-        IE_THROW() << "Unsupported input type: " << input_type.get_type_name();
+        OPENVINO_THROW("Unsupported input type: ", input_type.get_type_name());
     if (!is_supported_type(output_type))
-        IE_THROW() << "Unsupported output type: " << output_type.get_type_name();
+        OPENVINO_THROW("Unsupported output type: ", output_type.get_type_name());
 }
 
 size_t jit_convert_emitter::get_inputs_num() const { return 1; }
@@ -52,7 +52,7 @@ void jit_convert_emitter::float2bfloat(const std::vector<size_t> &in_vec_idxs, c
     Vmm vmm_src = Vmm(in_vec_idxs[0]);
     Vmm vmm_dst  = Vmm(out_vec_idxs[0]);
     if (!uni_vcvtneps2bf16)
-        IE_THROW() << "Converter from float to bf16 isn't initialized!";
+        OPENVINO_THROW("Converter from float to bf16 isn't initialized!");
 
     uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_src.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())});
 }

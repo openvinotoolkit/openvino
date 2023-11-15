@@ -80,12 +80,18 @@ public:
     MemoryDescPtr cloneWithNewDims(const VectorDims& dims, bool relaxedCheck = false) const {
         if (relaxedCheck) {
             if (getShape().getRank() != dims.size()) {
-                IE_THROW(ParameterMismatch) << "Can not clone with new dims, ranks mistmatch. Descriptor's rank: " << getShape().getRank() <<
-                                               " is incompatible with provided rank of dimensions: " << dims.size() << ".";
+                OPENVINO_THROW("ParameterMismatch: Can not clone with new dims, ranks mistmatch. Descriptor's rank: ",
+                               getShape().getRank(),
+                               " is incompatible with provided rank of dimensions: ",
+                               dims.size(),
+                               ".");
             }
         } else if (!getShape().isCompatible(dims)) {
-            IE_THROW(ParameterMismatch) << "Can not clone with new dims. Descriptor's shape: " << getShape().toString() <<
-                                           " is incompatible with provided dimensions: " << MemoryDescUtils::dims2str(dims) << ".";
+            OPENVINO_THROW("ParameterMismatch: Can not clone with new dims. Descriptor's shape: ",
+                           getShape().toString(),
+                           " is incompatible with provided dimensions: ",
+                           MemoryDescUtils::dims2str(dims),
+                           ".");
         }
 
         return cloneWithNewDimsImp(dims);
@@ -132,7 +138,7 @@ public:
     T* as() {
         T* casted = dynamic_cast<T*>(this);
         if (!casted)
-            IE_THROW() << "Cannot dynamically cast MemoryDesc";
+            OPENVINO_THROW("Cannot dynamically cast MemoryDesc");
         return casted;
     }
 
@@ -142,7 +148,7 @@ public:
     const T* as() const {
         const T* casted = dynamic_cast<const T*>(this);
         if (!casted)
-            IE_THROW() << "Cannot dynamically cast MemoryDesc";
+            OPENVINO_THROW("Cannot dynamically cast MemoryDesc");
         return casted;
     }
 

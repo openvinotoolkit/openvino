@@ -707,7 +707,7 @@ void Graph::AllocateWithReuse() {
                 count++;
             }
         }
-        IE_ASSERT(count == 1);
+        OPENVINO_ASSERT(count == 1);
     }
 
     //Process undefined boxes (dynamic shapes)
@@ -733,7 +733,7 @@ void Graph::AllocateWithReuse() {
                         }
                     }
                     // sometimes there are unused output ports.
-                    IE_ASSERT(count <= 1) << "cannot find output node. count " << count;
+                    OPENVINO_ASSERT(count <= 1, "cannot find output node. count ", count);
                 }
             }
         }
