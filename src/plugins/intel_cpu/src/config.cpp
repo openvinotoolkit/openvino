@@ -86,7 +86,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                    val.as<std::string>(),
                                    "for property key ",
                                    key,
-                                   ". Expected only CORE/NUMA/HYBRID_AWARE.");
+                                   ". Expected only ov::Affinity::CORE/NUMA/HYBRID_AWARE.");
                 }
             }
         } else if (key == ov::hint::performance_mode.name()) {
@@ -97,7 +97,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                "for property key ",
                                key,
-                               ". Expected only LATENCY/THROUGHPUT/CUMULATIVE_THROUGHPUT.");
+                               ". Expected only ov::hint::PerformanceMode::LATENCY/THROUGHPUT/CUMULATIVE_THROUGHPUT.");
             }
         } else if (key == ov::hint::num_requests.name()) {
             try {
@@ -111,7 +111,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                "for property key ",
                                ov::hint::num_requests.name(),
-                               ". Expected only >0.");
+                               ". Expected only > 0.");
             }
         } else if (key == ov::hint::enable_cpu_pinning.name()) {
             try {
@@ -132,7 +132,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                "for property key ",
                                ov::hint::scheduling_core_type.name(),
-                               ". Expected only ANY_CORE/PCORE_ONLY/ECORE_ONLY");
+                               ". Expected only ov::hint::SchedulingCoreType::ANY_CORE/PCORE_ONLY/ECORE_ONLY");
             }
         } else if (key == ov::hint::enable_hyper_threading.name()) {
             try {
@@ -194,7 +194,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                " for property key ",
                                key,
-                               ". Expected value only On/Off");
+                               ". Expected value only ov::intel_cpu::Config::LPTransformsMode::On/Off");
             }
         } else if (key == ov::device::id.name()) {
             device_id = val.as<std::string>();
@@ -295,7 +295,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                " for property key ",
                                ov::intel_cpu::snippets_mode.name(),
-                               ". Expected values: ENABLE/DISABLE/IGNORE_CALLBACK");
+                               ". Expected values: ov::intel_cpu::SnippetsMode::ENABLE/DISABLE/IGNORE_CALLBACK");
             }
         } else if (key == ov::hint::execution_mode.name()) {
             try {
@@ -305,7 +305,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                "for property key ",
                                ov::hint::execution_mode.name(),
-                               ". Supported values: PERFORMANCE, ACCURACY");
+                               ". Supported values: ov::hint::ExecutionMode::PERFORMANCE/ACCURACY");
             }
         } else {
             OPENVINO_THROW("NotFound: Unsupported property ", key, " by CPU plugin.");
