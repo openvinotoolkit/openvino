@@ -12,10 +12,41 @@
 #include "openvino/reference/non_zero.hpp"
 #include "validation_util.hpp"
 
-using namespace ngraph;
-
 namespace ov {
 namespace op {
+namespace non_zero {
+struct Evaluate : public element::NoAction<bool> {
+    using element::NoAction<bool>::visit;
+
+    template <element::Type_t ET, class T = fundamental_type_for<ET>>
+    static result_type visit(const Tensor& in, const Shape& in_shape, Tensor& out) {
+        const auto in_data = in.data<const T>();
+        const size_t non_zero_count = reference::non_zero_get_count(in_data, in_shape);
+        const auto in_rank = in_shape.size();
+        Shape out_shape;
+        if (in_rank == 0 && non_zero_count > 0)
+            out_shape = Shape{1, 1};
+        else
+            out_shape = Shape{in_rank, non_zero_count};
+        out.set_shape(out_shape);
+
+        using namespace ov::element;
+        return IfTypeOf<i32, i64>::apply<EvalByIdxType>(out.get_element_type(), in_data, out, in_shape);
+    }
+
+private:
+    struct EvalByIdxType : public element::NoAction<bool> {
+        using element::NoAction<bool>::visit;
+
+        template <element::Type_t ET, class T, class I = fundamental_type_for<ET>>
+        static result_type visit(const T* in, Tensor& out, const Shape& in_shape) {
+            reference::non_zero(in, out.data<I>(), in_shape);
+            return true;
+        }
+    };
+};
+}  // namespace non_zero
+
 namespace v3 {
 NonZero::NonZero(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
@@ -49,7 +80,7 @@ void NonZero::validate_and_infer_types() {
         set_output_type(0, m_output_type, PartialShape{Dimension::dynamic(), Dimension::dynamic()});
     } else {
         const Dimension dim =
-            std::accumulate(std::begin(input_shape), std::end(input_shape), Dimension(0, 1), std::multiplies<Dimension>());
+            std::accumulate(input_shape.begin(), input_shape.end(), Dimension(0, 1), std::multiplies<Dimension>());
         set_output_type(0, m_output_type, PartialShape{input_shape.rank(), dim});
     }
 
@@ -77,49 +108,17 @@ std::shared_ptr<Node> NonZero::clone_with_new_inputs(const OutputVector& new_arg
     return std::make_shared<v3::NonZero>(new_args.at(0), m_output_type);
 }
 
-namespace non_zero {
-struct Evaluate : public element::NoAction<bool> {
-    using element::NoAction<bool>::visit;
-
-    template <element::Type_t ET, class T = fundamental_type_for<ET>>
-    static result_type visit(const Tensor& in, Tensor& out) {
-        const auto& in_shape = in.get_shape();
-        const auto in_rank = in_shape.size();
-        const auto in_data = in.data<const T>();
-        const size_t non_zero_count = reference::non_zero_get_count(in_data, in_shape);
-
-        Shape out_shape;
-        if (in_rank == 0 && non_zero_count > 0)
-            out_shape = Shape{1, 1};
-        else
-            out_shape = Shape{in_rank, non_zero_count};
-        out.set_shape(out_shape);
-
-        using namespace ov::element;
-        return IfTypeOf<i32, i64>::apply<EvalByIdxType>(out.get_element_type(), in_data, out, in_shape);
-    }
-
-private:
-    struct EvalByIdxType : public element::NoAction<bool> {
-        using element::NoAction<bool>::visit;
-
-        template <element::Type_t ET, class T, class I = fundamental_type_for<ET>>
-        static result_type visit(const T* in, Tensor& out, const Shape& in_shape) {
-            reference::non_zero(in, out.data<I>(), in_shape);
-            return true;
-        }
-    };
-};
-}  // namespace non_zero
-
 bool NonZero::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v3_NonZero_evaluate);
 
+    const auto& input = inputs[0];
+    auto& output = outputs[0];
     using namespace ov::element;
     return IfTypeOf<boolean, bf16, f16, f32, f64, i8, i16, i32, i64, u8, u16, u32, u64>::apply<non_zero::Evaluate>(
-        inputs[0].get_element_type(),
-        inputs[0],
-        outputs[0]);
+        input.get_element_type(),
+        input,
+        input.get_shape(),
+        output);
 }
 
 bool NonZero::has_evaluate() const {
