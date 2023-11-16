@@ -4,12 +4,13 @@
 #include "utils/node.hpp"
 
 namespace ov {
-namespace tools {
-namespace subgraph_dumper {
+namespace util {
 
-InputInfo::Range get_const_ranges(const std::shared_ptr<ov::op::v0::Constant>& const_node,
-                                  ov::element::Type elem_type) {
-    InputInfo::Range ranges(DEFAULT_MIN_VALUE, DEFAULT_MAX_VALUE);
+ov::conformance::InputInfo::Range
+get_const_ranges(const std::shared_ptr<ov::op::v0::Constant>& const_node,
+                 ov::element::Type elem_type) {
+    ov::conformance::InputInfo::Range ranges(ov::conformance::DEFAULT_MIN_VALUE,
+                                             ov::conformance::DEFAULT_MAX_VALUE);
     switch (elem_type) {
     case ov::element::Type_t::boolean: {
         ranges = get_const_ranges<bool>(const_node);
@@ -74,14 +75,15 @@ InputInfo::Range get_const_ranges(const std::shared_ptr<ov::op::v0::Constant>& c
     return ranges;
 }
 
-std::map<std::string, InputInfo> get_input_info_by_node(const std::shared_ptr<ov::Node>& node) {
-    std::map<std::string, InputInfo> input_info;
+std::map<std::string, ov::conformance::InputInfo>
+get_input_info_by_node(const std::shared_ptr<ov::Node>& node) {
+    std::map<std::string, ov::conformance::InputInfo> input_info;
     for (size_t port_id = 0; port_id < node->get_input_size(); ++port_id) {
         std::shared_ptr<ov::Node> input_node = node->get_input_node_shared_ptr(port_id);
         if (!ov::op::util::is_parameter(input_node) && !ov::op::util::is_constant(input_node)) {
             continue;
         }
-        InputInfo in_info(node->get_input_partial_shape(port_id));
+        ov::conformance::InputInfo in_info(node->get_input_partial_shape(port_id));
         std::string input_name = input_node->get_friendly_name();
         if (std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node)) {
             if (ov::shape_size(input_node->get_output_shape(0)) == 0)
@@ -109,7 +111,7 @@ std::shared_ptr<ov::Node> clone_node(std::shared_ptr<ov::Node> node,
     ov::OutputVector inputs;
     inputs.resize(node->get_input_size());
     if (node_name.empty()) {
-        node_name = ov::test::functional::get_node_version(node);
+        node_name = ov::util::get_node_version(node->get_type_info());
     }
     for (size_t i = 0; i < node->get_input_size(); ++i) {
         std::string input_name = node_name + "_" + std::to_string(i);
@@ -177,6 +179,12 @@ std::shared_ptr<ov::Model> generate_model_by_node(const std::shared_ptr<ov::Node
     return model;
 }
 
-}  // namespace subgraph_dumper
-}  // namespace tools
+std::string get_node_version(const ov::NodeTypeInfo& node_type_info) {
+    std::string op_name = node_type_info.name + std::string("-");
+    std::string opset_version = node_type_info.get_version();
+    op_name += opset_version.substr(5);
+    return op_name;
+}
+
+}  // namespace util
 }  // namespace ov

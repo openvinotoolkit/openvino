@@ -5,7 +5,7 @@
 #include "utils/model_comparator.hpp"
 #include "utils/model.hpp"
 
-using namespace ov::tools::subgraph_dumper;
+using namespace ov::util;
 
 std::shared_ptr<ModelComparator> ModelComparator::m_instance = nullptr;
 
@@ -114,21 +114,21 @@ ModelComparator::is_subgraph(const std::shared_ptr<ov::Model> &model,
             throw std::runtime_error("Generated models are incompatible with original ones!");
         }
         try {
-            subgraph_in_info = align_input_info(subgraph, graph, subgraph_in_info, graph_in_info);
+            subgraph_in_info = ov::util::align_input_info(subgraph, graph, subgraph_in_info, graph_in_info);
             return { true, subgraph, graph, subgraph_in_info, graph_in_info };
         } catch(std::exception) {}
     }
     return { false, nullptr, nullptr, {}, {} };
 }
 
-std::pair<bool, std::map<std::string, InputInfo>>
+std::pair<bool, std::map<std::string, ov::conformance::InputInfo>>
 ModelComparator::match(const std::shared_ptr<ov::Model> &model,
                        const std::shared_ptr<ov::Model> &model_ref,
                        const std::map<std::string, InputInfo> &in_info,
                        const std::map<std::string, InputInfo> &in_info_ref) {
     try {
         if (match(model, model_ref)) {
-            auto new_input_info = align_input_info(model, model_ref, in_info, in_info_ref);
+            auto new_input_info = ov::util::align_input_info(model, model_ref, in_info, in_info_ref);
             return {true, new_input_info};
         }
     } catch (std::exception) {}

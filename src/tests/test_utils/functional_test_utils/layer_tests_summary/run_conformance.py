@@ -27,9 +27,9 @@ except:
     logger.warning("Please set the above env variable to get the same conformance ir names run by run!")
     has_python_api = False
 
-API_CONFORMANCE_BIN_NAME = "apiConformanceTests"
-OP_CONFORMANCE_BIN_NAME = "conformanceTests"
-SUBGRAPH_DUMPER_BIN_NAME = "subgraphsDumper"
+API_CONFORMANCE_BIN_NAME = "ov_api_conformance_tests"
+OP_CONFORMANCE_BIN_NAME = "ov_op_conformance_tests"
+SUBGRAPH_DUMPER_BIN_NAME = "ov_subgraphs_dumper_tests"
 
 SCRIPT_DIR_PATH, SCRIPT_NAME = os.path.split(os.path.abspath(__file__))
 NO_MODEL_CONSTANT = os.path.join(SCRIPT_DIR_PATH, "data", "models.lst")

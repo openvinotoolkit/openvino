@@ -30,7 +30,7 @@ def parse_arguments():
     output_folder_help = "Output report folder"
     expected_devices_help = "List of expected devices"
     expected_test_mode_help = """
-        Test mode like static, dymanic or apiConformance,
+        Test mode like static, dymanic or ov_api_conformance_tests,
         it will be defined by path
         If script will found xml, but path will not include test_mode,
         script will save result in Other.
@@ -107,7 +107,7 @@ class HighlightTableCreator():
 
     def get_test_mode_by_path(self, xml_path):
         # Expected name: report_[opset/api]_[device]_[test_mode].xml
-        # for apiConformance test_mode will be empty
+        # for ov_api_conformance_tests test_mode will be empty
         test_mode = 'API'
         xml_path_com = xml_path.stem.split('_')
         if len(xml_path_com) == 4:

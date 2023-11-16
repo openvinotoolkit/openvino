@@ -5,11 +5,12 @@
 #pragma once
 
 #include <map>
-#include "openvino/openvino.hpp"
+
+#include "openvino/core/shape.hpp"
+#include "openvino/core/partial_shape.hpp"
 
 namespace ov {
-namespace tools {
-namespace subgraph_dumper {
+namespace conformance {
 
 constexpr double DEFAULT_MIN_VALUE = std::numeric_limits<double>::min();
 constexpr double DEFAULT_MAX_VALUE = std::numeric_limits<double>::max();
@@ -73,9 +74,5 @@ struct InputInfo {
     }
 };
 
-// ov_model, input_info, extractor_name
-using ExtractedPattern = std::tuple<std::shared_ptr<ov::Model>, std::map<std::string, InputInfo>, std::string>;
-
-}  // namespace subgraph_dumper
-}  // namespace tools
+}  // namespace conformance
 }  // namespace ov

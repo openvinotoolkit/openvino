@@ -14,7 +14,7 @@ uniqueness and matching are defined by implementation of twon interface classes:
 To build the tool, run the following commands: 
 ```
 cmake -DENABLE_FUNCTIONAL_TESTS=ON .
-make subgraphsDumper
+make ov_subgraphs_dumper
 ```
 The outcome of a build is a `subgrpahsDumper` binary located in the building artifacts folder.
 
@@ -41,8 +41,8 @@ Example running command:
 The tool is validated by a combination of Unit and Functional tests, using the based on OV approach. To run tests, execute using the following commands:
 ```
 cmake -DENABLE_FUNCTIONAL_TESTS=ON .
-make subgraphsDumperTests
-./subgraphsDumperTests --gtest_filter=*
+make ov_subgraphs_dumper_tests
+./ov_subgraphs_dumper_tests --gtest_filter=*
 ```
 
 ## Architecture Diagram
