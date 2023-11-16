@@ -65,16 +65,22 @@ static std::vector<std::shared_ptr<ov::Node>> cast_to_node_vector(const ov::Sink
 // for Assigns.
 static void set_correct_variables_for_assign_ops(const std::shared_ptr<ov::Model>& model, const ov::SinkVector& sinks) {
     const auto& variables = model->get_variables();
+    ov::op::util::VariableVector variables_to_delete;
     for (const auto& sink : sinks) {
         if (auto assign = ov::as_type_ptr<ov::op::v6::Assign>(sink)) {
             for (const auto& variable : variables) {
                 auto info = variable->get_info();
                 if (assign->get_variable_id() == info.variable_id && variable != assign->get_variable()) {
+                    variables_to_delete.push_back(assign->get_variable());
                     assign->set_variable(variable);
                     break;
                 }
             }
         }
+    }
+
+    for (const auto& var : variables_to_delete) {
+        model->remove_variable(var);
     }
 }
 
