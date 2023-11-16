@@ -22,6 +22,7 @@ OpenVINO PYTHON API has the following structure:
 * [docs](./docs/) - folder that contains developer documentation and code examples.
 * [src](./src/) - folder with all source files for Python API.
     * [src/openvino](./src/openvino/) - Python sources.
+    * [src/openvino/preprocess](./src/openvino/preprocess/) - Torchvision to OpenVINO preprocessing converter.
     * [src/pyopenvino](./src/pyopenvino/) - C++ sources.
 * [tests](./tests/) - tests directory for OpenVINO Python API.
 * [thirdparty](./thirdparty/) - folder that contains third-party modules like `pybind11`.
