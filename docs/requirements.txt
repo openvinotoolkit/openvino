@@ -3,7 +3,7 @@ atomicwrites==1.4.0
 attrs==22.1.0
 Babel==2.9.1
 beautifulsoup4==4.9.3
-certifi==2020.12.5
+certifi==2023.7.22
 colorama==0.4.4
 Cython==0.29.23
 docutils==0.16
@@ -11,7 +11,7 @@ idna==2.10
 imagesize==1.2.0
 importlib-metadata==4.4.0
 iniconfig==1.1.1
-ipython==8.5.0
+ipython==8.10.0
 Jinja2==2.11.3
 lxml>=4.6.5
 MarkupSafe==1.1.1
@@ -20,14 +20,14 @@ packaging==20.9
 pluggy==0.13.1
 py==1.10.0
 pydata-sphinx-theme==0.7.2
-Pygments==2.8.1
+Pygments==2.15.1
 pyparsing==2.4.7
 pytest==6.2.5
 pytest-html==3.1.1
 pytest-metadata==1.11.0
 py>=1.9.0
 pytz==2021.1
-requests==2.25.1
+requests==2.31.0
 six==1.15.0
 snowballstemmer==2.1.0
 soupsieve==2.2.1
@@ -44,5 +44,5 @@ sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-serializinghtml==1.1.5
 toml==0.10.2
-urllib3==1.26.5
+urllib3==1.26.18
 zipp==3.4.1
