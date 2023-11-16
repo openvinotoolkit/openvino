@@ -59,7 +59,8 @@ protected:
         for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
 
-       auto normalize = ngraph::builder::makeNormalizeL2(params[0], axes, eps, epsMode);
+       auto normAxes = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{axes.size()}, axes);
+       auto normalize = std::make_shared<ov::op::v0::NormalizeL2>(params[0], normAxes, eps, epsMode);
 
        ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(normalize)};
        function = std::make_shared<ngraph::Function>(results, params, "NormalizeL2");

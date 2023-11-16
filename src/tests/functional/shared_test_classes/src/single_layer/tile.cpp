@@ -34,7 +34,10 @@ void TileLayerTest::SetUp() {
     std::tie(tileParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto tile = ngraph::builder::makeTile(params[0], tileParams);
+
+    auto repeatsNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, std::vector<size_t>{tileParams.size()}, tileParams);
+    auto tile = std::make_shared<ov::op::v0::Tile>(params[0], repeatsNode);
+
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(tile)};
     function = std::make_shared<ngraph::Function>(results, params, "tile");
 }

@@ -314,6 +314,7 @@ void NmsLayerTest::SetUp() {
                                 std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(scoresShape))};
     auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto nms = builder::makeNms(paramOuts[0],
                                 paramOuts[1],
                                 convertIE2nGraphPrc(maxBoxPrec),
@@ -325,6 +326,8 @@ void NmsLayerTest::SetUp() {
                                 boxEncoding == ov::op::v5::NonMaxSuppression::BoxEncodingType::CENTER,
                                 sortResDescend,
                                 outType);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
     if (targetDevice == ov::test::utils::DEVICE_CPU) {
         function = std::make_shared<Function>(nms, params, "NMS");
     } else {
@@ -372,6 +375,7 @@ void Nms9LayerTest::SetUp() {
                                 std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(scoresShape))};
     auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto nms = builder::makeNms(paramOuts[0],
                                 paramOuts[1],
                                 convertIE2nGraphPrc(maxBoxPrec),
@@ -384,6 +388,8 @@ void Nms9LayerTest::SetUp() {
                                 sortResDescend,
                                 outType,
                                 ngraph::builder::NmsVersion::NmsVersion9);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
     function = std::make_shared<Function>(nms, params, "NMS");
 }
 
