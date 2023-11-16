@@ -20,8 +20,8 @@ std::vector<TRShape> shape_infer(const Multinomial* op,
     const auto& input_shape = input_shapes[0];
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
-                           input_shape.rank().compatible(1) || input_shape.rank().compatible(2),
-                           "The rank of the 'probs' tensor defining output shape must be either 1 or 2.");
+                           input_shape.rank().compatible(2),
+                           "Input probabilities must be a 2D tensor.");
 
     const auto& num_samples_shape = input_shapes[1];
     NODE_SHAPE_INFER_CHECK(op,
@@ -43,10 +43,8 @@ std::vector<TRShape> shape_infer(const Multinomial* op,
         } else {
             result_shape = ov::PartialShape::dynamic(1);
         }
+        result_shape.insert(result_shape.begin(), input_shape[0]);
 
-        if (input_shape.rank().compatible(2)) {
-            result_shape.insert(result_shape.begin(), input_shape[0]);
-        }
     } else {
         result_shape = ov::PartialShape::dynamic();
     }

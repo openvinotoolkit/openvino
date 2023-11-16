@@ -1,12 +1,15 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "shape_inference.hpp"
+
 #include <ngraph/runtime/host_tensor.hpp>
 #include <openvino/core/node.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset10.hpp>
 #include <openvino/opsets/opset11.hpp>
 #include <openvino/opsets/opset12.hpp>
+#include <openvino/opsets/opset13.hpp>
 #include <openvino/opsets/opset2.hpp>
 #include <openvino/opsets/opset3.hpp>
 #include <openvino/opsets/opset4.hpp>
@@ -68,6 +71,7 @@
 #include "matmul_shape_inference.hpp"
 #include "matrix_nms_shape_inference.hpp"
 #include "max_pool_shape_inference.hpp"
+#include "multinomial_shape_inference.hpp"
 #include "nms_shape_inference.hpp"
 #include "nv12_shape_inference.hpp"
 #include "one_hot_shape_inference.hpp"
@@ -93,7 +97,6 @@
 #include "scatter_elements_update_shape_inference.hpp"
 #include "scatter_nd_base_shape_inference.hpp"
 #include "select_shape_inference.hpp"
-#include "shape_inference.hpp"
 #include "shape_nodes.hpp"
 #include "shuffle_channels_shape_inference.hpp"
 #include "slice_shape_inference.hpp"
@@ -393,6 +396,8 @@ using IStaticShapeInferFactory =
 // To use other version of operators, explicitly specify operator with opset version namespace.
 template <>
 const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
+    // opset13
+    _OV_OP_SHAPE_INFER_MASK_REG(opset13::Multinomial, ShapeInferTA, util::bit::mask(1)),
     // opset12
     _OV_OP_SHAPE_INFER_MASK_REG(opset12::Pad, ShapeInferTA, util::bit::mask(1, 2)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset12::ScatterElementsUpdate, ShapeInferTA, util::bit::mask(3)),

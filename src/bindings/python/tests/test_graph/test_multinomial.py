@@ -13,7 +13,7 @@ from openvino.runtime import PartialShape, Dimension, Type
     ("probs_shape", "num_samples_shape", "convert_type", "with_replacement", "log_probs", "global_seed", "op_seed", "expected_out_shape"),
     [
         ([4, 16], [], "i32", False, True, 7461, 1546, PartialShape([4, -1])),
-        ([8], [1], "i64", True, False, 0, 0, PartialShape([-1])),
+        ([1, 8], [1], "i64", True, False, 0, 0, PartialShape([1, -1])),
     ],
 )
 def test_multinomial_param_inputs(probs_shape, num_samples_shape, convert_type, with_replacement, log_probs, global_seed, op_seed, expected_out_shape):
@@ -35,7 +35,7 @@ def test_multinomial_param_inputs(probs_shape, num_samples_shape, convert_type, 
 @pytest.mark.parametrize(
     ("probs_array", "num_samples_val", "convert_type", "with_replacement", "log_probs", "global_seed", "op_seed", "expected_out_shape"),
     [
-        (np.array([0.7, 0.3, 0.6, 0.5]), 3, "i32", False, True, 111, 222, PartialShape([3])),
+        (np.array([[0.7, 0.3, 0.6, 0.5]]), 3, "i32", False, True, 111, 222, PartialShape([1, 3])),
         (np.array([[0.7, 0.3], [0.6, 0.5]]), 2, "i64", True, False, 111, 222, PartialShape([2, 2])),
     ],
 )
@@ -59,7 +59,7 @@ def test_multinomial_const_inputs(probs_array, num_samples_val, convert_type, wi
 @pytest.mark.parametrize(
     ("probs_shape", "num_samples_shape", "convert_type", "with_replacement", "log_probs", "expected_out_shape"),
     [
-        ([10], [1], "i32", True, True, PartialShape([-1])),
+        ([1, 10], [1], "i32", True, True, PartialShape([1, -1])),
         ([2, 16], [], "i64", False, False, PartialShape([2, -1])),
     ],
 )

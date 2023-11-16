@@ -6,14 +6,13 @@
 
 #include "ie_ngraph_utils.hpp"
 #include "openvino/op/multinomial.hpp"
-#include "shape_inference/custom/multinomial.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
 Multinomial::Multinomial(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, MultinomialShapeInferFactory(op)) {
+    : Node(op, context, NgraphShapeInferFactory(op, PortMask(NUM_SAMPLES_PORT))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         THROW_CPU_NODE_ERR(errorMessage);
