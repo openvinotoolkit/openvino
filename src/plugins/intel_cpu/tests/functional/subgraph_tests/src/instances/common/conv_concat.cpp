@@ -249,7 +249,8 @@ namespace ConvolutionBackpropDataConcat {
 
 /* ============= ConvolutionBackpropData (2D) ============= */
 const std::vector<CPUSpecificParams> CPUParams2D = {
-    conv_ref_2D,
+    conv_acl_2D,
+    conv_ref_2D,    
     // conv_gemm_2D,
     conv_avx512_2D
 };
@@ -257,7 +258,7 @@ const std::vector<CPUSpecificParams> CPUParams2D = {
 const auto params2D = ::testing::Combine(
     ::testing::Values(nodeType::convolutionBackpropData),
     ::testing::Values(convParams2D),
-    ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams2D)),
+    ::testing::ValuesIn(filterCPUInfo(CPUParams2D)),
     ::testing::Values(inputShapes2D),
     ::testing::Values(axis)
 );
@@ -287,6 +288,7 @@ namespace ConvolutionConact {
 
 /* ============= Convolution (2D) ============= */
 const std::vector<CPUSpecificParams> CPUParams2D = {
+    conv_ref_2D_nspc,
     conv_ref_2D,
     conv_gemm_2D,
     conv_sse42_2D,
@@ -306,6 +308,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D, ConvConcatSubgraphTest, params2D, 
 
 /* ============= Convolution (3D) ============= */
 const std::vector<CPUSpecificParams> CPUParams3D = {
+    conv_ref_3D_nspc,
     conv_ref_3D,
     conv_gemm_3D,
     conv_avx2_3D,
@@ -328,6 +331,7 @@ namespace GroupConvolutionConcat {
 
 /* ============= GroupConvolution (2D) ============= */
 const std::vector<CPUSpecificParams> CPUParams2D = {
+    conv_ref_2D_nspc,
     conv_ref_2D,
     conv_gemm_2D,
     conv_sse42_2D,
@@ -347,6 +351,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D, ConvConcatSubgraphTest, param
 
 /* ============= GroupConvolution (3D) ============= */
 const std::vector<CPUSpecificParams> CPUParams3D = {
+    conv_ref_3D_nspc,
     conv_ref_3D,
     conv_gemm_3D,
     conv_avx2_3D,

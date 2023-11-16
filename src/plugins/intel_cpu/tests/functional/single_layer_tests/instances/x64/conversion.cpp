@@ -5,6 +5,7 @@
 #include "single_layer_tests/classes/conversion.hpp"
 #include "shared_test_classes/single_layer/conversion.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "test_utils/filter_cpu_params.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;

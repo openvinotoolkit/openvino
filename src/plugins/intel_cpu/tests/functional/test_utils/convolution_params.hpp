@@ -11,6 +11,14 @@ namespace CPUTestUtils {
     const auto conv_ref_2D = CPUSpecificParams{{nchw}, {nchw}, {"ref_any"}, "ref_any"};
     const auto conv_ref_3D = CPUSpecificParams{{ncdhw}, {ncdhw}, {"ref_any"}, "ref_any"};
 
+    const auto conv_ref_1D_nspc = CPUSpecificParams{{nwc}, {nwc}, {"ref_any"}, "ref_any"};
+    const auto conv_ref_2D_nspc = CPUSpecificParams{{nhwc}, {nhwc}, {"ref_any"}, "ref_any"};
+    const auto conv_ref_3D_nspc = CPUSpecificParams{{ndhwc}, {ndhwc}, {"ref_any"}, "ref_any"};
+
+    const auto conv_acl_1D = CPUSpecificParams{{ncw}, {ncw}, {"acl"}, "acl"};
+    const auto conv_acl_2D = CPUSpecificParams{{nchw}, {nchw}, {"acl"}, "acl"};
+    const auto conv_acl_3D = CPUSpecificParams{{ncdhw}, {ncdhw}, {"acl"}, "acl"};
+
     const auto conv_gemm_1D = CPUSpecificParams{{ncw}, {ncw}, {"jit_gemm"}, "jit_gemm"};
     const auto conv_gemm_2D = CPUSpecificParams{{nchw}, {nchw}, {"jit_gemm"}, "jit_gemm"};
     const auto conv_gemm_3D = CPUSpecificParams{{ncdhw}, {ncdhw}, {"jit_gemm"}, "jit_gemm"};

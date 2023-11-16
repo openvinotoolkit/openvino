@@ -36,7 +36,29 @@ std::vector<CPUSpecificParams> filterCPUInfoForArch(const std::vector<CPUSpecifi
 }
 
 std::vector<CPUSpecificParams> filterCPUInfoForDevice(const std::vector<CPUSpecificParams>& CPUParams) {
-    return CPUParams;
+    std::vector<CPUSpecificParams> resCPUParams;
+    const int selectedTypeIndex = 3;
+
+    for (auto param : CPUParams) {
+        auto selectedTypeStr = std::get<selectedTypeIndex>(param);
+
+        if (selectedTypeStr.find("jit") != std::string::npos)
+            continue;
+        if (selectedTypeStr.find("sse42") != std::string::npos)
+            continue;
+        if (selectedTypeStr.find("avx") != std::string::npos)
+            continue;
+        if (selectedTypeStr.find("avx2") != std::string::npos)
+            continue;
+        if (selectedTypeStr.find("avx512") != std::string::npos)
+            continue;
+        if (selectedTypeStr.find("amx") != std::string::npos)
+            continue;
+
+        resCPUParams.push_back(param);
+    }
+
+    return resCPUParams;
 }
 
 } // namespace CPUTestUtils

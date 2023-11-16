@@ -464,10 +464,32 @@ void FullyConnected::prepareWeightsUsingDummyShape() {
     if (selected_pd == nullptr)
         OPENVINO_THROW("Preferable primitive descriptor is not set for node ", getName(), ".");
 
-    auto inDesc = MemoryDescUtils::convertToDnnlMemoryDesc(MemoryDescUtils::makeDummyDesc(*getBaseMemDescAtInputPort(DATA_ID)));
+    DnnlMemoryDescPtr inDesc = nullptr;
     auto weightDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weightDescIP);
     auto biasDesc = withBiases ? MemoryDescUtils::convertToDnnlMemoryDesc(getBaseMemDescAtInputPort(BIAS_ID)) : nullptr;
     auto outDesc = MemoryDescUtils::convertToDnnlMemoryDesc(MemoryDescUtils::makeDummyDesc(*getBaseMemDescAtOutputPort(0)));
+
+    Shape newInShape = getBaseMemDescAtInputPort(DATA_ID)->getShape();
+    if (isDynamicNode()) {
+        auto originalInDesc = getBaseMemDescAtInputPort(DATA_ID);
+        auto originalInDims = originalInDesc->getShape().getDims();
+        size_t dimIdx = originalInDims.size() == 3 ? 1 : 0;
+        // Propagate N dim from the output shape to the input shape
+        if (newInShape.getDims()[dimIdx] == Shape::UNDEFINED_DIM &&
+            getBaseMemDescAtOutputPort(0)->getShape().getDims()[dimIdx] != Shape::UNDEFINED_DIM) {
+            newInShape = cloneShapeWithNewDim(newInShape, getBaseMemDescAtOutputPort(0)->getShape().getDims()[dimIdx], dimIdx);
+        }
+        // Propagate K dim from the weights shape to the input shape
+        if (newInShape.getDims()[dimIdx+1] == Shape::UNDEFINED_DIM &&
+            weightDesc->getShape().getDims()[1] != Shape::UNDEFINED_DIM) {
+            newInShape = cloneShapeWithNewDim(newInShape, weightDesc->getShape().getDims()[1], dimIdx+1);
+        }
+
+        auto newInDesc = DnnlBlockedMemoryDesc(originalInDesc->getPrecision(), MemoryDescUtils::makeDummyShape(newInShape));
+        inDesc = MemoryDescUtils::convertToDnnlMemoryDesc(MemoryDescUtils::makeDummyDesc(newInDesc));
+    } else {
+        inDesc = MemoryDescUtils::convertToDnnlMemoryDesc(MemoryDescUtils::makeDummyDesc(*getBaseMemDescAtInputPort(DATA_ID)));
+    }
 
     const FCKey key = {inDesc,
                        weightDesc,
