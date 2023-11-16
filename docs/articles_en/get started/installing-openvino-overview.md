@@ -1,4 +1,4 @@
-# Install OpenVINO™ 2023.1 {#openvino_docs_install_guides_overview}
+# Install OpenVINO™ 2023.2 {#openvino_docs_install_guides_overview}
 
 @sphinxdirective
 
@@ -21,7 +21,7 @@
 
    <script type="module" crossorigin src="_static/selector-tool/assets/index-f34d1fad.js"></script>
    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-   <iframe id="selector" src="_static/selector-tool/selector-68d2f71.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
+   <iframe id="selector" src="_static/selector-tool/selector-c1c409a.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
 
 .. warning::
    
