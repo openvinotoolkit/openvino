@@ -44,6 +44,7 @@ void register_implementations() {
     REGISTER_OCL(lstm_gemm);
     REGISTER_OCL(lstm_elt);
     REGISTER_OCL(multiclass_nms);
+    REGISTER_OCL(multinomial);
     REGISTER_OCL(mutable_data);
     REGISTER_OCL(mvn);
     REGISTER_OCL(non_max_suppression);
