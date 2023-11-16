@@ -414,6 +414,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 }
 
 bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node& node, format fmt_prev, format fmt_next) {
+    bool allow_new_shape_infer = node.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
     // Because mvn and concatenation kernel can work cross-layout, if reorder only performs type conversion,
     // fusing reorder to the previous node can be done even if it is a dynamic shape case
     if ((prev.is_type<mvn>() || prev.is_type<concatenation>()) &&
@@ -450,9 +451,6 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
             || fmt_next == format::bs_fs_yx_bsv32_fsv16 || fmt_next == format::bs_fs_yx_bsv32_fsv32))
         return true;
 
-    if (prev.is_type<binary_convolution>() && fmt_next == format::b_fs_yx_fsv16)
-        return true;
-
     if (prev.is_type<one_hot>() &&
         !data_type_traits::is_floating_point(dt_prev) &&
         data_type_traits::is_floating_point(dt_next) &&
@@ -477,6 +475,10 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         }
         // permute kernel doesn't support reorder fusion for ranks > 6
         if (fmt_prev.dimension() > 6 || fmt_next.dimension() > 6)
+            return false;
+
+        // Skip reorder fusing to permute when allow_new_shape_infer is True and input and output rank is different
+        if (allow_new_shape_infer && (fmt_prev.dimension() != fmt_next.dimension()))
             return false;
 
         return true;
@@ -1741,8 +1743,6 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         expected = _forcing_map.at(node.id()).first;
     } else if (node.is_type<convolution>()) {
         expected = get_expected_format(node.as<convolution>());
-    } else if (node.is_type<binary_convolution>()) {
-        expected = cldnn::format::b_fs_yx_32fp;
     } else if (node.is_type<quantize>()) {
         expected = get_expected_format(node.as<quantize>());
     } else if (node.is_type<reorder>() || node.is_type<input_layout>()) {
