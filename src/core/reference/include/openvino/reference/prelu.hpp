@@ -13,6 +13,14 @@
 
 namespace ov {
 namespace reference {
+namespace func {
+// Usage of custom function instead of lambda, gives smaller binary size.
+template <class T>
+T prelu(const T x, const T y) {
+    return x < T(0) ? x * y : x;
+}
+}  // namespace func
+
 template <typename T>
 void prelu(const T* arg, const T* slope, T* out, const Shape& arg_shape, const Shape& slope_shape) {
     Shape slope_shape_tmp = slope_shape;
@@ -22,9 +30,7 @@ void prelu(const T* arg, const T* slope, T* out, const Shape& arg_shape, const S
         channel_slope_shape[channel_dim_idx] = slope_shape[0];
         std::swap(slope_shape_tmp, channel_slope_shape);
     }
-    autobroadcast_binop(arg, slope, out, arg_shape, slope_shape_tmp, op::AutoBroadcastType::NUMPY, [](T x, T y) -> T {
-        return x < T(0) ? T(x * y) : x;
-    });
+    autobroadcast_binop(arg, slope, out, arg_shape, slope_shape_tmp, op::AutoBroadcastType::NUMPY, func::prelu<T>);
 }
 }  // namespace reference
 }  // namespace ov
