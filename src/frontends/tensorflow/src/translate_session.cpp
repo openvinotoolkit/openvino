@@ -555,12 +555,36 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                                                       port_index,
                                                                       port_type);
 
+            bool set_names_with_indices = input_model->tensor_names_need_indices();
+
             if (port_type == "none") {
                 for (const auto& node_output : indexed_from_named(ng_op_map[operation_name])) {
                     auto result_node = std::make_shared<ov::opset8::Result>(node_output);
                     // to be aligned with Legacy Frontend we set a name along with output port index
                     // though, the Result name is not used in the OV API 2.0 but it is checked in MO args tests
                     result_node->set_friendly_name(model_output_name + ":0");
+                    if (set_names_with_indices) {
+                        if (result_node->get_output_tensor(0).get_names().size() == 0) {
+                            result_node->get_output_tensor(0).set_names(
+                                {operation_name + ":" + std::to_string(port_index)});
+                        } else {
+                            std::string tensor_name = result_node->get_output_tensor(0).get_any_name();
+                            std::string operation_name1;
+                            std::string port_type1;
+                            size_t port_index1;
+                            ov::frontend::tensorflow::extract_operation_name_and_port(tensor_name,
+                                                                                      operation_name1,
+                                                                                      port_index1,
+                                                                                      port_type1);
+                            if (operation_name == operation_name1 && port_index1 != port_index) {
+                                result_node->get_output_tensor(0).set_names(
+                                    {operation_name + ":" + std::to_string(port_index1)});
+                            } else {
+                                result_node->get_output_tensor(0).set_names(
+                                    {operation_name + ":" + std::to_string(port_index)});
+                            }
+                        }
+                    }
                     results.push_back(result_node);
                 }
             } else if (port_type == "out") {
@@ -570,6 +594,28 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                             operation_name + "node specified as custom output does not exist");
                 auto result_node = std::make_shared<ov::opset8::Result>(node_outputs[port_index]);
                 result_node->set_friendly_name(model_output_name);
+                if (set_names_with_indices) {
+                    if (result_node->get_output_tensor(0).get_names().size() == 0) {
+                        result_node->get_output_tensor(0).set_names(
+                            {operation_name + ":" + std::to_string(port_index)});
+                    } else {
+                        std::string tensor_name = result_node->get_output_tensor(0).get_any_name();
+                        std::string operation_name1;
+                        std::string port_type1;
+                        size_t port_index1;
+                        ov::frontend::tensorflow::extract_operation_name_and_port(tensor_name,
+                                                                                  operation_name1,
+                                                                                  port_index1,
+                                                                                  port_type1);
+                        if (operation_name == operation_name1 && port_index1 != port_index) {
+                            result_node->get_output_tensor(0).set_names(
+                                {operation_name + ":" + std::to_string(port_index1)});
+                        } else {
+                            result_node->get_output_tensor(0).set_names(
+                                {operation_name + ":" + std::to_string(port_index)});
+                        }
+                    }
+                }
                 results.push_back(result_node);
             } else if (port_type == "in") {
                 // TODO: avoid this traversing by having a map for OpPlace objects, for example
@@ -675,8 +721,13 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
     if (input_model->tensor_names_need_indices()) {
         for (auto result : ov_model->outputs()) {
-            auto model_output_name = result.get_names().size() > 0 ? result.get_any_name() : result.get_node()->get_name();
-            
+            if (result.get_names().size() == 1) {
+                continue;
+            }
+
+            auto model_output_name =
+                result.get_names().size() > 0 ? result.get_any_name() : result.get_node()->get_name();
+
             std::string operation_name;
             std::string port_type;
             size_t port_index;
