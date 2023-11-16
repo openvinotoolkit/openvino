@@ -25,87 +25,93 @@ for more information.
    * - bert-base-cased
      - SST-2_bert_cased_padded
      - accuracy
-     - -3.00%
-     - -2.00%
-     - 2.94%
+     - -0.76%
+     - 2.42%
+     - 2.72%
    * - bert-large-uncased-whole-word-masking-squad-0001
      - SQUAD_v1_1_bert_msl384_mql64_ds128_lowercase
      - F1
-     - -0.04%
-     - 0.03%
-     - 0.06%
+     - 0.07%
+     - -0.03%
+     - 0.11%
    * - deeplabv3
      - VOC2012_segm
      - mean_iou
-     - 0.00%
+     - 0.49%
      - 0.23%
-     - -0.13%
+     - -0.16%
+   * - efficientdet-d0
+     - COCO2017_detection_91cl
+     - coco_precision
+     - -0.84%
+     - -0.59%
+     - -0.63%
+   * - faster_rcnn_resnet50_coco
+     - COCO2017_detection_91cl_bkgr
+     - coco_orig_precision
+     - -0.19%
+     - -0.19%
+     - -0.04%
    * - mobilenet-v2
      - ImageNet2012
      - accuracy @ top1
      - 
-     - 0.97%
      - -0.97%
+     - -0.95%
    * - resnet-50
      - ImageNet2012
      - accuracy @ top1
-     - 0.20%
-     - 0.12%
+     - -0.09%
+     - -0.12%
      - -0.19%
    * - ssd-mobilenet-v1-coco
      - COCO2017_detection_80cl_bkgr
      - coco-precision
-     - 2.97%
-     - 0.29%
-     - -0.31%
+     - -2.97%
+     - -0.29%
+     - -0.26%
    * - ssd-resnet34-1200
      - COCO2017_detection_80cl_bkgr
      - map
-     - 0.06%
-     - 0.06%
+     - -0.03%
      - -0.06%
+     - 0.04%
    * - unet-camvid-onnx-0001
      - CamVid_12cl
      - mean_iou @ mean
-     - 6.32%
-     - -6.40%	
-     - -0.63%
+     - -6.32%
+     - 6.40%	
+     - 6.40%
    * - yolo_v3
      - COCO2017_detection_80cl
      - map
-     - -0.06%
-     - -0.21%
-     - -0.71%
+     - -0.13%
+     - -0.26%
+     - -0.44%
    * - yolo_v3_tiny
      - COCO2017_detection_80cl
      - map
-     - 0.73%
-     - 0.21%
-     - -0.78%
+     - -0.11%
+     - -0.13%
+     - -0.15%
    * - yolo_v8n
      - COCO2017_detection_80cl
      - map
-     - -0.26%
-     - -0.22%
-     - 0.12%
-   * - bloomz-560m
-     - ROOTS corpus
+     - 0.27%
+     - 0.23%
+     - 0.17%
+   * - chatGLM2-6b
+     - lambada openai
      - ppl
      - 
+     - 17.595
      - 
-     - 
-   * - GPT-J-6B
-     - Pile dataset
-     - ppl
-     - 
-     - 4.11
-     - 4.11
    * - Llama-2-7b-chat
      - Wiki, StackExch, Crawl
      - ppl
      - 
-     - 3.27
-     - 3.27
+     - 3.268
+     - 
    * - Stable-Diffusion-V2-1
      - LIAON-5B
      - ppl
@@ -131,14 +137,26 @@ for more information.
    * - bert-large-uncased-whole-word-masking-squad-0001
      - SQUAD_v1_1_bert_msl384_mql64_ds128_lowercase
      - F1
-     - -0.19%
+     - 0.04%
      - 0.04%
      - 0.04%
    * - deeplabv3
      - VOC2012_segm
      - mean_iou
-     - 0.49%
      - 0.00%
+     - 0.00%
+     - 0.00%
+   * - efficientdet-d0
+     - COCO2017_detection_91cl
+     - coco_precision
+     - -0.02%
+     - -0.02%
+     - -0.02%
+   * - faster_rcnn_resnet50_coco
+     - COCO2017_detection_91cl_bkgr
+     - coco_orig_precision
+     - 0.00%
+     - 
      - 0.00%
    * - mobilenet-v2
      - ImageNet2012
@@ -150,7 +168,7 @@ for more information.
      - ImageNet2012
      - accuracy @ top1
      - 0.00%
-     - -0.02%
+     - 0.00%
      - 0.00%
    * - ssd-mobilenet-v1-coco
      - COCO2017_detection_80cl_bkgr
@@ -161,26 +179,26 @@ for more information.
    * - ssd-resnet34-1200
      - COCO2017_detection_80cl_bkgr
      - map
-     - 0.01%
-     - 0.06%
-     - -0.06%
+     - 0.00%
+     - 0.00%
+     - 0.00%
    * - unet-camvid-onnx-0001
      - CamVid_12cl
      - mean_iou @ mean
-     - 0.02%
-     - -6.45%	
-     - 6.45%
+     - 0.00%
+     - 0.00%	
+     - 0.00%
    * - yolo_v3
      - COCO2017_detection_80cl
      - map
      - 0.00%
-     - 0.01%
-     - 0.01%
+     - 0.00%
+     - 0.00%
    * - yolo_v3_tiny
      - COCO2017_detection_80cl
      - map
-     - 0.00%
-     - -0.02%
+     - -0.04%
+     - -0.04%
      - 0.02%
    * - yolo_v8n
      - COCO2017_detection_80cl
@@ -188,24 +206,18 @@ for more information.
      - 0.00%
      - 0.00%
      - 0.00%
-   * - bloomz-560m
-     - ROOTS corpus
+   * - chatGLM2-6b
+     - lambada-openai
      - ppl
      - 
-     - 22.89
-     - 22.89
-   * - GPT-J-6B
-     - Pile dataset
-     - ppl
+     - 17.488
      - 
-     - 4.10
-     - 4.10
    * - Llama-2-7b-chat
      - Wiki, StackExch, Crawl
      - ppl
      - 
-     - 2.91
-     - 2.91
+     - 3.262
+     - 
    * - Stable-Diffusion-V2-1
      - LIAON-5B
      - ppl
