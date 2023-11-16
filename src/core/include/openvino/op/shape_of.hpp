@@ -32,9 +32,6 @@ public:
     // Overload collision with method on Node
     using Node::set_output_type;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
     bool evaluate(TensorVector& output_values, const TensorVector& input_values) const override;
     bool evaluate_lower(TensorVector& output_values) const override;
@@ -61,9 +58,6 @@ public:
 
     void validate_and_infer_types() override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
     bool evaluate(TensorVector& output_values, const TensorVector& input_values) const override;
     bool evaluate_lower(TensorVector& output_values) const override;

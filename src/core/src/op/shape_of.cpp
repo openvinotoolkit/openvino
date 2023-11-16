@@ -8,46 +8,19 @@
 #include <vector>
 
 #include "itt.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/validation_util.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/reference/shape_of.hpp"
 
-using namespace ngraph;
-
 namespace ov {
 namespace op {
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace shape_of {
 namespace {
-template <element::Type_t ET>
-inline bool evaluate(const Shape& shape, const HostTensorPtr& output_value) {
-    reference::shape_of(shape, output_value->get_data_ptr<ET>());
-    return true;
-}
-
 template <element::Type_t ET>
 inline bool evaluate(const Shape& shape, Tensor& output_value) {
     reference::shape_of(shape, output_value.data<fundamental_type_for<ET>>());
     return true;
-}
-
-bool evaluate_shape_of(const HostTensorPtr& output_value, const HostTensorPtr& input_value) {
-    bool rc = true;
-    Shape shape = input_value->get_shape();
-    output_value->set_shape(Shape{shape.size()});
-    switch (output_value->get_element_type()) {
-        OPENVINO_TYPE_CASE(evaluate_shape_of, i32, shape, output_value);
-        OPENVINO_TYPE_CASE(evaluate_shape_of, i64, shape, output_value);
-        OPENVINO_TYPE_CASE(evaluate_shape_of, u32, shape, output_value);
-        OPENVINO_TYPE_CASE(evaluate_shape_of, u64, shape, output_value);
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
 }
 
 bool evaluate_shape_of(Tensor& output_value, const Shape& input_shape) {
@@ -66,18 +39,15 @@ bool evaluate_shape_of(Tensor& output_value, const Shape& input_shape) {
 }
 
 bool constant_fold_shape_of(Node* shape_of_node, Output<Node>& replacement, const Output<Node>& shape_of_input) {
-    auto partial_shape = shape_of_input.get_partial_shape();
-    auto output_type = shape_of_node->get_output_element_type(0);
+    const auto partial_shape = shape_of_input.get_partial_shape();
     if (partial_shape.is_static()) {
-        auto arg_shape = shape_of_input.get_shape();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        auto result_tensor = std::make_shared<HostTensor>(output_type, shape_of_node->get_output_shape(0));
-        if (evaluate_shape_of(result_tensor, std::make_shared<HostTensor>(output_type, partial_shape))) {
+        const auto& output_type = shape_of_node->get_output_element_type(0);
+        const auto& output_shape = shape_of_node->get_output_shape(0);
+        auto result_tensor = ov::Tensor{output_type, output_shape};
+        if (evaluate_shape_of(result_tensor, shape_of_input.get_shape())) {
             replacement = std::make_shared<v0::Constant>(result_tensor);
             return true;
         }
-        OPENVINO_SUPPRESS_DEPRECATED_END
-        return false;
     }
     return false;
 }
@@ -138,7 +108,6 @@ bool evaluate_label(const Node* shape_of_node, TensorLabelVector& output_labels)
 }
 }  // namespace
 }  // namespace shape_of
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 namespace v3 {
 ShapeOf::ShapeOf(const Output<Node>& arg, element::Type output_type) : ShapeOfBase({arg}), m_output_type(output_type) {
@@ -167,19 +136,9 @@ std::shared_ptr<Node> ShapeOf::clone_with_new_inputs(const OutputVector& new_arg
     return std::make_shared<ShapeOf>(new_args.at(0), m_output_type);
 }
 
-bool ShapeOf::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
-    OV_OP_SCOPE(v3_ShapeOf_evaluate);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    OPENVINO_ASSERT(validate_host_tensor_vector(input_values, 1));
-    OPENVINO_ASSERT(validate_host_tensor_vector(output_values, 1));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
-}
-
 bool ShapeOf::evaluate(TensorVector& output_values, const TensorVector& input_values) const {
     OV_OP_SCOPE(v0_ShapeOf_evaluate);
-    OPENVINO_ASSERT(input_values.size() == 1);
-    OPENVINO_ASSERT(output_values.size() == 1);
+    OPENVINO_ASSERT(input_values.size() == 1 && output_values.size() == 1);
 
     return shape_of::evaluate_shape_of(output_values[0], input_values[0].get_shape());
 }
@@ -242,19 +201,9 @@ std::shared_ptr<Node> ShapeOf::clone_with_new_inputs(const OutputVector& new_arg
     return new_shape_of;
 }
 
-bool ShapeOf::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
-    OV_OP_SCOPE(v0_ShapeOf_evaluate);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    OPENVINO_ASSERT(validate_host_tensor_vector(input_values, 1));
-    OPENVINO_ASSERT(validate_host_tensor_vector(output_values, 1));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
-}
-
 bool ShapeOf::evaluate(TensorVector& output_values, const TensorVector& input_values) const {
     OV_OP_SCOPE(v0_ShapeOf_evaluate);
-    OPENVINO_ASSERT(input_values.size() == 1);
-    OPENVINO_ASSERT(output_values.size() == 1);
+    OPENVINO_ASSERT(input_values.size() == 1 && output_values.size() == 1);
 
     return shape_of::evaluate_shape_of(output_values[0], input_values[0].get_shape());
 }
