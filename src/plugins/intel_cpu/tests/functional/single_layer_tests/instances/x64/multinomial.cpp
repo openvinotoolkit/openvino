@@ -58,17 +58,20 @@ const std::vector<int> num_samples_scalar_i32 = {1};
 const std::vector<int64_t> num_samples_1x1_i64 = {2};
 const std::vector<int64_t> num_samples_scalar_i64 = {3};
 
-const std::vector<ov::Tensor> probs = {ov::Tensor(ov::element::f32, {4, 4},  const_cast<void*>(reinterpret_cast<const void*>(probs_4x4_f32.data() ))),
-                                       ov::Tensor(ov::element::f16, {2, 3},  const_cast<void*>(reinterpret_cast<const void*>(probs_2x3_f16.data() ))),
-                                       ov::Tensor(ov::element::bf16, {1, 3}, const_cast<void*>(reinterpret_cast<const void*>(probs_1x3_bf16.data())))};
+const std::vector<ov::Tensor> probs = {
+    ov::Tensor(ov::element::f32, {4, 4}, const_cast<void*>(reinterpret_cast<const void*>(probs_4x4_f32.data()))),
+    ov::Tensor(ov::element::f16, {2, 3}, const_cast<void*>(reinterpret_cast<const void*>(probs_2x3_f16.data()))),
+    ov::Tensor(ov::element::bf16, {1, 3}, const_cast<void*>(reinterpret_cast<const void*>(probs_1x3_bf16.data())))};
 
-const std::vector<ov::Tensor> probs_log = {ov::Tensor(ov::element::f32,  {4, 4}, const_cast<void*>(reinterpret_cast<const void*>(probs_4x4_f32_log.data() ))),
-                                           ov::Tensor(ov::element::f16,  {2, 3}, const_cast<void*>(reinterpret_cast<const void*>(probs_2x3_f16_log.data() ))),
-                                           ov::Tensor(ov::element::bf16, {1, 3}, const_cast<void*>(reinterpret_cast<const void*>(probs_1x3_bf16_log.data())))};
+const std::vector<ov::Tensor> probs_log = {
+    ov::Tensor(ov::element::f32, {4, 4}, const_cast<void*>(reinterpret_cast<const void*>(probs_4x4_f32_log.data()))),
+    ov::Tensor(ov::element::f16, {2, 3}, const_cast<void*>(reinterpret_cast<const void*>(probs_2x3_f16_log.data()))),
+    ov::Tensor(ov::element::bf16, {1, 3}, const_cast<void*>(reinterpret_cast<const void*>(probs_1x3_bf16_log.data())))};
 
-const std::vector<ov::Tensor> num_samples = {ov::Tensor(ov::element::i32, {},  const_cast<void*>(reinterpret_cast<const void*>(num_samples_scalar_i32.data()))),
-                                             ov::Tensor(ov::element::i64, {1}, const_cast<void*>(reinterpret_cast<const void*>(num_samples_1x1_i64.data()   ))),
-                                             ov::Tensor(ov::element::i64, {},  const_cast<void*>(reinterpret_cast<const void*>(num_samples_scalar_i64.data())))};
+const std::vector<ov::Tensor> num_samples = {
+    ov::Tensor(ov::element::i32, {}, const_cast<void*>(reinterpret_cast<const void*>(num_samples_scalar_i32.data()))),
+    ov::Tensor(ov::element::i64, {1}, const_cast<void*>(reinterpret_cast<const void*>(num_samples_1x1_i64.data()))),
+    ov::Tensor(ov::element::i64, {}, const_cast<void*>(reinterpret_cast<const void*>(num_samples_scalar_i64.data())))};
 
 const std::vector<ov::test::ElementType> convert_type = {ov::test::ElementType::i32, ov::test::ElementType::i64};
 
