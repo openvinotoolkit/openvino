@@ -6,7 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <vector>
-#include "ie_precision.hpp"
+#include <openvino/core/type/element_type.hpp>
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -22,7 +22,7 @@ void attn_softmax(float* a,
                   bool select_nfltmax_at_0,
                   size_t len,
                   size_t total_size,
-                  Precision dst_precision);
+                  ov::element::Type dst_precision);
 }  // namespace XARCH
 }  // namespace Cpu
 }  // namespace Extensions

@@ -6,7 +6,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <vector>
-#include "ie_precision.hpp"
 
 namespace InferenceEngine {
 namespace Extensions {

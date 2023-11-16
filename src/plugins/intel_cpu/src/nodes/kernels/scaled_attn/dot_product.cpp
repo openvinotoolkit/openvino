@@ -51,8 +51,8 @@ float dot_product_inner(T* a, T* b, size_t n) {
     return sum;
 }
 
-void attn_dot_products(void** a, void** b, void**c, size_t vec_num, size_t vec_len, Precision input_precision) {
-    if (input_precision == Precision::FP32) {
+void attn_dot_products(void** a, void** b, void**c, size_t vec_num, size_t vec_len, ov::element::Type input_precision) {
+    if (input_precision == ov::element::f32) {
         for (size_t i = 0; i < vec_num; i++) {
             auto a_ptr = static_cast<float*>(a[i]);
             auto b_ptr = static_cast<float*>(b[i]);

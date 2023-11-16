@@ -39,7 +39,7 @@ namespace intel_cpu {
 namespace node {
 
 // default implementation: reference
-template <KernelTypes KType, typename T>
+template <ScaledDotProductAttention::KernelTypes KType, typename T>
 struct MHAKernel {
     MHAKernel() = default;
 
@@ -167,7 +167,7 @@ struct MHAKernel {
 };
 
 template <typename T>
-struct MHAKernel<KT_ONEDNN, T> {
+struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
     // q: [B, H, q_len, S]
     // k: [B, H, kv_len, S]
     // v: [B, H, kv_len, S]
@@ -190,7 +190,7 @@ struct MHAKernel<KT_ONEDNN, T> {
                 dnnl_dims[i] = static_cast<dnnl::memory::dim>(dims[i]);
             return dnnl_dims;
         };
-        auto qkv_dt = precision_of<T>::value == Precision::FP32 ? dt::f32 : dt::bf16;
+        auto qkv_dt = precision_of<T>::value == ov::element::f32 ? dt::f32 : dt::bf16;
         dnnl::memory::desc cur_q_md(make_dnnl_dims({B, H, q_len, S}), qkv_dt, tag::abcd);
         dnnl::memory::desc cur_k_md(make_dnnl_dims({B, H, kv_len, S}), qkv_dt, tag::abcd);
         if (cur_q_md == q_md && cur_k_md == k_md)
@@ -292,7 +292,7 @@ struct MHAKernel<KT_ONEDNN, T> {
 
 #ifdef OV_CPU_WITH_MLAS
 template <>
-struct MHAKernel<KT_MLAS, float> {
+struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
     size_t m_block_size;
     // buffer to hold qk temp
     std::vector<PlainTensor<float>> qk_buffers;
@@ -422,7 +422,7 @@ struct MHAKernel<KT_MLAS, float> {
                              select_nfltmax_at_0,
                              ncausal,
                              kv_len,
-                             Precision::FP32);
+                             ov::element::f32);
             }
             mlas_sgemm("N",
                        "N",
@@ -521,7 +521,7 @@ struct MHASingleToken {
                          select_nfltmax_at_0,
                          ncausal,
                          kv_len,
-                         Precision::FP32);
+                         ov::element::f32);
         });
 
         // attn_w * V
@@ -570,7 +570,7 @@ struct MHASingleToken {
     }
 };
 
-template <KernelTypes KType, typename T>
+template <ScaledDotProductAttention::KernelTypes KType, typename T>
 struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAttention::Executor {
     PlainTensor<T> q_input;           // f32[B, L1, H*S] / [B, H, L1, S]
     PlainTensor<T> k_input;           // f32[B, L1, H*S]
@@ -611,7 +611,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         v_input.reset(inputs[2]);
         if (input_num > 3) {
             // attn_mask
-            if (inputs[3]->getDesc().getPrecision() == Precision::U8) {
+            if (inputs[3]->getDesc().getPrecision() == ov::element::u8) {
                 // bool->f32
                 prepare_attn_mask(inputs[3]);
             } else {
@@ -705,11 +705,11 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
         return;
     auto rtPrecision = getOriginalInputPrecisionAtPort(0);
 
-    if (rtPrecision == Precision::BF16) {
+    if (rtPrecision == ov::element::bf16) {
         m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(m_config);
     } else {
         // only support bf16/f32
-        rtPrecision = Precision::FP32;
+        rtPrecision = ov::element::f32;
 #ifdef OV_CPU_WITH_MLAS
         m_executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(m_config);
 #else
@@ -724,14 +724,14 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     inPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getInputShapeAtPort(2), false, -1);
     if (getOriginalInputsNumber() > 3) {
         // attn_mask
-        if (getOriginalInputPrecisionAtPort(3) == Precision::U8) {
-            inPortConfigs.emplace_back(LayoutType::ncsp, Precision::U8, getInputShapeAtPort(3), false, -1);
+        if (getOriginalInputPrecisionAtPort(3) == ov::element::u8) {
+            inPortConfigs.emplace_back(LayoutType::ncsp, ov::element::u8, getInputShapeAtPort(3), false, -1);
         } else {
-            inPortConfigs.emplace_back(LayoutType::ncsp, Precision::FP32, getInputShapeAtPort(3), false, -1);
+            inPortConfigs.emplace_back(LayoutType::ncsp, ov::element::f32, getInputShapeAtPort(3), false, -1);
         }
     }
     if (getOriginalInputsNumber() > 4) {
-        inPortConfigs.emplace_back(LayoutType::ncsp, Precision::FP32, getInputShapeAtPort(4), false, -1);
+        inPortConfigs.emplace_back(LayoutType::ncsp, ov::element::f32, getInputShapeAtPort(4), false, -1);
     }
 
     // initialize output port

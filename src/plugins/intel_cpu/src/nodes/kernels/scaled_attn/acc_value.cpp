@@ -48,15 +48,15 @@ void attn_acc_value_inner(float* out, float weight, T* v, size_t S) {
     }
 }
 
-void attn_acc_values(float** outs, float* weights, void** vs, size_t vec_num, size_t vec_len, Precision input_precision) {
-    if (input_precision == Precision::FP32) {
+void attn_acc_values(float** outs, float* weights, void** vs, size_t vec_num, size_t vec_len, ov::element::Type input_precision) {
+    if (input_precision == ov::element::f32) {
         for (size_t i = 0; i < vec_num; i++) {
             auto out_ptr = outs[i];
             auto v_ptr = static_cast<float*>(vs[i]);
             attn_acc_value_inner(out_ptr, weights[i], v_ptr, vec_len);
         }
     } else {
-        assert(input_precision == Precision::BF16);
+        assert(input_precision == ov::element::bf16);
         for (size_t i = 0; i < vec_num; i++) {
             auto out_ptr = outs[i];
             auto v_ptr = static_cast<ov::bfloat16*>(vs[i]);

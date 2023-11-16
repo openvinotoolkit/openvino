@@ -14,8 +14,6 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-enum KernelTypes { KT_REF, KT_ONEDNN, KT_MLAS};
-
 class ScaledDotProductAttention : public Node {
 public:
     ScaledDotProductAttention(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
@@ -33,6 +31,8 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+
+    enum KernelTypes { KT_REF, KT_ONEDNN, KT_MLAS};
 
 private:
     struct Executor {

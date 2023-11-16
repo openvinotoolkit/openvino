@@ -24,38 +24,38 @@ namespace ov {
 namespace intel_cpu {
 
 template <typename T>
-inline void assert_dt(InferenceEngine::Precision dt) {
+inline void assert_dt(ov::element::Type dt) {
     IE_ASSERT(false);
 }
 
 template <>
-inline void assert_dt<float>(InferenceEngine::Precision dt) {
-    IE_ASSERT(dt == InferenceEngine::Precision::FP32);
+inline void assert_dt<float>(ov::element::Type dt) {
+    IE_ASSERT(dt == ov::element::f32);
 }
 
 template <>
-inline void assert_dt<ov::bfloat16>(InferenceEngine::Precision dt) {
-    IE_ASSERT(dt == InferenceEngine::Precision::BF16);
+inline void assert_dt<ov::bfloat16>(ov::element::Type dt) {
+    IE_ASSERT(dt == ov::element::bf16);
 }
 
 template <>
-inline void assert_dt<uint8_t>(InferenceEngine::Precision dt) {
-    IE_ASSERT(dt == InferenceEngine::Precision::U8);
+inline void assert_dt<uint8_t>(ov::element::Type dt) {
+    IE_ASSERT(dt == ov::element::u8);
 }
 
 template <>
-inline void assert_dt<int8_t>(InferenceEngine::Precision dt) {
-    IE_ASSERT(dt == InferenceEngine::Precision::I8);
+inline void assert_dt<int8_t>(ov::element::Type dt) {
+    IE_ASSERT(dt == ov::element::i8);
 }
 
 template <>
-inline void assert_dt<int32_t>(InferenceEngine::Precision dt) {
-    IE_ASSERT(dt == InferenceEngine::Precision::I32);
+inline void assert_dt<int32_t>(ov::element::Type dt) {
+    IE_ASSERT(dt == ov::element::i32);
 }
 
 template <>
-inline void assert_dt<float16>(InferenceEngine::Precision dt) {
-    IE_ASSERT(dt == InferenceEngine::Precision::FP16);
+inline void assert_dt<float16>(ov::element::Type dt) {
+    IE_ASSERT(dt == ov::element::f16);
 }
 
 template <typename T>
@@ -80,32 +80,32 @@ struct data_type_name<uint8_t> {
 
 template <typename T>
 struct precision_of {
-    static constexpr InferenceEngine::Precision::ePrecision value = InferenceEngine::Precision::ePrecision::UNSPECIFIED;
+    static constexpr ov::element::Type_t value = ov::element::Type_t::undefined;
 };
 
 template <>
 struct precision_of<float> {
-    static constexpr InferenceEngine::Precision::ePrecision value = InferenceEngine::Precision::ePrecision::FP32;
+    static constexpr ov::element::Type_t value = ov::element::Type_t::f32;
 };
 
 template <>
 struct precision_of<int32_t> {
-    static constexpr InferenceEngine::Precision::ePrecision value = InferenceEngine::Precision::ePrecision::I32;
+    static constexpr ov::element::Type_t value = ov::element::Type_t::i32;
 };
 
 template <>
 struct precision_of<bfloat16> {
-    static constexpr InferenceEngine::Precision::ePrecision value = InferenceEngine::Precision::ePrecision::BF16;
+    static constexpr ov::element::Type_t value = ov::element::Type_t::bf16;
 };
 
 template <>
 struct precision_of<uint8_t> {
-    static constexpr InferenceEngine::Precision::ePrecision value = InferenceEngine::Precision::ePrecision::U8;
+    static constexpr ov::element::Type_t value = ov::element::Type_t::u8;
 };
 
 template <>
 struct precision_of<float16> {
-    static constexpr InferenceEngine::Precision::ePrecision value = InferenceEngine::Precision::ePrecision::FP16;
+    static constexpr ov::element::Type_t value = ov::element::Type_t::f16;
 };
 
 #define PLAINTENSOR_RANK_MAX 8
@@ -135,7 +135,7 @@ struct PlainTensorBase {
         assert(i < m_rank);
         return m_strides[i];
     }
-    virtual InferenceEngine::Precision get_precision(void) = 0;
+    virtual ov::element::Type get_precision(void) = 0;
     virtual void reset(MemoryPtr mem) = 0;
 };
 
@@ -179,7 +179,7 @@ struct PlainTensor : public PlainTensorBase {
         resize(mem->getStaticDims(), reinterpret_cast<DT*>(mem->getData()));
     }
 
-    InferenceEngine::Precision get_precision(void) override {
+    ov::element::Type get_precision(void) override {
         return precision_of<DT>::value;
     }
 

@@ -63,12 +63,12 @@ void attn_reduce_inner(T* dst, float* temp, size_t M, size_t S, size_t temp_stri
     }
 }
 
-void attn_reduce(void* dst, float* temp, size_t M, size_t S, size_t temp_stride, Precision input_precision) {
-    if (input_precision == Precision::FP32) {
+void attn_reduce(void* dst, float* temp, size_t M, size_t S, size_t temp_stride, ov::element::Type input_precision) {
+    if (input_precision == ov::element::f32) {
         auto dst_ptr = static_cast<float*>(dst);
         attn_reduce_inner(dst_ptr, temp, M, S, temp_stride);
     } else {
-        assert(input_precision == Precision::BF16);
+        assert(input_precision == ov::element::bf16);
         auto dst_ptr = static_cast<ov::bfloat16*>(dst);
         attn_reduce_inner(dst_ptr, temp, M, S, temp_stride);
     }

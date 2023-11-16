@@ -6,14 +6,14 @@
 #include <cstddef>
 #include <cstdint>
 #include <vector>
-#include "ie_precision.hpp"
+#include <openvino/core/type/element_type.hpp>
 
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
 namespace XARCH {
 
-void attn_dot_products(void** a, void** b, void**c, size_t vec_num, size_t vec_len, Precision input_precision);
+void attn_dot_products(void** a, void** b, void**c, size_t vec_num, size_t vec_len, ov::element::Type input_precision);
 
 }  // namespace XARCH
 }  // namespace Cpu

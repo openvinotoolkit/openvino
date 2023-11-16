@@ -541,7 +541,7 @@ void attn_softmax(float* a,
                   bool select_nfltmax_at_0,
                   size_t len,
                   size_t total_size,
-                  Precision dst_precision) {
+                  ov::element::Type dst_precision) {
     using func_type = void (*)(float*, float, const float*, const float*, const uint8_t*, bool, size_t, float&);
     static func_type funcs[] = {
         scale_add2_reduce_max<false, false, false>,
@@ -562,7 +562,7 @@ void attn_softmax(float* a,
     exp_reduce_sum(a, max, len, sum);
     // divide sum
     float scalar = 1.0f / sum;
-    if (dst_precision == Precision::FP32) {
+    if (dst_precision == ov::element::f32) {
         multiply_scalar(a, static_cast<float*>(a_dst), scalar, len);
         // apply causual mask to final result instead of attn_score
         if (total_size > len)
