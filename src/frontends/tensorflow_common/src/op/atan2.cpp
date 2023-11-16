@@ -11,7 +11,7 @@
 #include "openvino/op/logical_and.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/select.hpp"
-#include "openvino/op/subttract.hpp"
+#include "openvino/op/subtract.hpp"
 
 
 using namespace std;
