@@ -57,7 +57,6 @@ public:
     /// \brief Constructs a shape-of operation.
     ShapeOf(const Output<Node>& arg);
 
-    bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     void validate_and_infer_types() override;
