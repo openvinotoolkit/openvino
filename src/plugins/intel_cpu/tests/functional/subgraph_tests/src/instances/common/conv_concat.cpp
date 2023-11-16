@@ -250,7 +250,7 @@ namespace ConvolutionBackpropDataConcat {
 /* ============= ConvolutionBackpropData (2D) ============= */
 const std::vector<CPUSpecificParams> CPUParams2D = {
     conv_acl_2D,
-    conv_ref_2D,    
+    conv_ref_2D,
     // conv_gemm_2D,
     conv_avx512_2D
 };
