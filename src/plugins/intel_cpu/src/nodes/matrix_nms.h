@@ -100,7 +100,7 @@ private:
     size_t m_realNumClasses = 0;
     size_t m_realNumBoxes = 0;
     float (*m_decay_fn)(float, float, float) = nullptr;
-    void checkPrecision(const InferenceEngine::Precision prec, const std::vector<InferenceEngine::Precision> precList, const std::string name,
+    void checkPrecision(const ov::element::Type prec, const std::vector<ov::element::Type> precList, const std::string name,
                         const std::string type);
 
     size_t nmsMatrix(const float* boxesData, const float* scoresData, BoxInfo* filterBoxes, const int64_t batchIdx, const int64_t classIdx);

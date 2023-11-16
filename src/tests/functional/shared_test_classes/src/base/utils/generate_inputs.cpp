@@ -1033,6 +1033,63 @@ ov::runtime::Tensor generate(const
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
 
+ov::runtime::Tensor generate(const
+                             std::shared_ptr<ov::op::v6::ExperimentalDetectronDetectionOutput>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    InputGenerateData inGenData(1, 0, 1, 1);
+    auto tensor = ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+
+    if (0 == port || 1 == port) {
+#define CASE(X) case X: { \
+        using T = typename ov::fundamental_type_for<X>; \
+        auto raw_ptr = tensor.data<T>(); \
+        if (port == 0) { \
+            raw_ptr[2] = static_cast<T>(10.f); \
+            raw_ptr[3] = static_cast<T>(10.f); \
+        } \
+        if (port == 1) { \
+            raw_ptr[0] = static_cast<T>(5.f); \
+        } \
+        break; \
+    }
+
+        switch (elemType) {
+            CASE(ov::element::Type_t::bf16)
+            CASE(ov::element::Type_t::f16)
+            CASE(ov::element::Type_t::f32)
+            CASE(ov::element::Type_t::f64)
+            default: OPENVINO_THROW("Unsupported element type: ", elemType);
+        }
+#undef CASE
+    }
+    return tensor;
+}
+
+ov::runtime::Tensor generate(const
+                             std::shared_ptr<ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    InputGenerateData inGenData(1, 0, 1, 1);
+    return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+}
+
+ov::runtime::Tensor generate(const
+                             std::shared_ptr<ov::op::v6::ExperimentalDetectronPriorGridGenerator>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    InputGenerateData inGenData(0, 0, 1, 1);
+    if (0 == port) {
+        inGenData.start_from = -100;
+        inGenData.range = 200;
+        inGenData.resolution = 2;
+    }
+    return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
+}
+
 template<typename T>
 ov::runtime::Tensor generateInput(const std::shared_ptr<ov::Node>& node,
                                   size_t port,
@@ -1058,6 +1115,7 @@ InputsMap getInputMap() {
 #include "openvino/opsets/opset10_tbl.hpp"
 #include "openvino/opsets/opset11_tbl.hpp"
 #include "openvino/opsets/opset12_tbl.hpp"
+#include "openvino/opsets/opset13_tbl.hpp"
 
 #include "ov_ops/opset_private_tbl.hpp"
 #undef _OPENVINO_OP_REG

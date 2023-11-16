@@ -17,7 +17,7 @@ std::set<std::vector<element::Type>> jit_dnnl_emitter::get_supported_precisions(
     return {{element::f32}};
 }
 
-jit_dnnl_emitter::jit_dnnl_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, InferenceEngine::Precision exec_prc)
+jit_dnnl_emitter::jit_dnnl_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
 
     kind = dnnl_eltwise_tanh;
@@ -29,7 +29,7 @@ jit_dnnl_emitter::jit_dnnl_emitter(jit_generator *host, cpu_isa_t host_isa, cons
 
 jit_dnnl_emitter::jit_dnnl_emitter(jit_generator *host, cpu_isa_t host_isa,
                                    dnnl_alg_kind_t algKind, float alpha, float beta,
-                                   InferenceEngine::Precision exec_prc)
+                                   ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc), kind(algKind), alpha(alpha), beta(beta) {
 
     set_injector();
@@ -85,7 +85,7 @@ void jit_dnnl_emitter::emit_data() const {
 
 jit_dnnl_aux_emitter::jit_dnnl_aux_emitter(jit_generator *host, cpu_isa_t host_isa,
                                            dnnl_alg_kind_t algKind, float inpAlpha, float inpBeta,
-                                           InferenceEngine::Precision exec_prc)
+                                           ov::element::Type exec_prc)
     : jit_dnnl_emitter(host, host_isa, algKind, inpAlpha, inpBeta, exec_prc) {
 }
 

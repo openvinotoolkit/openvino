@@ -110,7 +110,7 @@ void DebugLogEnabled::break_at(const std::string & log) {
 
 std::ostream & operator<<(std::ostream & os, const MemoryDesc& desc) {
     os << desc.getShape().toString()
-       << " " << desc.getPrecision().name()
+       << " " << desc.getPrecision().get_type_name()
        << " " << desc.serializeFormat();
     return os;
 }
@@ -196,7 +196,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
                     auto desc = &(ptr->getDesc());
                     auto shape_str = desc->getShape().toString();
                     replace_all(shape_str, " ", "");
-                    leftside << comma << desc->getPrecision().name()
+                    leftside << comma << desc->getPrecision().get_type_name()
                                 << "_" << desc->serializeFormat()
                                 << "_" << shape_str
                                 << "_" << ptr->getData();
@@ -210,7 +210,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
                 auto shape_str = desc->getShape().toString();
                 replace_all(shape_str, "0 - ?", "?");
                 replace_all(shape_str, " ", "");
-                leftside << comma << desc->getPrecision().name()
+                leftside << comma << desc->getPrecision().get_type_name()
                             << "_" << desc->serializeFormat()
                             << "_" << shape_str;
                 b_ouputed = true;
@@ -229,7 +229,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
         if (!inConfs.empty()) {
             os << " in:[";
             for (auto& c : inConfs) {
-                os << c.getMemDesc()->getPrecision().name()
+                os << c.getMemDesc()->getPrecision().get_type_name()
                         << c.getMemDesc()->
                         << "/" << c.getMemDesc()->serializeFormat()
                         << "; ";
@@ -244,7 +244,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
             for (auto& c : outConfs) {
                 auto shape_str = c.getMemDesc()->getShape().toString();
                 replace_all(shape_str, "0 - ?", "?");
-                leftside << comma << c.getMemDesc()->getPrecision().name()
+                leftside << comma << c.getMemDesc()->getPrecision().get_type_name()
                             << "_" << c.getMemDesc()->serializeFormat()
                             << "_" << shape_str;
                 comma = ",";
@@ -257,7 +257,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
         for (size_t i = 0; i < node.getOriginalOutputPrecisions().size(); i++) {
             auto shape = node.getOutputShapeAtPort(i);
             std::string prec_name = "Undef";
-            prec_name = node.getOriginalOutputPrecisionAtPort(i).name();
+            prec_name = node.getOriginalOutputPrecisionAtPort(i).get_type_name();
             auto shape_str = shape.toString();
             replace_all(shape_str, "0 - ?", "?");
             leftside << comma << prec_name
@@ -300,7 +300,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
             auto shape = pmem->getDesc().getShape().getDims();
 
             if (shape_size(shape) <= 8) {
-                auto type = InferenceEngine::details::convertPrecision(pmem->getDesc().getPrecision());
+                auto type = pmem->getDesc().getPrecision();
                 auto tensor = std::make_shared<ngraph::runtime::HostTensor>(type, shape, data);
                 auto constop = std::make_shared<ov::op::v0::Constant>(tensor);
                 comma = "";

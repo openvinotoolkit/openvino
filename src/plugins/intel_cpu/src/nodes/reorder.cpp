@@ -91,8 +91,8 @@ void Reorder::initSupportedPrimitiveDescriptors() {
         if (one_of(inShape.getRank(), 4u, 5u) &&
                 config.inConfs[0].getMemDesc()->hasLayoutType(LayoutType::nspc) &&
                 config.outConfs[0].getMemDesc()->hasLayoutType(LayoutType::ncsp) &&
-                config.inConfs[0].getMemDesc()->getPrecision() == Precision::FP32 &&
-                config.outConfs[0].getMemDesc()->getPrecision() == Precision::FP32) {
+                config.inConfs[0].getMemDesc()->getPrecision() == ov::element::f32 &&
+                config.outConfs[0].getMemDesc()->getPrecision() == ov::element::f32) {
             // oneDNN JIT reorder shows bad perf for nspc to ncsp reorder case so we fallback on simple c++ implementation
             isNspc2NcspCase = true;
         } else if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2) &&
@@ -205,7 +205,7 @@ void Reorder::prepareParams() {
 #if defined(OV_CPU_ARM_ENABLE_FP16)
     // @todo current oneDNN v3.2 lacks optimized jit implementation for fp16 reorders.
     // Use transpose executor as a temporary WA.
-    if (everyone_is(Precision::FP16, parentDesc->getPrecision(), childDesc->getPrecision()) &&
+    if (everyone_is(ov::element::f16, parentDesc->getPrecision(), childDesc->getPrecision()) &&
         ((parentDesc->hasLayoutType(LayoutType::ncsp) && childDesc->hasLayoutType(LayoutType::nspc)) ||
          (parentDesc->hasLayoutType(LayoutType::nspc) && childDesc->hasLayoutType(LayoutType::ncsp))) &&
         one_of(parentDesc->getShape().getRank(), 3, 4)) {
@@ -427,8 +427,8 @@ void Reorder::execute(dnnl::stream strm) {
 std::string Reorder::getReorderArgs(const MemoryDesc &parentDesc, const MemoryDesc &childDesc) {
     std::string inArgs, outArgs;
     if (parentDesc.getPrecision() != childDesc.getPrecision()) {
-        inArgs += (inArgs.empty() ? "" : "_") + std::string(parentDesc.getPrecision().name());
-        outArgs += (outArgs.empty() ? "" : "_") + std::string(childDesc.getPrecision().name());
+        inArgs += (inArgs.empty() ? "" : "_") + std::string(parentDesc.getPrecision().get_type_name());
+        outArgs += (outArgs.empty() ? "" : "_") + std::string(childDesc.getPrecision().get_type_name());
     }
     auto formatSrc = parentDesc.serializeFormat();
     auto formatDst = childDesc.serializeFormat();
@@ -471,8 +471,8 @@ void Reorder::reorderData(const IMemory &input, const IMemory &output, MultiCach
                 auto data = static_cast<const uint8_t *>(input.getData());
                 tmpBuff.resize(input.getSize());
 
-                const auto outPrc = DnnlExtensionUtils::DataTypeToIEPrecision(output.getDataType());
-                cpu_convert(data, tmpBuff.data(), DnnlExtensionUtils::DataTypeToIEPrecision(input.getDataType()),
+                const auto outPrc = DnnlExtensionUtils::DataTypeToElementType(output.getDataType());
+                cpu_convert(data, tmpBuff.data(), DnnlExtensionUtils::DataTypeToElementType(input.getDataType()),
                             outPrc, input.getSize() / input.getDesc().getPrecision().size());
 
                 auto tmpDesc = input.getDesc().cloneWithNewPrecision(outPrc);
