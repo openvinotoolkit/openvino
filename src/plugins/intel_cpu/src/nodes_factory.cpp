@@ -111,6 +111,8 @@
 #include "nodes/topk.h"
 #include "nodes/transpose.h"
 #include "nodes/unique.hpp"
+#include "nodes/ngram.h"
+#include "nodes/scaled_attn.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -216,6 +218,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(GridSample, Type::GridSample);
     INTEL_CPU_NODE(Interaction, Type::Interaction);
     INTEL_CPU_NODE(MHA, Type::MHA);
+    INTEL_CPU_NODE(ScaledDotProductAttention, Type::ScaledDotProductAttention);
     INTEL_CPU_NODE(Snippet, Type::Subgraph);
 #endif
 }

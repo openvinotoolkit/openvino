@@ -122,7 +122,7 @@ protected:
         if (secondaryInputType == helpers::InputLayerType::PARAMETER) {
             params.push_back(std::dynamic_pointer_cast<opset1::Parameter>(matrixB));
         }
-        auto matMul = builder::makeMatMul(params[0], matrixB, transpA, transpB);
+        auto matMul = std::make_shared<ov::op::v0::MatMul>(params[0], matrixB, transpA, transpB);
         auto makeFunction = [](const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) {
             ngraph::ResultVector results;
 
