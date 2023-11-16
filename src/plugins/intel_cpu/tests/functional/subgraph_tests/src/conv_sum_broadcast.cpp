@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <regex>
 #include <ov_ops/type_relaxed.hpp>
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
@@ -140,11 +141,15 @@ public:
 protected:
     bool primTypeCheck(std::string primType) const override {
         auto isaType = getISA(runtimeType == ov::element::Type_t::f32);
+        const std::regex jit_case_regex(makeSelectedTypeStr(std::string("jit_") + isaType, runtimeType),
+                                        std::regex_constants::icase);
+        const std::regex brgconv_case_regex(makeSelectedTypeStr(std::string("brgconv_") + isaType, runtimeType),
+                                            std::regex_constants::icase);
+
         if (isaType == "")
             return primType == "ref";
         else
-            return primType == makeSelectedTypeStr(std::string("jit_") + isaType, runtimeType)
-                || primType == makeSelectedTypeStr(std::string("brgconv_") + isaType, runtimeType);
+            return std::regex_match(primType, jit_case_regex) || std::regex_match(primType, brgconv_case_regex);
     }
 
 protected:

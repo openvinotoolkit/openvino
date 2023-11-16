@@ -651,7 +651,6 @@ namespace InferenceEngine {
 class IVariableStateWrapper : public ov::IVariableState {
 private:
     std::shared_ptr<InferenceEngine::IVariableStateInternal> m_state;
-    mutable ov::SoPtr<ov::ITensor> m_converted_state;
 
 public:
     explicit IVariableStateWrapper(const std::shared_ptr<InferenceEngine::IVariableStateInternal>& state)
@@ -666,10 +665,8 @@ public:
         m_state->SetState(ov::tensor_to_blob(state));
     }
 
-    const ov::SoPtr<ov::ITensor>& get_state() const override {
-        m_converted_state = ov::make_tensor(std::const_pointer_cast<InferenceEngine::Blob>(m_state->GetState()));
-
-        return m_converted_state;
+    ov::SoPtr<ov::ITensor> get_state() const override {
+        return ov::make_tensor(std::const_pointer_cast<InferenceEngine::Blob>(m_state->GetState()));
     }
 };
 

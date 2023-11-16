@@ -5,7 +5,7 @@
 #include "priorbox.hpp"
 #include "utils.hpp"
 #include "ie_ngraph_utils.hpp"
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 
 namespace ov {
 namespace intel_cpu {
@@ -27,12 +27,12 @@ Result PriorBoxShapeInfer::infer(
 }
 
 ShapeInferPtr  PriorBoxShapeInferFactory::makeShapeInfer() const {
-    auto priorBox = ov::as_type_ptr<const ngraph::opset1::PriorBox>(m_op);
+    auto priorBox = ov::as_type_ptr<const ov::opset1::PriorBox>(m_op);
     if (!priorBox) {
         OPENVINO_THROW("Unexpected op type in PriorBox shape inference factory: ", m_op->get_type_name());
     }
     const auto& attrs = priorBox->get_attrs();
-    auto number_of_priors = ngraph::opset1::PriorBox::number_of_priors(attrs);
+    auto number_of_priors = ov::opset1::PriorBox::number_of_priors(attrs);
     return std::make_shared<PriorBoxShapeInfer>(number_of_priors);
 }
 } // namespace node

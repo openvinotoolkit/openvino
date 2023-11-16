@@ -228,7 +228,14 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
 }
 
 bool CPUTestsBase::primTypeCheck(std::string primType) const {
-    return selectedType.find(CPUTestsBase::any_type) != std::string::npos || std::regex_match(primType, std::regex(selectedType));
+    std::cout << "selectedType: " << selectedType << std::endl;
+    if (selectedType.find("FP") != std::string::npos)
+        return selectedType.find(CPUTestsBase::any_type) != std::string::npos ||
+               std::regex_match(primType,
+                                std::regex(std::regex_replace(selectedType, std::regex("FP"), "f"), std::regex::icase));
+    else
+        return selectedType.find(CPUTestsBase::any_type) != std::string::npos ||
+               std::regex_match(primType, std::regex(selectedType, std::regex::icase));
 }
 
 std::string CPUTestsBase::getTestCaseName(CPUSpecificParams params) {
@@ -351,7 +358,7 @@ CPUTestsBase::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::ParameterV
 
 std::string CPUTestsBase::makeSelectedTypeStr(std::string implString, ngraph::element::Type_t elType) {
     implString.push_back('_');
-    implString += InferenceEngine::details::convertPrecision(elType).name();
+    implString += ov::element::Type(elType).get_type_name();
     return implString;
 }
 

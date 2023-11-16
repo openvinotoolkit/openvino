@@ -3,7 +3,7 @@
 //
 
 #include "interpolate.hpp"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "nodes/common/cpu_memcpy.h"
 #include "emitters/x64/jit_load_store_emitters.hpp"
 
@@ -40,7 +40,7 @@ bool ov::intel_cpu::InterpolateExecutor::init(const InterpolateAttrs& interpolat
             break;
         }
         default: {
-            IE_THROW() << "Interpolate executor does not support interpolate mode: " << interpAttrs.mode;
+            OPENVINO_THROW("Interpolate executor does not support interpolate mode: ", interpAttrs.mode);
             break;
         }
     }
@@ -114,7 +114,7 @@ float ov::intel_cpu::InterpolateExecutor::coordTransToInput(int outCoord, float 
             break;
         }
         default: {
-            IE_THROW() << "errorPrefix" << " does not support specified coordinate transformation mode";
+            OPENVINO_THROW("errorPrefix", " does not support specified coordinate transformation mode");
             break;
         }
     }
@@ -148,7 +148,7 @@ int ov::intel_cpu::InterpolateExecutor::nearestRound(float originCoord, bool isD
                 return static_cast<int>(originCoord);
         }
         default: {
-            IE_THROW() << "errorPrefix" << " does not support specified nearest round mode";
+            OPENVINO_THROW("errorPrefix", " does not support specified nearest round mode");
             break;
         }
     }
@@ -504,7 +504,7 @@ const uint8_t* ov::intel_cpu::InterpolateExecutor::padPreprocess(const std::vect
             srcPadded.resize(eltsTotal * srcDataSize, 0x0);
             uint8_t *src_data_pad = static_cast<uint8_t *>(&srcPadded[0]);
             if ((srcDim5d[0] != srcDimPad5d[0]) || (srcDim5d[1] != srcDimPad5d[1])) {
-                IE_THROW() << "Interpolate layer with name does not support padding on batch and channel dimensions";
+                OPENVINO_THROW("Interpolate layer with name does not support padding on batch and channel dimensions");
             }
             parallel_for5d(srcDim5d[0], CB, srcDim5d[2], srcDim5d[3], srcDim5d[4], [&](int n, int cb, int d, int h, int w) {
                 const uint8_t *src = src_data_origin + (n * CB * srcDim5d[2] * srcDim5d[3] * srcDim5d[4] * blkSize) * srcDataSize

@@ -67,10 +67,7 @@ void MatMulTest::SetUp() {
     if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
         params.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
     }
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto MatMul = std::dynamic_pointer_cast<ngraph::opset3::MatMul>(
-            ngraph::builder::makeMatMul(paramOuts[0], secondaryInput, shapeRelatedParams.input1.second, shapeRelatedParams.input2.second));
+    auto MatMul = std::make_shared<ov::op::v0::MatMul>(params[0], secondaryInput, shapeRelatedParams.input1.second, shapeRelatedParams.input2.second);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(MatMul)};
     function = std::make_shared<ngraph::Function>(results, params, "MatMul");
 }
