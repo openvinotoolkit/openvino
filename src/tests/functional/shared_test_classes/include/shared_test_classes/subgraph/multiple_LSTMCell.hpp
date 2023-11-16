@@ -39,11 +39,13 @@ private:
     std::vector<float> reccurrenceWeights_vals;
     std::vector<float> bias_vals;
     ov::test::utils::MemoryTransformation transformation;
+    std::vector<ov::Shape> input_shapes;
 
 protected:
     void SetUp() override;
     void compile_model() override;
     void run() override;
+    void infer() override;
 
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<multipleLSTMCellParams>& obj);

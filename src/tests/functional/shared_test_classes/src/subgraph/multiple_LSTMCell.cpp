@@ -42,6 +42,7 @@ void MultipleLSTMCellTest::SetUp() {
     std::vector<size_t> squeeze_axes{0};
     std::vector<size_t> hidden_memory_dims{1, hiddenSize};
     std::vector<size_t> cell_memory_dims{1, hiddenSize};
+    input_shapes = {input_dims};
 
     input_bias = ov::test::utils::generate_float_numbers(inputSize, -0.25f, 0.0f);
     input_weights = ov::test::utils::generate_float_numbers(inputSize, 0.0f, 0.15f);
@@ -53,6 +54,7 @@ void MultipleLSTMCellTest::SetUp() {
     bias_vals = ov::test::utils::generate_float_numbers(4 * hiddenSize, -0.25f, 0.15f);
 
     ov::ParameterVector input_parameter{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(input_dims))};
+    input_parameter[0]->set_friendly_name("Parameter_1");
 
     auto input_add_const = ngraph::builder::makeConstant(element_type, input_dims, input_bias);
     auto add = ngraph::builder::makeEltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
@@ -199,6 +201,7 @@ void MultipleLSTMCellTest::SetUp() {
     auto final_reshape_pattern =
         std::make_shared<ov::op::v0::Constant>(element::i64, Shape{4}, std::vector<size_t>({1, 1, 1, hiddenSize}));
     auto final_reshape = std::make_shared<ov::op::v1::Reshape>(out_unsqueeze_2, final_reshape_pattern, false);
+    final_reshape->set_friendly_name("Reshape_1");
 
     cell_memory_write->add_control_dependency(cell_memory_read);
     hidden_memory_write->add_control_dependency(hidden_memory_read);
@@ -224,6 +227,7 @@ void MultipleLSTMCellTest::switch_to_friendly_model() {
     std::vector<size_t> cell_memory_dims{1, hiddenSize};
 
     ov::ParameterVector input_parameter{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(input_dims))};
+    input_parameter[0]->set_friendly_name("Parameter_1");
 
     auto input_add_const = ngraph::builder::makeConstant(element_type, input_dims, input_bias);
     auto add = ngraph::builder::makeEltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
@@ -253,7 +257,8 @@ void MultipleLSTMCellTest::switch_to_friendly_model() {
                                                        weightsNode,
                                                        reccurrenceWeightsNode,
                                                        biasNode,
-                                                       hiddenSize);
+                                                       hiddenSize,
+                                                       ov::op::LSTMWeightsFormat::FICO);
 
     auto unsqueeze_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(lstm->output(0), unsqueeze_const);
@@ -287,7 +292,8 @@ void MultipleLSTMCellTest::switch_to_friendly_model() {
                                                          weightsNode_2,
                                                          reccurrenceWeightsNode_2,
                                                          biasNode_2,
-                                                         hiddenSize);
+                                                         hiddenSize,
+                                                         ov::op::LSTMWeightsFormat::FICO);
 
     auto unsqueeze_2_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto unsqueeze_2 = std::make_shared<ov::op::v0::Unsqueeze>(lstm_2->output(0), unsqueeze_2_const);
@@ -295,9 +301,10 @@ void MultipleLSTMCellTest::switch_to_friendly_model() {
     auto final_reshape_pattern =
         std::make_shared<ov::op::v0::Constant>(element::i64, Shape{4}, std::vector<size_t>({1, 1, 1, hiddenSize}));
     auto final_reshape = std::make_shared<ov::op::v1::Reshape>(unsqueeze_2, final_reshape_pattern, false);
+    final_reshape->set_friendly_name("Reshape_1");
     // Body 2 - end
 
-    function = std::make_shared<Model>(final_reshape, input_parameter, "TI_unrolled_without_memory");
+    functionRefs = std::make_shared<Model>(final_reshape, input_parameter, "TI_unrolled_without_memory");
 }
 
 void MultipleLSTMCellTest::create_pure_tensor_iterator_model() {
@@ -312,6 +319,7 @@ void MultipleLSTMCellTest::create_pure_tensor_iterator_model() {
     std::vector<size_t> cell_memory_dims{1, hiddenSize};
 
     ov::ParameterVector input_parameter{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(input_dims))};
+    input_parameter[0]->set_friendly_name("Parameter_1");
 
     auto input_add_const = ngraph::builder::makeConstant(element_type, input_dims, input_bias);
     auto add = ngraph::builder::makeEltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
@@ -350,7 +358,8 @@ void MultipleLSTMCellTest::create_pure_tensor_iterator_model() {
                                                        weightsNode,
                                                        reccurrenceWeightsNode,
                                                        biasNode,
-                                                       hiddenSize);
+                                                       hiddenSize,
+                                                       ov::op::LSTMWeightsFormat::FICO);
 
     auto unsqueeze_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(lstm->output(0), unsqueeze_const);
@@ -411,7 +420,8 @@ void MultipleLSTMCellTest::create_pure_tensor_iterator_model() {
                                                          weightsNode_2,
                                                          reccurrenceWeightsNode_2,
                                                          biasNode_2,
-                                                         hiddenSize);
+                                                         hiddenSize,
+                                                         ov::op::LSTMWeightsFormat::FICO);
 
     auto unsqueeze_2_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto unsqueeze_2 = std::make_shared<ov::op::v0::Unsqueeze>(lstm_2->output(0), unsqueeze_2_const);
@@ -439,8 +449,9 @@ void MultipleLSTMCellTest::create_pure_tensor_iterator_model() {
     auto final_reshape_pattern =
         std::make_shared<ov::op::v0::Constant>(element::i64, Shape{4}, std::vector<size_t>({1, 1, 1, hiddenSize}));
     auto final_reshape = std::make_shared<ov::op::v1::Reshape>(out_unsqueeze_2, final_reshape_pattern, false);
+    final_reshape->set_friendly_name("Reshape_1");
 
-    function = std::make_shared<Model>(final_reshape, input_parameter, "PureTI");
+    functionRefs = std::make_shared<Model>(final_reshape, input_parameter, "PureTI");
 }
 
 void MultipleLSTMCellTest::init_memory() {
@@ -463,6 +474,7 @@ void MultipleLSTMCellTest::init_memory() {
 void MultipleLSTMCellTest::apply_low_latency() {
     // Calculate values after LowLatency transformation
     create_pure_tensor_iterator_model();
+    function = functionRefs;
     if (transformation == ov::test::utils::MemoryTransformation::LOW_LATENCY_V2) {
         function->validate_nodes_and_infer_types();
         // Apply LowLatency (insert Assigns/ReadValues) and UnrollTensorIterator
@@ -481,6 +493,13 @@ void MultipleLSTMCellTest::compile_model() {
     inferRequest = compiledModel.create_infer_request();
 }
 
+void MultipleLSTMCellTest::infer() {
+    for (const auto& input : inputs) {
+        inferRequest.set_tensor(input.first, input.second);
+    }
+    inferRequest.infer();
+}
+
 void MultipleLSTMCellTest::run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (transformation != ov::test::utils::MemoryTransformation::NONE) {
@@ -490,8 +509,7 @@ void MultipleLSTMCellTest::run() {
     }
 
     init_memory();
-    // GenerateInputs();
-    infer();
+    generate_inputs(input_shapes);
 
     // Calculate ref values
     if (transformation == ov::test::utils::MemoryTransformation::NONE) {

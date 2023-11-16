@@ -37,6 +37,7 @@ private:
     std::vector<float> weights_vals;
     std::vector<float> reccurrenceWeights_vals;
     std::vector<float> bias_vals;
+    std::vector<ov::Shape> input_shapes;
 
 protected:
     void SetUp() override;

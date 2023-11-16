@@ -45,6 +45,7 @@ void MemoryLSTMCellTest::SetUp() {
     std::vector<size_t> squeeze_axes{0};
     std::vector<size_t> hidden_memory_dims{1, hiddenSize};
     std::vector<size_t> cell_memory_dims{1, hiddenSize};
+    input_shapes = {input_dims};
 
     input_bias = ov::test::utils::generate_float_numbers(inputSize, -0.2f, 0.0f);
     input_weights = ov::test::utils::generate_float_numbers(inputSize, 0.0f, 0.1f);
@@ -55,6 +56,7 @@ void MemoryLSTMCellTest::SetUp() {
     bias_vals = ov::test::utils::generate_float_numbers(4 * hiddenSize, -0.2f, 0.1f);
 
     ov::ParameterVector input_parameter{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(input_dims))};
+    input_parameter[0]->set_friendly_name("Parameter_1");
 
     auto input_add_const = ngraph::builder::makeConstant(element_type, input_dims, input_bias);
     auto add = ngraph::builder::makeEltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
@@ -127,6 +129,7 @@ void MemoryLSTMCellTest::SetUp() {
     auto final_reshape_pattern =
         std::make_shared<ov::op::v0::Constant>(element::i64, Shape{4}, std::vector<size_t>({1, 1, 1, hiddenSize}));
     auto final_reshape = std::make_shared<ov::op::v1::Reshape>(out_unsqueeze, final_reshape_pattern, false);
+    final_reshape->set_friendly_name("Reshape_1");
 
     cell_memory_write->add_control_dependency(cell_memory_read);
     hidden_memory_write->add_control_dependency(hidden_memory_read);
@@ -150,6 +153,7 @@ void MemoryLSTMCellTest::switch_to_friendly_model() {
     std::vector<size_t> cell_memory_dims{1, hiddenSize};
 
     ov::ParameterVector input_parameter{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(input_dims))};
+    input_parameter[0]->set_friendly_name("Parameter_1");
 
     auto input_add_const = ngraph::builder::makeConstant(element_type, input_dims, input_bias);
     auto add = ngraph::builder::makeEltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
@@ -179,7 +183,8 @@ void MemoryLSTMCellTest::switch_to_friendly_model() {
                                                        weightsNode,
                                                        reccurrenceWeightsNode,
                                                        biasNode,
-                                                       hiddenSize);
+                                                       hiddenSize,
+                                                       ov::op::LSTMWeightsFormat::FICO);
 
     auto unsqueeze_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(lstm->output(0), unsqueeze_const);
@@ -187,8 +192,9 @@ void MemoryLSTMCellTest::switch_to_friendly_model() {
     auto final_reshape_pattern =
         std::make_shared<ov::op::v0::Constant>(element::i64, Shape{4}, std::vector<size_t>({1, 1, 1, hiddenSize}));
     auto final_reshape = std::make_shared<ov::op::v1::Reshape>(unsqueeze, final_reshape_pattern, false);
+    final_reshape->set_friendly_name("Reshape_1");
 
-    function = std::make_shared<Model>(final_reshape, input_parameter, "TI_unrolled_without_memory");
+    functionRefs = std::make_shared<Model>(final_reshape, input_parameter, "TI_unrolled_without_memory");
 }
 
 void MemoryLSTMCellTest::create_pure_tensor_iterator_model() {
@@ -203,6 +209,7 @@ void MemoryLSTMCellTest::create_pure_tensor_iterator_model() {
     std::vector<size_t> cell_memory_dims{1, hiddenSize};
 
     ov::ParameterVector input_parameter{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(input_dims))};
+    input_parameter[0]->set_friendly_name("Parameter_1");
 
     auto input_add_const = ngraph::builder::makeConstant(element_type, input_dims, input_bias);
     auto add = ngraph::builder::makeEltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
@@ -241,7 +248,8 @@ void MemoryLSTMCellTest::create_pure_tensor_iterator_model() {
                                                        weightsNode,
                                                        reccurrenceWeightsNode,
                                                        biasNode,
-                                                       hiddenSize);
+                                                       hiddenSize,
+                                                       ov::op::LSTMWeightsFormat::FICO);
 
     auto unsqueeze_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(lstm->output(0), unsqueeze_const);
@@ -268,8 +276,9 @@ void MemoryLSTMCellTest::create_pure_tensor_iterator_model() {
     auto final_reshape_pattern =
         std::make_shared<ov::op::v0::Constant>(element::i64, Shape{4}, std::vector<size_t>({1, 1, 1, hiddenSize}));
     auto final_reshape = std::make_shared<ov::op::v1::Reshape>(out_unsqueeze, final_reshape_pattern, false);
+    final_reshape->set_friendly_name("Reshape_1");
 
-    function = std::make_shared<Model>(OutputVector{final_reshape, out_hidden, out_cell}, input_parameter, "PureTI");
+    functionRefs = std::make_shared<Model>(OutputVector{final_reshape, out_hidden, out_cell}, input_parameter, "PureTI");
 }
 
 void MemoryLSTMCellTest::compile_model() {
@@ -294,8 +303,7 @@ void MemoryLSTMCellTest::run() {
     }
 
     init_memory();
-    // generate_inputs(targetStaticShapes);
-    infer();
+    generate_inputs(input_shapes);
 
     // Calculate ref values
     if (transformation == ov::test::utils::MemoryTransformation::NONE) {
@@ -327,6 +335,7 @@ void MemoryLSTMCellTest::init_memory() {
 void MemoryLSTMCellTest::apply_low_latency() {
     // Calculate values after LowLatency transformation
     create_pure_tensor_iterator_model();
+    function = functionRefs;
     if (transformation == ov::test::utils::MemoryTransformation::LOW_LATENCY_V2) {
         function->validate_nodes_and_infer_types();
         // Apply LowLatency (insert Assigns/ReadValues) and UnrollTensorIterator
