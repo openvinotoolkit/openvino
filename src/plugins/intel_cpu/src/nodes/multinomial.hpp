@@ -111,7 +111,7 @@ private:
         std::uniform_real_distribution<float> dist(0.0f, 1.0f);
         for (size_t idx = 0lu; idx < m_output_elements_count; ++idx) {
             m_random_samples[idx] = static_cast<P>(dist(gen));
-        };
+        }
 
         // max & divide
         const auto min_value_of_max = std::numeric_limits<P>::min();
