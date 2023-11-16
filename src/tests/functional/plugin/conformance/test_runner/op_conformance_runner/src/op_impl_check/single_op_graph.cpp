@@ -1013,6 +1013,20 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v7::Roll> &nod
     return std::make_shared<ov::Model>(results, params, "RollGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v13::ScaledDotProductAttention> &node) {
+    const auto query = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3, 4});
+    const auto key = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 5, 4});
+    const auto value = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 5, 6});
+    const auto attention_mask = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 5});
+    const auto scale = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
+    auto causal = false;
+
+    const auto op =
+        std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(op)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{query, key, value, attention_mask, scale}, "ScaledDotProductAttentionGraph");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v3::ScatterElementsUpdate> &node) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{2, 2}}),
                                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{2, 2}})};
@@ -1275,6 +1289,15 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v13::BitwiseNo
     auto bitwise = std::make_shared<ov::op::v13::BitwiseNot>(param);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(bitwise)};
     return std::make_shared<ov::Model>(results, ov::ParameterVector{param}, "BitwiseNotGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v13::FakeConvert>& node) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 3, 8, 6});
+    const auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{});
+    const auto shift = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{});
+    const auto op = std::make_shared<ov::op::v13::FakeConvert>(data, scale, shift, "f8e4m3");
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(op)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{data, scale, shift}, "FakeConvert");
 }
 
 std::shared_ptr<ov::Model> generateArithmeticReductionKeepDims(const std::shared_ptr<ov::op::Op> &node) {
@@ -1604,11 +1627,8 @@ std::shared_ptr<ov::Model> generateMultiSubGraph(const std::shared_ptr<ov::op::O
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v8::MatrixNms> &node) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 2, 4}}),
                                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 2, 2}})};
-
-    const auto outputs =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
     const auto nms =
-        std::make_shared<ov::op::v8::MatrixNms>(outputs[0], outputs[1], ov::op::v8::MatrixNms::Attributes());
+        std::make_shared<ov::op::v8::MatrixNms>(params[0], params[1], ov::op::v8::MatrixNms::Attributes());
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(nms)};
     return std::make_shared<ov::Model>(results, params, "MatrixNms");
 }
@@ -1616,14 +1636,12 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v8::MatrixNms>
 std::shared_ptr<ov::Model> generateMulticlassNmsBase(const std::shared_ptr<ov::op::Op> &node) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 2, 4}}),
                                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 2, 2}})};
-    const auto outputs =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
     if (ov::is_type<ov::op::v8::MulticlassNms>(node)) {
-        const auto nms = std::make_shared<ov::op::v8::MulticlassNms>(outputs[0], outputs[1], ov::op::v8::MulticlassNms::Attributes());
+        const auto nms = std::make_shared<ov::op::v8::MulticlassNms>(params[0], params[1], ov::op::v8::MulticlassNms::Attributes());
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(nms)};
         return std::make_shared<ov::Model>(results, params, "MulticlassNms");
     } else if (ov::is_type<ov::op::v9::MulticlassNms>(node)) {
-        const auto nms = std::make_shared<ov::op::v9::MulticlassNms>(outputs[0], outputs[1], ov::op::v9::MulticlassNms::Attributes());
+        const auto nms = std::make_shared<ov::op::v9::MulticlassNms>(params[0], params[1], ov::op::v9::MulticlassNms::Attributes());
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(nms)};
         return std::make_shared<ov::Model>(results, params, "MulticlassNms");
     } else {
@@ -1808,8 +1826,6 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::GeneratePr
                                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{2, 2, 3, 4}}),
                                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 12, 2, 2}}),
                                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 3, 2, 2}})};
-    const auto outputs =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
     ov::op::v9::GenerateProposals::Attributes attrs;
     attrs.min_size = 1;
     attrs.nms_threshold = 0.8;
@@ -1817,7 +1833,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::GeneratePr
     attrs.post_nms_count = 100;
     if (ov::is_type<ov::op::v9::GenerateProposals>(node)) {
         const auto gp = std::make_shared<ov::op::v9::GenerateProposals>(
-                outputs[0], outputs[1], outputs[2], outputs[3], attrs);
+                params[0], params[1], params[2], params[3], attrs);
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gp)};
         return std::make_shared<ov::Model>(results, params, "GenerateProposalsGraph");
     } else {

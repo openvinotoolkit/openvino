@@ -30,7 +30,7 @@ public:
           m_strides{},
           m_strides_once{},
           m_ptr{ptr} {
-        OPENVINO_ASSERT(m_ptr != nullptr);
+        OPENVINO_ASSERT(shape_size(shape) == 0 || m_ptr != nullptr);
         OPENVINO_ASSERT(m_element_type != element::undefined && m_element_type.is_static());
     }
 
@@ -77,7 +77,7 @@ protected:
         auto& shape = get_shape();
         if (m_strides.empty() && !shape.empty()) {
             m_strides.resize(shape.size());
-            m_strides.back() = m_element_type.size();
+            m_strides.back() = shape.back() == 0 ? 0 : m_element_type.size();
             std::transform(shape.crbegin(),
                            shape.crend() - 1,
                            m_strides.rbegin(),
@@ -397,7 +397,7 @@ public:
     }
 
     void allocate() noexcept override {
-        if (InferenceEngine::TBlob<T>::buffer() != tensor->data()) {
+        if ((void*)InferenceEngine::TBlob<T>::buffer() != tensor->data()) {
             InferenceEngine::TBlob<T>::_allocator =
                 InferenceEngine::details::make_pre_allocator(static_cast<T*>(tensor->data()), tensor->get_byte_size());
             InferenceEngine::TBlob<T>::allocate();

@@ -46,7 +46,7 @@
 
 #include "transformations/utils/utils.hpp"
 
-#include "snippets/pass_manager.hpp"
+#include "snippets/pass/manager.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include <openvino/pass/serialize.hpp>
@@ -329,7 +329,7 @@ VectorDims Subgraph::infer_master_shape() {
             const auto& res_input = res->input(0);
             OPENVINO_ASSERT(res_input.get_partial_shape().is_static(), "Result have dynamic shape in static pipeline");
             // We need to account to the shape's layout stored in Output<Node> rt_info
-            const auto& planar_shape = utils::get_planar_pshape(res_input.get_source_output());
+            const auto& planar_shape = utils::get_preordered_pshape(res_input.get_source_output());
             output_dims.emplace_back(planar_shape.get_shape());
         }
     }
@@ -375,7 +375,7 @@ std::shared_ptr<Subgraph> Subgraph::clone() const {
     ov::copy_runtime_info(const_pointer_cast<Node>(shared_from_this()), result);
     result->set_friendly_name(get_friendly_name());
     if (m_linear_ir)
-        result->m_linear_ir = std::make_shared<lowered::LinearIR>(m_linear_ir->deep_copy());
+        result->m_linear_ir = m_linear_ir->clone();
     // Note: we don't update shapeInfer here, since it's initialized in the constructor
     if (m_generator)
         result->m_generator = m_generator->clone();
@@ -492,7 +492,7 @@ snippets::Schedule Subgraph::generate_from_linear_ir(const lowered::pass::PassPi
     // Note: some transformations performed in the generator, e.g. tail insertion, can break shape propagation
     //  until we fix this behavior, we have to make a copy of LIR before giving it to the generator.
     OPENVINO_ASSERT(m_linear_ir, "Attempt to call generate, when linear IR was not initialized");
-    auto linear_ir = m_linear_ir->deep_copy();
+    auto linear_ir {*m_linear_ir->clone()};
     LoweringResult lowering_result;
     control_flow_transformations(linear_ir, lowering_result, backend_passes_pre_common, backend_passes_post_common);
     m_generator->generate(linear_ir, lowering_result, compile_params);

@@ -18,7 +18,7 @@ namespace node {
 
 class NonZero : public Node {
 public:
-  NonZero(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+  NonZero(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -27,7 +27,7 @@ public:
     bool needShapeInfer() const override {return false;};
     bool needPrepareParams() const override {return false;};
     void executeDynamicImpl(dnnl::stream strm) override;
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     bool isExecutable() const override { return true; }
 
