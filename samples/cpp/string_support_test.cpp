@@ -7,14 +7,6 @@
 #include <openvino/op/op.hpp>
 
 
-// Unpack a string tensor representation regardless of the source format, which
-// can be an OV tensor with element::string element type (if supported) or u8
-// packed representation, to a decompose tensor representation that may potentially
-// consist of multiple tensors. The destination format is defined by `mode` attribute.
-// Shape of the output tensor is compitelly recognized from the input (if supported)
-// or defined partially by a dedicated input attribute `shape`. If `shape` is not set,
-// which default to completelly dynamic `shape`, then output shape is defined
-// by an input tensor.
 class StringTensorOp : public ov::op::Op {
 public:
     OPENVINO_OP("StringTensorOp");
