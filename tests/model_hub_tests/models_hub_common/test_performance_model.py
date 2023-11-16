@@ -60,7 +60,7 @@ class TestPerformanceModel:
     infer_timeout = 600
     threshold_ratio = 0.1
     num_heat_runs = 100
-    num_measure_runs = 100
+    num_measure_runs = 1000
     threshold_var = 10.0
 
     def load_model(self, model_name, model_link):
@@ -110,7 +110,6 @@ class TestPerformanceModel:
             out_data = ov_model(inputs)
             t1 = time.time()
             results.append(t1 - t0)
-        print('result = {}'.format(results))
         mean = np.mean(results)
         return mean, np.std(results, ddof=1) * 100 / mean
 
