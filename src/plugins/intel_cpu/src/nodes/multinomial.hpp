@@ -55,9 +55,9 @@ private:
     VectorDims m_output_shape = {};
 
     /// General algorithm variables
-    InferenceEngine::Precision m_probs_precision;
-    InferenceEngine::Precision m_num_samples_precision;
-    InferenceEngine::Precision m_output_precision;
+    ov::element::Type m_probs_precision;
+    ov::element::Type m_num_samples_precision;
+    ov::element::Type m_output_precision;
 
     size_t m_probs_count = 0;
     size_t m_batches_count = 0;
@@ -70,8 +70,10 @@ private:
     template <typename P>
     void execute_types() {
         switch (m_output_precision) {
-        case InferenceEngine::Precision::I32:
+        case ov::element::i32:
             return execute_internal<P, int32_t>();
+        case ov::element::i64:
+            return execute_internal<P, int64_t>();
         default:
             THROW_CPU_NODE_ERR("Multinomial CPU implementation does not support output convert type: ",
                                m_output_precision);

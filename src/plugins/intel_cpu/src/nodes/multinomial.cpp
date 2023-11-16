@@ -24,7 +24,7 @@ Multinomial::Multinomial(const std::shared_ptr<ov::Node>& op, const GraphContext
     m_global_seed = multinomial_op->get_global_seed();
     m_log_probs = multinomial_op->get_log_probs();
     m_op_seed = multinomial_op->get_op_seed();
-    m_output_precision = InferenceEngine::details::convertPrecision(multinomial_op->get_convert_type());
+    m_output_precision = multinomial_op->get_convert_type();
 
     for (size_t i = 0lu; i < op->get_input_size(); i++) {
         if (is_type<op::v0::Constant>(op->get_input_node_ptr(i))) {
@@ -56,16 +56,13 @@ void Multinomial::getSupportedDescriptors() {
 
 void Multinomial::initSupportedPrimitiveDescriptors() {
     m_probs_precision = getOriginalInputPrecisionAtPort(PROBS_PORT);
-    if (!one_of(m_probs_precision,
-                InferenceEngine::Precision::FP32,
-                InferenceEngine::Precision::FP16,
-                InferenceEngine::Precision::BF16)) {
-        m_probs_precision = InferenceEngine::Precision::FP32;
+    if (!one_of(m_probs_precision, ov::element::f32, ov::element::f16, ov::element::bf16)) {
+        m_probs_precision = ov::element::f32;
     }
 
     m_num_samples_precision = getOriginalInputPrecisionAtPort(NUM_SAMPLES_PORT);
-    if (!one_of(m_num_samples_precision, InferenceEngine::Precision::I64, InferenceEngine::Precision::I32)) {
-        m_num_samples_precision = InferenceEngine::Precision::I32;
+    if (!one_of(m_num_samples_precision, ov::element::i64, ov::element::i32)) {
+        m_num_samples_precision = ov::element::i32;
     }
 
     addSupportedPrimDesc({{LayoutType::ncsp, m_probs_precision, m_const_inputs[PROBS_PORT]},
@@ -102,7 +99,7 @@ std::string Multinomial::getPrimitiveDescriptorType() const {
         str_type += "undef_";
 
     if (selectedPrimitiveDesc) {
-        str_type += m_output_precision.name();
+        str_type += m_output_precision.get_type_name();
     } else {
         str_type.pop_back();
     }
@@ -134,7 +131,7 @@ void Multinomial::prepareParams() {
                            ". Only scalar and 1D single element tensors are allowed.");
     }
 
-    if (m_num_samples_precision == InferenceEngine::Precision::I32) {
+    if (m_num_samples_precision == ov::element::i32) {
         m_samples_count =
             reinterpret_cast<const int32_t*>(getParentEdgeAt(NUM_SAMPLES_PORT)->getMemoryPtr()->getData())[0];
     } else {
@@ -152,11 +149,11 @@ void Multinomial::prepareParams() {
 
 void Multinomial::execute(dnnl::stream strm) {
     switch (m_probs_precision) {
-    case InferenceEngine::Precision::FP32:
+    case ov::element::f32:
         return execute_types<float>();
-    case InferenceEngine::Precision::FP16:
+    case ov::element::f16:
         return execute_types<float16>();
-    case InferenceEngine::Precision::BF16:
+    case ov::element::bf16:
         return execute_types<bfloat16>();
     default:
         THROW_CPU_NODE_ERR("Multinomial CPU implementation does not support probs element type: ", m_probs_precision);

@@ -19,7 +19,7 @@ Result MultinomialShapeInfer::infer(const std::vector<std::reference_wrapper<con
     const auto& input_shape = input_shapes[0].get();
     const auto& num_samples_memory = data_dependency.at(1);
     size_t num_samples;
-    if (num_samples_memory->getDesc().getPrecision() == InferenceEngine::Precision::I32) {
+    if (num_samples_memory->getDesc().getPrecision() == ov::element::i32) {
         num_samples = reinterpret_cast<const int*>(num_samples_memory->getData())[0];
     } else {  // I64
         num_samples = reinterpret_cast<const int64_t*>(num_samples_memory->getData())[0];

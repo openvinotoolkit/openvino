@@ -16,19 +16,41 @@ namespace Multinomial {
 const int GLOBAL_SEED = 1;
 const int OP_SEED = 2;
 
-const std::vector<float> probs_4x4_f32 =
-    {0.00001f, 0.001f, 0.1f, 10.0f, 0.001f, 0.00001f, 10.0f, 0.1f, 0.1f, 10.0f, 0.00001f, 0.001f, 10.0f, 0.1f, 0.001f, 0.00001f};
+const std::vector<float> probs_4x4_f32 = {0.00001f,
+                                          0.001f,
+                                          0.1f,
+                                          10.0f,
+                                          0.001f,
+                                          0.00001f,
+                                          10.0f,
+                                          0.1f,
+                                          0.1f,
+                                          10.0f,
+                                          0.00001f,
+                                          0.001f,
+                                          10.0f,
+                                          0.1f,
+                                          0.001f,
+                                          0.00001f};
 
-const std::vector<ov::float16> probs_2x3_f16 =
-    {(ov::float16)0.001f, (ov::float16)0.1f, (ov::float16)10.0f, (ov::float16)10.0f, (ov::float16)0.001f, (ov::float16)0.1f};
+const std::vector<ov::float16> probs_2x3_f16 = {(ov::float16)0.001f,
+                                                (ov::float16)0.1f,
+                                                (ov::float16)10.0f,
+                                                (ov::float16)10.0f,
+                                                (ov::float16)0.001f,
+                                                (ov::float16)0.1f};
 
 const std::vector<ov::bfloat16> probs_1x3_bf16 = {(ov::bfloat16)0.001f, (ov::bfloat16)0.1f, (ov::bfloat16)10.0f};
 
 const std::vector<float> probs_4x4_f32_log =
     {3.0f, 6.0f, 10.0f, 0.0f, 3.0f, 0.0f, 10.0f, 6.0f, 6.0f, 10.0f, 0.0f, 3.0f, 10.0f, 6.0f, 3.0f, 0.0f};
 
-const std::vector<ov::float16> probs_2x3_f16_log =
-    {(ov::float16)3.0f, (ov::float16)6.0f, (ov::float16)10.0f, (ov::float16)10.0f, (ov::float16)3.0f, (ov::float16)6.0f};
+const std::vector<ov::float16> probs_2x3_f16_log = {(ov::float16)3.0f,
+                                                    (ov::float16)6.0f,
+                                                    (ov::float16)10.0f,
+                                                    (ov::float16)10.0f,
+                                                    (ov::float16)3.0f,
+                                                    (ov::float16)6.0f};
 
 const std::vector<ov::bfloat16> probs_1x3_bf16_log = {(ov::bfloat16)3.0f, (ov::bfloat16)6.0f, (ov::bfloat16)10.0f};
 
@@ -48,7 +70,7 @@ const std::vector<ov::Tensor> num_samples = {ov::Tensor(ov::element::i32, {}, (v
                                              ov::Tensor(ov::element::i64, {1}, (void*)num_samples_1x1_i64.data()),
                                              ov::Tensor(ov::element::i64, {}, (void*)num_samples_scalar_i64.data())};
 
-const std::vector<ov::test::ElementType> convert_type = {ov::test::ElementType::i32};
+const std::vector<ov::test::ElementType> convert_type = {ov::test::ElementType::i32, ov::test::ElementType::i64};
 
 const std::vector<bool> with_replacement = {true, false};
 
