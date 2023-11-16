@@ -3,6 +3,6 @@
 #
 
 ov_add_frontend(NAME tensorflow_lite
-        LINKABLE_FRONTEND
-        FILEDESCRIPTION "FrontEnd to load and convert TensorFlow Lite file format"
-        LINK_LIBRARIES openvino::core::dev openvino::frontend::tensorflow_common)
+                LINKABLE_FRONTEND
+                FILEDESCRIPTION "FrontEnd to load and convert TensorFlow Lite file format"
+                LINK_LIBRARIES openvino::core::dev openvino::frontend::tensorflow_common)
