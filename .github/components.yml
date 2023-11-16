@@ -34,7 +34,6 @@ HETERO:
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
-    - AUTO
     - C_API
     - Python_API
   build:
@@ -48,7 +47,6 @@ AUTO_BATCH:
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
-    - AUTO
     - C_API
     - Python_API
   build:
@@ -70,11 +68,6 @@ TEMPLATE:
 
 AUTO:
   revalidate:
-    - CPU
-    - GPU
-    - GNA
-    - HETERO
-    - AUTO_BATCH
     - TEMPLATE
     - AUTO
     - C_API
