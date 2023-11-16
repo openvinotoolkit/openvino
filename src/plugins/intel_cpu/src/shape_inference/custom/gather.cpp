@@ -18,7 +18,7 @@ Result GatherShapeInfer::infer(const std::vector<std::reference_wrapper<const Ve
     const auto& indices_shape = m_isIndicesScalar ? VectorDims{} :
                                 input_shapes[GATHER_INDICES].get();
     if (!m_isAxisInputConst) {
-        if (data_dependency.at(GATHER_AXIS)->getDesc().getPrecision() != Precision::I32) {
+        if (data_dependency.at(GATHER_AXIS)->getDesc().getPrecision() != ov::element::i32) {
             OPENVINO_THROW("Unsupported precision ",
                            data_dependency.at(GATHER_AXIS)->getDesc().getPrecision(),
                            " for axis tensor.");

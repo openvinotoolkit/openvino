@@ -17,7 +17,6 @@
 #include <functional>
 #include <memory>
 #include <vector>
-#include <ie_precision.hpp>
 
 /**
  * @file contains a concept classes to work with memory/tensor/blob abstractions on plugin level.
@@ -187,7 +186,7 @@ public:
     //oneDNN specifics for backward compatibility
     virtual dnnl::memory getPrimitive() const = 0;
     dnnl::memory::data_type getDataType() const {
-        return DnnlExtensionUtils::IEPrecisionToDataType(getDesc().getPrecision());
+        return DnnlExtensionUtils::ElementTypeToDataType(getDesc().getPrecision());
     }
 
     virtual void nullify() = 0;
@@ -257,6 +256,7 @@ private:
     size_t m_size;
     dnnl::memory m_prim;
     MemMngrPtr m_pMemMngr;
+    std::string dnnlErrorCtx;
 };
 
 class Memory : public IMemory {

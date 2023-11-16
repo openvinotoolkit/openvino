@@ -273,9 +273,9 @@ namespace nv12 {
 ColorConvert::Converter::PrimitiveDescs supportedPrimitiveDescs(Node *node) {
     const LayoutType layout = LayoutType::ncsp; // 0,1,2,3
 
-    const Precision precision = node->getOriginalInputPrecisionAtPort(0) == Precision::U8
-                                    ? Precision::U8
-                                    : Precision::FP32;
+    const ov::element::Type precision = node->getOriginalInputPrecisionAtPort(0) == ov::element::u8
+                                    ? ov::element::u8
+                                    : ov::element::f32;
 
     ColorConvert::Converter::PrimitiveDescs descs;
 
@@ -623,9 +623,9 @@ namespace i420 {
 ColorConvert::Converter::PrimitiveDescs supportedPrimitiveDescs(Node *node) {
     const LayoutType layout = LayoutType::ncsp; // 0,1,2,3
 
-    const Precision precision = node->getOriginalInputPrecisionAtPort(0) == Precision::U8
-                                    ? Precision::U8
-                                    : Precision::FP32;
+    const ov::element::Type precision = node->getOriginalInputPrecisionAtPort(0) == ov::element::u8
+                                    ? ov::element::u8
+                                    : ov::element::f32;
 
     ColorConvert::Converter::PrimitiveDescs descs;
 
@@ -979,11 +979,11 @@ ColorConvert::Converter::Converter(Node *node, const ColorFormat & colorFormat)
     , _colorFormat(colorFormat) {
 }
 
-InferenceEngine::Precision ColorConvert::Converter::inputPrecision(size_t idx) const {
+ov::element::Type ColorConvert::Converter::inputPrecision(size_t idx) const {
     return _node->getParentEdgesAtPort(idx)[0]->getMemory().getDesc().getPrecision();
 }
 
-InferenceEngine::Precision ColorConvert::Converter::outputPrecision(size_t idx) const {
+ov::element::Type ColorConvert::Converter::outputPrecision(size_t idx) const {
     return _node->getChildEdgesAtPort(idx)[0]->getMemory().getDesc().getPrecision();
 }
 
@@ -1056,20 +1056,20 @@ void ColorConvert::initSupportedNV12Impls() {
     // ref
     {
         auto &impls = _supportedImpls[impl_desc_type::ref][algorithm];
-        impls[Precision::U8][true] = SUPPORTED_IMPL(SinglePlaneConvert, uint8_t, ref);
-        impls[Precision::U8][false] = SUPPORTED_IMPL(TwoPlaneConvert, uint8_t, ref);
-        impls[Precision::FP32][true] = SUPPORTED_IMPL(SinglePlaneConvert, float, ref);
-        impls[Precision::FP32][false] = SUPPORTED_IMPL(TwoPlaneConvert, float, ref);
+        impls[ov::element::Type_t::u8][true] = SUPPORTED_IMPL(SinglePlaneConvert, uint8_t, ref);
+        impls[ov::element::Type_t::u8][false] = SUPPORTED_IMPL(TwoPlaneConvert, uint8_t, ref);
+        impls[ov::element::Type_t::f32][true] = SUPPORTED_IMPL(SinglePlaneConvert, float, ref);
+        impls[ov::element::Type_t::f32][false] = SUPPORTED_IMPL(TwoPlaneConvert, float, ref);
     }
 
 #if defined(OPENVINO_ARCH_X86_64)
     // jit_uni
     {
         auto &impls = _supportedImpls[impl_desc_type::jit_uni][algorithm];
-        impls[Precision::U8][true] = SUPPORTED_IMPL(SinglePlaneConvert, uint8_t, jit_uni);
-        impls[Precision::U8][false] = SUPPORTED_IMPL(TwoPlaneConvert, uint8_t, jit_uni);
-        impls[Precision::FP32][true] = SUPPORTED_IMPL(SinglePlaneConvert, float, jit_uni);
-        impls[Precision::FP32][false] = SUPPORTED_IMPL(TwoPlaneConvert, float, jit_uni);
+        impls[ov::element::Type_t::u8][true] = SUPPORTED_IMPL(SinglePlaneConvert, uint8_t, jit_uni);
+        impls[ov::element::Type_t::u8][false] = SUPPORTED_IMPL(TwoPlaneConvert, uint8_t, jit_uni);
+        impls[ov::element::Type_t::f32][true] = SUPPORTED_IMPL(SinglePlaneConvert, float, jit_uni);
+        impls[ov::element::Type_t::f32][false] = SUPPORTED_IMPL(TwoPlaneConvert, float, jit_uni);
     }
 #endif
     #undef SUPPORTED_IMPL
@@ -1084,20 +1084,20 @@ void ColorConvert::initSupportedI420Impls() {
     // ref
     {
         auto &impls = _supportedImpls[impl_desc_type::ref][algorithm];
-        impls[Precision::U8][true] = SUPPORTED_IMPL(SinglePlaneConvert, uint8_t, ref);
-        impls[Precision::U8][false] = SUPPORTED_IMPL(ThreePlaneConvert, uint8_t, ref);
-        impls[Precision::FP32][true] = SUPPORTED_IMPL(SinglePlaneConvert, float, ref);
-        impls[Precision::FP32][false] = SUPPORTED_IMPL(ThreePlaneConvert, float, ref);
+        impls[ov::element::Type_t::u8][true] = SUPPORTED_IMPL(SinglePlaneConvert, uint8_t, ref);
+        impls[ov::element::Type_t::u8][false] = SUPPORTED_IMPL(ThreePlaneConvert, uint8_t, ref);
+        impls[ov::element::Type_t::f32][true] = SUPPORTED_IMPL(SinglePlaneConvert, float, ref);
+        impls[ov::element::Type_t::f32][false] = SUPPORTED_IMPL(ThreePlaneConvert, float, ref);
     }
 
 #if defined(OPENVINO_ARCH_X86_64)
     // jit_uni
     {
         auto &impls = _supportedImpls[impl_desc_type::jit_uni][algorithm];
-        impls[Precision::U8][true] = SUPPORTED_IMPL(SinglePlaneConvert, uint8_t, jit_uni);
-        impls[Precision::U8][false] = SUPPORTED_IMPL(ThreePlaneConvert, uint8_t, jit_uni);
-        impls[Precision::FP32][true] = SUPPORTED_IMPL(SinglePlaneConvert, float, jit_uni);
-        impls[Precision::FP32][false] = SUPPORTED_IMPL(ThreePlaneConvert, float, jit_uni);
+        impls[ov::element::Type_t::u8][true] = SUPPORTED_IMPL(SinglePlaneConvert, uint8_t, jit_uni);
+        impls[ov::element::Type_t::u8][false] = SUPPORTED_IMPL(ThreePlaneConvert, uint8_t, jit_uni);
+        impls[ov::element::Type_t::f32][true] = SUPPORTED_IMPL(SinglePlaneConvert, float, jit_uni);
+        impls[ov::element::Type_t::f32][false] = SUPPORTED_IMPL(ThreePlaneConvert, float, jit_uni);
     }
 #endif
     #undef SUPPORTED_IMPL
