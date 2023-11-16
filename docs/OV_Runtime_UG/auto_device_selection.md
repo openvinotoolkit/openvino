@@ -165,6 +165,17 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 |                                              |                                                                    |
 |                                              | The default value is ``true``.                                     |
 +----------------------------------------------+--------------------------------------------------------------------+
+| ``ov::intel_auto::schedule_policy``          | **Values**:                                                        |
+|                                              |                                                                    |
+|                                              | ``ROUND_ROBIN``                                                    |
+|                                              |                                                                    |
+|                                              | ``DEVICE_PRIORITY``                                                |
+|                                              |                                                                    |
+|                                              | Specify the schedule policy of infer request assigned to hardware  |
+|                                              | plugin for AUTO cumulative mode (MULTI).                           |
+|                                              |                                                                    |
+|                                              | The default value is ``DEVICE_PRIORITY``.                          |
++----------------------------------------------+--------------------------------------------------------------------+
 
 Inference with AUTO is configured similarly to when device plugins are used:
 you compile the model on the plugin with configuration and execute inference.
