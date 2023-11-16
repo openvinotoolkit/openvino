@@ -1,4 +1,4 @@
-# Install OpenVINO™ 2023.1 {#openvino_docs_install_guides_overview}
+# Install OpenVINO™ 2023.2 {#openvino_docs_install_guides_overview}
 
 @sphinxdirective
 
