@@ -7,8 +7,7 @@
 #include "openvino/core/model.hpp"
 
 namespace ov {
-namespace tools {
-namespace subgraph_dumper {
+namespace util {
 
 inline bool is_dynamic_node(const std::shared_ptr<ov::Node>& node) {
     for (size_t i = 0; i < node->get_input_size(); ++i) {
@@ -38,6 +37,5 @@ inline bool is_dynamic_model(const std::shared_ptr<ov::Model>& model) {
     return false;
 }
 
-}  // namespace subgraph_dumper
-}  // namespace tools
+}  // namespace util
 }  // namespace ov
