@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
 
 #include "openvino/core/shape.hpp"
@@ -17,26 +18,16 @@ namespace reference {
 /// Output number of non-zero entries in arg
 template <typename T>
 size_t non_zero_get_count(const T* arg, const Shape& arg_shape) {
-    T zero = 0;
-    size_t arg_rank = arg_shape.size();
-    size_t arg_count = shape_size(arg_shape);
-    size_t non_zero_count = 0;
-
-    // Input arg is scalar
-    if (arg_rank == 0) {
-        if (*arg != zero) {
-            non_zero_count = 1;
-        }
-    } else  // Input is non scalar case
-    {
-        for (size_t i = 0; i < arg_count; i++) {
-            if (arg[i] != zero) {
-                non_zero_count++;
-            }
-        }
+    const auto zero = T{0};
+    const auto arg_count = shape_size(arg_shape);
+    switch (arg_count) {
+    case 0:
+        return 0;
+    case 1:
+        return *arg != zero;
+    default:
+        return arg_count - std::count(arg, arg + arg_count, zero);
     }
-
-    return non_zero_count;
 }
 
 /// \brief Return indices of non-zero entries in input argument.
@@ -46,20 +37,13 @@ size_t non_zero_get_count(const T* arg, const Shape& arg_shape) {
 /// \param out Output containing indices of non-zero entries in arg
 template <typename T, typename U>
 void non_zero(const T* arg, U* out, const Shape& arg_shape) {
-    T zero = 0;
-    size_t arg_rank = arg_shape.size();
-    size_t arg_count = shape_size(arg_shape);
-
-    size_t non_zero_count = non_zero_get_count(arg, arg_shape);
-
-    // Input arg only contains 0s
-    if (non_zero_count == 0) {
+    const auto non_zero_count = non_zero_get_count(arg, arg_shape);
+    if (non_zero_count == 0)
         return;
-    }
 
-    // Input arg is non-zero scalar
-    if (arg_rank == 0) {
-        out[0] = static_cast<U>(0);
+    const auto arg_count = shape_size(arg_shape);
+    if (arg_count == 1) {
+        out[0] = U{0};
         return;
     }
 
@@ -68,6 +52,7 @@ void non_zero(const T* arg, U* out, const Shape& arg_shape) {
     // i.e., arg_shape {2, 3, 2} => elem_per_axis {6, 2, 1}.
     // Array index 4 in arg (arg[4]) correspond to 3-D index of [0][2][0]
     std::vector<size_t> elem_per_axis;
+    const auto arg_rank = arg_shape.size();
     elem_per_axis.reserve(arg_rank);
 
     size_t temp = arg_count;
@@ -78,9 +63,6 @@ void non_zero(const T* arg, U* out, const Shape& arg_shape) {
 
     // Column index in out to record a non-zero entry
     size_t col_index = 0;
-
-    // Array index in out to write non-zero index value
-    size_t out_index = 0;
 
     // Find non-zero entries in arg and write the indices info in out.
     // For a non-zero entry, map its array index to corresponding indices
@@ -99,17 +81,18 @@ void non_zero(const T* arg, U* out, const Shape& arg_shape) {
     // input[0][2][0] = 3 is arg[4]
     // output for this entry out[1] = 0, out[8] = 2, out[15] = 0
     for (size_t i = 0; i < arg_count; i++) {
-        if (arg[i] != zero) {
+        if (arg[i] != T{0}) {
             temp = i;
 
+            size_t out_index = col_index;
             for (size_t j = 0; j < arg_rank; j++) {
-                out_index = j * non_zero_count + col_index;
                 out[out_index] = static_cast<U>(temp / elem_per_axis[j]);
+                out_index += non_zero_count;
 
                 temp = temp % elem_per_axis[j];
             }
 
-            col_index++;
+            ++col_index;
         }
     }
 }
