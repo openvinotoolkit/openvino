@@ -376,7 +376,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_FP16,
                                             ::testing::Values(true),
                                             ::testing::Values(true),
                                             ::testing::ValuesIn(filterAdditionalConfig_FP16()),
-                                            ::testing::ValuesIn(fusingParamsSet),
+                                            ::testing::ValuesIn(fusing_params),
                                             //only check if the tese case pass, not check the graph convert logic
                                             ::testing::Values(false)),
                          MatmulWeightsDecompression::getTestCaseName);

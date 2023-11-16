@@ -1698,7 +1698,7 @@ void Graph::EnforceInferencePrecision() {
             auto keepOriginalInputPrecisionAtPort = [](const NodePtr& node, const size_t inPort) {
                 // keep non-float precisions
                 const auto origin_precision = node->getOriginalInputPrecisionAtPort(inPort);
-                if (!one_of(origin_precision, Precision::FP32, Precision::BF16, Precision::FP16))
+                if (!one_of(origin_precision, ov::element::f32, ov::element::bf16, ov::element::f16))
                     return true;
 
                 const auto &parent = node->getParentEdgesAtPort(inPort)[0]->getParent();
@@ -1725,7 +1725,7 @@ void Graph::EnforceInferencePrecision() {
         for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
             // keep non-float precisions
             const auto origin_precision = node->getOriginalOutputPrecisionAtPort(i);
-            if (!one_of(origin_precision, Precision::FP32, Precision::BF16, Precision::FP16))
+            if (!one_of(origin_precision, ov::element::f32, ov::element::bf16, ov::element::f16))
                 continue;
 
             // exclude Convert before Range since it may cause precision loss when integter type to LP.
