@@ -37,24 +37,6 @@ The snippets assume that you need to preprocess a model input with the ``tensor_
 Preparation: Import Preprocessing in Python
 ###########################################
 
-In order to utilize preprocessing, the following imports must be added.
-
-**Inference Engine API**
-
-
-.. doxygensnippet:: docs/snippets/ov_preprocessing_migration.py
-    :language: python
-    :fragment: imports
-
-
-**API 2.0**
-
-
-.. doxygensnippet:: docs/snippets/ov_preprocessing_migration.py
-    :language: python
-    :fragment: ov_imports
-
-
 | There are two different namespaces:
 | * ``runtime``, which contains API 2.0 classes;
 | * and ``preprocess``, which provides Preprocessing API.
@@ -66,13 +48,6 @@ Using Mean and Scale Values
 
 
 .. tab-set::
-
-    .. tab-item:: Python
-        :sync: py
-
-        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.py
-           :language: python
-           :fragment: mean_scale
 
     .. tab-item:: C++
         :sync: cpp
@@ -93,13 +68,6 @@ Using Mean and Scale Values
 
 
 .. tab-set::
-
-    .. tab-item:: Python
-        :sync: py
-
-        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.py
-           :language: python
-           :fragment: ov_mean_scale
 
     .. tab-item:: C++
         :sync: cpp
@@ -124,13 +92,6 @@ Converting Precision and Layout
 
 .. tab-set::
 
-    .. tab-item:: Python
-        :sync: py
-
-        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.py
-           :language: python
-           :fragment: conversions
-
     .. tab-item:: C++
         :sync: cpp
 
@@ -150,13 +111,6 @@ Converting Precision and Layout
 
 
 .. tab-set::
-
-    .. tab-item:: Python
-        :sync: py
-
-        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.py
-           :language: python
-           :fragment: ov_conversions
 
     .. tab-item:: C++
         :sync: cpp
@@ -181,13 +135,6 @@ Using Image Scaling
 
 .. tab-set::
 
-    .. tab-item:: Python
-        :sync: py
-
-        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.py
-           :language: python
-           :fragment: image_scale
-
     .. tab-item:: C++
         :sync: cpp
 
@@ -207,13 +154,6 @@ Using Image Scaling
 
 
 .. tab-set::
-
-    .. tab-item:: Python
-        :sync: py
-
-        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.py
-           :language: python
-           :fragment: ov_image_scale
 
     .. tab-item:: C++
         :sync: cpp
@@ -237,13 +177,6 @@ Converting Color Space
 
 
 .. tab-set::
-
-    .. tab-item:: Python
-        :sync: py
-
-        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.py
-           :language: python
-           :fragment: ov_color_space
 
     .. tab-item:: C++
         :sync: cpp

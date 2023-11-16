@@ -9,7 +9,7 @@ import importlib
 from contextlib import redirect_stdout, redirect_stderr
 
 
-skip_snippets = ["main.py", "__init__.py", "utils.py", "ie_common.py", "ov_common.py"]
+skip_snippets = ["main.py", "__init__.py", "utils.py", "ov_common.py"]
 
 def import_python_modules(directory, subdirectory=""):
     for item in os.listdir(directory):

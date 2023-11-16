@@ -33,13 +33,6 @@ Based on the steps, the following code demonstrates how to change the applicatio
 
 .. tab-set::
 
-   .. tab-item:: Python
-      :sync: py
-
-      .. doxygensnippet:: docs/snippets/ie_common.py
-         :language: python
-         :fragment: ie:create_core
-
    .. tab-item:: C++
       :sync: cpp
 
@@ -91,13 +84,6 @@ to write extensions. However, you can also load the old extensions to the new Op
 
 .. tab-set::
 
-   .. tab-item:: Python
-      :sync: py
-
-      .. doxygensnippet:: docs/snippets/ie_common.py
-         :language: python
-         :fragment: ie:load_old_extension
-
    .. tab-item:: C++
       :sync: cpp
 
@@ -145,13 +131,6 @@ to write extensions. However, you can also load the old extensions to the new Op
 **Inference Engine API**
 
 .. tab-set::
-
-   .. tab-item:: Python
-      :sync: py
-
-      .. doxygensnippet:: docs/snippets/ie_common.py
-         :language: python
-         :fragment: ie:read_model
 
    .. tab-item:: C++
       :sync: cpp
@@ -213,13 +192,6 @@ preprocessing may be necessary. See :doc:`preprocessing in API 2.0 <openvino_2_0
 
 .. tab-set::
 
-   .. tab-item:: Python
-      :sync: py
-
-      .. doxygensnippet:: docs/snippets/ie_common.py
-         :language: python
-         :fragment: ie:compile_model
-
    .. tab-item:: C++
       :sync: cpp
 
@@ -270,13 +242,6 @@ If you need to configure devices with additional parameters for OpenVINO Runtime
 **Inference Engine API**
 
 .. tab-set::
-
-   .. tab-item:: Python
-      :sync: py
-
-      .. doxygensnippet:: docs/snippets/ie_common.py
-         :language: python
-         :fragment: ie:create_infer_request
 
    .. tab-item:: C++
       :sync: cpp
@@ -333,13 +298,6 @@ The Inference Engine API fills inputs with data of the ``I32`` precision (**not*
 
       .. tab-set::
 
-         .. tab-item:: Python
-            :sync: py
-
-            .. doxygensnippet:: docs/snippets/ie_common.py
-               :language: python
-               :fragment: ie:get_input_tensor
-
          .. tab-item:: C++
             :sync: cpp
 
@@ -358,13 +316,6 @@ The Inference Engine API fills inputs with data of the ``I32`` precision (**not*
       :sync: ir-v11
 
       .. tab-set::
-
-         .. tab-item:: Python
-            :sync: py
-
-            .. doxygensnippet:: docs/snippets/ie_common.py
-               :language: python
-               :fragment: ie:get_input_tensor
 
          .. tab-item:: C++
             :sync: cpp
@@ -385,13 +336,6 @@ The Inference Engine API fills inputs with data of the ``I32`` precision (**not*
 
       .. tab-set::
 
-         .. tab-item:: Python
-            :sync: py
-
-            .. doxygensnippet:: docs/snippets/ie_common.py
-               :language: python
-               :fragment: ie:get_input_tensor
-
          .. tab-item:: C++
             :sync: cpp
 
@@ -411,13 +355,6 @@ The Inference Engine API fills inputs with data of the ``I32`` precision (**not*
       :sync: model
 
       .. tab-set::
-
-         .. tab-item:: Python
-            :sync: py
-
-            .. doxygensnippet:: docs/snippets/ie_common.py
-               :language: python
-               :fragment: ie:get_input_tensor
 
          .. tab-item:: C++
             :sync: cpp
@@ -558,13 +495,6 @@ API 2.0 fills inputs with data of the ``I64`` precision (aligned with the origin
 
       .. tab-set::
 
-         .. tab-item:: Python
-            :sync: py
-
-            .. doxygensnippet:: docs/snippets/ie_common.py
-               :language: python
-               :fragment: ie:inference
-
          .. tab-item:: C++
             :sync: cpp
 
@@ -583,13 +513,6 @@ API 2.0 fills inputs with data of the ``I64`` precision (aligned with the origin
       :sync: async
 
       .. tab-set::
-
-         .. tab-item:: Python
-            :sync: py
-
-            .. doxygensnippet:: docs/snippets/ie_common.py
-               :language: python
-               :fragment: ie:start_async_and_wait
 
          .. tab-item:: C++
             :sync: cpp
@@ -677,13 +600,6 @@ The Inference Engine API processes outputs as they are of the ``I32`` precision 
 
       .. tab-set::
 
-         .. tab-item:: Python
-            :sync: py
-
-            .. doxygensnippet:: docs/snippets/ie_common.py
-               :language: python
-               :fragment: ie:get_output_tensor
-
          .. tab-item:: C++
             :sync: cpp
 
@@ -702,13 +618,6 @@ The Inference Engine API processes outputs as they are of the ``I32`` precision 
       :sync: ir-v11
 
       .. tab-set::
-
-         .. tab-item:: Python
-            :sync: py
-
-            .. doxygensnippet:: docs/snippets/ie_common.py
-               :language: python
-               :fragment: ie:get_output_tensor
 
          .. tab-item:: C++
             :sync: cpp
@@ -729,13 +638,6 @@ The Inference Engine API processes outputs as they are of the ``I32`` precision 
 
       .. tab-set::
 
-         .. tab-item:: Python
-            :sync: py
-
-            .. doxygensnippet:: docs/snippets/ie_common.py
-               :language: python
-               :fragment: ie:get_output_tensor
-
          .. tab-item:: C++
             :sync: cpp
 
@@ -755,13 +657,6 @@ The Inference Engine API processes outputs as they are of the ``I32`` precision 
       :sync: model
 
       .. tab-set::
-
-         .. tab-item:: Python
-            :sync: py
-
-            .. doxygensnippet:: docs/snippets/ie_common.py
-               :language: python
-               :fragment: ie:get_output_tensor
 
          .. tab-item:: C++
             :sync: cpp

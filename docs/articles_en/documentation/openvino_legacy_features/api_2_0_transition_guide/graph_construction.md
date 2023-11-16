@@ -12,25 +12,6 @@ OpenVINO™ Runtime with API 2.0 includes the nGraph engine as a common part. Th
 
 The code snippets below show how to change the application code for migration to API 2.0.
 
-nGraph API
-####################
-
-.. tab-set::
-
-   .. tab-item:: Python
-      :sync: py
-
-      .. doxygensnippet:: docs/snippets/ngraph_snippet.py
-         :language: Python
-         :fragment: ngraph:graph
-
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/ngraph.cpp
-         :language: cpp
-         :fragment: ngraph:graph
-
 
 API 2.0
 ####################
