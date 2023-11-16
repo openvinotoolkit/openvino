@@ -50,11 +50,9 @@ public:
     /**
      * @brief Create CpuBlockedMemoryDesc from ov::tensor
      * @param tensor input tensor
-     * @param canEmptyShape whether the tensor can take empty shape
      * @return converted CpuBlockedMemoryDesc
      */
-    static CpuBlockedMemoryDesc createCpuBlockedMemoryDesc(const ov::SoPtr<ITensor>& tensor,
-                                                           const bool canEmptyShape = true);
+    static CpuBlockedMemoryDesc createCpuBlockedMemoryDesc(const ov::SoPtr<ITensor>& tensor);
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     /**

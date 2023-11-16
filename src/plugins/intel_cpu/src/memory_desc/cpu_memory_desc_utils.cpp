@@ -49,11 +49,10 @@ DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const Memo
     }
 }
 
-CpuBlockedMemoryDesc MemoryDescUtils::createCpuBlockedMemoryDesc(const ov::SoPtr<ITensor>& tensor,
-                                                                 const bool canEmptyShape) {
+CpuBlockedMemoryDesc MemoryDescUtils::createCpuBlockedMemoryDesc(const ov::SoPtr<ITensor>& tensor) {
     auto element_type = tensor->get_element_type();
     auto shape = tensor->get_shape();
-    if (shape.empty() && !canEmptyShape)
+    if (shape.empty())
         shape = {tensor->get_size()};
     std::vector<size_t> blk_order(shape.size());
     std::iota(blk_order.begin(), blk_order.end(), 0);

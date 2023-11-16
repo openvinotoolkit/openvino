@@ -878,7 +878,7 @@ void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor>& inp
         void* inter_data_ptr = childEdge->getMemory().getData();
 
         if (ext_data_ptr != inter_data_ptr) {
-            auto ext_tensor_desc = MemoryDescUtils::createCpuBlockedMemoryDesc(input, false);
+            auto ext_tensor_desc = MemoryDescUtils::createCpuBlockedMemoryDesc(input);
             Memory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr, false);
             childEdge->getMemory().load(ext_mem, false);
         }
@@ -912,18 +912,11 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
         // TODO [NM]: need to create universal reorder which will be detect cases when we really need to use it
         // WA: for cases when output shape after transformation will be 1x1x1x1 but model output is scalar
         bool isScalarOutput = false;
-        if (ov::is_scalar(actualDesc->getShape().getStaticDims())) {
-            const auto& expectedDims = expectedDesc.getShape().getStaticDims();
-            isScalarOutput =
-                ov::is_scalar(expectedDims) ||
-                (!expectedDims.empty() &&
-                 std::accumulate(expectedDims.begin(), expectedDims.end(), (size_t)1, std::multiplies<size_t>()) == 1);
-        } else if (ov::is_scalar(expectedDesc.getShape().getStaticDims())) {
+        if (ext_blob->get_shape().empty() && ext_blob->get_size() == 1) {
             const auto& actualDims = expectedDesc.getShape().getStaticDims();
             isScalarOutput =
-                ov::is_scalar(actualDims) ||
-                (!actualDims.empty() &&
-                 std::accumulate(actualDims.begin(), actualDims.end(), (size_t)1, std::multiplies<size_t>()) == 1);
+                !actualDims.empty() &&
+                std::accumulate(actualDims.begin(), actualDims.end(), (size_t)1, std::multiplies<size_t>()) == 1;
         }
 
         auto outDims = intr_blob.getStaticDims();
