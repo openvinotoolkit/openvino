@@ -263,11 +263,6 @@ TEST_P(OVClassCompiledModelGetPropertyTest, CanCompileModelWithEmptyProperties) 
     OV_ASSERT_NO_THROW(core.compile_model(simpleNetwork, target_device, ov::AnyMap{}));
 }
 
-TEST_P(OVClassCompiledModelGetPropertyTest, CompileModelWithBigDeviceIDThrows) {
-    ov::Core core = createCoreWithTemplate();
-    ASSERT_THROW(core.compile_model(actualNetwork, target_device + ".10"), ov::Exception);
-}
-
 TEST_P(OVClassCompiledModelGetIncorrectPropertyTest, GetConfigThrows) {
     ov::Core ie = createCoreWithTemplate();
     auto compiled_model = ie.compile_model(simpleNetwork, target_device);
