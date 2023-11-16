@@ -14,6 +14,7 @@
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/tpp/op/brgemm.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -44,7 +45,7 @@ bool BrgemmBlocking::run(LinearIR& linear_ir) {
         return false;
 
     const auto& loop_manager = linear_ir.get_loop_manager();
-    auto blocking_loop_exists = [&](const ExpressionPtr& brgemm_expr, const std::shared_ptr<ov::intel_cpu::BrgemmCPU>& brgemm) {
+    auto blocking_loop_exists = [&](const ExpressionPtr& brgemm_expr, const std::shared_ptr<snippets::op::Brgemm>& brgemm) {
         auto check_port = [&](const LoopPort& p) {
             return p.expr_port->get_expr() == brgemm_expr && ov::snippets::utils::one_of(p.dim_idx, 0ul, 1ul);
         };
@@ -63,9 +64,12 @@ bool BrgemmBlocking::run(LinearIR& linear_ir) {
     bool modified = false;
     for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
         const auto& brgemm_expr = *expr_it;
-        const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
+        const auto& node = brgemm_expr->get_node();
+        const auto brgemm = ov::as_type_ptr<snippets::op::Brgemm>(node);
         if (!brgemm || blocking_loop_exists(brgemm_expr, brgemm))
             continue;
+        OPENVINO_ASSERT(ov::is_type<intel_cpu::BrgemmCPU>(node) || ov::is_type<intel_cpu::tpp::op::BrgemmTPP>(node),
+                        "Detected invalid Brgemm operation: ops must be assigned to a backed when blocking is performed.");
 
         const auto& in_0_desc = brgemm_expr->get_input_port_descriptor(0);
         const auto& in_1_desc = brgemm_expr->get_input_port_descriptor(1);

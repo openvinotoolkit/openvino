@@ -104,8 +104,9 @@ public:
     *        gpr->gpr: (Parameter, Result, LoopBegin, LoopEnd etc)
     *        gpr->vec: or vec->gpr Load/LoadConvert, Store/StoreConvert, BroadcastLoad etc.
     *        vec->vec: all other "normal" operations that perform calculations on vector registers: Add, BroadcastMove, Power, etc.
+    *        undefined: operation is not supported by backend and must be handled by common part
     */
-    enum opRegType {gpr2gpr, gpr2vec, vec2gpr, vec2vec};
+    enum opRegType {gpr2gpr, gpr2vec, vec2gpr, vec2vec, undefined};
     /**
      * @brief gets register type by op type
      *        TODO: Should be static attribute of emitters

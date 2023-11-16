@@ -17,7 +17,7 @@ namespace op {
 BrgemmTPP::BrgemmTPP(const Output<Node>& A, const Output<Node>& B, const Type type,
                      const size_t offset_a, const size_t offset_b, const size_t offset_c,
                      std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c,
-                     const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n)
+                     const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n, const float beta)
     : Brgemm(), m_type(type) {
     // We call default ctor of Brgemm class to avoid incorrect shape infer in constructor_validate_and_type_infer() call
     set_arguments({A, B});
@@ -28,12 +28,13 @@ BrgemmTPP::BrgemmTPP(const Output<Node>& A, const Output<Node>& B, const Type ty
     set_output_port_descriptor({0, offset_c}, 0);
     compute_block_size_values(blk_size_m, blk_size_k, blk_size_n);
     custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
+    set_beta(beta);
 }
 
 BrgemmTPP::BrgemmTPP(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, const Type type,
                      const size_t offset_a, const size_t offset_b, const size_t offset_scratch, const size_t offset_c,
                      std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c,
-                     const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n)
+                     const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n, const float beta)
     : Brgemm(), m_type(type) {
     set_arguments({A, B, scratch});
     set_output_size(1);
@@ -44,12 +45,13 @@ BrgemmTPP::BrgemmTPP(const Output<Node>& A, const Output<Node>& B, const Output<
     set_input_port_descriptor({0, offset_scratch}, 2);
     compute_block_size_values(blk_size_m, blk_size_k, blk_size_n);
     custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
+    set_beta(beta);
 }
 
 BrgemmTPP::BrgemmTPP(const Output<Node>& A, const Output<Node>& B, const Type type,
                      const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_c,
                      std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c,
-                     const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n)
+                     const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n, const float beta)
     : Brgemm(), m_type(type) {
     set_arguments({A, B});
     set_output_size(1);
@@ -57,12 +59,13 @@ BrgemmTPP::BrgemmTPP(const Output<Node>& A, const Output<Node>& B, const Type ty
     m_output_ports = {{0, desc_c}};
     compute_block_size_values(blk_size_m, blk_size_k, blk_size_n);
     custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
+    set_beta(beta);
 }
 
 BrgemmTPP::BrgemmTPP(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, const Type type,
                      const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_scratch, const PortDescriptor& desc_c,
                      std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c,
-                     const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n)
+                     const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n, const float beta)
     : Brgemm(), m_type(type) {
     set_arguments({A, B, scratch});
     set_output_size(1);
@@ -70,6 +73,7 @@ BrgemmTPP::BrgemmTPP(const Output<Node>& A, const Output<Node>& B, const Output<
     m_output_ports = {{0, desc_c}};
     compute_block_size_values(blk_size_m, blk_size_k, blk_size_n);
     custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
+    set_beta(beta);
 }
 
 void BrgemmTPP::custom_constructor_validate_and_infer_types(std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c) {
@@ -88,14 +92,6 @@ void BrgemmTPP::custom_constructor_validate_and_infer_types(std::vector<size_t> 
 
     // Additional check for 3rd input
     validate_with_scratchpad(planar_input_shapes[1].get_shape());
-}
-
-void BrgemmTPP::compute_block_size_values(const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n) {
-    const auto input_shape_0 = snippets::utils::get_planar_pshape(input(0)).get_shape();
-    const auto input_shape_1 = snippets::utils::get_planar_pshape(input(1)).get_shape();
-    m_M_blk = blk_size_m != 0 ? blk_size_m : *(input_shape_0.rbegin() + 1);
-    m_K_blk = blk_size_k != 0 ? blk_size_k : *input_shape_0.rbegin();
-    m_N_blk = blk_size_n != 0 ? blk_size_n : *input_shape_1.rbegin();
 }
 
 void BrgemmTPP::validate_and_infer_types() {
@@ -141,14 +137,14 @@ std::shared_ptr<Node> BrgemmTPP::clone_with_new_inputs(const OutputVector& new_a
                                            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
                                            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
                                            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout(),
-                                           m_M_blk, m_K_blk, m_N_blk);
+                                           m_M_blk, m_K_blk, m_N_blk, m_beta);
     }
     return std::make_shared<BrgemmTPP>(new_args.at(0), new_args.at(1), new_args.at(2), m_type,
                                        get_input_port_descriptor(0), get_input_port_descriptor(1), get_input_port_descriptor(2), get_output_port_descriptor(0),
                                        snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
                                        snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
                                        snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout(),
-                                       m_M_blk, m_K_blk, m_N_blk);
+                                       m_M_blk, m_K_blk, m_N_blk, m_beta);
 }
 
 std::shared_ptr<BrgemmCopyB> BrgemmTPP::get_brgemm_copy() const {
@@ -168,6 +164,17 @@ std::shared_ptr<BrgemmCopyB> BrgemmTPP::get_brgemm_copy() const {
 size_t BrgemmTPP::get_offset_scratch() const {
     OPENVINO_ASSERT(is_with_scratchpad() && get_input_size() == 3, "Offset of scratchpad must be only in Brgemm with scratchpad on 3rd input");
     return get_input_offset(2);
+}
+
+bool BrgemmTPP::visit_attributes(AttributeVisitor& visitor) {
+    Brgemm::visit_attributes(visitor);
+    visitor.on_attribute("blk_M", m_M_blk);
+    visitor.on_attribute("blk_K", m_K_blk);
+    visitor.on_attribute("blk_N", m_N_blk);
+    visitor.on_attribute("beta", m_beta);
+    std::string modifier{"TPP"};
+    visitor.on_attribute("modifier", modifier);
+    return true;
 }
 
 } // namespace op

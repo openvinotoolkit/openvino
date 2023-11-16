@@ -28,9 +28,8 @@ public:
                   dnnl::impl::cpu::x64::cpu_isa_t isa,
                   const ov::snippets::lowered::ExpressionPtr& expr);
 
-    size_t get_inputs_num() const override { return m_with_scratch ? 3 : 2; }
+    size_t get_inputs_num() const override { return 2; }
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
-    size_t aux_gprs_count() const override;
 
     static size_t get_in_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout);
     static size_t get_out_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout);
@@ -51,42 +50,20 @@ private:
         bool is_with_comp;
         float beta;
     };
-    static size_t getBrgIdx(size_t kIdx, size_t nIdx);
 
-    static void initBrgemmXsmm(brgemmCtx& ctx, libxsmm_xmmfunction *brgKernel, libxsmm_xmmfunction *brgKernelTileCfg, bool use_amx);
+    static void initBrgemmXsmm(brgemmCtx& ctx, libxsmm_gemmfunction& brgKernel, libxsmm_gemmfunction& brgKernelTileCfg, bool use_amx);
     static libxsmm_datatype dnnl_to_xsmm_dtype(dnnl_data_type_t dnnl_dtype);
-    void emit_brgemm_kernel_call_libxsmm(const libxsmm_xmmfunction *xsmm_func, const libxsmm_xmmfunction *xsmm_tile_cfg, const brgemmCtx& ctx,
-                                 Xbyak::Reg64 addr_A, Xbyak::Reg64 addr_B, Xbyak::Reg64 scratch, Xbyak::Reg64 addr_C,
-                                 size_t in0_kernel_offset = 0, size_t in1_kernel_offset = 0,
-                                 size_t in2_kernel_offset = 0, size_t out0_kernel_offset = 0) const;
-    static void kernel_execute_libxsmm(libxsmm_xmmfunction *brg_kernel, void *A, void *B, void *C);
-    static void libxsmm_amx_tile_configure(libxsmm_xmmfunction *cfg_kernel);
-    void emit_N_blocking_loops(size_t k_kernel_id,
-                               const Xbyak::Reg64& input_0, const Xbyak::Reg64& input_1,
-                               const Xbyak::Reg64& input_2, const Xbyak::Reg64& output_0,
-                               const Xbyak::Reg64& work_amount_N) const;
+    void emit_brgemm_kernel_call_libxsmm(Xbyak::Reg64 addr_A, Xbyak::Reg64 addr_B, Xbyak::Reg64 addr_C) const;
+    static void kernel_execute_libxsmm(libxsmm_gemmfunction brg_kernel, void *A, void *B, void *C);
+    static void libxsmm_amx_tile_configure(libxsmm_gemmfunction cfg_kernel);
 
-    // Note: K dimension is covered by TWO blocked kernels (with beta = 0 and 1) + 1 for tail
-    static constexpr size_t BRGEMM_K_KERNEL_NUM = 3;
-    static constexpr size_t BRGEMM_N_KERNEL_NUM = 2;
-    std::array<brgemmCtx, BRGEMM_K_KERNEL_NUM * BRGEMM_N_KERNEL_NUM> m_brgCtxs;
+    brgemmCtx m_brgCtx;
 
-    std::array<libxsmm_xmmfunction, BRGEMM_K_KERNEL_NUM * BRGEMM_N_KERNEL_NUM> m_brgKernelsXsmm;
-    std::array<libxsmm_xmmfunction, BRGEMM_K_KERNEL_NUM * BRGEMM_N_KERNEL_NUM> m_brgKernelsXsmmTileCfg;
-
-    size_t m_M;
-    size_t m_K, m_K_blk, m_K_tail;
-    size_t m_N, m_N_blk, m_N_tail;
-    size_t m_brg0VnniFactor;
-    bool m_N_blk_loop = false;
-    bool m_K_blk_loop = false;
-
-    bool m_with_scratch = false;
-    bool m_with_comp = false;
+    libxsmm_gemmfunction m_brgKernelsXsmm{nullptr};
+    libxsmm_gemmfunction m_brgKernelsXsmmTileCfg{nullptr};
 
     size_t m_load_offset_a = 0lu;
     size_t m_load_offset_b = 0lu;
-    size_t m_load_offset_scratch = 0lu;
     size_t m_store_offset_c = 0lu;
 
     std::vector<size_t> io_data_size {};
@@ -110,8 +87,13 @@ private:
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const override;
     void emit_impl(const std::vector<size_t>& in,
                    const std::vector<size_t>& out) const override;
-    static void execute_libxsmm_kernel(libxsmm_meltwfunction_binary *eltwise_kernel, void *in0, void *in1, void *out0);
-    libxsmm_meltwfunction_binary libxsmm_kernel{nullptr};
+    static void execute_libxsmm_kernel(libxsmm_meltwfunction_binary eltwise_kernel, void *in0, void *in1, void *out0);
+    struct libxsmm_meltw_binary_cfg {
+        libxsmm_meltw_binary_shape shape;
+        libxsmm_meltw_binary_type op_type{LIBXSMM_MELTW_TYPE_BINARY_NONE};
+        libxsmm_bitfield flags{LIBXSMM_MELTW_FLAG_BINARY_NONE};
+    } libxsmm_cfg;
+    std::array<size_t, 3> io_offsets{};
 };
 
 }   // namespace intel_cpu

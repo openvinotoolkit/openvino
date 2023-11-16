@@ -7,6 +7,8 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace tpp {
+namespace modifier {
 
 /**
  * @interface TensorProcPrim
@@ -14,7 +16,14 @@ namespace intel_cpu {
  * @ingroup snippets
  */
 class TensorProcessingPrimitive : virtual public snippets::modifier::MemoryAccess {
+    public:
+        void clone_memory_acess_ports(const TensorProcessingPrimitive& other) {
+            m_input_ports = other.m_input_ports;
+            m_output_ports = other.m_output_ports;
+        }
 };
 
+} // namespace modifier
+} // namespace tpp
 } // namespace intel_cpu
 } // namespace ov

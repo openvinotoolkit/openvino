@@ -17,7 +17,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type ty
                      const size_t offset_a, const size_t offset_b, const size_t offset_c,
                      std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c,
                      const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n, const float beta)
-    : Brgemm(), m_type(type), m_beta(beta) {
+    : Brgemm(), m_type(type) {
     // We call default ctor of Brgemm class to avoid incorrect shape infer in constructor_validate_and_type_infer() call
     set_arguments({A, B});
     set_output_size(1);
@@ -27,13 +27,14 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type ty
     set_output_port_descriptor({0, offset_c}, 0);
     compute_block_size_values(blk_size_m, blk_size_k, blk_size_n);
     custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
+    set_beta(beta);
 }
 
 BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, const Type type,
                      const size_t offset_a, const size_t offset_b, const size_t offset_scratch, const size_t offset_c,
                      std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c,
                      const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n, const float beta)
-    : Brgemm(), m_type(type), m_beta(beta) {
+    : Brgemm(), m_type(type) {
     set_arguments({A, B, scratch});
     set_output_size(1);
     ctor_initialize(std::set<size_t>{0, 1, 2}, std::set<size_t>{0});
@@ -43,32 +44,35 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<
     set_input_port_descriptor({0, offset_scratch}, 2);
     compute_block_size_values(blk_size_m, blk_size_k, blk_size_n);
     custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
+    set_beta(beta);
 }
 
 BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type type,
                      const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_c,
                      std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c,
                      const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n, const float beta)
-    : Brgemm(), m_type(type), m_beta(beta) {
+    : Brgemm(), m_type(type) {
     set_arguments({A, B});
     set_output_size(1);
     m_input_ports = {{0, desc_a}, {1, desc_b}};
     m_output_ports = {{0, desc_c}};
     compute_block_size_values(blk_size_m, blk_size_k, blk_size_n);
     custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
+    set_beta(beta);
 }
 
 BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, const Type type,
                      const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_scratch, const PortDescriptor& desc_c,
                      std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c,
                      const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n, const float beta)
-    : Brgemm(), m_type(type), m_beta(beta) {
+    : Brgemm(), m_type(type) {
     set_arguments({A, B, scratch});
     set_output_size(1);
     m_input_ports = {{0, desc_a}, {1, desc_b}, {2, desc_scratch}};
     m_output_ports = {{0, desc_c}};
     compute_block_size_values(blk_size_m, blk_size_k, blk_size_n);
     custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
+    set_beta(beta);
 }
 
 void BrgemmCPU::custom_constructor_validate_and_infer_types(std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c) {
@@ -87,14 +91,6 @@ void BrgemmCPU::custom_constructor_validate_and_infer_types(std::vector<size_t> 
 
     // Additional check for 3rd input
     validate_with_scratchpad(planar_input_shapes[1].get_shape());
-}
-
-void BrgemmCPU::compute_block_size_values(const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n) {
-    const auto input_shape_0 = snippets::utils::get_planar_pshape(input(0)).get_shape();
-    const auto input_shape_1 = snippets::utils::get_planar_pshape(input(1)).get_shape();
-    m_M_blk = blk_size_m != 0 ? blk_size_m : *(input_shape_0.rbegin() + 1);
-    m_K_blk = blk_size_k != 0 ? blk_size_k : *input_shape_0.rbegin();
-    m_N_blk = blk_size_n != 0 ? blk_size_n : *input_shape_1.rbegin();
 }
 
 void BrgemmCPU::validate_and_infer_types() {

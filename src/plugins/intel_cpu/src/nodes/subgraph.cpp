@@ -40,6 +40,7 @@
 
 #include "transformations/snippets/tpp/pass/brgemm_to_brgemm_tpp.hpp"
 #include "transformations/snippets/tpp/pass/eltwise_to_eltwise_tpp.hpp"
+#include "transformations/snippets/tpp/pass/lowered/set_tpp_leading_dim.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::utils;
@@ -501,17 +502,21 @@ void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMe
     const auto& dom = parallel_exec_domain;
     // < N, C, H, W > < 1, 1, N, C*H*W>
     const auto& callable = schedule.get_callable<kernel>();
+    std::cerr << "DOM: ";
+    for (auto d : dom)
+        std::cerr << d << " ";
+    std::cerr << "\n" << std::flush;
 //    int64_t indexes[] = {0, 0, 0, 0, 0};
 //    jit_snippets_call_args call_args;
 //    update_ptrs(call_args, inMemPtrs, outMemPtrs);
 //    callable(indexes, &call_args);
-
     parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
         [&](int64_t d0, int64_t d1, int64_t d2, int64_t d3, int64_t d4) {
             int64_t indexes[] = {d0, d1, d2, d3, d4};
             jit_snippets_call_args call_args;
             update_ptrs(call_args, inMemPtrs, outMemPtrs);
             callable(indexes, &call_args);
+//            std::cerr << d0 << " "<< d1<< " "<< d2 << " "<< d3 << " "<< d4 << "\n" << std::flush;
         });
 }
 
@@ -603,6 +608,7 @@ void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp)
     SNIPPETS_REGISTER_PASS(PassPosition(Place::After, "MarkLoops"), ov::intel_cpu::pass::BrgemmBlocking);
     SNIPPETS_REGISTER_PASS(PassPosition(Place::After, "InsertLoops"), ov::intel_cpu::pass::FuseLoadStoreConvert);
     SNIPPETS_REGISTER_PASS(PassPosition(Place::After, "InsertLoops"), ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape);
+    SNIPPETS_REGISTER_PASS(PassPosition(Place::After, "InsertLoops"),  ov::intel_cpu::tpp::pass::SetTPPLeadingDim);
 #undef SNIPPETS_REGISTER_PASS
     schedule = snippetAttrs.snippet->generate_from_linear_ir(backend_passes, reinterpret_cast<const void*>(jcp));
 }

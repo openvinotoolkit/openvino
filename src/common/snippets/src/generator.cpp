@@ -27,23 +27,24 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
     std::function<opRegType(const std::shared_ptr<Node>& op)> reg_type_mapper = [&](const std::shared_ptr<Node>& op) -> opRegType {
         return get_op_reg_type(op);
     };
-    linear_ir.serialize("snsdebug_linear.xml", "snsdebug_linear.bin");
+
     lowered::pass::PassPipeline lowered_pipeline;
     // Note: the order of all passes in this pipeline must not be changed since they have hard dependencies
     //    1. InsertTailLoop must be called after AssignRegisters since tail loop expressions must have the same
     //       assigned registers as the corresponding ops in the main body.
     //    2. CleanupLoopOffsets must be called after InsertTailLoop to avoid violating the proportionality of the pointer increments
-    //       (this might happen if tail loop and main loop have different increments)
+    //       (this might happen if tail loop and main loop have different increments)sns
     //    3. OptimizeLoopSingleEvaluation must be called after CleanupLoopOffsets
     //       since CleanupLoopOffsets can't handle loops with evaluate_once = true
     lowered_pipeline.register_pass<lowered::pass::AssignRegisters>(reg_type_mapper);
     lowered_pipeline.register_pass<lowered::pass::InsertSpecificIterations>();
-//    lowered_pipeline.register_pass<lowered::pass::InsertTailLoop>();
-    lowered_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
-    lowered_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
+   lowered_pipeline.register_pass<lowered::pass::InsertTailLoop>();
+    // lowered_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
+    // lowered_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
+
     lowered_pipeline.run(linear_ir);
     linear_ir.init_emitters(target);
-
+    linear_ir.serialize("snsdebug_linear_lowered.xml", "snsdebug_linear_lowered.bin");
     OV_ITT_TASK_NEXT(GENERATE, "::EmitCode")
     auto loops2DKernel = std::make_shared<op::Kernel>(linear_ir);
     loops2DKernel->compile_params = compile_params;
@@ -75,7 +76,9 @@ std::shared_ptr<const TargetMachine> Generator::get_target_machine() const {
 }
 
 Generator::opRegType Generator::get_op_reg_type(const std::shared_ptr<Node>& op) const {
-    if (std::dynamic_pointer_cast<modifier::MemoryAccess>(op) ||
+    auto reg_type = get_specific_op_reg_type(op);
+    if (reg_type == opRegType::undefined) {
+            if (std::dynamic_pointer_cast<modifier::MemoryAccess>(op) ||
         std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
         std::dynamic_pointer_cast<ov::op::v0::Result>(op) ||
         std::dynamic_pointer_cast<op::LoopBegin>(op) ||
@@ -86,12 +89,12 @@ Generator::opRegType Generator::get_op_reg_type(const std::shared_ptr<Node>& op)
         std::dynamic_pointer_cast<op::RankNormalization>(op) ||
         std::dynamic_pointer_cast<op::PerfCountBeginBase>(op) ||
         std::dynamic_pointer_cast<op::PerfCountEndBase>(op))
-        return gpr2gpr;
+        reg_type = gpr2gpr;
     else if (std::dynamic_pointer_cast<snippets::op::Load>(op) ||
              std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(op))
-        return gpr2vec;
+        reg_type = gpr2vec;
     else if (std::dynamic_pointer_cast<snippets::op::Store>(op))
-        return vec2gpr;
+        reg_type = vec2gpr;
     else if (ov::op::util::is_unary_elementwise_arithmetic(op) ||
              ov::op::util::is_binary_elementwise_arithmetic(op) ||
              ov::op::util::is_binary_elementwise_comparison(op) ||
@@ -106,13 +109,16 @@ Generator::opRegType Generator::get_op_reg_type(const std::shared_ptr<Node>& op)
              std::dynamic_pointer_cast<op::HorizonMax>(op) ||
              std::dynamic_pointer_cast<op::HorizonSum>(op) ||
              std::dynamic_pointer_cast<op::Fill>(op))
-        return vec2vec;
-    else
-        return get_specific_op_reg_type(op);
+        reg_type = vec2vec;
+    }
+
+    OPENVINO_ASSERT(reg_type != opRegType::undefined,
+                    "Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");
+    return reg_type;
 }
 
 Generator::opRegType Generator::get_specific_op_reg_type(const std::shared_ptr<ov::Node>& op) const {
-    OPENVINO_THROW("Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");
+    return opRegType::undefined;
 }
 
 }// namespace snippets

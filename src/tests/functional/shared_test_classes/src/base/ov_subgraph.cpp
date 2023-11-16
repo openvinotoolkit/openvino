@@ -265,25 +265,25 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
             }
             auto it = compareMap.find(inputNode->get_type_info());
             ASSERT_NE(it, compareMap.end());
-            const auto& exp = expected[j];
-            const auto& act = actual[j];
-            if (exp.get_element_type() == ov::element::f32) {
-                auto exp_data = exp.data<float>();
-                auto act_data = act.data<float>();
-                std::cerr << "exp vs actual (fp32)\n";
-                for (int k = 0; k < exp.get_size(); k++) {
-                    std::string mark = abs(exp_data[k] - act_data[k]) > 1e-4 ? " ***" : "";
-                    std::cerr << k << " : " << exp_data[k] << " : " << act_data[k] << mark << "\n";
-                }
-            } else if (exp.get_element_type() == ov::element::i8) {
-                auto exp_data = exp.data<int8_t>();
-                auto act_data = act.data<int8_t>();
-                std::cerr << "exp vs actual (int8)\n";
-                for (int k = 0; k < exp.get_size(); k++) {
-                    std::string mark = abs(exp_data[k] - act_data[k]) > 1e-4 ? " ***" : "";
-                    std::cerr << k << " : " << static_cast<int>(exp_data[k]) << " : " << static_cast<int>(act_data[k]) << mark << "\n";
-                }
-            }
+//            const auto& exp = expected[j];
+//            const auto& act = actual[j];
+//            if (exp.get_element_type() == ov::element::f32) {
+//                auto exp_data = exp.data<float>();
+//                auto act_data = act.data<float>();
+//                std::cerr << "exp vs actual (fp32)\n";
+//                for (int k = 0; k < exp.get_size(); k++) {
+//                    std::string mark = abs(exp_data[k] - act_data[k]) > 1e-4 ? " ***" : "";
+//                    std::cerr << k << " : " << exp_data[k] << " : " << act_data[k] << mark << "\n";
+//                }
+//            } else if (exp.get_element_type() == ov::element::i8) {
+//                auto exp_data = exp.data<int8_t>();
+//                auto act_data = act.data<int8_t>();
+//                std::cerr << "exp vs actual (int8)\n";
+//                for (int k = 0; k < exp.get_size(); k++) {
+//                    std::string mark = abs(exp_data[k] - act_data[k]) > 1e-4 ? " ***" : "";
+//                    std::cerr << k << " : " << static_cast<int>(exp_data[k]) << " : " << static_cast<int>(act_data[k]) << mark << "\n";
+//                }
+//            }
             it->second(inputNode, i, expected[j], actual[j], abs_threshold, rel_threshold);
         }
     }
@@ -451,34 +451,34 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
 
     auto compiledModelRef = core->compile_model(functionRefs, ov::test::utils::DEVICE_TEMPLATE, {{ ov::template_plugin::disable_transformations(true) }});
     auto inferRequestRef = compiledModelRef.create_infer_request();
-    std::vector<ov::Tensor> tensors;
+//    std::vector<ov::Tensor> tensors;
     for (const auto& param : functionRefs->get_parameters()) {
-        tensors.push_back(inputs.at(matched_parameters[param]));
+//        tensors.push_back(inputs.at(matched_parameters[param]));
         inferRequestRef.set_tensor(param->get_default_output(), inputs.at(matched_parameters[param]));
     }
     // Debug printout
-    const auto& first = tensors.front();
-    if (first.get_element_type() == ov::element::f32) {
-        std::vector<float *> tensor_data;
-        std::vector<size_t> tensor_size;
-        size_t max_size = 0;
-        for (const auto& t : tensors) {
-            tensor_data.push_back(t.data<float>());
-            tensor_size.push_back(t.get_size());
-            max_size = std::max(max_size, tensor_size.back());
-        }
-        std::cerr << "Input values: \n";
-        for (int k = 0; k < max_size; k++) {
-            std::cerr << k << " : ";
-            for (size_t i = 0; i < tensors.size(); i++) {
-                if (k < tensor_size[i])
-                    std::cerr << tensor_data[i][k] << " : ";
-                else
-                    std::cerr << "------" << " : ";
-            }
-            std::cerr << "\n";
-        }
-    }
+//    const auto& first = tensors.front();
+//    if (first.get_element_type() == ov::element::f32) {
+//        std::vector<float *> tensor_data;
+//        std::vector<size_t> tensor_size;
+//        size_t max_size = 0;
+//        for (const auto& t : tensors) {
+//            tensor_data.push_back(t.data<float>());
+//            tensor_size.push_back(t.get_size());
+//            max_size = std::max(max_size, tensor_size.back());
+//        }
+//        std::cerr << "Input values: \n";
+//        for (int k = 0; k < max_size; k++) {
+//            std::cerr << k << " : ";
+//            for (size_t i = 0; i < tensors.size(); i++) {
+//                if (k < tensor_size[i])
+//                    std::cerr << tensor_data[i][k] << " : ";
+//                else
+//                    std::cerr << "------" << " : ";
+//            }
+//            std::cerr << "\n";
+//        }
+//    }
     // Debug printout
     inferRequestRef.infer();
 

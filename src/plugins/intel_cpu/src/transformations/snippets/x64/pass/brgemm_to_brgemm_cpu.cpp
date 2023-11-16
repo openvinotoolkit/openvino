@@ -10,6 +10,7 @@
 #include "snippets/op/brgemm.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/tpp/op/modifiers.hpp"
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -43,8 +44,10 @@ void set_port_desc(const T& port, Args... params) {
 
 pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
     MATCHER_SCOPE(BrgemmToBrgemmCPU);
-
-    auto m_brgemm = ov::pass::pattern::wrap_type<snippets::op::Brgemm>();
+    auto is_not_tpp = [](const Output<Node>& out) {
+        return !std::dynamic_pointer_cast<const intel_cpu::tpp::modifier::TensorProcessingPrimitive>(out.get_node_shared_ptr());
+    };
+    auto m_brgemm = ov::pass::pattern::wrap_type<snippets::op::Brgemm>(is_not_tpp);
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::BrgemmToBrgemmCPU")

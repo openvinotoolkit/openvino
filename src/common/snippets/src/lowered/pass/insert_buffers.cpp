@@ -34,12 +34,15 @@ std::vector<size_t> get_buffer_loop_ids(const std::vector<size_t>& lhs, const st
 // TODO: This logic covers only several specific cases so it should be generalized.
 ov::Shape compute_allocation_shape(const LinearIR::LoopManagerPtr& loop_manager,
                                    const std::vector<size_t>& buffer_loop_ids,
-                                   const std::vector<size_t>& parent_loop_ids,
-                                   const ExpressionPort& expr_port,
+                                   const ExpressionPort& parent_expr_output,
+                                   const std::set<ExpressionPort>& expr_inputs,
                                    const int allocation_rank) {
-    const auto planar_shape = utils::get_preordered_vdims(expr_port);
+    const auto& parent_expr = parent_expr_output.get_expr();
+    const auto& parent_loop_ids = parent_expr->get_loop_ids();
+    const auto planar_shape = utils::get_preordered_vdims(parent_expr_output);
 
-    const size_t rank = allocation_rank >= 0 ? std::min(static_cast<size_t>(allocation_rank), planar_shape.size()) : planar_shape.size();
+    const size_t rank = allocation_rank >= 0 ? std::min(static_cast<size_t>(allocation_rank), planar_shape.size())
+                                             : planar_shape.size();
     ov::Shape allocation_shape(rank);
     for (size_t i = 0; i < rank; ++i) {
         *(allocation_shape.rbegin() + i) = *(planar_shape.rbegin() + i);
@@ -139,12 +142,16 @@ LinearIR::constExprIt InsertBuffers::insertion_position(const LinearIR& linear_i
         loop_manager->get_loop_bounds(linear_ir, down_loop_id, loop_begin_pos, loop_end_pos);
         return loop_begin_pos;
     }
+    // If upper and lower expressions are in the same loop, we should insert Buffer between them
+    if (loop_idx == up_loop_count && loop_idx == down_loop_count) {
+        return linear_ir.find(down_expr);
+    }
     OPENVINO_THROW("Incorrect configuration for Buffer insertion!");
 }
 
 void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& expr_it, const LinearIR::LoopManagerPtr& loop_manager,
                               const std::vector<LinearIR::LoopManager::LoopPort>& loop_entries,
-                              const std::vector<LinearIR::LoopManager::LoopPort>& loop_exits) {
+                              const std::vector<LinearIR::LoopManager::LoopPort>& loop_exits) const {
     for (const auto& entry_point : loop_entries) {
         const auto& entry_port = entry_point.expr_port;
         const auto& expr = entry_port->get_expr();
@@ -178,8 +185,8 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
             const auto pos = insertion_position(linear_ir, loop_manager, parent_expr, expr);
             const auto allocation_shape = compute_allocation_shape(loop_manager,
                                                                    buffer_loop_ids,
-                                                                   parent_loops,
                                                                    parent_expr_output,
+                                                                   {*entry_port},
                                                                    m_buffer_allocation_rank);
             const auto buffer = std::make_shared<op::IntermediateMemoryBuffer>(parent->output(parent_port), allocation_shape);
             PortDescriptorUtils::set_port_descriptor_ptr(buffer->output(0), parent_expr_output.get_descriptor_ptr()->clone());
@@ -271,8 +278,8 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& 
 
             const auto allocation_shape = compute_allocation_shape(loop_manager,
                                                                    buffer_loop_ids,
-                                                                   current_loops,
                                                                    *exit_port,
+                                                                   child_exprs_inputs,
                                                                    m_buffer_allocation_rank);
             auto buffer = std::make_shared<op::IntermediateMemoryBuffer>(node->output(port_idx), allocation_shape);
             PortDescriptorUtils::set_port_descriptor_ptr(buffer->output(0), exit_port->get_descriptor_ptr()->clone());

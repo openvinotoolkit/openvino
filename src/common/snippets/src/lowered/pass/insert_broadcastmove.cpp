@@ -20,9 +20,12 @@ bool InsertBroadcastMove::run(LinearIR& linear_ir) {
     const auto& loop_manager = linear_ir.get_loop_manager();
 
     auto supports_broadcasting = [](const std::shared_ptr<ov::Node>& n) {
-      return ov::op::util::supports_auto_broadcast(n) ||
+       // - All operations with the MemoryAccess modifier handle broadcasting through pointer arithmetics
+       //   So they don't support broadcasting in terms of explicit Broadcast operation
+      return !std::dynamic_pointer_cast<modifier::MemoryAccess>(n) &&
+             (ov::op::util::supports_auto_broadcast(n) ||
              n->get_autob().m_type == ov::op::AutoBroadcastType::NUMPY ||
-             is_type<ov::op::v0::PRelu>(n);
+             is_type<ov::op::v0::PRelu>(n));
     };
     auto dont_need_broadcasting = [](const ov::Output<ov::Node>& v){
         // We don't need to insert BroadcastMove after the following operations:

@@ -30,7 +30,8 @@ std::vector<size_t> make_subtensor(const ov::Shape& tensor) {
 template<typename T>
 void set_full_port_desc(const T& port) {
     const auto& shape = port.get_shape();
-    const std::vector<size_t> full_subtensor(2, PortDescriptor::ServiceDimensions::FULL_DIM);
+//    const std::vector<size_t> full_subtensor(2, PortDescriptor::ServiceDimensions::FULL_DIM);
+    const std::vector<size_t> full_subtensor{32, 64};
     PortDescriptorUtils::set_port_descriptor_ptr(port, std::make_shared<PortDescriptor>(shape, full_subtensor));
 }
 template<typename T, typename... Args>

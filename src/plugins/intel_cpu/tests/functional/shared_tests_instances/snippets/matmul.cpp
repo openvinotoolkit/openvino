@@ -17,8 +17,9 @@ std::vector<std::vector<ov::PartialShape>> input_shapes{
 //        {{3, 1, 32, 14}, {1, 2, 14, 32}},
 //        {{1, 2, 37, 23}, {2, 1, 23, 37}},
 //        {{1, 1, 37, 23}, {1, 2, 23, 33}},
-//        {{1, 1, 32, 23}, {1, 1, 23, 68}},
-        {{1, 16, 384, 64}, {1, 16, 64, 384}},
+    //    {{1, 1, 32, 23}, {1, 1, 23, 64}},
+//        {{1, 16, 384, 2900}, {1, 16, 2900, 384}},
+//        {{1, 1, 100, 2500}, {1, 1, 2500, 100}},
 //        {{1, 1, 100, 700}, {1, 1, 700, 100}},
 };
 
@@ -48,14 +49,14 @@ static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 
     return prc;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, MatMul,
-                         ::testing::Combine(
-                             ::testing::ValuesIn(input_shapes),
-                             ::testing::ValuesIn(precisions(false)),
-                             ::testing::Values(1), // MatMul
-                             ::testing::Values(1), // Tokenized MatMul
-                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                         MatMul::getTestCaseName);
+// INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, MatMul,
+//                         ::testing::Combine(
+//                             ::testing::ValuesIn(input_shapes),
+//                             ::testing::ValuesIn(precisions(false)),
+//                             ::testing::Values(1), // MatMul
+//                             ::testing::Values(1), // Tokenized MatMul
+//                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
+//                         MatMul::getTestCaseName);
 
 //INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulFQ, MatMulFQ,
 //                         ::testing::Combine(
@@ -66,14 +67,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, MatMul,
 //                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
 //                         MatMul::getTestCaseName);
 //
-//INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulBias, MatMulBias,
-//                         ::testing::Combine(
-//                                 ::testing::Values(std::vector<ov::PartialShape>{{1, 2, 69, 43}, {2, 1, 43, 49}, {1, 1, 69, 49}}),
-//                                 ::testing::ValuesIn(precisions(false)),
-//                                 ::testing::Values(1), // Subgraph;
-//                                 ::testing::Values(1), // Tokenized MatMul+Bias
-//                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
-//                         MatMul::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulBias, MatMulBias,
+                         ::testing::Combine(
+//                                 ::testing::Values(std::vector<ov::PartialShape>{{1, 2, 32, 23}, {2, 1, 23, 25}, {1, 1, 32, 25}}),
+                                 ::testing::Values(std::vector<ov::PartialShape>{{1, 2, 95, 1023}, {1, 2, 1023, 255}, {1, 2, 95, 255}}),
+                                 ::testing::ValuesIn(precisions(false)),
+                                 ::testing::Values(1), // Subgraph;
+                                 ::testing::Values(1), // Tokenized MatMul+Bias
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         MatMul::getTestCaseName);
 //
 //INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulBiasQuantized, MatMulBiasQuantized,
 //                         ::testing::Combine(

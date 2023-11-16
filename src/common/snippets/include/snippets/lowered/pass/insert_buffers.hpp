@@ -24,18 +24,18 @@ namespace pass {
 class InsertBuffers : public Pass {
 public:
     OPENVINO_RTTI("InsertBuffers", "Pass")
-    InsertBuffers(int32_t buffer_allocation_rank);
+    explicit InsertBuffers(int32_t buffer_allocation_rank);
     bool run(LinearIR& linear_ir) override;
 
 private:
     void insertion(LinearIR& linear_ir, const LinearIR::constExprIt& expr_it, const LinearIR::LoopManagerPtr& loop_manager,
                    const std::vector<LinearIR::LoopManager::LoopPort>& loop_entries,
-                   const std::vector<LinearIR::LoopManager::LoopPort>& loop_exits);
+                   const std::vector<LinearIR::LoopManager::LoopPort>& loop_exits) const;
 
-    LinearIR::constExprIt insertion_position(const LinearIR& linear_ir,
-                                             const LinearIR::LoopManagerPtr& loop_manager,
-                                             const ExpressionPtr& expr,
-                                             const ExpressionPtr& down_expr);
+    static LinearIR::constExprIt insertion_position(const LinearIR& linear_ir,
+                                                    const LinearIR::LoopManagerPtr& loop_manager,
+                                                    const ExpressionPtr& expr,
+                                                    const ExpressionPtr& down_expr);
 
     int32_t m_buffer_allocation_rank;
 };

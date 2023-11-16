@@ -32,13 +32,15 @@ public:
     struct PortDescriptor {
         PortDescriptor(size_t count, size_t offset) : count(count), offset(offset) {}
         PortDescriptor() = default;
-
+        // TODO: should we deprecate count in favor of subtensors?
         size_t count = 0lu;
         size_t offset = 0lu;
+        size_t stride = 0lu; // aka leading dimension
         size_t index = 0lu;
 
     private:
-        PortDescriptor(size_t count, size_t offset, size_t index) : count(count), offset(offset), index(index) {}
+        PortDescriptor(size_t count, size_t offset, size_t stride, size_t index) :
+            count(count), offset(offset), stride(stride), index(index) {}
 
         friend class MemoryAccess;
     };
@@ -48,11 +50,15 @@ public:
     void set_output_count(size_t count, size_t idx = 0);
     void set_input_offset(size_t offset, size_t idx = 0);
     void set_output_offset(size_t offset, size_t idx = 0);
+    void set_input_stride(size_t stride, size_t idx = 0);
+    void set_output_stride(size_t stride, size_t idx = 0);
 
     size_t get_input_count(size_t idx = 0) const;
     size_t get_output_count(size_t idx = 0) const;
     size_t get_input_offset(size_t idx = 0) const;
     size_t get_output_offset(size_t idx = 0) const;
+    size_t get_input_stride(size_t idx = 0) const;
+    size_t get_output_stride(size_t idx = 0) const;
 
     PortMap get_memory_access_input_ports() const { return m_input_ports; }
     PortMap get_memory_access_output_ports() const { return m_output_ports; }
@@ -80,6 +86,8 @@ protected:
     void set_output_port_descriptor(const PortDescriptor& desc, const size_t i);
     const PortDescriptor& get_input_port_descriptor(const size_t i) const;
     const PortDescriptor& get_output_port_descriptor(const size_t i) const;
+    PortDescriptor& get_input_port_descriptor(const size_t i);
+    PortDescriptor& get_output_port_descriptor(const size_t i);
 
     // [port_num, port_desc]
     PortMap m_input_ports;

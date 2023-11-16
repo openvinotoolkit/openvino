@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#pragma once
-
 #include "eltwise.hpp"
 
 namespace ov {
@@ -18,7 +16,15 @@ BinaryEltwiseTPP::BinaryEltwiseTPP() {
 
 bool BinaryEltwiseTPP::is_supported(const std::shared_ptr<ov::Node>& node) {
     return ov::is_type<ov::op::v1::Add>(node) ||
-           ov::is_type<ov::op::v1::Add>(node);
+           ov::is_type<ov::op::v1::Subtract>(node) ||
+           ov::is_type<ov::op::v1::Multiply>(node) ||
+           ov::is_type<ov::op::v1::Divide>(node);
+}
+
+bool BinaryEltwiseTPP::visit_attributes(AttributeVisitor& visitor) {
+    std::string modifier{"TPP"};
+    visitor.on_attribute("modifier", modifier);
+    return MemoryAccess::visit_attributes(visitor);
 }
 
 Add::Add(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
@@ -26,15 +32,14 @@ Add::Add(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcast
 }
 
 bool Add::visit_attributes(AttributeVisitor& visitor) {
-    // todo: this is for debug purposes. remove before merge
-    std::string tmp = "TPP";
-    visitor.on_attribute("type", tmp);
-    return MemoryAccess::visit_attributes(visitor);
+    return BinaryEltwiseTPP::visit_attributes(visitor);
 }
 
 std::shared_ptr<Node> Add::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
-    return std::make_shared<Add>(new_args.at(0), new_args.at(1), this->get_autob());
+    const auto& new_op = std::make_shared<Add>(new_args.at(0), new_args.at(1), this->get_autob());
+    new_op->clone_memory_acess_ports(*this);
+    return new_op;
 }
 
 Subtract::Subtract(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
@@ -43,7 +48,13 @@ Subtract::Subtract(const Output<Node>& arg0, const Output<Node>& arg1, const Aut
 
 std::shared_ptr<Node> Subtract::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
-    return std::make_shared<Subtract>(new_args.at(0), new_args.at(1), this->get_autob());
+    const auto& new_op = std::make_shared<Subtract>(new_args.at(0), new_args.at(1), this->get_autob());
+    new_op->clone_memory_acess_ports(*this);
+    return new_op;
+}
+
+bool Subtract::visit_attributes(AttributeVisitor& visitor) {
+    return BinaryEltwiseTPP::visit_attributes(visitor);
 }
 
 Multiply::Multiply(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
@@ -52,7 +63,13 @@ Multiply::Multiply(const Output<Node>& arg0, const Output<Node>& arg1, const Aut
 
 std::shared_ptr<Node> Multiply::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
-    return std::make_shared<Multiply>(new_args.at(0), new_args.at(1), this->get_autob());
+    const auto& new_op = std::make_shared<Multiply>(new_args.at(0), new_args.at(1), this->get_autob());
+    new_op->clone_memory_acess_ports(*this);
+    return new_op;
+}
+
+bool Multiply::visit_attributes(AttributeVisitor& visitor) {
+    return BinaryEltwiseTPP::visit_attributes(visitor);
 }
 
 Divide::Divide(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
@@ -61,7 +78,13 @@ Divide::Divide(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBro
 
 std::shared_ptr<Node> Divide::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
-    return std::make_shared<Divide>(new_args.at(0), new_args.at(1), this->get_autob());
+    const auto& new_op = std::make_shared<Divide>(new_args.at(0), new_args.at(1), this->get_autob());
+    new_op->clone_memory_acess_ports(*this);
+    return new_op;
+}
+
+bool Divide::visit_attributes(AttributeVisitor& visitor) {
+    return BinaryEltwiseTPP::visit_attributes(visitor);
 }
 
 } // namespace op

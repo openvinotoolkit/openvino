@@ -52,8 +52,7 @@ BrgemmToBrgemmTPP::BrgemmToBrgemmTPP() {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::BrgemmToBrgemmTPP")
         const auto node = m.get_match_root();
         const auto brgemm = ov::as_type_ptr<snippets::op::Brgemm>(node);
-        const auto brgemm_tpp = ov::as_type_ptr<tpp::op::BrgemmTPP>(node);
-        if (!brgemm || brgemm_tpp)
+        if (!brgemm || ov::as_type_ptr<tpp::op::BrgemmTPP>(node))
             OPENVINO_THROW("BrgemmCPU cannot be in body before BrgemmToBrgemmTPP pass");
 
         if (brgemm->is_dynamic()) {
@@ -67,73 +66,56 @@ BrgemmToBrgemmTPP::BrgemmToBrgemmTPP() {
         const auto dimsMatMulIn0 = snippets::utils::get_planar_pshape(brgemm->input(0)).get_shape();
         const auto dimsMatMulIn1 = snippets::utils::get_planar_pshape(brgemm->input(1)).get_shape();
 
+        const auto M = *++dimsMatMulIn0.rbegin();
         const auto K = *dimsMatMulIn0.rbegin();
         const auto N = *dimsMatMulIn1.rbegin();
 
         const auto element_type_a = brgemm->get_input_element_type(0);
+        const auto element_type_b = brgemm->get_input_element_type(1);
         const auto brgemmVNNIFactor = 4 / element_type_a.size();
         const bool isAMXSupported = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx);
         const bool with_amx = isAMXSupported && element_type_a != ov::element::f32 && (K % brgemmVNNIFactor == 0) && (N % brgemmVNNIFactor == 0);
-        const bool with_comp = element_type_a == ov::element::i8 && !with_amx;
 
         const auto offset_a = brgemm->get_offset_a();
         const auto offset_b = brgemm->get_offset_b();
         const auto offset_c = brgemm->get_offset_c();
 
-        std::shared_ptr<tpp::op::BrgemmTPP> brgemm_cpu = nullptr;
-        std::shared_ptr<BrgemmCopyB> brgemm_repacking = nullptr;
+        std::shared_ptr<tpp::op::BrgemmTPP> brgemm_tpp = nullptr;
         if (element_type_a == ov::element::f32) {
-            brgemm_cpu = std::make_shared<tpp::op::BrgemmTPP>(brgemm->input_value(0), brgemm->input_value(1), tpp::op::BrgemmTPP::Type::Floating,
+            brgemm_tpp = std::make_shared<tpp::op::BrgemmTPP>(brgemm->input_value(0), brgemm->input_value(1), tpp::op::BrgemmTPP::Type::Floating,
                                                      offset_a, offset_b, offset_c,
                                                      brgemm_in0_desc->get_layout(), brgemm_in1_desc->get_layout(), brgemm_out_desc->get_layout());
-        } else {
-            // todo: support low precision for tpp
-            OPENVINO_THROW("ONLY FP32 SUPPORT IS ENABLED SO FAR");
-//            const auto copy_b_type = with_comp ? BrgemmCopyB::WithCompensations : BrgemmCopyB::OnlyRepacking;
-//            brgemm_repacking = std::make_shared<BrgemmCopyB>(brgemm->input_value(1), element_type_a, copy_b_type, offset_b, 0, 0,
-//                                                             brgemm_in1_desc->get_layout());
-//            set_port_desc(brgemm_repacking->input(0), brgemm_in1_desc->get_shape(), brgemm_in1_desc->get_subtensor(), brgemm_in1_desc->get_layout());
-//            set_full_port_desc(brgemm_repacking->output(0));
-//
-//            if (with_amx) {
-//                const auto scratch = std::make_shared<snippets::op::Buffer>(ov::Shape{BrgemmCPU::SCRATCH_BYTE_SIZE});
-//                brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), brgemm_repacking->output(0), scratch, BrgemmCPU::Type::AMX,
-//                                                         offset_a, offset_b, 0, offset_c,
-//                                                         brgemm_in0_desc->get_layout(), std::vector<size_t>{}, brgemm_out_desc->get_layout());
-//                set_full_port_desc(scratch->output(0));
-//                set_full_port_desc(brgemm_cpu->input(2));
-//            } else if (with_comp) {
-//                brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), brgemm_repacking->output(0), brgemm_repacking->output(1),
-//                                                         BrgemmCPU::Type::WithCompensations, offset_a, offset_b, 0, offset_c,
-//                                                         brgemm_in0_desc->get_layout(), std::vector<size_t>{}, brgemm_out_desc->get_layout());
-//                set_full_port_desc(brgemm_repacking->output(1));
-//                set_full_port_desc(brgemm_cpu->input(2));
-//            } else if (one_of(element_type_a, ov::element::u8, ov::element::bf16)) {
-//                brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), brgemm_repacking->output(0), BrgemmCPU::Type::WithDataRepacking,
-//                                                         offset_a, offset_b, offset_c,
-//                                                         brgemm_in0_desc->get_layout(), std::vector<size_t>{}, brgemm_out_desc->get_layout());
-//            } else {
-//                IE_THROW() << "Invalid configuration for BRGEMM CPU";
-//            }
         }
+        // Set blocking params
+        // Ticket: 113745
+        // TODO: extend block size selection heuristics
+        auto get_block_size_m = [](const size_t M) {
+            return 32;
+        };
+        auto get_block_size_k = [=](const size_t K) {
+            if (element_type_b != ov::element::f32)
+                return K;
+            return 512ul;//K > 1024 ? 1024 : K > 512 ? 512 : K;
+        };
+        auto get_block_size_n = [=](const size_t N) {
+            return element_type_b != ov::element::f32 ? N : 64;
+        };
 
-        brgemm_cpu->set_friendly_name(brgemm->get_friendly_name());
-        ngraph::replace_node(brgemm, brgemm_cpu);
+        brgemm_tpp->set_m_block_size(get_block_size_m(M));
+        brgemm_tpp->set_k_block_size(get_block_size_k(K));
+        brgemm_tpp->set_n_block_size(get_block_size_n(N));
 
-        // Transfer ports
-        set_port_desc(brgemm_cpu->input(0), brgemm_in0_desc->get_shape(), brgemm_in0_desc->get_subtensor(), brgemm_in0_desc->get_layout());
-        if (brgemm_repacking) {
-            set_full_port_desc(brgemm_cpu->input(1));
-        } else {
-            set_port_desc(brgemm_cpu->input(1), brgemm_in1_desc->get_shape(), brgemm_in1_desc->get_subtensor(), brgemm_in1_desc->get_layout());
-        }
-        set_port_desc(brgemm_cpu->output(0), brgemm_out_desc->get_shape(), brgemm_out_desc->get_subtensor(), brgemm_out_desc->get_layout());
+        brgemm_tpp->set_friendly_name(brgemm->get_friendly_name());
+        ngraph::replace_node(brgemm, brgemm_tpp);
+
+        // Set FULL_DIM tensors on ports to avoid automatic loop markup (blocked loops will be inserted in a separate transformation)
+        set_port_desc(brgemm_tpp->input(0), brgemm_in0_desc->get_shape(), brgemm_in0_desc->get_subtensor(), brgemm_in0_desc->get_layout());
+        set_port_desc(brgemm_tpp->input(1), brgemm_in1_desc->get_shape(), brgemm_in1_desc->get_subtensor(), brgemm_in1_desc->get_layout());
+        set_port_desc(brgemm_tpp->output(0), brgemm_out_desc->get_shape(), brgemm_out_desc->get_subtensor(), brgemm_out_desc->get_layout());
 
         // need to run validate_and_infer_types manually: either input shapes were updated or
         // output Layout was updated (out shape will be updated in validate_and_infer_types())
-        if (brgemm_repacking)
-            brgemm_repacking->validate_and_infer_types();
-        brgemm_cpu->validate_and_infer_types();
+        brgemm_tpp->validate_and_infer_types();
 
         return true;
     };
