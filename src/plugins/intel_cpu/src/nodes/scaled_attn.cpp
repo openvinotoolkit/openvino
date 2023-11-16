@@ -765,6 +765,11 @@ bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const
             errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(inRank);
             return false;
         }
+        // using mha should be better for static shapes
+        if (!op->is_dynamic()) {
+            errorMessage = "Only run in dynamic mode";
+            return false;
+        }
     } catch (...) {
         return false;
     }
