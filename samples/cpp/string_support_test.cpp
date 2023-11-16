@@ -143,7 +143,7 @@ void test_compile_and_infer (std::shared_ptr<ov::Model> model) {
     std::cout << "--------\n";
     auto request = compiled.create_infer_request();
 
-    request.set_input_tensor(init_tensor()); // required for CPU hack, otherwise output tensor won't be correctly allocated
+    request.set_input_tensor(init_tensor());
     auto output_tensor = request.get_output_tensor();   // trigger wrapping logic before infer request
     request.infer();
 
