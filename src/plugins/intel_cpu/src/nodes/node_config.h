@@ -46,7 +46,7 @@ class PortDescGeneric : public PortDescBase_<PortDescGeneric> {
 public:
     explicit PortDescGeneric(MemoryDescPtr memDesc) : _memDesc(memDesc) {
         if (nullptr == _memDesc) {
-            IE_THROW(ParameterMismatch) << "PortDescGeneric constructor got nullptr";
+            OPENVINO_THROW("ParameterMismatch: PortDescGeneric constructor got nullptr");
         }
     }
     bool isCompatible(const PortDescGeneric& rhs) const {
@@ -66,7 +66,7 @@ public:
 public:
     PortDescBlocked(BlockedMemoryDescPtr memDesc, CmpMask cmpMask) : _memDesc(memDesc), _cmpMask(cmpMask) {
         if (nullptr == _memDesc) {
-            IE_THROW(ParameterMismatch) << "PortDescBlocked constructor got nullptr";
+            OPENVINO_THROW("ParameterMismatch: PortDescBlocked constructor got nullptr");
         }
     }
     bool isCompatible(const PortDescBlocked& rhs) const {

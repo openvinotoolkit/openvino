@@ -32,29 +32,29 @@ ShapeOf::ShapeOf(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "ShapeOf layer with name '" + getName() + "' ";
         if (op->get_input_partial_shape(0).size() == 0)
-            IE_THROW() << errorPrefix << "gets unsupported input 0D tensor (scalar)";
+            OPENVINO_THROW(errorPrefix, "gets unsupported input 0D tensor (scalar)");
     } else {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 }
 
 void ShapeOf::getSupportedDescriptors() {
     if (getParentEdges().size() != 1)
-        IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
+        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges: ", getParentEdges().size());
     if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
+        OPENVINO_THROW(errorPrefix, "has incorrect number of output edges: ", getChildEdges().size());
 }
 
 void ShapeOf::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    Precision precision = getOriginalInputPrecisionAtPort(0);
+    ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
 
     const LayoutType dataFormats[4] = { LayoutType::ncsp, LayoutType::nspc, LayoutType::nCsp16c, LayoutType::nCsp8c };
     for (const auto &df : dataFormats) {
         addSupportedPrimDesc({{df, precision}},
-                             {{LayoutType::ncsp, Precision::I32}},
+                             {{LayoutType::ncsp, ov::element::i32}},
                              impl_desc_type::ref);
     }
 }
@@ -69,7 +69,7 @@ void ShapeOf::execute(dnnl::stream strm) {
     auto inDims = inPtr->getStaticDims();
     size_t dimsCount = inDims.size();
     if (outPtr->getStaticDims().size() != 1 || dimsCount != outPtr->getStaticDims()[0])
-        IE_THROW() << errorPrefix << "has inconsistent input shape and output size";
+        OPENVINO_THROW(errorPrefix, "has inconsistent input shape and output size");
 
     auto *dst = reinterpret_cast<int *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 

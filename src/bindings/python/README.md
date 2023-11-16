@@ -23,6 +23,7 @@ OpenVINO PYTHON API has the following structure:
 * [src](./src/) - folder with all source files for Python API.
     * [src/compatibility](./src/compatibility/) - sources for compatibility API, including older modules like `ngraph` and `openvino.inference_engine`.
     * [src/openvino](./src/openvino/) - Python sources for current API.
+    * [src/openvino/preprocess](./src/openvino/preprocess/) - Torchvision to OpenVINO preprocessing converter.
     * [src/pyopenvino](./src/pyopenvino/) - C++ sources for current API.
 * [tests](./tests/) - tests directory for current API.
 * [tests_compatibility](./tests_compatibility/) - tests directory for compatibility API.

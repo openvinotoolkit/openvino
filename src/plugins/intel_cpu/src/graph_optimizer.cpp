@@ -248,15 +248,15 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
     auto initializeDeQuantizedScales = [](NodePtr node, NodePtr scales) {
         auto scalesConstant = dynamic_cast<node::Input*>(scales.get());
         if (scalesConstant == nullptr)
-            IE_THROW() << "Cannot cast to Input node";
+            OPENVINO_THROW("Cannot cast to Input node");
 
         auto scalesBlob = scalesConstant->getMemoryPtr();
         if (scalesBlob == nullptr)
-            IE_THROW() << "Cannot cast to TBlob internal scales blob";
+            OPENVINO_THROW("Cannot cast to TBlob internal scales blob");
 
         auto scalesData = static_cast<const float*>(scalesBlob->getData());
         if (scalesData == nullptr)
-            IE_THROW() << "scalesBlob has not allocated buffer";
+            OPENVINO_THROW("scalesBlob has not allocated buffer");
         auto scalesDims = getNormalizedDimsBySize(scales->getOutputShapeAtPort(0).getDims(),
                                                 node->getOutputShapeAtPort(0).getDims().size());
         auto scaleSize = std::accumulate(scalesDims.begin(), scalesDims.end(), 1, std::multiplies<size_t>());
@@ -285,9 +285,8 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
 }
 
 void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
-    std::set<InferenceEngine::Precision> supportedWeightsPrecisions{InferenceEngine::Precision::U8, InferenceEngine::Precision::NF4,
-                                                                    InferenceEngine::Precision::U4, InferenceEngine::Precision::I4};
-    const std::set<InferenceEngine::Precision> supportedDataPrecisions{InferenceEngine::Precision::FP32, InferenceEngine::Precision::BF16};
+    std::set<ov::element::Type> supportedWeightsPrecisions{ov::element::u8, ov::element::nf4, ov::element::u4, ov::element::i4};
+    const std::set<ov::element::Type> supportedDataPrecisions{ov::element::f32, ov::element::bf16};
     auto expectedNode = [](NodePtr node, Type expectedType) {
         return node->getType() == expectedType && node->getChildEdges().size() == 1;
     };
@@ -418,7 +417,7 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
 
         // HW specific shape limitations
         if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) &&
-            fcNode->getOriginalInputPrecisionAtPort(0) == InferenceEngine::Precision::BF16) {
+            fcNode->getOriginalInputPrecisionAtPort(0) == ov::element::bf16) {
             // OneDNN AMX IP implementation has limited shapes support due to performance considerations. As a current solution conditions below are copied
             // from OneDNN to make sure correct IP impl will be used since fallback one doesn't support weights decompression feature.
             size_t OC = fcInputWeightsShape.getDims()[0];
@@ -441,25 +440,25 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         // Fusion processing
         auto *multiplyInputNode = dynamic_cast<node::Input *>(multiplyConstNode.get());
         if (!multiplyInputNode) {
-            IE_THROW() << "Cannot cast " << multiplyInputNode->getName() << " to Input node";
+            OPENVINO_THROW("Cannot cast ", multiplyInputNode->getName(), " to Input node.");
         }
         fcNode->fuseDecompressionMultiply(multiplyInputNode->getMemoryPtr());
 
         if (withSubtract) {
             auto *subtractInputNode = dynamic_cast<node::Input *>(subtractConstNode.get());
             if (!subtractInputNode) {
-                IE_THROW() << "Cannot cast " << subtractInputNode->getName() << " to Input node";
+                OPENVINO_THROW("Cannot cast ", subtractInputNode->getName(), " to Input node.");
             }
             fcNode->fuseDecompressionSubtract(subtractInputNode->getMemoryPtr());
         }
         if (withPowerStatic) {
             auto *eltwiseNode = dynamic_cast<node::Eltwise *>(powerStaticNode.get());
             if (!eltwiseNode) {
-                IE_THROW() << "Cannot cast " << eltwiseNode->getName() << " to Eltwise node";
+                OPENVINO_THROW("Cannot cast ", eltwiseNode->getName(), " to Eltwise node.");
             }
 
             VectorDims memoryDims(decompressionConstShape.size(), 1);
-            CpuBlockedMemoryDesc memoryDesc(Precision::FP32, Shape(memoryDims));
+            CpuBlockedMemoryDesc memoryDesc(ov::element::f32, Shape(memoryDims));
             auto memory = std::make_shared<Memory>(graph.getEngine(), memoryDesc, nullptr, false);
             (static_cast<float *>(memory->getData()))[0] = -1.f * eltwiseNode->getGamma();
             fcNode->fuseDecompressionSubtract(memory);
@@ -633,7 +632,7 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
                     // Construct Ngraph Reshape node and CPU Reshape node.
                     auto reshapeConstInput = std::make_shared<ov::opset1::Constant>(ov::element::i32, ov::Shape{1}, flattenShape);
                     auto reshapeDummyInput = std::make_shared<ov::opset1::Parameter>(
-                                                details::convertPrecision(biasNode->getOriginalOutputPrecisionAtPort(0)),
+                                                biasNode->getOriginalOutputPrecisionAtPort(0),
                                                 biasOutputShape.toPartialShape());
                     const auto reshape = std::make_shared<ov::opset1::Reshape>(reshapeDummyInput, reshapeConstInput, false);
                     reshape->set_friendly_name(biasNode->getName() + "_flatten_reshape");
@@ -675,7 +674,7 @@ void GraphOptimizer::FuseDeconvolutionAndSimpleOperation(Graph &graph) {
             return false;
         const auto deconv = std::dynamic_pointer_cast<Deconvolution>(node);
         if (deconv == nullptr)
-            IE_THROW() << "Cannot cast to deconvolution node " << node->getName();
+            OPENVINO_THROW("Cannot cast to deconvolution node ", node->getName());
 
         if (deconv->getAlgorithm() != Algorithm::DeconvolutionCommon) {
             return true;
@@ -860,9 +859,9 @@ void GraphOptimizer::MergeConvertAndScaleShift(Graph& graph) {
 
     auto isSuitableParentNode = [](NodePtr parentNode) {
         return parentNode->getType() == Type::Convert && parentNode->getChildEdges().size() == 1 &&
-               (parentNode->getOriginalInputPrecisionAtPort(0) == Precision::U8 ||
-                parentNode->getOriginalInputPrecisionAtPort(0) == Precision::I8) &&
-               parentNode->getOriginalOutputPrecisionAtPort(0) == Precision::FP32;
+               (parentNode->getOriginalInputPrecisionAtPort(0) == ov::element::u8 ||
+                parentNode->getOriginalInputPrecisionAtPort(0) == ov::element::i8) &&
+               parentNode->getOriginalOutputPrecisionAtPort(0) == ov::element::f32;
     };
 
     auto isSuitableChildNode = [](NodePtr childNode) {
@@ -936,8 +935,8 @@ void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
                         && parent->getChildEdges().size() == 1
                         && parent->getChildEdgeAt(0)->getOutputNum() == 1
                         && parent->getChildEdgeAt(0)->getChild()->getType() == Type::FullyConnected
-                        && one_of(parent->getOriginalInputPrecisionAtPort(0), Precision::FP16)
-                        && one_of(parent->getOriginalOutputPrecisionAtPort(0), Precision::FP32, Precision::BF16)
+                        && one_of(parent->getOriginalInputPrecisionAtPort(0), ov::element::f16)
+                        && one_of(parent->getOriginalOutputPrecisionAtPort(0), ov::element::f32, ov::element::bf16)
                         && parent->isConstant();
         return res;
     };
@@ -998,7 +997,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
     auto initializeInputZeroPoints = [](NodePtr node, NodePtr parent0, NodePtr parent1) {
         auto* convNode = dynamic_cast<Convolution*>(node.get());
         if (convNode == nullptr)
-            IE_THROW() << "Cannot get convolution node " << node->getName();
+            OPENVINO_THROW("Cannot get convolution node ", node->getName());
 
         auto IC = node->getInputShapeAtPort(0).getDims()[1];
         auto OC = node->getOutputShapeAtPort(0).getDims()[1];
@@ -1013,7 +1012,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
         // The plug-in doesn't support FP32 convolution with input/weights zero points.
         // In case weights are in FP32 (or we have zero points on weights which are not supported by INT8 convolution) we cannot use
         // INT8 implementation so we have to disable input zero points fusing as well.
-        if (parent1->getType() != Type::Input || !parent1->isConstant() || parent1->getOriginalOutputPrecisionAtPort(0) != Precision::I8) {
+        if (parent1->getType() != Type::Input || !parent1->isConstant() || parent1->getOriginalOutputPrecisionAtPort(0) != ov::element::i8) {
             return false;
         }
 
@@ -1027,7 +1026,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
         if (subtractArg1->getType() != Type::Input || !subtractArg1->isConstant())
             return false;
 
-        if (subtractArg1->getOriginalOutputPrecisionAtPort(0) != Precision::U8)
+        if (subtractArg1->getOriginalOutputPrecisionAtPort(0) != ov::element::u8)
             return false;
 
         if (parent0->getInputShapeAtPort(1).getRank() < 2) {
@@ -1046,20 +1045,20 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
         const auto& parentEdge = parent0->getParentEdgeAt(0);
         const auto& subtractArg0 = parentEdge->getParent();
         const size_t portNum = parentEdge->getInputNum();
-        if (subtractArg0->getOriginalOutputPrecisionAtPort(portNum) != Precision::U8)
+        if (subtractArg0->getOriginalOutputPrecisionAtPort(portNum) != ov::element::u8)
             return false;
 
         auto zeroPointsConstant = dynamic_cast<node::Input*>(subtractArg1.get());
         if (zeroPointsConstant == nullptr)
-            IE_THROW() << "Cannot cast to Input node";
+            OPENVINO_THROW("Cannot cast to Input node");
 
         auto zeroPointsBlob = zeroPointsConstant->getMemoryPtr();
         if (zeroPointsBlob == nullptr)
-            IE_THROW() << "Cannot cast to TBlob internal zero points blob";
+            OPENVINO_THROW("Cannot cast to TBlob internal zero points blob");
 
         auto zeroPointsData = static_cast<const uint8_t*>(zeroPointsBlob->getData());
         if (zeroPointsData == nullptr)
-            IE_THROW() << "zeroPointsBlob has not allocated buffer";
+            OPENVINO_THROW("zeroPointsBlob has not allocated buffer");
 
         auto zeroPointDataSize =  parent0->getInputShapeAtPort(1).getDims()[1];
         if (Shape::UNDEFINED_DIM == zeroPointDataSize) {
@@ -1072,7 +1071,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
     auto initializeOutputCompensation = [](NodePtr node) {
         auto* convNode = dynamic_cast<Convolution*>(node.get());
         if (convNode == nullptr)
-            IE_THROW() << "Cannot get convolution node " << node->getName();
+            OPENVINO_THROW("Cannot get convolution node ", node->getName());
 
         if (convNode->legacyInputZeroPoints.empty())
             return;
@@ -1085,11 +1084,11 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
 
         auto weightsBlob = weightsConstant->getMemoryPtr();
         if (weightsBlob == nullptr)
-            IE_THROW() << "Cannot cast to TBlob internal weights blob";
+            OPENVINO_THROW("Cannot cast to TBlob internal weights blob");
 
         auto weightsPtr = static_cast<const int8_t*>(weightsBlob->getData());
         if (weightsPtr == nullptr)
-            IE_THROW() << "weightsBlob has not allocated buffer";
+            OPENVINO_THROW("weightsBlob has not allocated buffer");
 
         auto G = convNode->getGroupNum();
         const size_t groupOffset = convNode->getAlgorithm() == Algorithm::ConvolutionGrouped ? 1 : 0;
@@ -1252,7 +1251,7 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph &graph) {
 
         const auto conv = std::dynamic_pointer_cast<Convolution>(node);
         if (conv == nullptr)
-            IE_THROW() << "Cannot cast to convolution node " << node->getName();
+            OPENVINO_THROW("Cannot cast to convolution node ", node->getName());
 
         if (!conv->legacyWeightsZeroPoints.empty())
             return false;
@@ -1283,13 +1282,13 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph &graph) {
 
         const auto convChild = std::dynamic_pointer_cast<Convolution>(childNode);
         if (convChild == nullptr)
-            IE_THROW() << "Cannot cast to convolution node " << childNode->getName();
+            OPENVINO_THROW("Cannot cast to convolution node ", childNode->getName());
 
         const auto convParent = std::dynamic_pointer_cast<Convolution>(parentNode);
         if (convParent == nullptr)
-            IE_THROW() << "Cannot cast to convolution node " << parentNode->getName();
+            OPENVINO_THROW("Cannot cast to convolution node ", parentNode->getName());
 
-        if (!everyone_is(Precision::FP32, convParent->getOriginalOutputPrecisionAtPort(0), convChild->getOriginalInputPrecisionAtPort(0),
+        if (!everyone_is(ov::element::f32, convParent->getOriginalOutputPrecisionAtPort(0), convChild->getOriginalInputPrecisionAtPort(0),
                 convChild->getOriginalOutputPrecisionAtPort(0)))
             return false;
 
@@ -1301,7 +1300,7 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph &graph) {
                 ? childNode->fusedWith[childNode->fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0)
                 : childNode->getOriginalOutputPrecisionAtPort(0);
 
-        if (!everyone_is(Precision::FP32, parentOutputPrecision, childOutputPrecision))
+        if (!everyone_is(ov::element::f32, parentOutputPrecision, childOutputPrecision))
             return false;
 
         if (!convChild->legacyInputZeroPoints.empty() || !convChild->legacyWeightsZeroPoints.empty())
@@ -1340,7 +1339,7 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph &graph) {
 
         auto parentConvolutionNode = std::dynamic_pointer_cast<Convolution>(parentNode);
         if (parentConvolutionNode == nullptr)
-            IE_THROW() << "Cannot get convolution node " << parentNode->getName();
+            OPENVINO_THROW("Cannot get convolution node ", parentNode->getName());
 
         if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2) || impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core))
             return false;
@@ -1380,7 +1379,7 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperationThroughMaxPool(Graph &grap
 
     auto isSuitableParentNode = [](NodePtr node) {
         return (node->getType() == Type::Convolution || node->getType() == Type::BinaryConvolution) && node->getChildEdges().size() == 1 &&
-               node->getOriginalOutputPrecisionAtPort(0) == Precision::FP32;
+               node->getOriginalOutputPrecisionAtPort(0) == ov::element::f32;
     };
 
     auto parent = graphNodes.begin();
@@ -1470,7 +1469,7 @@ void GraphOptimizer::FusePoolingAndFakeQuantize(Graph &graph) {
 
     auto isSuitableParentNode = [](NodePtr node) {
         if (node->getType() == Type::Pooling) {
-            if (!one_of(node->getOriginalInputPrecisionAtPort(0), Precision::U8, Precision::I8))
+            if (!one_of(node->getOriginalInputPrecisionAtPort(0), ov::element::u8, ov::element::i8))
                 return false;
             return node->getChildEdges().size() == 1 && node->getAlgorithm() == Algorithm::PoolingAvg;
         }
@@ -1669,7 +1668,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
                 const auto branchPrecision = fused.empty() ?
                         branchParent->getOriginalOutputPrecisionAtPort(0) :
                         fused[fused.size() - 1]->getOriginalOutputPrecisionAtPort(0);
-                return (branchPrecision == Precision::I8) || (branchPrecision == Precision::U8);
+                return (branchPrecision == ov::element::i8) || (branchPrecision == ov::element::u8);
             };
 
             const auto isBranch1Quantized = isBranchQuantized(graphNode->getParentEdgesAtPort(0)[0]->getParent());
@@ -1775,7 +1774,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
             int idxChild = edge->getOutputNum();
 
             // reconnect after  activation/sum. Port index must be 0
-            IE_ASSERT(idxParent == 0);
+            OPENVINO_ASSERT(idxParent == 0);
 
             edge->drop();
 
@@ -1850,7 +1849,7 @@ void GraphOptimizer::FuseInterpolateAndSimpleOperation(Graph &graph) {
             return false;
         auto interpolateNode = dynamic_cast<Interpolate*>(parentNode.get());
         if (!interpolateNode) {
-            IE_THROW() << "Cannot cast " << parentNode->getName() << " to Interpolate";
+            OPENVINO_THROW("Cannot cast ", parentNode->getName(), " to Interpolate");
         }
         return interpolateNode->canFuse(childNode);
     };
@@ -1960,7 +1959,7 @@ void GraphOptimizer::FuseReduceAndSimpleOperation(Graph &graph) {
             for (auto &parentEdge : parentEdges) {
                 auto p_edge = parentEdge.lock();
                 if (p_edge == nullptr)
-                    IE_THROW() << "Cannot get parent edge " << childNode->getName();
+                    OPENVINO_THROW("Cannot get parent edge ", childNode->getName());
                 if (p_edge->getParent()->getType() == Type::Reduce)
                     continue;
 
@@ -2119,10 +2118,10 @@ void GraphOptimizer::DropDoubleReorders(Graph &graph) {
             auto nextNode = node->getChildEdgeAt(0)->getChild();
             Reorder* n = dynamic_cast<Reorder*>(node.get());
             if (n == nullptr)
-                IE_THROW() << "Cannot get reorder layer " << node->getName();
+                OPENVINO_THROW("Cannot get reorder layer ", node->getName());
             Reorder* nn = dynamic_cast<Reorder*>(nextNode.get());
             if (nn == nullptr)
-                IE_THROW() << "Cannot get reorder layer " << nextNode->getName();
+                OPENVINO_THROW("Cannot get reorder layer ", nextNode->getName());
 
             NodePtr p = n->getParentEdgesAtPort(0)[0]->getParent();
             NodePtr c = nn->getChildEdgesAtPort(0)[0]->getChild();
@@ -2140,7 +2139,7 @@ void GraphOptimizer::DropDoubleReorders(Graph &graph) {
                 if (cur->getChild() == c)
                     edge = cur;
             }
-            if (!edge) IE_THROW() << "Inappropriate graph processing";
+            if (!edge) OPENVINO_THROW("Inappropriate graph processing");
 
 
             std::string layerName = edge->getParent()->getName() + "_ScaleReorder_" + edge->getChild()->getName();
@@ -2194,11 +2193,11 @@ void GraphOptimizer::FuseClampAndFakeQuantize(Graph &graph) {
     auto fuseClampAndFakeQuantizeNodes = [](NodePtr parent, NodePtr child) {
         auto* eltwiseNode = dynamic_cast<Eltwise *>(parent.get());
         if (eltwiseNode == nullptr)
-            IE_THROW() << "Cannot cast " << parent->getName() << " to Eltwise node";
+            OPENVINO_THROW("Cannot cast ", parent->getName(), " to Eltwise node");
 
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(child.get());
         if (fakeQuantizeNode == nullptr)
-            IE_THROW() << "Cannot cast " << child->getName() << " to FakeQuantize node";
+            OPENVINO_THROW("Cannot cast ", child->getName(), " to FakeQuantize node");
 
         const std::vector<float>& cropLowData = fakeQuantizeNode->getCropLow();
         const std::vector<float>& cropHighData = fakeQuantizeNode->getCropHigh();
@@ -2273,13 +2272,13 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph &graph) {
     auto fuseScaleShiftAndFakeQuantizeNodes = [getNonConstPort](const NodePtr& parent, const NodePtr& child) {
         auto fakeQuantizeNode = std::dynamic_pointer_cast<FakeQuantize>(child);
         if (fakeQuantizeNode == nullptr)
-            IE_THROW() << "Cannot cast " << child->getName() << " to FakeQuantize node";
+            OPENVINO_THROW("Cannot cast ", child->getName(), " to FakeQuantize node");
 
         std::vector<float> scalesBuffer;
         std::vector<float> shiftsBuffer;
         auto parentEltwise = std::dynamic_pointer_cast<Eltwise>(parent);
         if (!parentEltwise) {
-            IE_THROW() << "Cannot cast " << parent->getName() << " to Eltwise node";
+            OPENVINO_THROW("Cannot cast ", parent->getName(), " to Eltwise node");
         }
 
         const NodePtr eltwiseInput = parentEltwise->getParentEdgeAt(getNonConstPort(parent))->getParent();
@@ -2568,7 +2567,7 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
             }
         }
         if (!edge) {
-            IE_THROW() << "Transpose node '" << parentNode->getName() << "' has invalid edges.";
+            OPENVINO_THROW("Transpose node '", parentNode->getName(), "' has invalid edges.");
         }
 
         std::vector<int> srcPerm;
@@ -2579,8 +2578,11 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
             // due to some preliminarily checks. We need to reinterpret layout Transpose input without physical change of the memory.
             auto* transposeNode = dynamic_cast<Transpose*>(parentNode.get());
             if (transposeNode == nullptr) {
-                IE_THROW() << "[CPU] parent node of type:" << parentNode->getTypeStr() << " with name: "
-                    << parentNode->getName() << " is not a transpose node";
+                OPENVINO_THROW("[CPU] parent node of type:",
+                               parentNode->getTypeStr(),
+                               " with name: ",
+                               parentNode->getName(),
+                               " is not a transpose node");
             }
             auto inOrder = transposeNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->as<BlockedMemoryDesc>()->getOrder();
             auto outOrder = reorderOutDesc->as<BlockedMemoryDesc>()->getOrder();
@@ -2663,7 +2665,7 @@ void GraphOptimizer::reshapeRnnSeq(Graph &graph) {
 
             const auto secondInput = std::make_shared<ov::opset1::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{1});
             const auto unsqueeze = std::make_shared<ov::opset1::Unsqueeze>(
-                std::make_shared<ov::opset1::Parameter>(details::convertPrecision(parentNode->getOriginalOutputPrecisionAtPort(0)),
+                std::make_shared<ov::opset1::Parameter>(parentNode->getOriginalOutputPrecisionAtPort(0),
                                                             parentNode->getOutputShapeAtPort(0).toPartialShape()), secondInput);
             unsqueeze->set_friendly_name(parentNode->getName() + "_abc_a1bc_" + std::to_string(j));
 
