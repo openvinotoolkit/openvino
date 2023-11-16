@@ -249,14 +249,6 @@ Shape compute_matmul_output_shape(const Shape& common_sub_shape,
     return matmul_output_shape;
 }
 
-/// @brief Prepares default order axis vector
-///
-AxisVector get_default_order(size_t rank) {
-    AxisVector default_order(rank);
-    std::iota(begin(default_order), end(default_order), 0);
-    return default_order;
-}
-
 /// \brief      Update a vector of inputs and subscripts by removing items for
 /// inputs with indices input_ind1 and input_ind2 and inserted new input and
 /// the corresponsing subscript in the tail
@@ -296,15 +288,12 @@ ov::Tensor unsqueeze_input(const ov::Tensor& input, std::vector<int64_t>& unsque
     }
 
     auto output = ov::Tensor(input.get_element_type(), output_shape);
-    const auto order = get_default_order(input_shape.size());
     const auto element_type = input.get_element_type();
 
-    reference::reshape(reinterpret_cast<const char*>(input.data<T>()),
-                       reinterpret_cast<char*>(output.data<T>()),
-                       input_shape,
-                       order,
-                       output_shape,
-                       element_type.size());
+    reshape(static_cast<const char*>(input.data()),
+            static_cast<char*>(output.data()),
+            input_shape,
+            element_type.size());
 
     return output;
 }
@@ -415,7 +404,7 @@ void transpose_input(ov::TensorVector& inputs,
                          reinterpret_cast<char*>(output_ptr.data<T>()),
                          input_shape,
                          element_type.size(),
-                         permutation.data(),
+                         permutation,
                          output_shape);
 
     // update a vector of inputs and input subscripts
@@ -653,14 +642,11 @@ ov::Tensor reshape_input_for_matmul(const ov::Tensor& input,
     const auto element_type = input.get_element_type();
     const auto& input_shape = input.get_shape();
     auto output = ov::Tensor(element_type, new_shape);
-    const auto order = get_default_order(input_shape.size());
 
-    reference::reshape(reinterpret_cast<const char*>(input.data<T>()),
-                       reinterpret_cast<char*>(output.data<T>()),
-                       input_shape,
-                       order,
-                       new_shape,
-                       element_type.size());
+    reshape(static_cast<const char*>(input.data()),
+            static_cast<char*>(output.data()),
+            input_shape,
+            element_type.size());
     return output;
 }
 
@@ -930,13 +916,10 @@ void contract_two_inputs(ov::TensorVector& inputs,
     back_shape.insert(back_shape.end(), separate2_sub_shape.begin(), separate2_sub_shape.end());
 
     auto contract_output = ov::Tensor(matmul_output.get_element_type(), back_shape);
-    const auto order = get_default_order(matmul_output.get_shape().size());
-    reference::reshape(reinterpret_cast<const char*>(matmul_output.data<T>()),
-                       reinterpret_cast<char*>(contract_output.data<T>()),
-                       matmul_output.get_shape(),
-                       order,
-                       back_shape,
-                       matmul_output.get_element_type().size());
+    reshape(static_cast<const char*>(matmul_output.data()),
+            static_cast<char*>(contract_output.data()),
+            matmul_output.get_shape(),
+            matmul_output.get_element_type().size());
 
     update_operands(inputs, input_subscripts, input_ind1, input_ind2, contract_output, resultant_subscript);
 }

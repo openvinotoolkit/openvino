@@ -94,9 +94,9 @@ void multinomial(const T* probs,
     divide(cdf.data(), max_value_per_batch_divisor.data(), cdf.data(), total_inputs_elements_count, false);
 
     // Generate random probability samples
-    std::vector<double> uniform_samples(total_output_elements_count);
-    const double zero = 0;
-    const double one = 1;
+    std::vector<T> uniform_samples(total_output_elements_count);
+    const T zero = 0;
+    const T one = 1;
     const ov::Shape output_shape_shape{output_shape.size()};
     const std::vector<uint64_t> output_shape_u64(output_shape.begin(), output_shape.end());
     const std::pair<uint64_t, uint64_t> initial_state(0, 0);
@@ -105,7 +105,7 @@ void multinomial(const T* probs,
                    reinterpret_cast<const char*>(&one),
                    reinterpret_cast<char*>(uniform_samples.data()),
                    output_shape_shape,
-                   ov::element::f64,
+                   ov::element::from<T>(),
                    global_seed,
                    op_seed,
                    initial_state);
@@ -113,8 +113,7 @@ void multinomial(const T* probs,
     auto batch_size = probs_shape.size() == 2 ? static_cast<size_t>(probs_shape[0]) : static_cast<size_t>(1);
     auto class_size =
         probs_shape.size() == 2 ? static_cast<size_t>(probs_shape[1]) : static_cast<size_t>(probs_shape[0]);
-    auto samples_size =
-        probs_shape.size() == 2 ? static_cast<size_t>(num_samples[0]) : static_cast<size_t>(probs_shape[0]);
+    auto samples_size = static_cast<size_t>(num_samples[0]);
 
     // Iterate over each channel in uniform samples
     std::vector<U> output_samples(total_output_elements_count);
@@ -132,8 +131,8 @@ void multinomial(const T* probs,
                     break;
                 }
             }
-            // Additional step with replacement - change probability of a given class to 0, and update the cdf
-            if (with_replacement) {
+            // Additional step without replacement - change probability of a given class to 0, and update the cdf
+            if (!with_replacement) {
                 T class_probability = selected_class_idx ? cdf[i_translated + selected_class_idx] -
                                                                cdf[i_translated + selected_class_idx - 1]
                                                          : cdf[i_translated + selected_class_idx];

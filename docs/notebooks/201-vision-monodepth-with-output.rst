@@ -11,7 +11,7 @@ OpenVINO. Model information can be found
    monodepth
 
 What is Monodepth?
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~
 
 Monocular Depth Estimation is the task of estimating scene depth using a
 single image. It has many potential applications in robotics, 3D
@@ -30,38 +30,41 @@ Transactions on Pattern Analysis and Machine Intelligence, doi:
 
 **Table of contents:**
 
-- `Preparation <#preparation>`__
 
-  - `Install requirements <#install-requirements>`__
-  - `Imports <#imports>`__
-  - `Download the model <#download-the-model>`__
+-  `Preparation <#preparation>`__
 
-- `Functions <#functions>`__
-- `Select inference device <#select-inference-device>`__
-- `Load the Model <#load-the-model>`__
-- `Monodepth on Image <#monodepth-on-image>`__
+   -  `Install requirements <#install-requirements>`__
+   -  `Imports <#imports>`__
+   -  `Download the model <#download-the-model>`__
 
-  - `Load, resize and reshape input image <#load-resize-and-reshape-input-image>`__
-  - `Do inference on the image <#do-inference-on-the-image>`__
-  - `Display monodepth image <#display-monodepth-image>`__
+-  `Functions <#functions>`__
+-  `Select inference device <#select-inference-device>`__
+-  `Load the Model <#load-the-model>`__
+-  `Monodepth on Image <#monodepth-on-image>`__
 
-- `Monodepth on Video <#monodepth-on-video>`__
+   -  `Load, resize and reshape input
+      image <#load-resize-and-reshape-input-image>`__
+   -  `Do inference on the image <#do-inference-on-the-image>`__
+   -  `Display monodepth image <#display-monodepth-image>`__
 
-  - `Video Settings <#video-settings>`__
-  - `Load the Video <#load-the-video>`__
-  - `Do Inference on a Video and Create Monodepth Video <#do-inference-on-a-video-and-create-monodepth-video>`__
-  - `Display Monodepth Video <#display-monodepth-video>`__
+-  `Monodepth on Video <#monodepth-on-video>`__
 
-Preparation
-###############################################################################################################################
+   -  `Video Settings <#video-settings>`__
+   -  `Load the Video <#load-the-video>`__
+   -  `Do Inference on a Video and Create Monodepth
+      Video <#do-inference-on-a-video-and-create-monodepth-video>`__
+   -  `Display Monodepth Video <#display-monodepth-video>`__
 
-Install requirements
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Preparation 
+-----------------------------------------------------
+
+Install requirements 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
-    !pip install -q "openvino==2023.1.0.dev20230811"
-    !pip install -q matplotlib opencv-python requests tqdm
+    %pip install -q "openvino>=2023.1.0"
+    %pip install -q matplotlib opencv-python requests tqdm
     
     # Fetch `notebook_utils` module
     import urllib.request
@@ -71,16 +74,22 @@ Install requirements
     )
 
 
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+
+
 
 
 .. parsed-literal::
 
-    ('notebook_utils.py', <http.client.HTTPMessage at 0x7fd17c60df40>)
+    ('notebook_utils.py', <http.client.HTTPMessage at 0x7fcec81eae20>)
 
 
 
-Imports
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Imports 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -104,8 +113,8 @@ Imports
     
     from notebook_utils import download_file, load_image
 
-Download the model
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Download the model 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -133,8 +142,8 @@ Download the model
     model/MiDaS_small.bin:   0%|          | 0.00/31.6M [00:00<?, ?B/s]
 
 
-Functions
-###############################################################################################################################
+Functions 
+---------------------------------------------------
 
 .. code:: ipython3
 
@@ -166,10 +175,10 @@ Functions
         """
         return cv2.cvtColor(image_data, cv2.COLOR_BGR2RGB)
 
-Select inference device
-###############################################################################################################################
+Select inference device 
+-----------------------------------------------------------------
 
-Select device from dropdown list for running inference using OpenVINO:
+select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
@@ -194,8 +203,8 @@ Select device from dropdown list for running inference using OpenVINO:
 
 
 
-Load the Model
-###############################################################################################################################
+Load the Model 
+--------------------------------------------------------
 
 Load the model in OpenVINO Runtime with ``core.read_model`` and compile
 it for the specified device with ``core.compile_model``. Get input and
@@ -214,11 +223,11 @@ output keys and the expected input shape for the model.
     network_input_shape = list(input_key.shape)
     network_image_height, network_image_width = network_input_shape[2:]
 
-Monodepth on Image
-###############################################################################################################################
+Monodepth on Image 
+------------------------------------------------------------
 
-Load, resize and reshape input image
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Load, resize and reshape input image 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The input image is read with OpenCV, resized to network input size, and
 reshaped to (N,C,H,W) (N=number of images, C=number of channels,
@@ -235,8 +244,8 @@ H=height, W=width).
     # Reshape the image to network input shape NCHW.
     input_image = np.expand_dims(np.transpose(resized_image, (2, 0, 1)), 0)
 
-Do inference on the image
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Do inference on the image 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Do inference, convert the result to an image, and resize it to the
 original image shape.
@@ -253,8 +262,8 @@ original image shape.
     # in (width, height), [::-1] reverses the (height, width) shape to match this.
     result_image = cv2.resize(result_image, image.shape[:2][::-1])
 
-Display monodepth image
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Display monodepth image 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -267,15 +276,15 @@ Display monodepth image
 .. image:: 201-vision-monodepth-with-output_files/201-vision-monodepth-with-output_18_0.png
 
 
-Monodepth on Video
-###############################################################################################################################
+Monodepth on Video 
+------------------------------------------------------------
 
 By default, only the first 100 frames are processed in order to quickly
 check that everything works. Change ``NUM_FRAMES`` in the cell below to
 modify this. Set ``NUM_FRAMES`` to 0 to process the whole video.
 
-Video Settings
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Video Settings 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -303,8 +312,8 @@ Video Settings
     output_directory.mkdir(exist_ok=True)
     result_video_path = output_directory / f"{Path(VIDEO_FILE).stem}_monodepth.mp4"
 
-Load the Video
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Load the Video 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Load the video from a ``VIDEO_FILE``, set in the *Video Settings* cell
 above. Open the video to read the frame width and height and fps, and
@@ -341,8 +350,8 @@ compute values for these properties for the monodepth video.
     The monodepth video will be scaled with a factor 0.5, have width 320,  height 180, and run at 15.00 fps
 
 
-Do Inference on a Video and Create Monodepth Video
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Do Inference on a Video and Create Monodepth Video 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -441,12 +450,12 @@ Do Inference on a Video and Create Monodepth Video
 
 .. parsed-literal::
 
-    Processed 60 frames in 36.11 seconds. Total FPS (including video processing): 1.66.Inference FPS: 42.56 
+    Processed 60 frames in 37.56 seconds. Total FPS (including video processing): 1.60.Inference FPS: 42.99 
     Monodepth Video saved to 'output/Coco%20Walking%20in%20Berkeley_monodepth.mp4'.
 
 
-Display Monodepth Video
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Display Monodepth Video 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -469,7 +478,7 @@ Display Monodepth Video
 .. parsed-literal::
 
     Showing monodepth video saved at
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/201-vision-monodepth/output/Coco%20Walking%20in%20Berkeley_monodepth.mp4
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-534/.workspace/scm/ov-notebook/notebooks/201-vision-monodepth/output/Coco%20Walking%20in%20Berkeley_monodepth.mp4
     If you cannot see the video in your browser, please click on the following link to download the video 
 
 

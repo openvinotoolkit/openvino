@@ -145,12 +145,12 @@ static format to_weights_format(format f, bool is_grouped) {
                 throw std::runtime_error("Invalid conversion of data format to weights format. bfwzyx can't be non-grouped as 4D spatials are not supported");
             return format::goizyx;
         }
+        case format::b_fs_yx_fsv4:
+            return format::o_is_yx_isv4;
         case format::b_fs_yx_fsv16:
             return format::o_is_yx_isv16;
         case format::bs_fs_fsv8_bsv8:
             return format::os_i_osv8__ai8;
-        case format::b_fs_yx_32fp:
-            return format::os_is_yx_osv32_isv32p;
         default:
             throw std::invalid_argument("Unable to convert data format " + f.to_string() + " to weights format");
     }
@@ -375,11 +375,6 @@ size_t layout::get_linear_size() const {
         sizes[1] = align_to(sizes[1], 4);
         sizes[0] = align_to(sizes[0], 8);
         sizes[2] = align_to(sizes[2], 8);
-    } else if (this->format == cldnn::format::b_fs_yx_32fp) {
-        sizes[1] = align_to(sizes[1], 32);
-    } else if (this->format == cldnn::format::os_is_yx_osv32_isv32p) {
-        sizes[0] = align_to(sizes[0], 32);
-        sizes[1] = align_to(sizes[1], 32);
     } else if (this->format == cldnn::format::image_2d_rgba) {
         sizes[1] = 4;
     } else if (this->format == cldnn::format::gs_oi_yxs_gsv4_yxsv4 ||

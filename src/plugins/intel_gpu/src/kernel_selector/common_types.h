@@ -32,6 +32,7 @@ enum class KernelType {
     RESHAPE,
     COUNT_NONZERO,
     GATHER_NONZERO,
+    GROUP_NORMALIZATION,
     PERMUTE,
     CONCATENATION,
     RESAMPLE,
@@ -63,7 +64,6 @@ enum class KernelType {
     SLICE,
     STRIDED_SLICE,
     REVERSE_SEQUENCE,
-    BINARY_CONVOLUTION,
     QUANTIZE,
     LSTM_DYNAMIC_INPUT,
     LSTM_DYNAMIC_TIMELOOP,
@@ -94,8 +94,10 @@ enum class KernelType {
     EYE,
     GENERATE_PROPOSALS,
     MULTICLASS_NMS,
+    MULTINOMIAL,
     UNIQUE_COUNT,
     UNIQUE_GATHER,
+    RMS,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -103,7 +105,8 @@ enum class KernelType {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 enum class Datatype {
     UNSUPPORTED,
-    BINARY,
+    UINT4,
+    INT4,
     INT8,
     UINT8,
     INT16,
@@ -120,11 +123,12 @@ enum class Datatype {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 enum class WeightsType {
     UNSUPPORTED,
-    BINARY,
     F16,
     F32,
     INT8,
     UINT8,
+    UINT4,
+    INT4,
     INT32
 };
 
@@ -566,6 +570,15 @@ enum class EmbeddingBagType {
 enum class BoxEncodingType {
     BOX_ENCODING_CORNER,
     BOX_ENCODING_CENTER,
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// NMSRotationType
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum class NMSRotationType {
+    NONE,
+    CLOCKWISE,
+    COUNTERCLOCKWISE
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -29,6 +29,7 @@
 #include "op/average_pool.hpp"
 #include "op/batch_norm.hpp"
 #include "op/bitshift.hpp"
+#include "op/blackmanwindow.hpp"
 #include "op/cast.hpp"
 #include "op/cast_like.hpp"
 #include "op/ceil.hpp"
@@ -73,8 +74,12 @@
 #include "op/global_average_pool.hpp"
 #include "op/global_max_pool.hpp"
 #include "op/greater.hpp"
+#include "op/greater_or_equal.hpp"
 #include "op/grid_sample.hpp"
+#include "op/group_normalization.hpp"
 #include "op/gru.hpp"
+#include "op/hammingwindow.hpp"
+#include "op/hannwindow.hpp"
 #include "op/hard_sigmoid.hpp"
 #include "op/hard_swish.hpp"
 #include "op/hardmax.hpp"
@@ -345,6 +350,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("BatchNormalization", 1, batch_norm);
     REGISTER_OPERATOR("BatchNormalization", 7, batch_norm);
     REGISTER_OPERATOR("BitShift", 1, bitshift);
+    REGISTER_OPERATOR("BlackmanWindow", 1, blackmanwindow);
     REGISTER_OPERATOR("Cast", 1, cast);
     REGISTER_OPERATOR("CastLike", 1, cast_like);
     REGISTER_OPERATOR("Ceil", 1, ceil);
@@ -390,8 +396,13 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("GlobalLpPool", 1, global_lp_pool);
     REGISTER_OPERATOR("GlobalMaxPool", 1, global_max_pool);
     REGISTER_OPERATOR("Greater", 1, greater);
+    REGISTER_OPERATOR("Greater_Or_Equal", 1, greater_or_equal);
+    REGISTER_OPERATOR("Greater_Or_Equal", 16, greater_or_equal);
     REGISTER_OPERATOR("GridSample", 1, grid_sample);
+    REGISTER_OPERATOR("GroupNormalization", 1, group_normalization);
     REGISTER_OPERATOR("GRU", 1, gru);
+    REGISTER_OPERATOR("HannWindow", 1, hannwindow);
+    REGISTER_OPERATOR("HammingWindow", 1, hammingwindow);
     REGISTER_OPERATOR("Hardmax", 1, hardmax);
     REGISTER_OPERATOR("Hardmax", 13, hardmax);
     REGISTER_OPERATOR("HardSigmoid", 1, hard_sigmoid);

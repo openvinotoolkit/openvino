@@ -20,72 +20,87 @@ namespace intel_cpu {
 
 uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
     switch (dataType) {
+    case dnnl::memory::data_type::f64:
+        return 8;
     case dnnl::memory::data_type::f32:
-        return 4;
     case dnnl::memory::data_type::s32:
         return 4;
     case dnnl::memory::data_type::bf16:
-        return 2;
-    case dnnl::memory::data_type::s8:
-        return 1;
-    case dnnl::memory::data_type::u8:
-        return 1;
-    case dnnl::memory::data_type::bin:
-        return 1;
     case dnnl::memory::data_type::f16:
         return 2;
+    case dnnl::memory::data_type::s8:
+    case dnnl::memory::data_type::u8:
+    case dnnl::memory::data_type::bin:
+    case dnnl::memory::data_type::nf4:
+    case dnnl::memory::data_type::s4:
+    case dnnl::memory::data_type::u4:
+        return 1;
     case dnnl::memory::data_type::undef:
         return 0;
     default:
-        IE_THROW() << "Unsupported data type.";
+        OPENVINO_THROW("Unsupported data type.");
     }
 }
 
-memory::data_type DnnlExtensionUtils::IEPrecisionToDataType(const InferenceEngine::Precision& prec) {
-    switch (prec) {
-        case InferenceEngine::Precision::FP32:
+dnnl::memory::data_type DnnlExtensionUtils::ElementTypeToDataType(const ov::element::Type& elementType) {
+    switch (elementType) {
+        case ov::element::f32:
             return memory::data_type::f32;
-        case InferenceEngine::Precision::I32:
+        case ov::element::i32:
             return memory::data_type::s32;
-        case InferenceEngine::Precision::BF16:
+        case ov::element::bf16:
             return memory::data_type::bf16;
-        case InferenceEngine::Precision::I8:
+        case ov::element::i8:
             return memory::data_type::s8;
-        case InferenceEngine::Precision::U8:
-        case InferenceEngine::Precision::BOOL:
+        case ov::element::u8:
+        case ov::element::boolean:
             return memory::data_type::u8;
-        case InferenceEngine::Precision::BIN:
+        case ov::element::u1:
             return memory::data_type::bin;
-        case InferenceEngine::Precision::FP16:
+        case ov::element::f16:
             return memory::data_type::f16;
-        case InferenceEngine::Precision::UNSPECIFIED:
+        case ov::element::nf4:
+            return memory::data_type::nf4;
+        case ov::element::i4:
+            return memory::data_type::s4;
+        case ov::element::u4:
+            return memory::data_type::u4;
+        case ov::element::undefined:
             return memory::data_type::undef;
         default: {
-            IE_THROW() << "The plugin does not support " << prec.name();
+            OPENVINO_THROW("The plugin does not support ", elementType.to_string());
         }
     }
 }
 
-InferenceEngine::Precision DnnlExtensionUtils::DataTypeToIEPrecision(memory::data_type dataType) {
+ov::element::Type DnnlExtensionUtils::DataTypeToElementType(const dnnl::memory::data_type& dataType) {
     switch (dataType) {
         case memory::data_type::f32:
-            return InferenceEngine::Precision::FP32;
+            return ov::element::f32;
         case memory::data_type::s32:
-            return InferenceEngine::Precision::I32;
+            return ov::element::i32;
         case memory::data_type::bf16:
-            return InferenceEngine::Precision::BF16;
+            return ov::element::bf16;
         case memory::data_type::s8:
-            return InferenceEngine::Precision::I8;
+            return ov::element::i8;
         case memory::data_type::u8:
-            return InferenceEngine::Precision::U8;
+            return ov::element::u8;
         case memory::data_type::bin:
-            return InferenceEngine::Precision::BIN;
+            return ov::element::u1;
         case memory::data_type::f16:
-            return InferenceEngine::Precision::FP16;
+            return ov::element::f16;
+        case memory::data_type::f64:
+            return ov::element::f64;
+        case memory::data_type::nf4:
+            return ov::element::nf4;
+        case memory::data_type::s4:
+            return ov::element::i4;
+        case memory::data_type::u4:
+            return ov::element::u4;
         case memory::data_type::undef:
-            return InferenceEngine::Precision::UNSPECIFIED;
+            return ov::element::undefined;
         default: {
-            IE_THROW() << "Unsupported data type.";
+            OPENVINO_THROW("Unsupported data type.");
         }
     }
 }
@@ -163,7 +178,7 @@ std::shared_ptr<DnnlBlockedMemoryDesc> DnnlExtensionUtils::makeUndefinedDesc(con
     if (desc.get_format_kind() == memory::format_kind::blocked) {
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(desc, shape));
     } else {
-        IE_THROW(Unexpected) << "Cannot make undefined descriptor. Only dnnl_blocked type is allowed.";
+        OPENVINO_THROW("Unexpected: Cannot make undefined descriptor. Only dnnl_blocked type is allowed.");
     }
 }
 
@@ -172,7 +187,7 @@ DnnlMemoryDescPtr DnnlExtensionUtils::query_md(const const_dnnl_primitive_desc_t
     const auto* cdesc = dnnl_primitive_desc_query_md(pd, query, idx);
 
     if (!cdesc)
-        IE_THROW() << "query_md failed for query=" << query << " idx=" << idx << ".";
+        OPENVINO_THROW("query_md failed for query=", query, " idx=", idx, ".");
 
     return DnnlExtensionUtils::makeDescriptor(cdesc);
 }
@@ -181,7 +196,7 @@ std::string DnnlExtensionUtils::query_impl_info_str(const const_dnnl_primitive_d
     const char *res;
     dnnl_status_t status = dnnl_primitive_desc_query(pd, dnnl_query_impl_info_str, 0, &res);
     if (status != dnnl_success)
-        IE_THROW() << "query_impl_info_str failed.";
+        OPENVINO_THROW("query_impl_info_str failed.");
     return std::string(res);
 }
 

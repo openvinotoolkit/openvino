@@ -84,7 +84,7 @@ public:
         // 2. in the same folder as libopenvino.so
 
         ov::util::FilePath ovLibraryPath = getInferenceEngineLibraryPath();
-        ov::util::FilePath libraryName = ov::util::to_file_path(std::string("openvino_gapi_preproc") + std::string(IE_BUILD_POSTFIX));
+        ov::util::FilePath libraryName = ov::util::to_file_path(std::string("openvino_gapi_preproc") + std::string(OV_BUILD_POSTFIX));
         libraryName = FileUtils::makePluginLibraryName({}, libraryName);
 
         std::ostringstream str;

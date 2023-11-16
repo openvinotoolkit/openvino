@@ -71,7 +71,7 @@ TEST(canonicalization, shape_of) {
 
         cldnn::topology topology;
         topology.add(input_layout("input", in_layout));
-        topology.add(shape_of("shape_of", input_info("input"), 3, data_types::i32));
+        topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
 
         canonicalization_test(topology, "shape_of", std::get<1>(shapes), std::get<2>(shapes));
     }
@@ -220,7 +220,7 @@ TEST(canonicalization, gather) {
         topology.add(input_layout("data", data_layout));
         topology.add(input_layout("indices", indices_layout));
         topology.add(gather("gather", input_info("data"), input_info("indices"), params.second.axis,
-                            ov::Shape{}, params.second.batch_dim, params.second.support_neg_ind));
+                            0, ov::Shape{}, params.second.batch_dim, params.second.support_neg_ind));
 
         canonicalization_test(topology, "gather", std::get<1>(params.first), std::get<2>(params.first));
     }
@@ -254,9 +254,9 @@ TEST(canonicalization, fusing_gather_eltwise) {
         topology.add(input_layout("indices_second", indices_layout_second));
         topology.add(input_layout("data", input_mul_layout));
         topology.add(gather("gather_first", input_info("input"), input_info("indices_first"), shapes.second.axis,
-                            shapes.second.out_shape, shapes.second.batch_dim, shapes.second.support_neg_ind));
+                            shapes.second.data_shape.rank().get_length(), shapes.second.out_shape, shapes.second.batch_dim, shapes.second.support_neg_ind));
         topology.add(gather("gather_second", input_info("input"), input_info("indices_second"), shapes.second.axis,
-                            shapes.second.out_shape, shapes.second.batch_dim, shapes.second.support_neg_ind));
+                            shapes.second.data_shape.rank().get_length(), shapes.second.out_shape, shapes.second.batch_dim, shapes.second.support_neg_ind));
         topology.add(eltwise("mul", {input_info("gather_first"), input_info("data")}, eltwise_mode::prod));
         topology.add(eltwise("add", {input_info("gather_second"), input_info("mul")}, eltwise_mode::sum));
         topology.add(reorder("out_reorder", input_info("add"), format::bfyx, data_types::f32));

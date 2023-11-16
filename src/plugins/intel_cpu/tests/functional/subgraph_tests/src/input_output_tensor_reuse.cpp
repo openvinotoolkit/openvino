@@ -61,7 +61,6 @@ public:
 TEST_F(InputOutputTensorReuse, smoke_Input_Output_Binding) {
     compile_model();
     std::vector<ov::Shape> inputShapes = {{1, 32, 5, 16}, {1, 32, 1, 16}};
-    init_ref_function(functionRefs, inputShapes);
     generate_inputs(inputShapes);
     validate();
 
@@ -69,7 +68,6 @@ TEST_F(InputOutputTensorReuse, smoke_Input_Output_Binding) {
     for (size_t i = 0; i < num_iter; i++) {
         auto outputTensor = inferRequest.get_output_tensor(0);
         inputShapes.back() = outputTensor.get_shape();
-        init_ref_function(functionRefs, inputShapes);
         auto itr = std::find_if(inputs.begin(), inputs.end(), [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor>& item) {
             return item.first->get_friendly_name() == "Param_1";
         });
@@ -82,6 +80,70 @@ TEST_F(InputOutputTensorReuse, smoke_Input_Output_Binding) {
         }
         inferRequest.infer();
         compare(expectedOutputs, {outputTensor});
+    }
+}
+
+TEST_F(InputOutputTensorReuse, smoke_Input_Output_Bind_Once) {
+    compile_model();
+    std::vector<ov::Shape> inputShapes = {{1, 32, 5, 16}, {1, 32, 1, 16}};
+    generate_inputs(inputShapes);
+    validate();
+
+    auto outputTensor = inferRequest.get_output_tensor(0);
+    inputShapes.back() = outputTensor.get_shape();
+    auto itr = std::find_if(inputs.begin(), inputs.end(), [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor>& item) {
+        return item.first->get_friendly_name() == "Param_1";
+    });
+    ASSERT_NE(itr, inputs.end());
+    itr->second = outputTensor;
+
+    for (const auto& input : inputs) {
+        inferRequest.set_tensor(input.first, input.second);
+    }
+
+    constexpr size_t num_iter = 10;
+    for (size_t i = 0; i < num_iter; i++) {
+        const auto& expectedOutputs = calculate_refs();
+
+        inferRequest.infer();
+        compare(expectedOutputs, {outputTensor});
+        auto itr = std::find_if(inputs.begin(), inputs.end(), [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor>& item) {
+            return item.first->get_friendly_name() == "Param_1";
+        });
+        ASSERT_NE(itr, inputs.end());
+        itr->second = expectedOutputs.front();
+    }
+}
+
+TEST_F(InputOutputTensorReuse, smoke_Input_Output_Bind_Once_Empty_Tensor) {
+    compile_model();
+    std::vector<ov::Shape> inputShapes = {{1, 32, 5, 16}, {1, 32, 1, 16}};
+    generate_inputs(inputShapes);
+    inferRequest = compiledModel.create_infer_request();
+
+    auto outputTensor = inferRequest.get_output_tensor(0);
+    inputShapes.back() = outputTensor.get_shape();
+    auto itr = std::find_if(inputs.begin(), inputs.end(), [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor>& item) {
+        return item.first->get_friendly_name() == "Param_1";
+    });
+    ASSERT_NE(itr, inputs.end());
+    itr->second = outputTensor;
+
+    for (const auto& input : inputs) {
+        inferRequest.set_tensor(input.first, input.second);
+    }
+
+    constexpr size_t num_iter = 10;
+    for (size_t i = 0; i < num_iter; i++) {
+        const auto& expectedOutputs = calculate_refs();
+
+        inferRequest.infer();
+        compare(expectedOutputs, {outputTensor});
+        auto itr = std::find_if(inputs.begin(), inputs.end(), [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor>& item) {
+            return item.first->get_friendly_name() == "Param_1";
+        });
+        ASSERT_NE(itr, inputs.end());
+        itr->second = expectedOutputs.front();
     }
 }
 

@@ -240,6 +240,24 @@ TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetChangedOutputTensorThrow
     ASSERT_ANY_THROW(req.infer());
 }
 
+TEST_P(OVInferRequestIOTensorTest, CheckInferIsNotChangeInput) {
+    ov::Tensor input_tensor = utils::create_and_fill_tensor(input.get_element_type(), input.get_shape());
+    OV_ASSERT_NO_THROW(req.set_tensor(input, input_tensor));
+    OV_ASSERT_NO_THROW(req.get_tensor(input));
+
+    OV_ASSERT_NO_THROW(req.infer());
+
+    ov::Tensor input_after_infer;
+    OV_ASSERT_NO_THROW(input_after_infer = req.get_tensor(input));
+    ov::test::utils::compare(input_tensor, input_after_infer);
+
+    OV_ASSERT_NO_THROW(req.infer());
+
+    ov::Tensor input_after_several_infer;
+    OV_ASSERT_NO_THROW(input_after_several_infer = req.get_tensor(input));
+    ov::test::utils::compare(input_tensor, input_after_several_infer);
+}
+
 std::string OVInferRequestIOTensorSetPrecisionTest::getTestCaseName(const testing::TestParamInfo<OVInferRequestSetPrecisionParams>& obj) {
     element::Type type;
     std::string target_device;

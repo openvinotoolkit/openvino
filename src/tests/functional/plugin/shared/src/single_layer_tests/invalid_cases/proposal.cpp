@@ -73,24 +73,27 @@ void ProposalBehTest::SetUp() {
                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(boxesShape))};
     params[0]->set_friendly_name("scores");
     params[1]->set_friendly_name("boxes");
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-    auto proposal = std::dynamic_pointer_cast<ngraph::opset1::Proposal>(
-             ngraph::builder::makeProposal(paramOuts[0], paramOuts[1], img_info, ngPrc,
-                                           base_size,
-                                           pre_nms_topn,
-                                           post_nms_topn,
-                                           nms_thresh,
-                                           feat_stride,
-                                           min_size,
-                                           ratio,
-                                           scale,
-                                           clip_before_nms,
-                                           clip_after_nms,
-                                           normalize,
-                                           box_size_scale,
-                                           box_coordinate_scale,
-                                           framework));
+    ov::op::v0::Proposal::Attributes attrs;
+    attrs.base_size = base_size;
+    attrs.pre_nms_topn = pre_nms_topn;
+    attrs.post_nms_topn = post_nms_topn;
+    attrs.nms_thresh = nms_thresh;
+    attrs.feat_stride = feat_stride;
+    attrs.min_size = min_size;
+    attrs.ratio = ratio;
+    attrs.scale = scale;
+    attrs.clip_before_nms = clip_before_nms;
+    attrs.clip_after_nms = clip_after_nms;
+    attrs.normalize = normalize;
+    attrs.box_size_scale = box_size_scale;
+    attrs.box_coordinate_scale = box_coordinate_scale;
+    attrs.framework = framework;
+    attrs.infer_probs = true;
+
+    auto image_shape = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{3}, img_info);
+
+    auto proposal = std::make_shared<ov::op::v4::Proposal>(params[0], params[1], image_shape, attrs);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(proposal)};
     function = std::make_shared<ngraph::Function>(results, params, "proposal");

@@ -5,7 +5,7 @@
 #include "one_hot.hpp"
 #include "utils.hpp"
 #include "ie_ngraph_utils.hpp"
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 
 namespace ov {
 namespace intel_cpu {
@@ -21,7 +21,9 @@ Result OneHotShapeInfer::infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     auto depth = reinterpret_cast<int32_t *>(data_dependency.at(1)->getData())[0];
-
+    if (depth < 0) {
+        OPENVINO_THROW("OneHot depth value can't be negative.");
+    }
     auto result = input_shapes.front().get();
     result.insert(result.begin() + m_axis, depth);
 
@@ -29,7 +31,7 @@ Result OneHotShapeInfer::infer(
 }
 
 ShapeInferPtr OneHotShapeInferFactory::makeShapeInfer() const {
-    auto oneHot = ov::as_type_ptr<const ngraph::opset1::OneHot>(m_op);
+    auto oneHot = ov::as_type_ptr<const ov::opset1::OneHot>(m_op);
     if (!oneHot) {
         OPENVINO_THROW("Unexpected op type in OneHot shape inference factory: ", m_op->get_type_name());
     }

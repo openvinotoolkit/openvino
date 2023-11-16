@@ -56,7 +56,8 @@ class TestTorchHubConvertModel(TestConvertModel):
     def setup_class(self):
         self.cache_dir = tempfile.TemporaryDirectory()
         # set temp dir for torch cache
-        torch.hub.set_dir(str(self.cache_dir.name))
+        if os.environ.get('USE_SYSTEM_CACHE', 'True') == 'False':
+            torch.hub.set_dir(str(self.cache_dir.name))
 
     def load_model(self, model_name, model_link):
         m = torch.hub.load("pytorch/vision", model_name,
@@ -114,7 +115,7 @@ class TestTorchHubConvertModel(TestConvertModel):
         self.run(model_name, None, ie_device)
 
     @pytest.mark.parametrize("name",
-                             [pytest.param(n, marks=pytest.mark.xfail) if m == "xfail" else n for n, _, m, r in get_models_list(os.path.join(os.path.dirname(__file__), "torchvision_models"))])
+                             [pytest.param(n, marks=pytest.mark.xfail(reason=r)) if m == "xfail" else n for n, _, m, r in get_models_list(os.path.join(os.path.dirname(__file__), "torchvision_models"))])
     @pytest.mark.nightly
     def test_convert_model_all_models(self, name, ie_device):
         self.run(name, None, ie_device)

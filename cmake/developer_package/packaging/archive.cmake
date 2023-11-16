@@ -4,6 +4,15 @@
 
 include(GNUInstallDirs)
 
+if(APPLE)
+    # on macOS versions with SIP enabled, we need to use @rpath
+    # because DYLD_LIBRARY_PATH is ignored
+    set(CMAKE_SKIP_INSTALL_RPATH OFF)
+else()
+    # we don't need RPATHs, because setupvars.sh is used
+    set(CMAKE_SKIP_INSTALL_RPATH ON)
+endif()
+
 #
 # ov_archive_cpack_set_dirs()
 #
@@ -44,11 +53,6 @@ macro(ov_archive_cpack_set_dirs)
         set(OV_CPACK_ARCHIVEDIR runtime/lib/${ARCH_FOLDER})
     endif()
     set(OV_CPACK_PLUGINSDIR ${OV_CPACK_RUNTIMEDIR})
-
-    # for BW compatibility
-    set(IE_CPACK_LIBRARY_PATH ${OV_CPACK_LIBRARYDIR})
-    set(IE_CPACK_RUNTIME_PATH ${OV_CPACK_RUNTIMEDIR})
-    set(IE_CPACK_ARCHIVE_PATH ${OV_CPACK_ARCHIVEDIR})
 endmacro()
 
 ov_archive_cpack_set_dirs()

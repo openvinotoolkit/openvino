@@ -68,14 +68,14 @@ in the model preparation script for such a case.
 
       .. doxygensnippet:: docs/snippets/ov_preprocessing.py
          :language: Python
-         :fragment: ov:preprocess:save
+         :fragment: ov:preprocess:save_model
 
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
          :language: cpp
-         :fragment: ov:preprocess:save
+         :fragment: ov:preprocess:save_model
 
 
 Application Code - Load Model to Target Device
@@ -110,8 +110,8 @@ Additional Resources
 * :doc:`Layout API overview <openvino_docs_OV_UG_Layout_Overview>`
 * :doc:`Model Optimizer - Optimize Preprocessing Computation <openvino_docs_MO_DG_Additional_Optimization_Use_Cases>`
 * :doc:`Model Caching Overview <openvino_docs_OV_UG_Model_caching_overview>`
-* The `ov::preprocess::PrePostProcessor <https://docs.openvino.ai/2023.1/classov_1_1preprocess_1_1PrePostProcessor.html#doxid-classov-1-1preprocess-1-1-pre-post-processor>`__ C++ class documentation
-* The `ov::pass::Serialize <https://docs.openvino.ai/2023.1/classov_1_1pass_1_1Serialize.html#doxid-classov-1-1pass-1-1-serialize.html>`__ - pass to serialize model to XML/BIN
-* The `ov::set_batch <https://docs.openvino.ai/2023.1/namespaceov.html#doxid-namespaceov-1a3314e2ff91fcc9ffec05b1a77c37862b.html>`__ - update batch dimension for a given model
+* The `ov::preprocess::PrePostProcessor <https://docs.openvino.ai/2023.2/classov_1_1preprocess_1_1PrePostProcessor.html#doxid-classov-1-1preprocess-1-1-pre-post-processor>`__ C++ class documentation
+* The `ov::pass::Serialize <https://docs.openvino.ai/2023.2/classov_1_1pass_1_1Serialize.html#doxid-classov-1-1pass-1-1-serialize.html>`__ - pass to serialize model to XML/BIN
+* The `ov::set_batch <https://docs.openvino.ai/2023.2/namespaceov.html#doxid-namespaceov-1a3314e2ff91fcc9ffec05b1a77c37862b.html>`__ - update batch dimension for a given model
 
 @endsphinxdirective
