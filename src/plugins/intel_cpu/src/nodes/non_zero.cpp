@@ -6,8 +6,8 @@
 
 #include <nodes/common/cpu_memcpy.h>
 
-#include <ie_parallel.hpp>
-#include <ngraph/opsets/opset3.hpp>
+#include "openvino/core/parallel.hpp"
+#include <openvino/opsets/opset3.hpp>
 #include <utils/bfloat16.hpp>
 #include <shape_inference/shape_inference_internal_dyn.hpp>
 
@@ -20,9 +20,9 @@ namespace node {
 static constexpr int blockSize = dnnl::impl::cpu::platform::get_cache_line_size() * 2;
 static constexpr int elementsStride = blockSize / sizeof(int);
 
-bool NonZero::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool NonZero::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (op->get_type_info() != ngraph::op::v3::NonZero::get_type_info_static()) {
+        if (op->get_type_info() != ov::op::v3::NonZero::get_type_info_static()) {
             errorMessage = "Node is not an instance of NonZero from the operation set v3.";
             return false;
         }
@@ -32,7 +32,7 @@ bool NonZero::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-NonZero::NonZero(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+NonZero::NonZero(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -40,8 +40,8 @@ NonZero::NonZero(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CP
     } else {
         IE_THROW(NotImplemented) << errorMessage;
     }
-    if (op->get_output_element_type(0) != ngraph::element::i32) {
-        IE_THROW() << errorPrefix << "doesn't support demanded output precision";
+    if (op->get_output_element_type(0) != ov::element::i32) {
+        OPENVINO_THROW(errorPrefix, "doesn't support demanded output precision");
     }
 }
 
