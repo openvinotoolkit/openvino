@@ -36,8 +36,7 @@ protected:
 
         SizeVector splitShape{1, 2, 1, 16};
         ov::ParameterVector splitInputParams {std::make_shared<ov::op::v0::Parameter>(ngPrec, ov::Shape(splitShape))};
-        const auto splitOutputNodes = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(splitInputParams));
-        const auto split = builder::makeSplit(splitOutputNodes[0], ngPrec, 2 /* splits */, 1 /* 2nd axis */);
+        const auto split = builder::makeSplit(splitInputParams[0], ngPrec, 2 /* splits */, 1 /* 2nd axis */);
 
         std::vector<ov::Shape> concatShapes{{1, 1, 8, 8}, {1, 1, 8, 8}};
         ov::ParameterVector concatInputParams {std::make_shared<ov::op::v0::Parameter>(ngPrec, concatShapes[0]),
@@ -45,13 +44,12 @@ protected:
         const auto concatOutputNodes = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(concatInputParams));
         const auto concat = builder::makeConcat(concatOutputNodes, 2);
 
-        const auto matMul1 = builder::makeMatMul(split->output(0), concat, false, false);
+        const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(split->output(0), concat, false, false);
 
         SizeVector matmulShape{1, 1, 16, 8};
         ov::ParameterVector matmulInputParams {std::make_shared<ov::op::v0::Parameter>(ngPrec, ov::Shape(matmulShape))};
-        const auto matmulOutputNodes = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(matmulInputParams));
 
-        const auto matMul2 = builder::makeMatMul(split->output(1), matmulOutputNodes[0], false, false);
+        const auto matMul2 = std::make_shared<ov::op::v0::MatMul>(split->output(1), matmulInputParams[0], false, false);
 
         const auto concatMatMuls = builder::makeConcat({matMul1, matMul2}, 2 /* 3rd axis */);
 

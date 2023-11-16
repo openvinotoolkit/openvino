@@ -45,7 +45,9 @@ public:
 
     bool is_model_large_to_store_const(const std::shared_ptr<ov::Model>& model) {
         auto model_bytesize = model->get_graph_size();
-        if (mem_size < model_bytesize * 4) {
+        size_t gb_8 = 1;
+        gb_8 <<= 33;
+        if (mem_size <= model_bytesize * 4 || model_bytesize >= gb_8) {
             return true;
         }
         return false;

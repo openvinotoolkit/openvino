@@ -7,25 +7,25 @@
 #include <memory>
 #include <vector>
 
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
-#include <ngraph/rt_info.hpp>
+#include "openvino/core/rt_info.hpp"
 
 #include "itt.hpp"
 
 ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
     MATCHER_SCOPE(ConvertTileToSeqTiles);
-    auto tile = ngraph::pattern::wrap_type<ngraph::opset1::Tile>({ngraph::pattern::any_input(ngraph::pattern::has_static_rank()),
-                                                                  ngraph::pattern::wrap_type<ngraph::opset1::Constant>()});
+    auto tile = ov::pass::pattern::wrap_type<ov::opset1::Tile>({ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
+                                                                  ov::pass::pattern::wrap_type<ov::opset1::Constant>()});
 
-    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
-        auto tile = std::dynamic_pointer_cast<ngraph::opset1::Tile>(m.get_match_root());
+    ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
+        auto tile = std::dynamic_pointer_cast<ov::opset1::Tile>(m.get_match_root());
         if (!tile) {
             return false;
         }
 
-        auto tiles_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(tile->input_value(1).get_node_shared_ptr());
+        auto tiles_node = std::dynamic_pointer_cast<ov::opset1::Constant>(tile->input_value(1).get_node_shared_ptr());
         if (!tiles_node) return false;
 
         auto tiles = tiles_node->cast_vector<int64_t>();
@@ -47,11 +47,11 @@ ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
         if (num_of_tile_dims == 0) {
             auto outputs = tile->get_output_target_inputs(0);
             for (const auto &out : outputs) {
-                if (std::dynamic_pointer_cast<ngraph::opset1::Result>(out.get_node()->shared_from_this())) {
+                if (std::dynamic_pointer_cast<ov::opset1::Result>(out.get_node()->shared_from_this())) {
                     return false;
                 }
             }
-            ngraph::replace_node(tile, {last_node});
+            ov::replace_node(tile, {last_node});
             return true;
         }
 
@@ -65,7 +65,7 @@ ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
             friendly_name += ":";
         }
 
-        ngraph::NodeVector new_ops;
+        ov::NodeVector new_ops;
 
         auto tiles_it = tiles.rbegin();
         while (tiles_it != tiles.rend()) {
@@ -73,8 +73,8 @@ ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
             if (tile_dim != 1) {
                 std::vector<int64_t> dims(input_shape_rank, 1);
                 dims[cur_dim_id] = tile_dim;
-                auto const_node = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{input_shape_rank}, dims);
-                auto new_tile = std::make_shared<ngraph::opset1::Tile>(last_node, const_node);
+                auto const_node = std::make_shared<ov::opset1::Constant>(ov::element::i64, ov::Shape{input_shape_rank}, dims);
+                auto new_tile = std::make_shared<ov::opset1::Tile>(last_node, const_node);
                 new_tile->set_friendly_name(friendly_name);
                 friendly_name += "_" + std::to_string(cur_dim_id);
                 new_ops.push_back(new_tile);
@@ -86,11 +86,11 @@ ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
         }
 
         last_node.get_node_shared_ptr()->set_friendly_name(tile->get_friendly_name());
-        ngraph::copy_runtime_info(tile, new_ops);
-        ngraph::replace_node(tile, {last_node});
+        ov::copy_runtime_info(tile, new_ops);
+        ov::replace_node(tile, {last_node});
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(tile, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(tile, matcher_name);
     this->register_matcher(m, callback);
 }
