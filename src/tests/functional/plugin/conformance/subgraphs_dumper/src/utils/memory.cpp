@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#pragma once
-
 #include "utils/memory.hpp"
 
 #if defined(_WIN32)
