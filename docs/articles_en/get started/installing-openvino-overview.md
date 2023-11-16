@@ -35,17 +35,17 @@
 
 .. tip::
    
-   OpenVINO 2023.1, described here, is not a Long-Term-Support version!
+   OpenVINO 2023.2, described here, is not a Long-Term-Support version!
    All currently supported versions are:
 
-   * 2023.1 (development)
+   * 2023.2 (development)
    * 2022.3 (LTS)
    * 2021.4 (LTS) 
 
    Moreover, different OpenVINO distributions may support slightly different sets of features.
    Read installation guides for particular distributions for more details. 
 
-   .. dropdown:: Distribution Comparison for OpenVINO 2023.1
+   .. dropdown:: Distribution Comparison for OpenVINO 2023.2
    
       ===============  ==========  ======  =========  ========  ============ ========== ========== 
        Device           Archives    PyPI    APT/YUM    Conda     Homebrew     vcpkg      Conan     
