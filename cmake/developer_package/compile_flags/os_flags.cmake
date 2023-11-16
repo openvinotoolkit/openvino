@@ -475,6 +475,8 @@ else()
         endif()
     endif()
 
+    add_compile_definitions(-D_GLIBCXX_USE_CXX11_ABI=1)
+
     #
     # Warnings as errors
     #
