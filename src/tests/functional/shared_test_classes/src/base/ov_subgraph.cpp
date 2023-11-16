@@ -451,9 +451,35 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
 
     auto compiledModelRef = core->compile_model(functionRefs, ov::test::utils::DEVICE_TEMPLATE, {{ ov::template_plugin::disable_transformations(true) }});
     auto inferRequestRef = compiledModelRef.create_infer_request();
+    std::vector<ov::Tensor> tensors;
     for (const auto& param : functionRefs->get_parameters()) {
+        tensors.push_back(inputs.at(matched_parameters[param]));
         inferRequestRef.set_tensor(param->get_default_output(), inputs.at(matched_parameters[param]));
     }
+    // Debug printout
+    const auto& first = tensors.front();
+    if (first.get_element_type() == ov::element::f32) {
+        std::vector<float *> tensor_data;
+        std::vector<size_t> tensor_size;
+        size_t max_size = 0;
+        for (const auto& t : tensors) {
+            tensor_data.push_back(t.data<float>());
+            tensor_size.push_back(t.get_size());
+            max_size = std::max(max_size, tensor_size.back());
+        }
+        std::cerr << "Input values: \n";
+        for (int k = 0; k < max_size; k++) {
+            std::cerr << k << " : ";
+            for (size_t i = 0; i < tensors.size(); i++) {
+                if (k < tensor_size[i])
+                    std::cerr << tensor_data[i][k] << " : ";
+                else
+                    std::cerr << "------" << " : ";
+            }
+            std::cerr << "\n";
+        }
+    }
+    // Debug printout
     inferRequestRef.infer();
 
     auto outputs = std::vector<ov::Tensor>{};
