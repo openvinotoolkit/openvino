@@ -6963,6 +6963,20 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_group_normalization_2grp_custom_eps) {
     test_case.run_with_tolerance_as_fp(0.000001f);
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mm_nms_rotated) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/mm_nms_rotated.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+    test_case.add_input(Shape{1, 4, 5},
+                        std::vector<float>({23.0f, 10.5f, 4.0f, 15.0f, 2.5f,  11.0f, 15.0f, 4.0f, 2.0f, 0.7854f,
+                                            20.0f, 4.5f,  4.0f, 3.0f,  -5.3f, 8.0f,  11.5f, 4.0f, 3.0f, -0.5236f}));
+    test_case.add_input(Shape{1, 1, 4}, std::vector<float>({0.6f, 0.8f, 0.5f, 0.7f}));
+    test_case.add_expected_output<int64_t>(Shape{4, 3}, {0, 0, 1, 0, 0, 3, 0, 0, 0, 0, 0, 2});
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_less_or_equal) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/less_or_equal.onnx"));
@@ -6984,6 +6998,34 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_less_or_equal_broadcast) {
     test_case.add_input<float>(Shape{5}, {1., 2., 3., 4., 5.});
     test_case.add_input<float>(Shape{1}, {3.});
     test_case.add_expected_output<bool>(Shape{5}, {true, true, true, false, false});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_greater_or_equal_int) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/greater_or_equal_int.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+
+    test_case.add_input<int64_t>(Shape{2}, {10, 20});
+    test_case.add_input<int64_t>(Shape{2}, {15, 15});
+    test_case.add_expected_output<bool>(Shape{2}, {false, true});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_greater_or_equal_float) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/greater_or_equal_float.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+
+    test_case.add_input<float>(Shape{2}, {12.03513f, 22.03513f});
+    test_case.add_input<float>(Shape{2}, {5.84916f, 22.03513f});
+    test_case.add_expected_output<bool>(Shape{2}, {true, true});
 
     test_case.run();
 }

@@ -104,7 +104,7 @@ protected:
         std::mt19937 gen_f(123);
         std::uniform_real_distribution<float> dist_f(0.f, 1.f);
 
-        int countZero = 0;
+        size_t countZero = 0;
 
         res[0] = startFrom;
         res[vec_len - 1] = upTo;
@@ -133,7 +133,7 @@ protected:
         auto matrixBFP32 = builder::makeDynamicInputLayer(element::f32, helpers::InputLayerType::CONSTANT, inShapeB);
 
         auto matMulRelaxed = std::make_shared<ov::op::TypeRelaxed<opset3::MatMul>>(
-            *as_type_ptr<opset3::MatMul>(builder::makeMatMul(inputParamsFP32, matrixBFP32, transpose_a, transpose_b)),
+            *std::make_shared<ov::op::v0::MatMul>(inputParamsFP32, matrixBFP32, transpose_a, transpose_b),
             element::f32);
 
         auto matrixB = ngraph::builder::makeConstant<int8_t>(weiType, inShapeB.get_shape(), weiData);
@@ -190,12 +190,11 @@ protected:
         selectedType = makeSelectedTypeStr(selectedType, element::i8);
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inShapeA)};
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
 
         auto matrixB = builder::makeDynamicInputLayer(element::f32, helpers::InputLayerType::CONSTANT, inShapeB);
 
         auto weiData = generateSparseVector(ngraph::shape_size(inShapeB.get_shape()), weiSparseRate);
-        auto matMul = makeMatMulRelaxed(paramOuts[0], inShapeB, weiType, transpA, transpB, weiData);
+        auto matMul = makeMatMulRelaxed(params[0], inShapeB, weiType, transpA, transpB, weiData);
 
         function = makeNgraphFunction(element::f32, params, matMul, cpuNodeType);
 
@@ -259,6 +258,7 @@ const std::vector<ShapeRelatedParams> IS2D_sparse_smoke = {
         },
         {false, true}
     },
+    {static_shapes_to_test_representation({{1, 4096}, {4096, 16384}}), {false, true}},
 };
 
 const auto testParams2D_i8_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_sparse_smoke),

@@ -3,6 +3,7 @@
 //
 
 #include "openvino/runtime/system_conf.hpp"
+#include "openvino/runtime/threading/cpu_streams_info.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -27,7 +28,6 @@
 #include "softmax_inst.h"
 #include "permute_inst.h"
 #include "custom_gpu_primitive_inst.h"
-#include "binary_convolution_inst.h"
 #include "resample_inst.h"
 #include "reshape_inst.h"
 #include "quantize_inst.h"
@@ -104,26 +104,6 @@
 using namespace cldnn;
 using namespace ov::intel_gpu;
 
-static void adjust_num_cores(ov::threading::IStreamsExecutor::Config& config) {
-    if (ov::get_available_cores_types().size() == 1) {
-        return;
-    }
-
-    const auto total_num_cores = ov::get_number_of_logical_cpu_cores();
-    const auto total_num_big_cores = ov::get_number_of_logical_cpu_cores(true);
-    const auto total_num_little_cores = total_num_cores - total_num_big_cores;
-    auto core_type = config._threadPreferredCoreType;
-
-    int num_cores = total_num_cores;
-    if (core_type == ov::threading::IStreamsExecutor::Config::BIG) {
-        num_cores = total_num_big_cores;
-    } else if (core_type == ov::threading::IStreamsExecutor::Config::LITTLE) {
-        num_cores = total_num_little_cores;
-    }
-
-    config._streams = std::min(config._streams, num_cores);
-}
-
 static ov::threading::IStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags, int num_streams = 0) {
     ov::threading::IStreamsExecutor::Config task_executor_config(tags, 1);
     task_executor_config._streams = (num_streams > 0) ? num_streams : config.get_property(ov::compilation_num_threads);
@@ -135,7 +115,10 @@ static ov::threading::IStreamsExecutor::Config make_task_executor_config(const E
         default: OPENVINO_ASSERT(false, "[GPU] Can't create task executor: invalid host task priority value: ", priority);
     }
 
-    adjust_num_cores(task_executor_config);
+    task_executor_config.update_executor_config(task_executor_config._streams,
+                                                1,
+                                                task_executor_config._threadPreferredCoreType,
+                                                false);
 
     return task_executor_config;
 }
@@ -315,28 +298,7 @@ bool program::analyze_output_size_handling_need() {
 
     // Calculate output size and compare with specified.
     for (const auto& node : processing_order) {
-        if (node->is_type<binary_convolution>()) {
-            auto& prim_node = node->as<binary_convolution>();
-            const auto& prim = prim_node.get_primitive();
-
-            tensor specified_output_range(
-                {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
-                1);
-
-            auto filter_size = prim_node.weights().get_output_layout().get_tensor();
-
-            auto primInputSize = prim_node.input().get_output_layout().get_tensor();
-            auto calc_output_range =
-                calc_sliding_window_output_range<swor_mode::all>(primInputSize,
-                                                                 filter_size,
-                                                                 prim->pad,
-                                                                 prim->stride,
-                                                                 prim->dilation,
-                                                                 true,
-                                                                 1);
-            if (specified_output_range != calc_output_range)
-                handling_needed = true;
-        } else if (node->is_type<deconvolution>()) {
+        if (node->is_type<deconvolution>()) {
             auto& prim_node = node->as<deconvolution>();
             const auto& prim = prim_node.get_primitive();
 
@@ -888,7 +850,8 @@ void program::add_intermediate(program_node& node,
 
 void program::add_connection(program_node& prev, program_node& next) {
     prev.users.push_back(&next);
-    next.dependencies.push_back({&prev, 0});
+    auto port_idx = next.get_port_from_deps(prev.id());
+    next.dependencies.push_back({&prev, port_idx});
 }
 
 void program::remove_connection(program_node& prev, program_node& next) {
@@ -1169,7 +1132,9 @@ void program::fuse_nodes(program_node &fused_node,
                     continue;
             }
         }
-        fused_node.dependencies.push_back({&dep, 0});
+
+        auto port_idx = fused_node.get_port_from_deps(dep.id());
+        fused_node.dependencies.push_back({&dep, port_idx});
         local_desc.deps.emplace_back(dep.id(), deps_idx++);
         dep.users.push_back(&fused_node);
     }
@@ -1455,7 +1420,6 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::permute::type_id() &&
             prim.type() != cldnn::reshape::type_id() &&
             prim.type() != cldnn::detection_output::type_id() &&
-            prim.type() != cldnn::binary_convolution::type_id() &&
             prim.type() != cldnn::quantize::type_id() &&
             prim.type() != cldnn::custom_gpu_primitive::type_id() &&
             prim.type() != cldnn::concatenation::type_id() &&

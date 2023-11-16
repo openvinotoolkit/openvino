@@ -456,19 +456,34 @@ shared_ptr<v5::Loop> create_loop_for_tf_while(const std::string& while_node_name
 void inject_body_model(std::shared_ptr<ov::Model> ov_model_to_inject,
                        const std::string& operation_type,
                        const ov::OutputVector& ov_inputs,
-                       ov::OutputVector& ov_outputs) {
+                       ov::OutputVector& ov_outputs,
+                       const std::vector<std::string>& ov_input_names) {
     ov_outputs.clear();
     auto body_parameters = ov_model_to_inject->get_parameters();
-    FRONT_END_GENERAL_CHECK(body_parameters.size() == ov_inputs.size(),
+    // some external inputs can be skipped if some body graph inputs turn to be Constant nodes
+    FRONT_END_GENERAL_CHECK(body_parameters.size() <= ov_inputs.size(),
                             "[TensorFlow Error] Internal error or incorrect input models: number of "
                             "inputs and arguments to the function " +
                                 operation_type + " do not match.");
     for (size_t param_ind = 0; param_ind < body_parameters.size(); ++param_ind) {
+        auto param_name = body_parameters[param_ind]->get_friendly_name();
+        // find suitable index of external input
+        size_t ext_found_ind = param_ind;
+        if (ov_input_names.size() > 0) {
+            // only used for PartitionedCall translator
+            for (size_t ext_input_ind = 0; ext_input_ind < ov_input_names.size(); ++ext_input_ind) {
+                if (ov_input_names[ext_input_ind] == param_name) {
+                    ext_found_ind = ext_input_ind;
+                    break;
+                }
+            }
+        }
+
         auto orig_type = body_parameters[param_ind]->get_element_type();
         // avoid not needed tensor names from body graph Parameter node after replacing
         body_parameters[param_ind]->output(0).set_names({});
-        body_parameters[param_ind]->output(0).replace(ov_inputs[param_ind]);
-        if (auto ext_parameter = as_type_ptr<v0::Parameter>(ov_inputs[param_ind].get_node_shared_ptr())) {
+        body_parameters[param_ind]->output(0).replace(ov_inputs[ext_found_ind]);
+        if (auto ext_parameter = as_type_ptr<v0::Parameter>(ov_inputs[ext_found_ind].get_node_shared_ptr())) {
             // save type of a Parameter as converted in the body
             // this is important if the external conversion extension is applied to body graph node
             // with setting its own type

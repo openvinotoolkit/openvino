@@ -4,8 +4,8 @@
 
 #include <cmath>
 
-#include <ngraph/op/ctc_loss.hpp>
-#include "ie_parallel.hpp"
+#include "openvino/op/ctc_loss.hpp"
+#include "openvino/core/parallel.hpp"
 #include "ctc_loss.h"
 
 using namespace InferenceEngine;
@@ -14,9 +14,9 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool CTCLoss::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool CTCLoss::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto ctcLossOp = ngraph::as_type_ptr<const ngraph::op::v4::CTCLoss>(op);
+        const auto ctcLossOp = ov::as_type_ptr<const ov::op::v4::CTCLoss>(op);
         if (!ctcLossOp) {
             errorMessage = "Node is not an instance of the CTCLoss operation from operation set v4.";
             return false;
@@ -27,19 +27,19 @@ bool CTCLoss::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-CTCLoss::CTCLoss(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+CTCLoss::CTCLoss(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = std::string("CTCLoss layer with name '") + op->get_friendly_name() + "'";
 
     if (getOriginalInputsNumber() != 4 && getOriginalInputsNumber() != 5)
-        IE_THROW() << errorPrefix << " has invalid inputs number.";
+        OPENVINO_THROW(errorPrefix, " has invalid inputs number.");
 
-    auto ctcLossOp = ngraph::as_type_ptr<const ngraph::op::v4::CTCLoss>(op);
+    auto ctcLossOp = ov::as_type_ptr<const ov::op::v4::CTCLoss>(op);
     ctcMergeRepeated = ctcLossOp->get_ctc_merge_repeated();
     preprocessCollapseRepeated = ctcLossOp->get_preprocess_collapse_repeated();
     unique = ctcLossOp->get_unique();
@@ -51,12 +51,12 @@ void CTCLoss::initSupportedPrimitiveDescriptors() {
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
+    inDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
     for (size_t i = 1; i < inputShapes.size(); ++i)
-        inDataConf.emplace_back(LayoutType::ncsp, Precision::I32);
+        inDataConf.emplace_back(LayoutType::ncsp, ov::element::i32);
 
     addSupportedPrimDesc(inDataConf,
-                         {{LayoutType::ncsp, Precision::FP32}},
+                         {{LayoutType::ncsp, ov::element::f32}},
                          impl_desc_type::ref_any);
 }
 
@@ -162,7 +162,7 @@ void CTCLoss::execute(dnnl::stream strm) {
             if (!err.empty())
                 resErr += err + "\n";
         }
-        IE_THROW() << resErr;
+        OPENVINO_THROW(resErr);
     }
 
     const size_t TC = maxTime * classesNum;

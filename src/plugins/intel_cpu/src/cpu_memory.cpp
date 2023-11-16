@@ -23,6 +23,16 @@ using namespace dnnl;
 
 namespace ov {
 namespace intel_cpu {
+template <>
+DnnlMemoryDescPtr IMemory::getDescWithType<DnnlMemoryDesc, 0, 0>() const {
+    return MemoryDescUtils::convertToDnnlMemoryDesc(getDescPtr());
+}
+
+template <>
+BlockedMemoryDescPtr IMemory::getDescWithType<BlockedMemoryDesc, 0, 0>() const {
+    return MemoryDescUtils::convertToBlockedMemoryDesc(getDescPtr());
+}
+
 namespace {
     inline void setSubnormalsToZero(float *data, size_t size) {
         uint32_t *u32data = reinterpret_cast<uint32_t *>(data);
@@ -36,21 +46,27 @@ namespace {
     void transferData(const IMemory& src, const IMemory& dst, bool ftz) {
         node::Reorder::reorderData(src, dst);
 
-        auto localPrim = dst.getPrimitive();
-        auto desc = localPrim.get_desc();
-        dnnl::impl::memory_desc_wrapper wrapper(desc.get());
-
-        if (ftz
-            && src.getDataType() == memory::data_type::f32
-            && !wrapper.is_wino_desc()
-            // WA: to avoid zero filling auxiliary information
-            && !wrapper.is_rnn_packed_desc()
-            && dst.getDataType() != memory::data_type::bf16) {
-            // Internal blobs don't have strides yet.
-            auto *memData = static_cast<float *>(dst.getData());
-            memData += wrapper.offset0();
-            setSubnormalsToZero(memData, dst.getSize() / sizeof(float));
+        if (!ftz) {
+            return;
         }
+        if (src.getDesc().getPrecision() != ov::element::f32 || dst.getDesc().getPrecision() == ov::element::bf16) {
+            return;
+        }
+        size_t offset = 0;
+        if (dst.getDesc().getType() & MemoryDescType::Dnnl) {
+            // here we can safely cast to DnnlMemoryDesc
+            auto dnnl_desc = dst.getDescWithType<DnnlMemoryDesc>();
+            auto desc = dnnl_desc->getDnnlDesc();
+            dnnl::impl::memory_desc_wrapper wrapper(desc.get());
+            offset = wrapper.offset0();
+            if (wrapper.is_wino_desc() || wrapper.is_rnn_packed_desc()) {
+                return;
+            }
+        }
+        // actual FTZ
+        auto* memData = static_cast<float*>(dst.getData());
+        memData += offset;
+        setSubnormalsToZero(memData, dst.getSize() / sizeof(float));
     }
 
 }   // namespace
@@ -79,7 +95,7 @@ Memory::Memory(const dnnl::engine& eng, const MemoryDesc& desc, MemoryMngrPtr mn
 size_t Memory::getSize() const {
     auto size = getDesc().getCurrentMemSize();
     if (size  == MemoryDesc::UNDEFINED_SIZE) {
-        IE_THROW() << "Can't get memory size for undefined shape";
+        OPENVINO_THROW("Can't get memory size for undefined shape");
     }
     return size;
 }
@@ -116,20 +132,10 @@ void Memory::nullify() {
 
 void Memory::redefineDesc(MemoryDescPtr desc) {
     if (!desc->hasDefinedMaxSize()) {
-        IE_THROW() << "Can not reset descriptor, memory upper bound is unknown.";
+        OPENVINO_THROW("Can not reset descriptor, memory upper bound is unknown.");
     }
 
     this->create(desc, nullptr, false);
-}
-
-template<>
-DnnlMemoryDescPtr IMemory::getDescWithType<DnnlMemoryDesc, 0, 0>() const {
-    return MemoryDescUtils::convertToDnnlMemoryDesc(getDescPtr());
-}
-
-template<>
-BlockedMemoryDescPtr IMemory::getDescWithType<BlockedMemoryDesc, 0, 0>() const {
-    return MemoryDescUtils::convertToBlockedMemoryDesc(getDescPtr());
 }
 
 void Memory::update() {
@@ -156,7 +162,7 @@ dnnl::memory Memory::DnnlMemPrimHandle::getPrim() const {
     std::lock_guard<std::mutex> guard(m_primCachingLock);
     if (!m_prim) {
         if (!m_memObjPtr->getDesc().isDefined()) {
-            IE_THROW() << "Can not create oneDNN memory from undefined memory descriptor";
+            OPENVINO_THROW("Can not create oneDNN memory from undefined memory descriptor");
         }
 
         // ========================
@@ -199,7 +205,7 @@ void* Memory::getData() const {
     if (data == nullptr &&
         m_pMemDesc->getShape().isStatic() &&
         m_pMemDesc->getShape().getElementsCount() != 0)
-        IE_THROW() << "Memory has not been allocated";
+        OPENVINO_THROW("Memory has not been allocated");
     return data;
 }
 
@@ -219,7 +225,7 @@ bool MemoryMngrWithReuse::resize(size_t size) {
     if (size > m_memUpperBound) {
         void *ptr = dnnl::impl::malloc(size, cacheLineSize);
         if (!ptr) {
-            IE_THROW() << "Failed to allocate " << size << " bytes of memory";
+            OPENVINO_THROW("Failed to allocate ", size, " bytes of memory");
         }
         m_memUpperBound = size;
         m_useExternalStorage = false;
@@ -283,7 +289,7 @@ void DnnlMemoryMngr::notifyUpdate() {
 StaticMemory::StaticMemory(const dnnl::engine& eng, MemoryDescPtr desc, const void* data, bool pads_zeroing) :
     m_eng(eng), m_pMemDesc(desc) {
     if (!m_pMemDesc->isDefined()) {
-        IE_THROW() << "Can not create StaticMemory object. The memory desc is undefined";
+        OPENVINO_THROW("Can not create StaticMemory object. The memory desc is undefined");
     }
 
     m_size = m_pMemDesc->getCurrentMemSize();
@@ -340,7 +346,7 @@ const VectorDims& StaticMemory::getStaticDims() const {
 }
 
 void StaticMemory::redefineDesc(MemoryDescPtr desc) {
-    IE_THROW(Unexpected) << "Memory descriptor may not be modified in StaticMemory object";
+    OPENVINO_THROW("Unexpected: Memory descriptor may not be modified in StaticMemory object");
 }
 
 void StaticMemory::load(const IMemory& src, bool ftz) const {
@@ -375,12 +381,12 @@ void* StaticMemory::StaticMemoryMngr::getRawPtr() const noexcept {
 }
 
 void StaticMemory::StaticMemoryMngr::setExtBuff(void* ptr, size_t size) {
-    IE_THROW(Unexpected) << "StaticMemoryMngr may not be modified";
+    OPENVINO_THROW("Unexpected: StaticMemoryMngr may not be modified");
 }
 
 bool StaticMemory::StaticMemoryMngr::resize(size_t size) {
     if (size != m_size) {
-        IE_THROW(Unexpected) << "StaticMemoryMngr may not resize the memory";
+        OPENVINO_THROW("Unexpected: StaticMemoryMngr may not resize the memory");
     }
     return false;
 }

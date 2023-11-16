@@ -5,10 +5,11 @@
 #pragma once
 
 #include <ie_common.h>
-#include <ie_precision.hpp>
+
 #include "cpu_shape.h"
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "openvino/core/type/element_type.hpp"
 
 /**
  * @brief
@@ -58,7 +59,7 @@ public:
 
     virtual ~MemoryDesc() = default;
 
-    virtual InferenceEngine::Precision getPrecision() const = 0;
+    virtual ov::element::Type getPrecision() const = 0;
 
     virtual MemoryDescPtr clone() const = 0;
 
@@ -80,18 +81,24 @@ public:
     MemoryDescPtr cloneWithNewDims(const VectorDims& dims, bool relaxedCheck = false) const {
         if (relaxedCheck) {
             if (getShape().getRank() != dims.size()) {
-                IE_THROW(ParameterMismatch) << "Can not clone with new dims, ranks mistmatch. Descriptor's rank: " << getShape().getRank() <<
-                                               " is incompatible with provided rank of dimensions: " << dims.size() << ".";
+                OPENVINO_THROW("ParameterMismatch: Can not clone with new dims, ranks mistmatch. Descriptor's rank: ",
+                               getShape().getRank(),
+                               " is incompatible with provided rank of dimensions: ",
+                               dims.size(),
+                               ".");
             }
         } else if (!getShape().isCompatible(dims)) {
-            IE_THROW(ParameterMismatch) << "Can not clone with new dims. Descriptor's shape: " << getShape().toString() <<
-                                           " is incompatible with provided dimensions: " << MemoryDescUtils::dims2str(dims) << ".";
+            OPENVINO_THROW("ParameterMismatch: Can not clone with new dims. Descriptor's shape: ",
+                           getShape().toString(),
+                           " is incompatible with provided dimensions: ",
+                           MemoryDescUtils::dims2str(dims),
+                           ".");
         }
 
         return cloneWithNewDimsImp(dims);
     }
 
-    virtual MemoryDescPtr cloneWithNewPrecision(const InferenceEngine::Precision prec) const = 0;
+    virtual MemoryDescPtr cloneWithNewPrecision(const ov::element::Type prec) const = 0;
 
     virtual bool isCompatible(const MemoryDesc& rhs) const = 0;
 
@@ -132,7 +139,7 @@ public:
     T* as() {
         T* casted = dynamic_cast<T*>(this);
         if (!casted)
-            IE_THROW() << "Cannot dynamically cast MemoryDesc";
+            OPENVINO_THROW("Cannot dynamically cast MemoryDesc");
         return casted;
     }
 
@@ -142,7 +149,7 @@ public:
     const T* as() const {
         const T* casted = dynamic_cast<const T*>(this);
         if (!casted)
-            IE_THROW() << "Cannot dynamically cast MemoryDesc";
+            OPENVINO_THROW("Cannot dynamically cast MemoryDesc");
         return casted;
     }
 
@@ -156,7 +163,7 @@ protected:
     MemoryDesc(const VectorDims& dims, MemoryDescType type)
             : type(type), shape(dims) {}
 
-    virtual void setPrecision(InferenceEngine::Precision prc) = 0;
+    virtual void setPrecision(ov::element::Type prc) = 0;
 
     virtual size_t getCurrentMemSizeImp() const = 0;
 

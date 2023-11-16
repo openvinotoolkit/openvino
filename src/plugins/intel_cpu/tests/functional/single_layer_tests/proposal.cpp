@@ -143,7 +143,6 @@ protected:
         for (auto&& shape : {inputDynamicShapes[0], inputDynamicShapes[1], inputDynamicShapes[2]}) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, shape));
         }
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
         ngraph::op::ProposalAttrs attrs;
         attrs.base_size = base_size;
@@ -162,7 +161,7 @@ protected:
         attrs.framework = framework;
         attrs.infer_probs = true;
 
-        auto proposal = std::make_shared<opset4::Proposal>(paramOuts[0], paramOuts[1], paramOuts[2], attrs);
+        auto proposal = std::make_shared<opset4::Proposal>(params[0], params[1], params[2], attrs);
 
         ngraph::ResultVector results{
                 std::make_shared<ngraph::opset1::Result>(proposal->output(0)),
