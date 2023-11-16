@@ -44,12 +44,12 @@ protected:
         const auto concatOutputNodes = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(concatInputParams));
         const auto concat = builder::makeConcat(concatOutputNodes, 2);
 
-        const auto matMul1 = builder::makeMatMul(split->output(0), concat, false, false);
+        const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(split->output(0), concat, false, false);
 
         SizeVector matmulShape{1, 1, 16, 8};
         ov::ParameterVector matmulInputParams {std::make_shared<ov::op::v0::Parameter>(ngPrec, ov::Shape(matmulShape))};
 
-        const auto matMul2 = builder::makeMatMul(split->output(1), matmulInputParams[0], false, false);
+        const auto matMul2 = std::make_shared<ov::op::v0::MatMul>(split->output(1), matmulInputParams[0], false, false);
 
         const auto concatMatMuls = builder::makeConcat({matMul1, matMul2}, 2 /* 3rd axis */);
 
