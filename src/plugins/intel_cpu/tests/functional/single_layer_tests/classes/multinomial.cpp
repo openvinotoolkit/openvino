@@ -58,7 +58,7 @@ std::string MultinomialLayerTestCPU::getTestCaseName(const testing::TestParamInf
         result << "}";
     }
     return result.str();
-};
+}
 
 void MultinomialLayerTestCPU::SetUp() {
     MultinomialTestCPUParams test_params;
@@ -138,7 +138,7 @@ void MultinomialLayerTestCPU::generate_inputs(const std::vector<ov::Shape>& targ
     inputs.insert({probs.get_node_shared_ptr(), m_probs});
     auto& num_samples = func_inputs[1];
     inputs.insert({num_samples.get_node_shared_ptr(), m_num_samples});
-};
+}
 
 TEST_P(MultinomialLayerTestCPU, CompareWithRefs) {
     run();
