@@ -1376,9 +1376,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          # install git (required to build pip deps from the sources)
-          # install 'g++' to build 'detectron2' and 'natten' wheels
-          sudo apt-get install --assume-yes --no-install-recommends g++ git ca-certificates
+          exit 1
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
