@@ -8,13 +8,13 @@ For more detailed information on how this sample works, check the dedicated [art
 
 ## Requirements
 
-| Options                     | Values                                                                                |
-| ----------------------------| --------------------------------------------------------------------------------------| 
-| Validated Models            | :doc:`alexnet <omz_models_model_alexnet>`                                             |
-| Model Format                | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)        |
-| Validated images            | An uncompressed image in the NV12 color format - \*.yuv                               |
-| Supported devices           | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`                  |
-| Other language realization  | :doc:`C++ <openvino_inference_engine_samples_hello_nv12_input_classification_README>` |
+| Options                     | Values                                                                                                       |
+| ----------------------------| -------------------------------------------------------------------------------------------------------------|
+| Validated Models            | [alexnet](https://docs.openvino.ai/2023.2/omz_models_model_alexnet.html)                                     |
+| Model Format                | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)                               |
+| Validated images            | An uncompressed image in the NV12 color format - \*.yuv                                                      |
+| Supported devices           | [All](..\..\..\docs\articles_en\about_openvino\compatibility_and_support\Supported_Devices.md)               |
+| Other language realization  | [C++](..\..\..\docs\articles_en\learn_openvino\openvino_samples\c_sample_hello_nv12_input_classification.md) |
 
 The following C++ API is used in the application:
 
