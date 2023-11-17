@@ -753,7 +753,6 @@ void ScaledDotProductAttention::execute(dnnl::stream strm) {
 }
 
 bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
-#if defined(OPENVINO_ARCH_X86_64)
     try {
         if (!std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op)) {
             errorMessage = "Only ScaledDotProductAttention operation are supported";
@@ -774,10 +773,6 @@ bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const
         return false;
     }
     return true;
-#else
-    // current optimization is not suitable for ARM
-    return false;
-#endif
 }
 
 }  // namespace node

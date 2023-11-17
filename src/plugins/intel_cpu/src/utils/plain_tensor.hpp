@@ -109,13 +109,16 @@ struct precision_of<float16> {
 };
 
 #define PLAINTENSOR_RANK_MAX 8
-struct PlainTensorBase {
+
+template <typename DT>
+struct PlainTensor {
     size_t m_strides[PLAINTENSOR_RANK_MAX];
     size_t m_dims[PLAINTENSOR_RANK_MAX];
     size_t m_rank = 0;
     void* m_ptr = nullptr;
     size_t m_capacity = 0;
     bool with_storage = false;
+    MemoryPtr m_mem;        // hold memory ptr reference
 
     operator bool() const {
         return static_cast<bool>(m_ptr);
@@ -135,13 +138,6 @@ struct PlainTensorBase {
         assert(i < m_rank);
         return m_strides[i];
     }
-    virtual ov::element::Type get_precision(void) = 0;
-    virtual void reset(MemoryPtr mem) = 0;
-};
-
-template <typename DT>
-struct PlainTensor : public PlainTensorBase {
-    MemoryPtr m_mem;        // hold memory ptr reference
     PlainTensor(MemoryPtr mem) {
         reset(mem);
     }
@@ -172,14 +168,14 @@ struct PlainTensor : public PlainTensorBase {
         }
     }
 
-    void reset(MemoryPtr mem) override {
+    void reset(MemoryPtr mem) {
         assert_dt<DT>(mem->getDesc().getPrecision());
         m_mem = mem;
         // this reshape_to() can do reshape w/o additional cost
         resize(mem->getStaticDims(), reinterpret_cast<DT*>(mem->getData()));
     }
 
-    ov::element::Type get_precision(void) override {
+    ov::element::Type get_precision(void) {
         return precision_of<DT>::value;
     }
 
