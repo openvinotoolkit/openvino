@@ -62,7 +62,6 @@ class TestMultinomial(CommonTFLayerTest):
         ],
     )
     @pytest.mark.nightly
-    @pytest.mark.precommit
     @pytest.mark.precommit_tf_fe
     def test_multinomial_basic(
         self,
