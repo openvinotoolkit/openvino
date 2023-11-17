@@ -99,6 +99,11 @@ jobs:
           # For running Paddle frontend unit tests
           # python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
 
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@v0.0.3
+        with:
+          version: "v0.5.4"
+
       - name: Install build dependencies
         run: choco install --no-progress ninja
 
@@ -108,19 +113,6 @@ jobs:
 
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         uses: ilammy/msvc-dev-cmd@v1
-
-      - name: Setup sccache
-        uses: hendrikmuhs/ccache-action@v1.2
-        with:
-          variant: sccache
-          max-size: "2000M"
-          # Should save cache only if run in the master branch of the base repo
-          # github.ref_name is 'ref/PR_#' in case of the PR, and 'branch_name' when executed on push
-          save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
-          append-timestamp: true
-          key: ${{ github.job }}-${{ runner.os }}-common
-          restore-keys: |
-            ${{ github.job }}-${{ runner.os }}-common
 
       - name: CMake configure
         run: |
@@ -138,8 +130,14 @@ jobs:
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
+      - name: Clean sccache stats
+        run: '& "$Env:SCCACHE_PATH" --zero-stats'
+
       - name: Cmake build - OpenVINO
         run: cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose
+
+      - name: Show sccache stats
+        run: '& "$Env:SCCACHE_PATH" --show-stats'
 
       - name: Cmake install - OpenVINO
         run: |
