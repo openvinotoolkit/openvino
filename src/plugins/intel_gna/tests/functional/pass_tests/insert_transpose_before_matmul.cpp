@@ -86,8 +86,8 @@ protected:
                 std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{matmul_in_shape[1], 1}, weights);
         }
 
-        auto matmul = firstInConst ? ngraph::builder::makeMatMul(weights_node, reshape, false, false)
-                                   : ngraph::builder::makeMatMul(reshape, weights_node, false, false);
+        auto matmul = firstInConst ? std::make_shared<ov::op::v0::MatMul>(weights_node, reshape, false, false)
+                                   : std::make_shared<ov::op::v0::MatMul>(reshape, weights_node, false, false);
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(matmul)};
         function = std::make_shared<ngraph::Function>(results, params, "InsertTransposeBeforeMatmul");
@@ -178,8 +178,8 @@ protected:
         weights_node =
             std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{1, matmul_in_shape[0] * 2}, weights);
 
-        auto matmul = firstInConst ? ngraph::builder::makeMatMul(weights_node, concat, false, false)
-                                   : ngraph::builder::makeMatMul(concat, weights_node, false, false);
+        auto matmul = firstInConst ? std::make_shared<ov::op::v0::MatMul>(weights_node, concat, false, false)
+                                   : std::make_shared<ov::op::v0::MatMul>(concat, weights_node, false, false);
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(matmul)};
         function = std::make_shared<ngraph::Function>(results, params, "InsertTransposeBeforeConcatConcat");
