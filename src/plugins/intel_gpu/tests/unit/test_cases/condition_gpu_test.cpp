@@ -6,6 +6,7 @@
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "random_generator.hpp"
 #include "test_utils.h"
+#include "condition_inst.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/concatenation.hpp>
@@ -14,6 +15,7 @@
 #include <intel_gpu/primitives/softmax.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
 
 #include <cstddef>
 
@@ -699,4 +701,56 @@ TEST(condition_gpu, negative_same_names_within_different_networks) {
     );
 
     EXPECT_ANY_THROW(network net(engine, topology, config););
+}
+
+TEST(condition_gpu, empty_body) {
+    auto& engine = get_test_engine();
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto input_mem = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
+    auto predicate_mem = engine.allocate_memory({ data_types::u8, format::bfyx,{ 1, 1, 1, 1 } });
+
+    primitive_id input_id1           = "input1";
+    primitive_id input_id2           = "input2";
+    primitive_id pred_id             = "predicate";
+    primitive_id branch_input_id1    = "branch_input1";
+    primitive_id branch_input_id2    = "branch_input2";
+    primitive_id cond_id             = "condi";
+
+    condition::branch branch_true;
+    {
+        topology branch_true_topology;
+        branch_true_topology.add(
+            input_layout(branch_input_id1, { data_types::f32, format::bfyx,{ 1, 1, 4, 1 } }),
+            input_layout(branch_input_id2, { data_types::f32, format::bfyx,{ 1, 1, 4, 1 } }),
+            eltwise("eltwise", { input_info(branch_input_id1), input_info(branch_input_id2) }, eltwise_mode::sum)
+        );
+        branch_true.inner_program = program::build_program(engine, branch_true_topology, config, false, false, true);
+        branch_true.input_map.insert({input_id1, branch_input_id1});
+        branch_true.input_map.insert({input_id2, branch_input_id2});
+        branch_true.output_map.insert({0, "eltwise"});
+    }
+
+    condition::branch branch_false;
+    {
+        topology branch_false_topology;
+        branch_false_topology.add(
+            input_layout(branch_input_id2, { data_types::f32, format::bfyx, { 1, 1, 4, 1 } }),
+            reorder("result", input_info(branch_input_id2), {data_types::f32, format::bfyx, {1, 1, 4, 1}})
+        );
+        branch_false.inner_program = program::build_program(engine, branch_false_topology, config, false, false, true);
+        branch_false.input_map.insert({input_id2, branch_input_id2});
+        branch_false.output_map.insert({0, "result"});
+    }
+
+    topology topology;
+    topology.add(input_layout(input_id1, input_mem->get_layout()));
+    topology.add(input_layout(input_id2, input_mem->get_layout()));
+    topology.add(input_layout(pred_id, predicate_mem->get_layout()));
+    topology.add(condition(cond_id, {input_info(pred_id), input_info(input_id1), input_info(input_id2)}, branch_true, branch_false)
+    );
+
+    network net(engine, topology, config);
+    ASSERT_TRUE(net.get_primitive(cond_id)->get_node().as<condition>().get_branch_false().inner_program->can_be_optimized());
+    ASSERT_FALSE(net.get_primitive(cond_id)->get_node().as<condition>().get_branch_true().inner_program->can_be_optimized());
 }
