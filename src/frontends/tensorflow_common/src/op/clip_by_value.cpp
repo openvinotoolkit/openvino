@@ -3,10 +3,11 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
 
 using namespace std;
-using namespace ov::opset10;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -20,10 +21,10 @@ OutputVector translate_clip_by_value_op(const NodeContext& node) {
 
     // it can be case that clip_value_min > clip_value_max
     // in this case both values are equal to clip_value_min
-    clip_value_max = make_shared<Maximum>(clip_value_min, clip_value_max);
+    clip_value_max = make_shared<v1::Maximum>(clip_value_min, clip_value_max);
 
-    auto clip_by_min = make_shared<Maximum>(t, clip_value_min);
-    auto clip_by_max = make_shared<Minimum>(clip_by_min, clip_value_max);
+    auto clip_by_min = make_shared<v1::Maximum>(t, clip_value_min);
+    auto clip_by_max = make_shared<v1::Minimum>(clip_by_min, clip_value_max);
 
     set_node_name(node.get_name(), clip_by_max);
     return {clip_by_max};
