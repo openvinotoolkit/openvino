@@ -3,10 +3,33 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset13.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_xor.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/floor.hpp"
+#include "openvino/op/floor_mod.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/greater_eq.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/less_eq.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/logical_xor.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/mod.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/not_equal.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/squared_difference.hpp"
+#include "openvino/op/subtract.hpp"
 
 using namespace std;
-using namespace ov::opset13;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -25,7 +48,7 @@ OutputVector translate_binary_op(const NodeContext& node,
 
 OutputVector translate_floor_div_op(const NodeContext& node) {
     auto floordiv_fn = [](const Output<Node>& x, const Output<Node>& y) {
-        return make_shared<Floor>(make_shared<Divide>(x, y));
+        return make_shared<v0::Floor>(make_shared<v1::Divide>(x, y));
     };
     return translate_binary_op(node, floordiv_fn);
 }
@@ -37,29 +60,29 @@ OutputVector translate_binary_op(const NodeContext& node) {
     });
 }
 
-template OutputVector translate_binary_op<Add>(const NodeContext& node);
-template OutputVector translate_binary_op<BitwiseAnd>(const NodeContext& node);
-template OutputVector translate_binary_op<BitwiseOr>(const NodeContext& node);
-template OutputVector translate_binary_op<BitwiseXor>(const NodeContext& node);
-template OutputVector translate_binary_op<Equal>(const NodeContext& node);
-template OutputVector translate_binary_op<FloorMod>(const NodeContext& node);
-template OutputVector translate_binary_op<Greater>(const NodeContext& node);
-template OutputVector translate_binary_op<GreaterEqual>(const NodeContext& node);
-template OutputVector translate_binary_op<Less>(const NodeContext& node);
-template OutputVector translate_binary_op<LessEqual>(const NodeContext& node);
-template OutputVector translate_binary_op<LogicalAnd>(const NodeContext& node);
-template OutputVector translate_binary_op<LogicalOr>(const NodeContext& node);
-template OutputVector translate_binary_op<LogicalXor>(const NodeContext& node);
-template OutputVector translate_binary_op<Maximum>(const NodeContext& node);
-template OutputVector translate_binary_op<Minimum>(const NodeContext& node);
-template OutputVector translate_binary_op<Multiply>(const NodeContext& node);
-template OutputVector translate_binary_op<Mod>(const NodeContext& node);
-template OutputVector translate_binary_op<NotEqual>(const NodeContext& node);
-template OutputVector translate_binary_op<Power>(const NodeContext& node);
-template OutputVector translate_binary_op<PRelu>(const NodeContext& node);
-template OutputVector translate_binary_op<Divide>(const NodeContext& node);
-template OutputVector translate_binary_op<SquaredDifference>(const NodeContext& node);
-template OutputVector translate_binary_op<Subtract>(const NodeContext& node);
+template OutputVector translate_binary_op<v1::Add>(const NodeContext& node);
+template OutputVector translate_binary_op<v13::BitwiseAnd>(const NodeContext& node);
+template OutputVector translate_binary_op<v13::BitwiseOr>(const NodeContext& node);
+template OutputVector translate_binary_op<v13::BitwiseXor>(const NodeContext& node);
+template OutputVector translate_binary_op<v1::Equal>(const NodeContext& node);
+template OutputVector translate_binary_op<v1::FloorMod>(const NodeContext& node);
+template OutputVector translate_binary_op<v1::Greater>(const NodeContext& node);
+template OutputVector translate_binary_op<v1::GreaterEqual>(const NodeContext& node);
+template OutputVector translate_binary_op<v1::Less>(const NodeContext& node);
+template OutputVector translate_binary_op<v1::LessEqual>(const NodeContext& node);
+template OutputVector translate_binary_op<v1::LogicalAnd>(const NodeContext& node);
+template OutputVector translate_binary_op<v1::LogicalOr>(const NodeContext& node);
+template OutputVector translate_binary_op<v1::LogicalXor>(const NodeContext& node);
+template OutputVector translate_binary_op<v1::Maximum>(const NodeContext& node);
+template OutputVector translate_binary_op<v1::Minimum>(const NodeContext& node);
+template OutputVector translate_binary_op<v1::Multiply>(const NodeContext& node);
+template OutputVector translate_binary_op<v1::Mod>(const NodeContext& node);
+template OutputVector translate_binary_op<v1::NotEqual>(const NodeContext& node);
+template OutputVector translate_binary_op<v1::Power>(const NodeContext& node);
+template OutputVector translate_binary_op<v0::PRelu>(const NodeContext& node);
+template OutputVector translate_binary_op<v1::Divide>(const NodeContext& node);
+template OutputVector translate_binary_op<v0::SquaredDifference>(const NodeContext& node);
+template OutputVector translate_binary_op<v1::Subtract>(const NodeContext& node);
 
 }  // namespace op
 }  // namespace tensorflow

@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/bucketize.hpp"
+
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/constant.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -20,10 +22,10 @@ OutputVector translate_bucketize_op(const NodeContext& node) {
     auto boundaries = node.get_attribute<std::vector<float>>("boundaries");
 
     auto bucketize =
-        make_shared<Bucketize>(input,
-                               make_shared<Constant>(ov::element::f32, Shape{boundaries.size()}, boundaries),
-                               ov::element::i32,
-                               false);
+        make_shared<v3::Bucketize>(input,
+                                   make_shared<v0::Constant>(ov::element::f32, Shape{boundaries.size()}, boundaries),
+                                   ov::element::i32,
+                                   false);
     set_node_name(node.get_name(), bucketize);
     return {bucketize};
 }
