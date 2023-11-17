@@ -76,7 +76,6 @@ audio generation.
 
 **Table of contents:**
 
-
 -  `Prerequisites <#prerequisites>`__
 -  `Stable Diffusion pipeline in Optimum
    Intel <#stable-diffusion-pipeline-in-optimum-intel>`__
@@ -88,17 +87,20 @@ audio generation.
 -  `Run Inference pipeline <#run-inference-pipeline>`__
 -  `Interactive demo <#interactive-demo>`__
 
-Prerequisites 
--------------------------------------------------------
+Prerequisites
+-------------
+
+
 
 .. code:: ipython3
 
-    %pip install -q "diffusers>=0.16.1" "transformers>=4.28.0"
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch torchaudio
-    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" onnx onnxruntime "gradio>=3.34.0" "openvino>=2023.1.0"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch<2.1" "torchaudio<2.1" "diffusers>=0.16.1" "transformers>=4.33.0"
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" onnx "gradio>=3.34.0" "openvino>=2023.1.0"
 
-Stable Diffusion pipeline in Optimum Intel 
-------------------------------------------------------------------------------------
+Stable Diffusion pipeline in Optimum Intel
+------------------------------------------
+
+
 
 As the riffusion model architecture is the same as Stable Diffusion, we
 can use it with the Stable Diffusion pipeline for text-to-image
@@ -134,8 +136,10 @@ running.
     MODEL_ID = "riffusion/riffusion-model-v1"
     MODEL_DIR = Path("riffusion_pipeline")
 
-Select inference device 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Select inference device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -194,8 +198,10 @@ select device from dropdown list for running inference using OpenVINO
       warnings.warn(
 
 
-Prepare postprocessing for reconstruction audio from spectrogram image 
-----------------------------------------------------------------------------------------------------------------
+Prepare postprocessing for reconstruction audio from spectrogram image
+----------------------------------------------------------------------
+
+
 
 The riffusion model generates an audio spectrogram image, which can be
 used to reconstruct audio. However, the spectrogram images from the
@@ -361,8 +367,10 @@ from a spectrogram image using Griffin-Lim Algorithm.
     
         return waveform
 
-Run Inference pipeline 
-----------------------------------------------------------------
+Run Inference pipeline
+----------------------
+
+
 
 The diagram below briefly describes the workflow of our pipeline
 
@@ -488,8 +496,10 @@ without the other. More explanation of how it works can be found in this
 
 
 
-Interactive demo 
-----------------------------------------------------------
+Interactive demo
+----------------
+
+
 
 .. code:: ipython3
 
@@ -547,17 +557,20 @@ Interactive demo
                 
         with gr.Column():
             sound_output = gr.Audio(type='filepath', label="spectrogram sound")
-            spectrogram_output = gr.Image(label="spectrogram image result")
-            spectrogram_output.style(height=256)
+            spectrogram_output = gr.Image(label="spectrogram image result", height=256)
         
         send_btn.click(generate, inputs=[prompt_input, negative_prompt], outputs=[spectrogram_output, sound_output])
         device.change(select_device, [device, prompt_input], [prompt_input])
     
     if __name__ == "__main__":
         try:
-            demo.launch(enable_queue=True, height=800)
+            demo.queue().launch(debug=False, height=800)
         except Exception:
-            demo.launch(enable_queue=True, share=True, height=800)
+            demo.queue().launch(debug=False, share=True, height=800)
+    
+    # If you are launching remotely, specify server_name and server_port
+    # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
+    # To learn more please refer to the Gradio docs: https://gradio.app/docs/
 
 
 .. parsed-literal::

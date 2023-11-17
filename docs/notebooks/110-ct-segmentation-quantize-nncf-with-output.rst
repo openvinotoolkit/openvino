@@ -24,13 +24,13 @@ This third tutorial in the series shows how to:
 All notebooks in this series:
 
 -  `Data Preparation for 2D Segmentation of 3D Medical
-   Data <data-preparation-ct-scan.ipynb>`__
+   Data <data-preparation-ct-scan-with-output.html>`__
 -  `Train a 2D-UNet Medical Imaging Model with PyTorch
-   Lightning <pytorch-monai-training.ipynb>`__
+   Lightning <pytorch-monai-training-with-output.html>`__
 -  Convert and Quantize a Segmentation Model and Show Live Inference
    (this notebook)
 -  `Live Inference and Benchmark CT-scan
-   data <110-ct-scan-live-inference.ipynb>`__
+   data <110-ct-scan-live-inference-with-output.html>`__
 
 Instructions
 ------------
@@ -39,7 +39,7 @@ This notebook needs a trained UNet model. We provide a pre-trained
 model, trained for 20 epochs with the full
 `Kits-19 <https://github.com/neheller/kits19>`__ frames dataset, which
 has an F1 score on the validation set of 0.9. The training code is
-available in `this notebook <pytorch-monai-training.ipynb>`__.
+available in `this notebook <pytorch-monai-training-with-output.html>`__.
 
 NNCF for PyTorch models requires a C++ compiler. On Windows, install
 `Microsoft Visual Studio
@@ -198,7 +198,7 @@ Settings
 By default, this notebook will download one CT scan from the KITS19
 dataset that will be used for quantization. To use the full dataset, set
 ``BASEDIR`` to the path of the dataset, as prepared according to the
-`Data Preparation <data-preparation-ct-scan.ipynb>`__ notebook.
+`Data Preparation <data-preparation-ct-scan-with-output.html>`__ notebook.
 
 .. code:: ipython3
 
@@ -217,7 +217,7 @@ notebook is a
 `BasicUNet <https://docs.monai.io/en/stable/networks.html#basicunet>`__
 model from `MONAI <https://monai.io>`__. We provide a pre-trained
 checkpoint. To see how this model performs, check out the `training
-notebook <pytorch-monai-training.ipynb>`__.
+notebook <pytorch-monai-training-with-output.html>`__.
 
 .. code:: ipython3
 
@@ -289,7 +289,7 @@ Dataset
 The ``KitsDataset`` class in the next cell expects images and masks in
 the *``basedir``* directory, in a folder per patient. It is a simplified
 version of the Dataset class in the `training
-notebook <pytorch-monai-training.ipynb>`__.
+notebook <pytorch-monai-training-with-output.html>`__.
 
 Images are loaded with MONAI’s
 `LoadImage <https://docs.monai.io/en/stable/transforms.html#loadimage>`__,

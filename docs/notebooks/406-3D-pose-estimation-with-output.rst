@@ -8,11 +8,9 @@ from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__. At the end
 of this notebook, you will see live inference results from your webcam
 (if available). Alternatively, you can also upload a video file to test
-out the algorithms. **Make sure you have properly installed
-the**\ `Jupyter
-extension <https://github.com/jupyter-widgets/pythreejs#jupyterlab>`__\ **and
-been using JupyterLab to run the demo as suggested in the
-``README.md``**
+out the algorithms. **Make sure you have properly installed the** 
+`Jupyter extension <https://github.com/jupyter-widgets/pythreejs#jupyterlab>`__ 
+**and been using JupyterLab to run the demo as suggested in the README.md**
 
    **NOTE**: *To use a webcam, you must run this Jupyter notebook on a
    computer with a webcam. If you run on a remote server, the webcam
@@ -54,7 +52,7 @@ Windows: Chrome* *macOS: Safari*
 Prerequisites 
 -------------------------------------------------------
 
-**The ``pythreejs`` extension may not display properly when using the
+**The "pythreejs" extension may not display properly when using the
 latest Jupyter Notebook release (2.4.1). Therefore, it is recommended to
 use Jupyter Lab instead.**
 

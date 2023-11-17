@@ -13,7 +13,6 @@ and do inference with a sample image.
 
 **Table of contents:**
 
-
 -  `Imports <#imports>`__
 -  `Settings <#settings>`__
 -  `Download model <#download-model>`__
@@ -23,7 +22,8 @@ and do inference with a sample image.
    -  `Convert a TensorFlow Model to OpenVINO IR
       Format <#convert-a-tensorflow-model-to-openvino-ir-format>`__
 
--  `Test Inference on the Converted Model <#test-inference-on-the-converted-model>`__
+-  `Test Inference on the Converted
+   Model <#test-inference-on-the-converted-model>`__
 
    -  `Load the Model <#load-the-model>`__
 
@@ -46,8 +46,10 @@ and do inference with a sample image.
     Note: you may need to restart the kernel to use updated packages.
 
 
-Imports 
--------------------------------------------------
+Imports
+-------
+
+
 
 .. code:: ipython3
 
@@ -72,14 +74,16 @@ Imports
 
 .. parsed-literal::
 
-    2023-10-30 22:29:25.672741: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-10-30 22:29:25.706557: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-11-14 22:30:46.626761: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-11-14 22:30:46.661288: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-10-30 22:29:26.218506: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-11-14 22:30:47.171314: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-Settings 
---------------------------------------------------
+Settings
+--------
+
+
 
 .. code:: ipython3
 
@@ -91,8 +95,10 @@ Settings
     
     ir_path = Path("model/v3-small_224_1.0_float.xml")
 
-Download model 
---------------------------------------------------------
+Download model
+--------------
+
+
 
 Load model using `tf.keras.applications
 api <https://www.tensorflow.org/api_docs/python/tf/keras/applications/MobileNetV3Small>`__
@@ -111,13 +117,30 @@ and save it to the disk.
 
 .. parsed-literal::
 
-    2023-10-30 22:29:27.284203: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1960] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
-    Skipping registering GPU devices...
+    2023-11-14 22:30:50.201471: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2023-11-14 22:30:50.201504: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:168] retrieving CUDA diagnostic information for host: iotg-dev-workstation-07
+    2023-11-14 22:30:50.201508: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:175] hostname: iotg-dev-workstation-07
+    2023-11-14 22:30:50.201646: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:199] libcuda reported version is: 470.223.2
+    2023-11-14 22:30:50.201662: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:203] kernel reported version is: 470.182.3
+    2023-11-14 22:30:50.201665: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
 
 
 .. parsed-literal::
 
     WARNING:tensorflow:Compiled the loaded model, but the compiled metrics have yet to be built. `model.compile_metrics` will be empty until you train or evaluate the model.
+
+
+.. parsed-literal::
+
+    2023-11-14 22:30:54.370304: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,1,1,1024]
+    	 [[{{node inputs}}]]
+    2023-11-14 22:30:57.509389: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,1,1,1024]
+    	 [[{{node inputs}}]]
+    WARNING:absl:Found untraced functions such as _jit_compiled_convolution_op, _jit_compiled_convolution_op, _jit_compiled_convolution_op, _jit_compiled_convolution_op, _jit_compiled_convolution_op while saving (showing 5 of 54). These functions will not be directly callable after loading.
+
+
+.. parsed-literal::
+
     INFO:tensorflow:Assets written to: model/v3-small_224_1.0_float/assets
 
 
@@ -126,11 +149,15 @@ and save it to the disk.
     INFO:tensorflow:Assets written to: model/v3-small_224_1.0_float/assets
 
 
-Convert a Model to OpenVINO IR Format 
--------------------------------------------------------------------------------
+Convert a Model to OpenVINO IR Format
+-------------------------------------
 
-Convert a TensorFlow Model to OpenVINO IR Format 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Convert a TensorFlow Model to OpenVINO IR Format
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Use the model conversion Python API to convert the TensorFlow model to
 OpenVINO IR. The ``ov.convert_model`` function accept path to saved
@@ -158,19 +185,25 @@ models.
     Exporting TensorFlow model to IR... This may take a few minutes.
 
 
-Test Inference on the Converted Model 
--------------------------------------------------------------------------------
+Test Inference on the Converted Model
+-------------------------------------
 
-Load the Model 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Load the Model
+~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
     core = ov.Core()
     model = core.read_model(ir_path)
 
-Select inference device 
------------------------------------------------------------------
+Select inference device
+-----------------------
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -200,8 +233,10 @@ select device from dropdown list for running inference using OpenVINO
 
     compiled_model = core.compile_model(model=model, device_name=device.value)
 
-Get Model Information 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Get Model Information
+~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -209,8 +244,10 @@ Get Model Information
     output_key = compiled_model.output(0)
     network_input_shape = input_key.shape 
 
-Load an Image 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Load an Image
+~~~~~~~~~~~~~
+
+
 
 Load an image, resize it, and convert it to the input shape of the
 network.
@@ -245,8 +282,10 @@ network.
 .. image:: 101-tensorflow-classification-to-openvino-with-output_files/101-tensorflow-classification-to-openvino-with-output_19_1.png
 
 
-Do Inference 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Do Inference
+~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -282,8 +321,10 @@ Do Inference
 
 
 
-Timing 
-------------------------------------------------
+Timing
+------
+
+
 
 Measure the time it takes to do inference on thousand images. This gives
 an indication of performance. For more accurate benchmarking, use the
@@ -312,5 +353,5 @@ performance.
 
 .. parsed-literal::
 
-    IR model in OpenVINO Runtime/CPU: 0.0011 seconds per image, FPS: 928.36
+    IR model in OpenVINO Runtime/CPU: 0.0010 seconds per image, FPS: 962.52
 

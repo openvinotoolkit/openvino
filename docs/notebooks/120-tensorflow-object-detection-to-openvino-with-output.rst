@@ -180,7 +180,7 @@ or saved on disk using the ``save_model`` function to reduce loading
 time when the model is run in the future.
 
 See the `Model Converter Developer
-Guide <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__
+Guide <https://docs.openvino.ai/2023.2/openvino_docs_model_processing_introduction.html>`__
 for more information about Model Converter and TensorFlow `models
 support <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html>`__.
 

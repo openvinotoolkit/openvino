@@ -229,7 +229,7 @@ the last occurrence of these asterisks.
    Hint: There are text-cleaning libraries that clean up common
    flaws. If the source of the text is known, you can look for a library
    designed for that source, for example
-   ```gutenberg_cleaner`` <https://github.com/kiasar/gutenberg_cleaner>`__.
+   `gutenberg_cleaner <https://github.com/kiasar/gutenberg_cleaner>`__.
    These libraries can reduce manual work and even automate the
    process.process.
 

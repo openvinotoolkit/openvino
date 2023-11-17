@@ -494,6 +494,6 @@ Putting all together, we can match text, image, and sound for our data.
 Next Steps 
 ----------------------------------------------------
 
-Open the `239-image-bind-quantize <239-image-bind-quantize.ipynb>`__
+Open the `239-image-bind-quantize <239-image-bind-quantize-with-output.html>`__
 notebook to quantize the IR model with the Post-training Quantization
 API of NNCF and compare ``FP16`` and ``INT8`` models.

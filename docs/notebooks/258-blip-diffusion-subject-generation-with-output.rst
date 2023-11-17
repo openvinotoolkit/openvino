@@ -9,8 +9,7 @@ subjects with up to 20x speedup. In addition, BLIP-Diffusion can be
 flexibly combined with ControlNet and prompt-to-prompt to enable novel
 subject-driven generation and editing applications. 
 
-**Table of contents:**
----
+**Table of contents**:
 
 - `Prerequisites <#prerequisites>`__
 - `Load the model <#load-the-model>`__
@@ -19,7 +18,7 @@ subject-driven generation and editing applications.
 - `Controlled subject-driven generation (Canny-edge) <#controlled-subject-driven-generation-canny-edge>`__
 - `Controlled subject-driven generation (Scribble) <#controlled-subject-driven-generation-scribble>`__
 - `Convert the model to OpenVINO Intermediate Representation (IR) <#convert-the-model-to-openvino-intermediate-representation-ir>`__
-- `QFormer <#qformer>`__
+- `Q-Former <#q-former>`__
 - `Text encoder <#text-encoder>`__
 - `ControlNet <#controlnet>`__
 - `UNet <#unet>`__
@@ -34,13 +33,14 @@ subject-driven generation and editing applications.
 .. |image0| image:: https://github.com/salesforce/LAVIS/raw/main/projects/blip-diffusion/teaser-website.png
 
 Prerequisites
--------------------------------------------------------
+-------------
+
+
 
 .. code:: ipython3
 
     %pip install -q "openvino>=2023.1.0" matplotlib Pillow gradio
-    %pip install -q -extra-index-url https://download.pytorch.org/whl/cpu torch transformers accelerate controlnet_aux
-    %pip install -q "git+https://github.com/huggingface/diffusers.git" # TODO: Change to PyPI package where https://github.com/huggingface/diffusers/pull/4388 is included
+    %pip install -q -extra-index-url https://download.pytorch.org/whl/cpu torch transformers accelerate controlnet_aux "diffusers>=0.23.0"
 
 
 .. parsed-literal::
@@ -103,8 +103,10 @@ Prerequisites
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-Load the model 
---------------------------------------------------------
+Load the model
+--------------
+
+
 
 We use Hugging Face ``diffusers`` library to load the model using
 ``from_pretrained`` method.
@@ -147,11 +149,15 @@ We use Hugging Face ``diffusers`` library to load the model using
     urlretrieve(FLOWER_IMG_URL, FLOWER_IMG_PATH)
     urlretrieve(BAG_IMG_URL, BAG_IMG_PATH);
 
-Infer the original model 
-------------------------------------------------------------------
+Infer the original model
+------------------------
 
-Zero-Shot subject-driven generation 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Zero-Shot subject-driven generation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 The pipeline takes a subject image and prompt text as input. The output
 is an image containing the subject with conditions from the prompt
@@ -203,8 +209,10 @@ is an image containing the subject with conditions from the prompt
 .. image:: 258-blip-diffusion-subject-generation-with-output_files/258-blip-diffusion-subject-generation-with-output_12_0.png
 
 
-Controlled subject-driven generation (Canny-edge) 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Controlled subject-driven generation (Canny-edge)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 The `Canny edge
 detector <https://en.wikipedia.org/wiki/Canny_edge_detector>`__ is a
@@ -277,8 +285,10 @@ description.
 .. image:: 258-blip-diffusion-subject-generation-with-output_files/258-blip-diffusion-subject-generation-with-output_16_0.png
 
 
-Controlled subject-driven generation (Scribble) 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Controlled subject-driven generation (Scribble)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 `Holistically-Nested Edge
 Detection <https://arxiv.org/pdf/1504.06375.pdf>`__ (HED) is a deep
@@ -347,8 +357,10 @@ edge map is the final output of HED and input of our diffusion model.
 .. image:: 258-blip-diffusion-subject-generation-with-output_files/258-blip-diffusion-subject-generation-with-output_19_0.png
 
 
-Convert the model to OpenVINO Intermediate Representation (IR) 
---------------------------------------------------------------------------------------------------------
+Convert the model to OpenVINO Intermediate Representation (IR)
+--------------------------------------------------------------
+
+
 
 BLIP-Diffusion pipeline has the following structure:
 
@@ -437,8 +449,10 @@ we clean after every conversion.
     
             gc.collect()
 
-Q-Former 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Q-Former
+~~~~~~~~
+
+
 
 Q-Former was introduced in
 `BLIP-2 <https://arxiv.org/pdf/2301.12597.pdf>`__ paper and is a
@@ -562,8 +576,10 @@ Original QFormer model takes raw text as input, so we redefine the
 
 
 
-Text encoder 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Text encoder
+~~~~~~~~~~~~
+
+
 
 BLIP-Diffusion pipeline uses CLIP text encoder, the default encoder for
 Stable Diffusion-based models. The only difference is it allows for an
@@ -612,8 +628,10 @@ embeddings, and interact with them using self-attention.
 
 
 
-ControlNet 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ControlNet
+~~~~~~~~~~
+
+
 
 The ControlNet model was introduced in `Adding Conditional Control to
 Text-to-Image Diffusion
@@ -656,8 +674,10 @@ segmentation maps, and keypoints for pose detection.
 
 
 
-UNet 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+UNet
+~~~~
+
+
 
 The `UNet <https://huggingface.co/papers/1505.04597>`__ model is one of
 the most important components of a diffusion system because it
@@ -665,6 +685,8 @@ facilitates the actual diffusion process.
 
 .. code:: ipython3
 
+    from typing import Tuple
+    
     serialize_openvino(
         unet,
         UNET_PATH,
@@ -688,6 +710,45 @@ facilitates the actual diffusion process.
     }
     
     
+    class UnetWrapper(torch.nn.Module):
+        def __init__(
+            self, 
+            unet, 
+            sample_dtype=torch.float32, 
+            timestep_dtype=torch.int64, 
+            encoder_hidden_states=torch.float32, 
+            down_block_additional_residuals=torch.float32, 
+            mid_block_additional_residual=torch.float32
+        ):
+            super().__init__()
+            self.unet = unet
+            self.sample_dtype = sample_dtype
+            self.timestep_dtype = timestep_dtype
+            self.encoder_hidden_states_dtype = encoder_hidden_states
+            self.down_block_additional_residuals_dtype = down_block_additional_residuals
+            self.mid_block_additional_residual_dtype = mid_block_additional_residual
+    
+        def forward(
+            self, 
+            sample:torch.Tensor, 
+            timestep:torch.Tensor, 
+            encoder_hidden_states:torch.Tensor, 
+            down_block_additional_residuals:Tuple[torch.Tensor],  
+            mid_block_additional_residual:torch.Tensor
+        ):
+            sample.to(self.sample_dtype)
+            timestep.to(self.timestep_dtype)
+            encoder_hidden_states.to(self.encoder_hidden_states_dtype)
+            down_block_additional_residuals = [res.to(self.down_block_additional_residuals_dtype) for res in down_block_additional_residuals]
+            mid_block_additional_residual.to(self.mid_block_additional_residual_dtype)
+            return self.unet(
+                sample, 
+                timestep, 
+                encoder_hidden_states, 
+                down_block_additional_residuals=down_block_additional_residuals, 
+                mid_block_additional_residual=mid_block_additional_residual
+            )
+    
     def flatten_inputs(inputs):
         flat_inputs = []
         for input_data in inputs:
@@ -710,10 +771,7 @@ facilitates the actual diffusion process.
     }
     if not UNET_CONTROLNET_PATH.exists():
         with torch.no_grad():
-            ov_unet = ov.convert_model(
-                unet,
-                example_input=example_input,
-            )
+            ov_unet = ov.convert_model(UnetWrapper(unet), example_input=example_input)
         flat_inputs = flatten_inputs(example_input.values())
         for input_data, input_tensor in zip(flat_inputs, ov_unet.inputs):
             input_tensor.get_node().set_partial_shape(ov.PartialShape(input_data.shape))
@@ -733,8 +791,10 @@ facilitates the actual diffusion process.
 
 
 
-Variational Autoencoder (VAE) 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Variational Autoencoder (VAE)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 The variational autoencoder (VAE) model with KL loss was introduced in
 `Auto-Encoding Variational
@@ -772,8 +832,10 @@ decoder in separate ``torch.nn.Module``.
 
 
 
-Select inference device 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Select inference device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -826,8 +888,10 @@ select device from dropdown list for running inference using OpenVINO
 
     vae = core.compile_model(VAE_PATH, device_name=device.value)
 
-Inference 
----------------------------------------------------
+Inference
+---------
+
+
 
 .. code:: ipython3
 
@@ -1072,8 +1136,10 @@ Inference
 
     ov_pipe = OvBlipDiffusionPipeline()
 
-Zero-Shot subject-driven generation 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Zero-Shot subject-driven generation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -1109,8 +1175,10 @@ Zero-Shot subject-driven generation
 .. image:: 258-blip-diffusion-subject-generation-with-output_files/258-blip-diffusion-subject-generation-with-output_52_0.png
 
 
-Controlled subject-driven generation (Canny-edge) 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Controlled subject-driven generation (Canny-edge)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -1168,8 +1236,10 @@ Controlled subject-driven generation (Canny-edge)
 .. image:: 258-blip-diffusion-subject-generation-with-output_files/258-blip-diffusion-subject-generation-with-output_55_0.png
 
 
-Controlled subject-driven generation (Scribble) 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Controlled subject-driven generation (Scribble)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -1223,8 +1293,10 @@ Controlled subject-driven generation (Scribble)
 .. image:: 258-blip-diffusion-subject-generation-with-output_files/258-blip-diffusion-subject-generation-with-output_58_0.png
 
 
-Interactive inference 
----------------------------------------------------------------
+Interactive inference
+---------------------
+
+
 
 .. code:: ipython3
 

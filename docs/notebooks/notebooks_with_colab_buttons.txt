@@ -51,6 +51,7 @@
 251-tiny-sd-image-generation
 260-pix2struct-docvqa
 261-fast-segment-anything
+268-table-question-answering
 305-tensorflow-quantization-aware-training
 401-object-detection
 404-style-transfer

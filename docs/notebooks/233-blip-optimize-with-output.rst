@@ -10,18 +10,18 @@ contains the following steps:
 
 1. Download and preprocess dataset for quantization.
 2. Quantize the converted vision and text encoder OpenVINO models from
-   `notebook <233-blip-convert.ipynb>`__ with NNCF.
+   `notebook <233-blip-convert-with-output.html>`__ with NNCF.
 3. Compress weights of the OpenVINO text decoder model from
-   `notebook <233-blip-convert.ipynb>`__ with NNCF.
+   `notebook <233-blip-convert-with-output.html>`__ with NNCF.
 4. Check the model result using the same input data from the
-   `notebook <233-blip-convert.ipynb>`__.
+   `notebook <233-blip-convert-with-output.html>`__.
 5. Compare model size of converted and optimized models.
 6. Compare performance of converted and optimized models.
 
 ..
 
    **NOTE**: you should run
-   `233-blip-convert <233-blip-convert.ipynb>`__ notebook first to
+   `233-blip-convert <233-blip-convert-with-output.html>`__ notebook first to
    generate OpenVINO IR models that are used for optimization.
 
 **Table of contents:**
@@ -290,7 +290,7 @@ Run optimized OpenVINO model
 The steps for making predictions with the optimized OpenVINO BLIP model
 are similar to the PyTorch model. Let us check the model result using
 the same input data from the `first
-notebook <233-blip-convert.ipynb>`__.
+notebook <233-blip-convert-with-output.html>`__.
 
 .. code:: ipython3
 

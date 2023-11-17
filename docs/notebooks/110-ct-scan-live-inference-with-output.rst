@@ -18,7 +18,7 @@ This notebook needs a quantized OpenVINO IR model and images from the
 `KiTS-19 <https://github.com/neheller/kits19>`__ dataset, converted to
 2D images. (To learn how the model is quantized, see the `Convert and
 Quantize a UNet Model and Show Live
-Inference <110-ct-segmentation-quantize-nncf.ipynb>`__ tutorial.)
+Inference <110-ct-segmentation-quantize-nncf-with-output.html>`__ tutorial.)
 
 This notebook provides a pre-trained model, trained for 20 epochs with
 the full KiTS-19 frames dataset, which has an F1 score on the validation

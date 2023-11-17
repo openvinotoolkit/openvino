@@ -141,7 +141,6 @@ discussed steps are also applicable to other annotation modes.
 
 **Table of contents:**
 
-
 -  `Prerequisites <#prerequisites>`__
 -  `Instantiating Generation
    Pipeline <#instantiating-generation-pipeline>`__
@@ -168,8 +167,10 @@ discussed steps are also applicable to other annotation modes.
 -  `Select inference device for Stable Diffusion
    pipeline <#select-inference-device-for-stable-diffusion-pipeline>`__
 
-Prerequisites 
--------------------------------------------------------
+Prerequisites
+-------------
+
+
 
 .. code:: ipython3
 
@@ -177,11 +178,15 @@ Prerequisites
     %pip install -q "diffusers>=0.14.0" "transformers>=4.30.2" "controlnet-aux>=0.0.6" "gradio>=3.36"
     %pip install -q "openvino>=2023.1.0"
 
-Instantiating Generation Pipeline 
----------------------------------------------------------------------------
+Instantiating Generation Pipeline
+---------------------------------
 
-ControlNet in Diffusers library 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+ControlNet in Diffusers library
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 For working with Stable Diffusion and ControlNet models, we will use
 Hugging Face `Diffusers <https://github.com/huggingface/diffusers>`__
@@ -208,18 +213,10 @@ controlnet model and ``stable-diffusion-v1-5``:
     )
 
 
-.. parsed-literal::
-
-    2023-08-29 19:05:09.752880: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-08-29 19:05:09.791513: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-08-29 19:05:10.519110: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
-
 
 .. parsed-literal::
 
-    Fetching 15 files:   0%|          | 0/15 [00:00<?, ?it/s]
+    Loading pipeline components...:   0%|          | 0/7 [00:00<?, ?it/s]
 
 
 .. parsed-literal::
@@ -229,8 +226,10 @@ controlnet model and ``stable-diffusion-v1-5``:
     `text_config_dict` is provided which will be used to initialize `CLIPTextConfig`. The value `text_config["eos_token_id"]` will be overriden.
 
 
-OpenPose 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+OpenPose
+~~~~~~~~
+
+
 
 Annotation is an important part of working with ControlNet.
 `OpenPose <https://github.com/CMU-Perceptual-Computing-Lab/openpose>`__
@@ -258,7 +257,7 @@ The code below demonstrates how to instantiate the OpenPose model.
 
 .. parsed-literal::
 
-    /home/ea/work/ov_venv/lib/python3.8/site-packages/controlnet_aux/mediapipe_face/mediapipe_face_common.py:7: UserWarning: The module 'mediapipe' is not installed. The package will have limited functionality. Please install it using the command: pip install 'mediapipe'
+    /home/ea/work/openvino_notebooks/test_env/lib/python3.8/site-packages/controlnet_aux/mediapipe_face/mediapipe_face_common.py:7: UserWarning: The module 'mediapipe' is not installed. The package will have limited functionality. Please install it using the command: pip install 'mediapipe'
       warnings.warn(
 
 
@@ -318,8 +317,10 @@ Now, let us check its result on example image:
 .. image:: 235-controlnet-stable-diffusion-with-output_files/235-controlnet-stable-diffusion-with-output_8_0.png
 
 
-Convert models to OpenVINO Intermediate representation (IR) format 
-------------------------------------------------------------------------------------------------------------
+Convert models to OpenVINO Intermediate representation (IR) format
+------------------------------------------------------------------
+
+
 
 Starting from 2023.0 release, OpenVINO supports PyTorch models
 conversion directly. We need to provide a model object, input data for
@@ -338,8 +339,10 @@ The pipeline consists of five important parts:
 
 Let us convert each part:
 
-OpenPose conversion 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+OpenPose conversion
+~~~~~~~~~~~~~~~~~~~
+
+
 
 OpenPose model is represented in the pipeline as a wrapper on the
 PyTorch model which not only detects poses on an input image but is also
@@ -377,7 +380,7 @@ estimation part, which is located inside the wrapper
 
 .. parsed-literal::
 
-    OpenPose will be loaded from openpose.xml
+    OpenPose successfully converted to IR
 
 
 To reuse the original drawing procedure, we replace the PyTorch OpenPose
@@ -431,8 +434,10 @@ model with the OpenVINO model, using the following code:
      
     core = ov.Core()
 
-Select inference device 
------------------------------------------------------------------
+Select inference device
+-----------------------
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -454,7 +459,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=2, options=('CPU', 'GNA', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
 
 
 
@@ -475,8 +480,10 @@ select device from dropdown list for running inference using OpenVINO
 
 Great! As we can see, it works perfectly.
 
-ControlNet conversion 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ControlNet conversion
+~~~~~~~~~~~~~~~~~~~~~
+
+
 
 The ControlNet model accepts the same inputs like UNet in Stable
 Diffusion pipeline and additional condition sample - skeleton key points
@@ -534,12 +541,14 @@ blocks, which serves additional context for the UNet model.
 
 .. parsed-literal::
 
-    5531
+    9962
 
 
 
-UNet conversion 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+UNet conversion
+~~~~~~~~~~~~~~~
+
+
 
 The process of UNet model conversion remains the same, like for original
 Stable Diffusion model, but with respect to the new inputs generated by
@@ -547,6 +556,8 @@ ControlNet.
 
 .. code:: ipython3
 
+    from typing import Tuple
+    
     UNET_OV_PATH = Path('unet_controlnet.xml')
     
     dtype_mapping = {
@@ -555,6 +566,47 @@ ControlNet.
         torch.int32: ov.Type.i32,
         torch.int64: ov.Type.i64
     }
+    
+    class UnetWrapper(torch.nn.Module):
+        def __init__(
+            self, 
+            unet, 
+            sample_dtype=torch.float32, 
+            timestep_dtype=torch.int64, 
+            encoder_hidden_states=torch.float32, 
+            down_block_additional_residuals=torch.float32, 
+            mid_block_additional_residual=torch.float32
+        ):
+            super().__init__()
+            self.unet = unet
+            self.sample_dtype = sample_dtype
+            self.timestep_dtype = timestep_dtype
+            self.encoder_hidden_states_dtype = encoder_hidden_states
+            self.down_block_additional_residuals_dtype = down_block_additional_residuals
+            self.mid_block_additional_residual_dtype = mid_block_additional_residual
+    
+        def forward(
+            self, 
+            sample:torch.Tensor, 
+            timestep:torch.Tensor, 
+            encoder_hidden_states:torch.Tensor, 
+            down_block_additional_residuals:Tuple[torch.Tensor],  
+            mid_block_additional_residual:torch.Tensor
+        ):
+            sample.to(self.sample_dtype)
+            timestep.to(self.timestep_dtype)
+            encoder_hidden_states.to(self.encoder_hidden_states_dtype)
+            down_block_additional_residuals = [res.to(self.down_block_additional_residuals_dtype) for res in down_block_additional_residuals]
+            mid_block_additional_residual.to(self.mid_block_additional_residual_dtype)
+            return self.unet(
+                sample, 
+                timestep, 
+                encoder_hidden_states, 
+                down_block_additional_residuals=down_block_additional_residuals, 
+                mid_block_additional_residual=mid_block_additional_residual
+            )
+    
+    
     
     def flattenize_inputs(inputs):
         flatten_inputs = []
@@ -572,7 +624,7 @@ ControlNet.
         inputs["down_block_additional_residuals"] = down_block_res_samples
         inputs["mid_block_additional_residual"] = mid_block_res_sample
     
-        unet = pipe.unet
+        unet = UnetWrapper(pipe.unet)
         unet.eval()
     
         with torch.no_grad():
@@ -598,27 +650,7 @@ ControlNet.
 
 .. parsed-literal::
 
-    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
-
-
-.. parsed-literal::
-
-    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /home/ea/work/ov_venv/lib/python3.8/site-packages/diffusers/models/unet_2d_condition.py:526: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if any(s % default_overall_up_factor != 0 for s in sample.shape[-2:]):
-    /home/ea/work/ov_venv/lib/python3.8/site-packages/diffusers/models/resnet.py:185: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      assert hidden_states.shape[1] == self.channels
-    /home/ea/work/ov_venv/lib/python3.8/site-packages/diffusers/models/resnet.py:190: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      assert hidden_states.shape[1] == self.channels
-    /home/ea/work/ov_venv/lib/python3.8/site-packages/diffusers/models/resnet.py:112: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      assert hidden_states.shape[1] == self.channels
-    /home/ea/work/ov_venv/lib/python3.8/site-packages/diffusers/models/resnet.py:125: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if hidden_states.shape[0] >= 64:
-
-
-.. parsed-literal::
-
-    Unet successfully converted to IR
+    Unet will be loaded from unet_controlnet.xml
 
 
 
@@ -629,8 +661,10 @@ ControlNet.
 
 
 
-Text Encoder 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Text Encoder
+~~~~~~~~~~~~
+
+
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -688,31 +722,21 @@ hidden states.
 
 .. parsed-literal::
 
-    /home/ea/work/ov_venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:286: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_weights.size() != (bsz * self.num_heads, tgt_len, src_len):
-    /home/ea/work/ov_venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:294: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if causal_attention_mask.size() != (bsz, 1, tgt_len, src_len):
-    /home/ea/work/ov_venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:326: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_output.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
-    /home/ea/work/ov_venv/lib/python3.8/site-packages/torch/jit/annotations.py:310: UserWarning: TorchScript will treat type annotations of Tensor dtype-specific subtypes as if they are normal Tensors. dtype constraints are not enforced in compilation either.
-      warnings.warn("TorchScript will treat type annotations of Tensor "
-
-
-.. parsed-literal::
-
-    Text Encoder successfully converted to IR
+    Text encoder will be loaded from text_encoder.xml
 
 
 
 
 .. parsed-literal::
 
-    4202
+    0
 
 
 
-VAE Decoder conversion 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+VAE Decoder conversion
+~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 The VAE model has two parts, an encoder, and a decoder. The encoder is
 used to convert the image into a low-dimensional latent representation,
@@ -774,11 +798,13 @@ diffusion
 
 .. parsed-literal::
 
-    VAE decoder successfully converted to IR
+    VAE decoder will be loaded from vae_decoder.xml
 
 
-Prepare Inference pipeline 
---------------------------------------------------------------------
+Prepare Inference pipeline
+--------------------------
+
+
 
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow. |detailed workflow|
@@ -839,7 +865,7 @@ on OpenVINO.
 
 .. code:: ipython3
 
-    from diffusers.pipeline_utils import DiffusionPipeline
+    from diffusers import DiffusionPipeline
     from transformers import CLIPTokenizer
     from typing import Union, List, Optional, Tuple
     import cv2
@@ -1225,8 +1251,10 @@ on OpenVINO.
         fig.savefig("result.png", bbox_inches='tight')
         return fig
 
-Running Text-to-Image Generation with ControlNet Conditioning and OpenVINO 
---------------------------------------------------------------------------------------------------------------------
+Running Text-to-Image Generation with ControlNet Conditioning and OpenVINO
+--------------------------------------------------------------------------
+
+
 
 Now, we are ready to start generation. For improving the generation
 process, we also introduce an opportunity to provide a
@@ -1238,8 +1266,10 @@ this
 We can keep this field empty if we want to generate image without
 negative prompting.
 
-Select inference device for Stable Diffusion pipeline 
------------------------------------------------------------------------------------------------
+Select inference device for Stable Diffusion pipeline
+-----------------------------------------------------
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -1263,13 +1293,32 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'GNA', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', options=('CPU', 'GPU', 'AUTO'), value='CPU')
 
 
 
 .. code:: ipython3
 
     ov_pipe = OVContrlNetStableDiffusionPipeline(tokenizer, scheduler, core, CONTROLNET_OV_PATH, TEXT_ENCODER_OV_PATH, UNET_OV_PATH, VAE_DECODER_OV_PATH, device=device.value)
+
+.. code:: ipython3
+
+    np.random.seed(42)
+    
+    pose = pose_estimator(img)
+    
+    prompt = "Dancing Darth Vader, best quality, extremely detailed"
+    negative_prompt = "monochrome, lowres, bad anatomy, worst quality, low quality"
+    result = ov_pipe(prompt, pose, 20, negative_prompt=negative_prompt)
+    
+    result[0]
+
+
+
+
+.. image:: 235-controlnet-stable-diffusion-with-output_files/235-controlnet-stable-diffusion-with-output_34_0.png
+
+
 
 .. code:: ipython3
 
@@ -1312,10 +1361,11 @@ select device from dropdown list for running inference using OpenVINO
         pose_btn.click(extract_pose, inp_img, [out_pose, step1, step2])
         btn.click(generate, [out_pose, inp_prompt, inp_neg_prompt, inp_seed, inp_steps], out_result)
     
-    demo.queue().launch(share=True)
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-
+    
+    try:
+        demo.queue().launch(debug=False)
+    except Exception:
+        demo.queue().launch(share=True, debug=False)
+    # if you are launching remotely, specify server_name and server_port
+    # demo.launch(server_name='your server name', server_port='server port in int')
+    # Read more in the docs: https://gradio.app/docs/

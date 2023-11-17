@@ -674,7 +674,7 @@ Interactive demo
 Next steps 
 ----------------------------------------------------
 
-Open the `233-blip-optimize <233-blip-optimize.ipynb>`__ notebook to
+Open the `233-blip-optimize <233-blip-optimize-with-output.html>`__ notebook to
 quantize vision and text encoder models with the Post-training
 Quantization API of NNCF and compress weights of the text decoder. Then
 compare the converted and optimized OpenVINO models.

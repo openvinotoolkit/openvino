@@ -18,27 +18,27 @@ audio are preserved.
 
 In this tutorial we will use the base model flow.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 -  `Use the original model to run an
-   inference <#use-the-original-model-to-run-an-inference->`__
--  `Convert the original model to OpenVINO Intermediate Representation
-   (IR)
-   format <#convert-the-original-model-to-openvino-intermediate-representation-ir-format>`__
+   inference <#use-the-original-model-to-run-an-inference>`__
+-  `Convert to OpenVINO IR model <#convert-to-openvino-ir-model>`__
 -  `Run the OpenVINO model <#run-the-openvino-model>`__
 -  `Interactive inference <#interactive-inference>`__
 
 Prerequisites
 -------------
 
+
+
 .. code:: ipython3
 
     %pip install -q --upgrade pip setuptools
     %pip install -q "openvino>=2023.2.0.dev20230922"
     !git clone https://github.com/svc-develop-team/so-vits-svc -b 4.1-Stable
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu  tqdm librosa torch torchaudio faiss-cpu gradio "numpy==1.23.5" "fairseq==0.12.2" praat-parselmouth
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu  tqdm librosa "torch>=2.1.0" "torchaudio>=2.1.0" faiss-cpu gradio "numpy==1.23.5" "fairseq==0.12.2" praat-parselmouth
 
 Download pretrained models and configs. We use a recommended encoder
 `ContentVec <https://arxiv.org/abs/2204.09224>`__ and models from `a
@@ -70,8 +70,10 @@ own <https://github.com/svc-develop-team/so-vits-svc#%EF%B8%8F-training>`__.
     # a wav sample
     download_file("https://huggingface.co/datasets/santifiorino/spinetta/resolve/main/spinetta/000.wav", "000.wav", directory="so-vits-svc/raw/")
 
-Use the original model to run an inference `⇧ <#table-of-content>`__
----------------------------------------------------------------------
+Use the original model to run an inference
+------------------------------------------
+
+
 
 Change directory to ``so-vits-svc`` in purpose not to brake internal
 relative paths.
@@ -121,6 +123,8 @@ And let compare the original audio with the result.
 Convert to OpenVINO IR model
 ----------------------------
 
+
+
 Model components are PyTorch modules, that can be converted with
 ``ov.convert_model`` function directly. We also use ``ov.save_model``
 function to serialize the result of conversion. ``Svc`` is not a model,
@@ -169,6 +173,8 @@ without need to look inside.
 
 Run the OpenVINO model
 ----------------------
+
+
 
 Select a device from dropdown list for running inference using OpenVINO.
 
@@ -223,13 +229,15 @@ Check result. Is it identical to that created by the original model.
 Interactive inference
 ---------------------
 
+
+
 .. code:: ipython3
 
     import gradio as gr
     
     
-    src_audio = gr.inputs.Audio(label="Source Audio", type='filepath')
-    output_audio = gr.outputs.Audio(label="Output Audio", type='numpy')
+    src_audio = gr.Audio(label="Source Audio", type='filepath')
+    output_audio = gr.Audio(label="Output Audio", type='numpy')
     
     title = 'SoftVC VITS Singing Voice Conversion with Gradio'
     description = f'Gradio Demo for SoftVC VITS Singing Voice Conversion and OpenVINO™. Upload a source audio, then click the "Submit" button to inference. Audio sample rate should be {model.target_sample}'

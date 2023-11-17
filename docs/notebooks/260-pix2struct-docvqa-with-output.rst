@@ -44,17 +44,17 @@ convert the model to OpenVINO™ IR format.
 
 **Table of contents:**
 
-
 -  `About Pix2Struct <#about-pixstruct>`__
 -  `Prerequisites <#prerequisites>`__
--  `Download and Convert
-   Model <#download-and-convert-model>`__
+-  `Download and Convert Model <#download-and-convert-model>`__
 -  `Select inference device <#select-inference-device>`__
 -  `Test model inference <#test-model-inference>`__
 -  `Interactive demo <#interactive-demo>`__
 
-About Pix2Struct 
-----------------------------------------------------------
+About Pix2Struct
+----------------
+
+
 
 Pix2Struct is an image encoder - text decoder model that is trained on
 image-text pairs for various tasks, including image captioning and
@@ -83,8 +83,10 @@ model can handle on-the-fly changes to the sequence length and
 resolution. To handle variable resolutions unambiguously, 2-dimensional
 absolute positional embeddings are used for the input patches.
 
-Prerequisites 
--------------------------------------------------------
+Prerequisites
+-------------
+
+
 
 First, we need to install the `Hugging Face
 Optimum <https://huggingface.co/docs/transformers/index>`__ library
@@ -97,10 +99,12 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 .. code:: ipython3
 
     %pip install -q torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" "openvino>=2023.1.0" transformers onnx gradio
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" "openvino>=2023.1.0" "transformers>=4.33.0" onnx gradio
 
-Download and Convert Model 
---------------------------------------------------------------------
+Download and Convert Model
+--------------------------
+
+
 
 Optimum Intel can be used to load optimized models from the `Hugging
 Face Hub <https://huggingface.co/docs/optimum/intel/hf.co/models>`__ and
@@ -159,8 +163,10 @@ applicable for other models from pix2struct family.
       warnings.warn(
 
 
-Select inference device 
------------------------------------------------------------------
+Select inference device
+-----------------------
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -189,8 +195,10 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-Test model inference 
---------------------------------------------------------------
+Test model inference
+--------------------
+
+
 
 The diagram below demonstrates how the model works:
 |pix2struct_diagram.png|
@@ -222,7 +230,7 @@ by ``Pix2StructProcessor.decode``
 
 Let’s see the model in action. For testing the model, we will use a
 screenshot from `OpenVINO
-documentation <https://docs.openvino.ai/2023.1/get_started.html#openvino-advanced-features>`__
+documentation <https://docs.openvino.ai/2023.2/get_started.html#openvino-advanced-features>`__
 
 .. code:: ipython3
 
@@ -273,8 +281,10 @@ documentation <https://docs.openvino.ai/2023.1/get_started.html#openvino-advance
     Answer: automatically adjust runtime parameters to prioritize for low latency or high throughput
 
 
-Interactive demo 
-----------------------------------------------------------
+Interactive demo
+----------------
+
+
 
 .. code:: ipython3
 

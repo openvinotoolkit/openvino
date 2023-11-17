@@ -16,7 +16,6 @@ Additionally, you can also upload a video file.
 
 
 **Table of contents:**
----
 
 - `Imports <#imports>`__
 - `The model <#the-model>`__

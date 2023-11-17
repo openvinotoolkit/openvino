@@ -25,7 +25,6 @@ This tutorial include following steps:
 
 **Table of contents:**
 
-
 -  `Settings <#settings>`__
 -  `Imports <#imports>`__
 
@@ -42,8 +41,7 @@ This tutorial include following steps:
       API <#convert-model-to-openvino-ir-with-model-conversion-api>`__
    -  `Create PrePostProcessor
       Object <#create-prepostprocessor-object>`__
-   -  `Declare User’s Data
-      Format <#declare-users-data-format>`__
+   -  `Declare User’s Data Format <#declare-users-data-format>`__
    -  `Declaring Model Layout <#declaring-model-layout>`__
    -  `Preprocessing Steps <#preprocessing-steps>`__
    -  `Integrating Steps into a
@@ -61,12 +59,13 @@ This tutorial include following steps:
 
 -  `Compare results <#compare-results>`__
 
-   -  `Compare results on one
-      image <#compare-results-on-one-image>`__
+   -  `Compare results on one image <#compare-results-on-one-image>`__
    -  `Compare performance <#compare-performance>`__
 
-Settings 
---------------------------------------------------
+Settings
+--------
+
+
 
 .. code:: ipython3
 
@@ -79,8 +78,10 @@ Settings
     Note: you may need to restart the kernel to use updated packages.
 
 
-Imports 
--------------------------------------------------
+Imports
+-------
+
+
 
 .. code:: ipython3
 
@@ -104,14 +105,16 @@ Imports
 
 .. parsed-literal::
 
-    2023-10-30 22:59:29.607370: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-10-30 22:59:29.641564: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-11-14 23:00:32.637266: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-11-14 23:00:32.671311: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-10-30 22:59:30.151509: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-11-14 23:00:33.179278: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-Setup image and device 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Setup image and device
+~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -152,8 +155,10 @@ Setup image and device
 
 
 
-Downloading the model 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Downloading the model
+~~~~~~~~~~~~~~~~~~~~~
+
+
 
 This tutorial uses the
 `InceptionResNetV2 <https://www.tensorflow.org/api_docs/python/tf/keras/applications/inception_resnet_v2>`__.
@@ -184,13 +189,26 @@ and save it to the disk.
 
 .. parsed-literal::
 
-    2023-10-30 22:59:32.526472: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1960] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
-    Skipping registering GPU devices...
+    2023-11-14 23:00:37.345835: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2023-11-14 23:00:37.345869: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:168] retrieving CUDA diagnostic information for host: iotg-dev-workstation-07
+    2023-11-14 23:00:37.345874: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:175] hostname: iotg-dev-workstation-07
+    2023-11-14 23:00:37.346012: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:199] libcuda reported version is: 470.223.2
+    2023-11-14 23:00:37.346027: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:203] kernel reported version is: 470.182.3
+    2023-11-14 23:00:37.346030: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
 
 
 .. parsed-literal::
 
     WARNING:tensorflow:Compiled the loaded model, but the compiled metrics have yet to be built. `model.compile_metrics` will be empty until you train or evaluate the model.
+
+
+.. parsed-literal::
+
+    WARNING:absl:Found untraced functions such as _jit_compiled_convolution_op, _jit_compiled_convolution_op, _jit_compiled_convolution_op, _jit_compiled_convolution_op, _jit_compiled_convolution_op while saving (showing 5 of 94). These functions will not be directly callable after loading.
+
+
+.. parsed-literal::
+
     INFO:tensorflow:Assets written to: model/InceptionResNetV2/assets
 
 
@@ -199,15 +217,19 @@ and save it to the disk.
     INFO:tensorflow:Assets written to: model/InceptionResNetV2/assets
 
 
-Create core 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Create core
+~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
     core = ov.Core()
 
-Check the original parameters of image 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Check the original parameters of image
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -227,8 +249,10 @@ Check the original parameters of image
 .. image:: 118-optimize-preprocessing-with-output_files/118-optimize-preprocessing-with-output_14_1.png
 
 
-Setup preprocessing steps with Preprocessing API and perform inference 
-----------------------------------------------------------------------------------------------------------------
+Setup preprocessing steps with Preprocessing API and perform inference
+----------------------------------------------------------------------
+
+
 
 Intuitively, preprocessing API consists of the following parts:
 
@@ -253,8 +277,10 @@ Pre-processing support following operations (please, see more details
 -  Color Conversion
 -  Custom Operations
 
-Convert model to OpenVINO IR with model conversion API 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Convert model to OpenVINO IR with model conversion API
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 The options for preprocessing are not required.
 
@@ -272,8 +298,10 @@ The options for preprocessing are not required.
                                      input=[1,299,299,3])
         ov.save_model(ppp_model, str(ir_path))
 
-Create ``PrePostProcessor`` Object 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Create ``PrePostProcessor`` Object
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 The
 `PrePostProcessor() <https://docs.openvino.ai/2023.0/classov_1_1preprocess_1_1PrePostProcessor.html#doxid-classov-1-1preprocess-1-1-pre-post-processor>`__
@@ -286,8 +314,10 @@ a model.
     
     ppp = PrePostProcessor(ppp_model)
 
-Declare User’s Data Format 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Declare User’s Data Format
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 To address particular input of a model/preprocessor, use the
 ``PrePostProcessor.input(input_name)`` method. If the model has only one
@@ -325,12 +355,14 @@ for mean/scale normalization.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7f6b681c90b0>
+    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7fbffd787d70>
 
 
 
-Declaring Model Layout 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Declaring Model Layout
+~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Model input already has information about precision and shape.
 Preprocessing API is not intended to modify this. The only thing that
@@ -354,12 +386,14 @@ may be specified is input data
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7f6b3856a2f0>
+    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7fbffd7870b0>
 
 
 
-Preprocessing Steps 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Preprocessing Steps
+~~~~~~~~~~~~~~~~~~~
+
+
 
 Now, the sequence of preprocessing steps can be defined. For more
 information about preprocessing steps, see
@@ -393,12 +427,14 @@ then such conversion will be added explicitly.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7f6b681c9730>
+    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7fc0a02556b0>
 
 
 
-Integrating Steps into a Model 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Integrating Steps into a Model
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Once the preprocessing steps have been finished, the model can be
 finally built. It is possible to display ``PrePostProcessor``
@@ -423,8 +459,10 @@ configuration for debugging purposes.
     
 
 
-Load model and perform inference 
---------------------------------------------------------------------------
+Load model and perform inference
+--------------------------------
+
+
 
 .. code:: ipython3
 
@@ -441,19 +479,25 @@ Load model and perform inference
     ppp_input_tensor = prepare_image_api_preprocess(image_path)
     results = compiled_model_with_preprocess_api(ppp_input_tensor)[ppp_output_layer][0]
 
-Fit image manually and perform inference 
-----------------------------------------------------------------------------------
+Fit image manually and perform inference
+----------------------------------------
 
-Load the model 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Load the model
+~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
     model = core.read_model(model=ir_path)
     compiled_model = core.compile_model(model=model, device_name=device.value)
 
-Load image and fit it to model input 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Load image and fit it to model input
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -486,8 +530,10 @@ Load image and fit it to model input
     The data type of the image is float32
 
 
-Perform inference 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Perform inference
+~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -495,11 +541,15 @@ Perform inference
     
     result = compiled_model(input_tensor)[output_layer]
 
-Compare results 
----------------------------------------------------------
+Compare results
+---------------
 
-Compare results on one image 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Compare results on one image
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -560,8 +610,10 @@ Compare results on one image
     n02100877 Irish setter, red setter, 0.00115
 
 
-Compare performance 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Compare performance
+~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -594,6 +646,6 @@ Compare performance
 
 .. parsed-literal::
 
-    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0155 seconds per image, FPS: 64.33
-    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0187 seconds per image, FPS: 53.39
+    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0152 seconds per image, FPS: 65.58
+    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0187 seconds per image, FPS: 53.52
 
