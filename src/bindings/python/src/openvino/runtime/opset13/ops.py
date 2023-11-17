@@ -118,7 +118,7 @@ def fake_convert(
     destination_type: Literal["f8e4m3", "f8e5m2"] = "f8e4m3",
     name: Optional[str] = None,
 ) -> Node:
-    """FakeConvert is element-wise emulation of float8 type on the original type of the data input.
+    """Return a node which performs FakeConvert.
 
     FakeConvert is in experimental and subject to future changes.
     .. warning:: FakeConvert is in experimental and subject to future changes.
