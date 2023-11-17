@@ -18,10 +18,10 @@ namespace intel_cpu {
  *  of pair of input states x[i0] & x[i1] to get the rotary embedded pair of output
  *  states y[i0] and y[i1]:
  *
- *  suppose dimension of hidden states (of each attention head) is N and 2*d of which
- *  are to be embedded (2*d <= N), non-embedded parts are copied into output.
+ *  suppose dimension of hidden states (of each attention head) is N and d of which
+ *  are to be embedded (d <= N), non-embedded parts are copied into output.
  *
- *  for i in 0...d/2
+ *  for i in 0...(d/2)
  *      if (is_interleaved) {
  *          // interleaving style of indexing
  *          i0 = i*2
@@ -29,7 +29,7 @@ namespace intel_cpu {
  *      } else {
  *          // rotate-half style of indexing
  *          i0 = i
- *          i1 = i + d/2
+ *          i1 = i + (d/2)
  *      }
  *      y[i0] = x[i0]*cos(m * xita[i]) - x[i1]*sin(m * xita[i])
  *      y[i1] = x[i1]*cos(m * xita[i]) + x[i0]*sin(m * xita[i])
@@ -69,7 +69,7 @@ public:
         size_t slice_stop = 0;
         bool input_trans0213 = false;  // transpose input dim 1&2
         bool is_interleaved = false;   // interleaved mode, implies trans0213 happens after RoPE
-        size_t rotary_ndims = 0;       // dimensions to be embedded (the 2*d in the description)
+        size_t rotary_ndims = 0;       // dimensions to be embedded (d in the description)
         int gather_position_arg_id =
             0;  // arg id of position tensor, ==3 when gather from sin/cos inputs according to position is required
     };
