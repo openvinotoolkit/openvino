@@ -39,12 +39,10 @@ void convertfp16_bf8(const T* const arg, T* out, size_t count, int exp_bits = 5,
     for (size_t i = 0; i < count; ++i) {
         /// converts float number to half precision in round-to-nearest-even mode and returns half with converted value.
         h.f = arg[i];
-        unsigned short is_normal = 1;
         /// 0x7c00 = 0111110000000000 - exponent mask
         /// s 11111 xxx xxxx xxxx - is nan (if some x is 1) or inf (if all x is 0)
         /// 0x7800 is 0111100000000000 and 0x400 is 0000010000000000
         /// number is not normal if all exponent is 1 or 0
-        is_normal = (((h.u & 0x7c00) <= 0x7800) && ((h.u & 0x7c00) >= 0x0400)) ? 1 : 0;
         /// 0x7f00 is 0 11111 1100000000
         /// 0x7b00 is 0 11110 1100000000
         unsigned short can_round = ((h.u & 0x7f00) < 0x7b00) ? 1 : 0;
@@ -112,7 +110,6 @@ void convertfp16_f8e4m3_bias7(const T* arg,
         short mantissa_h = (h.u & 0x03FF);  /// & 0 00000 1111111111
         ///(h.u && 0111111111111111) < 0 10010 1110000000 (19326) - ????
         unsigned short can_round = ((h.u & 0x7FFF) < 0b101111110000000) ? 1 : 0;
-
         unsigned short is_naninf = ((h.u & 0x7C00) == 0x7C00) ? 1 : 0;
 
         int dshift = 0;
