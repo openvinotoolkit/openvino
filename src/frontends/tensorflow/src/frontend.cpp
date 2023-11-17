@@ -486,7 +486,6 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
         names[result->get_friendly_name()] = result->get_output_tensor(0).get_names();
     }
 
-
     for (const auto& node : partiallyConverted->get_ordered_ops()) {
         if (ov::is_type<FrameworkNode>(node)) {
             translate_framework_node(std::dynamic_pointer_cast<FrameworkNode>(node), m_op_translators);
@@ -497,9 +496,8 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
     }
 
     for (const auto& result : partiallyConverted->get_results()) {
-        result->get_output_tensor(0).set_names(names[result->get_friendly_name()] );
+        result->get_output_tensor(0).set_names(names[result->get_friendly_name()]);
     }
-
 
     normalize(partiallyConverted);
 }
