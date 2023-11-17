@@ -225,19 +225,47 @@ Napi::Array cpp_to_js<ov::Shape, Napi::Array>(const Napi::CallbackInfo& info, co
 
 template <>
 Napi::Array cpp_to_js<ov::PartialShape, Napi::Array>(const Napi::CallbackInfo& info, const ov::PartialShape shape) {
-    auto arr = Napi::Array::New(info.Env(), shape.size());
-    for (size_t i = 0; i < shape.size(); ++i) {
-        int64_t value;
+    size_t size = shape.size();
+    Napi::Array dimensions = Napi::Array::New(info.Env(), size);
+    
+    for (size_t i = 0; i < size; i++) {
+        ov::Dimension dim = shape[i];
 
-        if (shape[i].is_dynamic()) {
-            value = -1;
-        } else {
-            value = shape[i].get_length();
+        if (dim.is_static()) {
+            dimensions[i] = dim.get_length();
+            continue;
         }
 
-        arr[i] = value;
+        auto min = dim.get_min_length();
+        auto max = dim.get_max_length();
+
+        if (min > max) {
+            dimensions[i] = -1;
+            continue;
+        }
+
+        dimensions[i] = cpp_to_js<ov::Dimension, Napi::Array>(info, dim);        
     }
-    return arr;
+
+    return dimensions;
+}
+
+template <>
+Napi::Array cpp_to_js<ov::Dimension, Napi::Array>(const Napi::CallbackInfo& info, const ov::Dimension dim) {
+    Napi::Array interval = Napi::Array::New(info.Env(), 2);
+
+    // Indexes looks wierd, but clear assignment, 
+    // like: interval[0] = value doesn't work here
+    size_t indexes[] = {0, 1};
+    interval[indexes[0]] = dim.get_min_length();
+    interval[indexes[1]] = dim.get_max_length();
+ 
+    return interval;
+}
+
+template <>
+Napi::Boolean cpp_to_js<bool, Napi::Boolean>(const Napi::CallbackInfo& info, const bool value) {
+    return Napi::Boolean::New(info.Env(), value);
 }
 
 ov::TensorVector parse_input_data(const Napi::Value& input) {

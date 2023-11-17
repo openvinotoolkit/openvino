@@ -26,6 +26,7 @@
         "src/addon.cpp",
         "src/element_type.cpp",
         "src/resize_algorithm.cpp",
+        "src/partial_shape_wrap.cpp",
       ],
 
       "dependencies": ["<!(node -p \"require('node-addon-api').gyp\")"],

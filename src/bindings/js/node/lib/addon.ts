@@ -86,13 +86,15 @@ interface InferRequest {
   getCompiledModel(): CompiledModel;
 }
 
+type Dimension = number | [number, number];
+
 interface Output {
   anyName: string;
   shape: number[];
   toString(): string;
   getAnyName(): string;
   getShape(): number[];
-  getPartialShape(): number[];
+  getPartialShape(): PartialShape;
 }
 
 interface InputTensorInfo {
@@ -132,6 +134,16 @@ interface PrePostProcessorConstructor {
   new(model: Model): PrePostProcessor;
 }
 
+interface PartialShape {
+  isStatic(): boolean;
+  isDynamic(): boolean;
+  toString(): string;
+  getDimensions(): Dimension[];
+}
+interface PartialShapeConstructor {
+  new(shape: string): PartialShape;
+}
+
 declare enum element {
   u8,
   u32,
@@ -155,6 +167,7 @@ export interface NodeAddon {
   Core: CoreConstructor,
   Tensor: TensorConstructor,
   PrePostProcessor: PrePostProcessorConstructor,
+  PartialShape: PartialShapeConstructor,
 
   element: typeof element,
   resizeAlgorithm: typeof resizeAlgorithm,
