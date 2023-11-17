@@ -2,7 +2,7 @@
 
 This sample demonstrates how to execute an inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API and input auto-resize feature.
 
-For more detailed information on how this sample works, check the dedicated [article](..\..\..\docs\articles_en\learn_openvino\openvino_samples\c_sample_hello_classification.md)
+For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2023.2/openvino_inference_engine_ie_bridges_c_samples_hello_classification_README.html)
 
 ## Requirements
 
@@ -11,9 +11,9 @@ For more detailed information on how this sample works, check the dedicated [art
 | Validated Models           | [alexnet](https://docs.openvino.ai/2023.2/omz_models_model_alexnet.html), [googlenet-v1](https://docs.openvino.ai/2023.2/omz_models_model_googlenet_v1.html)                |
 | Model Format               | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)                                                                                              |
 | Validated images           | The sample uses OpenCV\* to [read input image](https://docs.opencv.org/master/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56) (\*.bmp, \*.png)             |
-| Supported devices          | [All](..\..\..\docs\articles_en\about_openvino\compatibility_and_support\Supported_Devices.md)                                                                              |
-| Other language realization | [C++](..\..\..\docs\articles_en\learn_openvino\openvino_samples\cpp_sample_hello_classification.md),                                                                        |
-|                            | [Python](..\..\..\docs\articles_en\learn_openvino\openvino_samples\python_sample_hello_classification.md)                                                                   |
+| Supported devices          | [All](https://docs.openvino.ai/2023.2/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html)                                                                         |
+| Other language realization | [C++](https://docs.openvino.ai/2023.2/openvino_inference_engine_samples_hello_classification_README.html),                                                                  |
+|                            | [Python](https://docs.openvino.ai/2023.2/openvino_inference_engine_ie_bridges_python_sample_hello_classification_README.html)                                               |
 
 Hello Classification C sample application demonstrates how to use the C API from OpenVINO in applications.
 

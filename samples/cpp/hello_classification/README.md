@@ -4,17 +4,18 @@ This sample demonstrates how to do inference of image classification models usin
 
 Models with only one input and output are supported.
 
-For more detailed information on how this sample works, check the dedicated [article](..\..\..\docs\articles_en\learn_openvino\openvino_samples\cpp_sample_hello_classification.md)
+For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2023.2/openvino_inference_engine_samples_hello_classification_README.html)
 
 ## Requirements
 
-| Options                     | Values                                                                                                |
-| ----------------------------| ------------------------------------------------------------------------------------------------------| 
-| Validated Models            | :doc:`alexnet <omz_models_model_alexnet>`, :doc:`googlenet-v1 <omz_models_model_googlenet_v1>`        |
-| Model Format                | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)                       |
-| Supported devices           | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`                                  |
-| Other language realization  | :doc:`C <openvino_inference_engine_ie_bridges_c_samples_hello_classification_README>`,                |
-|                             | :doc:`Python <openvino_inference_engine_ie_bridges_python_sample_hello_classification_README>`        |
+| Options                     | Values                                                                                                                        |
+| ----------------------------| ------------------------------------------------------------------------------------------------------------------------------|
+| Validated Models            | [alexnet](https://docs.openvino.ai/2023.2/omz_models_model_alexnet.html),                                                     |
+|                             | [googlenet-v1](https://docs.openvino.ai/2023.2/omz_models_model_googlenet_v1.html)                                            |
+| Model Format                | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)                                               |
+| Supported devices           | [All](https://docs.openvino.ai/2023.2/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html)                           |
+| Other language realization  | [C](https://docs.openvino.ai/2023.2/openvino_inference_engine_ie_bridges_c_samples_hello_classification_README.html),         |
+|                             | [Python](https://docs.openvino.ai/2023.2/openvino_inference_engine_ie_bridges_python_sample_hello_classification_README.html) |
 
 The following C++ API is used in the application:
 
