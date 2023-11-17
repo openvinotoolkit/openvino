@@ -212,7 +212,7 @@ void ov::hetero::SubgraphCollector::split_subgraphs_by_parameter_results() {
     for (const auto& input : ordered_subgraph_inputs) {
         if (!is_graph_input_node(input.get_node())) {
             auto input_source_output = input.get_source_output();
-            if (!is_graph_input_node(input_source_output.get_node())) {
+            if (!ov::op::util::is_constant(input_source_output.get_node())) {
                 ordered_subgraph_outputs.push_back(input_source_output);
             }
         }

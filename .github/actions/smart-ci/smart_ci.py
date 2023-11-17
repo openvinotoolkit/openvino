@@ -166,15 +166,16 @@ def main():
         component_name = component_name_from_label(label, args.pattern)
         all_possible_components.add(component_name if component_name else label)
 
+    no_match_files_changed = False
     # For now, we don't want to apply smart ci rules for post-commits
     is_postcommit = not pr
     if is_postcommit:
         logger.info(f"The run is a post-commit run, executing full validation scope for all components")
-
-    no_match_files_changed = 'no-match-files' in [label.name for label in pr.labels]
-    if no_match_files_changed:
-        logger.info(f"There are changed files that don't match any pattern in labeler config, "
-                    f"executing full validation scope for all components")
+    else:
+        no_match_files_changed = 'no-match-files' in [label.name for label in pr.labels]
+        if no_match_files_changed:
+            logger.info(f"There are changed files that don't match any pattern in labeler config, "
+                        f"executing full validation scope for all components")
 
     run_full_scope = is_postcommit or no_match_files_changed
 
@@ -187,6 +188,26 @@ def main():
 
     cfg = ComponentConfig(components_config, schema, all_possible_components)
     affected_components = cfg.get_affected_components(changed_component_names)
+
+    # We don't need to run workflow if changes were only in documentation
+    # This is the case when we have no product labels set except "docs"
+    # or only if md files were matched (the latter covers cases where *.md is outside docs directory)
+    only_docs_changes = False
+    if args.pr and not run_full_scope:
+        # We don't want to add helper labels to labeler config for now, so handling it manually
+        docs_label_only = changed_component_names - {'docs'} == set()
+        if docs_label_only:
+            only_docs_changes = True
+        else:
+            # To avoid spending extra API requests running step below only if necessary
+            changed_files = gh_api.pulls.list_files(args.pr)
+            doc_suffixes = ['.md', '.rst', '.png', '.jpg', '.svg']
+            only_docs_changes = all([Path(f.filename).suffix in doc_suffixes for f in changed_files])
+            logger.debug(f"doc files only: {only_docs_changes}")
+
+    if only_docs_changes:
+        logger.info(f"Changes are documentation only, workflow may be skipped")
+        affected_components['docs_only'] = ComponentConfig.FullScope
 
     # Syntactic sugar for easier use in GHA pipeline
     affected_components_output = {name: {s: True for s in scope} for name, scope in affected_components.items()}

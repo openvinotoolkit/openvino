@@ -7,6 +7,7 @@
 #include <type_traits>
 
 #include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
 
 namespace ov {
