@@ -51,7 +51,6 @@ class TestPooling(PytorchLayerTest):
                 self.padding = padding
                 self.ceil_mode = ceil_mode
                 self.count_include_pad = count_include_pad
-                self.dtype = dtype
 
             def forward(self, x):
                 pass
@@ -71,7 +70,7 @@ class TestPooling(PytorchLayerTest):
 
         class aten_avg_pool2d(aten_avg_pooling_base):
             def forward(self, x):
-                return torch.nn.functional.avg_pool2d(x.to(self.dtype), self.kernel_size, self.stride, self.padding, self.ceil_mode,
+                return torch.nn.functional.avg_pool2d(x, self.kernel_size, self.stride, self.padding, self.ceil_mode,
                                                       self.count_include_pad)
 
         class aten_avg_pool3d(aten_avg_pooling_base):
