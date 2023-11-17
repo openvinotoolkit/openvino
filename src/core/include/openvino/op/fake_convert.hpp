@@ -17,9 +17,12 @@ public:
     FakeConvert() = default;
     FakeConvert(const ov::Output<ov::Node>& arg,
                 const ov::Output<ov::Node>& scale,
+                std::string destination_type = "f8e4m3");
+
+    FakeConvert(const ov::Output<ov::Node>& arg,
+                const ov::Output<ov::Node>& scale,
                 const ov::Output<ov::Node>& shift,
-                std::string destination_type = "f8e4m3",
-                bool apply_scale = false);
+                std::string destination_type = "f8e4m3");
 
     void validate_and_infer_types() override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
@@ -27,14 +30,12 @@ public:
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
-    bool get_apply_scale() const;
     const std::string& get_destination_type() const;
 
 private:
     void validate_type() const;
 
     std::string m_destination_type = "f8e4m3";
-    bool m_apply_scale = false;
 };
 }  // namespace v13
 }  // namespace op

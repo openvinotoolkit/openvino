@@ -11,6 +11,15 @@
 using namespace ov;
 using ov::op::v0::Parameter;
 
+TEST(type_prop, fake_convert_no_shift) {
+    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 8, 6});
+    const auto scale = std::make_shared<Parameter>(element::f32, PartialShape{});
+
+    const auto op = std::make_shared<op::v13::FakeConvert>(data, scale);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 8, 6}));
+}
+
 TEST(type_prop, fake_convert_basic_f32) {
     const auto data = std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 8, 6});
     const auto scale = std::make_shared<Parameter>(element::f32, PartialShape{});
