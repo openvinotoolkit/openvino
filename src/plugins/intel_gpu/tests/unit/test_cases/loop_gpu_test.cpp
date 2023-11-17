@@ -432,11 +432,11 @@ TEST(loop_gpu, basic_concat_nested_cached) {
     test_loop_gpu_basic_concat_nested<float>(true);
 }
 
-static void test_loop_gpu_wo_trip_count(bool is_caching_test) {
+static void test_loop_gpu_wo_trip_count(ov::PartialShape body_input_layout, bool is_caching_test = false) {
     auto& engine = get_test_engine();
 
     auto e_input_layout = cldnn::layout{ { 1, 1, 5, 4 }, data_types::f32, format::bfyx };
-    auto b_input_layout = cldnn::layout{ { 1, 1, 1, 4}, data_types::f32, format::bfyx };
+    auto b_input_layout = cldnn::layout{ body_input_layout, data_types::f32, format::bfyx };
     auto const_layout = cldnn::layout{ {}, data_types::i64, format::bfyx };
 
     auto e_input_mem = engine.allocate_memory(e_input_layout); // b,f,x,y
@@ -547,5 +547,9 @@ static void test_loop_gpu_wo_trip_count(bool is_caching_test) {
 }
 
 TEST(loop_gpu, support_dynamic_tensoriterator) {
-    test_loop_gpu_wo_trip_count(false);
+    test_loop_gpu_wo_trip_count({ 1, 1, 1, 4 });
+}
+
+TEST(loop_gpu, support_loop_w_dynamic_body_input) {
+    test_loop_gpu_wo_trip_count({ 1, -1, 1, 4 });
 }
