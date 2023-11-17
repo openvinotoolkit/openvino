@@ -457,13 +457,13 @@ void apply_per_channel_scale(ov::Tensor& data, const ov::Tensor& scale, const ov
     auto scaleSize = scale.get_size();
 
     T* dataPtr = static_cast<T*>(data.data());
-    float* scalePtr = static_cast<float*>(scale.data());
-    float* offsetPtr = static_cast<float*>(offset.data());
+    T* scalePtr = static_cast<T*>(scale.data());
+    T* offsetPtr = static_cast<T*>(offset.data());
 
     if (scaleSize == 1) {  // per tensor scale, probably for activation
         auto dataSize = data.get_size();
-        float s = scalePtr[0];
-        float o = offsetPtr[0];
+        T s = scalePtr[0];
+        T o = offsetPtr[0];
         if (invert) {
             for (size_t j = 0; j < dataSize; j++) {
                 dataPtr[j] = (dataPtr[j] + o) / s;
@@ -531,28 +531,37 @@ bool FakeConvert::evaluate(ov::TensorVector& outputs, const ov::TensorVector& in
     ov::TensorVector fp16;
 
     OPENVINO_ASSERT(
-        outputs[0].get_element_type() == ov::element::f32 && inputs[0].get_element_type() == ov::element::f32,
+        (outputs[0].get_element_type() == ov::element::f32 && inputs[0].get_element_type() == ov::element::f32) ||
+            (outputs[0].get_element_type() == ov::element::f16 && inputs[0].get_element_type() == ov::element::f16),
         "Wrong input or output type for FakeConvertFP::evaluate");
 
     outputs[0].set_shape(inputs[0].get_shape());
-    fp16.emplace_back(ov::Tensor(ov::element::f16, inputs[0].get_shape()));
-    int element_count = inputs[0].get_size();
+    const auto element_count = inputs[0].get_size();
 
-    ov::reference::convert(inputs[0].data<float>(), fp16[0].data<ov::float16>(), element_count);
-
-    if (m_apply_scale) {
-        convert_fp8::apply_per_channel_scale<ov::float16>(fp16[0], inputs[1], inputs[2]);
-    }
-
-    if (outputs[0].get_element_type() == ov::element::f16)
+    if (inputs[0].get_element_type() == ov::element::f16) {
+        fp16.emplace_back(inputs[0]);
+        if (m_apply_scale) {
+            convert_fp8::apply_per_channel_scale<float16>(fp16[0], inputs[1], inputs[2]);
+        }
         convert_fp8::evaluate<unsigned short>(fp16[0], outputs[0], m_destination_type);
-    else if (outputs[0].get_element_type() == ov::element::f32) {
+        if (m_apply_scale) {
+            convert_fp8::apply_per_channel_scale<float16>(outputs[0], inputs[1], inputs[2], true);
+        }
+    } else if (inputs[0].get_element_type() == ov::element::f32) {
+        fp16.emplace_back(ov::Tensor(ov::element::f16, inputs[0].get_shape()));
+        if (m_apply_scale) {
+            auto data_fp32 = ov::Tensor(ov::element::f32, inputs[0].get_shape());
+            inputs[0].copy_to(data_fp32);
+            convert_fp8::apply_per_channel_scale<float>(data_fp32, inputs[1], inputs[2]);
+            ov::reference::convert(data_fp32.data<float>(), fp16[0].data<ov::float16>(), element_count);
+        } else {
+            ov::reference::convert(inputs[0].data<float>(), fp16[0].data<ov::float16>(), element_count);
+        }
         convert_fp8::evaluate<unsigned short>(fp16[0], fp16[0], m_destination_type);
         ov::reference::convert(fp16[0].data<ov::float16>(), outputs[0].data<float>(), element_count);
-    }
-
-    if (m_apply_scale) {
-        convert_fp8::apply_per_channel_scale<float>(outputs[0], inputs[1], inputs[2], true);
+        if (m_apply_scale) {
+            convert_fp8::apply_per_channel_scale<float>(outputs[0], inputs[1], inputs[2], true);
+        }
     }
 
     return true;
