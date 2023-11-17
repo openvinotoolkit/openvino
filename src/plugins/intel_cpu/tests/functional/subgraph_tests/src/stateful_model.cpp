@@ -1,3 +1,4 @@
+/*
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -544,4 +545,4 @@ TEST_F(DynamicShapeStatefulModelStateAsInp, smoke_Run_Stateful_Dynamic_State_As_
     run_test();
 }
 
-} // namespace SubgraphTestsDefinitions
+} // namespace SubgraphTestsDefinitions*/

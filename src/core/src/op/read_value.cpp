@@ -87,8 +87,11 @@ void op::v6::ReadValue::validate_and_infer_types() {
                         variable_type,
                         " Initialization type: ",
                         initial_type);
+        if (variable_info.data_shape.rank().is_dynamic() && variable_info.data_type.is_dynamic()) {
+            set_output_type(0, initial_type, initial_shape);
+            return;
+        }
     }
-
     set_output_type(0, variable_type, variable_shape);
 }
 
@@ -121,13 +124,13 @@ bool op::v6::ReadValue::visit_attributes(AttributeVisitor& visitor) {
     // dynamic rank/type can be derived from the IRs generated via the prev versions of OV,
     // but dynamic rank/type are not supported in plugins,
     // so we are trying to fix them here using the rank/type of ReadValue 1st input, if it exists
-    if (get_input_size() > 0 && variable_info.data_shape.rank().is_dynamic() && variable_info.data_type.is_dynamic()) {
-        const auto& in_val = input_value(0);
-        // = PartialShape::dynamic(input_value(0).get_partial_shape().rank()); // fails on CPU?
-        const auto pshape = in_val.get_partial_shape();
-        variable_info.data_shape = pshape;
-        variable_info.data_type = in_val.get_element_type();
-    }
+    /*    if (get_input_size() > 0 && variable_info.data_shape.rank().is_dynamic() &&
+       variable_info.data_type.is_dynamic()) { const auto& in_val = input_value(0);
+            // = PartialShape::dynamic(input_value(0).get_partial_shape().rank()); // fails on CPU?
+            const auto pshape = in_val.get_partial_shape();
+            variable_info.data_shape = pshape;
+            variable_info.data_type = in_val.get_element_type();
+        }*/
     m_variable->update(variable_info);
     return true;
 }
