@@ -150,7 +150,11 @@ def visit_showcase(self, node):
         )
     self.body.append("<div class='showcase-wrap'>")
     self.body.append(self.starttag(node, "div", **attrs))
-    self.body.append(("<div class='showcase-img-placeholder'><a href='" + notebook_file + "' title='" + link_title + "'><img " + (" class='" + (node["img-class"] + " showcase-img' ") if 'img-class' in node is not None else " class='showcase-img'") + "src='" + node["img"] + "' alt='"+os.path.basename(node["img"])+"' /></a></div>") if "img" in node is not None else "")
+    self.body.append("<div class='showcase-img-placeholder'>")
+    self.body.append("<a href='" + notebook_file + "' title='" + link_title + "'>")
+    self.body.append("<img " + (" class='" + (node["img-class"] + " showcase-img' ") if 'img-class' in node is not None else " class='showcase-img'"))
+    self.body.append("src='" + node["img"] + "' alt='"+os.path.basename(node["img"]) + "' /></a></div>") if "img" in node is not None else ""
+    
     self.body.append("<div class='showcase-content'><div class='showcase-content-container'>")
 
 
@@ -163,30 +167,25 @@ def depart_showcase(self, node):
     colab_badge = "<img class='showcase-badge' src='https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667' alt='Colab'>"
     binder_list_file = Path('../../../docs/notebooks/notebooks_with_binder_buttons.txt').resolve(strict=True)
     colab_list_file = Path('../../../docs/notebooks/notebooks_with_colab_buttons.txt').resolve(strict=True)
-    openvino_notebooks_repo_listing = Path('../../../docs/notebooks/openvino_notebooks.json').resolve(strict=True)
+    openvino_notebooks_repo_listing = Path('../../../docs/notebooks/all_notebooks_paths.txt').resolve(strict=True)
     with open(binder_list_file, 'r+', encoding='cp437') as file:
         binder_buttons_list = file.read().splitlines()
     with open(colab_list_file, 'r+', encoding='cp437') as file:
         colab_buttons_list = file.read().splitlines()
     if not os.path.exists(openvino_notebooks_repo_listing):
-        print("No such JSON file", openvino_notebooks_repo_listing)
+        raise FileNotFoundError("all_notebooks_paths.txt is not found")
     else:
-        result = open(openvino_notebooks_repo_listing, 'r').read()
-
-    paths_list = json.loads(result)
-
-    if "tree" in paths_list:
-        list_all_paths = [p.get('path') for p in paths_list['tree'] if p.get('path')]
-        ipynb_list = [x for x in list_all_paths if re.match("notebooks/[0-9]{3}.*\.ipynb$", x)]
+        paths_list = open(openvino_notebooks_repo_listing, 'r').readlines()
+        ipynb_list = [x for x in paths_list if re.match("notebooks/[0-9]{3}.*\.ipynb$", x)]
         notebook_with_ext = node["title"] + ".ipynb"
         matched_notebook = [match for match in ipynb_list if notebook_with_ext in match]
-    else:
-        raise Exception('Key "tree" is not present in the JSON file')
+
 
     notebook_file = ("notebooks/" + node["title"] + "-with-output.html") if 'title' in node is not None else ""
     link_title = (node["title"]) if 'title' in node is not None else "OpenVINO Interactive Tutorial"
 
-    self.body.append(("<a href='" + notebook_file + "' title='" + link_title + "'><h2 class='showcase-title'>" + node["title"] + "</h2></a>") if 'title' in node is not None else "")
+    self.body.append("<a href='" + notebook_file + "' title='" + link_title + "'>")
+    self.body.append("<h2 class='showcase-title'>" + node["title"] + "</h2></a>") if 'title' in node is not None else ""
 
     if matched_notebook is not None:
         for n in matched_notebook:

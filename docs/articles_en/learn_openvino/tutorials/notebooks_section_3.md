@@ -27,11 +27,4 @@ Tutorials that include code to train neural networks.
 
    Use Neural Network Compression Framework (NNCF) to quantize model from TensorFlow
 
-.. showcase::
-   :title: 301-tensorflow-training-openvino
-   :img: https://user-images.githubusercontent.com/15709723/127779607-8fa34947-1c35-4260-8d04-981c41a2a2cc.png
-
-   Train a flower classification model from TensorFlow, then convert to OpenVINO IR.
-
-
 @endsphinxdirective

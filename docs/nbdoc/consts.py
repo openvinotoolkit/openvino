@@ -6,12 +6,11 @@ repo_owner = "openvinotoolkit"
 repo_name = "openvino_notebooks"
 repo_branch = "tree/main"
 artifacts_link = "http://repository.toolbox.iotg.sclab.intel.com/projects/ov-notebook/0.1.0-latest/20231030220807/dist/rst_files/"
-github_api_link = "https://api.github.com/repos/{}/{}/git/trees/main?recursive=1".format(repo_owner, repo_name)
 blacklisted_extensions = ['.xml', '.bin']
 notebooks_repo = "https://github.com/openvinotoolkit/openvino_notebooks/blob/main/"
 notebooks_binder = "https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath="
 notebooks_colab = "https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/"
-openvino_notebooks_json = Path('../../docs/notebooks/openvino_notebooks.json').resolve(strict=True)
+openvino_notebooks_ipynb_list = Path('../../docs/notebooks/all_notebooks_paths.txt').resolve(strict=True)
 
 
 # Templates

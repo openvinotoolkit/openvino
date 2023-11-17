@@ -10,6 +10,42 @@
 Demos that demonstrate inference on a particular model.
 
 .. showcase::
+   :title: 269-film-slowmo
+   :img: https://github.com/googlestaging/frame-interpolation/raw/main/moment.gif
+
+   Frame interpolation using FILM and OpenVINO.
+
+.. showcase::
+   :title: 268-table-question-answering
+   :img: _static/images/notebook_eye.png
+
+   Table Question Answering using TAPAS and OpenVINO.
+
+.. showcase::
+   :title: 267-distil-whisper-asr
+   :img: _static/images/notebook_eye.png
+
+   Automatic speech recognition using Distil-Whisper and OpenVINO.
+
+.. showcase::
+   :title: 266-speculative-sampling
+   :img: _static/images/notebook_eye.png
+
+   Text Generation via Speculative Sampling, KV Caching, and OpenVINO.
+
+.. showcase::
+   :title: 265-wuerstchen-image-generation
+   :img: https://user-images.githubusercontent.com/76161256/277724498-6917c558-d74c-4cc9-b81a-679ce0a299ee.png
+
+   Image generation with Würstchen and OpenVINO.
+
+.. showcase::
+   :title: 264-qrcode-monster
+   :img: https://user-images.githubusercontent.com/76463150/278011447-1a5978c6-e7a0-4824-9318-a3d8f4912c47.png
+
+   Generate creative QR codes with ControlNet QR Code Monster and OpenVINO.
+
+.. showcase::
    :title: 263-latent-consistency-models-image-generation
    :img: https://user-images.githubusercontent.com/29454499/277367065-13a8f622-8ea7-4d12-b3f8-241d4499305e.png
 

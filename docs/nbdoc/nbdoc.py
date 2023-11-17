@@ -16,7 +16,7 @@ from consts import (
     no_binder_template,
     repo_directory,
     repo_name,
-    openvino_notebooks_json,
+    openvino_notebooks_ipynb_list,
     repo_owner,
     notebooks_repo,
     notebooks_binder,
@@ -33,10 +33,9 @@ import requests
 import os
 import re
 import sys
-import json
 
 matching_notebooks_paths = []
-openvino_notebooks_paths_list = json.loads(open(openvino_notebooks_json, 'r').read())
+
 
 class NbTravisDownloader:
     @staticmethod
@@ -85,19 +84,21 @@ class NbProcessor:
     def __init__(self, nb_path: str = notebooks_path):
         self.nb_path = nb_path
 
+        with open(openvino_notebooks_ipynb_list, 'r+', encoding='cp437') as ipynb_file:
+            openvino_notebooks_paths_list = ipynb_file.readlines()
+
         for notebook_name in [
             nb for nb in os.listdir(self.nb_path) if
             verify_notebook_name(nb)
         ]:
 
-            if "tree" in openvino_notebooks_paths_list:
-                notebooks_paths_listing = [p.get('path') for p in openvino_notebooks_paths_list['tree'] if
-                                           p.get('path')]
-                notebooks_listing = [x for x in notebooks_paths_listing if re.match("notebooks/[0-9]{3}.*\.ipynb$", x)]
-                ipynb_notebook = notebook_name[:-16] + ".ipynb"
-                matching_notebooks = [match for match in notebooks_listing if ipynb_notebook in match]
+            if not os.path.exists(openvino_notebooks_ipynb_list):
+                raise FileNotFoundError("all_notebooks_paths.txt is not found")
             else:
-                raise Exception('Key "tree" is not present in the JSON file')
+                ipynb_list = [x for x in openvino_notebooks_paths_list if re.match("notebooks/[0-9]{3}.*\.ipynb$", x)]
+                notebook_with_ext = notebook_name[:-16] + ".ipynb"
+                matching_notebooks = [re.sub('[\n]', '', match) for match in ipynb_list if notebook_with_ext in match]
+
             if matching_notebooks is not None:
                 for n in matching_notebooks:
                     matching_notebooks_paths.append(n)
