@@ -13,7 +13,7 @@
 
    openvino_docs_performance_benchmarks_faq
    OpenVINO Accuracy <openvino_docs_performance_int8_vs_fp32>
-   Performance Data Spreadsheet (download xlsx) <https://docs.openvino.ai/2023.1/_static/benchmarks_files/OV-2023.2-Performance-Data.xlsx> 
+   Performance Data Spreadsheet (download xlsx) <https://docs.openvino.ai/2023.2/_static/benchmarks_files/OV-2023.2-Performance-Data.xlsx> 
    openvino_docs_MO_DG_Getting_Performance_Numbers
 
 
@@ -100,7 +100,7 @@ For a listing of all platforms and configurations used for testing, refer to the
 
    .. grid-item::
 
-      .. button-link:: _static/benchmarks_files/OV-2023.2-Platform_list.pdf
+      .. button-link:: _static/benchmarks_files/OV-2023.2-platform_list.pdf
          :color: primary
          :outline:
          :expand:
