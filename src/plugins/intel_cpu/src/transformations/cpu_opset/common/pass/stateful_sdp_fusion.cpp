@@ -30,8 +30,12 @@ StatefulSDPFusion::StatefulSDPFusion() {
 
     auto past_k = wrap_type<opset6::ReadValue>();
     auto past_v = wrap_type<opset6::ReadValue>();
-    auto concat_k = wrap_type<opset6::Concat>({past_k, any_input()});
-    auto concat_v = wrap_type<opset6::Concat>({past_v, any_input()});
+    auto convert_past_k = wrap_type<opset1::Convert>({past_k});
+    auto convert_past_v = wrap_type<opset1::Convert>({past_v});
+    auto concat_input_k = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past_k, convert_past_k});
+    auto concat_input_v = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past_v, convert_past_v});
+    auto concat_k = wrap_type<opset6::Concat>({concat_input_k, any_input()});
+    auto concat_v = wrap_type<opset6::Concat>({concat_input_v, any_input()});
     auto sdp0 = wrap_type<opset13::ScaledDotProductAttention>({any_input(), concat_k, concat_v});
     auto sdp1 = wrap_type<opset13::ScaledDotProductAttention>({any_input(), concat_k, concat_v, any_input()});
     auto sdp2 = wrap_type<opset13::ScaledDotProductAttention>({any_input(), concat_k, concat_v, any_input(), any_input()});

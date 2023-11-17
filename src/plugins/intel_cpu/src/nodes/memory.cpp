@@ -305,27 +305,36 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
 }
 
 void MemoryInput::selectOptimalPrimitiveDescriptor() {
-    auto childEdge = getChildEdgeAt(0);
-    auto child = childEdge->getChild();
-    child->selectOptimalPrimitiveDescriptor();
-    auto childPd = child->getSelectedPrimitiveDescriptor();
-    OPENVINO_ASSERT(childPd,
-        child->getTypeStr(), " ",
-        child->getName(),
-        "failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
-
-    const auto& childConfig = childPd->getConfig();
-    auto childDesc = childConfig.inConfs[childEdge->getOutputNum()].getMemDesc();
-    bool hasMatchDesc = false;
     size_t i;
+    bool suitable = false;
     for (i = 0; i < supportedPrimitiveDescriptors.size(); i++) {
         const auto& outputDesc = supportedPrimitiveDescriptors[i].getConfig().outConfs[0].getMemDesc();
-        if (outputDesc->isCompatible(*childDesc)) {
-            hasMatchDesc = true;
+        suitable = true;
+        // try find desc suitable for all child nodes
+        for (size_t j = 0; j < getChildEdges().size(); j++) {
+            auto childEdge = getChildEdgeAt(j);
+            auto child = childEdge->getChild();
+            const auto& childSpd = child->getSupportedPrimitiveDescriptors();
+            bool hasMatchDesc = false;
+            for (size_t k = 0; k < childSpd.size(); k++) {
+                const auto& childOutputDesc = childSpd[k].getConfig().inConfs[childEdge->getOutputNum()].getMemDesc();
+                if (outputDesc->isCompatible(*childOutputDesc)) {
+                    hasMatchDesc = true;
+                    break;
+                }
+            }
+            // this edge is not compatible with the desc
+            if (!hasMatchDesc) {
+                suitable = false;
+                break;
+            }
+        }
+        // all edges are compatible with the desc
+        if (suitable) {
             break;
         }
     }
-    if (hasMatchDesc) {
+    if (suitable) {
         selectPrimitiveDescriptorByIndex(static_cast<int>(i));
     } else {
         selectPrimitiveDescriptorByIndex(0);
