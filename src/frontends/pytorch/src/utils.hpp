@@ -51,6 +51,10 @@ Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Ou
 op::PadType convert_pad(const std::string& pt_pad);
 
 Output<Node> concat_list_construct(const Output<Node>& input);
+
+/// \brief Checks if input represents empty list.
+/// \param input Input to check.
+/// \return true if input is empty list, false - if input is non-empty or non-list.
 bool is_empty_list(const Output<Node>& input);
 
 OutputVector make_framework_node_ignore_bodies(const NodeContext& context, const std::string& exception);

@@ -155,6 +155,7 @@ OutputVector translate_norm(const NodeContext& context) {
 };
 
 OutputVector translate_weight_norm(const NodeContext& context) {
+    // aten::_weight_norm(Tensor v, Tensor g, int dim=0) -> Tensor
     num_inputs_check(context, 3, 3);
     auto x = context.get_input(0);
     auto y = context.get_input(1);
