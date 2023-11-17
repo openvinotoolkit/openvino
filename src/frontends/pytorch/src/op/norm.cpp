@@ -4,9 +4,12 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/not_equal.hpp"
@@ -149,6 +152,31 @@ OutputVector translate_norm(const NodeContext& context) {
         context.mutate_input(5, res);
     }
     return {res};
+};
+
+OutputVector translate_weight_norm(const NodeContext& context) {
+    num_inputs_check(context, 3, 3);
+    auto x = context.get_input(0);
+    auto y = context.get_input(1);
+    Output<Node> dim;
+    auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    auto one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
+    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(x, element::i32));
+    auto rank = context.mark_node(std::make_shared<v3::ShapeOf>(input_shape, element::i32));
+    rank = context.mark_node(std::make_shared<v0::Squeeze>(rank, zero));
+    if (context.input_is_none(2)) {
+        dim = context.mark_node(std::make_shared<v0::Range>(zero, rank, one));
+    } else {
+        dim = context.get_input(2);
+        auto dims_before = context.mark_node(std::make_shared<v0::Range>(zero, dim, one));
+        auto dim_next = context.mark_node(std::make_shared<v1::Add>(dim, one));
+        auto dims_after = context.mark_node(std::make_shared<v0::Range>(dim_next, rank, one));
+        dim = context.mark_node(std::make_shared<v0::Concat>(OutputVector{dims_before, dims_after}, 0));
+    }
+    Output<Node> res;
+    auto norm = context.mark_node(std::make_shared<v4::ReduceL2>(x, dim, true));
+    auto y_norm = context.mark_node(std::make_shared<v1::Divide>(y, norm));
+    return {context.mark_node(std::make_shared<v1::Multiply>(x, y_norm))};
 };
 
 OutputVector translate_linalg_vector_norm(const NodeContext& context) {
