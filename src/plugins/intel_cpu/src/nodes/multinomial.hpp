@@ -94,16 +94,16 @@ private:
             parallel_for(m_batches_count, [&](size_t idx) {
                 auto start_idx = idx * m_probs_count;
                 m_cdf[start_idx] = std::exp(probs[start_idx]);
-                for (size_t i = 1; i < m_probs_count; ++i) {
-                    m_cdf[start_idx + i] = std::exp(probs[start_idx + i]) + m_cdf[start_idx + i - 1];
+                for (size_t prev = start_idx, curr = prev + 1; curr < (start_idx + m_probs_count); ++prev, ++curr) {
+                    m_cdf[curr] = std::exp(probs[curr]) + m_cdf[prev];
                 }
             });
         } else {
             parallel_for(m_batches_count, [&](size_t idx) {
                 auto start_idx = idx * m_probs_count;
                 m_cdf[start_idx] = probs[start_idx];
-                for (size_t i = 1; i < m_probs_count; ++i) {
-                    m_cdf[start_idx + i] = probs[start_idx + i] + m_cdf[start_idx + i - 1];
+                for (size_t prev = start_idx, curr = prev + 1; curr < (start_idx + m_probs_count); ++prev, ++curr) {
+                    m_cdf[curr] = probs[curr] + m_cdf[prev];
                 }
             });
         }
