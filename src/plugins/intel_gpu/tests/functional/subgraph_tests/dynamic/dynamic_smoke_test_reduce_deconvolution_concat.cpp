@@ -94,7 +94,7 @@ protected:
         auto reduceOp = ngraph::builder::makeReduce(params[1], reduceAxesNode, false, ngraph::helpers::ReductionType::Max);
         reduceOp->set_friendly_name("reduce");
 
-        auto concatOp = ngraph::builder::makeConcat({deconvOp, reduceOp}, 1);
+        auto concatOp = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{deconvOp, reduceOp}, 1);
         concatOp->set_friendly_name("concat");
 
         std::vector<int> transpose_order = {0, 1, 2, 4, 3};

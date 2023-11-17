@@ -43,7 +43,7 @@ public:
             CPUSpecificParams{{}, {}, {}, makeSelectedTypeStr("ref", inType)};
         init_input_shapes({inputShape});
         auto input_params = std::make_shared<ov::op::v0::Parameter>(inType, inputShape.first);
-        auto convert = builder::makeConversion(input_params, element::f32, ::helpers::ConversionTypes::CONVERT);
+        auto convert = std::make_shared<ov::op::v0::Convert>(input_params, element::f32);
         auto begin = builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 0, 0});
         auto end = builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 16, 0});
         auto stride = builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{1, 1, 1, 1});
@@ -57,7 +57,7 @@ public:
                                                {},
                                                {},
                                                {});
-        auto convert2 = builder::makeConversion(slice, inType, ::helpers::ConversionTypes::CONVERT);
+        auto convert2 = std::make_shared<ov::op::v0::Convert>(slice, inType);
         function = std::make_shared<ov::Model>(convert2, ov::ParameterVector{input_params}, "remove_convert");
     };
 };
@@ -89,7 +89,7 @@ public:
         const auto split_axis = builder::makeConstant(element::i64, ov::Shape{}, std::vector<int64_t>{1});
         const auto split_lengths = builder::makeConstant(element::i64, ov::Shape{2}, std::vector<int64_t>{-1, 1});
         const auto split = std::make_shared<ov::opset10::VariadicSplit>(input_params, split_axis, split_lengths);
-        auto convert = builder::makeConversion(split->output(1), inType, ::helpers::ConversionTypes::CONVERT);
+        auto convert = std::make_shared<ov::op::v0::Convert>(split->output(1), inType);
         auto relu = builder::makeActivation(convert, inType, ::helpers::ActivationTypes::Relu);
 
         ov::ResultVector results{

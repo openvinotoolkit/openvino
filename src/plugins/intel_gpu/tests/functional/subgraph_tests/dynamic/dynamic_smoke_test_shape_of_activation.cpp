@@ -113,8 +113,7 @@ protected:
         auto gatherOp = std::make_shared<ov::op::v7::Gather>(shapeOfOp, indicesNode, axisNode, 0);
         gatherOp->set_friendly_name("gather");
 
-        auto convertOp = ngraph::builder::makeConversion(gatherOp, ElementType::f32,
-                                                         ngraph::helpers::ConversionTypes::CONVERT);
+        auto convertOp = std::make_shared<ov::op::v0::Convert>(gatherOp, ElementType::f32);
         convertOp->set_friendly_name("convert");
 
         auto activationOp = ngraph::builder::makeActivation(convertOp,

@@ -55,8 +55,7 @@ void RemoveInputConvertTest::SetUp() {
     // test function
     {
         auto params = std::make_shared<ngraph::opset8::Parameter>(target_precision_, input_shape);
-        auto conversion =
-            ngraph::builder::makeConversion(params, net_precision_, ngraph::helpers::ConversionTypes::CONVERT);
+        auto conversion = std::make_shared<ov::op::v0::Convert>(params, net_precision_);
         auto add_const = ngraph::opset8::Constant::create(net_precision_, input_shape, {10});
         auto add = std::make_shared<ngraph::opset8::Add>(conversion, add_const);
 
@@ -115,8 +114,7 @@ public:
             auto params = std::make_shared<ngraph::opset8::Parameter>(net_precision_, input_shape);
             auto add_const = ngraph::opset8::Constant::create(net_precision_, input_shape, {10});
             auto add = std::make_shared<ngraph::opset8::Add>(params, add_const);
-            auto conversion =
-                ngraph::builder::makeConversion(add, target_precision_, ngraph::helpers::ConversionTypes::CONVERT);
+            auto conversion = std::make_shared<ov::op::v0::Convert>(add, target_precision_);
             auto result = std::make_shared<ngraph::opset8::Result>(conversion);
             func_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                        ngraph::ParameterVector{params},
@@ -172,8 +170,7 @@ public:
             auto params = std::make_shared<ngraph::opset8::Parameter>(net_precision_, input_shape);
             auto add_const = ngraph::opset8::Constant::create(net_precision_, input_shape, {10});
             auto add1 = std::make_shared<ngraph::opset8::Add>(params, add_const);
-            auto conversion =
-                ngraph::builder::makeConversion(add1, net_precision_, ngraph::helpers::ConversionTypes::CONVERT);
+            auto conversion = std::make_shared<ov::op::v0::Convert>(add1, net_precision_);
             auto add2 = std::make_shared<ngraph::opset8::Add>(conversion, add_const);
             auto result = std::make_shared<ngraph::opset8::Result>(add2);
             func_ = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
@@ -210,12 +207,9 @@ public:
             ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(target_precision_, input_shape),
                                       std::make_shared<ov::op::v0::Parameter>(target_precision_, input_shape),
                                       std::make_shared<ov::op::v0::Parameter>(target_precision_, input_shape)};
-            auto convert1 =
-                ngraph::builder::makeConversion(input[0], net_precision_, ngraph::helpers::ConversionTypes::CONVERT);
-            auto convert2 =
-                ngraph::builder::makeConversion(input[1], net_precision_, ngraph::helpers::ConversionTypes::CONVERT);
-            auto convert3 =
-                ngraph::builder::makeConversion(input[2], net_precision_, ngraph::helpers::ConversionTypes::CONVERT);
+            auto convert1 = std::make_shared<ov::op::v0::Convert>(input[0], net_precision_);
+            auto convert2 = std::make_shared<ov::op::v0::Convert>(input[1], net_precision_);
+            auto convert3 = std::make_shared<ov::op::v0::Convert>(input[2], net_precision_);
             auto mul1 = ngraph::builder::makeEltwise(convert1, convert2, ngraph::helpers::EltwiseTypes::ADD);
             auto mul2 = ngraph::builder::makeEltwise(convert3, mul1, ngraph::helpers::EltwiseTypes::ADD);
             auto result = std::make_shared<ngraph::opset8::Result>(mul2);
@@ -252,10 +246,8 @@ public:
                                       std::make_shared<ov::op::v0::Parameter>(net_precision_, input_shape)};
             auto mul1 = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
             auto mul2 = ngraph::builder::makeEltwise(input[2], input[3], ngraph::helpers::EltwiseTypes::ADD);
-            auto convert1 =
-                ngraph::builder::makeConversion(mul1, target_precision_, ngraph::helpers::ConversionTypes::CONVERT);
-            auto convert2 =
-                ngraph::builder::makeConversion(mul2, target_precision_, ngraph::helpers::ConversionTypes::CONVERT);
+            auto convert1 = std::make_shared<ov::op::v0::Convert>(mul1, target_precision_);
+            auto convert2 = std::make_shared<ov::op::v0::Convert>(mul2, target_precision_);
             auto result1 = std::make_shared<ngraph::opset8::Result>(convert1);
             auto result2 = std::make_shared<ngraph::opset8::Result>(convert2);
 
@@ -297,12 +289,9 @@ public:
             auto mul1 = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
             auto mul2 = ngraph::builder::makeEltwise(input[2], input[3], ngraph::helpers::EltwiseTypes::ADD);
             auto mul3 = ngraph::builder::makeEltwise(mul1, mul2, ngraph::helpers::EltwiseTypes::ADD);
-            auto convert1 =
-                ngraph::builder::makeConversion(mul1, target_precision_, ngraph::helpers::ConversionTypes::CONVERT);
-            auto convert2 =
-                ngraph::builder::makeConversion(mul2, target_precision_, ngraph::helpers::ConversionTypes::CONVERT);
-            auto convert3 =
-                ngraph::builder::makeConversion(mul3, target_precision_, ngraph::helpers::ConversionTypes::CONVERT);
+            auto convert1 = std::make_shared<ov::op::v0::Convert>(mul1, target_precision_);
+            auto convert2 = std::make_shared<ov::op::v0::Convert>(mul2, target_precision_);
+            auto convert3 = std::make_shared<ov::op::v0::Convert>(mul3, target_precision_);
             auto result1 = std::make_shared<ngraph::opset8::Result>(convert1);
             auto result2 = std::make_shared<ngraph::opset8::Result>(convert2);
             auto result3 = std::make_shared<ngraph::opset8::Result>(convert3);

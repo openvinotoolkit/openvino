@@ -158,7 +158,7 @@ void FuseTransposeAndReorderTest1::CreateGraph() {
     auto shape = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, transpose3->get_output_shape(0));
     auto reshape = std::make_shared<ngraph::opset5::Reshape>(transpose1, shape, false);
 
-    auto concat = ngraph::builder::makeConcat({transpose3, reshape}, 1);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{transpose3, reshape}, 1);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset5::Result>(concat)};
     function = std::make_shared<ngraph::Function>(results, params, "Transpose_TransposeReorderTranspose_Reshape_Concat");
@@ -218,7 +218,7 @@ void FuseTransposeAndReorderTest2::CreateGraph() {
     auto memFmt2 = inputShape.size() == 5 ? ncdhw : nchw;
     transpose2->get_rt_info() = makeCPUInfo({memFmt2}, {memFmt2}, {});
 
-    auto concat = ngraph::builder::makeConcat({transpose1, transpose2}, 1);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{transpose1, transpose2}, 1);
     concat->get_rt_info() = makeCPUInfo({memFmt1, memFmt1}, {memFmt1}, {});
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset5::Result>(concat)};

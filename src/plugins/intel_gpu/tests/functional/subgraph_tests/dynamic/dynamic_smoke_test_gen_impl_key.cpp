@@ -102,7 +102,7 @@ protected:
         std::vector<int64_t> shapePatternFill = {-1};
         auto reshapePatternComp1 = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64,
                                                                            ngraph::Shape{1}, shapePatternFill);
-        auto concatOp1 = ngraph::builder::makeConcat({reduceOp1, reshapePatternComp1}, 0);
+        auto concatOp1 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{reduceOp1, reshapePatternComp1}, 0);
         concatOp1->set_friendly_name("concat1");
 
         auto reshapeOp1 = std::make_shared<ngraph::opset1::Reshape>(addOp1, concatOp1, false);
@@ -121,7 +121,7 @@ protected:
 
         auto reshapePatternComp2 = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64,
                                                                            ngraph::Shape{1}, shapePatternFill);
-        auto concatOp2 = ngraph::builder::makeConcat({reduceOp2, reshapePatternComp2}, 0);
+        auto concatOp2 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{reduceOp2, reshapePatternComp2}, 0);
         concatOp2->set_friendly_name("concat2");
 
         auto reshapeOp2 = std::make_shared<ngraph::opset1::Reshape>(addOp2, concatOp2, false);

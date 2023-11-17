@@ -178,7 +178,7 @@ protected:
                                                                   {reshapeShape.size()}, reshapeShape);
             lastNode1 = std::make_shared<ngraph::opset4::Reshape>(lastNode1, reshapeConstNode, false);
         }
-        auto concat = ngraph::builder::makeConcat({lastNode0, lastNode1}, 0);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{lastNode0, lastNode1}, 0);
         function = std::make_shared<ngraph::Function>(concat, ngraphParam, "eltwise_cache");
     }
 };

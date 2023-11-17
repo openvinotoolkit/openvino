@@ -61,7 +61,7 @@ protected:
         const auto fc2 = std::make_shared<ov::op::v0::MatMul>(split->output(1), fc2secondInputB, false, false);
 
         const auto fcConcatAxis = rank == 3 ? 1 : 0;
-        const auto concatMatMuls = builder::makeConcat({fc1, fc2}, fcConcatAxis);
+        const auto concatMatMuls = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{fc1, fc2}, fcConcatAxis);
 
         function = makeNgraphFunction(ngPrec, params, concatMatMuls, "FullyConnectedStridedInputsOutputs");
     }

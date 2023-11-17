@@ -58,7 +58,7 @@ void SliceConcatTest::SetUp() {
     ngraph::Shape const_shape(inputShape.size(), 1);
     const_shape.back() = 32;
     auto const_input = ngraph::builder::makeConstant(ngPrc, const_shape, std::vector<float>{}, true);
-    auto concat = ngraph::builder::makeConcat({const_input, ss}, inputShape.size() - 1);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{const_input, ss}, inputShape.size() - 1);
 
     function = std::make_shared<ngraph::Function>(concat, params, "StridedSliceConcatTest");
 }

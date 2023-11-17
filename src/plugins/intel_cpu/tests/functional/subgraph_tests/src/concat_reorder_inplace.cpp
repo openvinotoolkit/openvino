@@ -36,7 +36,7 @@ public:
         const std::vector<size_t> inputShape = {1, 100, 1, 1};
         ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(inputShape)),
                                         std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(inputShape))};
-        auto concat = ngraph::builder::makeConcat(ngraph::OutputVector{inputParams[0], inputParams[1]}, 1);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{inputParams[0], inputParams[1]}, 1);
         const auto targetFormat = nhwc;
         auto mul1 = std::make_shared<ngraph::opset8::Multiply>(
             concat,

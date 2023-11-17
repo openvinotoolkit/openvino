@@ -504,7 +504,7 @@ protected:
         auto matMul0 = std::make_shared<ov::op::v0::MatMul>(params[0], inputWeights, transpA, transpB);
         auto matMul1 = std::make_shared<ov::op::v0::MatMul>(params[1], inputWeights, transpA, transpB);
 
-        auto concat = builder::makeConcat({matMul0, matMul1}, 0);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{matMul0, matMul1}, 0);
 
         function = CPUTestsBase::makeNgraphFunction(netType, params, concat, cpuNodeType);
     }

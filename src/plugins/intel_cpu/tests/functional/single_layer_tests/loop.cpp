@@ -351,7 +351,7 @@ protected:
         // Body
         auto constant = ngraph::builder::makeConstant(inType, std::vector<size_t>{1}, std::vector<float>{10});
         auto add = std::make_shared<ngraph::opset5::Add>(body_params[0], constant);
-        auto concat = ngraph::builder::makeConcat({body_params[1], add}, 0);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{body_params[1], add}, 0);
 
         auto body = std::make_shared<ov::Model>(ngraph::OutputVector{body_condition_const, concat}, body_params);
 

@@ -63,7 +63,7 @@ protected:
             }
         }
 
-        const auto concat = builder::makeConcat(concat_inputs_vec, axis);
+        const auto concat = std::make_shared<ov::op::v0::Concat>(concat_inputs_vec, axis);
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset6::Result>(concat)};
         function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{param}, "FuseSplitConcatPairToInterpolate");
