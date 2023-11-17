@@ -66,7 +66,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         // CUMSUM
         // CUSTOM
         // DELEGATE
-        {"DENSIFY", DEQUANTIZE_INPUTS(densify)},
+        {"DENSIFY", translate_identity_op},
         {"DEPTH_TO_SPACE", DEQUANTIZE_INPUTS(depth_to_space)},
         {"DEPTHWISE_CONV_2D", DEQUANTIZE_INPUTS(depthwise_conv2d)},
         {"DEQUANTIZE", DEQUANTIZE_INPUTS(dequantize)},
