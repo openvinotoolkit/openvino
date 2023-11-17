@@ -34,12 +34,14 @@ void EinsumLayerTest::SetUp() {
 
     const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(precision);
     ov::ParameterVector params;
+    ov::OutputVector paramsOuts;
     for (auto&& shape : inputShapes) {
-        params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape)));
+        auto param = std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape));
+        params.push_back(param);
+        paramsOuts.push_back(param);
     }
-    const auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-    const std::shared_ptr<ngraph::Node> einsum = ngraph::builder::makeEinsum(paramOuts, equation);
+    const auto einsum = std::make_shared<ov::op::v7::Einsum>(paramsOuts, equation);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(einsum)};
     function = std::make_shared<ngraph::Function>(results, params, "einsum");
 }

@@ -29,7 +29,7 @@ enum ROIAlignedMode {
 
 struct jit_roi_align_params {
     Algorithm alg;
-    InferenceEngine::Precision data_prc;
+    ov::element::Type data_prc;
     int data_size;
     ROIAlignLayoutType layout;
     int pooled_h;
@@ -67,7 +67,7 @@ struct jit_uni_roi_align_kernel {
 
 class ROIAlign : public Node {
 public:
-    ROIAlign(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    ROIAlign(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -78,7 +78,7 @@ public:
     bool needPrepareParams() const override;
     void executeDynamicImpl(dnnl::stream strm) override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     int pooledH = 7;
@@ -91,7 +91,7 @@ private:
     template<typename T>
     struct ROIAlignExecute;
 
-    void createJitKernel(const InferenceEngine::Precision& dataPrec, const ROIAlignLayoutType& selectLayout);
+    void createJitKernel(const ov::element::Type& dataPrec, const ROIAlignLayoutType& selectLayout);
     std::shared_ptr<jit_uni_roi_align_kernel> roi_align_kernel = nullptr;
 
     std::string errorPrefix;

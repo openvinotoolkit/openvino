@@ -168,20 +168,20 @@ void RoPE::initSupportedPrimitiveDescriptors() {
     auto srcPrecision = getOriginalInputPrecisionAtPort(0);
 
     auto rtPrecision = srcPrecision;
-    auto CosSinPrecision = InferenceEngine::Precision::FP32;  // rtPrecision
+    auto CosSinPrecision = ov::element::f32;  // rtPrecision
 
     if (m_config.is_interleaved) {
         OPENVINO_ASSERT(m_config.input_trans0213 == false);
         OPENVINO_ASSERT(m_config.slice_start == 0);
         OPENVINO_ASSERT(m_config.slice_stop == 0);
         OPENVINO_ASSERT(m_config.gather_position_arg_id == 0);
-        if (rtPrecision == InferenceEngine::Precision::BF16) {
+        if (rtPrecision == ov::element::bf16) {
             m_executor = std::make_shared<RoPEExecutorInterleaved<ov::bfloat16>>();
         } else {
             m_executor = std::make_shared<RoPEExecutorInterleaved<float>>();
         }
     } else {
-        if (rtPrecision == InferenceEngine::Precision::BF16) {
+        if (rtPrecision == ov::element::bf16) {
             m_executor = std::make_shared<RoPEExecutorRotateHalf<ov::bfloat16>>();
         } else {
             m_executor = std::make_shared<RoPEExecutorRotateHalf<float>>();
@@ -195,7 +195,7 @@ void RoPE::initSupportedPrimitiveDescriptors() {
     inPortConfigs.emplace_back(LayoutType::ncsp, CosSinPrecision, getInputShapeAtPort(2), false, -1);
     if (m_config.gather_position_arg_id > 0) {
         inPortConfigs.emplace_back(LayoutType::ncsp,
-                                   InferenceEngine::Precision::I32,
+                                   ov::element::i32,
                                    getInputShapeAtPort(m_config.gather_position_arg_id),
                                    false,
                                    -1);
