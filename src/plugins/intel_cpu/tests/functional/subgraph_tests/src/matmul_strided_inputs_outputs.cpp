@@ -42,7 +42,7 @@ protected:
         ov::ParameterVector concatInputParams {std::make_shared<ov::op::v0::Parameter>(ngPrec, concatShapes[0]),
                                                std::make_shared<ov::op::v0::Parameter>(ngPrec, concatShapes[1])};
         const auto concatOutputNodes = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(concatInputParams));
-        const auto concat = builder::makeConcat(concatOutputNodes, 2);
+        const auto concat = std::make_shared<ov::op::v0::Concat>(concatOutputNodes, 2);
 
         const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(split->output(0), concat, false, false);
 
@@ -51,7 +51,7 @@ protected:
 
         const auto matMul2 = std::make_shared<ov::op::v0::MatMul>(split->output(1), matmulInputParams[0], false, false);
 
-        const auto concatMatMuls = builder::makeConcat({matMul1, matMul2}, 2 /* 3rd axis */);
+        const auto concatMatMuls = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{matMul1, matMul2}, 2 /* 3rd axis */);
 
         ngraph::ParameterVector inputParams = {splitInputParams[0], concatInputParams[0], concatInputParams[1], matmulInputParams[0]};
         function = makeNgraphFunction(ngPrec, inputParams, concatMatMuls, "MatmulStridedInputsOutputs");
