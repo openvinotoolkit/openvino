@@ -94,7 +94,7 @@ def test_init_with_array(src_dtype, dst_dtype, shared_flag, data_getter):
     assert np.all(tuple(ov_const.shape) == data.shape)
     # Additionally check if Constant type matches dst_type if ov.Type was passed:
     if isinstance(dst_dtype, Type):
-            assert ov_const.get_element_type() == dst_dtype
+        assert ov_const.get_element_type() == dst_dtype
     # Convert to dtype if OpenVINO Type
     _dst_dtype = dst_dtype.to_dtype() if isinstance(dst_dtype, Type) else dst_dtype
     assert ov_const.get_element_type().to_dtype() == _dst_dtype
@@ -189,7 +189,7 @@ def test_init_with_scalar(init_value, src_dtype, dst_dtype, shared_flag, data_ge
     assert np.all(list(ov_const.shape) == [])
     # Additionally check if Constant type matches dst_type if ov.Type was passed:
     if isinstance(dst_dtype, Type):
-            assert ov_const.get_element_type() == dst_dtype
+        assert ov_const.get_element_type() == dst_dtype
     # Convert to dtype if OpenVINO Type
     _dst_dtype = dst_dtype.to_dtype() if isinstance(dst_dtype, Type) else dst_dtype
     assert ov_const.get_element_type().to_dtype() == _dst_dtype
@@ -287,11 +287,9 @@ def test_constant_packing(shape, low, high, ov_type, src_dtype, shared_flag, dat
     data = np.random.uniform(low, high, shape).astype(src_dtype)
 
     # Allocate memory first:
-    ov_const = ops.constant(
-                    np.zeros(shape=data.shape, dtype=src_dtype),
-                    dtype=ov_type,
-                    shared_memory=shared_flag,
-               )
+    ov_const = ops.constant(np.zeros(shape=data.shape, dtype=src_dtype),
+                            dtype=ov_type,
+                            shared_memory=shared_flag)
     # Fill data with packed values
     packed_data = pack_data(data, ov_const.get_element_type())
     ov_const.data[:] = packed_data
@@ -357,4 +355,4 @@ def test_raise_for_packed_types(ov_type, src_dtype):
     with pytest.raises(RuntimeError) as err:
         _ = ops.constant(data, dtype=ov_type)
 
-    assert "All values must be equal to 0 to initialize Constant with type of" in str(err.value) 
+    assert "All values must be equal to 0 to initialize Constant with type of" in str(err.value)
