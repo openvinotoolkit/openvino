@@ -16,62 +16,66 @@ namespace Multinomial {
 const int GLOBAL_SEED = 1;
 const int OP_SEED = 2;
 
-const std::vector<float> probs_4x4_f32 = {0.00001f,
-                                          0.001f,
-                                          0.1f,
-                                          10.0f,
-                                          0.001f,
-                                          0.00001f,
-                                          10.0f,
-                                          0.1f,
-                                          0.1f,
-                                          10.0f,
-                                          0.00001f,
-                                          0.001f,
-                                          10.0f,
-                                          0.1f,
-                                          0.001f,
-                                          0.00001f};
+std::vector<float> probs_4x4_f32 = {0.00001f,
+                                    0.001f,
+                                    0.1f,
+                                    10.0f,
+                                    0.001f,
+                                    0.00001f,
+                                    10.0f,
+                                    0.1f,
+                                    0.1f,
+                                    10.0f,
+                                    0.00001f,
+                                    0.001f,
+                                    10.0f,
+                                    0.1f,
+                                    0.001f,
+                                    0.00001f};
 
-const std::vector<ov::float16> probs_2x3_f16 = {(ov::float16)0.001f,
-                                                (ov::float16)0.1f,
-                                                (ov::float16)10.0f,
-                                                (ov::float16)10.0f,
-                                                (ov::float16)0.001f,
-                                                (ov::float16)0.1f};
+std::vector<ov::float16> probs_2x3_f16 = {static_cast<ov::float16>(0.001f),
+                                          static_cast<ov::float16>(0.1f),
+                                          static_cast<ov::float16>(10.0f),
+                                          static_cast<ov::float16>(10.0f),
+                                          static_cast<ov::float16>(0.001f),
+                                          static_cast<ov::float16>(0.1f)};
 
-const std::vector<ov::bfloat16> probs_1x3_bf16 = {(ov::bfloat16)0.001f, (ov::bfloat16)0.1f, (ov::bfloat16)10.0f};
+std::vector<ov::bfloat16> probs_1x3_bf16 = {static_cast<ov::bfloat16>(0.001f),
+                                            static_cast<ov::bfloat16>(0.1f),
+                                            static_cast<ov::bfloat16>(10.0f)};
 
-const std::vector<float> probs_4x4_f32_log =
+std::vector<float> probs_4x4_f32_log =
     {3.0f, 6.0f, 10.0f, 0.0f, 3.0f, 0.0f, 10.0f, 6.0f, 6.0f, 10.0f, 0.0f, 3.0f, 10.0f, 6.0f, 3.0f, 0.0f};
 
-const std::vector<ov::float16> probs_2x3_f16_log = {(ov::float16)3.0f,
-                                                    (ov::float16)6.0f,
-                                                    (ov::float16)10.0f,
-                                                    (ov::float16)10.0f,
-                                                    (ov::float16)3.0f,
-                                                    (ov::float16)6.0f};
+std::vector<ov::float16> probs_2x3_f16_log = {static_cast<ov::float16>(3.0f),
+                                              static_cast<ov::float16>(6.0f),
+                                              static_cast<ov::float16>(10.0f),
+                                              static_cast<ov::float16>(10.0f),
+                                              static_cast<ov::float16>(3.0f),
+                                              static_cast<ov::float16>(6.0f)};
 
-const std::vector<ov::bfloat16> probs_1x3_bf16_log = {(ov::bfloat16)3.0f, (ov::bfloat16)6.0f, (ov::bfloat16)10.0f};
+std::vector<ov::bfloat16> probs_1x3_bf16_log = {static_cast<ov::bfloat16>(3.0f),
+                                                static_cast<ov::bfloat16>(6.0f),
+                                                static_cast<ov::bfloat16>(10.0f)};
 
-const std::vector<int> num_samples_scalar_i32 = {1};
-const std::vector<int64_t> num_samples_1x1_i64 = {2};
-const std::vector<int64_t> num_samples_scalar_i64 = {3};
+std::vector<int> num_samples_scalar_i32 = {1};
+std::vector<int64_t> num_samples_1x1_i64 = {2};
+std::vector<int64_t> num_samples_scalar_i64 = {3};
 
 const std::vector<ov::Tensor> probs = {
-    ov::Tensor(ov::element::f32, {4, 4}, const_cast<void*>(reinterpret_cast<const void*>(probs_4x4_f32.data()))),
-    ov::Tensor(ov::element::f16, {2, 3}, const_cast<void*>(reinterpret_cast<const void*>(probs_2x3_f16.data()))),
-    ov::Tensor(ov::element::bf16, {1, 3}, const_cast<void*>(reinterpret_cast<const void*>(probs_1x3_bf16.data())))};
+    ov::Tensor(ov::element::f32, {4, 4}, static_cast<void*>(probs_4x4_f32.data())),
+    ov::Tensor(ov::element::f16, {2, 3}, static_cast<void*>(probs_2x3_f16.data())),
+    ov::Tensor(ov::element::bf16, {1, 3}, static_cast<void*>(probs_1x3_bf16.data()))};
 
 const std::vector<ov::Tensor> probs_log = {
-    ov::Tensor(ov::element::f32, {4, 4}, const_cast<void*>(reinterpret_cast<const void*>(probs_4x4_f32_log.data()))),
-    ov::Tensor(ov::element::f16, {2, 3}, const_cast<void*>(reinterpret_cast<const void*>(probs_2x3_f16_log.data()))),
-    ov::Tensor(ov::element::bf16, {1, 3}, const_cast<void*>(reinterpret_cast<const void*>(probs_1x3_bf16_log.data())))};
+    ov::Tensor(ov::element::f32, {4, 4}, static_cast<void*>(probs_4x4_f32_log.data())),
+    ov::Tensor(ov::element::f16, {2, 3}, static_cast<void*>(probs_2x3_f16_log.data())),
+    ov::Tensor(ov::element::bf16, {1, 3}, static_cast<void*>(probs_1x3_bf16_log.data()))};
 
 const std::vector<ov::Tensor> num_samples = {
-    ov::Tensor(ov::element::i32, {}, const_cast<void*>(reinterpret_cast<const void*>(num_samples_scalar_i32.data()))),
-    ov::Tensor(ov::element::i64, {1}, const_cast<void*>(reinterpret_cast<const void*>(num_samples_1x1_i64.data()))),
-    ov::Tensor(ov::element::i64, {}, const_cast<void*>(reinterpret_cast<const void*>(num_samples_scalar_i64.data())))};
+    ov::Tensor(ov::element::i32, {}, static_cast<void*>(num_samples_scalar_i32.data())),
+    ov::Tensor(ov::element::i64, {1}, static_cast<void*>(num_samples_1x1_i64.data())),
+    ov::Tensor(ov::element::i64, {}, static_cast<void*>(num_samples_scalar_i64.data()))};
 
 const std::vector<ov::test::ElementType> convert_type = {ov::test::ElementType::i32, ov::test::ElementType::i64};
 

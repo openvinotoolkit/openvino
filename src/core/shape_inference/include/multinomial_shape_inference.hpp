@@ -33,18 +33,17 @@ std::vector<TRShape> shape_infer(const Multinomial* op,
     auto& result_shape = output_shapes[0];
     const auto input_rank_static = input_shape.rank().is_static();
     if (input_rank_static) {
+        result_shape.push_back(input_shape[0]);
         const auto& num_samples = get_input_const_data_as_shape<TRShape>(op, 1, ta);
         if (num_samples) {
             NODE_VALIDATION_CHECK(op,
                                   (*num_samples)[0].get_min_length() >= 0,
                                   "Number of samples must be non-negative. Got number of samples: ",
                                   (*num_samples)[0].get_min_length());
-            result_shape = *num_samples;
+            result_shape.push_back((*num_samples)[0]);
         } else {
-            result_shape = ov::PartialShape::dynamic(1);
+            result_shape.push_back(ov::Dimension::dynamic());
         }
-        result_shape.insert(result_shape.begin(), input_shape[0]);
-
     } else {
         result_shape = ov::PartialShape::dynamic();
     }

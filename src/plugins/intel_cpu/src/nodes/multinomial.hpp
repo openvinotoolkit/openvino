@@ -109,7 +109,16 @@ private:
         }
 
         // TODO RandomUniform - should use RandomUniform kernel to match other frameworks' seed results
-        std::mt19937 gen(m_op_seed);
+        uint64_t seed;
+        if (m_global_seed == 0 && m_op_seed == 0) {
+            seed = std::time(NULL);
+        } else {
+            std::srand(m_global_seed);
+            std::srand(m_op_seed + std::rand());
+            seed = std::rand();
+        }
+
+        std::mt19937 gen(seed);
         std::uniform_real_distribution<float> dist(0.0f, 1.0f);
         for (size_t idx = 0lu; idx < m_output_elements_count; ++idx) {
             m_random_samples[idx] = static_cast<P>(dist(gen));
