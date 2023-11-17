@@ -28,7 +28,7 @@ public:
     bool canFuse(const NodePtr& node) const override;
     bool created() const override;
 
-    InferenceEngine::Precision getRuntimePrecision() const override;
+    ov::element::Type getRuntimePrecision() const override;
     size_t descInputNumbers() override {
         return getOriginalInputsNumber();
     }

@@ -818,11 +818,11 @@ jobs:
           ${INSTALL_TEST_DIR}/ov_cpu_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUUnitTests.xml
 
-      - name: SubgraphsDumper tests
+      - name: ov_subgraphs_dumper_tests tests
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/subgraphsDumperTests --gtest_print_time=1 \
-                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-SubgraphsDumperTests.xml
+          ${INSTALL_TEST_DIR}/ov_subgraphs_dumper_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_subgraphs_dumper_tests.xml
 
       - name: Template OpImpl tests
         run: |
@@ -1435,6 +1435,7 @@ jobs:
         env:
           TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
+          USE_SYSTEM_CACHE: False
 
       - name: Available storage after tests
         run: |

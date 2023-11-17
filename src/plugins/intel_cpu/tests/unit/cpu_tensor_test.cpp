@@ -28,13 +28,13 @@ class MockBlockedMemoryDesc : public BlockedMemoryDesc {
 public:
     MockBlockedMemoryDesc(const Shape& _shape) : MemoryDesc(_shape, Blocked) {}
 
-    MOCK_METHOD(InferenceEngine::Precision, getPrecision, (), (const, override));
+    MOCK_METHOD(ov::element::Type, getPrecision, (), (const, override));
     MOCK_METHOD(MemoryDescPtr, clone, (), (const, override));
     MOCK_METHOD(size_t, getOffsetPadding, (), (const, override));
 
     MOCK_METHOD(MemoryDescPtr, cloneWithNewDimsImp, (const VectorDims&), (const, override));
 
-    MOCK_METHOD(MemoryDescPtr, cloneWithNewPrecision, (const InferenceEngine::Precision), (const, override));
+    MOCK_METHOD(MemoryDescPtr, cloneWithNewPrecision, (const ov::element::Type), (const, override));
     MOCK_METHOD(bool, isCompatible, (const MemoryDesc&), (const, override));
 
     MOCK_METHOD(bool, hasLayoutType, (LayoutType), (const, override));
@@ -49,7 +49,7 @@ public:
     MOCK_METHOD(size_t, getPaddedElementsCount, (), (const, override));
     MOCK_METHOD(bool, isCompatible, (const BlockedMemoryDesc &, CmpMask), (const, override));
 
-    MOCK_METHOD(void, setPrecision, (InferenceEngine::Precision), (override));
+    MOCK_METHOD(void, setPrecision, (ov::element::Type), (override));
 
     MOCK_METHOD(size_t, getCurrentMemSizeImp, (), (const, override));
 
@@ -97,10 +97,10 @@ static ov::Strides byte_strides(const ov::Strides& strides, const ov::element::T
 }
 
 // helper to create Memory of ncsp layout.
-inline MemoryDescPtr create_memdesc(Precision prec, const Shape& shape, const VectorDims& strides = {}) {
+inline MemoryDescPtr create_memdesc(ov::element::Type prec, const Shape& shape, const VectorDims& strides = {}) {
     ov::Shape ov_shape = shape.toPartialShape().to_shape();
     const std::size_t totalSize = ov::shape_size(ov_shape);
-    auto elem_type = InferenceEngine::details::convertPrecision(prec);
+    auto elem_type = prec;
 
     auto memdesc = std::make_shared<MockBlockedMemoryDesc>(shape);
     ::testing::Mock::AllowLeak(memdesc.get());
@@ -159,7 +159,7 @@ TEST_F(CPUTensorTest, canCreateTensor) {
     const std::size_t totalSize = ov::shape_size(ov_shape);
     ov::element::Type elem_type = ov::element::f32;
 
-    auto memptr = create_memory(create_memdesc(Precision::FP32, shape, strides));
+    auto memptr = create_memory(create_memdesc(ov::element::f32, shape, strides));
     {
         std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
         ASSERT_EQ(totalSize, t->get_size());
@@ -178,7 +178,7 @@ TEST_F(CPUTensorTest, canAccessF16Tensor) {
     Shape shape = {4, 3, 2};
     auto strides = ov::Strides({6, 2, 1});
 
-    auto memptr = create_memory(create_memdesc(Precision::FP16, shape, strides));
+    auto memptr = create_memory(create_memdesc(ov::element::f16, shape, strides));
     {
         std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
         EXPECT_NE(nullptr, t->data());
@@ -196,14 +196,14 @@ TEST_F(CPUTensorTest, canSetShape) {
     const Shape origShape = {1, 2, 3};
     const ov::Shape ov_origShape = origShape.toPartialShape().to_shape();
     auto strides = ov::Strides({6, 3, 1});
-    auto memdesc = create_memdesc(Precision::FP32, origShape, strides);
+    auto memdesc = create_memdesc(ov::element::f32, origShape, strides);
     auto memptr = create_memory(memdesc);
     std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
 
     const Shape newShape({4, 5, 6});
     const ov::Shape ov_newShape = newShape.toPartialShape().to_shape();
     auto new_strides = ov::Strides{30, 6, 1};
-    auto new_memdesc = create_memdesc(Precision::FP32, newShape, new_strides);
+    auto new_memdesc = create_memdesc(ov::element::f32, newShape, new_strides);
 
     // set_shape to a bigger memory
     {
@@ -233,7 +233,7 @@ TEST_F(CPUTensorTest, canSyncMemoryAndTensor) {
     const Shape origShape = {1, 2, 3};
     const ov::Shape ov_origShape = origShape.toPartialShape().to_shape();
     auto strides = ov::Strides({6, 3, 1});
-    auto memdesc = create_memdesc(Precision::FP32, origShape, strides);
+    auto memdesc = create_memdesc(ov::element::f32, origShape, strides);
     auto memptr = create_memory(memdesc);
     std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
 
@@ -243,7 +243,7 @@ TEST_F(CPUTensorTest, canSyncMemoryAndTensor) {
     const Shape newShape({4, 5, 6});
     const ov::Shape ov_newShape = newShape.toPartialShape().to_shape();
     auto new_strides = ov::Strides{30, 6, 1};
-    auto new_memdesc = create_memdesc(Precision::FP32, newShape, new_strides);
+    auto new_memdesc = create_memdesc(ov::element::f32, newShape, new_strides);
 
     // reallocate memory out boundary of tensor instance
     {

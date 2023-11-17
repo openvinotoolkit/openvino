@@ -55,10 +55,10 @@ protected:
         if (rank == 3) bcastTo3D(fcWeightsShape);
 
         auto fc1secondInput = builder::makeInputLayer(ngPrec, helpers::InputLayerType::CONSTANT, fcWeightsShape);
-        const auto fc1 = builder::makeMatMul(split->output(0), fc1secondInput, false, false);
+        const auto fc1 = std::make_shared<ov::op::v0::MatMul>(split->output(0), fc1secondInput, false, false);
 
         auto fc2secondInputB = builder::makeInputLayer(ngPrec, helpers::InputLayerType::CONSTANT, fcWeightsShape);
-        const auto fc2 = builder::makeMatMul(split->output(1), fc2secondInputB, false, false);
+        const auto fc2 = std::make_shared<ov::op::v0::MatMul>(split->output(1), fc2secondInputB, false, false);
 
         const auto fcConcatAxis = rank == 3 ? 1 : 0;
         const auto concatMatMuls = builder::makeConcat({fc1, fc2}, fcConcatAxis);

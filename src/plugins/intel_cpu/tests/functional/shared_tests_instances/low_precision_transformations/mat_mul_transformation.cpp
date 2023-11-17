@@ -22,7 +22,7 @@ std::vector<MatMulTransformationTestValues> testValues = {
         { 1, 4, 2, 12 },
         { 256ul, ngraph::Shape({}), {-12.8f}, {12.7f}, {-12.8f}, {12.7f} },
         "matMul_original",
-        "U8"
+        "u8"
     },
     {
         { 8, 4, 12, 2 },
@@ -30,7 +30,7 @@ std::vector<MatMulTransformationTestValues> testValues = {
         { 8, 4, 2, 12 },
         { 256ul, ngraph::Shape({}), {-12.8f}, {12.7f}, {-12.8f}, {12.7f} },
         "matMul_original",
-        "U8"
+        "u8"
     },
     {
         { 1, 4, 12, 2 },
@@ -38,7 +38,7 @@ std::vector<MatMulTransformationTestValues> testValues = {
         { 1, 4, 2, 12 },
         { 256ul, ngraph::Shape({}), {-12.8f}, {12.7f}, {-12.8f}, {12.7f} },
         "matMul_original",
-        "I8"
+        "i8"
     },
     {
         { 1, 1, 1, 4, 12, 2 },
@@ -46,7 +46,7 @@ std::vector<MatMulTransformationTestValues> testValues = {
         { 1, 1, 1, 4, 2, 12 },
         { 256ul, ngraph::Shape({}), {-12.8f}, {12.7f}, {-12.8f}, {12.7f} },
         "matMul_original",
-        "I8"
+        "i8"
     },
     {
         { 12 },
@@ -54,7 +54,7 @@ std::vector<MatMulTransformationTestValues> testValues = {
         { 12 },
         { 256ul, ngraph::Shape({}), {-12.8f}, {12.7f}, {-12.8f}, {12.7f} },
         "matMul_original/MM",
-        "I8"
+        "i8"
     }
 };
 

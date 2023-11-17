@@ -5,7 +5,6 @@
 #pragma once
 
 #include "matchers/single_op/single_op.hpp"
-#include "cache/meta/input_info.hpp"
 
 namespace ov {
 namespace tools {

@@ -99,7 +99,7 @@ void test_loop_gpu_basic_no_concat(bool is_caching_test)
         input_layout("trip_count", trip_count_mem->get_layout()),
         input_layout("initial_condition", initial_condition_mem->get_layout()),
         mutable_data("num_iteration", num_iteration_mem),
-        loop("loop", { input_info("num_iteration"), input_info("input") }, body_program,
+        loop("loop", { input_info("num_iteration"), input_info("trip_count"), input_info("initial_condition"), input_info("input") }, body_program,
              "trip_count", "initial_condition", "num_iteration",
              input_primitive_maps, output_primitive_maps, back_edges, 8)
     );
@@ -201,7 +201,7 @@ void test_loop_gpu_basic_concat(bool is_caching_test)
         input_layout("trip_count", trip_count_mem->get_layout()),
         input_layout("initial_condition", initial_condition_mem->get_layout()),
         mutable_data("num_iteration", num_iteration_mem),
-        loop("loop", { input_info("num_iteration"), input_info("input") }, body_program,
+        loop("loop", { input_info("num_iteration"), input_info("trip_count"), input_info("initial_condition"), input_info("input") }, body_program,
              "trip_count", "initial_condition", "num_iteration",
              input_primitive_maps, output_primitive_maps, back_edges, trip_count)
     );
@@ -316,7 +316,7 @@ void test_loop_gpu_basic_concat_nested(bool is_caching_test)
         input_layout("trip_count", inner_trip_count_mem->get_layout()),
         input_layout("initial_condition", inner_initial_condition_mem->get_layout()),
         mutable_data("inner_num_iteration", inner_num_iteration_mem),
-        loop("inner_loop", { input_info("inner_num_iteration"), input_info("inner_input"), input_info("trip_count"), input_info("initial_condition") },
+        loop("inner_loop", { input_info("inner_num_iteration"), input_info("trip_count"), input_info("initial_condition"), input_info("inner_input") },
             inner_body_program, "trip_count", "initial_condition", "inner_num_iteration",
             inner_input_primitive_maps, inner_output_primitive_maps, inner_back_edges, inner_trip_count)
     );
@@ -342,9 +342,10 @@ void test_loop_gpu_basic_concat_nested(bool is_caching_test)
         mutable_data("num_iteration", num_iteration_mem),
         input_layout("inner_trip_count", inner_trip_count_mem->get_layout()),
         input_layout("inner_initial_condition", inner_initial_condition_mem->get_layout()),
-        loop("loop", { input_info("num_iteration"), input_info("input"), input_info("inner_trip_count"), input_info("inner_initial_condition") },
-            outer_body_program, "trip_count", "initial_condition", "num_iteration",
-            outer_input_primitive_maps, outer_output_primitive_maps, outer_back_edges, outer_trip_count)
+        loop("loop", { input_info("num_iteration"), input_info("trip_count"), input_info("initial_condition"),
+                        input_info("input"), input_info("inner_trip_count"), input_info("inner_initial_condition") },
+                        outer_body_program, "trip_count", "initial_condition", "num_iteration",
+                        outer_input_primitive_maps, outer_output_primitive_maps, outer_back_edges, outer_trip_count)
     );
 
     /////////////////////////////////
@@ -431,11 +432,11 @@ TEST(loop_gpu, basic_concat_nested_cached) {
     test_loop_gpu_basic_concat_nested<float>(true);
 }
 
-static void test_loop_gpu_wo_trip_count(bool is_caching_test) {
+static void test_loop_gpu_wo_trip_count(ov::PartialShape body_input_layout, bool is_caching_test = false) {
     auto& engine = get_test_engine();
 
     auto e_input_layout = cldnn::layout{ { 1, 1, 5, 4 }, data_types::f32, format::bfyx };
-    auto b_input_layout = cldnn::layout{ { 1, 1, 1, 4}, data_types::f32, format::bfyx };
+    auto b_input_layout = cldnn::layout{ body_input_layout, data_types::f32, format::bfyx };
     auto const_layout = cldnn::layout{ {}, data_types::i64, format::bfyx };
 
     auto e_input_mem = engine.allocate_memory(e_input_layout); // b,f,x,y
@@ -498,7 +499,7 @@ static void test_loop_gpu_wo_trip_count(bool is_caching_test) {
         input_layout("input", e_input_layout),
         input_layout(initial_condition_id, e_initial_condition_mem->get_layout()),
         mutable_data(actual_iteration_count_id, e_num_iteration_mem),
-        loop("loop", { input_info(actual_iteration_count_id), input_info("input") }, body_program,
+        loop("loop", { input_info(actual_iteration_count_id), input_info(initial_condition_id), input_info("input") }, body_program,
              trip_count_id, initial_condition_id, actual_iteration_count_id,
              input_primitive_maps, output_primitive_maps, back_edges,
              num_iterations, body_current_iteration_id, body_execution_condition_id, 2),
@@ -546,5 +547,9 @@ static void test_loop_gpu_wo_trip_count(bool is_caching_test) {
 }
 
 TEST(loop_gpu, support_dynamic_tensoriterator) {
-    test_loop_gpu_wo_trip_count(false);
+    test_loop_gpu_wo_trip_count({ 1, 1, 1, 4 });
+}
+
+TEST(loop_gpu, support_loop_w_dynamic_body_input) {
+    test_loop_gpu_wo_trip_count({ 1, -1, 1, 4 });
 }

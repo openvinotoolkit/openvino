@@ -31,13 +31,13 @@ CTCLoss::CTCLoss(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = std::string("CTCLoss layer with name '") + op->get_friendly_name() + "'";
 
     if (getOriginalInputsNumber() != 4 && getOriginalInputsNumber() != 5)
-        IE_THROW() << errorPrefix << " has invalid inputs number.";
+        OPENVINO_THROW(errorPrefix, " has invalid inputs number.");
 
     auto ctcLossOp = ov::as_type_ptr<const ov::op::v4::CTCLoss>(op);
     ctcMergeRepeated = ctcLossOp->get_ctc_merge_repeated();
@@ -51,12 +51,12 @@ void CTCLoss::initSupportedPrimitiveDescriptors() {
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
+    inDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
     for (size_t i = 1; i < inputShapes.size(); ++i)
-        inDataConf.emplace_back(LayoutType::ncsp, Precision::I32);
+        inDataConf.emplace_back(LayoutType::ncsp, ov::element::i32);
 
     addSupportedPrimDesc(inDataConf,
-                         {{LayoutType::ncsp, Precision::FP32}},
+                         {{LayoutType::ncsp, ov::element::f32}},
                          impl_desc_type::ref_any);
 }
 
@@ -162,7 +162,7 @@ void CTCLoss::execute(dnnl::stream strm) {
             if (!err.empty())
                 resErr += err + "\n";
         }
-        IE_THROW() << resErr;
+        OPENVINO_THROW(resErr);
     }
 
     const size_t TC = maxTime * classesNum;
