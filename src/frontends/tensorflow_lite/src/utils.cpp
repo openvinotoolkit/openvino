@@ -28,6 +28,37 @@ std::shared_ptr<ov::frontend::tensorflow_lite::QuantizationInfo> ov::frontend::t
     return quantization;
 }
 
+std::shared_ptr<ov::frontend::tensorflow_lite::SparsityInfo> ov::frontend::tensorflow_lite::get_sparsity(
+    const flatbuffers::Vector<int32_t>* tf_shape,
+    const tflite::SparsityParameters* tf_sparsity) {
+    if (tf_shape == nullptr)
+        return {};
+    if (tf_sparsity == nullptr)
+        return {};
+    auto sparsity = std::make_shared<ov::frontend::tensorflow_lite::SparsityInfo>();
+    sparsity->set_shape({tf_shape->begin(), tf_shape->end()});
+    if (tf_sparsity->traversal_order() != nullptr)
+        sparsity->set_traversal_order({tf_sparsity->traversal_order()->begin(), tf_sparsity->traversal_order()->end()});
+    if (tf_sparsity->block_map() != nullptr)
+        sparsity->set_block_map({tf_sparsity->block_map()->begin(), tf_sparsity->block_map()->end()});
+    if (tf_sparsity->dim_metadata() != nullptr) {
+        std::vector<uint16_t> dim_format = {};
+        std::vector<ov::frontend::tensorflow_lite::SparsityInfo::SparsityDataDesc> data_desc = {};
+        dim_format.reserve(tf_sparsity->dim_metadata()->size());
+        data_desc.reserve(tf_sparsity->dim_metadata()->size());
+        for (auto it = tf_sparsity->dim_metadata()->begin(); it != tf_sparsity->dim_metadata()->end(); ++it) {
+            dim_format.push_back(it->format());
+            data_desc.push_back({it->array_segments_type(),
+                                 it->array_segments(),
+                                 it->array_indices_type(),
+                                 it->array_indices()});
+        }
+        sparsity->set_dim_format(dim_format);
+        sparsity->set_data_desc(data_desc);
+    }
+    return sparsity;
+}
+
 ov::element::Type ov::frontend::tensorflow_lite::get_ov_type(const tflite::TensorType& tf_type) {
     static const std::map<tflite::TensorType, ov::element::Type> type_map{
         {tflite::TensorType_FLOAT32, element::f32},
