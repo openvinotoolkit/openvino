@@ -4,10 +4,10 @@
 
 #include "common_test_utils/node_builders/binary_convolution.hpp"
 
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/binary_convolution.hpp"
 #include "openvino/op/constant.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -50,6 +50,6 @@ std::shared_ptr<ov::Node> make_binary_convolution(const ov::Output<Node>& in,
         auto_pad);
     return conv;
 }
-} // namespace utils
-} // namespace test
-} // namespace ov
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

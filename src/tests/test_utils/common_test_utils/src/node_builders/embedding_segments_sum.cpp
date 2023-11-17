@@ -5,8 +5,8 @@
 #include "common_test_utils/node_builders/embedding_segments_sum.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "openvino/op/embedding_segments_sum.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/embedding_segments_sum.hpp"
 
 namespace ov {
 namespace test {
@@ -31,7 +31,7 @@ std::shared_ptr<ov::Node> make_embedding_segments_sum(const ov::element::Type& d
     if (with_default_index) {
         auto defIdxNode = std::make_shared<ov::op::v0::Constant>(indices_type, shape_0, default_index);
         if (with_weights) {
-            auto tensor = create_and_fill_tensor(data_type, ov::Shape{{indices.size()}});
+            auto tensor = create_and_fill_tensor(data_type, ov::Shape{indices.size()});
             auto weights_node = std::make_shared<ov::op::v0::Constant>(tensor);
 
             embBag = std::make_shared<ov::op::v3::EmbeddingSegmentsSum>(emb_table_node,
@@ -55,6 +55,6 @@ std::shared_ptr<ov::Node> make_embedding_segments_sum(const ov::element::Type& d
     }
     return embBag;
 }
-} // namespace utils
-} // namespace test
-} // namespace ov
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

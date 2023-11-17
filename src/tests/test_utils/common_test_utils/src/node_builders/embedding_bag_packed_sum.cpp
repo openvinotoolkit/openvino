@@ -5,8 +5,8 @@
 #include "common_test_utils/node_builders/embedding_bag_packed_sum.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "openvino/op/embeddingbag_packedsum.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/embeddingbag_packedsum.hpp"
 
 namespace ov {
 namespace test {
@@ -34,6 +34,6 @@ std::shared_ptr<ov::Node> make_embedding_bag_packed_sum(const ov::element::Type&
     }
     return embBag;
 }
-} // namespace utils
-} // namespace test
-} // namespace ov
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

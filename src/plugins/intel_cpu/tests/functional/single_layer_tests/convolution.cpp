@@ -203,8 +203,9 @@ protected:
         ov::ParameterVector inputParams;
         for (auto&& shape : inputDynamicShapes)
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape));
-            auto convolutionNode = ov::test::utils::make_convolution(inputParams[0], netType, kernel, stride, padBegin,
-                                                                     padEnd, dilation, padType, convOutChannels);
+
+        auto convolutionNode = ov::test::utils::make_convolution(inputParams[0], netType, kernel, stride, padBegin,
+                                                                 padEnd, dilation, padType, convOutChannels);
 
         function = makeNgraphFunction(netType, inputParams, convolutionNode, "Convolution");
     }

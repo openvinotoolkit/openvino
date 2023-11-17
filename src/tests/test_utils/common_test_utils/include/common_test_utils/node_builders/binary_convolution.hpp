@@ -17,6 +17,6 @@ std::shared_ptr<ov::Node> make_binary_convolution(const ov::Output<Node>& in,
                                                   size_t numOutChannels,
                                                   float padValue,
                                                   const std::vector<int8_t>& filterWeihgts = {});
-} // namespace utils
-} // namespace test
-} // namespace ov
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

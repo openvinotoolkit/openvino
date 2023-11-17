@@ -12,6 +12,6 @@ std::shared_ptr<ov::Node> make_embedding_bag_packed_sum(const ov::element::Type&
                                                         const ov::Output<Node>& emb_table_node,
                                                         const std::vector<std::vector<size_t>>& indices,
                                                         bool with_weights);
-} // namespace utils
-} // namespace test
-} // namespace ov
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

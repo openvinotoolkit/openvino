@@ -4,10 +4,10 @@
 
 #include "common_test_utils/node_builders/convolution_backprop_data.hpp"
 
-#include "openvino/op/add.hpp"
-#include "openvino/op/convolution.hpp"
-#include "openvino/op/constant.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
 
 namespace ov {
 namespace test {
@@ -158,7 +158,6 @@ std::shared_ptr<ov::Node> make_convolution_backprop_data(const ov::Output<Node>&
         return deconv;
     }
 }
-} // namespace utils
-} // namespace test
-} // namespace ov
-
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

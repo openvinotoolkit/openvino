@@ -165,6 +165,6 @@ std::shared_ptr<ov::Node> make_activation(const ov::ParameterVector& parameters,
         OPENVINO_THROW("It is impossible to create layer for this activation type with input as parameter");
     }
 }
-} // namespace utils
-} // namespace test
-} // namespace ov
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

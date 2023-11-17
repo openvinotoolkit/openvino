@@ -4,10 +4,10 @@
 
 #include "common_test_utils/node_builders/group_convolution.hpp"
 
-#include "openvino/op/add.hpp"
-#include "openvino/op/group_conv.hpp"
-#include "openvino/op/constant.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/group_conv.hpp"
 
 namespace ov {
 namespace test {
@@ -27,7 +27,8 @@ std::shared_ptr<ov::Node> make_group_convolution(const ov::Output<Node>& in,
                                                  const std::vector<float>& biases_weights) {
     auto shape = in.get_partial_shape();
     ov::Shape filter_weights_shape = {num_out_channels, static_cast<size_t>(shape[1].get_length())};
-    OPENVINO_ASSERT(!(filter_weights_shape[0] % num_groups || filter_weights_shape[1] % num_groups), "incorrected shape for GroupConvolution");
+    OPENVINO_ASSERT(!(filter_weights_shape[0] % num_groups || filter_weights_shape[1] % num_groups),
+                    "incorrected shape for GroupConvolution");
     filter_weights_shape[0] /= num_groups;
     filter_weights_shape[1] /= num_groups;
     filter_weights_shape.insert(filter_weights_shape.begin(), num_groups);
@@ -63,7 +64,8 @@ std::shared_ptr<ov::Node> make_group_convolution(const ov::Output<Node>& in,
                                                  const ov::op::PadType& auto_pad,
                                                  bool add_biases,
                                                  const std::vector<float>& biases_weights) {
-    auto conv = std::make_shared<ov::op::v1::GroupConvolution>(in, weights, strides, pads_begin, pads_end, dilations, auto_pad);
+    auto conv =
+        std::make_shared<ov::op::v1::GroupConvolution>(in, weights, strides, pads_begin, pads_end, dilations, auto_pad);
     if (add_biases) {
         std::shared_ptr<ov::op::v0::Constant> biases_weights_node;
         if (!biases_weights.empty()) {
@@ -79,6 +81,6 @@ std::shared_ptr<ov::Node> make_group_convolution(const ov::Output<Node>& in,
         return conv;
     }
 }
-} // namespace utils
-} // namespace test
-} // namespace ov
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

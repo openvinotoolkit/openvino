@@ -32,6 +32,6 @@ std::shared_ptr<ov::Node> make_convolution(const ov::Output<Node>& in_data,
                                            size_t numOutChannels,
                                            bool addBiases = false,
                                            const std::vector<float>& biasesWeights = {});
-} // namespace utils
-} // namespace test
-} // namespace ov
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

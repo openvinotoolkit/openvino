@@ -4,10 +4,10 @@
 
 #include "common_test_utils/node_builders/convolution.hpp"
 
-#include "openvino/op/add.hpp"
-#include "openvino/op/convolution.hpp"
-#include "openvino/op/constant.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
 
 namespace ov {
 namespace test {
@@ -46,7 +46,8 @@ std::shared_ptr<ov::Node> make_convolution(const ov::Output<Node>& in,
     if (add_biases) {
         std::shared_ptr<ov::op::v0::Constant> biases_weights_node;
         if (!biases_weights.empty()) {
-            biases_weights_node = std::make_shared<ov::op::v0::Constant>(type, ov::Shape{1, num_out_channels, 1, 1}, biases_weights);
+            biases_weights_node =
+                std::make_shared<ov::op::v0::Constant>(type, ov::Shape{1, num_out_channels, 1, 1}, biases_weights);
         } else {
             auto tensor = create_and_fill_tensor(type, ov::Shape{1, num_out_channels, 1, 1});
             biases_weights_node = std::make_shared<ov::op::v0::Constant>(tensor);
@@ -72,11 +73,18 @@ std::shared_ptr<ov::Node> make_convolution(const ov::Output<Node>& in_data,
                                            bool add_biases,
                                            const std::vector<float>& biases_weights) {
     auto shape = in_data.get_partial_shape();
-    auto conv = std::make_shared<ov::op::v1::Convolution>(in_data, in_weights, strides, pads_begin, pads_end, dilations, auto_pad);
+    auto conv = std::make_shared<ov::op::v1::Convolution>(in_data,
+                                                          in_weights,
+                                                          strides,
+                                                          pads_begin,
+                                                          pads_end,
+                                                          dilations,
+                                                          auto_pad);
     if (add_biases) {
         std::shared_ptr<ov::op::v0::Constant> biases_weights_node;
         if (!biases_weights.empty()) {
-            biases_weights_node = std::make_shared<ov::op::v0::Constant>(type, ov::Shape{1, num_out_channels, 1, 1}, biases_weights);
+            biases_weights_node =
+                std::make_shared<ov::op::v0::Constant>(type, ov::Shape{1, num_out_channels, 1, 1}, biases_weights);
         } else {
             auto tensor = create_and_fill_tensor(type, ov::Shape{1, num_out_channels, 1, 1});
             biases_weights_node = std::make_shared<ov::op::v0::Constant>(tensor);
@@ -88,6 +96,6 @@ std::shared_ptr<ov::Node> make_convolution(const ov::Output<Node>& in_data,
         return conv;
     }
 }
-} // namespace utils
-} // namespace test
-} // namespace ov
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

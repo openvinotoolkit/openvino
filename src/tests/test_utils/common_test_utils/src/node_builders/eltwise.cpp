@@ -5,18 +5,18 @@
 #include "common_test_utils/node_builders/eltwise.hpp"
 
 #include "openvino/op/add.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/multiply.hpp"
+#include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_not.hpp"
+#include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_xor.hpp"
 #include "openvino/op/divide.hpp"
-#include "openvino/op/squared_difference.hpp"
-#include "openvino/op/power.hpp"
+#include "openvino/op/erf.hpp"
 #include "openvino/op/floor_mod.hpp"
 #include "openvino/op/mod.hpp"
-#include "openvino/op/erf.hpp"
-#include "openvino/op/bitwise_and.hpp"
-#include "openvino/op/bitwise_or.hpp"
-#include "openvino/op/bitwise_not.hpp"
-#include "openvino/op/bitwise_xor.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/squared_difference.hpp"
+#include "openvino/op/subtract.hpp"
 
 namespace ov {
 namespace test {
@@ -56,6 +56,6 @@ std::shared_ptr<ov::Node> makeEltwise(const ov::Output<Node>& in0,
     }
     }
 }
-} // namespace utils
-} // namespace test
-} // namespace ov
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

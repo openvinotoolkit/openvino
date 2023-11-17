@@ -4,10 +4,10 @@
 
 #include "common_test_utils/node_builders/group_convolution_backprop_data.hpp"
 
-#include "openvino/op/add.hpp"
-#include "openvino/op/group_conv.hpp"
-#include "openvino/op/constant.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/group_conv.hpp"
 
 namespace ov {
 namespace test {
@@ -28,7 +28,8 @@ std::shared_ptr<ov::Node> make_group_convolution_backprop_data(const ov::Output<
                                                                const std::vector<float>& biases_weights) {
     auto shape = in.get_partial_shape();
     ov::Shape filter_weights_shape = {static_cast<size_t>(shape[1].get_length()), num_out_channels};
-    OPENVINO_ASSERT(!(filter_weights_shape[0] % num_groups || filter_weights_shape[1] % num_groups), "incorrected shape for GroupConvolution");
+    OPENVINO_ASSERT(!(filter_weights_shape[0] % num_groups || filter_weights_shape[1] % num_groups),
+                    "incorrected shape for GroupConvolution");
     filter_weights_shape[0] /= num_groups;
     filter_weights_shape[1] /= num_groups;
     filter_weights_shape.insert(filter_weights_shape.begin(), num_groups);
@@ -168,6 +169,6 @@ std::shared_ptr<ov::Node> make_group_convolution_backprop_data(const ov::Output<
         return deconv;
     }
 }
-} // namespace utils
-} // namespace test
-} // namespace ov
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

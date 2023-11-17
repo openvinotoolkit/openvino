@@ -49,6 +49,6 @@ std::shared_ptr<ov::Node> make_group_convolution_backprop_data(const ov::Output<
                                                                const std::vector<ptrdiff_t>& outputPadding = {},
                                                                const std::vector<float>& filterWeights = {},
                                                                const std::vector<float>& biasesWeights = {});
-} // namespace utils
-} // namespace test
-} // namespace ov
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

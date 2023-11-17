@@ -16,6 +16,6 @@ std::shared_ptr<ov::Node> make_embedding_segments_sum(const ov::element::Type& d
                                                       size_t default_index,
                                                       bool with_weights,
                                                       bool with_default_index);
-} // namespace utils
-} // namespace test
-} // namespace ov
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

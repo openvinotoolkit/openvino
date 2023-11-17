@@ -49,6 +49,6 @@ std::shared_ptr<ov::Node> make_convolution_backprop_data(const ov::Output<Node>&
                                                          const std::vector<float>& filterWeights = {},
                                                          const std::vector<float>& biasesWeights = {});
 
-} // namespace utils
-} // namespace test
-} // namespace ov
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

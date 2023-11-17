@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/node.hpp"
 #include "common_test_utils/test_enums.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace test {
@@ -16,6 +16,6 @@ std::shared_ptr<ov::Node> make_embedding_bag_offsets_sum(const element::Type& da
                                                          size_t default_index,
                                                          bool with_weights,
                                                          bool with_default_index);
-} // namespace utils
-} // namespace test
-} // namespace ov
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

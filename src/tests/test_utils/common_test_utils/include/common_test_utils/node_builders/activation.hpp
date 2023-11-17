@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/node.hpp"
 #include "common_test_utils/test_enums.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace test {
@@ -17,6 +17,6 @@ std::shared_ptr<ov::Node> make_activation(const ov::Output<Node>& in,
 std::shared_ptr<ov::Node> make_activation(const ov::ParameterVector& parameters,
                                           const element::Type& type,
                                           ov::test::utils::ActivationTypes activation_type);
-} // namespace utils
-} // namespace test
-} // namespace ov
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

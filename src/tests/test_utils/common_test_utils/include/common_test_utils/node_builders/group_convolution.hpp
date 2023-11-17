@@ -31,6 +31,6 @@ std::shared_ptr<ov::Node> make_group_convolution(const ov::Output<Node>& in,
                                                  const ov::op::PadType& autoPad,
                                                  bool addBiases = false,
                                                  const std::vector<float>& biasesWeights = {});
-} // namespace utils
-} // namespace test
-} // namespace ov
+}  // namespace utils
+}  // namespace test
+}  // namespace ov
