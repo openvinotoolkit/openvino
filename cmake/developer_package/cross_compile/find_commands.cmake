@@ -21,6 +21,8 @@ if(CMAKE_CROSSCOMPILING AND NOT (OV_ARCH STREQUAL OV_HOST_ARCH AND
         # ov_set_if_not_defined(CMAKE_FIND_ROOT_PATH "/usr")
     endif()
 
+    message(FATAL_ERROR "Cross-compilation")
+
     # controling CMAKE_FIND_ROOT_PATH usage
     ov_set_if_not_defined(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
     ov_set_if_not_defined(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
