@@ -17,6 +17,7 @@
 #include "reshape_inst.h"
 #include "reorder_inst.h"
 #include "eltwise_inst.h"
+#include "loop_inst.h"
 #include "deconvolution_inst.h"
 #include "shape_of_inst.h"
 #include "softmax_inst.h"
@@ -268,6 +269,13 @@ void primitive_inst::update_shape() {
 
     // We assume that tensor ranks are static, thus shape_of doesn't need to update anything even if input shape is dynamic
     if (_node->is_type<shape_of>() && !input_shape_changed) {
+        reset_shape_change();
+        return;
+    }
+
+    // if input shape is not changed, loop doesn't need to update anything.
+    // because actual output layout will be calculated after the end of body network execution.
+    if (_node->is_type<loop>() && !input_shape_changed) {
         reset_shape_change();
         return;
     }
