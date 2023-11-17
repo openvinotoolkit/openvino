@@ -11,10 +11,9 @@
 #include <utility>
 #include <vector>
 
-
 namespace ov {
 namespace reference {
-namespace fake_convert {
+namespace fake_convert_details {
 /// <summary>
 /// emulation of convertation fp16 value to bf8 1s-5e-2m format, Brain Float
 /// </summary>
@@ -33,8 +32,8 @@ void convertfp16_bf8(const T* const arg, T* out, size_t count, int exp_bits = 5,
     const auto lshift = 10 - (mbits - non_mant_bits);  // 10 - (8 - 6) == 8 ???
 
     const unsigned short mask_mant = (unsigned short)(0xffff << lshift);  // 1111111111111111 -> 1 11111 1100000000
-    constexpr unsigned short grs_bitmask = 0x00ff;                            // 0 00000 0011111111 - guard, round, sticky bits
-    constexpr unsigned short rne_tie = 0x0180;                                // 0 00000 0110000000
+    constexpr unsigned short grs_bitmask = 0x00ff;  // 0 00000 0011111111 - guard, round, sticky bits
+    constexpr unsigned short rne_tie = 0x0180;      // 0 00000 0110000000
 
     __half_t h;
     for (size_t i = 0; i < count; ++i) {
@@ -70,7 +69,6 @@ void convertfp16_bf8(const T* const arg, T* out, size_t count, int exp_bits = 5,
     }
 }
 
-
 /// <summary>
 /// emulation of convertation fp16 value to f8e4m3 1s-4e-3m format, Extended Hybrid Float
 /// </summary>
@@ -93,12 +91,12 @@ void convertfp16_f8e4m3_bias7(const T* arg,
         T f;
     } __half_t;
 
-    const auto non_mant_bits = exp_bits + 1; /* exponent + sign */         ///  6 - ?
-    const auto lshift = 10 - (mbits - non_mant_bits);                      /// 10 - (9 - 6) == 7 - ???
+    const auto non_mant_bits = exp_bits + 1; /* exponent + sign */        ///  6 - ?
+    const auto lshift = 10 - (mbits - non_mant_bits);                     /// 10 - (9 - 6) == 7 - ???
     const unsigned short rne_mask = 1;                                    /* round to nearest even mask */
     const unsigned short mask_mant = (unsigned short)(0xFFFF << lshift);  // 1111111111111111 -> 1 11111 1111000000
-    constexpr unsigned short grs_bitmask = 0x007F;                            /// 0 00000 0001111111
-    constexpr unsigned short rne_tie = 0x00C0;                                /// 0 00000 0011000000
+    constexpr unsigned short grs_bitmask = 0x007F;                        /// 0 00000 0001111111
+    constexpr unsigned short rne_tie = 0x00C0;                            /// 0 00000 0011000000
 
     __half_t h;
     for (size_t i = 0; i < count; ++i) {
@@ -158,85 +156,174 @@ void convertfp16_f8e4m3_bias7(const T* arg,
     }
 }
 
-
 template <typename T>
-void apply_per_channel_scale(ov::Tensor& data, const ov::Tensor& scale, const ov::Tensor& offset, bool invert = false) {
-    auto dataShape = data.get_shape();
-    auto scaleShape = scale.get_shape();
-    auto scaleSize = scale.get_size();
+void apply_scale_shift(T* out,
+                       const T* data,
+                       const T* scale,
+                       const T* shift,
+                       const Shape& data_shape,
+                       const Shape& scale_shape,
+                       const Shape& shift_shape,
+                       bool invert = false) {
+    OPENVINO_ASSERT(scale_shape == shift_shape, "Mismatch of `scale` and `shift` input shapes.");
+    const auto scale_size = shape_size(scale_shape);
+    const auto data_size = shape_size(data_shape);
 
-    T* dataPtr = static_cast<T*>(data.data());
-    T* scalePtr = static_cast<T*>(scale.data());
-    T* offsetPtr = static_cast<T*>(offset.data());
+    if (scale_size == 1) {  // per tensor scale, probably for activation
 
-    if (scaleSize == 1) {  // per tensor scale, probably for activation
-        auto dataSize = data.get_size();
-        T s = scalePtr[0];
-        T o = offsetPtr[0];
+        T s = scale[0];
+        T o = shift[0];
         if (invert) {
-            for (size_t j = 0; j < dataSize; j++) {
-                dataPtr[j] = (dataPtr[j] + o) / s;
+            for (size_t j = 0; j < data_size; j++) {
+                out[j] = (data[j] + o) / s;
             }
         } else {
-            for (size_t j = 0; j < dataSize; j++) {
-                dataPtr[j] = dataPtr[j] * s - o;  // o = quntized(o * s)
+            for (size_t j = 0; j < data_size; j++) {
+                out[j] = data[j] * s - o;  // o = quntized(o * s)
             }
         }
         return;
     }
 
-    if (scaleShape[0] == 1 && dataShape[1] == scaleShape[1]) {  // per channel scale for DW activations
+    if (scale_shape[0] == 1 && data_shape[1] == scale_shape[1]) {  // per channel scale for DW activations
         size_t step = 1;
-        for (size_t i = 2; i < dataShape.size(); i++) {  // <batch_size, out_channels, in_channels, H, W> or
-            step *= dataShape[i];
+        for (size_t i = 2; i < data_shape.size(); i++) {  // <batch_size, out_channels, in_channels, H, W> or
+            step *= data_shape[i];
         }
 
-        for (size_t bs = 0; bs < dataShape[0]; bs++) {
-            for (size_t i = 0; i < scaleSize; i++) {
-                float s = scalePtr[i];
-                float o = offsetPtr[i];
+        for (size_t bs = 0; bs < data_shape[0]; bs++) {
+            for (size_t i = 0; i < scale_size; i++) {
+                T s = scale[i];
+                T o = shift[i];
                 if (invert) {
                     for (size_t j = 0; j < step; j++) {
-                        dataPtr[j] = (dataPtr[j] + o) / s;
+                        out[j] = (data[j] + o) / s;
                     }
                 } else {
                     for (size_t j = 0; j < step; j++) {
-                        dataPtr[j] = dataPtr[j] * s - o;  // o = quntized(o * s)
+                        out[j] = data[j] * s - o;  // o = quntized(o * s)
                     }
                 }
-                dataPtr += step;
+                data += step;
+                out += step;
             }
         }
         return;
     }
 
-    OPENVINO_ASSERT(dataShape[0] == scaleSize, "Shape mismatch in scale ");
+    OPENVINO_ASSERT(data_shape[0] == scale_size, "Shape mismatch in scale ");
 
     // per channel scale for weights
     size_t step = 1;
-    for (size_t i = 1; i < dataShape.size(); i++) {
-        step *= dataShape[i];
+    for (size_t i = 1; i < data_shape.size(); i++) {
+        step *= data_shape[i];
     }
 
-    for (size_t i = 0; i < scaleSize; i++) {
-        T s = static_cast<T>(scalePtr[i]);
+    for (size_t i = 0; i < scale_size; i++) {
+        T s = static_cast<T>(scale[i]);
         if (invert) {
             for (size_t j = 0; j < step; j++) {
-                dataPtr[j] /= s;
+                out[j] /= s;
             }
         } else {
             for (size_t j = 0; j < step; j++) {
-                dataPtr[j] *= s;
+                out[j] *= s;
             }
         }
-        dataPtr += step;
+        data += step;
+        out += step;
     }
 }
+}  // namespace fake_convert_details
 
+template <typename T>
+bool apply_conversion(const T* data, T* out, size_t element_count, const std::string& destination_type) {
+    auto inPtr = reinterpret_cast<const unsigned short*>(data);
+    auto outPtr = reinterpret_cast<unsigned short*>(out);
+    if (destination_type == "f8e5m2") {
+        reference::fake_convert_details::convertfp16_bf8(inPtr, outPtr, element_count);
+    } else if (destination_type == "f8e4m3") {
+        reference::fake_convert_details::convertfp16_f8e4m3_bias7(inPtr, outPtr, element_count);
+    } else {
+        OPENVINO_THROW("Unsupported destination type.");
+    }
+    return true;
+}
 
-}  // namespace fake_convert
+template <typename T, typename std::enable_if<std::is_same<T, float16>::value, bool>::type = true>
+void fake_convert(const T* data,
+                  const T* scale,
+                  const T* shift,
+                  T* out,
+                  const Shape& data_shape,
+                  const Shape& scale_shape,
+                  const Shape& shift_shape,
+                  const std::string& destination_type) {
+    const size_t element_count = shape_size(data_shape);
+    reference::fake_convert_details::apply_scale_shift<float16>(out,
+                                                                data,
+                                                                scale,
+                                                                shift,
+                                                                data_shape,
+                                                                scale_shape,
+                                                                shift_shape,
+                                                                false);
+    apply_conversion(out, out, element_count, destination_type);
+    reference::fake_convert_details::apply_scale_shift<float16>(out,
+                                                                out,
+                                                                scale,
+                                                                shift,
+                                                                data_shape,
+                                                                scale_shape,
+                                                                shift_shape,
+                                                                true);
+}
 
+template <typename T, typename std::enable_if<!std::is_same<T, float16>::value, bool>::type = true>
+void fake_convert(const T* data,
+                  const T* scale,
+                  const T* shift,
+                  T* out,
+                  const Shape& data_shape,
+                  const Shape& scale_shape,
+                  const Shape& shift_shape,
+                  const std::string& destination_type) {
+    const size_t element_count = shape_size(data_shape);
+    reference::fake_convert_details::apply_scale_shift<T>(out,
+                                                          data,
+                                                          scale,
+                                                          shift,
+                                                          data_shape,
+                                                          scale_shape,
+                                                          shift_shape,
+                                                          false);
 
+    std::vector<ov::float16> tmp_fp16;
+    tmp_fp16.reserve(element_count);
+    reference::convert(out, tmp_fp16.data(), element_count);
+    apply_conversion(tmp_fp16.data(), tmp_fp16.data(), element_count, destination_type);
+    reference::convert(tmp_fp16.data(), out, element_count);
+
+    reference::fake_convert_details::apply_scale_shift<T>(out,
+                                                          out,
+                                                          scale,
+                                                          shift,
+                                                          data_shape,
+                                                          scale_shape,
+                                                          shift_shape,
+                                                          true);
+}
+
+template <typename T>
+void fake_convert(const T* data,
+                  const T* scale,
+                  T* out,
+                  const Shape& data_shape,
+                  const Shape& scale_shape,
+                  const std::string& destination_type) {
+    const auto shift = std::vector<T>(shape_size(scale_shape), 0.f);
+    fake_convert<T>(data, scale, shift.data(), out, data_shape, scale_shape, scale_shape, destination_type);
+}
 
 }  // namespace reference
 }  // namespace ov

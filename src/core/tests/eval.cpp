@@ -2670,7 +2670,7 @@ constexpr float MIN_F8E5M2 = 0.0000152587890625f;
 
 ///////////////////////////////////// FakeConvert f8e5m2
 
-TEST(eval, evaluate_fake_convert_f32_to_f8e4m3_scale_half_small) {
+TEST(eval, evaluate_fake_convert_f32_to_f8e4m3_scale_small) {
     using namespace testing;
     constexpr auto et = element::f32;
 
@@ -2700,7 +2700,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e4m3_scale_half_small) {
                 Pointwise(FloatEq(), std::vector<float>{0.001953125f, 0.0009765625f, 0.00048828125f}));
 }
 
-TEST(eval, evaluate_fake_convert_f32_to_f8e4m3_scale_false_small) {
+TEST(eval, evaluate_fake_convert_f32_to_f8e4m3_scale_1_small) {
     using namespace testing;
     constexpr auto et = element::f32;
 
@@ -2708,8 +2708,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e4m3_scale_false_small) {
 
     const auto data_shape = Shape{input_data.size()};
     auto data = make_shared<ov::op::v0::Parameter>(et, data_shape);
-    auto max_input_val = std::abs(*std::max_element(input_data.begin(), input_data.end()));
-    auto scale = op::v0::Constant::create(et, Shape{1}, {fp8::MAX_F8E4M3 / max_input_val});
+    auto scale = op::v0::Constant::create(et, Shape{1}, {1.f});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
     auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e4m3", false);
@@ -3242,7 +3241,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_scale_small) {
                 Pointwise(FloatEq(), std::vector<float>{1.52587890625e-05, 7.62939453125e-06, 3.814697265625e-06}));
 }
 
-TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_scale_false_small) {
+TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_scale_1_small) {
     using namespace testing;
     constexpr auto et = element::f32;
 
@@ -3250,8 +3249,8 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_scale_false_small) {
 
     const auto data_shape = Shape{input_data.size()};
     auto data = make_shared<ov::op::v0::Parameter>(et, data_shape);
-    auto max_input_val = std::abs(*std::max_element(input_data.begin(), input_data.end()));
-    auto scale = op::v0::Constant::create(et, Shape{1}, {fp8::MAX_F8E5M2 / max_input_val});
+
+    auto scale = op::v0::Constant::create(et, Shape{1}, {1.0f});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
     auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2", false);
@@ -3265,11 +3264,6 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_scale_false_small) {
 
     EXPECT_EQ(result.get_element_type(), et);
     EXPECT_EQ(result.get_shape(), data_shape);
-    // EXPECT_THAT(read_vector<float>(result),
-    //             Pointwise(FloatEq(),
-    //                       std::vector<float>{1.52587890625e-05,
-    //                                          7.62939453125e-06 /* ! smaller than fp8::MIN_F8E5M2
-    //                                          (1.52587890625e-05)*/, 0 /* Truncated to 0*/}));
 
     EXPECT_THAT(read_vector<float>(result), Pointwise(FloatEq(), std::vector<float>{1.52587890625e-05, 0.f, 0.f}));
 }
@@ -3282,7 +3276,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_small_scale_1) {
 
     const auto data_shape = Shape{input_data.size()};
     auto data = make_shared<ov::op::v0::Parameter>(et, data_shape);
-    auto max_input_val = std::abs(*std::max_element(input_data.begin(), input_data.end()));
+
     auto scale = op::v0::Constant::create(et, Shape{1}, {1.f});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
@@ -3297,11 +3291,6 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_small_scale_1) {
 
     EXPECT_EQ(result.get_element_type(), et);
     EXPECT_EQ(result.get_shape(), data_shape);
-    // EXPECT_THAT(read_vector<float>(result),
-    //             Pointwise(FloatEq(),
-    //                       std::vector<float>{1.52587890625e-05,
-    //                                          7.62939453125e-06 /* ! smaller than fp8::MIN_F8E5M2
-    //                                          (1.52587890625e-05)*/, 0 /* Truncated to 0*/}));
 
     EXPECT_THAT(read_vector<float>(result), Pointwise(FloatEq(), std::vector<float>{1.52587890625e-05, 0.f, 0.f}));
 }

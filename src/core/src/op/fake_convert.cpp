@@ -12,17 +12,40 @@
 namespace ov {
 namespace op {
 namespace v13 {
-namespace fake_convert {
+namespace fake_convert_details {
 static const std::vector<std::string>& get_valid_types() {
     static const std::vector<std::string> valid_types{"f8e4m3", "f8e5m2"};
     return valid_types;
 }
 
-// struct Evaluate : element::NoAction<bool> {
-//     using element::NoAction<bool>::visit;
-// };
+struct Evaluate : element::NoAction<bool> {
+    using element::NoAction<bool>::visit;
+    template <element::Type_t ET, class T = fundamental_type_for<ET>>
+    static result_type visit(ov::TensorVector& outputs,
+                             const ov::TensorVector& inputs,
+                             const std::string& destination_type) {
+        if (inputs.size() == 2) {  // Default shift
+            reference::fake_convert<T>(inputs[0].data<const T>(),
+                                       inputs[1].data<const T>(),
+                                       outputs[0].data<T>(),
+                                       inputs[0].get_shape(),
+                                       inputs[1].get_shape(),
+                                       destination_type);
+        } else {
+            reference::fake_convert<T>(inputs[0].data<const T>(),
+                                       inputs[1].data<const T>(),
+                                       inputs[2].data<const T>(),
+                                       outputs[0].data<T>(),
+                                       inputs[0].get_shape(),
+                                       inputs[1].get_shape(),
+                                       inputs[2].get_shape(),
+                                       destination_type);
+        }
+        return true;
+    }
+};
 
-}  // namespace fake_convert
+}  // namespace fake_convert_details
 FakeConvert::FakeConvert(const ov::Output<ov::Node>& arg,
                          const ov::Output<ov::Node>& scale,
                          const ov::Output<ov::Node>& shift,
@@ -68,26 +91,16 @@ bool FakeConvert::visit_attributes(ov::AttributeVisitor& visitor) {
 }
 
 void FakeConvert::validate_type() const {
-    const auto& valid_types = fake_convert::get_valid_types();
+    const auto& valid_types = fake_convert_details::get_valid_types();
     OPENVINO_ASSERT(std::find(valid_types.begin(), valid_types.end(), m_destination_type) != valid_types.end(),
                     "Bad format for f8 conversion type: " + m_destination_type);
 }
-
-// bool FakeConvert::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
-//     OV_OP_SCOPE(v13_FakeConvert_evaluate);
-//     OPENVINO_ASSERT(outputs.size() == 1);
-//     OPENVINO_ASSERT(inputs.size() == 3);
-
-//     const auto& data_shape = inputs[0].get_shape();
-//     outputs[0].set_shape(data_shape);
-
-//     return true;
-// }
 
 bool FakeConvert::has_evaluate() const {
     OV_OP_SCOPE(v13_FakeConvert_has_evaluate);
     switch (get_input_element_type(0)) {
     case element::f16:
+    case element::bf16:
     case element::f32:
         return true;
     default:
@@ -95,98 +108,22 @@ bool FakeConvert::has_evaluate() const {
     }
 }
 
-
-namespace convert_fp8 {
-namespace {
-void print_tensor(const ov::Tensor& t, std::string s) {
-    std::cout << "Tensor " << s << ": ";
-    auto shape = t.get_shape();
-    int len = shape_size(shape);
-
-    if (t.get_element_type() == ov::element::f16) {
-        auto ptr = static_cast<ov::float16*>(t.data());
-        for (int i = 0; i < len; i++) {
-            std::cout << ptr[i] << " ";
-        }
-    }
-    if (t.get_element_type() == ov::element::f32) {
-        auto ptr = static_cast<float*>(t.data());
-        for (int i = 0; i < len; i++) {
-            std::cout << ptr[i] << " ";
-        }
-    }
-    std::cout << std::endl;
-}
-
-
-template <typename ET>
-bool evaluate(ov::Tensor& arg, ov::Tensor& out, const std::string& destination_type) {
-    out.set_shape(arg.get_shape());
-    size_t element_count = shape_size(out.get_shape());
-
-    if ((ov::element::f16 != arg.get_element_type()) || ov::element::f16 != out.get_element_type()) {
-        std::cout << "Bad arg or out types: " << arg.get_element_type() << " " << out.get_element_type() << std::endl;
-        return false;
-    }
-
-    auto inPtr = static_cast<ET*>(arg.data());
-    auto outPtr = static_cast<ET*>(out.data());
-
-    if (destination_type == "f8e5m2") {
-        reference::fake_convert::convertfp16_bf8(inPtr, outPtr, element_count);
-    } else if (destination_type == "f8e4m3") {
-        reference::fake_convert::convertfp16_f8e4m3_bias7(inPtr, outPtr, element_count);
-    } else {
-        std::cout << "Bad destination_type: " << destination_type << std::endl;
-    }
-
-    return true;
-}
-}  // namespace
-}  // namespace convert_fp8
-
-
-
 bool FakeConvert::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
-    ov::TensorVector fp16;
+    OV_OP_SCOPE(v13_FakeConvert_evaluate);
 
-    OPENVINO_ASSERT(
-        (outputs[0].get_element_type() == ov::element::f32 && inputs[0].get_element_type() == ov::element::f32) ||
-            (outputs[0].get_element_type() == ov::element::f16 && inputs[0].get_element_type() == ov::element::f16),
-        "Wrong input or output type for FakeConvertFP::evaluate");
+    OPENVINO_ASSERT(outputs.size() == 1);
+    OPENVINO_ASSERT(inputs.size() == 2 || inputs.size() == 3);
 
     outputs[0].set_shape(inputs[0].get_shape());
-    const auto element_count = inputs[0].get_size();
 
-    if (inputs[0].get_element_type() == ov::element::f16) {
-        fp16.emplace_back(inputs[0]);
-        if (m_apply_scale) {
-            reference::fake_convert::apply_per_channel_scale<float16>(fp16[0], inputs[1], inputs[2]);
-        }
-        convert_fp8::evaluate<unsigned short>(fp16[0], outputs[0], m_destination_type);
-        if (m_apply_scale) {
-            reference::fake_convert::apply_per_channel_scale<float16>(outputs[0], inputs[1], inputs[2], true);
-        }
-    } else if (inputs[0].get_element_type() == ov::element::f32) {
-        fp16.emplace_back(ov::Tensor(ov::element::f16, inputs[0].get_shape()));
-        if (m_apply_scale) {
-            auto data_fp32 = ov::Tensor(ov::element::f32, inputs[0].get_shape());
-            inputs[0].copy_to(data_fp32);
-            reference::fake_convert::apply_per_channel_scale<float>(data_fp32, inputs[1], inputs[2]);
-            ov::reference::convert(data_fp32.data<float>(), fp16[0].data<ov::float16>(), element_count);
-        } else {
-            ov::reference::convert(inputs[0].data<float>(), fp16[0].data<ov::float16>(), element_count);
-        }
-        convert_fp8::evaluate<unsigned short>(fp16[0], fp16[0], m_destination_type);
-        ov::reference::convert(fp16[0].data<ov::float16>(), outputs[0].data<float>(), element_count);
-        if (m_apply_scale) {
-            reference::fake_convert::apply_per_channel_scale<float>(outputs[0], inputs[1], inputs[2], true);
-        }
-    }
+    using namespace ov::element;
+    return IfTypeOf<f16, f32, bf16>::apply<fake_convert_details::Evaluate>(inputs[0].get_element_type(),
+                                                                           outputs,
+                                                                           inputs,
+                                                                           get_destination_type());
 
     return true;
 }
-
 }  // namespace v13
 }  // namespace op
 }  // namespace ov
