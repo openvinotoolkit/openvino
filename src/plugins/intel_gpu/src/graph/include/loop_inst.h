@@ -88,12 +88,12 @@ public:
         auto params = parent::get_kernel_impl_params(in_layouts, out_layouts);
         params->inner_progs = { get_primitive()->body_program };
         // Set memory_deps using custom get_memory_deps to add current_iteration(mutable_data) into memory_deps
-        params->memory_deps = get_const_memory_deps();
+        params->memory_deps = get_memory_deps();
         return params;
     }
 
 private:
-    std::map<size_t, memory::ptr> get_const_memory_deps() const override;
+    std::map<size_t, memory::ptr> get_memory_deps() const;
 };
 
 using loop_node = typed_program_node<loop>;

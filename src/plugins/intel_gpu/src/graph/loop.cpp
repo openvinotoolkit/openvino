@@ -19,11 +19,10 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(loop)
 
-std::map<size_t, memory::ptr> loop_node::get_const_memory_deps() const {
-    auto memory_deps = program_node::get_const_memory_deps();
+std::map<size_t, memory::ptr> loop_node::get_memory_deps() const {
+    auto memory_deps = get_const_memory_deps();
     for (auto& i : get_shape_infer_dependencies()) {
         auto& dep = get_dependency(i);
-        auto dep_id = dep.id();
         if (memory_deps.count(i) > 0 || i >= get_dependencies().size()) {
             continue;
         }
