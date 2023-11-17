@@ -36,13 +36,12 @@ The tutorial consists from following steps:
 -  Install prerequisites
 -  Prepare input processor and tokenizer
 -  Download original model
--  Compress model weights to INT8 using NNCF
+-  Compress model weights to 4 and 8 bits using NNCF
 -  Convert model to OpenVINO Intermediate Representation (IR) format
 -  Prepare OpenVINO-based inference pipeline
 -  Run OpenVINO model
 
 **Table of contents:**
-
 
 -  `About model <#about-model>`__
 -  `Prerequisites <#prerequisites>`__
@@ -53,15 +52,14 @@ The tutorial consists from following steps:
 
    -  `Prepare helpers for model
       conversion <#prepare-helpers-for-model-conversion>`__
-   -  `Convert and Optimize
-      Model <#convert-and-optimize-model>`__
+   -  `Convert and Optimize Model <#convert-and-optimize-model>`__
 
-      -  `instantiate PyTorch
-         model <#instantiate-pytorch-model>`__
-      -  `Compress Model weights to INT8 using
-         NNCF <#compress-model-weights-to-int-using-nncf>`__
-      -  `Convert model to OpenVINO IR
-         format <#convert-model-to-openvino-ir-format>`__
+      -  `Instantiate PyTorch model
+          <#instantiate-pytorch-model>`__
+      -  `Compress Model weights to 4 and 8 bits using NNCF
+          <#compress-model-weights-to--and--bits-using-nncf>`__
+      -  `Convert model to OpenVINO IR format
+          <#convert-model-to-openvino-ir-format>`__
 
 -  `Prepare OpenVINO based inference
    pipeline <#prepare-openvino-based-inference-pipeline>`__
@@ -74,8 +72,10 @@ The tutorial consists from following steps:
 
 -  `Interactive demo <#interactive-demo>`__
 
-About model 
------------------------------------------------------
+About model
+-----------
+
+
 
 LLaVA connects pre-trained `CLIP
 ViT-L/14 <https://openai.com/research/clip>`__ visual encoder and large
@@ -104,8 +104,10 @@ web-page <https://llava-vl.github.io/>`__,
 `paper <https://arxiv.org/abs/2304.08485>`__ and
 `repo <https://github.com/haotian-liu/LLaVA>`__.
 
-Prerequisites 
--------------------------------------------------------
+Prerequisites
+-------------
+
+
 
 Install required dependencies
 
@@ -113,12 +115,8 @@ Install required dependencies
 
     import sys
     
-    if sys.platform == "linux":
-        %pip install -q "torch==2.1.0" "torchvision" "torchaudio" --index-url https://download.pytorch.org/whl/cpu
-    else:
-        %pip install -q "torch==2.1.0" "torchvision" "torchaudio"
-    
-    %pip install -q "openvino==2023.2.0.dev20230922" "nncf>=2.6.0"  "sentencepiece" "tokenizers>=0.12.1" "transformers>=4.31.0" "gradio"
+    %pip install -q "torch>=2.1.0" "torchvision" "torchaudio" --index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "openvino-nightly==2023.2.0.dev20231102" "git+https://github.com/openvinotoolkit/nncf.git@release_v270"  "sentencepiece" "tokenizers>=0.12.1" "transformers>=4.31.0,<4.35.0" "gradio" "einops"
 
 .. code:: ipython3
 
@@ -131,20 +129,10 @@ Install required dependencies
     
     sys.path.insert(0, str(repo_dir.resolve()))
 
-
-.. parsed-literal::
-
-    Cloning into 'LLaVA'...
-    remote: Enumerating objects: 1262, done.[K
-    remote: Counting objects: 100% (408/408), done.[K
-    remote: Compressing objects: 100% (127/127), done.[K
-    remote: Total 1262 (delta 343), reused 282 (delta 281), pack-reused 854[K
-    Receiving objects: 100% (1262/1262), 11.94 MiB | 8.90 MiB/s, done.
-    Resolving deltas: 100% (789/789), done.
+Build model tokenizer and image processor
+-----------------------------------------
 
 
-Build model tokenizer and image processor 
------------------------------------------------------------------------------------
 
 For starting work with model, we need understand how to prepare input
 data first. As it is already discussed before, LLaVA is multimodal model
@@ -167,15 +155,6 @@ instruction.
     config = AutoConfig.from_pretrained(model_id)
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     image_processor = CLIPImageProcessor.from_pretrained(config.mm_vision_tower)
-
-
-.. parsed-literal::
-
-    2023-10-04 09:48:12.750646: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-10-04 09:48:12.789652: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-10-04 09:48:13.494345: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
 
 .. code:: ipython3
 
@@ -200,8 +179,10 @@ instruction.
     else:
         context_len = 2048
 
-Build model and convert it to OpenVINO IR format 
-------------------------------------------------------------------------------------------
+Build model and convert it to OpenVINO IR format
+------------------------------------------------
+
+
 
 LLaVA is autoregressive transformer generative model, it means that each
 next model step depends from model output from previous step. The
@@ -235,12 +216,15 @@ every time you want to generate a new token seems wasteful. With the
 cache, the model saves the hidden state once it has been computed. The
 model only computes the one for the most recently generated output token
 at each time step, re-using the saved ones for hidden tokens. This
-reduces the generation complexity from O(n^3) to O(n^2) for a
-transformer model. More details about how it works can be found in this
+reduces the generation complexity from :math:`O(n^3)` to :math:`O(n^2)`
+for a transformer model. More details about how it works can be found in
+this
 `article <https://scale.com/blog/pytorch-improvements#Text%20Translation>`__.
 
-Prepare helpers for model conversion 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Prepare helpers for model conversion
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 The code below preparing function for converting LLaVA model to OpenVINO
 Intermediate Representation format. It splits model on parts described
@@ -259,6 +243,7 @@ on disk using ``ov.save_model``.
     import warnings
     import torch
     import openvino as ov
+    import nncf
     from typing import Optional, Tuple, List
     import torch.nn.functional as F
     
@@ -380,7 +365,9 @@ on disk using ``ov.save_model``.
         return ov_model
     
     
-    def convert_llava_mpt(pt_model: torch.nn.Module, model_path: Path):
+    def convert_llava_mpt(pt_model: torch.nn.Module, model_path: Path,
+                          image_encoder_wc_parameters: Optional[dict] = None,
+                          llava_wc_parameters: Optional[dict] = None):
         """
         LLaVA MPT model conversion function
     
@@ -403,11 +390,14 @@ on disk using ``ov.save_model``.
             ov_model = ov.convert_model(
                 model, example_input=torch.zeros((1, 3, 224, 224)), input=[(-1, 3, 224, 224)]
             )
+            if image_encoder_wc_parameters is not None:
+                print("Applying weight compression to image encoder")
+                ov_model = nncf.compress_weights(ov_model, **image_encoder_wc_parameters)
             ov.save_model(ov_model, image_encoder_path)
             cleanup_torchscript_cache()
             del ov_model
             gc.collect()
-            print("Image Encoder model successfuly converted")
+            print("Image Encoder model successfully converted")
     
         if not token_embedding_model_path.exists():
             model.forward = model.get_model().embed_tokens
@@ -418,10 +408,10 @@ on disk using ``ov.save_model``.
             cleanup_torchscript_cache()
             del ov_model
             gc.collect()
-            print("Token Embedding model successfuly converted")
+            print("Token Embedding model successfully converted")
     
         if first_stage_model_path.exists() and second_stage_model_path.exists():
-            print("LLaVA model successfuly converted")
+            print("LLaVA model successfully converted")
             del pt_model
             return
         model_wrap = ModelWrapper(model)
@@ -445,6 +435,9 @@ on disk using ``ov.save_model``.
                 model_wrap, example_input=example_input_first_stage
             )
             ov_model = postprocess_converted_model(ov_model, output_names=outputs)
+            if llava_wc_parameters is not None:
+                print("Applying weight compression to first stage LLava model")
+                ov_model = nncf.compress_weights(ov_model, **llava_wc_parameters)
             ov.save_model(ov_model, first_stage_model_path)
             cleanup_torchscript_cache()
             del ov_model
@@ -466,25 +459,38 @@ on disk using ``ov.save_model``.
                 output_names=outputs, 
                 dynamic_shapes=dynamic_shapes
             )
-    
-            ov.save_model(ov_model, ov_out_path / "llava_with_past.xml")
-            del ov_model
+            if llava_wc_parameters is not None:
+                print("Applying weight compression to second stage LLava model")
+                ov_model = nncf.compress_weights(ov_model, **llava_wc_parameters)
+            ov.save_model(ov_model, second_stage_model_path)
             cleanup_torchscript_cache()
-        print("LLaVA model successfuly converted")
+            del ov_model
+            gc.collect()
+        print("LLaVA model successfully converted")
         del model_wrap
         del pt_model
 
-Convert and Optimize Model 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. parsed-literal::
+
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, openvino
+
+
+Convert and Optimize Model
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Our model conversion and optimization consist of following steps: 1.
-Download original PyTorch model. 2. Compress model weights to INT8 using
-NNCF 3. Convert model to OpenVINO format and save it on disk.
+Download original PyTorch model. 2. Compress model weights using NNCF 3.
+Convert model to OpenVINO format and save it on disk.
 
 Let’s consider each step more deeply.
 
-instantiate PyTorch model 
+Instantiate PyTorch model 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 
 For creating PyTorch model we should use ``from_pretrained`` method of
 ``LlavaMPTForCausalLM`` model class. Model weights will be downloaded
@@ -492,8 +498,10 @@ from `HuggingFace hub <https://huggingface.co/models>`__ during first
 run. It may takes some time and requires at least 13 Gb free space on
 disk.
 
-Compress Model weights to INT8 using NNCF 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Compress Model weights to 4 and 8 bits using NNCF 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 
 For reducing memory consumption, weights compression optimization can be
 applied using `NNCF <https://github.com/openvinotoolkit/nncf>`__. Weight
@@ -510,37 +518,62 @@ can benefit from weight compression in the following ways:
    latency of the memory access when computing the operations with
    weights, for example, Linear layers.
 
-Currently, `Neural Network Compression Framework
-(NNCF) <https://github.com/openvinotoolkit/nncf>`__ provides 8-bit
-weight quantization as a compression method primarily designed to
-optimize LLMs. The main difference between weights compression and full
-model quantization (post-training quantization) is that activations
-remain floating-point in the case of weights compression which leads to
-a better accuracy. Weight compression for LLMs provides a solid
-inference performance improvement which is on par with the performance
-of the full model quantization. In addition, weight compression is
-data-free and does not require a calibration dataset, making it easy to
-use.
+`Neural Network Compression Framework
+(NNCF) <https://github.com/openvinotoolkit/nncf>`__ provides 4-bit /
+8-bit mixed weight quantization as a compression method primarily
+designed to optimize LLMs. The main difference between weights
+compression and full model quantization (post-training quantization) is
+that activations remain floating-point in the case of weights
+compression which leads to a better accuracy. Weight compression for
+LLMs provides a solid inference performance improvement which is on par
+with the performance of the full model quantization. In addition, weight
+compression is data-free and does not require a calibration dataset,
+making it easy to use.
 
 ``nncf.compress_weights`` function can be used for performing weights
-compression. It accepts PyTorch model that next can be converted to
-OpenVINO model using Model Conversion API or OpenVINO Model after
-conversion.
+compression. The function accepts an OpenVINO model and other
+compression parameters. Compared to INT8 compression, INT4 compression
+improves performance even more, but introduces a minor drop in
+prediction quality.
 
 More details about weights compression, can be found in `OpenVINO
 documentation <https://docs.openvino.ai/2023.1/weight_compression.html>`__.
 
+   **Note**: There is no speedup for INT4 compressed models on dGPU.
+
 Convert model to OpenVINO IR format 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 
 Convert model to OpenVINO format using conversion helper function
 defined above.
 
+Please select below whether you would like to run INT4 weight
+compression instead of INT8 weight compression.
+
 .. code:: ipython3
 
-    from nncf import compress_weights
+    import ipywidgets as widgets
     
-    compressed_model_dir = Path("llava-mpt/INT8_compressed_weights")
+    compression_mode = widgets.Dropdown(
+        options=['INT4', 'INT8'],
+        value='INT4',
+        description='Compression mode:',
+        disabled=False,
+    )
+    
+    compression_mode
+
+.. code:: ipython3
+
+    if compression_mode.value == 'INT4':
+        compressed_model_dir = Path("llava-mpt/INT4_compressed_weights")
+        llava_wc_parameters = dict(mode=nncf.CompressWeightsMode.INT4_ASYM, group_size=128, ratio=0.8)
+    else:
+        compressed_model_dir = Path("llava-mpt/INT8_compressed_weights")
+        llava_wc_parameters = dict(mode=nncf.CompressWeightsMode.INT8)
+    
     if not compressed_model_dir.exists():
         compressed_model_dir.mkdir(exist_ok=True, parents=True)
         config.save_pretrained(compressed_model_dir)
@@ -554,15 +587,15 @@ defined above.
     
         model.eval()
         with torch.no_grad():
-            model = compress_weights(model)
-            convert_llava_mpt(model, compressed_model_dir)
+            convert_llava_mpt(model, compressed_model_dir,
+                              image_encoder_wc_parameters=dict(mode=nncf.CompressWeightsMode.INT8),
+                              llava_wc_parameters=llava_wc_parameters)
         del model
-    gc.collect();
+        gc.collect();
 
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
     You are using config.init_device='cpu', but you can also use config.init_device="meta" with Composer + FSDP for fast initialization.
 
 
@@ -574,28 +607,170 @@ defined above.
 
 .. parsed-literal::
 
-    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda-11.7'
 
 
 .. parsed-literal::
 
-    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
+    Applying weight compression to image encoder
+    INFO:nncf:Statistics of the bitwidth distribution:
+    +--------------+------------------+--------------------+
+    | Num bits (N) |   % all weight   | % internal weights |
+    +==============+==================+====================+
+    | 8            | 100% (139 / 139) | 100% (137 / 137)   |
+    +--------------+------------------+--------------------+
+
 
 
 .. parsed-literal::
 
-    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
 
 
 .. parsed-literal::
 
-    Image Encoder model successfuly converted
-    Token Embedding model successfuly converted
-    LLaVA model successfuly converted
+    Image Encoder model successfully converted
+    Token Embedding model successfully converted
+    Applying weight compression to first stage LLava model
 
 
-Prepare OpenVINO based inference pipeline 
------------------------------------------------------------------------------------
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
+
+
+.. parsed-literal::
+
+    INFO:nncf:Statistics of the bitwidth distribution:
+    +--------------+----------------+--------------------+
+    | Num bits (N) |  % all weight  | % internal weights |
+    +==============+================+====================+
+    | 8            | 24% (39 / 129) | 21% (37 / 127)     |
+    +--------------+----------------+--------------------+
+    | 4            | 76% (90 / 129) | 79% (90 / 127)     |
+    +--------------+----------------+--------------------+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
+
+
+.. parsed-literal::
+
+    Applying weight compression to second stage LLava model
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
+
+
+.. parsed-literal::
+
+    INFO:nncf:Statistics of the bitwidth distribution:
+    +--------------+----------------+--------------------+
+    | Num bits (N) |  % all weight  | % internal weights |
+    +==============+================+====================+
+    | 8            | 24% (39 / 129) | 21% (37 / 127)     |
+    +--------------+----------------+--------------------+
+    | 4            | 76% (90 / 129) | 79% (90 / 127)     |
+    +--------------+----------------+--------------------+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
+
+
+
+.. parsed-literal::
+
+    LLaVA model successfully converted
+
+
+Prepare OpenVINO based inference pipeline
+-----------------------------------------
+
+
 
 ``OVLlavaMPTForCausalLM`` class provides ease-to-use interface for using
 model in generation scenario. It is based on
@@ -865,16 +1040,22 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                 for layer_past in past_key_values
             )
 
-Run model inference 
--------------------------------------------------------------
+Run model inference
+-------------------
+
+
 
 Now, when we have model and defined generation pipeline, we can run
 model inference.
 
-Select inference device 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Select inference device
+~~~~~~~~~~~~~~~~~~~~~~~
 
-select device from dropdown list for running inference using OpenVINO
+
+
+Select device from dropdown list for running inference using OpenVINO.
+
+   **Note**: There is no speedup for INT4 compressed models on dGPU.
 
 .. code:: ipython3
 
@@ -896,20 +1077,23 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=4, options=('CPU', 'GPU.0', 'GPU.1', 'GPU.2', 'AUTO'), value='AUTO')
 
 
 
-Load OpenVINO model 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Load OpenVINO model
+~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
-    compressed_model_dir = Path("llava-mpt/INT8_compressed_weights")
     ov_model = OVLlavaMPTForCausalLM(core, compressed_model_dir, device.value)
 
-Prepare input data 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Prepare input data
+~~~~~~~~~~~~~~~~~~
+
+
 
 For preparing input data, we will use tokenizer and image processor
 defined in the begging of our tutorial. For alignment with original
@@ -948,12 +1132,14 @@ PyTorch implementation we will use PyTorch tensors as input.
 
 
 
-.. image:: 257-llava-multimodal-chatbot-with-output_files/257-llava-multimodal-chatbot-with-output_19_1.png
+.. image:: 257-llava-multimodal-chatbot-with-output_files/257-llava-multimodal-chatbot-with-output_20_1.png
 
 
 
-Test model inference 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Test model inference
+~~~~~~~~~~~~~~~~~~~~
+
+
 
 Generation process for long response maybe time consuming, for accessing
 partial result as soon as it is generated without waiting when whole
@@ -1014,11 +1200,13 @@ accumulating history of provided messages and images.
 .. parsed-literal::
 
     Answer:
-    When visiting this location, I should be cautious about the water level, as the lake appears to be low. This could indicate that the water level might be low, which could pose a risk to people or boats. Additionally, I should be mindful of the wooden pier, as it might be slippery or unstable due to the water level, which could lead to accidents or injuries. It is essential to exercise caution while walking on the pier or near the water to ensure safety.
+    When visiting this location, you should be cautious about the water conditions and potential hazards. The image shows a wooden pier or boardwalk extending into the water, which could be slippery or unstable, especially if the water is shallow or has strong currents. It is essential to exercise caution when walking on the pier or boardwalk, especially if you are carrying luggage or have children with you. Additionally, the presence of a boat in the water suggests that there might be boat traffic or other water-related activities nearby, so it is crucial to be aware of your surroundings and maintain a safe distance from any watercraft to avoid accidents or collisions.
 
 
-Interactive demo 
-----------------------------------------------------------
+Interactive demo
+----------------
+
+
 
 .. code:: ipython3
 
@@ -1141,7 +1329,7 @@ Interactive demo
             history[-1][1] = partial_text
             yield history
     
-    with gr.Blocks(title="LLaVA", height=600) as demo:
+    with gr.Blocks(title="LLaVA") as demo:
         gr.Markdown(title_markdown)
     
         with gr.Row():
@@ -1203,4 +1391,5 @@ Interactive demo
 .. .. raw:: html
 
 ..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
 

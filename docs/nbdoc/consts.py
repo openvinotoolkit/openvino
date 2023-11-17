@@ -5,7 +5,7 @@ repo_directory = "notebooks"
 repo_owner = "openvinotoolkit"
 repo_name = "openvino_notebooks"
 repo_branch = "tree/main"
-artifacts_link = "http://repository.toolbox.iotg.sclab.intel.com/projects/ov-notebook/0.1.0-latest/20231030220807/dist/rst_files/"
+artifacts_link = "http://repository.toolbox.iotg.sclab.intel.com/projects/ov-notebook/0.1.0-latest/20231114220808/dist/rst_files/"
 blacklisted_extensions = ['.xml', '.bin']
 notebooks_repo = "https://github.com/openvinotoolkit/openvino_notebooks/blob/main/"
 notebooks_binder = "https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath="
