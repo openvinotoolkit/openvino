@@ -583,16 +583,29 @@ TensorWrapper SyncInferRequest::create_or_share_device_tensor(const TensorWrappe
                                                               const ov::PartialShape& port_pshape,
                                                               ov::element::Type element_type,
                                                               bool need_lockable_mem) const {
+    auto& engine = m_graph->get_engine();
     auto user_tensor = user_tensor_wrapper.ptr;
     auto tensor_shape = user_tensor->get_shape();
     bool is_dynamic = port_pshape.is_dynamic();
     OPENVINO_ASSERT(std::dynamic_pointer_cast<RemoteTensorImpl>(user_tensor) == nullptr, "[GPU] Unexpected remote tensor");
     auto usm_host_tensor = std::dynamic_pointer_cast<USMHostTensor>(user_tensor);
-    bool can_share = usm_host_tensor != nullptr && !is_convert_required(user_tensor->get_element_type(), element_type) &&
-                     can_use_usm_host(m_graph->get_engine());
 
-    if (can_share) {
+    // Note: currently, using USM Host memory for dGPUs in some scenarios (LLMs) leads to performance degradation,
+    // so apply wider USM Host memory type detection only for iGPUs
+    auto user_tensor_mem_type = engine.detect_usm_allocation_type(user_tensor->data());
+    auto usm_host_raw_ptr = engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu &&
+                            user_tensor_mem_type == cldnn::allocation_type::usm_host;
+
+    bool can_share = !is_convert_required(user_tensor->get_element_type(), element_type) && can_use_usm_host(engine);
+
+    if (usm_host_tensor && can_share) {
         return { usm_host_tensor->get_impl(), user_tensor_wrapper.owner };
+    } else if (usm_host_raw_ptr && can_share) {
+        return { std::make_shared<RemoteTensorImpl>(m_context,
+                                                    user_tensor->get_shape(),
+                                                    element_type,
+                                                    TensorType::BT_USM_SHARED,
+                                                    user_tensor->data()), TensorOwner::USER };
     }
 
     auto actual_memory_shape = tensor_shape;
@@ -762,7 +775,22 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
         is_remote = true;
     }
 
-    bool update_device_tensor = m_plugin_inputs.count(name) == 0 || (m_plugin_inputs[name].owner == TensorOwner::USER && !is_remote);
+    auto user_tensor_mem_type = cldnn::allocation_type::unknown;
+    if (!is_remote)
+        user_tensor_mem_type = engine.detect_usm_allocation_type(user_tensor_wrapper.ptr->data());
+
+    auto plugin_tensor_mem_type = cldnn::allocation_type::unknown;
+    if (m_plugin_inputs.count(name))
+        plugin_tensor_mem_type = std::dynamic_pointer_cast<RemoteTensorImpl>(m_plugin_inputs[name].ptr)->get_original_memory()->get_allocation_type();
+
+    // Note: currently, using USM Host memory for dGPUs in some scenarios (LLMs) leads to performance degradation,
+    // so apply wider USM Host memory type detection only for iGPUs
+    auto usm_host_raw_ptr = engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu &&
+                            user_tensor_mem_type == cldnn::allocation_type::usm_host;
+
+    bool update_device_tensor = (m_plugin_inputs.count(name) == 0) ||
+                                (m_plugin_inputs[name].owner == TensorOwner::USER && !is_remote) ||
+                                (plugin_tensor_mem_type != cldnn::allocation_type::usm_host && usm_host_raw_ptr);
 
     if (update_device_tensor) {
         // If device input hasn't been created, then try to use user memory if it's usm_host, or allocate new device buffer

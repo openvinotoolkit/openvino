@@ -58,18 +58,18 @@ void Bucketize::initSupportedPrimitiveDescriptors() {
 
     // check precisions for input and output tensors
     input_precision = getOriginalInputPrecisionAtPort(INPUT_TENSOR_PORT);
-    if (input_precision != Precision::FP32 && input_precision != Precision::I32 &&
-        input_precision != Precision::I64) {
-        input_precision = Precision::FP32;
+    if (input_precision != ov::element::f32 && input_precision != ov::element::i32 &&
+        input_precision != ov::element::i64) {
+        input_precision = ov::element::f32;
     }
     boundaries_precision = getOriginalInputPrecisionAtPort(INPUT_BINS_PORT);
-    if (boundaries_precision != Precision::FP32 && boundaries_precision != Precision::I32 &&
-        boundaries_precision != Precision::I64) {
-        boundaries_precision = Precision::FP32;
+    if (boundaries_precision != ov::element::f32 && boundaries_precision != ov::element::i32 &&
+        boundaries_precision != ov::element::i64) {
+        boundaries_precision = ov::element::f32;
     }
     output_precision = getOriginalOutputPrecisionAtPort(OUTPUT_TENSOR_PORT);
-    if (output_precision != Precision::I32 && output_precision != Precision::I64) {
-        output_precision = Precision::I32;
+    if (output_precision != ov::element::i32 && output_precision != ov::element::i64) {
+        output_precision = ov::element::i32;
     }
 
     addSupportedPrimDesc({{LayoutType::ncsp, input_precision},
@@ -78,99 +78,109 @@ void Bucketize::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
+inline constexpr uint32_t getElementsMask(ov::element::Type precision1,
+                                ov::element::Type precision2,
+                                ov::element::Type precision3 = ov::element::undefined,
+                                ov::element::Type precision4 = ov::element::undefined) {
+    return static_cast<uint32_t>(ov::element::Type_t(precision1)) |
+           (static_cast<uint32_t>(ov::element::Type_t(precision2)) << 8) |
+           (static_cast<uint32_t>(ov::element::Type_t(precision3)) << 16) |
+           (static_cast<uint32_t>(ov::element::Type_t(precision4)) << 24);
+}
+
 void Bucketize::execute(dnnl::stream strm) {
-    auto precision_mask = getPrecisionMask(input_precision, boundaries_precision, output_precision);
+    auto precision_mask = getElementsMask(input_precision, boundaries_precision, output_precision);
 
     switch (precision_mask) {
-        case getPrecisionMask(Precision::FP32, Precision::FP32, Precision::I32):
-            bucketize<PrecisionTrait<Precision::FP32>::value_type,
-                    PrecisionTrait<Precision::FP32>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type>();
+        case getElementsMask(ov::element::f32, ov::element::f32, ov::element::i32):
+            bucketize<element_type_traits<ov::element::f32>::value_type,
+                    element_type_traits<ov::element::f32>::value_type,
+                    element_type_traits<ov::element::i32>::value_type>();
             break;
-        case getPrecisionMask(Precision::FP32, Precision::FP32, Precision::I64):
-            bucketize<PrecisionTrait<Precision::FP32>::value_type,
-                    PrecisionTrait<Precision::FP32>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type>();
+        case getElementsMask(ov::element::f32, ov::element::f32, ov::element::i64):
+            bucketize<element_type_traits<ov::element::f32>::value_type,
+                    element_type_traits<ov::element::f32>::value_type,
+                    element_type_traits<ov::element::i64>::value_type>();
             break;
-        case getPrecisionMask(Precision::FP32, Precision::I32, Precision::I32):
-            bucketize<PrecisionTrait<Precision::FP32>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type>();
+        case getElementsMask(ov::element::f32, ov::element::i32, ov::element::i32):
+            bucketize<element_type_traits<ov::element::f32>::value_type,
+                    element_type_traits<ov::element::i32>::value_type,
+                    element_type_traits<ov::element::i32>::value_type>();
             break;
-        case getPrecisionMask(Precision::FP32, Precision::I32, Precision::I64):
-            bucketize<PrecisionTrait<Precision::FP32>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type>();
+        case getElementsMask(ov::element::f32, ov::element::i32, ov::element::i64):
+            bucketize<element_type_traits<ov::element::f32>::value_type,
+                    element_type_traits<ov::element::i32>::value_type,
+                    element_type_traits<ov::element::i64>::value_type>();
             break;
-        case getPrecisionMask(Precision::FP32, Precision::I64, Precision::I32):
-            bucketize<PrecisionTrait<Precision::FP32>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type>();
+        case getElementsMask(ov::element::f32, ov::element::i64, ov::element::i32):
+            bucketize<element_type_traits<ov::element::f32>::value_type,
+                    element_type_traits<ov::element::i64>::value_type,
+                    element_type_traits<ov::element::i32>::value_type>();
             break;
-        case getPrecisionMask(Precision::FP32, Precision::I64, Precision::I64):
-            bucketize<PrecisionTrait<Precision::FP32>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type>();
+        case getElementsMask(ov::element::f32, ov::element::i64, ov::element::i64):
+            bucketize<element_type_traits<ov::element::f32>::value_type,
+                    element_type_traits<ov::element::i64>::value_type,
+                    element_type_traits<ov::element::i64>::value_type>();
             break;
-        case getPrecisionMask(Precision::I32, Precision::FP32, Precision::I32):
-            bucketize<PrecisionTrait<Precision::I32>::value_type,
-                    PrecisionTrait<Precision::FP32>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type>();
+        case getElementsMask(ov::element::i32, ov::element::f32, ov::element::i32):
+            bucketize<element_type_traits<ov::element::i32>::value_type,
+                    element_type_traits<ov::element::f32>::value_type,
+                    element_type_traits<ov::element::i32>::value_type>();
             break;
-        case getPrecisionMask(Precision::I32, Precision::FP32, Precision::I64):
-            bucketize<PrecisionTrait<Precision::I32>::value_type,
-                    PrecisionTrait<Precision::FP32>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type>();
+        case getElementsMask(ov::element::i32, ov::element::f32, ov::element::i64):
+            bucketize<element_type_traits<ov::element::i32>::value_type,
+                    element_type_traits<ov::element::f32>::value_type,
+                    element_type_traits<ov::element::i64>::value_type>();
             break;
-        case getPrecisionMask(Precision::I32, Precision::I32, Precision::I32):
-            bucketize<PrecisionTrait<Precision::I32>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type>();
+        case getElementsMask(ov::element::i32, ov::element::i32, ov::element::i32):
+            bucketize<element_type_traits<ov::element::i32>::value_type,
+                    element_type_traits<ov::element::i32>::value_type,
+                    element_type_traits<ov::element::i32>::value_type>();
             break;
-        case getPrecisionMask(Precision::I32, Precision::I32, Precision::I64):
-            bucketize<PrecisionTrait<Precision::I32>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type>();
+        case getElementsMask(ov::element::i32, ov::element::i32, ov::element::i64):
+            bucketize<element_type_traits<ov::element::i32>::value_type,
+                    element_type_traits<ov::element::i32>::value_type,
+                    element_type_traits<ov::element::i64>::value_type>();
             break;
-        case getPrecisionMask(Precision::I32, Precision::I64, Precision::I32):
-            bucketize<PrecisionTrait<Precision::I32>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type>();
+        case getElementsMask(ov::element::i32, ov::element::i64, ov::element::i32):
+            bucketize<element_type_traits<ov::element::i32>::value_type,
+                    element_type_traits<ov::element::i64>::value_type,
+                    element_type_traits<ov::element::i32>::value_type>();
             break;
-        case getPrecisionMask(Precision::I32, Precision::I64, Precision::I64):
-            bucketize<PrecisionTrait<Precision::I32>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type>();
+        case getElementsMask(ov::element::i32, ov::element::i64, ov::element::i64):
+            bucketize<element_type_traits<ov::element::i32>::value_type,
+                    element_type_traits<ov::element::i64>::value_type,
+                    element_type_traits<ov::element::i64>::value_type>();
             break;
-        case getPrecisionMask(Precision::I64, Precision::FP32, Precision::I32):
-            bucketize<PrecisionTrait<Precision::I64>::value_type,
-                    PrecisionTrait<Precision::FP32>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type>();
+        case getElementsMask(ov::element::i64, ov::element::f32, ov::element::i32):
+            bucketize<element_type_traits<ov::element::i64>::value_type,
+                    element_type_traits<ov::element::f32>::value_type,
+                    element_type_traits<ov::element::i32>::value_type>();
             break;
-        case getPrecisionMask(Precision::I64, Precision::FP32, Precision::I64):
-            bucketize<PrecisionTrait<Precision::I64>::value_type,
-                    PrecisionTrait<Precision::FP32>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type>();
+        case getElementsMask(ov::element::i64, ov::element::f32, ov::element::i64):
+            bucketize<element_type_traits<ov::element::i64>::value_type,
+                    element_type_traits<ov::element::f32>::value_type,
+                    element_type_traits<ov::element::i64>::value_type>();
             break;
-        case getPrecisionMask(Precision::I64, Precision::I32, Precision::I32):
-            bucketize<PrecisionTrait<Precision::I64>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type>();
+        case getElementsMask(ov::element::i64, ov::element::i32, ov::element::i32):
+            bucketize<element_type_traits<ov::element::i64>::value_type,
+                    element_type_traits<ov::element::i32>::value_type,
+                    element_type_traits<ov::element::i32>::value_type>();
             break;
-        case getPrecisionMask(Precision::I64, Precision::I32, Precision::I64):
-            bucketize<PrecisionTrait<Precision::I64>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type>();
+        case getElementsMask(ov::element::i64, ov::element::i32, ov::element::i64):
+            bucketize<element_type_traits<ov::element::i64>::value_type,
+                    element_type_traits<ov::element::i32>::value_type,
+                    element_type_traits<ov::element::i64>::value_type>();
             break;
-        case getPrecisionMask(Precision::I64, Precision::I64, Precision::I32):
-            bucketize<PrecisionTrait<Precision::I64>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type,
-                    PrecisionTrait<Precision::I32>::value_type>();
+        case getElementsMask(ov::element::i64, ov::element::i64, ov::element::i32):
+            bucketize<element_type_traits<ov::element::i64>::value_type,
+                    element_type_traits<ov::element::i64>::value_type,
+                    element_type_traits<ov::element::i32>::value_type>();
             break;
-        case getPrecisionMask(Precision::I64, Precision::I64, Precision::I64):
-            bucketize<PrecisionTrait<Precision::I64>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type,
-                    PrecisionTrait<Precision::I64>::value_type>();
+        case getElementsMask(ov::element::i64, ov::element::i64, ov::element::i64):
+            bucketize<element_type_traits<ov::element::i64>::value_type,
+                    element_type_traits<ov::element::i64>::value_type,
+                    element_type_traits<ov::element::i64>::value_type>();
             break;
         default:
             OPENVINO_THROW(errorPrefix, " has unsupported precision: ", precision_mask);

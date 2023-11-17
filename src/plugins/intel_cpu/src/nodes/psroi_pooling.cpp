@@ -146,7 +146,7 @@ void PSROIPooling::initSupportedPrimitiveDescriptors() {
         impl_type = impl_desc_type::ref;
     }
 
-    auto dataPrecision = getOriginalInputPrecisionAtPort(0) == Precision::BF16 ? Precision::BF16 : Precision::FP32;
+    auto dataPrecision = getOriginalInputPrecisionAtPort(0) == ov::element::bf16 ? ov::element::bf16 : ov::element::f32;
 
     if (getAlgorithm() == Algorithm::PSROIPoolingAverage || getAlgorithm() == Algorithm::PSROIPoolingBilinear) {
         std::vector<std::pair<LayoutType, LayoutType>> dataFomats{
@@ -157,18 +157,18 @@ void PSROIPooling::initSupportedPrimitiveDescriptors() {
         };
 
         for (const auto &df : dataFomats) {
-            addSupportedPrimDesc({{df.first, dataPrecision}, {LayoutType::ncsp, Precision::FP32}},
+            addSupportedPrimDesc({{df.first, dataPrecision}, {LayoutType::ncsp, ov::element::f32}},
                                  {{df.second, dataPrecision}},
                                  impl_type);
         }
     } else if (getAlgorithm() == Algorithm::PSROIPoolingBilinearDeformable && noTrans) {
-        addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision}, {LayoutType::ncsp, Precision::FP32}},
+        addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision}, {LayoutType::ncsp, ov::element::f32}},
                              {{LayoutType::ncsp, dataPrecision}},
                              impl_type);
     } else if (getAlgorithm() == Algorithm::PSROIPoolingBilinearDeformable) {
         addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
-                              {LayoutType::ncsp, Precision::FP32},
-                              {LayoutType::ncsp, Precision::FP32}},
+                              {LayoutType::ncsp, ov::element::f32},
+                              {LayoutType::ncsp, ov::element::f32}},
                              {{LayoutType::ncsp, dataPrecision}},
                              impl_type);
     }
@@ -555,10 +555,10 @@ void PSROIPooling::execute(dnnl::stream strm) {
     auto inputPrec = getParentEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
     auto outputPrec = getChildEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
 
-    if (!((inputPrec == Precision::BF16 && outputPrec == Precision::BF16) ||
-          (inputPrec == Precision::FP32 && outputPrec == Precision::FP32))) {
-        OPENVINO_THROW(errorPrefix + " has different precisions on input: " + inputPrec.name() +
-                       " and output: " + outputPrec.name());
+    if (!((inputPrec == ov::element::bf16 && outputPrec == ov::element::bf16) ||
+          (inputPrec == ov::element::f32 && outputPrec == ov::element::f32))) {
+            OPENVINO_THROW(errorPrefix + " has different precisions on input: " + inputPrec.get_type_name() +
+                       " and output: " + outputPrec.get_type_name());
     }
 
     PSROIPoolingContext ctx = {
@@ -566,8 +566,8 @@ void PSROIPooling::execute(dnnl::stream strm) {
     };
 
     OV_SWITCH(intel_cpu, PSROIPoolingExecute, ctx, std::tie(inputPrec, outputPrec),
-              OV_CASE2(Precision::FP32, Precision::FP32, float, float),
-              OV_CASE2(Precision::BF16, Precision::BF16, bfloat16_t, bfloat16_t))
+              OV_CASE2(ov::element::f32, ov::element::f32, float, float),
+              OV_CASE2(ov::element::bf16, ov::element::bf16, bfloat16_t, bfloat16_t))
 }
 
 bool PSROIPooling::created() const {
