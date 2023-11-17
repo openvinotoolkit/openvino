@@ -113,6 +113,8 @@ jobs:
 
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         uses: ilammy/msvc-dev-cmd@v1
+        with:
+          toolset: "14.28.29333"
 
       - name: CMake configure
         run: |
