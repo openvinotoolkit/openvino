@@ -546,7 +546,7 @@ jobs:
       ONNX_RUNTIME_REPO: /__w/openvino/openvino/onnxruntime
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/install/onnxruntime
       ONNX_RUNTIME_BUILD_DIR: /__w/openvino/openvino/onnxruntime/build
-    if: fromJSON(needs.smart_ci.outputs.affected_components).onnx_runtime
+    if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_RT
 
     steps:
       - name: Fetch install_build_dependencies.sh and setup_python action
@@ -1478,7 +1478,7 @@ jobs:
       NVIDIA_BUILD_DIR: /__w/openvino/openvino/nvidia_plugin_build
       DEBIAN_FRONTEND: 'noninteractive'
       SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
-    if: fromJSON(needs.smart_ci.outputs.affected_components).nvidia
+    if: fromJSON(needs.smart_ci.outputs.affected_components).NVIDIA
 
     steps:
       - name: Fetch install_build_dependencies.sh

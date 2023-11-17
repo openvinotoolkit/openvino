@@ -3,6 +3,7 @@ CPU:
     - C_API
     - Python_API
     - samples
+    - ONNX_RT
   build:
     - HETERO
     - AUTO_BATCH
@@ -65,6 +66,7 @@ TEMPLATE:
     - AUTO
     - C_API
     - Python_API
+    - NVIDIA
   build:
     - IR_FE
 
@@ -170,6 +172,7 @@ IE_Tests:
     - AUTO_BATCH
     - TEMPLATE
     - AUTO
+    - NVIDIA
   build:
     - IR_FE
 
@@ -197,11 +200,22 @@ licensing:
   revalidate: []
   build: []
 
-nvidia:
+NVIDIA:
   revalidate: []
   build: []
 
-onnx_runtime:
+ONNX_RT:
   revalidate: []
   build: []
 
+Core:
+  revalidate: 'all'
+
+transformations:
+  revalidate: 'all'
+
+preprocessing:
+  revalidate: 'all'
+
+inference:
+  revalidate: 'all'
