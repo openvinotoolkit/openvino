@@ -19,15 +19,10 @@ struct Evaluate : public element::NoAction<bool> {
     using element::NoAction<bool>::visit;
 
     template <element::Type_t ET, class T = fundamental_type_for<ET>>
-    static result_type visit(const Tensor& in, const Shape& in_shape, Tensor& out) {
+    static result_type visit(const Tensor& in, const Shape& in_shape, const size_t in_rank, Tensor& out) {
         const auto in_data = in.data<const T>();
         const size_t non_zero_count = reference::non_zero_get_count(in_data, in_shape);
-        const auto in_rank = in_shape.size();
-        Shape out_shape;
-        if (in_rank == 0 && non_zero_count > 0)
-            out_shape = Shape{1, 1};
-        else
-            out_shape = Shape{in_rank, non_zero_count};
+        const auto out_shape = Shape{in_rank == 0 && non_zero_count > 0 ? 1 : in_rank, non_zero_count};
         out.set_shape(out_shape);
 
         using namespace ov::element;
@@ -118,10 +113,12 @@ bool NonZero::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
     const auto& input = inputs[0];
     auto& output = outputs[0];
     using namespace ov::element;
+    const auto& input_shape = input.get_shape();
     return IfTypeOf<boolean, bf16, f16, f32, f64, i8, i16, i32, i64, u8, u16, u32, u64>::apply<non_zero::Evaluate>(
         input.get_element_type(),
         input,
-        input.get_shape(),
+        input_shape,
+        input_shape.size(),
         output);
 }
 
