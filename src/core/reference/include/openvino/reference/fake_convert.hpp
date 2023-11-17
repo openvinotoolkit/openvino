@@ -22,7 +22,7 @@ namespace fake_convert_details {
 /// <param name="out"></param>
 /// <param name="count"></param>
 template <typename T>
-void convertfp16_bf8(const T* const arg, T* out, size_t count, int exp_bits = 5, int mbits = 8) {
+void emulate_f8e5m2_on_fp16(const T* const arg, T* out, size_t count, int exp_bits = 5, int mbits = 8) {
     typedef union half_t {
         unsigned short u;
         T f;
@@ -78,12 +78,12 @@ void convertfp16_bf8(const T* const arg, T* out, size_t count, int exp_bits = 5,
 // Exponent normal values 1..15 -6..8 (7 - exponent)
 // Exponent NaN values 15 8
 template <typename T>
-void convertfp16_f8e4m3_bias7(const T* arg,
-                              T* out,
-                              size_t count,
-                              int exp_bits = 5,
-                              int mbits = 9,
-                              bool use_clamp = true) {
+void emulate_f8e4m3_on_fp16(const T* arg,
+                            T* out,
+                            size_t count,
+                            int exp_bits = 5,
+                            int mbits = 9,
+                            bool use_clamp = true) {
     typedef union half_t {
         unsigned short u;
         T f;
@@ -238,9 +238,9 @@ bool apply_conversion(const T* data, T* out, size_t element_count, const std::st
     auto inPtr = reinterpret_cast<const unsigned short*>(data);
     auto outPtr = reinterpret_cast<unsigned short*>(out);
     if (destination_type == "f8e5m2") {
-        reference::fake_convert_details::convertfp16_bf8(inPtr, outPtr, element_count);
+        reference::fake_convert_details::emulate_f8e5m2_on_fp16(inPtr, outPtr, element_count);
     } else if (destination_type == "f8e4m3") {
-        reference::fake_convert_details::convertfp16_f8e4m3_bias7(inPtr, outPtr, element_count);
+        reference::fake_convert_details::emulate_f8e4m3_on_fp16(inPtr, outPtr, element_count);
     } else {
         OPENVINO_THROW("Unsupported destination type.");
     }
