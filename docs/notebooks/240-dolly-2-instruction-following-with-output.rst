@@ -315,7 +315,7 @@ iterative process, where each next token depends on previously generated
 until a maximum number of tokens or stop generation condition is not
 reached. To obtain intermediate generation results without waiting until
 when generation is finished, we will use
-```TextIteratorStreamer`` <https://huggingface.co/docs/transformers/main/en/internal/generation_utils#transformers.TextIteratorStreamer>`__,
+`TextIteratorStreamer <https://huggingface.co/docs/transformers/main/en/internal/generation_utils#transformers.TextIteratorStreamer>`__,
 provided as part of HuggingFace `Streaming
 API <https://huggingface.co/docs/transformers/main/en/generation_strategies#streaming>`__.
 

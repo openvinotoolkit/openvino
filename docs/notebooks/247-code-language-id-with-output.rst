@@ -88,12 +88,12 @@ Model
 
 
 The classification model that will be used in this notebook is
-```CodeBERTa-language-id`` <https://huggingface.co/huggingface/CodeBERTa-language-id>`__
+`CodeBERTa-language-id <https://huggingface.co/huggingface/CodeBERTa-language-id>`__
 by HuggingFace. This model was fine-tuned from the masked language
 modeling model
-```CodeBERTa-small-v1`` <https://huggingface.co/huggingface/CodeBERTa-small-v1>`__
+`CodeBERTa-small-v1 <https://huggingface.co/huggingface/CodeBERTa-small-v1>`__
 trained on the
-```CodeSearchNet`` <https://huggingface.co/huggingface/CodeBERTa-small-v1>`__
+`CodeSearchNet <https://huggingface.co/huggingface/CodeBERTa-small-v1>`__
 dataset (Husain, 2019).
 
 It supports 6 programming languages: - Go - Java - JavaScript - PHP -
@@ -719,11 +719,8 @@ displayed.
 Additional resources
 --------------------
 
- - `Grammatical Error Correction
-with
-OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/214-grammar-correction/214-grammar-correction.ipynb>`__
-- `Quantize a Hugging Face Question-Answering Model with
-OpenVINO <https://github.com/huggingface/optimum-intel/blob/main/notebooks/openvino/question_answering_quantization.ipynb>`__\ \*\*
+ - `Grammatical Error Correction with OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/214-grammar-correction/214-grammar-correction.ipynb>`__
+- `Quantize a Hugging Face Question-Answering Model with OpenVINO <https://github.com/huggingface/optimum-intel/blob/main/notebooks/openvino/question_answering_quantization.ipynb>`__ \ \*\*
 
 Clean up
 --------

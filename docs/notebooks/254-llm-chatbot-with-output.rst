@@ -42,20 +42,14 @@ The tutorial consists of the following steps:
 
 -  `Prerequisites <#prerequisites>`__
 -  `Select model for inference <#select-model-for-inference>`__
--  `login to huggingfacehub to get access to pretrained
-   model <#login-to-huggingfacehub-to-get-access-to-pretrained-model>`__
--  `Instantiate Model using Optimum
-   Intel <#instantiate-model-using-optimum-intel>`__
--  `Compress model weights
-    <#compress-model-weights>`__
+-  `login to huggingfacehub to get access to pretrained model <#login-to-huggingfacehub-to-get-access-to-pretrained-model>`__
+-  `Instantiate Model using Optimum Intel <#instantiate-model-using-optimum-intel>`__
+-  `Compress model weights <#compress-model-weights>`__
 
-   -  `Weights Compression using Optimum Intel
-       <#weights-compression-using-optimum-intel>`__
-   -  `Weights Compression using NNCF
-       <#weights-compression-using-nncf>`__
+   -  `Weights Compression using Optimum Intel <#weights-compression-using-optimum-intel>`__
+   -  `Weights Compression using NNCF <#weights-compression-using-nncf>`__
 
--  `Select device for inference and model variant
-    <#select-device-for-inference-and-model-variant>`__
+-  `Select device for inference and model variant <#select-device-for-inference-and-model-variant>`__
 -  `Run Chatbot <#run-chatbot>`__
 
 Prerequisites

@@ -304,7 +304,7 @@ Create ``PrePostProcessor`` Object
 
 
 The
-```PrePostProcessor()`` <https://docs.openvino.ai/2023.0/classov_1_1preprocess_1_1PrePostProcessor.html#doxid-classov-1-1preprocess-1-1-pre-post-processor>`__
+`PrePostProcessor() <https://docs.openvino.ai/2023.0/classov_1_1preprocess_1_1PrePostProcessor.html#doxid-classov-1-1preprocess-1-1-pre-post-processor>`__
 class enables specifying the preprocessing and postprocessing steps for
 a model.
 
@@ -406,7 +406,7 @@ Perform the following:
    dynamic size, for example, ``{?, 3, ?, ?}`` resize will not know how
    to resize the picture. Therefore, in this case, target height/ width
    should be specified. For more details, see also the
-   ```PreProcessSteps.resize()`` <https://docs.openvino.ai/2023.0/classov_1_1preprocess_1_1PreProcessSteps.html#doxid-classov-1-1preprocess-1-1-pre-process-steps-1a40dab78be1222fee505ed6a13400efe6>`__.
+   `PreProcessSteps.resize() <https://docs.openvino.ai/2023.0/classov_1_1preprocess_1_1PreProcessSteps.html#doxid-classov-1-1preprocess-1-1-pre-process-steps-1a40dab78be1222fee505ed6a13400efe6>`__.
 -  Subtract mean from each channel.
 -  Divide each pixel data to appropriate scale value.
 

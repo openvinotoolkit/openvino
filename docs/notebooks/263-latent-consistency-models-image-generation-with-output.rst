@@ -880,7 +880,7 @@ Prepare calibration dataset
 
 
 We use a portion of
-```laion/laion2B-en`` <https://huggingface.co/datasets/laion/laion2B-en>`__
+`laion/laion2B-en <https://huggingface.co/datasets/laion/laion2B-en>`__
 dataset from Hugging Face as calibration data. To collect intermediate
 model inputs for calibration we should customize ``CompiledModel``.
 

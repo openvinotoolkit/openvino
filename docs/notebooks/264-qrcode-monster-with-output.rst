@@ -74,12 +74,12 @@ ControlNet in Diffusers library
 For working with Stable Diffusion and ControlNet models, we will use
 Hugging Face `Diffusers <https://github.com/huggingface/diffusers>`__
 library. To experiment with ControlNet, Diffusers exposes the
-```StableDiffusionControlNetPipeline`` <https://huggingface.co/docs/diffusers/main/en/api/pipelines/stable_diffusion/controlnet>`__
+`StableDiffusionControlNetPipeline <https://huggingface.co/docs/diffusers/main/en/api/pipelines/stable_diffusion/controlnet>`__
 similar to the `other Diffusers
 pipelines <https://huggingface.co/docs/diffusers/api/pipelines/overview>`__.
 Central to the ``StableDiffusionControlNetPipeline`` is the
 ``controlnet`` argument which enables providing a particularly trained
-```ControlNetModel`` <https://huggingface.co/docs/diffusers/main/en/api/models#diffusers.ControlNetModel>`__
+`ControlNetModel <https://huggingface.co/docs/diffusers/main/en/api/models#diffusers.ControlNetModel>`__
 instance while keeping the pre-trained diffusion model weights the same.
 The code below demonstrates how to create
 ``StableDiffusionControlNetPipeline``, using the ``controlnet-openpose``
@@ -485,9 +485,9 @@ it is recommended to look into `Elucidating the Design Space of
 Diffusion-Based Generative Models <https://arxiv.org/abs/2206.00364>`__
 
 In this tutorial, instead of using Stable Diffusion’s default
-```PNDMScheduler`` <https://huggingface.co/docs/diffusers/main/en/api/schedulers/pndm>`__,
+`PNDMScheduler <https://huggingface.co/docs/diffusers/main/en/api/schedulers/pndm>`__,
 we use
-```EulerAncestralDiscreteScheduler`` <https://huggingface.co/docs/diffusers/api/schedulers/euler_ancestral>`__,
+`EulerAncestralDiscreteScheduler <https://huggingface.co/docs/diffusers/api/schedulers/euler_ancestral>`__,
 recommended by authors. More information regarding schedulers can be
 found
 `here <https://huggingface.co/docs/diffusers/main/en/using-diffusers/schedulers>`__.

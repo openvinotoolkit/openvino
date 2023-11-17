@@ -54,12 +54,9 @@ The tutorial consists from following steps:
       conversion <#prepare-helpers-for-model-conversion>`__
    -  `Convert and Optimize Model <#convert-and-optimize-model>`__
 
-      -  `Instantiate PyTorch model
-          <#instantiate-pytorch-model>`__
-      -  `Compress Model weights to 4 and 8 bits using NNCF
-          <#compress-model-weights-to--and--bits-using-nncf>`__
-      -  `Convert model to OpenVINO IR format
-          <#convert-model-to-openvino-ir-format>`__
+      -  `Instantiate PyTorch model <#instantiate-pytorch-model>`__
+      -  `Compress Model weights to 4 and 8 bits using NNCF <#compress-model-weights-to--and--bits-using-nncf>`__
+      -  `Convert model to OpenVINO IR format <#convert-model-to-openvino-ir-format>`__
 
 -  `Prepare OpenVINO based inference
    pipeline <#prepare-openvino-based-inference-pipeline>`__
@@ -230,7 +227,7 @@ The code below preparing function for converting LLaVA model to OpenVINO
 Intermediate Representation format. It splits model on parts described
 above, prepare example inputs for each part and convert each part using
 `OpenVINO Model Conversion
-API <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html#convert-a-model-in-python-convert-model>`__.
+API <https://docs.openvino.ai/2023.2/openvino_docs_model_processing_introduction.html#convert-a-model-in-python-convert-model>`__.
 ``ov.convert_model`` function accepts PyTorch model instance and returns
 ``ov.Model`` object that represent model in OpenVINO format. It is ready
 to use for loading on device using ``ov.compile_model`` or can be saved
@@ -537,7 +534,7 @@ improves performance even more, but introduces a minor drop in
 prediction quality.
 
 More details about weights compression, can be found in `OpenVINO
-documentation <https://docs.openvino.ai/2023.1/weight_compression.html>`__.
+documentation <https://docs.openvino.ai/2023.2/weight_compression.html>`__.
 
    **Note**: There is no speedup for INT4 compressed models on dGPU.
 

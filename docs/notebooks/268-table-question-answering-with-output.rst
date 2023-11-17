@@ -316,7 +316,7 @@ device. To prepare inputs use the original ``tokenizer``.
 
 Now we should postprocess results. For this, we can use the appropriate
 part of the code from
-```postprocess`` <https://github.com/huggingface/transformers/blob/fe2877ce21eb75d34d30664757e2727d7eab817e/src/transformers/pipelines/table_question_answering.py#L393>`__
+`postprocess <https://github.com/huggingface/transformers/blob/fe2877ce21eb75d34d30664757e2727d7eab817e/src/transformers/pipelines/table_question_answering.py#L393>`__
 method of ``TableQuestionAnsweringPipeline``.
 
 .. code:: ipython3

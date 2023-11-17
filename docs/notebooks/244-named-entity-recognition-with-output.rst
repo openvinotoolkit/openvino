@@ -14,9 +14,9 @@ information extraction of large amounts of data.
 
 This tutorial shows how to perform named entity recognition using
 OpenVINO. We will use the pre-trained model
-```elastic/distilbert-base-cased-finetuned-conll03-english`` <https://huggingface.co/elastic/distilbert-base-cased-finetuned-conll03-english>`__.
+`elastic/distilbert-base-cased-finetuned-conll03-english <https://huggingface.co/elastic/distilbert-base-cased-finetuned-conll03-english>`__.
 It is DistilBERT based model, trained on
-```conll03 english dataset`` <https://huggingface.co/datasets/conll2003>`__.
+`conll03 english dataset <https://huggingface.co/datasets/conll2003>`__.
 The model can recognize four named entities in text: persons, locations,
 organizations and names of miscellaneous entities that do not belong to
 the previous three groups. The model is sensitive to capital letters.
@@ -56,7 +56,7 @@ Download the NER model
 
 
 We load the
-```distilbert-base-cased-finetuned-conll03-english`` <https://huggingface.co/elastic/distilbert-base-cased-finetuned-conll03-english>`__
+`distilbert-base-cased-finetuned-conll03-english <https://huggingface.co/elastic/distilbert-base-cased-finetuned-conll03-english>`__
 model from the `Hugging Face Hub <https://huggingface.co/models>`__ with
 `Hugging Face Transformers
 library <https://huggingface.co/docs/transformers/index>`__.
@@ -89,7 +89,7 @@ activations quantization parameters. For quantization it will be used
 API <https://huggingface.co/docs/optimum/intel/index>`__.
 
 To handle the NNCF quantization process we use class
-```OVQuantizer`` <https://huggingface.co/docs/optimum/intel/reference_ov#optimum.intel.OVQuantizer>`__.
+`OVQuantizer <https://huggingface.co/docs/optimum/intel/reference_ov#optimum.intel.OVQuantizer>`__.
 The quantization with Hugging Face Optimum Intel API contains the next
 steps: \* Model class initialization starts with calling
 ``from_pretrained()`` method. \* Next we create calibration dataset with
@@ -217,7 +217,7 @@ Compare the Original and Quantized Models
 
 
 Compare the original
-```distilbert-base-cased-finetuned-conll03-english`` <https://huggingface.co/elastic/distilbert-base-cased-finetuned-conll03-english>`__
+`distilbert-base-cased-finetuned-conll03-english <https://huggingface.co/elastic/distilbert-base-cased-finetuned-conll03-english>`__
 model with quantized and converted to OpenVINO IR format models to see
 the difference.
 

@@ -230,7 +230,7 @@ by ``Pix2StructProcessor.decode``
 
 Let’s see the model in action. For testing the model, we will use a
 screenshot from `OpenVINO
-documentation <https://docs.openvino.ai/2023.1/get_started.html#openvino-advanced-features>`__
+documentation <https://docs.openvino.ai/2023.2/get_started.html#openvino-advanced-features>`__
 
 .. code:: ipython3
 

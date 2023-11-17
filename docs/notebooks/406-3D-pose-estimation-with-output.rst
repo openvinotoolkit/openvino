@@ -52,7 +52,7 @@ Windows: Chrome* *macOS: Safari*
 Prerequisites 
 -------------------------------------------------------
 
-**The ``pythreejs`` extension may not display properly when using the
+**The "pythreejs" extension may not display properly when using the
 latest Jupyter Notebook release (2.4.1). Therefore, it is recommended to
 use Jupyter Lab instead.**
 

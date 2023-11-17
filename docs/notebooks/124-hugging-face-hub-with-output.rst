@@ -13,9 +13,10 @@ models, namely
 
 |image0|
 
-Throughout this notebook we will learn: 1. How to load a HF pipeline
-using the ``transformers`` package and then convert it to OpenVINO. 2.
-How to load the same pipeline using Optimum Intel package.
+Throughout this notebook we will learn:
+
+1. How to load a HF pipeline using the ``transformers`` package and then convert it to OpenVINO.
+2. How to load the same pipeline using Optimum Intel package.
 
 **Table of contents:**
 
@@ -96,8 +97,7 @@ Initializing a Model Using the HF Transformers Package
 
 
 
-We will use `roberta text sentiment
-classification <https://huggingface.co/cardiffnlp/twitter-roberta-base-sentiment-latest>`__
+We will use `roberta text sentiment classification <https://huggingface.co/cardiffnlp/twitter-roberta-base-sentiment-latest>`__
 model in our example, it is a transformer-based encoder model pretrained
 in a special way, please refer to the model card to learn more.
 
@@ -160,9 +160,7 @@ Let’s do a classification of a simple prompt below.
 Converting the Model to OpenVINO IR format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
- We use the OpenVINO `Model
-conversion
-API <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html#convert-a-model-in-python-convert-model>`__
+ We use the OpenVINO `Model conversion API <https://docs.openvino.ai/2023.2/openvino_docs_model_processing_introduction.html#convert-a-model-in-python-convert-model>`__
 to convert the model (this one is implemented in PyTorch) to OpenVINO
 Intermediate Representation (IR).
 
@@ -237,13 +235,11 @@ original model.
 
 This is a rather simple example as the pipeline includes just one
 encoder model. Contemporary state of the art pipelines often consist of
-several model, feel free to explore other OpenVINO tutorials: 1. `Stable
-Diffusion
-v2 <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/236-stable-diffusion-v2>`__
-2. `Zero-shot Image Classification with OpenAI
-CLIP <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/228-clip-zero-shot-image-classification>`__
-3. `Controllable Music Generation with
-MusicGen <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/250-music-generation>`__
+several model, feel free to explore other OpenVINO tutorials: 
+
+1. `Stable Diffusion v2 <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/236-stable-diffusion-v2>`__
+2. `Zero-shot Image Classification with OpenAI CLIP <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/228-clip-zero-shot-image-classification>`__
+3. `Controllable Music Generation with MusicGen <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/250-music-generation>`__
 
 The workflow for the ``diffusers`` package is exactly the same. The
 first example in the list above relies on the ``diffusers``.
@@ -296,8 +292,7 @@ the full list of supported devices). For that, just replace the
 ``AutoModelForXxx`` class with the corresponding ``OVModelForXxx``
 class.
 
-You can find more information in `Optimum Intel
-documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
+You can find more information in `Optimum Intel documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 
 .. code:: ipython3
 

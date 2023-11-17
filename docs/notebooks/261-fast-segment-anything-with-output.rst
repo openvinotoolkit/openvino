@@ -18,7 +18,7 @@ two consecutive stages: all-instance segmentation and prompt-guided
 selection.
 
 In the first stage,
-```YOLOv8-seg`` <https://docs.ultralytics.com/tasks/segment/>`__ is used
+`YOLOv8-seg <https://docs.ultralytics.com/tasks/segment/>`__ is used
 to produce segmentation masks for all instances in the image. In the
 second stage, FastSAM outputs the region-of-interest corresponding to
 the prompt.

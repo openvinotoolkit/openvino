@@ -300,7 +300,7 @@ Cleaning up the model directory
 
 
 From the verbose of the previous step it is obvious that
-```torch.hub.load`` <https://pytorch.org/docs/stable/hub.html#torch.hub.load>`__
+`torch.hub.load <https://pytorch.org/docs/stable/hub.html#torch.hub.load>`__
 downloads a lot of unnecessary files. We shall move remove the
 unnecessary directories and files which were created during the download
 process.
@@ -362,7 +362,7 @@ Dummy input creation
 Dummy inputs are necessary for `PyTorch to
 ONNX <https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html#exporting-a-pytorch-model-to-onnx-format>`__
 conversion. Although
-```torch.onnx.export`` <https://pytorch.org/docs/stable/onnx.html>`__
+`torch.onnx.export <https://pytorch.org/docs/stable/onnx.html>`__
 accepts any dummy input for a single pass through the model and thereby
 enabling model conversion, the pre-processing required for the actual
 inputs later at inference using compiled models would be substantial. So
