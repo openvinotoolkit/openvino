@@ -134,7 +134,7 @@ public:
             const HashValue hash = hash_combine(ptr_to_write, *new_size);
             const auto found = m_hash_to_file_positions.find(hash);
             if (found != end(m_hash_to_file_positions) &&
-                    memcmp(static_cast<void const*>(ptr), found->second.second, size) == 0){
+                memcmp(static_cast<void const*>(ptr), found->second.second, size) == 0) {
                 return found->second.first;
             }
             // Since fp16_compressed data will be disposed at exit point and since we cannot reread it from the ostream,
@@ -147,9 +147,9 @@ public:
 
 private:
     static std::unique_ptr<char[]> compress_data_to_fp16(const char* ptr,
-                                                  size_t size,
-                                                  ov::element::Type src_type,
-                                                  size_t* compressed_size) {
+                                                         size_t size,
+                                                         ov::element::Type src_type,
+                                                         size_t* compressed_size) {
         auto num_src_elements = size / src_type.size();
         *compressed_size = num_src_elements * ov::element::f16.size();
         if (src_type == ov::element::f32) {
