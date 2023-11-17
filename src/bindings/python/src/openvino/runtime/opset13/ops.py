@@ -118,7 +118,7 @@ def fake_convert(
     destination_type: Literal["f8e4m3", "f8e5m2"] = "f8e4m3",
     name: Optional[str] = None,
 ) -> Node:
-    r"""FakeConvert is element-wise emulation of float8 type on the original type of the data input.
+    """FakeConvert is element-wise emulation of float8 type on the original type of the data input.
 
     :param data: The node with data tensor with FP16 or FP32 datatype.
     :param scale: Tensor with a scale factor for the data input value,
