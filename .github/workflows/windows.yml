@@ -47,6 +47,8 @@ jobs:
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
+      # TODO: specify version of compiler here
+      SCCACHE_AZURE_KEY_PREFIX: windows2022_x86_64_Release
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@v4
