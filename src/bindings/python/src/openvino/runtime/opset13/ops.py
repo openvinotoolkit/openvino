@@ -120,6 +120,9 @@ def fake_convert(
 ) -> Node:
     """FakeConvert is element-wise emulation of float8 type on the original type of the data input.
 
+    FakeConvert is in experimental and subject to future changes.
+    .. warning:: FakeConvert is in experimental and subject to future changes.
+
     :param data: The node with data tensor with FP16 or FP32 datatype.
     :param scale: Tensor with a scale factor for the data input value,
                   with datatype of FP16 or FP32 and shape Numpy-broadcastable to data.
