@@ -105,53 +105,48 @@ public:
         const auto offset = write_pos - m_blob_offset;
         *new_size = size;
 
-        if (!m_enable_compression || compress_to_fp16) {
-            write_with_optional_fp16_compression(ptr, size, new_size, compress_to_fp16, src_type);
+        if (!m_enable_compression) {
+            if (!compress_to_fp16) {
+                m_binary_output.write(ptr, size);
+            } else {
+                OPENVINO_ASSERT(size % src_type.size() == 0);
+                auto fp16_buffer = compress_data_to_fp16(ptr, size, src_type, new_size);
+                m_binary_output.write(fp16_buffer.get(), *new_size);
+            }
             return offset;
+        } else {
+            std::unique_ptr<char[]> fp16_buffer = nullptr;
+            if (compress_to_fp16) {
+                OPENVINO_ASSERT(size % src_type.size() == 0);
+                fp16_buffer = compress_data_to_fp16(ptr, size, src_type, new_size);
+            }
+            const char* ptr_to_write;
+            if (fp16_buffer) {
+                ptr_to_write = fp16_buffer.get();
+            } else {
+                ptr_to_write = ptr;
+            }
+
+            // This hash is weak (but efficient). For example current hash algorithms gives
+            // the same hash for {2, 2} and {0, 128} arrays.
+            // But even strong hashing algorithms sometimes give collisions.
+            // Therefore we always have to compare values when finding a match in hash map.
+            const HashValue hash = hash_combine(ptr_to_write, *new_size);
+            const auto found = m_hash_to_file_positions.find(hash);
+            if (found != end(m_hash_to_file_positions) &&
+                    memcmp(static_cast<void const*>(ptr), found->second.second, size) == 0){
+                return found->second.first;
+            }
+            // Since fp16_compressed data will be disposed at exit point and since we cannot reread it from the ostream,
+            // we store pointer to the original uncompressed blob.
+            m_hash_to_file_positions.insert({hash, {offset, static_cast<void const*>(ptr)}});
+            m_binary_output.write(ptr_to_write, *new_size);
         }
-        // TODO: Find a way to keep both types of compression (m_enable_compression and compress_to_fp16)
-        // simultaneously. Disabled usual compression by m_enable_compression for those constants that are requested to
-        // be compressed by compress_to_fp16 for now. To implement both compression types applied simultaneously
-        // we need to save element_type for each constant in the cache together with the compression status
-        // that implies a wider impact and requires a more accurate implementation of cache handling.
-        // When FP16 compression is turned on together with the usual compression enabled by m_enable_compression, we
-        // can avoid comparing FP32 weights, but it would require comparing with data from a file, because on-the-fly
-        // converted FP16 constants are not kept in memory.
-
-        // This hash is weak (but efficient) and must be replace with some other
-        // more stable hash algorithm. For example current hash algorithms gives
-        // the same hash for {2, 2} and {0, 128} arrays. So we have to compare
-        // values when finding a match in hash map.
-        const HashValue hash = hash_combine(ptr, size);
-        const auto found = m_hash_to_file_positions.find(hash);
-        if (found != end(m_hash_to_file_positions) &&
-            memcmp(static_cast<void const*>(ptr), found->second.second, size) == 0) {
-            return found->second.first;
-        }
-
-        write_with_optional_fp16_compression(ptr, size, new_size, compress_to_fp16, src_type);
-        m_hash_to_file_positions.insert({hash, {offset, static_cast<void const*>(ptr)}});
-
         return offset;
     }
 
 private:
-    void write_with_optional_fp16_compression(const char* ptr,
-                                              size_t size,
-                                              size_t* new_size,
-                                              bool compress_to_fp16 = false,
-                                              ov::element::Type src_type = ov::element::dynamic) {
-        if (!compress_to_fp16) {
-            m_binary_output.write(ptr, size);
-        } else {
-            OPENVINO_ASSERT(size % src_type.size() == 0);
-            auto fp16_buffer = compress_data_to_fp16(ptr, size, src_type, new_size);
-            m_binary_output.write(fp16_buffer.get(), *new_size);
-            // Compressed data is disposed
-        }
-    }
-
-    std::unique_ptr<char[]> compress_data_to_fp16(const char* ptr,
+    static std::unique_ptr<char[]> compress_data_to_fp16(const char* ptr,
                                                   size_t size,
                                                   ov::element::Type src_type,
                                                   size_t* compressed_size) {
