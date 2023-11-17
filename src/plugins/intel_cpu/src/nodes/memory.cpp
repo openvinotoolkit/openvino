@@ -23,9 +23,9 @@ std::mutex MemoryNodeVirtualEdge::holderMutex;
 
 MemoryNode::MemoryNode(const std::shared_ptr<ov::Node>& op) {
     if (auto assignOp = ov::as_type_ptr<ov::op::util::AssignBase>(op)) {
-        _id = assignOp->get_variable_id();
+        m_id = assignOp->get_variable_id();
     } else if (auto readValueOp = ov::as_type_ptr<ov::op::util::ReadValueBase>(op)) {
-        _id = readValueOp->get_variable_id();
+        m_id = readValueOp->get_variable_id();
     } else {
         OPENVINO_THROW("Unexpected ov::Node type: ", op->get_type_info().name, " in MemoryNode");
     }
@@ -205,7 +205,7 @@ void MemoryOutput::registerInputNode(MemoryInput* node) {
     inputNode->registerOutputNode(this);
 }
 
-void MemoryOutput::deregisterSibling(MemoryNode* node) {
+void MemoryOutput::deregisterSibling(MemoryInput* node) {
     if (node == inputNode) { inputNode = nullptr; }
 }
 
@@ -457,7 +457,7 @@ void MemoryInput::registerOutputNode(MemoryOutput* node) {
     outputNode->registerInputNode(this);
 }
 
-void MemoryInput::deregisterSibling(MemoryNode* node) {
+void MemoryInput::deregisterSibling(MemoryOutput* node) {
     if (node == outputNode) { outputNode = nullptr; }
 }
 

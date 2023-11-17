@@ -28,7 +28,7 @@ namespace intel_cpu {
 
 class SyncInferRequest;
 namespace node {
-class MemoryNode;
+class MemoryInput;
 } // namespace node
 
 class Graph {
@@ -197,7 +197,7 @@ public:
     }
 
     Status getStatus() const {return status;}
-    const std::unordered_map<std::string, std::shared_ptr<node::MemoryNode>>&
+    const std::unordered_map<std::string, std::shared_ptr<node::MemoryInput>>&
     getInternalStateNodes() const {
         return internalStateNodes;
     }
@@ -259,7 +259,7 @@ private:
     std::map<std::string, NodePtr> outputNodesMap;
 
     std::unordered_map<std::string, ProxyMemoryMngrPtr> outputNodesMemMngrMap;
-    std::unordered_map<std::string, std::shared_ptr<node::MemoryNode>> internalStateNodes;
+    std::unordered_map<std::string, std::shared_ptr<node::MemoryInput>> internalStateNodes;
 
     // these node pointers (from graphNodes) are to avoid regular checking for
     // constantness of nodes in Infer methods and calls of

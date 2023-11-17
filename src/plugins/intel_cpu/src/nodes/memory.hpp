@@ -22,20 +22,17 @@ namespace node {
 class MemoryOutput;
 class MemoryInput;
 
-class MemoryNode { //TODO , segregate interfaces
-    std::string _id;
+class MemoryNode {
  public:
-    explicit MemoryNode(std::string id) : _id(id) {}
+    explicit MemoryNode(std::string id) : m_id(id) {}
     explicit MemoryNode(const std::shared_ptr<ov::Node>& op);
     virtual ~MemoryNode() = default;
     std::string getId() const {
-        return _id;
+        return m_id;
     }
-    virtual void registerInputNode(MemoryInput*) = 0;
-    virtual void registerOutputNode(MemoryOutput*) = 0;
-    virtual void deregisterSibling(MemoryNode*) = 0;
-    virtual void assignState(MemStatePtr newState) = 0;
-    virtual MemStatePtr makeState() const = 0;
+
+private:
+    std::string m_id;
 };
 
 /**
@@ -81,12 +78,8 @@ public:
     }
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
-    void registerInputNode(MemoryInput* node) override;
-    void registerOutputNode(MemoryOutput* node) override {
-        OPENVINO_THROW("MemoryOutput node has no MemoryOutput type sibling!");
-    }
-
-    void deregisterSibling(MemoryNode* node) override;
+    void registerInputNode(MemoryInput* node);
+    void deregisterSibling(MemoryInput* node);
 
     bool needShapeInfer() const override { return false; }
     bool needPrepareParams() const override { return false; }
@@ -95,12 +88,6 @@ public:
 
 private:
     MemoryInput& getInputNode();
-    void assignState(MemStatePtr newState) override {
-        OPENVINO_THROW("Unexpected MemoryOutput::assignState call"); //TODO , segregate interfaces
-    }
-    MemStatePtr makeState() const override {
-        OPENVINO_THROW("Unexpected MemoryOutput::makeState call"); //TODO , segregate interfaces
-    }
 
 private:
     /**
@@ -134,15 +121,12 @@ public:
 
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
-    void registerInputNode(MemoryInput* node) override {
-        OPENVINO_THROW("MemoryInput node has no MemoryInput type sibling!");
-    }
+    void registerOutputNode(MemoryOutput* node);
+    void deregisterSibling(MemoryOutput* node);
 
-    void registerOutputNode(MemoryOutput* node) override;
-    void deregisterSibling(MemoryNode* node) override;
-
-    void assignState(MemStatePtr newState) override;
-    MemStatePtr makeState() const override;
+    // May be extracted to some interface when necessary
+    void assignState(MemStatePtr newState);
+    MemStatePtr makeState() const;
 
 private:
     MemoryOutput& getOutputNode();
