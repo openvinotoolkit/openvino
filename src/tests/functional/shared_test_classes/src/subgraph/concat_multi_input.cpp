@@ -102,7 +102,7 @@ void ConcatMultiInput::GenerateConstOnlyModel() {
         }
     }
 
-    auto concat = ngraph::builder::makeConcat(concatInputs, 1);
+    auto concat = std::make_shared<ov::op::v0::Concat>(concatInputs, 1);
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(concat) };
     function = std::make_shared<ngraph::Function>(results, input_vector, "ConcatConstOnly");
