@@ -47,11 +47,33 @@ private:
     void FusePerformedAsScaleShiftAndFakeQuantize(Graph &graph);
     void FuseClampAndFakeQuantize(Graph &graph);
     void MergeTransposeAndReorder(Graph &graph);
+    void MergeReorderAndTranspose(Graph &graph);
     void reshapeRnnSeq(Graph &graph);
     void RemoveSameConvert(Graph &graph);
     void RemoveMemoryInputConvert(Graph &graph);
     void RemoveConvertMemoryOutput(Graph &graph);
     void MatchSdpaKvCache(Graph &graph);
+
+    // Method checks that after the sequential execution of Transpose and Reorder nodes,
+    // the order of the elements in the memory (physical layout) will not change.
+    bool checkAscendingSummaryOrder(const VectorDims& transposeOrder,
+                                    const VectorDims& layoutOrder,
+                                    const VectorDims& reorderInOrder,
+                                    const VectorDims& reorderOutOrder);
+    // Method merges Transpose -> Reshape(optional) -> Reorder sequences which do opposite permutation to each other.
+    // Reverse order Reorder -> Reshape(optional) -> Transpose is supported too.
+    // Reshape support has the following limitations:
+    // - direct order: Only reshape which separates one of the dimension on 2 consecutive ones is supported
+    // - reverse order: Only reshape which fuses 2 consecutive dimensions into one is supported
+    // Example:
+    //      chain [physical layout: NCHW, logical layout: NCHW] -> Transpose(order=0312) -> [physical layout: NWCH, logical layout: NCHW] ->
+    //      Reorder(nchw->nhwc) -> [physical layout: NCHW, logical layout: NHWC] can be replaced with Reorder(nchw->nhwc; isOptimized=true)
+    //      which will just reinterprets layout without physical change of the memory.
+    void mergeTransposeReshapeReorder(Graph& graph,
+                                      const NodePtr& transposeNode,
+                                      const NodePtr& reshapeNode,
+                                      const NodePtr& reorderNode,
+                                      const bool reverseOrder);
 };
 
 }   // namespace intel_cpu

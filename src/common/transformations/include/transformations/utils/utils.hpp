@@ -259,12 +259,14 @@ TRANSFORMATIONS_API std::vector<Input<Node>> get_node_target_inputs(const std::s
 TRANSFORMATIONS_API std::shared_ptr<Node> node_to_get_shape_value_of_indices_from_shape_node(
     const std::shared_ptr<Node>& shape_node,
     const std::vector<size_t>& indices,
-    const std::vector<std::shared_ptr<Node>>& copy_rt_info_from = {});
+    const std::vector<std::shared_ptr<Node>>& copy_rt_info_from = {},
+    const ov::element::Type& shape_path_precision = ov::element::i64);
 
 TRANSFORMATIONS_API std::shared_ptr<Node> node_to_get_shape_value_of_indices_from_shape_source(
     const Output<Node>& shape_source,
     const std::vector<size_t>& indices,
-    const std::vector<std::shared_ptr<Node>>& copy_rt_info_from = {});
+    const std::vector<std::shared_ptr<Node>>& copy_rt_info_from = {},
+    const ov::element::Type& shape_path_precision = ov::element::i64);
 
 TRANSFORMATIONS_API bool is_dequantization_subgraph(const Output<Node>& node);
 
