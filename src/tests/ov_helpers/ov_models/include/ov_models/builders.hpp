@@ -564,11 +564,6 @@ std::shared_ptr<ov::Node> makeRNN(
     ov::op::RecurrentSequenceDirection direction = ov::op::RecurrentSequenceDirection::FORWARD,
     ov::test::utils::SequenceTestsMode mode = ov::test::utils::SequenceTestsMode::PURE_SEQ);
 
-std::shared_ptr<ov::Node> makeGatherElements(const ov::Output<Node>& dataNode,
-                                             const ov::Shape& indicesShape,
-                                             const element::Type& indicesType,
-                                             const int axis);
-
 std::shared_ptr<ov::Node> makeGatherND(const ov::Output<Node>& dataNode,
                                        const ov::Shape& indicesShape,
                                        const element::Type& indicesType,
@@ -579,15 +574,9 @@ std::shared_ptr<ov::Node> makeGatherND8(const ov::Output<Node>& dataNode,
                                         const element::Type& indicesType,
                                         const std::size_t batchDims);
 
-std::shared_ptr<ov::Node> makeTile(const ov::Output<Node>& in, const std::vector<int64_t>& repeats);
-
-std::shared_ptr<ov::Node> makeNormalizeL2(const ov::Output<Node>& data,
-                                          const std::vector<int64_t>& axes,
-                                          float eps,
-                                          ov::op::EpsMode epsMode);
-
 enum class NmsVersion { NmsVersion5, NmsVersion9 };
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeNms(const ov::Output<Node>& boxes,
                                   const ov::Output<Node>& scores,
                                   const element::Type& maxBoxesPrec,
@@ -601,14 +590,6 @@ std::shared_ptr<ov::Node> makeNms(const ov::Output<Node>& boxes,
                                   const ov::element::Type& outType,
                                   const NmsVersion nmsVersion = NmsVersion::NmsVersion5);
 
-std::shared_ptr<ov::Node> makeOneHot(const ov::Output<Node>& indices,
-                                     const element::Type& depth_type,
-                                     const int64_t& depth_val,
-                                     const element::Type& set_type,
-                                     const float& on_val,
-                                     const float& off_val,
-                                     const int64_t& axis);
-
 std::shared_ptr<ov::Node> makeDFT(const ov::Output<Node>& dataNode,
                                   const std::vector<int64_t>& axes,
                                   const std::vector<int64_t>& signalSize,
@@ -618,7 +599,5 @@ std::shared_ptr<ov::Node> makeRDFT(const ov::Output<Node>& dataNode,
                                    const std::vector<int64_t>& axes,
                                    const std::vector<int64_t>& signalSize,
                                    const ov::test::utils::DFTOpType opType);
-
-std::shared_ptr<ov::Node> makeEinsum(const OutputVector& inputs, const std::string& equation);
 }  // namespace builder
 }  // namespace ngraph
