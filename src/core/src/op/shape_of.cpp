@@ -39,7 +39,7 @@ bool evaluate_shape_of(Tensor& output_value, const Shape& input_shape) {
 }
 
 bool constant_fold_shape_of(Node* shape_of_node, Output<Node>& replacement, const Output<Node>& shape_of_input) {
-    const auto partial_shape = shape_of_input.get_partial_shape();
+    const auto& partial_shape = shape_of_input.get_partial_shape();
     if (partial_shape.is_static()) {
         const auto& output_type = shape_of_node->get_output_element_type(0);
         const auto& output_shape = shape_of_node->get_output_shape(0);
@@ -138,7 +138,8 @@ std::shared_ptr<Node> ShapeOf::clone_with_new_inputs(const OutputVector& new_arg
 
 bool ShapeOf::evaluate(TensorVector& output_values, const TensorVector& input_values) const {
     OV_OP_SCOPE(v0_ShapeOf_evaluate);
-    OPENVINO_ASSERT(input_values.size() == 1 && output_values.size() == 1);
+    OPENVINO_ASSERT(input_values.size() == 1);
+    OPENVINO_ASSERT(output_values.size() == 1);
 
     return shape_of::evaluate_shape_of(output_values[0], input_values[0].get_shape());
 }
@@ -203,7 +204,8 @@ std::shared_ptr<Node> ShapeOf::clone_with_new_inputs(const OutputVector& new_arg
 
 bool ShapeOf::evaluate(TensorVector& output_values, const TensorVector& input_values) const {
     OV_OP_SCOPE(v0_ShapeOf_evaluate);
-    OPENVINO_ASSERT(input_values.size() == 1 && output_values.size() == 1);
+    OPENVINO_ASSERT(input_values.size() == 1);
+    OPENVINO_ASSERT(output_values.size() == 1);
 
     return shape_of::evaluate_shape_of(output_values[0], input_values[0].get_shape());
 }
