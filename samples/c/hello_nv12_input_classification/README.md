@@ -4,17 +4,17 @@ This sample demonstrates how to execute an inference of image classification net
 
 Hello NV12 Input Classification C Sample demonstrates how to use the NV12 automatic input pre-processing API in your applications.
 
-For more detailed information on how this sample works, check the dedicated [article](..\..\..\docs\articles_en\learn_openvino\openvino_samples\c_sample_hello_nv12_input_classification.md)
+For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2023.2/openvino_inference_engine_ie_bridges_c_samples_hello_nv12_input_classification_README.html)
 
 ## Requirements
 
-| Options                     | Values                                                                                                       |
-| ----------------------------| -------------------------------------------------------------------------------------------------------------|
-| Validated Models            | [alexnet](https://docs.openvino.ai/2023.2/omz_models_model_alexnet.html)                                     |
-| Model Format                | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)                               |
-| Validated images            | An uncompressed image in the NV12 color format - \*.yuv                                                      |
-| Supported devices           | [All](..\..\..\docs\articles_en\about_openvino\compatibility_and_support\Supported_Devices.md)               |
-| Other language realization  | [C++](..\..\..\docs\articles_en\learn_openvino\openvino_samples\c_sample_hello_nv12_input_classification.md) |
+| Options                     | Values                                                                                                               |
+| ----------------------------| ---------------------------------------------------------------------------------------------------------------------|
+| Validated Models            | [alexnet](https://docs.openvino.ai/2023.2/omz_models_model_alexnet.html)                                             |
+| Model Format                | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)                                       |
+| Validated images            | An uncompressed image in the NV12 color format - \*.yuv                                                              |
+| Supported devices           | [All](https://docs.openvino.ai/2023.2/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html)                  |
+| Other language realization  | [C++](https://docs.openvino.ai/2023.2/openvino_inference_engine_samples_hello_nv12_input_classification_README.html) |
 
 The following C++ API is used in the application:
 
@@ -28,6 +28,6 @@ The following C++ API is used in the application:
 |                           | ``ov_preprocess_preprocess_steps_convert_color``          |                                                        |
 
 
-Basic Inference Engine API is covered by [Hello Classification C sample](..\..\..\docs\articles_en\learn_openvino\openvino_samples\c_sample_hello_classification.md).
+Basic Inference Engine API is covered by [Hello Classification C sample](https://docs.openvino.ai/2023.2/openvino_inference_engine_ie_bridges_c_samples_hello_classification_README.html).
 
 

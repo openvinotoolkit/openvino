@@ -1,15 +1,15 @@
 # Hello Query Device Python Sample
 
-This sample demonstrates how to show OpenVINO™ Runtime devices and prints their metrics and default configuration values using [Query Device API feature](..\..\..\docs\articles_en\openvino_workflow\openvino_intro\Device_Plugins\config_properties.md).
+This sample demonstrates how to show OpenVINO™ Runtime devices and prints their metrics and default configuration values using [Query Device API feature](https://docs.openvino.ai/2023.2/openvino_docs_OV_UG_query_api.html).
 
-For more detailed information on how this sample works, check the dedicated [article](..\..\..\docs\articles_en\learn_openvino\openvino_samples\python_sample_hello_query_device.md)
+For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2023.2/openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README.html)
 
 ## Requirements
 
-| Options                     | Values                                                                                            |
-| ----------------------------| --------------------------------------------------------------------------------------------------|
-| Supported devices           | [All](..\..\..\docs\articles_en\about_openvino\compatibility_and_support\Supported_Devices.md)    |
-| Other language realization  | [C++](..\..\..\docs\articles_en\learn_openvino\openvino_samples\cpp_sample_hello_query_device.md) |
+| Options                     | Values                                                                                                  |
+| ----------------------------| --------------------------------------------------------------------------------------------------------|
+| Supported devices           | [All](https://docs.openvino.ai/2023.2/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html)     |
+| Other language realization  | [C++](https://docs.openvino.ai/2023.2/openvino_inference_engine_samples_hello_query_device_README.html) |
 
 The following Python API is used in the application:
 

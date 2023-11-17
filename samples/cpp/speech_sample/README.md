@@ -6,18 +6,18 @@ This sample demonstrates how to execute an Asynchronous Inference of acoustic mo
 
 The sample works with Kaldi ARK or Numpy* uncompressed NPZ files, so it does not cover an end-to-end speech recognition scenario (speech to text), requiring additional preprocessing (feature extraction) to get a feature vector from a speech signal, as well as postprocessing (decoding) to produce text from scores.
 
-For more detailed information on how this sample works, check the dedicated [article](..\..\..\docs\articles_en\learn_openvino\openvino_samples\cpp_sample_automatic_speech_recognition.md)
+For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2023.2/openvino_inference_engine_samples_speech_sample_README.html)
 
 ## Requirements 
 
-| Options                    | Values                                                                                                                                              |
-| ---------------------------| ----------------------------------------------------------------------------------------------------------------------------------------------------|
-| Validated Models           | Acoustic model based on Kaldi\* neural networks (see                                                                                                |
-|                            | [Model Preparation](..\..\..\docs\articles_en\learn_openvino\openvino_samples\cpp_sample_automatic_speech_recognition.md#model-preparation-speech)  |
-|                            | section)                                                                                                                                            |
-| Model Format               | OpenVINO™ toolkit Intermediate Representation (*.xml + *.bin)                                                                                       |
-| Supported devices          | See [Execution Modes](..\..\..\docs\articles_en\learn_openvino\openvino_samples\cpp_sample_automatic_speech_recognition.md#execution-modes-speech)  |
-|                            | section below and [List Supported Devices](..\..\..\docs\articles_en\about_openvino\compatibility_and_support\Supported_Devices.md)                 |
+| Options                    | Values                                                                                                                                   |
+| ---------------------------| -----------------------------------------------------------------------------------------------------------------------------------------|
+| Validated Models           | Acoustic model based on Kaldi\* neural networks (see                                                                                     |
+|                            | [Model Preparation](https://docs.openvino.ai/2023.2/openvino_inference_engine_samples_speech_sample_README.html)                         |
+|                            | section)                                                                                                                                 |
+| Model Format               | OpenVINO™ toolkit Intermediate Representation (*.xml + *.bin)                                                                            |
+| Supported devices          | See [Execution Modes](https://docs.openvino.ai/2023.2/openvino_inference_engine_samples_speech_sample_README.html#execution-modes)       |
+|                            | section below and [List Supported Devices](https://docs.openvino.ai/2023.2/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html) |
 
 The following C++ API is used in the application:
 
@@ -35,4 +35,4 @@ The following C++ API is used in the application:
 | Profiling                | ``ov::InferRequest::get_profiling_info``                                      | Get infer request profiling info                                             |
 
 
-Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](..\..\..\docs\articles_en\learn_openvino\openvino_samples\cpp_sample_hello_classification.md).
+Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](https://docs.openvino.ai/2023.2/openvino_inference_engine_samples_hello_classification_README.html).

@@ -6,18 +6,18 @@ This sample demonstrates how to do a Synchronous Inference of acoustic model bas
 
 The sample works with Kaldi ARK or Numpy* uncompressed NPZ files, so it does not cover an end-to-end speech recognition scenario (speech to text), requiring additional preprocessing (feature extraction) to get a feature vector from a speech signal, as well as postprocessing (decoding) to produce text from scores.
 
-For more detailed information on how this sample works, check the dedicated [article](..\..\..\docs\articles_en\learn_openvino\openvino_samples\python_sample_automatic_speech_recognition.md)
+For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2023.2/openvino_inference_engine_ie_bridges_python_sample_speech_sample_README.html)
 
 ## Requirements
 
-| Options                     | Values                                                                                                                                                                 |
-| ----------------------------| -----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Validated Models            | Acoustic model based on Kaldi* neural models (see                                                                                                                      |
-|                             | [Model Preparation](..\..\..\docs\articles_en\learn_openvino\openvino_samples\python_sample_automatic_speech_recognition.md#model-preparation-speech-python) section)  |
-| Model Format                | OpenVINO™ toolkit Intermediate Representation (.xml + .bin)                                                                                                            |
-| Supported devices           | See [Execution Modes](..\..\..\docs\articles_en\learn_openvino\openvino_samples\python_sample_automatic_speech_recognition.md#execution-modes-speech-python)           |
-|                             | section below and [List Supported Devices](..\..\..\docs\articles_en\about_openvino\compatibility_and_support\Supported_Devices.md)                                 |
-| Other language realization  | [C++](..\..\..\docs\articles_en\learn_openvino\openvino_samples\cpp_sample_automatic_speech_recognition.md)                                                            |
+| Options                     | Values                                                                                                                                                        |
+| ----------------------------| --------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Validated Models            | Acoustic model based on Kaldi* neural models (see                                                                                                             |
+|                             | [Model Preparation](https://docs.openvino.ai/2023.2/openvino_inference_engine_ie_bridges_python_sample_speech_sample_README.html#model-preparation) section)  |
+| Model Format                | OpenVINO™ toolkit Intermediate Representation (.xml + .bin)                                                                                                   |
+| Supported devices           | See [Execution Modes](https://docs.openvino.ai/2023.2/openvino_inference_engine_ie_bridges_python_sample_speech_sample_README.html#execution-modes)           |
+|                             | section below and [List Supported Devices](https://docs.openvino.ai/2023.2/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html)                      |
+| Other language realization  | [C++](https://docs.openvino.ai/2023.2/openvino_inference_engine_samples_speech_sample_README.html)                                                            |
 
 Automatic Speech Recognition Python sample application demonstrates how to use the following Python API in applications:
 
@@ -40,4 +40,4 @@ Automatic Speech Recognition Python sample application demonstrates how to use t
 | Profiling                | [openvino.runtime.InferRequest.profiling_info](https://docs.openvino.ai/2023.2/api/ie_python_api/_autosummary/openvino.runtime.InferRequest.html#openvino.runtime.InferRequest.profiling_info),                 |                                                                       |
 |                          | [openvino.runtime.ProfilingInfo.real_time](https://docs.openvino.ai/2023.2/api/ie_python_api/_autosummary/openvino.runtime.ProfilingInfo.html#openvino.runtime.ProfilingInfo.real_time)                         | Get infer request profiling info                                      |
 
-Basic OpenVINO™ Runtime API is covered by [Hello Classification Python* Sample](..\..\..\docs\articles_en\learn_openvino\openvino_samples\python_sample_hello_classification.md).
+Basic OpenVINO™ Runtime API is covered by [Hello Classification Python* Sample](https://docs.openvino.ai/2023.2/openvino_inference_engine_ie_bridges_python_sample_hello_classification_README.html).
