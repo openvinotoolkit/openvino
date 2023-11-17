@@ -1,5 +1,4 @@
 #include "common_op_table.hpp"
-#include "common_op_table.hpp"
 #include "openvino/op/atan.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_like.hpp"
