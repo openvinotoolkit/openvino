@@ -33,7 +33,7 @@ const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype() {
         {ov::element::u4, py::dtype("uint8")},
         {ov::element::nf4, py::dtype("uint8")},
         {ov::element::i4, py::dtype("int8")},
-        {ov::element::string, py::dtype("str")},
+        {ov::element::string, py::dtype("bytes_")},
     };
     return ov_type_to_dtype_mapping;
 }
@@ -52,6 +52,9 @@ const std::map<std::string, ov::element::Type>& dtype_to_ov_type() {
         {"uint32", ov::element::u32},
         {"uint64", ov::element::u64},
         {"bool", ov::element::boolean},
+        {"bytes_", ov::element::string},
+        {"str_", ov::element::string},
+        {"bytes", ov::element::string},
         {"str", ov::element::string},
     };
     return dtype_to_ov_type_mapping;
@@ -85,6 +88,9 @@ bool is_contiguous(const py::array& array) {
 }
 
 ov::element::Type get_ov_type(const py::array& array) {
+    char ctype = array.dtype().kind();
+    if (ctype == 'U' || ctype == 'S')
+        return ov::element::string;
     return Common::dtype_to_ov_type().at(py::str(array.dtype()));
 }
 
@@ -148,6 +154,28 @@ py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
     // }
 
     auto dtype = Common::ov_type_to_dtype().at(ov_type);
+    std::cerr << "dtype = " << dtype << "\n";
+
+    if(ov_type == ov::element::string) {
+        auto data = t.data<std::string>();
+        auto max_element = std::max_element(data, data + t.get_size(), [](const std::string& x, const std::string& y) {
+            return x.length() < y.length();
+        });
+        std::cerr << "max_element = " << *max_element << "\n";
+        auto stride = max_element->length();
+        std::cerr << "stride: " << stride << "\n";
+        auto array = py::array(dtype, t.get_shape(), ov::Strides{stride});
+        auto ptr = array.data();
+        for(size_t i = 0; i < t.get_size(); ++i) {
+            auto start = &data[i][0];
+            std::cerr << "string: " << data[i] << "\n";
+            auto length = data[i].length();
+            std::cerr << "length: " << length << "\n";
+            auto end = std::copy(start, start + length, (char*)ptr + i*stride);
+            std::fill_n(end, stride - length, 0);
+        }
+        return array;
+    }
 
     // Return the array as a view:
     if (is_shared) {
@@ -220,6 +248,22 @@ ov::Tensor create_copied(py::array& array) {
     // Do not copy data from it, only return empty tensor based on type.
     if (array.size() == 0) {
         return tensor;
+    }
+    if(array.dtype().kind() == 'S') {
+        std::cerr << "string tensor initialization from Python\n";
+        py::buffer_info buf = array.request();
+        auto data = tensor.data<std::string>();
+        for(size_t i = 0; i < tensor.get_size(); ++i) {
+            std::cerr << "itemsize: " << buf.itemsize << "\n";
+            const char* ptr = reinterpret_cast<const char*>(buf.ptr) + i * buf.itemsize;
+            std::cerr << "stride: " << buf.strides[0] << "\n";
+            data[i] = std::string(ptr, buf.strides[0]);
+            std::cerr << "string: " << data[i] << "\n";
+        }
+        return tensor;
+    }
+    if(array.dtype().kind() == 'U') {
+        std::cerr << "[ ERROR ] Native strings are not supported, use bytes\n";
     }
     // Convert to contiguous array if not already in C-style.
     if (!array_helpers::is_contiguous(array)) {
