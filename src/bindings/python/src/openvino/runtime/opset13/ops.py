@@ -4,7 +4,7 @@
 
 """Factory functions for ops added to openvino opset13."""
 from functools import partial
-from typing import Optional
+from typing import Literal, Optional
 
 from openvino.runtime import Node
 from openvino.runtime.opset_utils import _get_node_factory
@@ -107,6 +107,36 @@ def bitwise_xor(
         "BitwiseXor",
         [left_node, right_node],
         {"auto_broadcast": auto_broadcast.upper()},
+    )
+
+
+@nameable_op
+def fake_convert(
+    data: NodeInput,
+    scale: NodeInput,
+    shift: Optional[NodeInput] = None,
+    destination_type: Literal["f8e4m3", "f8e5m2"] = "f8e4m3",
+    name: Optional[str] = None,
+) -> Node:
+    r"""FakeConvert is element-wise emulation of float8 type on the original type of the data input.
+
+    :param data: The node with data tensor with FP16 or FP32 datatype.
+    :param scale: Tensor with a scale factor for the data input value,
+                  with datatype of FP16 or FP32 and shape Numpy-broadcastable to data.
+    :param shift: Optional tensor with value to subtract before and add after conversion of the data input value,
+                  with datatype of FP16 or FP32 and shape Numpy-broadcastable to data.
+    :param destination_type: Type to emulate, string of either "f8e4m3" or "f8e5m2".
+    :param name: The optional new name for output node.
+
+    :return: The new node performing FakeConvert operation.
+    """
+    nodes = [data, scale]
+    if shift is not None:
+        nodes.append(shift)
+    return _get_node_factory_opset13().create(
+        "FakeConvert",
+        as_nodes(*nodes),
+        {"destination_type": destination_type.lower()},
     )
 
 
