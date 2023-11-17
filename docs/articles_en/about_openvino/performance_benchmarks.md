@@ -100,7 +100,7 @@ For a listing of all platforms and configurations used for testing, refer to the
 
    .. grid-item::
 
-      .. button-link:: _static/benchmarks_files/OV-2023.2-Platform_list.pdf
+      .. button-link:: _static/benchmarks_files/OV-2023.2-platform_list.pdf
          :color: primary
          :outline:
          :expand:
