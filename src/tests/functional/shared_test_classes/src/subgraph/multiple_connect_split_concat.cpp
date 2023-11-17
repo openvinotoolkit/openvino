@@ -27,7 +27,9 @@ void MultipleConnectSplitConcatTest::SetUp() {
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 256})};
     auto relu_start = std::make_shared<ngraph::opset1::Relu>(params[0]);
-    auto split = ngraph::builder::makeSplit(relu_start, ngPrc, 1, 1);
+    auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+    auto split = std::make_shared<ov::op::v1::Split>(relu_start, split_axis_op, 1);
+
     auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{split->output(0), split->output(0)}, 1);
     auto concat_2 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{split->output(0), split->output(0)},
                                                              1);

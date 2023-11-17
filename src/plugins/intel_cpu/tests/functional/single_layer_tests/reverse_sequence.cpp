@@ -76,8 +76,9 @@ protected:
         std::shared_ptr<ngraph::Node> seqLengthsInput;
 
         if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-            seqLengthsInput = ngraph::builder::makeDynamicInputLayer(seqLengthsPrc, secondaryInputType, inputDynamicShapes[1]);
-            paramsIn.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(seqLengthsInput));
+            auto param = std::make_shared<ov::op::v0::Parameter>(seqLengthsPrc, inputDynamicShapes[1]);
+            seqLengthsInput = param;
+            paramsIn.push_back(param);
         } else {
             const auto maxSeqLength = dataInputShape.second.front().at(seqAxisIndex);
             seqLengthsInput = ngraph::builder::makeConstant<float>(seqLengthsPrc, seqLengthsShape.second.front(), {}, true, maxSeqLength);

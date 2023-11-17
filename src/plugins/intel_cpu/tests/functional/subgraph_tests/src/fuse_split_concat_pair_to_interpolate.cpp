@@ -54,7 +54,8 @@ protected:
         size_t num_of_concat_inputs = num_splits * scale_factor;
 
         const auto param = std::make_shared<opset6::Parameter>(inputPrecision, inputShape);
-        const auto split = builder::makeSplit(param, inputPrecision, num_splits, static_cast<int64_t>(axis));
+        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{axis});
+        auto split = std::make_shared<ov::op::v1::Split>(param, split_axis_op, num_splits);
 
         ngraph::OutputVector concat_inputs_vec(num_of_concat_inputs);
         for (size_t split_output_port = 0; split_output_port < num_splits; ++split_output_port) {

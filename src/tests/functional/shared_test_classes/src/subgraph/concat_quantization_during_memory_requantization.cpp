@@ -57,7 +57,9 @@ namespace SubgraphTestsDefinitions {
         auto concat_2 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ mem_2_read, mul }, 1);
         // Revert concat names to set the needed order of scale factors calculation
         concat_2->set_friendly_name("concat1");
-        auto split_2 = ngraph::builder::makeSplit(concat_2, ngPrc, 2, 1);
+        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto split_2 = std::make_shared<ov::op::v1::Split>(concat_2, split_axis_op, 2);
+
         auto mem_2_write = std::make_shared<ngraph::opset3::Assign>(split_2->output(0), "memory_2");
         auto sigm = std::make_shared<ngraph::opset1::Sigmoid>(split_2->output(1));
 
@@ -93,7 +95,9 @@ namespace SubgraphTestsDefinitions {
 
         auto mem_2_const = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_2_init);
         auto concat_2 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ mem_2_const, mul }, 1);
-        auto split_2 = ngraph::builder::makeSplit(concat_2, ngPrc, 2, 1);
+        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto split_2 = std::make_shared<ov::op::v1::Split>(concat_2, split_axis_op, 2);
+
         auto sigm = std::make_shared<ngraph::opset1::Sigmoid>(split_2->output(1));
 
         function = std::make_shared<ngraph::Function>(sigm, input, "concat_quant_during_memory_requant_nomemory");

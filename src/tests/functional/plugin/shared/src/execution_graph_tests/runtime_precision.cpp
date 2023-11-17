@@ -26,13 +26,12 @@ namespace ExecutionGraphTests {
 std::shared_ptr<ngraph::Function> makeEltwiseFunction(const std::vector<InferenceEngine::Precision>& inputPrecisions) {
     IE_ASSERT(inputPrecisions.size() == 2);
 
-    ov::ParameterVector inputs{
-        std::make_shared<ov::op::v0::Parameter>(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecisions[0]), ov::Shape{1, 16, 5, 4})};
-    auto secondaryInput = ngraph::builder::makeInputLayer(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecisions[1]),
-            ngraph::helpers::InputLayerType::PARAMETER, {{1, 16, 5, 4}});
-    inputs.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
+    ov::ParameterVector inputs{std::make_shared<ov::op::v0::Parameter>(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecisions[0]),
+                                                                       ov::Shape{1, 16, 5, 4}),
+                               std::make_shared<ov::op::v0::Parameter>(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecisions[1]),
+                                                                       ov::Shape{1, 16, 5, 4})};
 
-    auto eltwise = ngraph::builder::makeEltwise(inputs[0], secondaryInput, ngraph::helpers::EltwiseTypes::ADD);
+    auto eltwise = ngraph::builder::makeEltwise(inputs[0], inputs[1], ngraph::helpers::EltwiseTypes::ADD);
     eltwise->set_friendly_name("Eltwise");
 
     auto function = std::make_shared<ngraph::Function>(eltwise, inputs, "EltwiseWithTwoDynamicInputs");

@@ -483,7 +483,9 @@ protected:
             std::accumulate(std::begin(inputShape), std::end(inputShape), 1, std::multiplies<double>());
         ov::ParameterVector params{
             std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, 2 * in_total_dims_size})};
-        auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
+        auto split_axis_op =
+            std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, 2);
 
         auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64,
                                                                    ngraph::Shape{shape_size},
@@ -590,11 +592,13 @@ protected:
                                                                   multipleInputShape);
         auto reshape = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern, false);
         auto permute = CreateTranspose(reshape, shape_size, true);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto split = ngraph::builder::makeSplit(
             permute,
             ngPrc,
             splits_num,
             inputShape.size() == 4 && inputShape[1] > 1 ? inputShape.size() - 2 : inputShape.size() - 1);
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         auto conv1 = CreateConvolution(split->output(0), ngPrc, inputShape);
         auto permute1 = CreateTranspose(conv1, conv1->get_output_shape(0).size(), false);

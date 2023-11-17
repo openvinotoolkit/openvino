@@ -80,18 +80,10 @@ std::shared_ptr<ov::Node> makeConstant(const ov::element::Type& type,
     return weightsNode;
 }
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeInputLayer(const element::Type& type,
                                          ov::test::utils::InputLayerType inputType,
                                          const std::vector<size_t>& shape);
-
-std::shared_ptr<ov::Node> makeDynamicInputLayer(const element::Type& type,
-                                                ov::test::utils::InputLayerType inputType,
-                                                const ov::PartialShape& shape);
-
-std::shared_ptr<ov::Node> makeBroadcast(const ov::Output<Node>& in,
-                                        const ov::Output<Node>& target_shape,
-                                        const ov::op::BroadcastType& mode,
-                                        const ov::AxisSet& axis_set = {});
 
 std::shared_ptr<ov::Node> makeConvolution(const ov::Output<Node>& in,
                                           const element::Type& type,
@@ -185,19 +177,23 @@ std::shared_ptr<ov::Node> makeConvolutionBackpropData(const ov::Output<Node>& in
                                                       const std::vector<float>& filterWeights = {},
                                                       const std::vector<float>& biasesWeights = {});
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeCTCGreedyDecoder(const ov::Output<Node>& inputData, const bool mergeRepeated);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeCTCGreedyDecoderSeqLen(const ov::Output<Node>& inputData,
                                                      const ov::Output<Node>& sequenceLength,
                                                      int blankIndex,
                                                      bool mergeRepeated,
                                                      const element::Type& idxPrecision = element::i32);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeCTCGreedyDecoderSeqLen(const ov::Output<Node>& inputData,
                                                      int blankIndex,
                                                      bool mergeRepeated,
                                                      const element::Type& idxPrecision = element::i32);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeCTCLoss(const ov::Output<Node>& logitsNode,
                                       std::vector<int>& logitsLength,
                                       std::vector<std::vector<int>>& labels,
@@ -263,6 +259,7 @@ std::shared_ptr<ov::Node> makeBinaryConvolution(const ov::Output<Node>& in,
                                                 float padValue,
                                                 const std::vector<int8_t>& filterWeihgts = {});
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeSplit(const ov::Output<Node>& in,
                                     const element::Type& type,
                                     size_t numSplits,

@@ -36,7 +36,8 @@ protected:
 
         SizeVector splitShape{1, 2, 1, 16};
         ov::ParameterVector splitInputParams {std::make_shared<ov::op::v0::Parameter>(ngPrec, ov::Shape(splitShape))};
-        const auto split = builder::makeSplit(splitInputParams[0], ngPrec, 2 /* splits */, 1 /* 2nd axis */);
+        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto split = std::make_shared<ov::op::v1::Split>(splitInputParams[0], split_axis_op, 2);
 
         std::vector<ov::Shape> concatShapes{{1, 1, 8, 8}, {1, 1, 8, 8}};
         ov::ParameterVector concatInputParams {std::make_shared<ov::op::v0::Parameter>(ngPrec, concatShapes[0]),
