@@ -29,6 +29,8 @@ bool evaluate_shape_of(Tensor& output_value, const Shape& input_shape) {
     switch (output_value.get_element_type()) {
         OPENVINO_TYPE_CASE(evaluate_shape_of, i32, input_shape, output_value);
         OPENVINO_TYPE_CASE(evaluate_shape_of, i64, input_shape, output_value);
+        OPENVINO_TYPE_CASE(evaluate_shape_of, u32, input_shape, output_value);
+        OPENVINO_TYPE_CASE(evaluate_shape_of, u64, input_shape, output_value);
     default:
         rc = false;
         break;
@@ -146,6 +148,8 @@ bool ShapeOf::has_evaluate() const {
     switch (get_output_element_type(0)) {
     case element::i32:
     case element::i64:
+    case element::u32:
+    case element::u64:
         return true;
     default:
         return false;
@@ -209,6 +213,8 @@ bool ShapeOf::has_evaluate() const {
     switch (get_output_element_type(0)) {
     case element::i32:
     case element::i64:
+    case element::u32:
+    case element::u64:
         return true;
     default:
         return false;
