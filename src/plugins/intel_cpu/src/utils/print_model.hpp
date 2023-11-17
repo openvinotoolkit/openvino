@@ -5,15 +5,15 @@
 #pragma once
 
 #include <algorithm>
+#include <cfloat>
 #include <climits>
 #include <cmath>
+#include <fstream>
 #include <memory>
 #include <ostream>
 #include <string>
 #include <type_traits>
 #include <vector>
-#include <cfloat>
-#include <fstream>
 
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/model.hpp"
@@ -117,9 +117,10 @@ inline std::string to_code(double value) {
     return to_code_float(value);
 }
 template <typename T>
-std::string to_code(const std::vector<T>& values, int maxsize = 80) {
+std::string to_code(const std::vector<T>& values, bool no_braces = false, int maxsize = 80) {
     std::stringstream ss;
-    ss << "{";
+    if (!no_braces)
+        ss << "{";
     const char* sep = "";
     for (auto& v : values) {
         if (ss.tellp() > maxsize) {
@@ -129,45 +130,43 @@ std::string to_code(const std::vector<T>& values, int maxsize = 80) {
         ss << sep << to_code(v);
         sep = ",";
     }
-    ss << "}";
+    if (!no_braces)
+        ss << "}";
     return ss.str();
 }
 
 template <typename T = void>
-std::string to_code(std::shared_ptr<ov::op::v0::Constant> constop, bool value_only = false) {
-    std::stringstream ss;
+std::string to_code(std::shared_ptr<ov::op::v0::Constant> constop) {
+    bool no_braces = (constop->get_shape().size() == 0);
     auto ele_type = constop->get_element_type();
-    if (!value_only) {
-        ss << "makeConst(" << to_code(ele_type) << ", "
-           << "\"" << constop->get_output_partial_shape(0) << "\", ";
-    }
-    ss << "{";
     if (ele_type == element::Type_t::f32) {
-        return to_code(constop->get_vector<float>());
+        return to_code(constop->get_vector<float>(), no_braces);
     } else if (ele_type == element::Type_t::i8) {
-        return to_code(constop->get_vector<int8_t>());
+        return to_code(constop->get_vector<int8_t>(), no_braces);
     } else if (ele_type == element::Type_t::u8) {
-        return to_code(constop->get_vector<uint8_t>());
+        return to_code(constop->get_vector<uint8_t>(), no_braces);
     } else if (ele_type == element::Type_t::i32) {
-        return to_code(constop->get_vector<int32_t>());
+        return to_code(constop->get_vector<int32_t>(), no_braces);
     } else if (ele_type == element::Type_t::i64) {
-        return to_code(constop->get_vector<int64_t>());
-    } else {
-        // general case
-        auto ele_size = shape_size(constop->get_shape());
-        if (ele_size < 9) {
-            const char* sep = "";
-            for (auto v : constop->get_value_strings()) {
-                ss << sep << v;
-                sep = ", ";
-            }
-        } else {
-            ss << "...";
-        }
+        return to_code(constop->get_vector<int64_t>(), no_braces);
     }
-    ss << "}";
-    if (!value_only)
-        ss << ")";
+
+    // general case
+    std::stringstream ss;
+    if (!no_braces)
+        ss << "{";
+    auto ele_size = shape_size(constop->get_shape());
+    if (ele_size < 9) {
+        const char* sep = "";
+        for (auto v : constop->get_value_strings()) {
+            ss << sep << v;
+            sep = ", ";
+        }
+    } else {
+        ss << "...";
+    }
+    if (!no_braces)
+        ss << "}";
     return ss.str();
 }
 
@@ -272,7 +271,7 @@ void dump_cpp_style(std::ostream& os, const std::shared_ptr<ov::Model>& model) {
                 continue;
             if (shape_size(constop->get_shape()) > 64)
                 continue;
-            literal_consts[op] = to_code(constop, true);
+            literal_consts[op] = to_code(constop);
         }
     }
 
@@ -325,7 +324,7 @@ void dump_cpp_style(std::ostream& os, const std::shared_ptr<ov::Model>& model) {
 
         if (auto constop = std::dynamic_pointer_cast<op::v0::Constant>(op)) {
             os << "auto " << name << " = makeConst(" << to_code(op->get_output_element_type(0)) << ", "
-               << to_code(op->get_output_shape(0)) << ", " << to_code(constop, true) << ");" << std::endl;
+               << to_code(op->get_output_shape(0)) << ", " << to_code(constop) << ");" << std::endl;
         } else {
             os << "auto " << name << " = makeOP<" << type << ">({";
             // input args

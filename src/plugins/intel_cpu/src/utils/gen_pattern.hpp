@@ -964,7 +964,7 @@ std::shared_ptr<Node> makePattern(const std::vector<detail::PatternNode>& inputs
         }
 
         if (!vt.predicate(value)) {
-            _VERBOSE_LOG("*mismatched makePattern value info: ", friendly_name, "vs", value);
+            _VERBOSE_LOG("*mismatched makePattern value info: ", pnode->get_friendly_name(), "vs", value);
             return false;
         }
 
@@ -981,10 +981,7 @@ std::shared_ptr<Node> makePattern(const std::vector<detail::PatternNode>& inputs
             }
         }
 
-        // if (std::string(mark_at_friendly_name) == value.get_node_shared_ptr()->get_friendly_name()) {
-        //    _VERBOSE_LOG("++++ ", mark_at_friendly_name, " ++++");
-        // }
-        //_VERBOSE_LOG(" matched makePattern ", friendly_name, " == ", value);
+        _VERBOSE_LOG(" matched makePattern ", pnode->get_friendly_name(), " == ", value);
         return true;
     });
 
