@@ -702,27 +702,25 @@ inline uint get_bs_fs_zyx_bsv_fsv_index_safe(uint b, uint f, uint z, uint y, uin
                                                   uint z_pad_before, uint z_pad_after,
                                                   uint y_pad_before, uint y_pad_after,
                                                   uint x_pad_before, uint x_pad_after, uint alignmentB, uint alignmentF) {
-    const uint b_mod = b % b_size;
+    const uint b_mod = b_pad_before + (b % b_size);
     const uint f_mod = f_pad_before + (f % f_size);
-    const uint fs = f_mod / alignmentF;
-    const uint fsv = f_mod % alignmentF;
     const uint bs = b_mod / alignmentB;
     const uint bsv = b_mod % alignmentB;
+    const uint fs = f_mod / alignmentF;
+    const uint fsv = f_mod % alignmentF;
     const uint x_pitch = alignmentF * alignmentB;
     const uint y_pitch = x_pitch * (x_pad_before +  x_size + x_pad_after);
     const uint z_pitch = y_pitch * (y_pad_before +  y_size + y_pad_after);
     const uint total_f_size = f_pad_before + f_size + f_pad_after;
     const uint fs_pitch = z_pitch * (z_pad_before +  z_size + z_pad_after);
     const uint bs_pitch = fs_pitch * ((total_f_size + alignmentF - 1) / alignmentF);
-    const uint bs_pad_before = b_pad_before / alignmentB;
-    const uint bsv_pad_before = b_pad_before % alignmentB;
 
-    const uint output_offset = ((bs_pad_before + bs) * bs_pitch) +
+    const uint output_offset = bs * bs_pitch +
                                fs * fs_pitch +
                                (z_pad_before + (z % z_size)) * z_pitch +
                                (y_pad_before + (y % y_size)) * y_pitch +
                                (x_pad_before + (x % x_size)) * x_pitch +
-                               ((bsv_pad_before + bsv) * alignmentF)
+                               (bsv * alignmentF)
                                + fsv;
 
     return output_offset;
@@ -739,9 +737,8 @@ inline uint get_bs_fs_zyx_bsv_fsv_index(uint b, uint f,  uint z, uint y, uint x,
     const uint feature = f + f_pad_before;
     const uint fs = feature / f_alignment;
     const uint fsv = feature % f_alignment;
-    const uint bs = b / b_alignment;
-    const uint bsv = b % b_alignment;
-
+    const uint bs = (b + b_pad_before) / b_alignment;
+    const uint bsv = (b + b_pad_before) % b_alignment;
     const uint bsv_pitch = f_alignment;
     const uint x_pitch = bsv_pitch * b_alignment;
     const uint y_pitch = x_pitch * (x_pad_before + x_size + x_pad_after);
@@ -749,15 +746,13 @@ inline uint get_bs_fs_zyx_bsv_fsv_index(uint b, uint f,  uint z, uint y, uint x,
     const uint fs_pitch = z_pitch * (z_pad_before + z_size + z_pad_after);
     const uint total_f_size = f_pad_before + f_size + f_pad_after;
     const uint bs_pitch = fs_pitch * ((total_f_size + f_alignment - 1) / f_alignment);
-    const uint bs_pad_before = b_pad_before / b_alignment;
-    const uint bsv_pad_before = b_pad_before % b_alignment;
 
-    const uint output_offset = (bs_pad_before + bs) * bs_pitch +
+    const uint output_offset = bs * bs_pitch +
                                fs * fs_pitch +
                                (z_pad_before + z) * z_pitch +
                                (y_pad_before + y) * y_pitch +
                                (x_pad_before + x) * x_pitch +
-                               (bsv_pad_before + bsv) * bsv_pitch
+                               bsv * bsv_pitch
                                + fsv;
 
     return output_offset;
