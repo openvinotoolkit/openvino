@@ -233,6 +233,20 @@ MemoryInputBase::MemoryInputBase(const std::shared_ptr<ov::Node>& op, const Grap
     }
 }
 
+MemoryInputBase::MemoryInputBase(const std::string id,
+                                 const Shape& shape,
+                                 const ov::element::Type& prc,
+                                 const std::string& name,
+                                 const std::string& type,
+                                 const GraphContext::CPtr context) :
+    Input(shape, prc, name, type, context), MemoryNode(id) {
+    outputShapes.emplace_back(shape);
+    addOriginalOutputPrecision(prc);
+    if (created()) {
+        holder = MemoryNodeVirtualEdge::registerInput(this);
+    }
+}
+
 void MemoryInputBase::createPrimitive() {
     Input::createPrimitive();
     if (!inputShapes.empty()) {
@@ -493,6 +507,63 @@ MemStatePtr MemoryInput::makeState() const {
 
 bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     return MemoryInputBase::isSupportedOperation(op, errorMessage);
+}
+
+void MemoryInputSDPA::initSupportedPrimitiveDescriptors() {
+    if (!supportedPrimitiveDescriptors.empty())
+        return;
+
+    auto&& shape = getOutputShapeAtPort(0);
+    auto precision = getOriginalOutputPrecisionAtPort(0);
+    auto&& descCreators = ov::intel_cpu::BlockedDescCreator::getCommonCreators();
+    NodeConfig config;
+    if (!getParentEdges().empty()) {
+        PortConfig inPortConfig;
+        inPortConfig.inPlace(-1);
+        inPortConfig.constant(false);
+        inPortConfig.setMemDesc(descCreators.at(LayoutType::ncsp)->createSharedDesc(precision, shape));
+        config.inConfs.push_back(std::move(inPortConfig));
+    }
+
+    auto&& childEdges = getChildEdgesAtPort(0);
+    auto itr = std::find_if(childEdges.begin(), childEdges.end(),
+        [](const EdgePtr& edge){ return Type::ScaledDotProductAttention == edge->getChild()->getType(); });
+
+    OPENVINO_ASSERT(itr != childEdges.end(), "MemoryInputSDPA isn't attached to an SDPA node");
+    auto SDPA = (*itr)->getChild();
+    auto childPort = (*itr)->getOutputNum();
+
+    // Since this is a very specialized implementation, lets mimic SDPA precision and set cabd layout
+    precision = SDPA->getOriginalInputPrecisionAtPort(childPort);
+
+    PortConfig outPortConfig;
+    outPortConfig.inPlace(0);
+    outPortConfig.constant(false);
+    outPortConfig.setMemDesc(descCreators.at(LayoutType::cabd)->createSharedDesc(precision, shape));
+    config.outConfs.push_back(std::move(outPortConfig));
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+}
+
+MemStatePtr MemoryInputSDPA::makeState() const {
+    // assume ov::Tensor is always dense
+    auto original_desc =
+        std::make_shared<CpuBlockedMemoryDesc>(getOriginalOutputPrecisionAtPort(0), outputShapes.at(0));
+
+    auto mem_desc = getBaseMemDescAtOutputPort(0);
+    const auto& eng = getEngine();
+
+    auto state_name = getId();
+
+    // Remove suffix with pair ID. Internal information.
+    auto suffix_idx = state_name.find("/id=");
+    if (suffix_idx != std::string::npos) {
+        state_name = state_name.substr(0, suffix_idx);
+    }
+
+    return std::make_shared<VariableStateSingleBuffer>(state_name,
+        std::make_shared<Memory>(eng, mem_desc, std::make_shared<DnnlMemoryMngr>(make_unique<MemoryMngrRealloc>())),
+        original_desc,
+        getMemoryPtr());
 }
 
 }   // namespace node

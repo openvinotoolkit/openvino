@@ -103,6 +103,13 @@ private:
 class MemoryInputBase : public Input, public MemoryNode {
 public:
     MemoryInputBase(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    MemoryInputBase(const std::string id,
+                    const Shape& shape,
+                    const ov::element::Type& prc,
+                    const std::string& name,
+                    const std::string& type,
+                    const GraphContext::CPtr context);
+
     ~MemoryInputBase() override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
@@ -148,6 +155,15 @@ public:
     MemStatePtr makeState() const override;
 };
 
+class MemoryInputSDPA : public MemoryInputBase {
+public:
+    using MemoryInputBase::MemoryInputBase;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
+
+    void initSupportedPrimitiveDescriptors() override;
+
+    MemStatePtr makeState() const override;
+};
 }   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
