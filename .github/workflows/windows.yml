@@ -194,7 +194,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: windows-2019
+    runs-on: aks-win-4-cores-8gb
     env:
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       INSTALL_DIR: "${{ github.workspace }}\\install"
@@ -275,7 +275,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: windows-2019
+    runs-on: aks-win-4-cores-8gb
     env:
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
@@ -485,7 +485,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: windows-2019
+    runs-on: aks-win-4-cores-8gb
     env:
       INSTALL_DIR: "${{ github.workspace }}\\install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
@@ -679,7 +679,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: windows-2019-8-core
+    runs-on: aks-win-8-cores-16gb
     env:
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       INSTALL_DIR: "${{ github.workspace }}\\install"
