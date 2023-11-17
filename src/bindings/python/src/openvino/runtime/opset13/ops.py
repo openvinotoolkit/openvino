@@ -259,11 +259,6 @@ def constant(
                           - dtype force conversion of data.
     :return: The Constant node initialized with provided data.
     """
-
-    # def __warning_message(msg, shared_memory):
-    #     log.warning(f"Converting scalar to corresponding type of {_value.dtype}. Memory sharing is disabled by default.")
-
-
     if isinstance(value, np.ndarray):
         _value, _shared_memory = value, shared_memory
     else:
@@ -276,14 +271,14 @@ def constant(
             if not np.allclose(_value, 0):
                 raise RuntimeError(
                     f"All values must be equal to 0 to initialize Constant with type of {dtype}. "
-                     "Please use `openvino.helpers` module and `pack_data`, `unpack_data` functions to fill this Constant's data.")
+                    "Please use `openvino.helpers` module and `pack_data`, `unpack_data` functions to fill this Constant's data.")
             log.warning(f"Constant initialized with packed type of {dtype}. Memory sharing is disabled by default.")
             return Constant(dtype, Shape(_value.shape), _value.flatten().tolist())
         elif dtype in [Type.bf16]:
             if not np.allclose(_value, 0):
                 raise RuntimeError(
                     f"All values must be equal to 0 to initialize Constant with type of {dtype}. "
-                     "Please use `this_constant.data[:] = ...` to fill this Constant's data.")
+                    "Please use `this_constant.data[:] = ...` to fill this Constant's data.")
             log.warning(f"Constant initialized with OpenVINO custom {dtype}. Memory sharing is disabled by default.")
             return Constant(dtype, Shape(_value.shape), _value.flatten().tolist())
         # General use-case for all other types:
