@@ -143,39 +143,26 @@ py::array as_contiguous(py::array& array, ov::element::Type type) {
 
 py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
     auto ov_type = t.get_element_type();
-    // TODO: This is for debug only, replace by real implementation
-    // if(ov_type == ov::element::string) {
-    //     std::cerr << "std::string in python data\n";
-    //     std::cerr << "shape " << self.get_shape() << "\n";
-    //     // pre-init strings
-    //     for(size_t i = 0; i < ov::shape_size(self.get_shape()); ++i) {
-    //         new(self.data<std::string>() + i)std::string("a");
-    //     }
-    // }
-
-    auto dtype = Common::ov_type_to_dtype().at(ov_type);
-    std::cerr << "dtype = " << dtype << "\n";
 
     if(ov_type == ov::element::string) {
         auto data = t.data<std::string>();
         auto max_element = std::max_element(data, data + t.get_size(), [](const std::string& x, const std::string& y) {
             return x.length() < y.length();
         });
-        std::cerr << "max_element = " << *max_element << "\n";
         auto stride = max_element->length();
-        std::cerr << "stride: " << stride << "\n";
+        auto dtype = py::dtype("|S" + std::to_string(stride));  // TODO: Find a better way without going via a string
         auto array = py::array(dtype, t.get_shape(), ov::Strides{stride});
         auto ptr = array.data();
         for(size_t i = 0; i < t.get_size(); ++i) {
             auto start = &data[i][0];
-            std::cerr << "string: " << data[i] << "\n";
             auto length = data[i].length();
-            std::cerr << "length: " << length << "\n";
             auto end = std::copy(start, start + length, (char*)ptr + i*stride);
             std::fill_n(end, stride - length, 0);
         }
         return array;
     }
+
+    auto dtype = Common::ov_type_to_dtype().at(ov_type);
 
     // Return the array as a view:
     if (is_shared) {
@@ -250,20 +237,16 @@ ov::Tensor create_copied(py::array& array) {
         return tensor;
     }
     if(array.dtype().kind() == 'S') {
-        std::cerr << "string tensor initialization from Python\n";
         py::buffer_info buf = array.request();
         auto data = tensor.data<std::string>();
         for(size_t i = 0; i < tensor.get_size(); ++i) {
-            std::cerr << "itemsize: " << buf.itemsize << "\n";
             const char* ptr = reinterpret_cast<const char*>(buf.ptr) + i * buf.itemsize;
-            std::cerr << "stride: " << buf.strides[0] << "\n";
             data[i] = std::string(ptr, buf.strides[0]);
-            std::cerr << "string: " << data[i] << "\n";
         }
         return tensor;
     }
     if(array.dtype().kind() == 'U') {
-        std::cerr << "[ ERROR ] Native strings are not supported, use bytes\n";
+        OPENVINO_THROW("Native strings are not supported as ov.Tensor initializer in Python, use encoded strings, for example, b'text' or 'text'.encode()");
     }
     // Convert to contiguous array if not already in C-style.
     if (!array_helpers::is_contiguous(array)) {
