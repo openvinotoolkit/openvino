@@ -80,18 +80,10 @@ std::shared_ptr<ov::Node> makeConstant(const ov::element::Type& type,
     return weightsNode;
 }
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeInputLayer(const element::Type& type,
                                          ov::test::utils::InputLayerType inputType,
                                          const std::vector<size_t>& shape);
-
-std::shared_ptr<ov::Node> makeDynamicInputLayer(const element::Type& type,
-                                                ov::test::utils::InputLayerType inputType,
-                                                const ov::PartialShape& shape);
-
-std::shared_ptr<ov::Node> makeBroadcast(const ov::Output<Node>& in,
-                                        const ov::Output<Node>& target_shape,
-                                        const ov::op::BroadcastType& mode,
-                                        const ov::AxisSet& axis_set = {});
 
 std::shared_ptr<ov::Node> makeConvolution(const ov::Output<Node>& in,
                                           const element::Type& type,
@@ -185,19 +177,23 @@ std::shared_ptr<ov::Node> makeConvolutionBackpropData(const ov::Output<Node>& in
                                                       const std::vector<float>& filterWeights = {},
                                                       const std::vector<float>& biasesWeights = {});
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeCTCGreedyDecoder(const ov::Output<Node>& inputData, const bool mergeRepeated);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeCTCGreedyDecoderSeqLen(const ov::Output<Node>& inputData,
                                                      const ov::Output<Node>& sequenceLength,
                                                      int blankIndex,
                                                      bool mergeRepeated,
                                                      const element::Type& idxPrecision = element::i32);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeCTCGreedyDecoderSeqLen(const ov::Output<Node>& inputData,
                                                      int blankIndex,
                                                      bool mergeRepeated,
                                                      const element::Type& idxPrecision = element::i32);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeCTCLoss(const ov::Output<Node>& logitsNode,
                                       std::vector<int>& logitsLength,
                                       std::vector<std::vector<int>>& labels,
@@ -263,6 +259,7 @@ std::shared_ptr<ov::Node> makeBinaryConvolution(const ov::Output<Node>& in,
                                                 float padValue,
                                                 const std::vector<int8_t>& filterWeihgts = {});
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeSplit(const ov::Output<Node>& in,
                                     const element::Type& type,
                                     size_t numSplits,
@@ -428,6 +425,7 @@ std::shared_ptr<ov::Node> makeReduce(const ov::Output<Node>& data,
                                      bool keepDims,
                                      ov::test::utils::ReductionType reductionType);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<Node> makePooling(const ov::Output<Node>& in,
                                   const std::vector<size_t>& strides,
                                   const std::vector<size_t>& padsBegin,
@@ -438,59 +436,15 @@ std::shared_ptr<Node> makePooling(const ov::Output<Node>& in,
                                   bool excludePad,
                                   const ov::test::utils::PoolingTypes& poolType);
 
-std::shared_ptr<Node> makeMaxPoolingV8(const ov::Output<Node>& in,
-                                       const std::vector<size_t>& strides,
-                                       const std::vector<size_t>& dilation,
-                                       const std::vector<size_t>& padsBegin,
-                                       const std::vector<size_t>& padsEnd,
-                                       const std::vector<size_t>& kernel,
-                                       const op::RoundingType& roundingType,
-                                       const op::PadType& padType,
-                                       const ov::element::Type& indexElementType,
-                                       const int64_t axis);
-
-std::shared_ptr<Node> makeROIPooling(const Output<Node>& input,
-                                     const Output<Node>& coords,
-                                     const Shape& output_size,
-                                     const float spatial_scale,
-                                     const ov::test::utils::ROIPoolingTypes& roi_pool_type);
-
-std::shared_ptr<ov::Node> makeScatterUpdate(const ov::Output<Node>& in,
-                                            const element::Type& indicesType,
-                                            const std::vector<size_t>& indicesShape,
-                                            const std::vector<int64_t>& indices,
-                                            const ov::Output<Node>& update,
-                                            int64_t axis);
-
-std::shared_ptr<ov::Node> makeScatterElementsUpdate(const ov::Output<Node>& in,
-                                                    const element::Type& indicesType,
-                                                    const std::vector<size_t>& indicesShape,
-                                                    const std::vector<size_t>& indices,
-                                                    const ov::Output<Node>& update,
-                                                    int axis);
-
-std::shared_ptr<ov::Node> makeScatterNDUpdate(const ov::Output<Node>& in,
-                                              const element::Type& indicesType,
-                                              const std::vector<size_t>& indicesShape,
-                                              const std::vector<size_t>& indices,
-                                              const ov::Output<Node>& update);
-
 std::shared_ptr<ov::Node> makeComparison(const ov::Output<Node>& in0,
                                          const ov::Output<Node>& in1,
                                          ov::test::utils::ComparisonTypes comparisonType);
-
-std::shared_ptr<ov::Node> makeConversion(const ov::Output<Node>& in,
-                                         const element::Type& type,
-                                         const ov::test::utils::ConversionTypes& conversionType);
 
 std::shared_ptr<ov::Node> makeLogical(const ov::Output<Node>& in0,
                                       const ov::Output<Node>& in1,
                                       ov::test::utils::LogicalTypes logicalType);
 
 std::shared_ptr<ov::Node> makeLogical(const ov::ParameterVector& inputs, ov::test::utils::LogicalTypes logicalType);
-
-std::shared_ptr<ov::Node> makeDetectionOutput(const ov::OutputVector& inputs,
-                                              const ov::op::v0::DetectionOutput::Attributes& attrs);
 
 std::shared_ptr<ov::Node> makeFullyConnected(const ov::Output<Node>& in,
                                              const element::Type& type,
@@ -500,23 +454,13 @@ std::shared_ptr<ov::Node> makeFullyConnected(const ov::Output<Node>& in,
                                              const std::vector<float>& weights = {},
                                              const std::vector<float>& biasWeights = {});
 
-std::shared_ptr<ov::Node> makeConcat(const std::vector<ov::Output<Node>>& in, const int& axis);
-
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makePad(const ov::Output<Node>& data,
                                   const std::vector<int64_t>& padsBegin,
                                   const std::vector<int64_t>& padsEnd,
                                   float argPadValue,
                                   ov::test::utils::PadMode padMode,
                                   const bool allow_negative_pad = false);
-
-std::shared_ptr<ov::Node> makePad(const ov::Output<Node>& in,
-                                  const ov::Output<Node>& beginNode,
-                                  const ov::Output<Node>& endNode,
-                                  const ov::Output<Node>& valueNode,
-                                  ov::test::utils::PadMode padMode,
-                                  const bool allow_negative_pad = false);
-
-std::shared_ptr<ov::Node> makeBatchNormInference(const ov::Output<Node>& data, double epsilon);
 
 std::shared_ptr<ov::Node> makeLSTM(
     const OutputVector& in,
