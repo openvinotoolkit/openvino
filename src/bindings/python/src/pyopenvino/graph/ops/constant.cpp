@@ -32,13 +32,15 @@ std::vector<size_t> _get_strides(const ov::op::v0::Constant& self) {
     auto shape = self.get_shape();
     if (element_type == ov::element::boolean) {
         return _get_byte_strides<char>(shape);
-    } else if (element_type == ov::element::f16) {
+    } else if (element_type == ov::element::f16 || element_type == ov::element::bf16) {
+        // WA for bf16, returned as f16 array
         return _get_byte_strides<ov::float16>(shape);
     } else if (element_type == ov::element::f32) {
         return _get_byte_strides<float>(shape);
     } else if (element_type == ov::element::f64) {
         return _get_byte_strides<double>(shape);
-    } else if (element_type == ov::element::i8) {
+    } else if (element_type == ov::element::i8 || element_type == ov::element::i4) {
+        // WA for i4, returned as int8 array
         return _get_byte_strides<int8_t>(shape);
     } else if (element_type == ov::element::i16) {
         return _get_byte_strides<int16_t>(shape);
@@ -46,7 +48,9 @@ std::vector<size_t> _get_strides(const ov::op::v0::Constant& self) {
         return _get_byte_strides<int32_t>(shape);
     } else if (element_type == ov::element::i64) {
         return _get_byte_strides<int64_t>(shape);
-    } else if (element_type == ov::element::u8 || element_type == ov::element::u1) {
+    } else if (element_type == ov::element::u8 || element_type == ov::element::u1 || element_type == ov::element::u4 ||
+               element_type == ov::element::nf4) {
+        // WA for u1, u4, nf4, all returned as packed uint8 arrays
         return _get_byte_strides<uint8_t>(shape);
     } else if (element_type == ov::element::u16) {
         return _get_byte_strides<uint16_t>(shape);
