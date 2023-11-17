@@ -398,7 +398,6 @@ public:
         if (m_file_name.empty())
             return false;
 
-        std::cout << "PrintModel to " << m_file_name << " ... " << std::flush;
         std::ofstream ofs(m_file_name);
         if (!ofs) {
             // OPENVINO_WARN << "Error opening file " << m_file_name << " for output" << std::endl;
@@ -406,7 +405,6 @@ public:
         }
         detail::dump_cpp_style(ofs, model);
         ofs.close();
-        std::cout << "done." << std::endl;
         return true;
     }
 

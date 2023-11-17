@@ -34,10 +34,6 @@ public:
     void execute(dnnl::stream strm) override;
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
-    const RoPENode::Config& getConfig() const {
-        return m_config;
-    }
-
 private:
     struct Executor {
         virtual void execute(dnnl::stream strm,

@@ -141,12 +141,14 @@ void RoPE::initSupportedPrimitiveDescriptors() {
             m_executor = std::make_shared<RoPEExecutorInterleaved<ov::bfloat16>>();
         } else {
             m_executor = std::make_shared<RoPEExecutorInterleaved<float>>();
+            rtPrecision = ov::element::f32;
         }
     } else {
         if (rtPrecision == ov::element::bf16) {
             m_executor = std::make_shared<RoPEExecutorRotateHalf<ov::bfloat16>>();
         } else {
             m_executor = std::make_shared<RoPEExecutorRotateHalf<float>>();
+            rtPrecision = ov::element::f32;
         }
     }
 
