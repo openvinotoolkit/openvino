@@ -14,13 +14,14 @@
 namespace ov {
 namespace reference {
 namespace fake_convert_details {
-/// <summary>
-/// emulation of convertation fp16 value to bf8 1s-5e-2m format, Brain Float
-/// </summary>
-/// <typeparam name="T">Every possible type with 16 bit size</typeparam>
-/// <param name="arg"></param>
-/// <param name="out"></param>
-/// <param name="count"></param>
+
+/**
+ * @brief Emulation of conversion fp16 value to f8e5m2 format
+ *
+ * @param arg       Pointer to the input data.
+ * @param out       Pointer to the otuput data.
+ * @param count     Number of elements in the data input.
+ */
 template <typename T>
 void emulate_f8e5m2_on_fp16(const T* const arg, T* out, size_t count, int exp_bits = 5, int mbits = 8) {
     typedef union half_t {
@@ -67,16 +68,18 @@ void emulate_f8e5m2_on_fp16(const T* const arg, T* out, size_t count, int exp_bi
     }
 }
 
-/// <summary>
-/// emulation of convertation fp16 value to f8e4m3 1s-4e-3m format, Extended Hybrid Float
-/// </summary>
-/// <typeparam name="T">Every possible type with 16 bit size</typeparam>
-/// <param name="arg"></param>
-/// <param name="out"></param>
-/// <param name="count"></param>
-// Exponent denormal values 0 -7
-// Exponent normal values 1..15 -6..8 (7 - exponent)
-// Exponent NaN values 15 8
+/**
+ * @brief Emulation of conversion fp16 value to f8e4m3 format
+ *
+ * @param arg       Pointer to the input data.
+ * @param out       Pointer to the otuput data.
+ * @param count     Number of elements in the data input.
+ *
+ * Exponent denormal values 0 -7
+ * Exponent normal values 1..15 -6..8 (7 - exponent)
+ * Exponent NaN values 15 8
+ *
+ */
 template <typename T>
 void emulate_f8e4m3_on_fp16(const T* arg,
                             T* out,
