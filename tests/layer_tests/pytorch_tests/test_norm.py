@@ -327,7 +327,27 @@ class TestLinalgNorm(PytorchLayerTest):
         self._test(*self.create_model(p, dim, keepdim, dtype, out, prim_dtype),
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={
-                       "out": out or prim_dtype, 
+                       "out": out or prim_dtype,
                        "out_dtype": dtype if prim_dtype else None,
                        "input_shape": input_shape
-                       })
+        })
+
+
+class TestTrickyNorm(PytorchLayerTest):
+
+    def _prepare_input(self, input_shape=(3, 3)):
+        return (np.random.randn(*input_shape).astype(np.float32),)
+
+    def create_model(self):
+        class aten_norm(torch.nn.Module):
+            def forward(self, x):
+                return torch.nn.functional.normalize(x, eps=2)
+
+        return aten_norm(), None, ["aten::linalg_vector_norm", "aten::clamp_min"]
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("input_shape", [[15, 15, 17]])
+    def test_tricky_norm(self, input_shape, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"input_shape": input_shape}, use_convert_model=True, trace_model=True)
