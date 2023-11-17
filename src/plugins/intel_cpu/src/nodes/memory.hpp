@@ -21,7 +21,7 @@ class MemoryNode {
     std::string _id;
  public:
     explicit MemoryNode(std::string id) : _id(id) {}
-    explicit MemoryNode(const std::shared_ptr<ngraph::Node>& op);
+    explicit MemoryNode(const std::shared_ptr<ov::Node>& op);
     virtual ~MemoryNode() = default;
     std::string getId() {
         return _id;
@@ -61,9 +61,9 @@ public:
 
 class MemoryOutput : public Node, public MemoryNode {
 public:
-    MemoryOutput(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    MemoryOutput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
     ~MemoryOutput() override;
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override {}
@@ -86,10 +86,10 @@ public:
 
 class MemoryInput : public Input, public MemoryNode {
 public:
-    MemoryInput(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
     ~MemoryInput() override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     bool created() const override {
         return getType() == Type::MemoryInput;
     }

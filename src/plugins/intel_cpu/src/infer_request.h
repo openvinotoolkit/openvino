@@ -5,71 +5,60 @@
 #pragma once
 
 #include "graph.h"
-#include <memory>
-#include <string>
-#include <map>
-#include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 #include "cpu_tensor.h"
+#include "openvino/runtime/iinfer_request.hpp"
+#include "openvino/runtime/isync_infer_request.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-class ExecNetwork;
+class CompiledModel;
 class AsyncInferRequest;
 
-class InferRequestBase : public InferenceEngine::IInferRequestInternal {
+class SyncInferRequest : public ov::ISyncInferRequest {
 public:
-    virtual ~InferRequestBase();
+    SyncInferRequest(std::shared_ptr<const CompiledModel> compiled_model);
+    virtual ~SyncInferRequest();
 
-    void InferImpl() override;
+    void infer() override;
 
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
+    std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
-    std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> QueryState() override;
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
+
+    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
+
+    void set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
+
+    ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
+    std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& _port) const override;
 
     /**
      * @brief      Sets the pointer to asynchronous inference request that holds this request
      * @param[in]  asyncRequest Pointer to asynchronous inference request
      */
-    void SetAsyncRequest(AsyncInferRequest* asyncRequest);
+    void set_async_request(AsyncInferRequest* asyncRequest);
 
     /**
-     * @brief If `_asyncRequest` is initialized throw exception with `InferenceEngine::INFER_CANCELLED` status if inference request is canceled
+     * @brief If `m_asyncRequest` is initialized throw exception with `ov::Cancelled` status if inference request is
+     * canceled
      */
-    void ThrowIfCanceled() const;
 
-protected:
-    InferRequestBase(InferenceEngine::InputsDataMap networkInputs,
-                     InferenceEngine::OutputsDataMap networkOutputs,
-                     std::shared_ptr<ExecNetwork> execNetwork_)
-    : IInferRequestInternal(networkInputs, networkOutputs), execNetwork(execNetwork_) {}
+    void throw_if_canceled() const;
 
-    InferRequestBase(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-                     const std::vector<std::shared_ptr<const ov::Node>>& outputs,
-                     std::shared_ptr<ExecNetwork> execNetwork_)
-    : IInferRequestInternal(inputs, outputs), execNetwork(execNetwork_) {}
-
-    void CreateInferRequest();
-    InferenceEngine::Precision normToInputSupportedPrec(const std::pair<const std::string, InferenceEngine::Blob::Ptr>& input) const;
-    void pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob, InferenceEngine::Precision dataType);
-
-protected:
+private:
     class OutputControlBlock {
     public:
         using MemMngrPtr = std::shared_ptr<MemoryMngrWithReuse>;
 
     public:
-        OutputControlBlock(const InferenceEngine::Precision& precision, const Shape& shape);
+        OutputControlBlock(const ov::element::Type& precision, const Shape& shape);
 
         OutputControlBlock(const OutputControlBlock&) = delete;
         OutputControlBlock& operator=(const OutputControlBlock&) = delete;
 
         OutputControlBlock(OutputControlBlock&&) = default;
         OutputControlBlock& operator=(OutputControlBlock&&) = default;
-
-        InferenceEngine::Blob::Ptr blob() const {
-            return m_blob;
-        }
 
         std::shared_ptr<Tensor> tensor() const {
             return m_tensor;
@@ -93,74 +82,43 @@ protected:
 
         void update() {
             m_proxyMemMngr->setMemMngr(currentMemMngr());
-            m_blob->allocate(); // WA: update handle
         }
 
     private:
         std::shared_ptr<Tensor> m_tensor = nullptr;
-        InferenceEngine::Blob::Ptr m_blob = nullptr;
         ProxyMemoryMngrPtr m_proxyMemMngr = nullptr;
         std::array<MemMngrPtr, 2> m_buffers;
         int m_buffIndx = 0;
     };
-
-protected:
-    virtual void initBlobs() = 0;
-    virtual void PushInputData() = 0;
-
-    Graph* graph = nullptr;
-    std::unordered_map<std::string, InferenceEngine::Blob::Ptr> externalPtr;
-
     std::unordered_map<std::string, OutputControlBlock> outputControlBlocks;
 
-private:
-    void PushStates();
-    void PullStates();
-    void redefineMemoryForInputNodes();
+    void create_infer_request();
 
-    std::shared_ptr<ExecNetwork>        execNetwork;
-    openvino::itt::handle_t             profilingTask;
-    std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> memoryStates;
-    AsyncInferRequest*                  _asyncRequest = nullptr;
+    void init_tensor(const std::string& name);
+    void push_input_data();
 
-protected:
-    virtual void changeDefaultPtr();
+    Graph* graph = nullptr;
+    std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> external_ptr;
+
+    void push_states();
+    void pull_states();
+    void redefine_memory_for_input_nodes();
+
+    void update_external_tensor_ptrs();
+    const ov::Output<const ov::Node>& get_internal_port(const ov::Output<const ov::Node>& port) const;
+    bool m_is_legacy_api = false;
+
+    std::shared_ptr<const CompiledModel> m_compiled_model;
+    openvino::itt::handle_t m_profiling_task;
+    std::vector<ov::SoPtr<ov::IVariableState>> m_memory_states;
+    AsyncInferRequest* m_asyncRequest = nullptr;
+
+    std::unordered_map<std::string, ov::Output<const ov::Node>> m_input_ports_map;
+    std::unordered_map<std::string, ov::Output<const ov::Node>> m_output_ports_map;
+    std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_outputs;
+
+    void change_default_ptr();
 };
 
-class LegacyInferRequest : public InferRequestBase {
-public:
-    LegacyInferRequest(InferenceEngine::InputsDataMap networkInputs,
-                       InferenceEngine::OutputsDataMap networkOutputs,
-                       std::shared_ptr<ExecNetwork> execNetwork);
-
-    void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) override;
-    InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
-
-private:
-    void PushInputData() override;
-    void initBlobs() override;
-    void changeDefaultPtr() override;
-};
-
-class InferRequest : public InferRequestBase {
-public:
-    InferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-                 const std::vector<std::shared_ptr<const ov::Node>>& outputs,
-                 std::shared_ptr<ExecNetwork> execNetwork);
-
-    void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) override;
-    void SetBlobsImpl(const std::string& name, const InferenceEngine::BatchedBlob::Ptr& batched_blob) override;
-    InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
-
-    void checkBlobs() override;
-
-private:
-    void PushInputData() override;
-    void initBlobs() override;
-
-    std::unordered_map<std::string, std::shared_ptr<const ov::Node>> modelInputsMap;
-    std::unordered_map<std::string, std::shared_ptr<const ov::Node>> modelOutputsMap;
-};
-
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

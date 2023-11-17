@@ -8,6 +8,8 @@
 
 #include "openvino/runtime/properties.hpp"
 
+#include <locale.h>
+
 namespace ov {
 namespace test {
 namespace behavior {
@@ -149,7 +151,7 @@ TEST_P(OVClassCompiledModelPropertiesDefaultTests, CheckDefaultValues) {
         ASSERT_TRUE(supported) << "default_property=" << default_property.first;
         Any property;
         OV_ASSERT_NO_THROW(property = compiled_model.get_property(default_property.first));
-        ASSERT_EQ(default_property.second, property)
+        ASSERT_EQ(default_property.second.as<std::string>(), property.as<std::string>())
             << "For property: " << default_property.first
             << " expected value is: " << default_property.second.as<std::string>();
     }
@@ -255,6 +257,12 @@ TEST_P(OVClassCompiledModelGetPropertyTest, GetMetricNoThrow_OPTIMAL_NUMBER_OF_I
     ASSERT_EXEC_METRIC_SUPPORTED(ov::optimal_number_of_infer_requests);
 }
 
+TEST_P(OVClassCompiledModelGetPropertyTest, CanCompileModelWithEmptyProperties) {
+    ov::Core core = createCoreWithTemplate();
+
+    OV_ASSERT_NO_THROW(core.compile_model(simpleNetwork, target_device, ov::AnyMap{}));
+}
+
 TEST_P(OVClassCompiledModelGetIncorrectPropertyTest, GetConfigThrows) {
     ov::Core ie = createCoreWithTemplate();
     auto compiled_model = ie.compile_model(simpleNetwork, target_device);
@@ -349,6 +357,17 @@ TEST_P(OVCompileModelGetExecutionDeviceTests, CanGetExecutionDeviceInfo) {
         ASSERT_EQ(property_vector, updatedExpectDevices);
     else
         ASSERT_FALSE(property.empty());
+}
+
+TEST_P(OVClassCompiledModelGetConfigTest, CanCompileModelWithCustomLocale) {
+    auto prev = std::locale().name();
+    setlocale(LC_ALL, "en_GB.UTF-8");
+
+    ov::Core core = createCoreWithTemplate();
+
+    ASSERT_NO_THROW(core.compile_model(simpleNetwork, target_device););
+
+    setlocale(LC_ALL, prev.c_str());
 }
 
 }  // namespace behavior
