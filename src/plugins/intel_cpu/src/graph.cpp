@@ -211,7 +211,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
         for (size_t i = 0; i < childEdges.size(); i++) {
             const auto child = childEdges[i]->getChild();
             const auto child_prec = child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum());
-            if (!one_of(child_prec, Precision::BF16, Precision::FP16) &&
+            if (!one_of(child_prec, ov::element::bf16, ov::element::f16) &&
                 // remove this WA when #78939 is resolved
                 !hasSubgraphConsumers(child))
                 child->setOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum(), precToSet);
@@ -480,7 +480,7 @@ void Graph::InitEdges() {
                 const auto& outDesc = edge->getOutputDesc();
 
                 std::string convertName = edge->getParent()->getName() + "_" +
-                                          inDesc.getPrecision().name() + "_" + outDesc.getPrecision().name();
+                                          inDesc.getPrecision().get_type_name() + "_" + outDesc.getPrecision().get_type_name();
 
                 auto convertNode = std::make_shared<node::Convert>(inDesc.getShape(), inDesc.getPrecision(), outDesc.getPrecision(),
                                                                        convertName, context);
@@ -670,7 +670,7 @@ void Graph::AllocateWithReuse() {
     MemorySolver staticMemSolver(definedBoxes);
     size_t total_size = static_cast<size_t>(staticMemSolver.solve()) * alignment;
 
-    memWorkspace = std::make_shared<Memory>(getEngine(), DnnlBlockedMemoryDesc(InferenceEngine::Precision::I8, Shape(InferenceEngine::SizeVector{total_size})));
+    memWorkspace = std::make_shared<Memory>(getEngine(), DnnlBlockedMemoryDesc(ov::element::i8, Shape(VectorDims{total_size})));
 
     if (edge_clusters.empty())
         return;
@@ -695,7 +695,7 @@ void Graph::AllocateWithReuse() {
                 count++;
             }
         }
-        IE_ASSERT(count == 1);
+        OPENVINO_ASSERT(count == 1);
     }
 
     if (!undefinedBoxes.empty()) {
@@ -720,7 +720,7 @@ void Graph::AllocateWithReuse() {
                         }
                     }
                     // sometimes there are unused output ports.
-                    IE_ASSERT(count <= 1) << "cannot find output node. count " << count;
+                    OPENVINO_ASSERT(count <= 1, "cannot find output node. count ", count);
                 }
             }
         }
@@ -1015,15 +1015,21 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
         if (actualDesc.getBlockingDesc() != expectedDesc.getBlockingDesc() && !isScalarOutput) {
             // User can initialize output via SetOutput API using tensorDesc with ANY layout.
             // For these cases we create planar memory descriptor.
-            auto outBlobDesc = expectedDesc.getLayout() == InferenceEngine::Layout::ANY
-                                   ? DnnlBlockedMemoryDesc(expectedDesc.getPrecision(), Shape(expectedDesc.getDims()))
-                                   : MemoryDescUtils::convertToDnnlBlockedMemoryDesc(expectedDesc);
+            auto outBlobDesc =
+                expectedDesc.getLayout() == InferenceEngine::Layout::ANY
+                    ? DnnlBlockedMemoryDesc(InferenceEngine::details::convertPrecision(expectedDesc.getPrecision()),
+                                            Shape(expectedDesc.getDims()))
+                    : MemoryDescUtils::convertToDnnlBlockedMemoryDesc(expectedDesc);
             Memory outBloMem(getEngine(), outBlobDesc, ext_blob_ptr, false);
             outBloMem.load(intr_blob, false);
         } else {
             size_t size_to_copy = intr_blob.getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
             DEBUG_LOG("pull_output: convert ", srcPrec, " to ", dstPrec);
-            cpu_convert(intr_blob_ptr, ext_blob_ptr, srcPrec, dstPrec, size_to_copy);
+            cpu_convert(intr_blob_ptr,
+                        ext_blob_ptr,
+                        InferenceEngine::details::convertPrecision(srcPrec),
+                        InferenceEngine::details::convertPrecision(dstPrec),
+                        size_to_copy);
         }
     }
 }
@@ -1552,8 +1558,8 @@ NodePtr Graph::InsertReorder(EdgePtr edge, std::string layerName, const MemoryDe
     reorderPtr->setSrcPermutation(src_perm);
 
     DEBUG_LOG(reorderPtr->getName(), " edge=", edge->name(), " isOptimized=", isOptimized);
-    DEBUG_LOG("    inDesc: ", inDesc.getShape().toString(), inDesc.getPrecision().name(), " ", inDesc.serializeFormat());
-    DEBUG_LOG("   outDesc: ", outDesc.getShape().toString(), outDesc.getPrecision().name(), " ", outDesc.serializeFormat());
+    DEBUG_LOG("    inDesc: ", inDesc.getShape().toString(), inDesc.getPrecision().get_type_name(), " ", inDesc.serializeFormat());
+    DEBUG_LOG("   outDesc: ", outDesc.getShape().toString(), outDesc.getPrecision().get_type_name(), " ", outDesc.serializeFormat());
 
     InsertNode(edge, newReorder, true);
 
@@ -1614,12 +1620,12 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
 void Graph::EnforceInferencePrecision() {
     CPU_DEBUG_CAP_ENABLE(static EnforceInferPrcDebug inferPrecDebug);
 
-    const auto inferPrec = convertPrecision(getConfig().inferencePrecision);
+    const auto inferPrec = getConfig().inferencePrecision;
 
-    if (inferPrec == Precision::FP32)
+    if (inferPrec == ov::element::f32)
         return; // nothing to do, only precision reduction is currently allowed
 #if defined(OV_CPU_ARM_ENABLE_FP16)
-    if (inferPrec == Precision::FP16)
+    if (inferPrec == ov::element::f16)
         return; // precision of configured by ov::pass::ConvertPrecision
 #endif
     std::function<void(const NodePtr&, std::unordered_set<NodePtr>& skipNodes)> searchForNodesToSkip;
@@ -1627,7 +1633,7 @@ void Graph::EnforceInferencePrecision() {
         for (size_t i = 0; i < node->getParentEdges().size(); i++) {
             const auto& parent = node->getParentEdgeAt(i)->getParent();
 
-            if (inferPrec == InferenceEngine::Precision::BF16) {
+            if (inferPrec == ov::element::bf16) {
                 /* list of node types that must be forced to be executed in BF16 precision
                 * because of performance gains */
                 if (one_of(parent->getType(),
@@ -1639,7 +1645,7 @@ void Graph::EnforceInferencePrecision() {
                         Type::ROIPooling,     // object detection nets
                         Type::Interpolate))    // super resolution nets
                     continue;   // stop at significant nodes
-            } else if (inferPrec == InferenceEngine::Precision::FP16) {
+            } else if (inferPrec == ov::element::f16) {
                 /* list of node types that must be forced to be executed in FP16 precision
                 * because of performance gains */
                 if (one_of(parent->getType(),
@@ -1688,13 +1694,13 @@ void Graph::EnforceInferencePrecision() {
         for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
             auto keepOriginalInputPrecisionAtPort = [](const NodePtr& node, const size_t inPort) {
                 // keep non-float precisions
-                if (node->getOriginalInputPrecisionAtPort(inPort) != Precision::FP32)
+                if (node->getOriginalInputPrecisionAtPort(inPort) != ov::element::f32)
                     return true;
 
                 const auto &parent = node->getParentEdgesAtPort(inPort)[0]->getParent();
                 /* Skip BF16 enforcement for nodes after Constant Inputs for maintaining precision for fusing.
-                 * Precision conversion to BF16 is done automatically, if convolution follows up after Constant Inputs
-                 * and activation is BF16 */
+                 * Element type conversion to bf16 is done automatically, if convolution follows up after Constant Inputs
+                 * and activation is bf16 */
                 if (parent->getType() == Type::Input && parent->isConstant() &&
                     // Concatenation node is exception because it doesn't change an accuracy for BF16 activation
                     node->getType() != Type::Concatenation)
@@ -1714,7 +1720,7 @@ void Graph::EnforceInferencePrecision() {
 
         for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
             // keep non-float precisions
-            if (node->getOriginalOutputPrecisionAtPort(i) != Precision::FP32)
+            if (node->getOriginalOutputPrecisionAtPort(i) != ov::element::f32)
                 continue;
 
             // exclude Convert before Range since it may cause precision loss when integter type to LP.

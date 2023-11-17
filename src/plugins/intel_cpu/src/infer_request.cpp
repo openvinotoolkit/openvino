@@ -220,7 +220,7 @@ static inline void change_edge_ptr(const EdgePtr& edge, ov::SoPtr<ov::ITensor>& 
     auto size = tensor->get_byte_size();
     auto& mem = edge->getMemory();
     auto memMngr = mem.getMemoryMngr();
-    IE_ASSERT(memMngr);
+    OPENVINO_ASSERT(memMngr);
     memMngr->setExtBuff(tensor->data(), size);
 }
 
@@ -447,8 +447,10 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
     if (is_input) {
         const auto netInPrc = port.get_element_type();
         if (netInPrc != tensor->get_element_type()) {
-            IE_THROW(ParameterMismatch) << "Failed to set input tensor with precision: " << tensor->get_element_type()
-                                        << ", since the model input tensor precision is: " << netInPrc;
+            OPENVINO_THROW("ParameterMismatch: Failed to set tensor for input with precision: ",
+                           tensor->get_element_type(),
+                           ", since the model input tensor precision is: ",
+                           netInPrc);
         }
 
         const auto& shape = port.get_partial_shape();
@@ -493,8 +495,10 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
     } else {
         const auto netOutPrc = port.get_element_type();
         if (netOutPrc != tensor->get_element_type()) {
-            IE_THROW(ParameterMismatch) << "Failed to set output tensor with precision: " << tensor->get_element_type()
-                                        << ", if model output tensor precision is: " << netOutPrc;
+            OPENVINO_THROW("ParameterMismatch: Failed to set tensor for output with precision: ",
+                           tensor->get_element_type(),
+                           ", if model output tensor precision is: ",
+                           netOutPrc);
         }
 
         const auto& shape = port.get_partial_shape();
@@ -568,7 +572,9 @@ void SyncInferRequest::init_tensor(const std::string& name) {
             const bool isDynamic = shape.is_dynamic();
             ov::Shape tensor_shape;
             if (isDynamic) {
-                tensor_shape = ov::Shape(shape.rank().get_length(), 0);
+                for (auto&& item : shape) {
+                    tensor_shape.push_back(item.is_static() ? item.get_length() : 0);
+                }
             } else {
                 tensor_shape = shape.to_shape();
             }
@@ -611,7 +617,7 @@ void SyncInferRequest::init_tensor(const std::string& name) {
             if (!tensor) {
                 ov::Shape tensor_shape;
                 if (isDynamic) {
-                    const auto model_prec = InferenceEngine::details::convertPrecision(port.get_element_type());
+                    const auto model_prec = port.get_element_type();
                     const auto graph_prec =
                         output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
                     OutputControlBlock control_block{model_prec, Shape{shape}};
@@ -644,18 +650,23 @@ void SyncInferRequest::init_tensor(const std::string& name) {
                      std::any_of(blobDims.begin(), blobDims.end(), [](const size_t& dims) {
                          return dims != 0;
                      }))) {
-                    IE_THROW(ParameterMismatch)
-                        << "Network input and output use the same name: " << name
-                        << ", but expect tensors with different shapes. Input shape: " << ov::PartialShape(blobDims)
-                        << ", output shape: " << port_shape;
+                    OPENVINO_THROW("ParameterMismatch: Network input and output use the same name: ",
+                                   name,
+                                   ", but expect tensors with different shapes. Input shape: ",
+                                   ov::PartialShape(blobDims),
+                                   ", output shape: ",
+                                   port_shape);
                 }
 
                 const auto netOutPrc = port.get_element_type();
                 if (netOutPrc != tensor->get_element_type()) {
-                    IE_THROW(ParameterMismatch)
-                        << "Network input and output use the same name: " << name
-                        << " but expect tensor with different precision: " << tensor->get_element_type()
-                        << " for input and " << netOutPrc << " for output.";
+                    OPENVINO_THROW("ParameterMismatch: Network input and output use the same name: ",
+                                   name,
+                                   " but expect tensor with different precision: ",
+                                   tensor->get_element_type(),
+                                   " for input and ",
+                                   netOutPrc,
+                                   " for output.");
                 }
             }
             m_outputs[name] = tensor;
@@ -692,17 +703,22 @@ void SyncInferRequest::push_input_data() {
     }
 }
 
-SyncInferRequest::OutputControlBlock::OutputControlBlock(const InferenceEngine::Precision& precision, const Shape& shape) {
+SyncInferRequest::OutputControlBlock::OutputControlBlock(const ov::element::Type& precision, const Shape& shape) {
     dnnl::engine eng(dnnl::engine::kind::cpu, 0);
     m_buffers[m_buffIndx] = std::make_shared<MemoryMngrWithReuse>();
     m_proxyMemMngr = std::make_shared<ProxyMemoryMngr>(m_buffers[m_buffIndx]);
 
-    Shape memShape = shape.isDynamic() ?
-        Shape{VectorDims(shape.getRank(), 0)} : // this is a WA since the ITensor doesn't allow dyn shapes
-        Shape{shape};
+    VectorDims memDims;
+    if (shape.isDynamic()) { // this is a WA since the ITensor doesn't allow dyn shapes
+        for (auto&& item : shape.getDims()) {
+            memDims.push_back(item != Shape::UNDEFINED_DIM ? item : 0);
+        }
+    } else {
+        memDims = shape.getStaticDims();
+    }
 
     CpuBlockedMemoryDescPtr desc =
-        std::make_shared<CpuBlockedMemoryDesc>(precision, memShape);
+        std::make_shared<CpuBlockedMemoryDesc>(precision, Shape{memDims});
 
     auto memory = std::make_shared<Memory>(eng, desc, m_proxyMemMngr);
     m_tensor = std::make_shared<Tensor>(memory);

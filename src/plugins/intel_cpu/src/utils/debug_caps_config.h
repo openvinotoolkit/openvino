@@ -5,6 +5,7 @@
 #ifdef CPU_DEBUG_CAPS
 
 #include "ie_common.h"
+#include "openvino/core/except.hpp"
 #include "openvino/util/common_util.hpp"
 
 #include <bitset>
@@ -110,9 +111,13 @@ public:
             }
 
             if (failed)
-                IE_THROW() << "Wrong syntax: " << str << std::endl
-                           << "The following space separated options are supported (option names are case insensitive):" << std::endl
-                           << getHelp();
+                OPENVINO_THROW(
+                    "Wrong syntax: ",
+                    str,
+                    "\n",
+                    "The following space separated options are supported (option names are case insensitive):",
+                    "\n",
+                    getHelp());
         }
     };
 
