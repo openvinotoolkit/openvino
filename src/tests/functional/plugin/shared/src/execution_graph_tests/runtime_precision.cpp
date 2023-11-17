@@ -123,9 +123,9 @@ TEST_P(ExecGraphRuntimePrecision, CheckRuntimePrecision) {
         if (rtIter == rtInfo.end())
             FAIL() << "Runtime precision is not found for node: " << opIter->get()->get_friendly_name();
 
-        if (expectedPrc.second.name() != rtIter->second.as<std::string>())
+        if (InferenceEngine::details::convertPrecision(expectedPrc.second).get_type_name() != rtIter->second.as<std::string>())
             FAIL() << "`" << expectedPrc.first << "' node runtime precision mismatch: actual = " <<
-                rtIter->second.as<std::string>() << ", expected = " << expectedPrc.second.name();
+                rtIter->second.as<std::string>() << ", expected = " << InferenceEngine::details::convertPrecision(expectedPrc.second).get_type_name();
     }
 
     fnPtr.reset();

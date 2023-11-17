@@ -65,20 +65,20 @@ void RandomUniform::getSupportedDescriptors() {
 
 void RandomUniform::initSupportedPrimitiveDescriptors() {
     auto shape_prc = getOriginalInputPrecisionAtPort(SHAPE);
-    if (!one_of(shape_prc, InferenceEngine::Precision::I32, InferenceEngine::Precision::I64)) {
-        shape_prc = InferenceEngine::Precision::I32;
+    if (!one_of(shape_prc, ov::element::i32, ov::element::i64)) {
+        shape_prc = ov::element::i32;
     }
 
     auto out_prc = getOriginalOutputPrecisionAtPort(0);
-    if (out_prc.is_float() && ((m_algo == PHILOX &&
-            !one_of(out_prc, InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16, InferenceEngine::Precision::BF16)) ||
-            (m_algo == STL && !one_of(out_prc, InferenceEngine::Precision::FP32)))) {
-        out_prc = InferenceEngine::Precision::FP32;
+    if (out_prc.is_real() && ((m_algo == PHILOX &&
+            !one_of(out_prc, ov::element::f32, ov::element::f16, ov::element::bf16)) ||
+            (m_algo == STL && !one_of(out_prc, ov::element::f32)))) {
+        out_prc = ov::element::f32;
     }
-    if (!out_prc.is_float() && !one_of(out_prc, InferenceEngine::Precision::I32, InferenceEngine::Precision::I64)) {
-        out_prc = InferenceEngine::Precision::I32;
+    if (!out_prc.is_real() && !one_of(out_prc, ov::element::i32, ov::element::i64)) {
+        out_prc = ov::element::i32;
     }
-    m_output_prc = InferenceEngine::details::convertPrecision(out_prc);
+    m_output_prc = out_prc;
 
     addSupportedPrimDesc({{LayoutType::ncsp, shape_prc, m_const_inputs[SHAPE]},
                           {LayoutType::ncsp, out_prc, m_const_inputs[MIN_VAL]},
@@ -504,8 +504,8 @@ std::string RandomUniform::getPrimitiveDescriptorType() const {
         str_type = "undef";
 
     if (selectedPrimitiveDesc) {
-        if (selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision() != InferenceEngine::Precision::U8) {
-            str_type += "_" + std::string(selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision().name());
+        if (selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision() != ov::element::u8) {
+            str_type += "_" + std::string(selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision().get_type_name());
         } else {
             str_type += "_I8";
         }

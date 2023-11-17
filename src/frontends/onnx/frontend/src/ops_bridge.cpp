@@ -74,6 +74,7 @@
 #include "op/global_average_pool.hpp"
 #include "op/global_max_pool.hpp"
 #include "op/greater.hpp"
+#include "op/greater_or_equal.hpp"
 #include "op/grid_sample.hpp"
 #include "op/group_normalization.hpp"
 #include "op/gru.hpp"
@@ -395,6 +396,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("GlobalLpPool", 1, global_lp_pool);
     REGISTER_OPERATOR("GlobalMaxPool", 1, global_max_pool);
     REGISTER_OPERATOR("Greater", 1, greater);
+    REGISTER_OPERATOR("Greater_Or_Equal", 1, greater_or_equal);
+    REGISTER_OPERATOR("Greater_Or_Equal", 16, greater_or_equal);
     REGISTER_OPERATOR("GridSample", 1, grid_sample);
     REGISTER_OPERATOR("GroupNormalization", 1, group_normalization);
     REGISTER_OPERATOR("GRU", 1, gru);

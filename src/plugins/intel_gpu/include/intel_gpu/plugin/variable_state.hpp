@@ -16,7 +16,7 @@ public:
 
     void reset() override;
     void set_state(const ov::SoPtr<ov::ITensor>& state) override;
-    const ov::SoPtr<ov::ITensor>& get_state() const override;
+    ov::SoPtr<ov::ITensor> get_state() const override;
 
 private:
     cldnn::network::VariableState::Ptr m_variable_state;
