@@ -72,6 +72,22 @@ class TestNorm(PytorchLayerTest):
         self._test(*self.create_model_tensor_norm(p, dim, keepdim),
                    ie_device, precision, ir_version)
 
+class TestWeightNorm(PytorchLayerTest):
+
+    def _prepare_input(self):
+        return (np.random.randn(1, 60, 20).astype(np.float32),)
+
+    def create_model(self):
+        from torch import nn
+        from torch.nn.utils import weight_norm
+
+        return weight_norm(nn.Linear(20, 40), name='weight'), None, "aten::_weight_norm"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_weight_norm(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=True, freeze_model=False)
+
 
 class TestFrobeniusNorm(PytorchLayerTest):
     def _prepare_input(self, out=False, dtype="float32"):
