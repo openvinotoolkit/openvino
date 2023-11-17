@@ -93,7 +93,7 @@ public:
         auto concatV = builder::makeConcat(OutputVector{pastv, inputParams[2]}, 2);
         auto sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(inputParams[0], concatK, concatV, false);
         sdp->set_friendly_name("mha");
-        auto add = std::make_shared<op::v1::Add>(sdp, op::v0::Constant::create(ngraph::element::f32, {1}, {1.0f}));
+        auto add = std::make_shared<op::v1::Add>(sdp, op::v0::Constant::create(inType, {1}, {1.0f}));
         auto pastk_assign = std::make_shared<op::v6::Assign>(concatK, var_k);
         auto pastv_assign = std::make_shared<op::v6::Assign>(concatV, var_v);
         pastk_assign->set_friendly_name("pastk_w");
@@ -120,30 +120,23 @@ public:
         SubgraphBaseTest::generate_inputs(shapes);
     }
     void generate(int idx, const std::vector<ov::Shape>& targetInputStaticShapes) {
-        std::vector<ov::Shape> shapes(4);
-        shapes[0] = targetInputStaticShapes[0];
-        shapes[1] = targetInputStaticShapes[0];
-        shapes[2] = targetInputStaticShapes[0];
-        shapes[3] = targetInputStaticShapes[1];
         inputs.clear();
-        auto itTargetShape = shapes.begin();
-        for (const auto& param : function->get_parameters()) {
-            std::shared_ptr<ov::Node> inputNode = param;
-            for (size_t i = 0; i < param->get_output_size(); i++) {
-                for (const auto& node : param->get_output_target_inputs(i)) {
-                    std::shared_ptr<ov::Node> nodePtr = node.get_node()->shared_from_this();
-                    for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
-                        if (nodePtr->get_input_node_ptr(port)->shared_from_this() == inputNode->shared_from_this()) {
-                            ov::Tensor t{ov::element::f32, *itTargetShape};
-                            std::fill_n(static_cast<float*>(t.data()), t.get_size(), idx + 1.0f);
-                            inputs.insert({param, t});
-                            break;
-                        }
-                    }
-                }
+        auto create_input = [this] (std::shared_ptr<op::v0::Parameter> param, ov::Shape shape, float val) {
+            if (param->get_element_type() == element::f32) {
+                ov::Tensor t{ov::element::f32, shape};
+                std::fill_n(static_cast<float*>(t.data()), t.get_size(), val);
+                inputs.insert({param, t});
+            } else {
+                ov::Tensor t{ov::element::bf16, shape};
+                std::fill_n(static_cast<ov::bfloat16*>(t.data()), t.get_size(), ov::bfloat16(val));
+                inputs.insert({param, t});
             }
-            itTargetShape++;
-        }
+        };
+        // q, k, v
+        create_input(function->get_parameters()[0], targetInputStaticShapes[0], idx + 1.0f);
+        create_input(function->get_parameters()[1], targetInputStaticShapes[0], idx + 2.0f);
+        create_input(function->get_parameters()[2], targetInputStaticShapes[0], idx + 3.0f);
+        create_input(function->get_parameters()[3], targetInputStaticShapes[1], idx + 4.0f);
     }
     void prepare() {
         compile_model();
@@ -200,7 +193,7 @@ const std::vector<std::vector<InputShape>> inputShapes = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTest,
                          ConcatSDPTest,
-                         ::testing::Combine(::testing::Values(ElementType::f32), ::testing::ValuesIn(inputShapes)),
+                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16), ::testing::ValuesIn(inputShapes)),
                          ConcatSDPTest::getTestCaseName);
 
 }  // namespace

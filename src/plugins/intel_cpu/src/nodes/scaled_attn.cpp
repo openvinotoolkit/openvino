@@ -601,10 +601,15 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             attn_mask.data()[i] = p[i] ? 0.0f : -FLT_MAX;
     }
 
-    void prepare_output(const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr>& outputs, PlainTensor<T>& k_input, PlainTensor<T>& v_input) {
+    void concat_pastkv(const std::vector<MemoryPtr>& inputs,
+                       const std::vector<MemoryPtr>& outputs,
+                       const PlainTensor<T>& k_input,
+                       const PlainTensor<T>& v_input,
+                       PlainTensor<T>& past_k_output,
+                       PlainTensor<T>& past_v_output) {
         if (config.fuse_concat) {
             auto past_k_idx = inputs.size() - 2;
-            PlainTensor<T> past_k_input, past_v_input, past_k_output, past_v_output;
+            PlainTensor<T> past_k_input, past_v_input;
             auto past_k_mem = inputs[past_k_idx + 0];
             L0 = past_k_mem->getStaticDims()[2];
             // [S, B, L0, S]
@@ -633,16 +638,14 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                        &v_input.at({b, h, m, 0}),
                        S * sizeof(T));
             });
-            k_input = past_k_output;
-            v_input = past_v_output;
-            std::cout << "\npast K:\n";
-            std::cout << past_k_input;
-            std::cout << "\npast V:\n";
-            std::cout << past_v_input;
-            std::cout << "\ncur K:\n";
-            std::cout << k_input;
-            std::cout << "\ncur V:\n";
-            std::cout << v_input;
+            // std::cout << "\npast K:\n";
+            // std::cout << past_k_input;
+            // std::cout << "\npast V:\n";
+            // std::cout << past_v_input;
+            // std::cout << "\ncur K:\n";
+            // std::cout << k_input;
+            // std::cout << "\ncur V:\n";
+            // std::cout << v_input;
         }
     }
 
@@ -676,21 +679,23 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         L1 = q_input.size(2);
         S = q_input.size(-1);
 
-        prepare_output(inputs, outputs, k_input, v_input);
-        std::cout << "\ncur Q:\n";
-        std::cout << q_input;
+        PlainTensor<T> present_key, present_value;
+        concat_pastkv(inputs, outputs, k_input, v_input, present_key, present_value);
+        // std::cout << "\ncur Q:\n";
+        // std::cout << q_input;
 
         L0 = k_input.size(2) - L1;
 
         ov::intel_cpu::PlainTensor<T> output_emb(outputs[0]);
-        PlainTensor<T> present_key, present_value;
 
         q_input.assert_dims({B, H, L1, S});
         k_input.assert_dims({B, H, L0 + L1, S});
         v_input.assert_dims({B, H, L0 + L1, S});
         m_query_emb = q_input;
-        present_key = k_input;
-        present_value = v_input;
+        if (!fuse_concat || L0 > 1) {
+            present_key = k_input;
+            present_value = v_input;
+        }
 
         bool auto_causal;
         bool use_attn_mask;
