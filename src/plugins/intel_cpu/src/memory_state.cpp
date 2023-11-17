@@ -82,12 +82,14 @@ ov::SoPtr<ov::ITensor> VariableStateBase::get_state() const {
 }
 
 VariableStateDoubleBuffer::VariableStateDoubleBuffer(const std::string& name,
-                                                     const MemBuilder& mem_build,
+                                                     const MemoryPtr& first_buffer,
+                                                     const MemoryPtr& second_buffer,
                                                      const MemoryDescPtr& external_desc,
                                                      const MemoryCPtr& init_val) :
     VariableStateBase(name, external_desc) {
-    reset_prime_mem(mem_build());
-    reset_second_mem(mem_build());
+    OPENVINO_ASSERT(first_buffer && second_buffer);
+    reset_prime_mem(first_buffer);
+    reset_second_mem(second_buffer);
     m_internal_desc = prime_mem()->getDescPtr();
     auto&& shape = m_internal_desc->getShape();
     //TODO what if by some reason we already have internal static state while the node is dynamic, is it even possible?
@@ -132,11 +134,12 @@ MemoryDescPtr VariableStateDoubleBuffer::internal_desc() const {
 }
 
 VariableStateSingleBuffer::VariableStateSingleBuffer(const std::string& name,
-                                                     const MemBuilder& mem_build,
+                                                     const MemoryPtr& buffer,
                                                      const MemoryDescPtr& external_desc,
                                                      const MemoryCPtr& init_val) :
     VariableStateBase(name, external_desc) {
-    m_internal_mem = mem_build();
+    OPENVINO_ASSERT(buffer);
+    m_internal_mem = buffer;
     m_internal_desc = m_internal_mem->getDescPtr();
     auto&& shape = m_internal_desc->getShape();
     //TODO what if by some reason we already have internal static state while the node is dynamic, is it even possible?

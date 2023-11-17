@@ -30,9 +30,6 @@ public:
 
 class VariableStateBase : public IVariableState {
 public:
-    using MemBuilder = std::function<MemoryPtr(void)>;
-
-public:
     VariableStateBase(const std::string& name, const MemoryDescPtr& external_desc);
 
     //ov::IVariableState
@@ -50,7 +47,8 @@ protected:
 class VariableStateDoubleBuffer : public VariableStateBase {
 public:
     VariableStateDoubleBuffer(const std::string& name,
-                              const MemBuilder& mem_build,
+                              const MemoryPtr& first_buffer,
+                              const MemoryPtr& second_buffer,
                               const MemoryDescPtr& external_desc,
                               const MemoryCPtr& init_val);
 
@@ -90,7 +88,7 @@ private:
 class VariableStateSingleBuffer : public VariableStateBase {
 public:
     VariableStateSingleBuffer(const std::string& name,
-                              const MemBuilder& mem_build,
+                              const MemoryPtr& buffer,
                               const MemoryDescPtr& external_desc,
                               const MemoryCPtr& init_val);
     //ov::IVariableState

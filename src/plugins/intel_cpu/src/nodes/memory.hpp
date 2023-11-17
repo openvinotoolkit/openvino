@@ -20,7 +20,7 @@ namespace intel_cpu {
 namespace node {
 
 class MemoryOutput;
-class MemoryInput;
+class MemoryInputBase;
 
 class MemoryNode {
  public:
@@ -57,7 +57,7 @@ public:
     }
 
     static Holder* registerOutput(MemoryOutput * node);
-    static Holder* registerInput(MemoryInput * node);
+    static Holder* registerInput(MemoryInputBase * node);
     static void remove(MemoryNode * node, Holder* holder);
     static std::mutex holderMutex;
 };
@@ -78,8 +78,8 @@ public:
     }
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
-    void registerInputNode(MemoryInput* node);
-    void deregisterSibling(MemoryInput* node);
+    void registerInputNode(MemoryInputBase* node);
+    void deregisterSibling(MemoryInputBase* node);
 
     bool needShapeInfer() const override { return false; }
     bool needPrepareParams() const override { return false; }
@@ -87,32 +87,28 @@ public:
     void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc);
 
 private:
-    MemoryInput& getInputNode();
+    MemoryInputBase& getInputNode();
 
 private:
     /**
      * @brief keeps reference to input sibling node
      */
-    MemoryInput* inputNode = nullptr;
+    MemoryInputBase* inputNode = nullptr;
     MemoryPtr assignedMem = nullptr;
     MemoryDescPtr extMemDesc = nullptr; // used for resize
     MemoryNodeVirtualEdge::Holder* holder = nullptr;
     ProxyMemoryMngrPtr memMngr = nullptr;
 };
 
-class MemoryInput : public Input, public MemoryNode {
+class MemoryInputBase : public Input, public MemoryNode {
 public:
-    MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
-    ~MemoryInput() override;
+    MemoryInputBase(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    ~MemoryInputBase() override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     bool created() const override {
         return getType() == Type::MemoryInput;
     }
-
-    void initSupportedPrimitiveDescriptors() override;
-    void initOptimalPrimitiveDescriptor() override;
-    void selectOptimalPrimitiveDescriptor() override;
 
     void execute(dnnl::stream strm) override {/*pass*/}
     void executeDynamicImpl(dnnl::stream strm) override {/*pass*/}
@@ -125,10 +121,10 @@ public:
     void deregisterSibling(MemoryOutput* node);
 
     // May be extracted to some interface when necessary
-    void assignState(MemStatePtr newState);
-    MemStatePtr makeState() const;
+    virtual void assignState(MemStatePtr newState);
+    virtual MemStatePtr makeState() const = 0;
 
-private:
+protected:
     MemoryOutput& getOutputNode();
 
 private:
@@ -139,6 +135,17 @@ private:
     MemoryPtr assignedMem = nullptr;
     MemoryNodeVirtualEdge::Holder* holder = nullptr;
     ProxyMemoryMngrPtr memMngr = nullptr;
+};
+
+class MemoryInput : public MemoryInputBase {
+public:
+    using MemoryInputBase::MemoryInputBase;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
+
+    void initSupportedPrimitiveDescriptors() override;
+    void initOptimalPrimitiveDescriptor() override;
+
+    MemStatePtr makeState() const override;
 };
 
 }   // namespace node

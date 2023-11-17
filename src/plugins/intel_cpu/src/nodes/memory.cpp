@@ -61,7 +61,7 @@ MemoryOutput::~MemoryOutput() {
     MemoryNodeVirtualEdge::remove(this, holder);
 }
 
-MemoryInput& MemoryOutput::getInputNode() {
+MemoryInputBase& MemoryOutput::getInputNode() {
     OPENVINO_ASSERT(inputNode, "MemoryOutput ", getName(), " doesn't have sibling input");
     return *inputNode;
 }
@@ -85,8 +85,6 @@ void MemoryOutput::initSupportedPrimitiveDescriptors() {
 
     config.inConfs.push_back(std::move(inPortConfig));
 
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
-    config.inConfs[0].setMemDesc(descCreators.at(LayoutType::cabd)->createSharedDesc(precision, shape));
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
@@ -198,19 +196,19 @@ void MemoryOutput::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MemoryOutput::registerInputNode(MemoryInput* node) {
+void MemoryOutput::registerInputNode(MemoryInputBase* node) {
     if (inputNode == node) { return; }
     if (inputNode) { inputNode->deregisterSibling(this); }
     inputNode = node;
     inputNode->registerOutputNode(this);
 }
 
-void MemoryOutput::deregisterSibling(MemoryInput* node) {
+void MemoryOutput::deregisterSibling(MemoryInputBase* node) {
     if (node == inputNode) { inputNode = nullptr; }
 }
 
 
-bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool MemoryInputBase::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(),
                 ov::op::v3::ReadValue::get_type_info_static(),
@@ -224,7 +222,7 @@ bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
     return true;
 }
 
-MemoryInput::MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr ctx)
+MemoryInputBase::MemoryInputBase(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr ctx)
         : Input(op, ctx), MemoryNode(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -235,7 +233,7 @@ MemoryInput::MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext
     }
 }
 
-void MemoryInput::createPrimitive() {
+void MemoryInputBase::createPrimitive() {
     Input::createPrimitive();
     if (!inputShapes.empty()) {
         auto parentEdge = getParentEdgeAt(0);
@@ -246,102 +244,7 @@ void MemoryInput::createPrimitive() {
     }
 }
 
-void MemoryInput::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
-        return;
-
-    auto&& shape = getOutputShapeAtPort(0);
-    auto precision = getOriginalOutputPrecisionAtPort(0);
-    auto&& descCreators = ov::intel_cpu::BlockedDescCreator::getCommonCreators();
-
-    NodeConfig config;
-
-    if (!getParentEdges().empty()) {
-        PortConfig inPortConfig;
-
-        inPortConfig.inPlace(-1);
-        inPortConfig.constant(false);
-        inPortConfig.setMemDesc(descCreators.at(LayoutType::ncsp)->createSharedDesc(precision, shape));
-
-        config.inConfs.push_back(std::move(inPortConfig));
-    }
-
-    PortConfig outPortConfig;
-
-    outPortConfig.inPlace(0);
-    outPortConfig.constant(false);
-    outPortConfig.setMemDesc(descCreators.at(LayoutType::ncsp)->createSharedDesc(precision, shape));
-
-    config.outConfs.push_back(std::move(outPortConfig));
-
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
-    config.outConfs[0].setMemDesc(descCreators.at(LayoutType::cabd)->createSharedDesc(precision, shape));
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
-}
-
-void MemoryInput::initOptimalPrimitiveDescriptor() {
-    // Mimic the child node memory desc to avoid extra reorder
-    auto childEdge = getChildEdgeAt(0);
-    auto child = childEdge->getChild();
-    auto childPd = child->getSelectedPrimitiveDescriptor();
-    OPENVINO_ASSERT(childPd,
-        child->getTypeStr(), " ",
-        child->getName(),
-        "failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
-
-    const auto& childConfig = childPd->getConfig();
-    auto mem_desc = childConfig.inConfs[childEdge->getOutputNum()].getMemDesc();
-
-    auto selectedPd = getSelectedPrimitiveDescriptor();
-    OPENVINO_ASSERT(selectedPd,
-        "MemoryInput ",
-        getName(),
-        " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
-
-    auto config = selectedPd->getConfig();
-    config.outConfs.front().setMemDesc(mem_desc);
-    //bypass any checks, we enforce the child descriptor
-    selectedPd->setConfig(config);
-}
-
-void MemoryInput::selectOptimalPrimitiveDescriptor() {
-    size_t i;
-    bool suitable = false;
-    for (i = 0; i < supportedPrimitiveDescriptors.size(); i++) {
-        const auto& outputDesc = supportedPrimitiveDescriptors[i].getConfig().outConfs[0].getMemDesc();
-        suitable = true;
-        // try find desc suitable for all child nodes
-        for (size_t j = 0; j < getChildEdges().size(); j++) {
-            auto childEdge = getChildEdgeAt(j);
-            auto child = childEdge->getChild();
-            const auto& childSpd = child->getSupportedPrimitiveDescriptors();
-            bool hasMatchDesc = false;
-            for (size_t k = 0; k < childSpd.size(); k++) {
-                const auto& childOutputDesc = childSpd[k].getConfig().inConfs[childEdge->getOutputNum()].getMemDesc();
-                if (outputDesc->isCompatible(*childOutputDesc)) {
-                    hasMatchDesc = true;
-                    break;
-                }
-            }
-            // this edge is not compatible with the desc
-            if (!hasMatchDesc) {
-                suitable = false;
-                break;
-            }
-        }
-        // all edges are compatible with the desc
-        if (suitable) {
-            break;
-        }
-    }
-    if (suitable) {
-        selectPrimitiveDescriptorByIndex(static_cast<int>(i));
-    } else {
-        selectPrimitiveDescriptorByIndex(0);
-    }
-}
-
-void MemoryInput::resolveInPlaceEdges(Edge::LOOK look) {
+void MemoryInputBase::resolveInPlaceEdges(Edge::LOOK look) {
     if (!(look & Edge::LOOK_UP)) {
         Node::resolveInPlaceEdges(look);
         return;
@@ -365,17 +268,17 @@ void MemoryInput::resolveInPlaceEdges(Edge::LOOK look) {
     }
 }
 
-MemoryInput::~MemoryInput() {
+MemoryInputBase::~MemoryInputBase() {
     if (outputNode) { outputNode->deregisterSibling(this); }
     MemoryNodeVirtualEdge::remove(this, holder);
 }
 
-MemoryOutput& MemoryInput::getOutputNode() {
+MemoryOutput& MemoryInputBase::getOutputNode() {
     OPENVINO_ASSERT(outputNode, "MemoryOutput ", getName(), " doesn't have sibling input");
     return *outputNode;
 }
 
-void MemoryInput::assignState(MemStatePtr newState) {
+void MemoryInputBase::assignState(MemStatePtr newState) {
     assignedMem = newState->input_mem();
 
     OPENVINO_ASSERT(assignedMem,
@@ -428,40 +331,18 @@ void MemoryInput::assignState(MemStatePtr newState) {
     getOutputNode().assignExtMemory(newState->output_mem(), newState->internal_desc());
 }
 
-MemStatePtr MemoryInput::makeState() const {
-    // assume ov::Tensor is always dense
-    auto original_desc =
-        std::make_shared<CpuBlockedMemoryDesc>(getOriginalOutputPrecisionAtPort(0), outputShapes.at(0));
-
-    auto mem_desc = getBaseMemDescAtOutputPort(0);
-    const auto& eng = getEngine();
-
-    auto state_name = getId();
-
-    // Remove suffix with pair ID. Internal information.
-    auto suffix_idx = state_name.find("/id=");
-    if (suffix_idx != std::string::npos) {
-        state_name = state_name.substr(0, suffix_idx);
-    }
-
-    return std::make_shared<VariableStateDoubleBuffer>(state_name,
-        [mem_desc, eng](){ return std::make_shared<Memory>(eng, mem_desc); },
-        original_desc,
-        getMemoryPtr());
-}
-
-void MemoryInput::registerOutputNode(MemoryOutput* node) {
+void MemoryInputBase::registerOutputNode(MemoryOutput* node) {
     if (outputNode == node) { return; }
     if (outputNode) { outputNode->deregisterSibling(this); }
     outputNode = node;
     outputNode->registerInputNode(this);
 }
 
-void MemoryInput::deregisterSibling(MemoryOutput* node) {
+void MemoryInputBase::deregisterSibling(MemoryOutput* node) {
     if (node == outputNode) { outputNode = nullptr; }
 }
 
-MemoryNodeVirtualEdge::Holder* MemoryNodeVirtualEdge::registerInput(MemoryInput * node) {
+MemoryNodeVirtualEdge::Holder* MemoryNodeVirtualEdge::registerInput(MemoryInputBase * node) {
     std::lock_guard<std::mutex> lock{MemoryNodeVirtualEdge::holderMutex};
     // in case of output already registered
     auto& holder = MemoryNodeVirtualEdge::getExisted();
@@ -482,7 +363,7 @@ MemoryNodeVirtualEdge::Holder* MemoryNodeVirtualEdge::registerOutput(MemoryOutpu
     auto& holder = MemoryNodeVirtualEdge::getExisted();
     auto sibling = MemoryNodeVirtualEdge::getByName(holder, node->getId());
     if (sibling != nullptr) {
-        auto inputNode = dynamic_cast<MemoryInput*>(sibling);
+        auto inputNode = dynamic_cast<MemoryInputBase*>(sibling);
         OPENVINO_ASSERT(inputNode != nullptr);
         node->registerInputNode(inputNode);
     } else {
@@ -499,6 +380,121 @@ void MemoryNodeVirtualEdge::remove(MemoryNode * node, Holder* holder) {
         });
     }
 }
+
+void MemoryInput::initSupportedPrimitiveDescriptors() {
+    if (!supportedPrimitiveDescriptors.empty())
+        return;
+
+    auto&& shape = getOutputShapeAtPort(0);
+    auto precision = getOriginalOutputPrecisionAtPort(0);
+    auto&& descCreators = ov::intel_cpu::BlockedDescCreator::getCommonCreators();
+
+    NodeConfig config;
+
+    if (!getParentEdges().empty()) {
+        PortConfig inPortConfig;
+
+        inPortConfig.inPlace(-1);
+        inPortConfig.constant(false);
+        inPortConfig.setMemDesc(descCreators.at(LayoutType::ncsp)->createSharedDesc(precision, shape));
+
+        config.inConfs.push_back(std::move(inPortConfig));
+    }
+
+    PortConfig outPortConfig;
+
+    outPortConfig.inPlace(0);
+    outPortConfig.constant(false);
+    outPortConfig.setMemDesc(descCreators.at(LayoutType::ncsp)->createSharedDesc(precision, shape));
+
+    config.outConfs.push_back(std::move(outPortConfig));
+
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+}
+
+void MemoryInput::initOptimalPrimitiveDescriptor() {
+    // Mimic the child node memory desc to avoid extra reorder
+    static Type preferredTypes[] = {
+        Type::ScaledDotProductAttention,
+        Type::MatMul,
+        Type::FullyConnected,
+        Type::Convolution,
+        Type::RNNCell,
+        Type::RNNSeq,
+        Type::Subgraph
+    };
+
+    static Type skipTypes[] = {
+        Type::ShapeOf
+    };
+
+    auto&& childEdges = getChildEdgesAtPort(0);
+    EdgePtr childEdge = childEdges.front();
+
+    if (childEdges.size() > 1) {
+        // try to prioritize memory desc
+        for (auto&& item : childEdges) {
+            auto itemType = item->getChild()->getType();
+            if (std::any_of(std::begin(skipTypes), std::end(skipTypes), [=](Type type){ return type == itemType; })) {
+                continue;
+            }
+            if (std::any_of(std::begin(preferredTypes),
+                    std::end(preferredTypes), [=](Type type){ return type == itemType; })) {
+                childEdge = item;
+                break;
+            }
+        }
+    }
+
+    auto child = childEdge->getChild();
+    auto childPd = child->getSelectedPrimitiveDescriptor();
+    OPENVINO_ASSERT(childPd,
+        child->getTypeStr(), " ",
+        child->getName(),
+        "failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
+
+    const auto& childConfig = childPd->getConfig();
+    auto mem_desc = childConfig.inConfs[childEdge->getOutputNum()].getMemDesc();
+
+    auto selectedPd = getSelectedPrimitiveDescriptor();
+    OPENVINO_ASSERT(selectedPd,
+        "MemoryInput ",
+        getName(),
+        " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
+
+    auto config = selectedPd->getConfig();
+    config.outConfs.front().setMemDesc(mem_desc);
+    //bypass any checks, we enforce the child descriptor
+    selectedPd->setConfig(config);
+}
+
+MemStatePtr MemoryInput::makeState() const {
+    // assume ov::Tensor is always dense
+    auto original_desc =
+        std::make_shared<CpuBlockedMemoryDesc>(getOriginalOutputPrecisionAtPort(0), outputShapes.at(0));
+
+    auto mem_desc = getBaseMemDescAtOutputPort(0);
+    const auto& eng = getEngine();
+
+    auto state_name = getId();
+
+    // Remove suffix with pair ID. Internal information.
+    auto suffix_idx = state_name.find("/id=");
+    if (suffix_idx != std::string::npos) {
+        state_name = state_name.substr(0, suffix_idx);
+    }
+
+    return std::make_shared<VariableStateDoubleBuffer>(state_name,
+        std::make_shared<Memory>(eng, mem_desc),
+        std::make_shared<Memory>(eng, mem_desc),
+        original_desc,
+        getMemoryPtr());
+}
+
+bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+    return MemoryInputBase::isSupportedOperation(op, errorMessage);
+}
+
 }   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
