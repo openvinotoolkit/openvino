@@ -256,6 +256,7 @@ private:
     size_t m_size;
     dnnl::memory m_prim;
     MemMngrPtr m_pMemMngr;
+    std::string dnnlErrorCtx;
 };
 
 class Memory : public IMemory {

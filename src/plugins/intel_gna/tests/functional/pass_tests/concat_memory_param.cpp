@@ -82,7 +82,7 @@ protected:
 
         const int axis = 1;
         ov::OutputVector to_concat{readValue, reshape};
-        auto concat = ngraph::builder::makeConcat(to_concat, axis);
+        auto concat = std::make_shared<ov::op::v0::Concat>(to_concat, axis);
 
         const auto concat_shape = concat->get_output_shape(0);
         const auto concat_shape_size = ov::shape_size(concat_shape);
@@ -92,7 +92,9 @@ protected:
         auto etlwise_result_node = std::make_shared<ngraph::opset9::Multiply>(concat, etlwise_node);
 
         ov::ResultVector results{std::make_shared<ngraph::opset9::Result>(etlwise_result_node)};
-        auto split_node = ngraph::builder::makeSplit(concat, ng_prc, 2, axis);
+        auto split_axis_op =
+            std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{axis});
+        auto split_node = std::make_shared<ov::op::v1::Split>(concat, split_axis_op, 2);
 
         auto assign_node = std::make_shared<ngraph::opset9::Assign>(split_node->output(1), var);
         ngraph::SinkVector sinks{assign_node};
