@@ -139,7 +139,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_LLama2_no_gather) {
                                          {"config.slice_stop", 0},
                                          {"config.input_trans0213", true},
                                          {"config.is_interleaved", false},
-                                         {"config.ndims", static_cast<int>(ndims)},
+                                         {"config.rotary_ndims", static_cast<int>(ndims)},
                                          {"config.gather_position_arg_id", 0}});
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{add_Add},
@@ -170,7 +170,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_LLama2_with_gather) {
                                          {"config.slice_stop", 0},
                                          {"config.input_trans0213", true},
                                          {"config.is_interleaved", false},
-                                         {"config.ndims", static_cast<int>(ndims)},
+                                         {"config.rotary_ndims", static_cast<int>(ndims)},
                                          {"config.gather_position_arg_id", 3}});
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{add_Add},
@@ -304,7 +304,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_no_gather) {
                                       {"config.slice_stop", ndims},
                                       {"config.input_trans0213", true},
                                       {"config.is_interleaved", false},
-                                      {"config.ndims", rotary_ndims},
+                                      {"config.rotary_ndims", rotary_ndims},
                                       {"config.gather_position_arg_id", 0}});
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, param_cos, param_sin});
     }
@@ -334,7 +334,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_with_gather) {
                                       {"config.slice_stop", ndims},
                                       {"config.input_trans0213", true},
                                       {"config.is_interleaved", false},
-                                      {"config.ndims", rotary_ndims},
+                                      {"config.rotary_ndims", rotary_ndims},
                                       {"config.gather_position_arg_id", 3}});
         model_ref =
             std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, gather_idx, batch_limit});
@@ -445,7 +445,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ) {
                                       {"config.slice_stop", 0},
                                       {"config.input_trans0213", false},
                                       {"config.is_interleaved", true},
-                                      {"config.ndims", rotary_ndims},
+                                      {"config.rotary_ndims", rotary_ndims},
                                       {"config.gather_position_arg_id", 0}});
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, cos_sin});
     }

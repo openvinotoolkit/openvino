@@ -367,12 +367,6 @@ void dump_cpp_style(std::ostream& os, const std::shared_ptr<ov::Model>& model) {
                 sep = ", ";
             }
             os << ")" << std::endl;
-
-            //==========================================================
-            // auto op_output_size = op->get_output_size();
-            // if (op_output_size > 1) {
-            //     os << "    " << name << "->set_output_size(" << op_output_size << ");" << std::endl;
-            // }
         }
 
         // recursively output subgraphs

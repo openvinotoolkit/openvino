@@ -43,7 +43,7 @@ bool ov::intel_cpu::RoPENode::visit_attributes(ngraph::AttributeVisitor& visitor
     visitor.on_attribute("slice_stop", m_config.slice_stop);
     visitor.on_attribute("input_trans0213", m_config.input_trans0213);
     visitor.on_attribute("is_interleaved", m_config.is_interleaved);
-    visitor.on_attribute("ndims", m_config.ndims);
+    visitor.on_attribute("rotary_ndims", m_config.rotary_ndims);
     visitor.on_attribute("gather_position_arg_id", m_config.gather_position_arg_id);
     visitor.finish_structure();
     return true;

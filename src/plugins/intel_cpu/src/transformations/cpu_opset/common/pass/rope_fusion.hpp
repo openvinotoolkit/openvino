@@ -49,14 +49,6 @@ class RoPEFusion : public ngraph::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("RoPEFusion", "0");
     RoPEFusion() {
-#ifdef CPU_DEBUG_CAPS
-        // Select Sgemm type by ENV MLAS/ONEDNN, MLAS is used by default
-        if (std::getenv("OV_CPU_ROPE")) {
-            if (!std::atoi(std::getenv("OV_CPU_ROPE"))) {
-                return;
-            }
-        }
-#endif
         add_matcher<RoPEFusionGPTNEOX>();
         add_matcher<RoPEFusionGPTJ>();
         // optional heads & tails are fused in separate matcher pass,

@@ -19,12 +19,6 @@
 #include "transformations/cpu_opset/common/op/rope.hpp"
 #include "utils/gen_pattern.hpp"
 
-#ifdef CPU_DEBUG_CAPS
-#define CALLBACK_LOG(m) std::cout << matcher_name << " " << m.get_match_root()->get_friendly_name() << std::endl;
-#else
-#define CALLBACK_LOG(m)
-#endif
-
 using namespace ov::gen_pattern;
 
 ov::intel_cpu::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
@@ -62,7 +56,6 @@ ov::intel_cpu::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
     auto result = makePattern<opset1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
 
     matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        CALLBACK_LOG(m);
         PatternValidator validator(m);
         if (!validator) {
             return false;
@@ -84,7 +77,7 @@ ov::intel_cpu::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
 
         RoPENode::Config config;
         OutputVector new_args;
-        config.ndims = 2 * validator["half_ndims"];
+        config.rotary_ndims = 2 * validator["half_ndims"];
 
         new_args.push_back(pattern_map.at(x));
         new_args.push_back(v_cos);
@@ -150,7 +143,6 @@ ov::intel_cpu::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
     auto rope = makePattern<RoPENode>({x, cos_tab, sin_tab});
 
     matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        CALLBACK_LOG(m);
         PatternValidator validator(m);
         if (!validator) {
             return false;
@@ -199,8 +191,6 @@ ov::intel_cpu::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
     auto result = makePattern<opset1::Concat>({x_emb, y}, {{"axis", -1}});
 
     matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        CALLBACK_LOG(m);
-
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
@@ -215,7 +205,7 @@ ov::intel_cpu::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
         auto ndims = validator["ndims"];
 
         auto& config = rope_node->get_config();
-        if (config.ndims != ndims)
+        if (config.rotary_ndims != ndims)
             return false;
 
         // remove slice & concat
@@ -249,7 +239,6 @@ ov::intel_cpu::RoPEFusionPreprocess::RoPEFusionPreprocess() {
     auto result = makePattern<RoPENode>({x, {}, {}}) | makePattern<RoPENode>({x, {}, {}, {}});
 
     matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        CALLBACK_LOG(m);
         PatternValidator validator(m);
         if (!validator) {
             return false;
@@ -342,7 +331,6 @@ ov::intel_cpu::EliminateStridedSlice::EliminateStridedSlice() {
         });
 
     matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        CALLBACK_LOG(m);
         auto root = m.get_match_root();
         return replace_output_update_name(root->output(0), root->input_value(0));
     };
@@ -415,8 +403,6 @@ ov::intel_cpu::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     auto result = permute_Transpose_1213;
 
     matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        CALLBACK_LOG(m);
-
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         PatternValidator validator(m);
@@ -426,7 +412,7 @@ ov::intel_cpu::RoPEFusionGPTJ::RoPEFusionGPTJ() {
 
         RoPENode::Config config;
         OutputVector new_args;
-        config.ndims = validator["ndims"];
+        config.rotary_ndims = validator["ndims"];
 
         config.is_interleaved = true;
 
