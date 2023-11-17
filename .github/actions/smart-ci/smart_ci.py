@@ -25,13 +25,6 @@ class ComponentConfig:
         """Validates syntax of configuration file"""
         jsonschema.validate(self.config, schema)
 
-        invalid_components = self.all_defined_components.difference(self.all_possible_components)
-        if invalid_components:
-            error_msg = f"components are invalid: " \
-                        f"{invalid_components} are not listed neither in components nor in labeler config: " \
-                        f"{self.all_possible_components}"
-            raise jsonschema.exceptions.ValidationError(error_msg)
-
         for component_name, data in self.config.items():
             dependent_components = set(data.get('dependent_components', dict()).keys()) if data else set()
 
