@@ -325,18 +325,22 @@ std::string TranslateSession::make_output_tensor_name(const std::shared_ptr<ov::
                                                       std::string operation_name,
                                                       size_t port_index) {
     if (result_node->get_output_tensor(0).get_names().size() == 0) {
+        // If Result has no tensor names, set tensor names by Op name incoming to result and output port
         return operation_name + ":" + std::to_string(port_index);
     } else {
+        // Get any tensor name from Result node and extract port and operation name information.
+        // The following code is needed to get correct port indeces for output operations with multiple output ports
+        // (like NMS).
         std::string tensor_name = result_node->get_output_tensor(0).get_any_name();
-        std::string operation_name1;
-        std::string port_type1;
-        size_t port_index1;
+        std::string operation_name_from_output_tensor;
+        std::string port_type_from_output_tensor;
+        size_t port_index_from_output_tensor;
         ov::frontend::tensorflow::extract_operation_name_and_port(tensor_name,
-                                                                  operation_name1,
-                                                                  port_index1,
-                                                                  port_type1);
-        if (operation_name == operation_name1 && port_index1 != port_index) {
-            return operation_name + ":" + std::to_string(port_index1);
+                                                                  operation_name_from_output_tensor,
+                                                                  port_index_from_output_tensor,
+                                                                  port_type_from_output_tensor);
+        if (operation_name == operation_name_from_output_tensor && port_index_from_output_tensor != port_index) {
+            return operation_name + ":" + std::to_string(port_index_from_output_tensor);
         } else {
             return operation_name + ":" + std::to_string(port_index);
         }
