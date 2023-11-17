@@ -53,6 +53,7 @@ OutputVector translate_avg_poolnd(const NodeContext& context) {
     // More detail on https://github.com/pytorch/pytorch/issues/57178
     if (count_include_pad) {
         auto zero = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
+        zero = context.mark_node(std::make_shared<v1::ConvertLike>(zero, input));
         auto zero_i32 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
         Output<Node> rank;
         std::tie(std::ignore, rank) = get_shape_rank(context, input);

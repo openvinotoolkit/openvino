@@ -4,6 +4,7 @@
 import platform
 
 import pytest
+import torch
 
 from pytorch_layer_test_class import PytorchLayerTest
 import numpy as np
@@ -18,7 +19,7 @@ d2_params = [{'kernel_size': [3, 3], 'stride': 1, 'padding': 0},
              {'kernel_size': [2, 1], 'stride': [], 'padding': 0},
              ]
 
-d2_params_corner_case = [{'kernel_size': [8, 8], 'stride': [8,4], 'padding': 1}]
+d2_params_corner_case = [{'kernel_size': [8, 8], 'stride': [8, 4], 'padding': 1}]
 
 d1_params = [{'kernel_size': 3, 'stride': 1, 'padding': 0},
              {'kernel_size': (4,), 'stride': 1, 'padding': 1},
@@ -41,9 +42,7 @@ class TestPooling(PytorchLayerTest):
         shape = (1, 3, 15, 15, 15)
         return (np.random.randn(*shape[:ndim]).astype(np.float32),)
 
-    def create_model(self, op_type, kernel_size, stride, padding, dilation=1, ceil_mode=True, count_include_pad=True):
-        import torch
-
+    def create_model(self, op_type, kernel_size, stride, padding, dilation=1, ceil_mode=True, count_include_pad=True, dtype=torch.float32):
         class aten_avg_pooling_base(torch.nn.Module):
             def __init__(self):
                 super(aten_avg_pooling_base, self).__init__()
@@ -64,6 +63,7 @@ class TestPooling(PytorchLayerTest):
                 self.padding = padding
                 self.dilation = dilation
                 self.ceil_mode = ceil_mode
+                self.dtype = dtype
 
             def forward(self, x):
                 pass
@@ -85,7 +85,7 @@ class TestPooling(PytorchLayerTest):
 
         class aten_max_pool2d(aten_max_pooling_base):
             def forward(self, x):
-                return torch.nn.functional.max_pool2d(x, self.kernel_size, self.stride, self.padding, self.dilation,
+                return torch.nn.functional.max_pool2d(x.to(self.dtype), self.kernel_size, self.stride, self.padding, self.dilation,
                                                       self.ceil_mode)
 
         class aten_max_pool3d(aten_max_pooling_base):
@@ -187,15 +187,16 @@ class TestPooling(PytorchLayerTest):
     @pytest.mark.parametrize("params", d2_params + d2_params_corner_case)
     @pytest.mark.parametrize("ceil_mode", [True, False])
     @pytest.mark.parametrize("dilation", [1, 2])
+    @pytest.mark.parametrize("dtype", [torch.float32, torch.int32])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
-    def test_max_pool2d(self, params, ceil_mode, dilation,  ie_device, precision, ir_version):
+    def test_max_pool2d(self, params, ceil_mode, dilation, dtype, ie_device, precision, ir_version):
         to_trace = False
         if params["stride"] == []:
             to_trace = True
-        self._test(*self.create_model("max_pool2d", **params, ceil_mode=ceil_mode, dilation=dilation),
+        self._test(*self.create_model("max_pool2d", **params, ceil_mode=ceil_mode, dilation=dilation, dtype=dtype),
                    ie_device, precision, ir_version, dynamic_shapes=False, trace_model=to_trace)
 
     @pytest.mark.parametrize("params", d3_params)
