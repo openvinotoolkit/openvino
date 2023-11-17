@@ -129,12 +129,12 @@ void convertfp16_bf8(const T* const arg, T* out, size_t count, int exp_bits = 5,
         T f;
     } __half_t;
 
-    int non_mant_bits = exp_bits + 1;           /* exponent + sign */
-    int lshift = 10 - (mbits - non_mant_bits);  // 10 - (8 - 6) == 8 ???
+    const auto non_mant_bits = exp_bits + 1;           /* exponent + sign */
+    const auto lshift = 10 - (mbits - non_mant_bits);  // 10 - (8 - 6) == 8 ???
 
-    unsigned short mask_mant = (unsigned short)(0xffff << lshift);  // 1111111111111111 -> 1 11111 1100000000
-    unsigned short grs_bitmask = 0x00ff;                            // 0 00000 0011111111 - guard, round, sticky bits
-    unsigned short rne_tie = 0x0180;                                // 0 00000 0110000000
+    const unsigned short mask_mant = (unsigned short)(0xffff << lshift);  // 1111111111111111 -> 1 11111 1100000000
+    constexpr unsigned short grs_bitmask = 0x00ff;                            // 0 00000 0011111111 - guard, round, sticky bits
+    constexpr unsigned short rne_tie = 0x0180;                                // 0 00000 0110000000
 
     __half_t h;
     for (size_t i = 0; i < count; ++i) {
@@ -171,7 +171,6 @@ void convertfp16_bf8(const T* const arg, T* out, size_t count, int exp_bits = 5,
 }
 
 
-
 /// <summary>
 /// emulation of convertation fp16 value to f8e4m3 1s-4e-3m format, Extended Hybrid Float
 /// </summary>
@@ -194,12 +193,12 @@ void convertfp16_f8e4m3_bias7(const T* arg,
         T f;
     } __half_t;
 
-    int non_mant_bits = exp_bits + 1; /* exponent + sign */         ///  6 - ?
-    int lshift = 10 - (mbits - non_mant_bits);                      /// 10 - (9 - 6) == 7 - ???
-    unsigned short rne_mask = 1;                                    /* round to nearest even mask */
-    unsigned short mask_mant = (unsigned short)(0xFFFF << lshift);  // 1111111111111111 -> 1 11111 1111000000
-    unsigned short grs_bitmask = 0x007F;                            /// 0 00000 0001111111
-    unsigned short rne_tie = 0x00C0;                                /// 0 00000 0011000000
+    const auto non_mant_bits = exp_bits + 1; /* exponent + sign */         ///  6 - ?
+    const auto lshift = 10 - (mbits - non_mant_bits);                      /// 10 - (9 - 6) == 7 - ???
+    const unsigned short rne_mask = 1;                                    /* round to nearest even mask */
+    const unsigned short mask_mant = (unsigned short)(0xFFFF << lshift);  // 1111111111111111 -> 1 11111 1111000000
+    constexpr unsigned short grs_bitmask = 0x007F;                            /// 0 00000 0001111111
+    constexpr unsigned short rne_tie = 0x00C0;                                /// 0 00000 0011000000
 
     __half_t h;
     for (size_t i = 0; i < count; ++i) {
