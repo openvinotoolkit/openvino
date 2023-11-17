@@ -75,12 +75,13 @@ void NonZero::validate_and_infer_types() {
                           m_output_type == element::i64 || m_output_type == element::i32,
                           "Output type must be i32 or i64");
     // For scalar non-zero value case, onnx test case expects output shape {1, 1}
-    const PartialShape& input_shape = get_input_partial_shape(0);
+    const auto& input_shape = get_input_partial_shape(0);
     if (input_shape.rank().compatible(0)) {
-        set_output_type(0, m_output_type, PartialShape{Dimension::dynamic(), Dimension::dynamic()});
+        set_output_type(0, m_output_type, PartialShape::dynamic(2));
     } else {
-        const Dimension dim =
-            std::accumulate(input_shape.begin(), input_shape.end(), Dimension(0, 1), std::multiplies<Dimension>());
+        auto dim = Dimension{0, 1};
+        for (auto&& d : input_shape)
+            dim *= d;
         set_output_type(0, m_output_type, PartialShape{input_shape.rank(), dim});
     }
 
@@ -88,6 +89,9 @@ void NonZero::validate_and_infer_types() {
 
     if (const auto input_constant = ov::util::get_constant_from_source(input_value(0))) {
         // input_value is available to calculate output shape
+
+        // const_cast of Constant data is needed to avoid obsolete copy of this data into the Tensor.
+        // It's safe here as evaluate() method doesn't modify input Tensors.
         const auto inputs = TensorVector{{input_constant->get_element_type(),
                                           input_constant->get_shape(),
                                           const_cast<void*>(input_constant->get_data_ptr())}};

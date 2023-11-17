@@ -22,14 +22,7 @@ template <typename T>
 size_t non_zero_get_count(const T* arg, const Shape& arg_shape) {
     const auto zero = T{0};
     const auto arg_count = shape_size(arg_shape);
-    switch (arg_count) {
-    case 0:
-        return 0;
-    case 1:
-        return *arg != zero;
-    default:
-        return arg_count - std::count(arg, arg + arg_count, zero);
-    }
+    return arg_count - std::count(arg, arg + arg_count, zero);
 }
 
 /// \brief Return indices of non-zero entries in input argument.
@@ -77,10 +70,8 @@ void non_zero(const T* arg, U* out, const Shape& arg_shape) {
     for (const auto& arg_coord : arg_transform) {
         const auto arg_index = coordinate_offset(arg_coord, arg_strides);
         if (arg[arg_index] != T{0}) {
-            size_t out_index = col_index;
-            for (size_t j = 0; j < arg_rank; j++) {
+            for (size_t j = 0, out_index = col_index; j < arg_rank; ++j, out_index += non_zero_count) {
                 out[out_index] = static_cast<U>(arg_coord[j]);
-                out_index += non_zero_count;
             }
             ++col_index;
         }
