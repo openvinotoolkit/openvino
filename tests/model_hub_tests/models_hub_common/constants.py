@@ -5,10 +5,7 @@
 import os
 import tempfile
 
-wget_cache_dir = os.environ.get('WGET_CACHE_DIR', os.path.join(tempfile.gettempdir(), "wget_cache"))
-os.environ['WGET_CACHE_DIR'] = wget_cache_dir
-
-no_clean_cache_dir = os.environ.get('NO_CLEAN_WGET_CACHE_DIR', None)
+no_clean_cache_dir = os.environ.get('NO_CLEAN_CACHE_DIR', None)
 
 tf_hub_cache_dir = os.environ.get('TFHUB_CACHE_DIR',
                                   os.path.join(tempfile.gettempdir(), "tfhub_modules"))

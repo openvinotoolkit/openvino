@@ -7,7 +7,6 @@ import shutil
 import pytest
 from py.xml import html
 
-from models_hub_common.constants import wget_cache_dir
 from models_hub_common.utils import get_params
 
 

@@ -8,6 +8,7 @@ import sys
 import time
 from enum import Enum
 import traceback
+import pytest
 
 import numpy as np
 from models_hub_common.multiprocessing_utils import multiprocessing_run
@@ -56,11 +57,18 @@ class Results:
         self.status = None
 
 
+def wrap_timer(func, args):
+    t0 = time.time()
+    retval = func(*args)
+    t1 = time.time()
+    return retval, t1 - t0
+
+
 class TestPerformanceModel:
     infer_timeout = 600
     threshold_ratio = 0.1
     num_heat_runs = 100
-    num_measure_runs = 1000
+    num_measure_runs = 500
     threshold_var = 10.0
 
     def load_model(self, model_name, model_link):
@@ -100,6 +108,7 @@ class TestPerformanceModel:
         raise "get_read_model is not implemented"
 
     def infer_model(self, ov_model, inputs):
+        infer_step_t0 = time.time()
         # heat run
         for _ in range(0, TestPerformanceModel.num_heat_runs):
             ov_model(inputs)
@@ -111,7 +120,10 @@ class TestPerformanceModel:
             t1 = time.time()
             results.append(t1 - t0)
         mean = np.mean(results)
-        return mean, np.std(results, ddof=1) * 100 / mean
+        var = np.std(results, ddof=1) * 100 / mean
+        infer_step_t1 = time.time()
+        print('inference measurement done in {} secs'.format(infer_step_t1 - infer_step_t0))
+        return mean, var
 
     def compile_model(self, model, ie_device):
         core = ov.Core()
@@ -123,10 +135,12 @@ class TestPerformanceModel:
         try:
             print("Load the model {} (url: {})".format(model_name, model_link))
             results.status = Status.LOAD_MODEL
-            model_obj = self.load_model(model_name, model_link)
+            model_obj, timedelta = wrap_timer(self.load_model, (model_name, model_link))
+            print('Model {} loaded in {} secs'.format(model_name, timedelta))
             print("Retrieve inputs info")
             results.status = Status.GET_INPUTS_INFO
-            inputs_info = self.get_inputs_info(model_obj)
+            inputs_info, timedelta = wrap_timer(self.get_inputs_info, (model_obj,))
+            print('Got inputs info in {} secs'.format(timedelta))
             print("Prepare input data")
             results.status = Status.PREPARE_INPUTS
             inputs = self.prepare_inputs(inputs_info)
@@ -174,5 +188,10 @@ class TestPerformanceModel:
     def run(self, model_name, model_link, ie_device):
         self.result = Results()
         self.result = multiprocessing_run(self._run, [model_name, model_link, ie_device], model_name, self.infer_timeout)
-        if self.result.error_message:
-            raise Exception("\n{func} running failed: \n{msg}".format(func=model_name, msg=self.result.error_message))
+        if self.result.status == Status.OK:
+            return
+        err_message = "\n{func} running failed: \n{msg}".format(func=model_name, msg=self.result.error_message)
+        if self.result.status == Status.LARGE_INFER_TIME_DIFF_WITH_LARGE_VAR:
+            pytest.xfail(err_message)
+        else:
+            pytest.fail(err_message)

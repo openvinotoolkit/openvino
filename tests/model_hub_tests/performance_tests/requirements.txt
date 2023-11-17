@@ -5,4 +5,3 @@ pytest-html
 tensorflow
 tensorflow-hub
 tensorflow-text
-wget
