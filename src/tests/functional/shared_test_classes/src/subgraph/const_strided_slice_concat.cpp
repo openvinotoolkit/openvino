@@ -90,7 +90,7 @@ void ConstStridedSliceConcatTest::SetUp() {
     std::vector<ngraph::Output<ngraph::Node>> allToConcat;
     appendSlices(allToConcat, params[0], inputSliceSize, totalInputSize, ngPrc);
     appendSlices(allToConcat, constant, constSliceSize, totalConstantSize, ngPrc);
-    auto concat = ngraph::builder::makeConcat(allToConcat, 1);
+    auto concat = std::make_shared<ov::op::v0::Concat>(allToConcat, 1);
 
     function = std::make_shared<ngraph::Function>(concat, params, "ConstStridedSliceConcatTest");
 }

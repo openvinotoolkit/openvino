@@ -13,6 +13,9 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
                  PATHS "${InferenceEngineDeveloperPackage_DIR}")
 endif()
 
+# Python API 1.0 will be removed before 2024.0
+ov_disable_deprecated_warnings()
+
 if(UNIX)
     # cython generated files requires public visibility. Force visibility required.
     set(CMAKE_CXX_VISIBILITY_PRESET default)

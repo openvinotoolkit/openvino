@@ -23,7 +23,6 @@ std::map<size_t, memory::ptr> loop_node::get_memory_deps() const {
     auto memory_deps = get_const_memory_deps();
     for (auto& i : get_shape_infer_dependencies()) {
         auto& dep = get_dependency(i);
-        auto dep_id = dep.id();
         if (memory_deps.count(i) > 0 || i >= get_dependencies().size()) {
             continue;
         }
@@ -91,6 +90,17 @@ static std::vector<layout> get_output_layouts(kernel_impl_params const& impl_par
             auto shape = loop_output_layout.get_partial_shape();
             shape[axis_to_iterate_through] = static_cast<int32_t>(num_iterations);
             loop_output_layout.set_partial_shape(shape);
+        } else {
+            // if num_iterations is zero, it means loop does not run inner body network.
+            // in the case of dynamic output layout, dynamic dimension will be replaced to zero.
+            if (num_iterations == 0) {
+                auto shape = loop_output_layout.get_partial_shape();
+                for (size_t i = 0; i < shape.size(); i++) {
+                    if (shape[i].is_dynamic())
+                        shape[i] = 0;
+                }
+                loop_output_layout.set_partial_shape(shape);
+            }
         }
         output_layouts.push_back(loop_output_layout);
     }
@@ -348,6 +358,7 @@ event::ptr loop_inst::set_output_memory(memory::ptr mem, bool check, size_t idx)
 loop_inst::concatenated_memory_mapping::ptr loop_inst::create_concat_memory_map(const cldnn::loop::io_primitive_map& io_prim_map,
                                                                                     memory::ptr mem_ptr,
                                                                                     const int64_t num_iterations) {
+    OPENVINO_ASSERT(io_prim_map.axis >= 0, "axis should not be negative");
     const auto& external_id = io_prim_map.external_id;
     const auto& internal_id = io_prim_map.internal_id;
     auto& engine = body_network->get_engine();
@@ -360,16 +371,37 @@ loop_inst::concatenated_memory_mapping::ptr loop_inst::create_concat_memory_map(
     // In dynamic model, we can't calculate num_element_iteration, start, and sliced_layout.
     // will recalculate that parameters in backedge preprocessing map after first execution.
     if (mem_ptr != nullptr) {
-        auto& out_mem = prim->output_memory(internal_id.idx);
-        layout sliced_layout = out_mem.get_layout();
+        layout sliced_layout = prim->get_output_layout(internal_id.idx);
+        auto out_mem_ptr = prim->output_memory_ptr(internal_id.idx);
+        if (out_mem_ptr != nullptr) {
+            sliced_layout = out_mem_ptr->get_layout();
+        } else {
+            // if inner body prim has no output memory because it has dynamic shape,
+            // calculate inner body prim layout using concat_mem's layout.
+            auto updated_sliced_layout = sliced_layout.get_partial_shape();
+            OPENVINO_ASSERT(updated_sliced_layout[io_prim_map.axis].is_static() || num_iterations > 0,
+                                    "Not allowed dynamic dimension for axis when num_iteraiont is negative");
+            auto concat_mem_pshape = mem_ptr->get_layout().get_partial_shape();
+            const auto shape_size = concat_mem_pshape.size();
+            for (size_t i = 0; i < shape_size; i++) {
+                if (updated_sliced_layout[i].is_dynamic()) {
+                    updated_sliced_layout[i] = concat_mem_pshape[i];
+                }
+            }
+            GPU_DEBUG_LOG << "output pshape for [" << prim->id() << "] is changed from "
+                            << sliced_layout.get_partial_shape().to_string()
+                            << " to " << updated_sliced_layout.to_string() << std::endl;
+            sliced_layout.set_partial_shape(updated_sliced_layout);
+            out_mem_ptr = engine.allocate_memory(sliced_layout);
+        }
 
-        // When trip_count is -1, allocate first sliced_mem and allocate sliced memory if additional sliced mem is required
+        // When num_iterations is -1, allocate first sliced_mem and allocate sliced memory if additional sliced mem is required
         if (num_iterations < 0) {
-            memory::ptr sliced_mem = engine.allocate_memory(sliced_layout);
-            sliced_mems.push_back(sliced_mem);
+            sliced_mems.push_back(out_mem_ptr);
         } else {
             sliced_mems.reserve(num_iterations);
-            for (int j=0; j < num_iterations; ++j) {
+            sliced_mems.push_back(out_mem_ptr);
+            for (int j=1; j < num_iterations; ++j) {
                 memory::ptr sliced_mem = engine.allocate_memory(sliced_layout);
                 sliced_mems.push_back(sliced_mem);
             }
@@ -655,17 +687,26 @@ void loop_inst::postprocess_output_memory(bool is_dynamic, int64_t current_itera
                 OPENVINO_ASSERT(internal_mem != nullptr, "internal_mem should not be nullptr");
                 if (!output_allocated) {
                     external_outputs[external_id.idx] = internal_mem;
+                    GPU_DEBUG_LOG << "[Internal: " << internal_id.to_string() << ", External: " << external_id.to_string() << " ] "
+                                    << "Set internal memory(" << internal_mem << ") to external output because external output memory is nullptr." << std::endl;
                 } else {
                     auto external_mem = _outputs[external_id.idx];
                     if (external_mem != internal_mem) {
                         if (external_mem->get_layout() != internal_mem->get_layout()) {
                             external_outputs[external_id.idx] = internal_mem;
+                            GPU_DEBUG_LOG << "[Internal: " << internal_id.to_string() << ", External: " << external_id.to_string() << " ] "
+                                            << "Set internal memory(" << internal_mem
+                                            << ") to external output for different layout between external_mem and internal_mem." << std::endl;
                         } else {
                             external_mem->copy_from(get_network().get_stream(), *internal_mem);
                             external_outputs[external_id.idx] = external_mem;
+                            GPU_DEBUG_LOG << "[Internal: " << internal_id.to_string() << ", External: " << external_id.to_string() << " ] "
+                                            << "Copy internal memory data to external memory data." << std::endl;
                         }
                     } else {
                         external_outputs[external_id.idx] = external_mem;
+                        GPU_DEBUG_LOG << "[Internal: " << internal_id.to_string() << ", External: " << external_id.to_string() << " ] "
+                                        << " Have same memory pointer." << std::endl;
                     }
                 }
             } else {
@@ -680,9 +721,17 @@ void loop_inst::postprocess_output_memory(bool is_dynamic, int64_t current_itera
                                                 });
                     if (iter != concatenated_output_mem_mappings.end()) {
                         (*iter)->update_concatenated_mem(concat_mem);
+                        GPU_DEBUG_LOG << "[Internal: " << internal_id.to_string() << ", External: " << external_id.to_string() << " ]"
+                                        << " Update concat_mem" << std::endl;
+                    }
+                    GPU_DEBUG_IF(iter == concatenated_output_mem_mappings.end()) {
+                        GPU_DEBUG_LOG << "[Internal: " << internal_id.to_string() << ", External: " << external_id.to_string() << " ]"
+                                        << " Can't find concatenated_memory_mapping" << std::endl;
                     }
                 } else {
                     external_outputs[external_id.idx] = _outputs[external_id.idx];
+                    GPU_DEBUG_LOG << "[Internal: " << internal_id.to_string() << ", External: " << external_id.to_string() << " ]"
+                                    << " No update concat_mem" << std::endl;
                 }
             }
         }
@@ -696,6 +745,7 @@ void loop_inst::postprocess_output_memory(bool is_dynamic, int64_t current_itera
 }
 
 void loop_inst::reset_memory() {
+    GPU_DEBUG_LOG << "Reset memory" << std::endl;
     backedge_memory_mappings.clear();
     concatenated_input_mem_mappings.clear();
     for (auto concat_mem_map : concatenated_output_mem_mappings) {
@@ -882,7 +932,9 @@ int64_t loop_inst::get_num_iterations() {
             is_default_num_iter = false;
             num_iterations = current_num_iterations;
         }
-        OPENVINO_ASSERT(num_iterations == current_num_iterations,
+        // only check num_terations when shape is not changed.
+        if (preproc_memories_done)
+            OPENVINO_ASSERT(num_iterations == current_num_iterations,
                             "iteration num shuld be same between ", num_iterations, " and ", current_num_iterations);
     }
     return num_iterations;
@@ -928,6 +980,7 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
             if (mapping.from_mem != nullptr) {
                 auto ev = mapping.from_mem->copy_from(body_network->get_stream(), *(mapping.initial_mem));
                 if (ev) event_vec = {ev};
+                GPU_DEBUG_LOG << iter << ") Copy data from inintal_mem(" << mapping.initial_mem << ")" << std::endl;
             }
         } else {
             // In dynamic model, output memory is not defined before execution.
@@ -936,6 +989,7 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
                 mapping.from_mem = mapping.from_primitive->output_memory_ptr();
                 OPENVINO_ASSERT(mapping.from_mem != nullptr, "from_mem should not be null");
                 set_memory_in_body_network(body_network, mapping.to_primitive, mapping.from_mem);
+                GPU_DEBUG_LOG << iter << ") Set memory from from_mem(" << mapping.from_mem << ") to " << mapping.to_primitive->id() << ")" << std::endl;
             }
         }
     } else if (mapping.type ==  loop_inst::backedge_memory_mapping::SINGLE) {
