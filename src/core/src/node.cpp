@@ -29,17 +29,22 @@ static const char idx_txt[] = "index '";
 static const char out_of_range_txt[] = "' out of range";
 }  // namespace
 
-void ov::NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
+void ov::NodeValidationFailure::create(const char* file,
+                                       int line,
+                                       const char* check_string,
                                        const Node* node,
                                        const std::string& explanation) {
-    throw ov::NodeValidationFailure(make_what(check_loc_info, node_validation_failure_loc_string(node), explanation));
+    throw ov::NodeValidationFailure(
+        make_what({file, line, check_string}, node_validation_failure_loc_string(node), explanation));
 }
 
 template <>
-void ov::NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
+void ov::NodeValidationFailure::create(const char* file,
+                                       int line,
+                                       const char* check_string,
                                        std::pair<const Node*, const std::vector<PartialShape>*>&& ctx,
                                        const std::string& explanation) {
-    throw ov::NodeValidationFailure(make_what(check_loc_info,
+    throw ov::NodeValidationFailure(make_what({file, line, check_string},
                                               node_validation_failure_loc_string(ctx.first),
                                               op::validate::shape_infer_explanation_str(*ctx.second, explanation)));
 }
