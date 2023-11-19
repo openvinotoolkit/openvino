@@ -6,6 +6,7 @@
 #include "shared_test_classes/single_op/tensor_iterator.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/lstm_cell.hpp"
 
 namespace ov {
 namespace test {
@@ -106,7 +107,7 @@ void TensorIteratorTest::SetUp() {
             auto squeeze = std::make_shared<ov::op::v0::Squeeze>(body_params[0], axis);
             std::vector<ov::Shape> WRB = {input_shapes[3], input_shapes[4], input_shapes[5]};
             ov::OutputVector out_vector = {squeeze, body_params[1], body_params[2]};
-            auto lstm_cell = ngraph::builder::makeLSTM(out_vector, WRB, hidden_size, {"sigmoid", "tanh", "tanh"}, {}, {}, clip);
+            auto lstm_cell = ov::test::utils::make_lstm(out_vector, WRB, hidden_size, {"sigmoid", "tanh", "tanh"}, {}, {}, clip);
             auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(lstm_cell->output(0), axis);
             ov::ResultVector results{std::make_shared<ov::op::v0::Result>(unsqueeze),
                                      std::make_shared<ov::op::v0::Result>(lstm_cell->output(0)),
