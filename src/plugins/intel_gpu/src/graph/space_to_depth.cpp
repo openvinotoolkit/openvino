@@ -16,6 +16,8 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(space_to_depth)
 
+using SpaceToDepth = ov::op::v0::SpaceToDepth;
+
 template<typename ShapeType>
 std::vector<layout> space_to_depth_inst::calc_output_layouts(space_to_depth_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<space_to_depth>();
@@ -29,16 +31,7 @@ std::vector<layout> space_to_depth_inst::calc_output_layouts(space_to_depth_node
 
     ov::op::v0::SpaceToDepth op;
     op.set_block_size(desc->block_size);
-    switch (desc->mode) {
-    case space_to_depth::depth_mode::depth_first:
-        op.set_mode(ov::op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST);
-        break;
-    case space_to_depth::depth_mode::blocks_first:
-        op.set_mode(ov::op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST);
-        break;
-    default:
-        OPENVINO_THROW(desc->id, "Unexpected depth mode ", std::to_string(desc->mode));
-    }
+    op.set_mode(desc->mode);
 
     std::vector<ShapeType> output_shapes = { ShapeType() };
     std::vector<ShapeType> input_shapes = {
@@ -65,7 +58,7 @@ layout space_to_depth_inst::calc_output_layout(space_to_depth_node const& node, 
         output_type = impl_param.get_fused_output_layout().data_type;
     }
 
-    if (depth_mode != space_to_depth::depth_first && depth_mode != space_to_depth::blocks_first)
+    if (depth_mode != SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST && depth_mode != SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST)
         CLDNN_ERROR_MESSAGE(desc->id,
                             "Invalid mode for spaceToDepth: must be \"blocks_first\" or \"depth_first\" only");
 
@@ -118,7 +111,7 @@ std::string space_to_depth_inst::to_string(space_to_depth_node const& node) {
 
     std::stringstream primitive_description;
 
-    std::string depth_mode = (desc->mode == cldnn::space_to_depth::depth_mode::blocks_first) ?
+    std::string depth_mode = (desc->mode == SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST) ?
                              "blocks_first" :
                              "depth_first";
 

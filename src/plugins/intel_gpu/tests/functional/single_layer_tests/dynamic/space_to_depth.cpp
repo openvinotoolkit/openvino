@@ -69,10 +69,10 @@ protected:
 
         auto d2s = std::make_shared<ov::op::v0::SpaceToDepth>(params[0], mode, blockSize);
 
-        ngraph::ResultVector results;
+        ov::ResultVector results;
         for (size_t i = 0; i < d2s->get_output_size(); i++)
-            results.push_back(std::make_shared<ngraph::opset1::Result>(d2s->output(i)));
-        function = std::make_shared<ngraph::Function>(results, params, "SpaceToDepth");
+            results.push_back(std::make_shared<ov::op::v0::Result>(d2s->output(i)));
+        function = std::make_shared<ov::Model>(results, params, "SpaceToDepth");
     }
 };
 
