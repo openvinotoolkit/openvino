@@ -14,11 +14,11 @@
 
 #include "details/ie_exception.hpp"
 #include "ie_parallel.hpp"
-#include "parallel_custom_arena.hpp"
 #include "ie_system_conf.h"
+#include "parallel_custom_arena.hpp"
 #include "thread_affinity.hpp"
 
-#if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
+#if ((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO))
 #    include <tbb/concurrent_queue.h>
 #    include <tbb/enumerable_thread_specific.h>
 #    ifndef TBB_PREVIEW_GLOBAL_CONTROL
@@ -303,4 +303,4 @@ void TBBStreamsExecutor::execute(Task task) {
 
 }  // namespace threading
 }  // namespace ov
-#endif  //  ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
+#endif  //  ((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO))

@@ -10,7 +10,6 @@
 #include <memory>
 #include <mutex>
 #include <string>
-#include "openvino/runtime/threading/executor_manager.hpp"
 #include <vector>
 
 #include "any_copy.hpp"
@@ -38,6 +37,7 @@
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"

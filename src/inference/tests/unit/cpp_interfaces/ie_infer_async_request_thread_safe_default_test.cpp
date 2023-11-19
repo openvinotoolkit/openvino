@@ -9,8 +9,8 @@
 #include <cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp>
 #include <deque>
 #include <inference_engine.hpp>
-#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_async_infer_request_default.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinfer_request_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/mock_task_executor.hpp"
