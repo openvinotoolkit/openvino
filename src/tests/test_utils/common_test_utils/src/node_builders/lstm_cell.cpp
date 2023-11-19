@@ -7,6 +7,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace test {
@@ -22,7 +23,6 @@ std::shared_ptr<ov::Node> make_lstm(const std::vector<ov::Output<Node>>& in,
                                     ov::op::RecurrentSequenceDirection direction,
                                     ov::test::utils::SequenceTestsMode mode,
                                     float WRB_range) {
-    std::vector<float> empty;
     auto w_tensor = ov::test::utils::create_and_fill_tensor(in[0].get_element_type(), constants[0]);
     auto W = std::make_shared<ov::op::v0::Constant>(w_tensor);
     auto r_tensor = ov::test::utils::create_and_fill_tensor(in[0].get_element_type(), constants[1]);

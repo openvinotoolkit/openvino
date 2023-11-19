@@ -7,6 +7,7 @@
 #include "openvino/pass/manager.hpp"
 #include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/lstm_cell.hpp"
+#include "common_test_utils/node_builders/gru_cell.hpp"
 
 namespace ov {
 namespace test {
@@ -156,7 +157,7 @@ void TensorIteratorTest::SetUp() {
             std::vector<ov::Shape> WRB = {input_shapes[2], input_shapes[3], input_shapes[4]};
             auto squeeze = std::make_shared<ov::op::v0::Squeeze>(body_params[0], axis);
             ov::OutputVector out_vector = {squeeze, body_params[1]};
-            auto gru_cell = ngraph::builder::makeGRU(out_vector, WRB, hidden_size, {"sigmoid", "tanh"},
+            auto gru_cell = ov::test::utils::make_gru(out_vector, WRB, hidden_size, {"sigmoid", "tanh"},
                                                      {}, {}, clip, false);
             auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(gru_cell->output(0), axis);
             ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gru_cell->output(0)),
