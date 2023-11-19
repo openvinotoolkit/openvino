@@ -9,7 +9,7 @@
 #include <map>
 #include <memory>
 #include <string>
-#include <threading/ie_executor_manager.hpp>
+#include "openvino/runtime/threading/executor_manager.hpp"
 #include <vector>
 
 #include "gna_infer_request.hpp"

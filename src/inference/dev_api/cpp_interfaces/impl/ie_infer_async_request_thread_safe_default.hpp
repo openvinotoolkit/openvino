@@ -16,9 +16,11 @@
 
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 #include "ie_api.h"
-#include "threading/ie_immediate_executor.hpp"
-#include "threading/ie_istreams_executor.hpp"
-#include "threading/ie_itask_executor.hpp"
+#include "openvino/runtime/threading/immediate_executor.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
+#include "openvino/runtime/threading/itask_executor.hpp"
+
+using namespace ov::threading;
 
 namespace InferenceEngine {
 IE_SUPPRESS_DEPRECATED_START
@@ -59,11 +61,11 @@ class INFERENCE_ENGINE_1_0_DEPRECATED AsyncInferRequestThreadSafeDefault : publi
         Callback _callback;
     };
 
-    struct ImmediateStreamsExecutor : public InferenceEngine::ITaskExecutor {
+    struct ImmediateStreamsExecutor : public ITaskExecutor {
         explicit ImmediateStreamsExecutor(const IStreamsExecutor::Ptr& streamsExecutor)
             : _streamsExecutor{streamsExecutor} {}
-        void run(InferenceEngine::Task task) override {
-            _streamsExecutor->Execute(std::move(task));
+        void run(Task task) override {
+            _streamsExecutor->execute(std::move(task));
         }
         IStreamsExecutor::Ptr _streamsExecutor;
     };

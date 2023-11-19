@@ -9,10 +9,11 @@
 
 #include "ie_api.h"
 #include "ie_parallel.hpp"
-#include "threading/ie_istreams_executor.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
 
 #if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
-namespace InferenceEngine {
+namespace ov {
+namespace threading {
 /**
  * @class TBBStreamsExecutor
  * @brief CPU Streams executor implementation. Use TBB thread pool to run tasks
@@ -23,13 +24,14 @@ public:
     explicit TBBStreamsExecutor(const Config& config = {});
     ~TBBStreamsExecutor() override;
     void run(Task task) override;
-    void Execute(Task task) override;
-    int GetStreamId() override;
-    int GetNumaNodeId() override;
+    void execute(Task task) override;
+    int get_stream_id() override;
+    int get_numa_node_id() override;
 
 private:
     struct Impl;
     std::unique_ptr<Impl> _impl;
 };
-}  // namespace InferenceEngine
+}  // namespace threading
+}  // namespace ov
 #endif
