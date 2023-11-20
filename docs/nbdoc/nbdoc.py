@@ -19,8 +19,11 @@ from consts import (
     no_binder_template,
     repo_directory,
     repo_name,
-    repo_branch,
+    openvino_notebooks_ipynb_list,
     repo_owner,
+    notebooks_repo,
+    notebooks_binder,
+    notebooks_colab,
     rst_template,
     section_names,
 )
@@ -32,7 +35,9 @@ from jinja2 import Template
 from urllib.request import urlretrieve
 from requests import get
 import os
+import re
 
+matching_notebooks_paths = []
 
 class NbTravisDownloader:
     @staticmethod
@@ -96,17 +101,26 @@ class NbProcessor:
             ]
 
         }
-        self.binder_data = {
-            "owner": repo_owner,
-            "repo": repo_name,
-            "folder": repo_directory,
-            "branch": repo_branch,
-        }
-        self.colab_data = {
-            "owner": repo_owner,
-            "repo": repo_name,
-            "folder": repo_directory,
-        }
+
+        with open(openvino_notebooks_ipynb_list, 'r+', encoding='cp437') as ipynb_file:
+            openvino_notebooks_paths_list = ipynb_file.readlines()
+
+        for notebook_name in [
+            nb for nb in os.listdir(self.nb_path) if
+            verify_notebook_name(nb)
+        ]:
+
+            if not os.path.exists(openvino_notebooks_ipynb_list):
+                raise FileNotFoundError("all_notebooks_paths.txt is not found")
+            else:
+                ipynb_list = [x for x in openvino_notebooks_paths_list if re.match("notebooks/[0-9]{3}.*\.ipynb$", x)]
+                notebook_with_ext = notebook_name[:-16] + ".ipynb"
+                matching_notebooks = [re.sub('[\n]', '', match) for match in ipynb_list if notebook_with_ext in match]
+
+            if matching_notebooks is not None:
+                for n in matching_notebooks:
+                    matching_notebooks_paths.append(n)
+
 
     def fetch_binder_list(self, file) -> list:
         """Function that fetches list of notebooks with binder buttons
@@ -122,6 +136,7 @@ class NbProcessor:
                 list_of_buttons = file.read().splitlines()
             return list_of_buttons
         return []
+
 
     def fetch_colab_list(self, file) -> list:
         """Function that fetches list of notebooks with colab buttons
@@ -151,19 +166,28 @@ class NbProcessor:
         :raises FileNotFoundError: In case of failure of adding content, error will appear
 
         """
-
-        for notebook in [
+        for notebook_file, nb_path in zip([
             nb for nb in os.listdir(self.nb_path) if verify_notebook_name(nb)
-        ]:
-            notebook_item = '-'.join(notebook.split('-')[:-2])
+        ], matching_notebooks_paths):
+
+            notebook_item = '-'.join(notebook_file.split('-')[:-2])
+
+            binder_data = {
+                "owner": repo_owner,
+                "repo": repo_name,
+                "folder": repo_directory,
+                "link_git": notebooks_repo + nb_path,
+                "link_binder": notebooks_binder + nb_path,
+                "link_colab ": notebooks_colab + nb_path,
+            }
 
             if notebook_item in buttons_list:
                 template = template_with_colab_and_binder if notebook_item in cbuttons_list else template_with_binder
             else:
                 template = template_with_colab if notebook_item in cbuttons_list else template_without_binder
 
-            button_text = create_content(template, self.binder_data, notebook)
-            if not add_content_below(button_text, f"{self.nb_path}/{notebook}"):
+            button_text = create_content(template, binder_data, notebook_file)
+            if not add_content_below(button_text, f"{self.nb_path}/{notebook_file}"):
                 raise FileNotFoundError("Unable to modify file")
 
     def render_rst(self, path: str = notebooks_docs, template: str = rst_template):
