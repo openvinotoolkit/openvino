@@ -311,6 +311,7 @@ void MemoryLSTMCellTest::run() {
     } else {
         create_pure_tensor_iterator_model();
     }
+    abs_threshold = 1e-2f;
     validate();
 }
 

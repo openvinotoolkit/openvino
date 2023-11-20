@@ -78,9 +78,13 @@ void MemoryTest::Run() {
     }
 
     try {
-        CoreConfiguration(this);
-        ConfigureNetwork();
-        executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
+        if (transformation != ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
+            LoadNetwork();
+        } else {
+            CoreConfiguration(this);
+            ConfigureNetwork();
+            executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
+        }
         inferRequest = executableNetwork.CreateInferRequest();
         GenerateInputs();
         for (int64_t i = 0; i < iteration_count; ++i) {
