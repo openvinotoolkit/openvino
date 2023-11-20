@@ -5,9 +5,9 @@
 #include "common_test_utils/node_builders/fully_connected.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "openvino/op/matmul.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
 
 namespace ov {
 namespace test {
@@ -15,7 +15,7 @@ namespace utils {
 std::shared_ptr<ov::Node> make_fully_connected(const ov::Output<Node>& in,
                                                const ov::element::Type& type,
                                                const size_t output_size,
-                                               bool  addBias,
+                                               bool addBias,
                                                const ov::Shape& weights_shape,
                                                const std::vector<float>& weights,
                                                const std::vector<float>& bias_weights) {

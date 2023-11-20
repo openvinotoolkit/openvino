@@ -5,9 +5,9 @@
 #include "common_test_utils/node_builders/logical.hpp"
 
 #include "openvino/op/logical_and.hpp"
+#include "openvino/op/logical_not.hpp"
 #include "openvino/op/logical_or.hpp"
 #include "openvino/op/logical_xor.hpp"
-#include "openvino/op/logical_not.hpp"
 
 namespace ov {
 namespace test {

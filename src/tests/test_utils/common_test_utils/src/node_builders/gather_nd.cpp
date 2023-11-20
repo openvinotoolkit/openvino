@@ -4,10 +4,10 @@
 
 #include "common_test_utils/node_builders/gather_nd.hpp"
 
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
-#include "openvino/op/gather_nd.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gather_nd.hpp"
 
 namespace ov {
 namespace test {
@@ -18,7 +18,8 @@ std::shared_ptr<ov::Node> make_gather_nd(const ov::Output<Node>& data_node,
                                          const std::size_t batch_dims) {
     const auto indices = [&] {
         const auto& data_shape = data_node.get_shape();
-        const auto indices_count = std::accumulate(begin(indices_shape), prev(end(indices_shape)), 1ull, std::multiplies<std::size_t>{});
+        const auto indices_count =
+            std::accumulate(begin(indices_shape), prev(end(indices_shape)), 1ull, std::multiplies<std::size_t>{});
 
         const auto slice_rank = indices_shape.back();
 
@@ -48,7 +49,8 @@ std::shared_ptr<ov::Node> make_gather_nd8(const ov::Output<Node>& data_node,
                                           const std::size_t batch_dims) {
     const auto indices = [&] {
         const auto& data_shape = data_node.get_shape();
-        const auto indices_count = std::accumulate(begin(indices_shape), prev(end(indices_shape)), 1ull, std::multiplies<std::size_t>{});
+        const auto indices_count =
+            std::accumulate(begin(indices_shape), prev(end(indices_shape)), 1ull, std::multiplies<std::size_t>{});
         const auto slice_rank = indices_shape.back();
 
         const auto max_dim = *std::max_element(begin(data_shape), end(data_shape));

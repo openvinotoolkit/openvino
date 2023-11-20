@@ -4,9 +4,9 @@
 
 #include "common_test_utils/node_builders/dft.hpp"
 
+#include "openvino/op/constant.hpp"
 #include "openvino/op/dft.hpp"
 #include "openvino/op/idft.hpp"
-#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace test {
@@ -32,7 +32,9 @@ std::shared_ptr<ov::Node> make_dft(const ov::Output<Node>& data_node,
     auto axesNode = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{axes.size()}, axes);
 
     if (!signal_size.empty()) {
-        auto signal_size_node = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{signal_size.size()}, signal_size);
+        auto signal_size_node = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64,
+                                                                       ov::Shape{signal_size.size()},
+                                                                       signal_size);
         return CallDftCtorWithArgs(op_type, data_node, axesNode, signal_size_node);
     }
     return CallDftCtorWithArgs(op_type, data_node, axesNode);

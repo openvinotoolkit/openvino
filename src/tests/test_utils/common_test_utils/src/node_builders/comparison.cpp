@@ -5,15 +5,14 @@
 #include "common_test_utils/node_builders/comparison.hpp"
 
 #include "openvino/op/equal.hpp"
-#include "openvino/op/not_equal.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
-#include "openvino/op/less.hpp"
-#include "openvino/op/less_eq.hpp"
 #include "openvino/op/is_finite.hpp"
 #include "openvino/op/is_inf.hpp"
 #include "openvino/op/is_nan.hpp"
-
+#include "openvino/op/less.hpp"
+#include "openvino/op/less_eq.hpp"
+#include "openvino/op/not_equal.hpp"
 
 namespace ov {
 namespace test {
