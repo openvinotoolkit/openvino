@@ -89,8 +89,8 @@ public:
             ov::op::util::VariableInfo{inputDynamicShapes[1], inType, "pastv"});
         auto pastv = std::make_shared<ov::op::v6::ReadValue>(inputParams[3], var_v);
         pastv->set_friendly_name("pastv_r");
-        auto concatK = builder::makeConcat(OutputVector{pastk, inputParams[1]}, 2);
-        auto concatV = builder::makeConcat(OutputVector{pastv, inputParams[2]}, 2);
+        auto concatK = std::make_shared<ov::op::v0::Concat>(OutputVector{pastk, inputParams[1]}, 2);
+        auto concatV = std::make_shared<ov::op::v0::Concat>(OutputVector{pastv, inputParams[2]}, 2);
         auto sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(inputParams[0], concatK, concatV, false);
         sdp->set_friendly_name("mha");
         auto add = std::make_shared<op::v1::Add>(sdp, op::v0::Constant::create(inType, {1}, {1.0f}));
