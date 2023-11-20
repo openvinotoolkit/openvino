@@ -249,28 +249,28 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
             for (const auto& in_desc : then_in_desc) {
                 const auto& in_indx = in_desc->m_input_index;
                 const auto& body_indx = in_desc->m_body_parameter_index;
-                auto then_p = then_body_params.at(body_indx);
-                if (if_op->get_input_tensor(in_indx).get_partial_shape().compatible(then_p->get_partial_shape())) {
-                    PartialShape::merge_into(if_op->get_input_tensor(in_indx).m_partial_shape,
-                                             then_p->get_partial_shape());
+                if (if_op->get_input_tensor(in_indx).get_partial_shape().rank().is_dynamic()) {
+                    if_op->get_input_tensor(in_indx).m_partial_shape =
+                        then_body_params.at(body_indx)->get_partial_shape();
                     is_changed = true;
                 }
                 if (if_op->get_input_tensor(in_indx).get_element_type().is_dynamic()) {
-                    if_op->get_input_tensor(in_indx).m_element_type = then_p->get_element_type();
+                    if_op->get_input_tensor(in_indx).m_element_type =
+                        then_body_params.at(body_indx)->get_element_type();
                     is_changed = true;
                 }
             }
             for (const auto& in_desc : else_in_desc) {
                 const auto& in_indx = in_desc->m_input_index;
                 const auto& body_indx = in_desc->m_body_parameter_index;
-                auto else_p = else_body_params.at(body_indx);
-                if (if_op->get_input_tensor(in_indx).get_partial_shape().compatible(else_p->get_partial_shape())) {
-                    PartialShape::merge_into(if_op->get_input_tensor(in_indx).m_partial_shape,
-                                             else_p->get_partial_shape());
+                if (if_op->get_input_tensor(in_indx).get_partial_shape().rank().is_dynamic()) {
+                    if_op->get_input_tensor(in_indx).m_partial_shape =
+                        else_body_params.at(body_indx)->get_partial_shape();
                     is_changed = true;
                 }
                 if (if_op->get_input_tensor(in_indx).get_element_type().is_dynamic()) {
-                    if_op->get_input_tensor(in_indx).m_element_type = else_p->get_element_type();
+                    if_op->get_input_tensor(in_indx).m_element_type =
+                        else_body_params.at(body_indx)->get_element_type();
                     is_changed = true;
                 }
             }
