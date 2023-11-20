@@ -52,7 +52,7 @@ TEST_F(SerializationConstantCompressionTest, IdenticalConstantsI32) {
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ov::shape_size(shape) * sizeof(int32_t));
+    ASSERT_EQ(file_size(bin_1), unique_const_count * ov::shape_size(shape) * sizeof(int32_t));
 }
 
 TEST_F(SerializationConstantCompressionTest, IdenticalConstantsI64) {
@@ -69,7 +69,7 @@ TEST_F(SerializationConstantCompressionTest, IdenticalConstantsI64) {
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ov::shape_size(shape) * sizeof(int64_t));
+    ASSERT_EQ(file_size(bin_1), unique_const_count * ov::shape_size(shape) * sizeof(int64_t));
 }
 
 TEST_F(SerializationConstantCompressionTest, IdenticalConstantsFP32_COMPRESSED_TO_F16) {
@@ -86,7 +86,7 @@ TEST_F(SerializationConstantCompressionTest, IdenticalConstantsFP32_COMPRESSED_T
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ov::shape_size(shape) * sizeof(ov::float16));
+    ASSERT_EQ(file_size(bin_1), unique_const_count * ov::shape_size(shape) * sizeof(ov::float16));
 }
 
 TEST_F(SerializationConstantCompressionTest, IdenticalConstantsFP16) {
@@ -103,7 +103,7 @@ TEST_F(SerializationConstantCompressionTest, IdenticalConstantsFP16) {
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ov::shape_size(shape) * sizeof(ov::float16));
+    ASSERT_EQ(file_size(bin_1), unique_const_count * ov::shape_size(shape) * sizeof(ov::float16));
 }
 
 TEST_F(SerializationConstantCompressionTest, IdenticalConstantsFP32) {
@@ -120,7 +120,7 @@ TEST_F(SerializationConstantCompressionTest, IdenticalConstantsFP32) {
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ov::shape_size(shape) * sizeof(float));
+    ASSERT_EQ(file_size(bin_1), unique_const_count * ov::shape_size(shape) * sizeof(float));
 }
 
 TEST_F(SerializationConstantCompressionTest, NonIdenticalConstantsI64) {
@@ -138,7 +138,7 @@ TEST_F(SerializationConstantCompressionTest, NonIdenticalConstantsI64) {
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ov::shape_size(shape) * sizeof(int64_t));
+    ASSERT_EQ(file_size(bin_1), unique_const_count * ov::shape_size(shape) * sizeof(int64_t));
 }
 
 TEST_F(SerializationConstantCompressionTest, IdenticalConstantsTimesTwo) {
@@ -157,7 +157,7 @@ TEST_F(SerializationConstantCompressionTest, IdenticalConstantsTimesTwo) {
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ov::shape_size(shape) * sizeof(int32_t));
+    ASSERT_EQ(file_size(bin_1), unique_const_count * ov::shape_size(shape) * sizeof(int32_t));
 }
 
 TEST_F(SerializationConstantCompressionTest, IdenticalConstantsTimesTwo_FP32_COMPRESSED_TO_FP16) {
@@ -176,7 +176,7 @@ TEST_F(SerializationConstantCompressionTest, IdenticalConstantsTimesTwo_FP32_COM
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ov::shape_size(shape) * sizeof(ov::float16));
+    ASSERT_EQ(file_size(bin_1), unique_const_count * ov::shape_size(shape) * sizeof(ov::float16));
 }
 
 TEST_F(SerializationConstantCompressionTest, IdenticalConstantsTimesTwoMultipleOccurrences) {
@@ -197,7 +197,7 @@ TEST_F(SerializationConstantCompressionTest, IdenticalConstantsTimesTwoMultipleO
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ov::shape_size(shape) * sizeof(int32_t));
+    ASSERT_EQ(file_size(bin_1), unique_const_count * ov::shape_size(shape) * sizeof(int32_t));
 }
 
 TEST_F(SerializationConstantCompressionTest, IdenticalConstantsTimesTwoMultipleOccurrences_FP32_COMPRESSED_TO_FP16) {
@@ -218,7 +218,7 @@ TEST_F(SerializationConstantCompressionTest, IdenticalConstantsTimesTwoMultipleO
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ov::shape_size(shape) * sizeof(ov::float16));
+    ASSERT_EQ(file_size(bin_1), unique_const_count * ov::shape_size(shape) * sizeof(ov::float16));
 }
 
 TEST_F(SerializationConstantCompressionTest, IdenticalConstantsTimesTwoMultipleOccurrences_FP64_COMPRESSED_TO_FP16) {
@@ -239,7 +239,7 @@ TEST_F(SerializationConstantCompressionTest, IdenticalConstantsTimesTwoMultipleO
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ov::shape_size(shape) * sizeof(ov::float16));
+    ASSERT_EQ(file_size(bin_1), unique_const_count * ov::shape_size(shape) * sizeof(ov::float16));
 }
 
 TEST_F(SerializationConstantCompressionTest, NonIdenticalConstants) {
@@ -256,7 +256,7 @@ TEST_F(SerializationConstantCompressionTest, NonIdenticalConstants) {
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ov::shape_size(shape) * sizeof(int32_t));
+    ASSERT_EQ(file_size(bin_1), unique_const_count * ov::shape_size(shape) * sizeof(int32_t));
 }
 
 TEST_F(SerializationConstantCompressionTest, IdenticalConstantsDifferentTypesI32I64) {
@@ -273,7 +273,7 @@ TEST_F(SerializationConstantCompressionTest, IdenticalConstantsDifferentTypesI32
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ov::shape_size(shape) * sizeof(int32_t));
+    ASSERT_EQ(file_size(bin_1), unique_const_count * ov::shape_size(shape) * sizeof(int32_t));
 }
 
 TEST_F(SerializationConstantCompressionTest, IdenticalConstantsDifferentTypesI32I8) {
@@ -290,5 +290,5 @@ TEST_F(SerializationConstantCompressionTest, IdenticalConstantsDifferentTypesI32
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ov::shape_size(shape) * sizeof(int32_t));
+    ASSERT_EQ(file_size(bin_1), unique_const_count * ov::shape_size(shape) * sizeof(int32_t));
 }

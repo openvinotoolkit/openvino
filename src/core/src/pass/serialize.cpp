@@ -133,8 +133,7 @@ public:
             // Therefore we always have to compare values when finding a match in hash map.
             const HashValue hash = hash_combine(ptr_to_write, *new_size);
             const auto found = m_hash_to_file_positions.find(hash);
-            if (found != end(m_hash_to_file_positions) &&
-                memcmp(static_cast<void const*>(ptr), found->second.second, size) == 0) {
+            if (found != end(m_hash_to_file_positions) && memcmp(ptr, found->second.second, size) == 0) {
                 return found->second.first;
             }
             // Since fp16_compressed data will be disposed at exit point and since we cannot reread it from the ostream,
