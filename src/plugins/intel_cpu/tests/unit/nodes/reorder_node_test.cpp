@@ -19,7 +19,6 @@
 #include "cache/multi_cache.h"
 #include "nodes/input.h"
 
-using namespace InferenceEngine;
 using namespace ov::intel_cpu;
 namespace ReorderCPUTest {
 inline void checkReorder(const ov::intel_cpu::IMemory& inputMemory,

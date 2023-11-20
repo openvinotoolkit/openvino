@@ -11,7 +11,6 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace ov::intel_cpu;
-using namespace InferenceEngine;
 using namespace testing;
 
 /* ======================================= BASE ZERO DIM TEST ======================================= */
