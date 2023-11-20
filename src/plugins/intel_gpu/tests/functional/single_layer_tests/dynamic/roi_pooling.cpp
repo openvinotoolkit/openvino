@@ -186,8 +186,12 @@ protected:
         for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, shape));
 
-        auto roi_pooling = ngraph::builder::makeROIPooling(params[0], params[1], poolShape, spatial_scale, pool_method);
-
+        std::shared_ptr<ov::Node> roi_pooling;
+        if (ov::test::utils::ROIPoolingTypes::ROI_MAX == pool_method) {
+            roi_pooling = std::make_shared<ov::op::v0::ROIPooling>(params[0], params[1], poolShape, spatial_scale, "max");
+        } else {
+            roi_pooling = std::make_shared<ov::op::v0::ROIPooling>(params[0], params[1], poolShape, spatial_scale, "bilinear");
+        }
         ngraph::ResultVector results;
         for (size_t i = 0; i < roi_pooling->get_output_size(); i++)
             results.push_back(std::make_shared<ngraph::opset1::Result>(roi_pooling->output(i)));
