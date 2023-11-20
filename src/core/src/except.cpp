@@ -50,4 +50,12 @@ void ov::NotImplemented::create(const char* file, int line, const std::string& e
     throw ov::NotImplemented(make_what({file, line, nullptr}, default_msg, explanation));
 }
 
+void ov::NotImplemented::create(const char* file,
+                                int line,
+                                const char*,
+                                const std::string&,
+                                const std::string& explanation) {
+    create(file, line, explanation);
+}
+
 const std::string ov::NotImplemented::default_msg{"Not Implemented"};
