@@ -187,7 +187,10 @@ class TestPerformanceModel:
 
     def run(self, model_name, model_link, ie_device):
         self.result = Results()
+        t0 = time.time()
         self.result = multiprocessing_run(self._run, [model_name, model_link, ie_device], model_name, self.infer_timeout)
+        t1 = time.time()
+        print('test running time {}'.format(t1 - t0))
         if self.result.status == Status.OK:
             return
         err_message = "\n{func} running failed: \n{msg}".format(func=model_name, msg=self.result.error_message)

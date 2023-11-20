@@ -24,6 +24,8 @@ from models_hub_common.constants import no_clean_cache_dir
 
 
 def clean_cache():
+    if not os.path.exists(tf_hub_cache_dir):
+        return
     for file_name in os.listdir(tf_hub_cache_dir):
         file_path = os.path.join(tf_hub_cache_dir, file_name)
         try:
