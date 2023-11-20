@@ -1,6 +1,6 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
+import os
 import unittest
 
 import numpy as np
@@ -53,7 +53,7 @@ def create_keras_model(temp_dir):
     x1 = tf.keras.Input(shape=input_shape, name=input_names[0])
     x2 = tf.keras.Input(shape=input_shape, name=input_names[1])
     y = tf.nn.sigmoid(tf.nn.relu(x1 + x2))
-    keras_net = tf.keras.Model(inputs=[x1, x2], outputs=[y])
+    keras_net = tf.keras.Model(inputs=[x1, x2], outputs=[{"output": y}])
 
     shape = PartialShape([-1, 1, 2, 3])
     param1 = ov.opset8.parameter(shape, dtype=np.float32)
@@ -1076,3 +1076,39 @@ class TestOutputTensorName(unittest.TestCase):
 
         assert len(out_tensors) == 1
         assert list(out_tensors)[0].endswith(":0")
+
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf2_from_file_single_tensor_name(self):
+        Path(constants.out_path).mkdir(parents=True, exist_ok=True)
+        tmp_dir = tempfile.TemporaryDirectory(dir=constants.out_path).name
+        model_path = tmp_dir + os.sep + "model"
+
+        from openvino import convert_model
+
+        model, _, _ = create_keras_model(None)
+        tf.saved_model.save(model, model_path)
+
+        ov_model = convert_model(model_path)
+        for output in ov_model.outputs:
+            out_tensors = output.get_names()
+
+            assert len(out_tensors) == 1
+            out_tensor = list(out_tensors)[0]
+            assert ":" not in out_tensor
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf2_from_memory_single_tensor_name(self):
+        from openvino import convert_model
+
+        model, _, _ = create_keras_model(None)
+
+        ov_model = convert_model(model)
+        for output in ov_model.outputs:
+            out_tensors = output.get_names()
+
+            assert len(out_tensors) == 1
+            out_tensor = list(out_tensors)[0]
+            assert ":" not in out_tensor
