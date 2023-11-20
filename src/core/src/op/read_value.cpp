@@ -91,7 +91,8 @@ void op::v6::ReadValue::validate_and_infer_types() {
         // dynamic rank/type can be derived from the IRs generated via the prev versions of OV,
         // but dynamic rank/type are not supported in plugins,
         // so we are trying to fix them here using the rank/type of ReadValue 1st input, if it exists
-        if (get_input_size() > 0 && variable_info.data_shape.rank().is_dynamic() && variable_info.data_type.is_dynamic()) {
+        if (get_input_size() > 0 && variable_info.data_shape.rank().is_dynamic() &&
+            variable_info.data_type.is_dynamic()) {
             set_output_type(0, initial_type, initial_shape);
         }
     }
