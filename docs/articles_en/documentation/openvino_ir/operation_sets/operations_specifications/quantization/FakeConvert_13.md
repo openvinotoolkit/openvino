@@ -20,7 +20,7 @@ It emulates types defined by the ``destination_type`` attribute, on the original
 Possible destination types are: "f8e4m3", "f8e5m2". The "f8e4m3" is an 8-bit floating-point type, where 1 bit for the sign, 4 bits for the exponents and 3 bits for the mantissa. The "f8e5m2" is also 8-bit floating-point type, where 1 bit is for the sign, 5 bits for the exponents and 2 for the mantissa.
 The types were introduced in the following paper: `FP8 Formats for Deep Learning <https://arxiv.org/abs/2209.05433>`__ .
 
-*Fake* in *FakeConvert* means the output tensor is of the same floating point type as an input tensor, not float8 type.
+*Fake* in *FakeConvert* means that the output tensor preserve the same element type as an original type of the input tensor, not the type of ``destination_type``.
 
 
 **Attributes**
