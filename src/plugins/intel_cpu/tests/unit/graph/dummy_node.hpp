@@ -8,7 +8,6 @@
 #include "graph.h"
 #include "edge.h"
 
-#include "ie_ngraph_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
