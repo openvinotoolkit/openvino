@@ -107,7 +107,7 @@ void MemoryFqConcatPrelu::SetUp() {
         std::get<3>(fake_quantize_params),
         std::get<4>(fake_quantize_params),
         std::get<5>(fake_quantize_params));
-    auto concat = ngraph::builder::makeConcat({read, fake, input[0]}, 1);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{read, fake, input[0]}, 1);
     auto prelu_constant = ngraph::op::Constant::create(ngPrc, {1}, {-2});
     auto prelu = std::make_shared<ngraph::opset1::PRelu>(concat, prelu_constant);
     auto slice = ngraph::builder::makeStridedSlice(prelu,

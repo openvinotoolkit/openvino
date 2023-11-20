@@ -1217,7 +1217,7 @@ utilization. For more information, refer to the overview of
 tutorial <118-optimize-preprocessing-with-output.html>`__.
 To see, how it could be used with YOLOV8 object detection model ,
 please, see `Convert and Optimize YOLOv8 real-time object detection with
-OpenVINO tutorial <./230-yolov8-object-detection.ipynb>`__
+OpenVINO tutorial <230-yolov8-object-detection-with-output.html>`__
 
 Live demo 
 ---------------------------------------------------
