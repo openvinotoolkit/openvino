@@ -7,8 +7,6 @@
 #include <gflags/gflags.h>
 #include <iostream>
 
-#include "common_test_utils/test_constants.hpp"
-
 static const char help_message[] = "Print a usage message.";
 static const char input_folders_message[] = "Required. Comma separated paths to the input folders with IRs";
 static const char local_cache_message[] = "Optional. Comma separated paths to the local cache folders with IRs";

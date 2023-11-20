@@ -25,7 +25,7 @@ std::shared_ptr<ov::Model> MakeMatMulModel() {
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape(input_shape))};
     auto matmul_const = ngraph::builder::makeConstant(precision, {4096, 1024}, std::vector<float>{}, true);
-    auto matmul = ngraph::builder::makeMatMul(params[0], matmul_const);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(params[0], matmul_const);
 
     auto add_const = ngraph::builder::makeConstant(precision, {1, 1024}, std::vector<float>{}, true);
     auto add = ngraph::builder::makeEltwise(matmul, add_const, ngraph::helpers::EltwiseTypes::ADD);

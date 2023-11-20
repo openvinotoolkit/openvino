@@ -221,7 +221,7 @@ protected:
                                                                transpose_weights,
                                                                add_subtract,
                                                                reshape_on_decompression);
-        auto matMul = builder::makeMatMul(params[0], weights_subgraph);
+        auto matMul = std::make_shared<ov::op::v0::MatMul>(params[0], weights_subgraph);
         return makeNgraphFunction(data_precision, params, matMul, "MatmulWeightsDecompression");
     }
 

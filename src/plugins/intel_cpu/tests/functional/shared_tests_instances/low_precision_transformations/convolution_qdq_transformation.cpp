@@ -73,7 +73,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             { {0.2f}, ngraph::element::f32, {}, false }
         },
         "Convolution",
-        "FP32"
+        "f32"
     },
 
     // Actual:
@@ -127,7 +127,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             { {0.2f}, ngraph::element::f32, {}, false }
         },
         "Convolution",
-        "U8"
+        "u8"
     },
 
     // Actual:
@@ -178,7 +178,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             { {0.2f}, ngraph::element::f32, {}, false }
         },
         "Convolution",
-        "FP32"
+        "f32"
     },
 
     // Actual:
@@ -229,7 +229,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             { {0.2f}, ngraph::element::f32, {}, false }
         },
         "Convolution",
-        "U8"
+        "u8"
     },
 
     {
@@ -249,7 +249,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
                 { {0.2f}, ngraph::element::f32, {}, false }
         },
         "Convolution",
-        "U8"
+        "u8"
     },
 };
 
