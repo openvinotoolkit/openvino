@@ -4,6 +4,9 @@ CPU:
     - Python_API
     - samples
     - ONNX_RT
+    - PyTorch_FE
+    - TF_FE
+    - ONNX_FE
   build:
     - HETERO
     - AUTO_BATCH
