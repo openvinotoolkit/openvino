@@ -148,7 +148,7 @@ program::program(engine& engine_ref,
       _task_executor(std::move(task_executor)),
       processing_order(),
       is_internal(is_internal),
-      is_body_program(is_body_program),
+      _is_body_program(is_body_program),
       _compilation_context(compilation_context) {
     _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
@@ -161,6 +161,25 @@ program::program(engine& engine_ref,
         init_graph();
     } else {
         build_program(is_internal);
+        if (_is_body_program) {
+            // To skip empty if (condition) subgraph
+            bool can_be_optimized = true;
+            for (auto& node : processing_order) {
+                if (node->is_type<input_layout>()) {
+                    continue;
+                } else if (node->is_type<data>()) {
+                    continue;
+                } else if (node->is_output() && node->is_type<reorder>() && !node->has_fused_primitives() &&
+                      node->get_input_layout(0).data_type == node->get_output_layouts(false)[0].data_type &&
+                      node->get_input_layout(0).format == node->get_output_layouts(false)[0].format &&
+                      node->get_input_layout(0).get_partial_shape().size() == node->get_output_layouts(false)[0].get_partial_shape().size()) {
+                    continue;
+                }
+                can_be_optimized = false;
+                break;
+            }
+            this->_can_be_optimized = can_be_optimized;
+        }
     }
 }
 

@@ -84,15 +84,12 @@ protected:
         }
         std::shared_ptr<ngraph::Node> poolInput = params[0];
 
-        std::shared_ptr<ngraph::Node> pooling = ngraph::builder::makePooling(poolInput,
-                                                                             stride,
-                                                                             padBegin,
-                                                                             padEnd,
-                                                                             kernel,
-                                                                             roundingType,
-                                                                             padType,
-                                                                             excludePad,
-                                                                             poolType);
+        std::shared_ptr<ov::Node> pooling;
+        if (ov::test::utils::PoolingTypes::MAX == poolType) {
+            pooling = std::make_shared<ov::op::v1::MaxPool>(poolInput, stride, padBegin, padEnd, kernel, roundingType, padType);
+        } else {
+            pooling = std::make_shared<ov::op::v1::AvgPool>(poolInput, stride, padBegin, padEnd, kernel, excludePad, roundingType, padType);
+        }
 
         auto makeFunction = [](const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) {
             ngraph::ResultVector results;

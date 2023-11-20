@@ -4,12 +4,9 @@
 
 #pragma once
 
-#include <functional_test_utils/summary/op_summary.hpp>
-#include <ov_models/subgraph_builders.hpp>
-
 namespace ov {
 namespace test {
-namespace subgraph {
+namespace op_conformance {
 
 using OpGenerator = std::map<ov::DiscreteTypeInfo, std::function<std::shared_ptr<ov::Model>()>>;
 OpGenerator getOpGeneratorMap();
@@ -33,6 +30,6 @@ static const std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Mod
     return res;
 }
 
-}  // namespace subgraph
+}  // namespace op_conformance
 }  // namespace test
 }  // namespace ov

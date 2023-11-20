@@ -77,11 +77,13 @@
 #include "transformations/op_conversions/unique_decomposition.hpp"
 #include "transformations/op_conversions/convert_topk3.hpp"
 #include "transformations/op_conversions/convert_topk11_downgrade.hpp"
+#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
 #include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/init_node_info.hpp"
 #include "utils/ngraph_transformation.hpp"
+#include "utils/print_model.hpp"
 
 // LPT transformations
 #include "low_precision/add.hpp"
@@ -109,6 +111,7 @@
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/move_eltwise_up_data_movement.hpp"
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
+#include "transformations/cpu_opset/common/pass/rope_fusion.hpp"
 
 // Snippets
 #include "snippets/pass/tokenization.hpp"
@@ -124,6 +127,7 @@
 #include "nodes/fake_quantize.h"
 #include "nodes/mha.h"
 #include "nodes/rnn.h"
+#include "nodes/scaled_attn.h"
 #include "dnnl.hpp"
 #include <cpu/x64/cpu_isa_traits.hpp>
 
@@ -431,6 +435,12 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertNMS9ToNMSIEInternal);
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMulticlassNmsToMulticlassNmsIE);
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMatrixNmsToMatrixNmsIE);
+    CPU_SET_CALLBACK_X64(manager,
+        [](const_node_ptr &node) -> bool {
+            std::string errorMsg;
+            return node::ScaledDotProductAttention::isSupportedOperation(node, errorMsg);
+        },
+        ov::pass::ScaledDotProductAttentionDecomposition);
 
     // List of enabled/disabled transformations
 
@@ -646,6 +656,10 @@ void Transformations::PostLpt() {
 
     // Execute before snippets. Otherwise FQ will be converted to Subgraph
     CPU_REGISTER_PASS_X64(postLPTPassManager, ConvertFqRnnToQuantizedRnn);
+
+    CPU_REGISTER_PASS_X64(postLPTPassManager, EliminateStridedSlice);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, RoPEFusion);
+
     postLPTPassManager.run_passes(model);
 }
 
