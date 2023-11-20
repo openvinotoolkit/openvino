@@ -27,6 +27,9 @@ using namespace ov::op;
 
 namespace {
 Output<Node> base_translate_full(const NodeContext& context, const Output<Node>& sizes, const Output<Node>& value) {
+    if (is_empty_list(sizes)) {
+        return value;
+    }
     return context.mark_node(std::make_shared<v3::Broadcast>(value, sizes));
 }
 
