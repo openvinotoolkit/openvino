@@ -3,6 +3,10 @@ CPU:
     - C_API
     - Python_API
     - samples
+    - ONNX_RT
+    - PyTorch_FE
+    - TF_FE
+    - ONNX_FE
   build:
     - HETERO
     - AUTO_BATCH
@@ -63,6 +67,7 @@ TEMPLATE:
     - AUTO
     - C_API
     - Python_API
+    - NVIDIA
   build:
     - IR_FE
 
@@ -163,6 +168,7 @@ IE_Tests:
     - AUTO_BATCH
     - TEMPLATE
     - AUTO
+    - NVIDIA
   build:
     - IR_FE
 
@@ -189,3 +195,23 @@ docs:
 licensing:
   revalidate: []
   build: []
+
+NVIDIA:
+  revalidate: []
+  build: []
+
+ONNX_RT:
+  revalidate: []
+  build: []
+
+Core:
+  revalidate: 'all'
+
+transformations:
+  revalidate: 'all'
+
+preprocessing:
+  revalidate: 'all'
+
+inference:
+  revalidate: 'all'
