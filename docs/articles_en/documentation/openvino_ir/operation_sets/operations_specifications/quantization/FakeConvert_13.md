@@ -1,5 +1,7 @@
 # FakeConvert {#openvino_docs_ops_quantization_FakeConvert_13}
 
+**Note**: FakeConvert is an experimental operation and subject to change.
+
 @sphinxdirective
 
 .. meta::
