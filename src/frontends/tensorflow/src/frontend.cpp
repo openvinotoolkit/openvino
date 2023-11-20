@@ -487,6 +487,7 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
     for (const auto& result : partiallyConverted->get_results()) {
         result->validate_and_infer_types();
     }
+
     normalize(partiallyConverted);
 }
 
