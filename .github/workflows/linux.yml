@@ -5,21 +5,7 @@ on:
     - cron: '0 0 * * 3,6'
   workflow_dispatch:
   pull_request:
-    paths:
-      - '**'
-      - '!**/docs/**'
-      - '!docs/**'
-      - 'docs/snippets/**'
-      - '!**/**.md'
-      - '!**.md'
   push:
-    paths:
-      - '**'
-      - '!docs/**'
-      - '!**/docs/**'
-      - 'docs/snippets/**'
-      - '!**/**.md'
-      - '!**.md'
     branches:
       - master
       - 'releases/**'
@@ -34,7 +20,33 @@ env:
   PYTHON_VERSION: '3.11'
 
 jobs:
+  Smart_CI:
+    runs-on: ubuntu-latest
+    outputs:
+      affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+    steps:
+      - name: checkout action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions/smart-ci
+
+      - name: Get affected components
+        id: smart_ci
+        uses: ./.github/actions/smart-ci
+        with:
+          repository: ${{ github.repository }}
+          pr: ${{ github.event.number }}
+          commit_sha: ${{ github.sha }}
+          component_pattern: "category: (.*)"
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Show affected components
+        run: |
+          echo "${{ toJSON(steps.smart_ci.outputs.affected_components) }}"
+        shell: bash
+
   Build:
+    needs: Smart_CI
     timeout-minutes: 150
     defaults:
       run:
@@ -60,6 +72,7 @@ jobs:
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/.ci/azure/ci_utils/onnxruntime
+    if: "!fromJSON(needs.smart_ci.outputs.affected_components).docs_only"
 
     steps:
       - name: Install git
@@ -96,30 +109,21 @@ jobs:
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
           # default-jdk - Java API
-          # libssl1.1 - 'python3 -m pip' in self-hosted runner
-          apt install --assume-yes --no-install-recommends default-jdk libssl1.1
+          apt install --assume-yes --no-install-recommends default-jdk
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.3
         with:
           version: "v0.5.4"
 
-      - uses: actions/setup-python@v4
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Setup pip cache dir
-        run: |
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
-          echo "Using pip version: ${PIP_VER}"
-          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
-      - name: Get pip cache info
-        run: |
-          echo "Cache size: "
-          du -h -d2 ${PIP_CACHE_DIR}
-          echo "Cache info: "
-          python -m pip cache info
-        continue-on-error: true
+          version: ${{ env.PYTHON_VERSION }}
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
+          show-cache-info: 'true'
 
       - name: Install python dependencies
         run: |
@@ -312,8 +316,8 @@ jobs:
           ovc --help
 
   Samples:
-    needs: Build
-    timeout-minutes: 10
+    needs: [Build, Smart_CI]
+    timeout-minutes: 20
     defaults:
       run:
         shell: bash
@@ -325,6 +329,7 @@ jobs:
       INSTALL_DIR: /__w/openvino/openvino/install
       INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
       BUILD_DIR: /__w/openvino/openvino/build
+    if: fromJSON(needs.smart_ci.outputs.affected_components).samples
 
     steps:
       - name: Download OpenVINO package
@@ -348,21 +353,23 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
-      - name: Install 'actions/setup-python@v4' dependencies
-        run: apt-get update && apt-get install -y libssl1.1
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Setup pip cache dir
-        run: |
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
-          echo "Using pip version: ${PIP_VER}"
-          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
-
       - name: Install OpenVINO dependencies
         run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
+
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
 
       - name: Build cpp samples - GCC
         run: ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples
@@ -388,6 +395,7 @@ jobs:
       #
 
       - name: Samples tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).samples.test
         run: |
           export WORKSPACE=${INSTALL_DIR}
           export IE_APP_PATH=${INSTALL_DIR}/samples_bin
@@ -409,10 +417,10 @@ jobs:
         with:
           name: test-results-samples
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
-          if-no-files-found: 'error'
+          if-no-files-found: 'warn'
 
   Conformance:
-    needs: Build
+    needs: [Build, Smart_CI]
     timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 5 || 15 }}
     defaults:
       run:
@@ -427,15 +435,14 @@ jobs:
           - TEST_TYPE: 'OP'
           - TEST_TYPE: 'API'
     env:
-      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       CONFORMANCE_TOOLS_DIR: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary
       CONFORMANCE_ARTIFACTS_DIR: ${{ github.workspace }}/install/conformance_artifacts
       TEST_DEVICE: 'CPU'
+    if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
 
     steps:
-
       - name: Create Directories
         run: |
           mkdir -p ${CONFORMANCE_ARTIFACTS_DIR}
@@ -465,16 +472,24 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
-      - uses: actions/setup-python@v4
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
 
       - name: Install Dependencies
         run: |
           sudo -E ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
-
-          # Needed for downloading IRs from storage.openvinotoolkit with Python urllib
-          sudo apt-get update && sudo apt-get install --assume-yes --no-install-recommends ca-certificates
 
           python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
 
@@ -533,23 +548,25 @@ jobs:
       ONNX_RUNTIME_BUILD_DIR: /__w/openvino/openvino/onnxruntime/build
 
     steps:
-      - name: Fetch install_build_dependencies.sh
+      - name: Fetch install_build_dependencies.sh and setup_python action
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
             install_build_dependencies.sh
+            .github/actions/setup_python/action.yml
           sparse-checkout-cone-mode: false
           path: ${{ env.OPENVINO_REPO }}
-          ref: 'master'
 
       - name: Install git
         run: |
           apt-get update
           apt-get install --assume-yes --no-install-recommends git ca-certificates
 
-      - uses: actions/setup-python@v4
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
 
       #
       # Initialize OpenVINO
@@ -645,8 +662,8 @@ jobs:
 
   CXX_Unit_Tests:
     name: C++ unit tests
-    needs: Build
-    timeout-minutes: 15
+    needs: [Build, Smart_CI]
+    timeout-minutes: 20
     defaults:
       run:
         shell: bash
@@ -705,6 +722,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceUnit.xml
 
       - name: Low Precision Transformations Tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).LP_transformations.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_lp_transformations_tests --gtest_print_time=1 \
@@ -717,6 +735,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ConditionalCompilation.xml
 
       - name: IR frontend tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).IR_FE.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_ir_frontend_tests --gtest_print_time=1 \
@@ -730,6 +749,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-PaddleTests.xml
 
       - name: ONNX frontend tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_onnx_frontend_tests --gtest_print_time=1 \
@@ -737,30 +757,36 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ONNXFrontend.xml
 
       - name: TensorFlow Common frontend tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test || 
+            fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_tensorflow_common_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowCommonFrontend.xml
 
       - name: TensorFlow frontend tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_tensorflow_frontend_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowFrontend.xml
 
       - name: TensorFlow Lite frontend tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowLiteFrontend.xml
 
       - name: Transformations func tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).transformations.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_transformations_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-Transformations.xml
 
       - name: Legacy Transformations func tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).transformations.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_legacy_transformations_tests --gtest_print_time=1 \
@@ -779,22 +805,24 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CommonUtilTests.xml
 
       - name: Snippets func tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_snippets_func_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-SnippetsFuncTests.xml
 
       - name: CPU plugin unit tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_cpu_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUUnitTests.xml
 
-      - name: SubgraphsDumper tests
+      - name: ov_subgraphs_dumper_tests tests
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/subgraphsDumperTests --gtest_print_time=1 \
-                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-SubgraphsDumperTests.xml
+          ${INSTALL_TEST_DIR}/ov_subgraphs_dumper_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_subgraphs_dumper_tests.xml
 
       - name: Template OpImpl tests
         run: |
@@ -803,18 +831,21 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OpImplTests.xml
 
       - name: AUTO unit tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_auto_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_unit_tests.xml
 
       - name: AUTO func Tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO.test
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_func_tests --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_func_tests.xml
 
       - name: Template plugin func tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TEMPLATE.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_template_func_tests --gtest_print_time=1 \
@@ -822,23 +853,27 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TemplateFuncTests.xml
 
       - name: Inference Engine C API tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).C_API.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/InferenceEngineCAPITests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceEngineCAPITests.xml
 
       - name: OpenVINO C API tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).C_API.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_capi_test --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OpenVINOCAPITests.xml
 
       - name: AutoBatch unit tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO_BATCH.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_auto_batch_unit_tests --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_batch_unit_tests.xml
 
       - name: AutoBatch func tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO_BATCH.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_auto_batch_func_tests --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_batch_func_tests.xml
@@ -849,11 +884,13 @@ jobs:
           ${INSTALL_TEST_DIR}/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVProxyTests.xml
 
       - name: Hetero unit tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).HETERO.test
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroUnitTests.xml
 
       - name: Hetero func tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).HETERO.test
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVHeteroFuncTests.xml
@@ -864,11 +901,11 @@ jobs:
         with:
           name: test-results-cpp
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
-          if-no-files-found: 'error'
+          if-no-files-found: 'warn'
 
   Python_Unit_Tests:
     name: Python unit tests
-    needs: Build
+    needs: [Build, Smart_CI]
     timeout-minutes: 40
     defaults:
       run:
@@ -910,19 +947,23 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
-      - name: Install 'actions/setup-python@v4' dependencies
-        run: apt-get update && apt-get install -y libssl1.1 ca-certificates
-      - uses: actions/setup-python@v4
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-        env:
-          PIP_CACHE_DIR: ${{ env.PIP_CACHE_PATH }}
-      - name: Setup pip cache dir
-        run: |
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
-          echo "Using pip version: ${PIP_VER}"
-          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
-          echo "PIP_INSTALL_PATH=${Python_ROOT_DIR}/lib/python${PYTHON_VERSION}/site-packages" >> $GITHUB_ENV
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: ${{ env.OPENVINO_REPO }}
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+
+      - name: Install OpenVINO dependencies
+        run: ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
 
       - name: Install OpenVINO Python wheels
         run: |
@@ -950,6 +991,7 @@ jobs:
       #
 
       - name: Python API 1.0 Tests
+        #if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
         run: |
           python3 -m pytest -s ${INSTALL_TEST_DIR}/pyngraph \
             --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
@@ -957,6 +999,7 @@ jobs:
             --ignore=${INSTALL_TEST_DIR}/pyngraph/tests_compatibility/test_onnx/test_backend.py
 
       - name: Python API 2.0 Tests
+        #if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
         run: |
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
@@ -965,6 +1008,7 @@ jobs:
             --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
 
       - name: Model Optimizer unit tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
         run: |
           # required for MxNet
           apt-get install -y libgomp1 libquadmath0
@@ -973,13 +1017,16 @@ jobs:
               --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml
 
       - name: Python ONNX operators tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test ||
+            fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE.test
         run: |
           # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
           python3 -m pytest -sv ${INSTALL_TEST_DIR}/onnx -k 'not cuda' \
             --junitxml=${INSTALL_TEST_DIR}/TEST-onnx_frontend.xml \
-            --ignore=${INSTALL_TEST_DIR}/onnx/test_python/test_zoo_models.py \
+            --ignore=${INSTALL_TEST_DIR}/onnx/test_python/test_zoo_models.py
 
       - name: OVC unit tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
         run: python3 -m pytest -s ${INSTALL_TEST_DIR}/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
 
       - name: Install Python Layer tests dependencies
@@ -988,6 +1035,7 @@ jobs:
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
 
       - name: MO Python API Tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
         run: |
           # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
           export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
@@ -998,6 +1046,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: OVC Python API Tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
         run: |
           # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
           export PYTHONPATH=${INSTALL_TEST_DIR}/python
@@ -1008,18 +1057,22 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: Python Frontend tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test ||
+            fromJSON(needs.smart_ci.outputs.affected_components).PDPD_FE.test
         run: |
           # to allow 'libtest_builtin_extensions.so' to find 'libopenvino_onnx_frontend.so'
           export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/py_frontend_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
 
       - name: PyTorch Layer Tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -n logical -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP32
 
       - name: PyTorch torch.compile TORCHFX Layer Tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
         run: |
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_fx_backend --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
@@ -1028,6 +1081,7 @@ jobs:
           PYTORCH_TRACING_MODE: TORCHFX
 
       - name: PyTorch torch.compile TORCHSCRIPT Layer Tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
         run: |
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_ts_backend --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
@@ -1036,6 +1090,7 @@ jobs:
           PYTORCH_TRACING_MODE: TORCHSCRIPT
 
       - name: ONNX Layer Tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE.test
         run: |
           # requires 'unit_tests' from 'tools/mo'
           export PYTHONPATH=${INSTALL_TEST_DIR}/mo:$PYTHONPATH
@@ -1045,6 +1100,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: TensorFlow 1 Layer Tests - TF FE
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         run: |
           # requires 'unit_tests' from 'mo'
           export PYTHONPATH=${INSTALL_TEST_DIR}/mo
@@ -1054,6 +1110,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: TensorFlow 2 Layer Tests - TF FE
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         run: |
           # requires 'unit_tests' from 'mo'
           export PYTHONPATH=${INSTALL_TEST_DIR}/mo
@@ -1063,20 +1120,24 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: JAX Layer Tests - TF FE
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
         env:
           TEST_DEVICE: CPU
 
       - name: TensorFlow 1 Layer Tests - Legacy FE
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${INSTALL_TEST_DIR}/TEST-tf_Roll.xml
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/test_tf2_keras_activation.py --ir_version=11 -k "sigmoid" --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_Activation.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
       - name: TensorFlow Lite Layer Tests - TFL FE
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
         env:
           TEST_DEVICE: CPU
@@ -1105,11 +1166,11 @@ jobs:
           path: |
             ${{ env.INSTALL_TEST_DIR }}/TEST*.html
             ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
-          if-no-files-found: 'error'
+          if-no-files-found: 'warn'
 
   CPU_Functional_Tests:
     name: CPU functional tests
-    needs: Build
+    needs: [Build, Smart_CI]
     timeout-minutes: 25
     defaults:
       run:
@@ -1118,11 +1179,12 @@ jobs:
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
     env:
+      OPENVINO_REPO: /__w/openvino/openvino/openvino
       INSTALL_DIR: /__w/openvino/openvino/install
       INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
       PARALLEL_TEST_SCRIPT: /__w/openvino/openvino/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
       PARALLEL_TEST_CACHE: /__w/openvino/openvino/install/tests/test_cache.lst
-
+    if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
     steps:
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
@@ -1148,12 +1210,19 @@ jobs:
       - name: Install OpenVINO dependencies
         run: bash ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
 
-      - name: Install 'actions/setup-python@v4' dependencies
-        run: apt-get update && apt-get install -y libssl1.1
-
-      - uses: actions/setup-python@v4
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: ${{ env.OPENVINO_REPO }}
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
 
       - name: Install python dependencies for run_parallel.py
         run: python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
@@ -1197,7 +1266,7 @@ jobs:
 
   TensorFlow_Hub_Models_Tests:
     name: TensorFlow Hub Models tests
-    needs: Build
+    needs: [Build, Smart_CI]
     defaults:
       run:
         shell: bash
@@ -1209,26 +1278,16 @@ jobs:
     #   volumes:
     #     - /mount/caches:/mount/caches
     env:
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
+    if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test || 
+        fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
 
     steps:
       - name: Check sudo
         run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
-
-      - name: Install 'actions/setup-python@v4' dependencies
-        run: sudo apt-get update && sudo apt-get install -y libssl1.1 ca-certificates
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Setup pip cache dir
-        run: |
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
-          echo "Using pip version: ${PIP_VER}"
-          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
@@ -1251,6 +1310,21 @@ jobs:
           pushd ${INSTALL_TEST_DIR}
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
+
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
 
       - name: Install OpenVINO Python wheels
         run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
@@ -1278,7 +1352,7 @@ jobs:
 
   PyTorch_Models_Tests:
     name: PyTorch Models tests
-    needs: Build
+    needs: [Build, Smart_CI]
     timeout-minutes: ${{ github.event_name == 'schedule' && 400 || 30 }}
     defaults:
       run:
@@ -1290,9 +1364,11 @@ jobs:
     #   volumes:
     #     - /mount/caches:/mount/caches
     env:
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
+    if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
 
     steps:
       - name: Check sudo
@@ -1300,8 +1376,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          # libssl1.1 - 'python3 -m pip' in self-hosted runner
-          sudo apt install --assume-yes --no-install-recommends libssl1.1
           # install git (required to build pip deps from the sources)
           # install 'g++' to build 'detectron2' and 'natten' wheels
           sudo apt-get install --assume-yes --no-install-recommends g++ git ca-certificates
@@ -1327,14 +1401,20 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
-      - uses: actions/setup-python@v4
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: Setup pip cache dir
-        run: |
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
-          echo "Using pip version: ${PIP_VER}"
-          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
 
       - name: Install OpenVINO Python wheels
         run: python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
@@ -1355,6 +1435,7 @@ jobs:
         env:
           TYPE: ${{ github.event_name == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
+          USE_SYSTEM_CACHE: False
 
       - name: Available storage after tests
         run: |
@@ -1398,6 +1479,15 @@ jobs:
       SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
 
     steps:
+
+      - name: Fetch install_build_dependencies.sh
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            install_build_dependencies.sh
+          sparse-checkout-cone-mode: false
+          path: ${{ env.OPENVINO_REPO }}
+
       - name: Install Prerequisites
         run: apt update && apt install -y git ca-certificates
 
@@ -1422,21 +1512,6 @@ jobs:
           pushd ${INSTALL_DIR}
             tar -xzf openvino_developer_package.tar.gz -C ${INSTALL_DIR}
           popd
-
-      # TODO: replace with sparse checkout below
-      - name: Clone OpenVINO
-        uses: actions/checkout@v4
-        with:
-          path: ${{ env.OPENVINO_REPO }}
-
-      - name: Fetch install_build_dependencies.sh
-        if: ${{ 'false' }}
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            install_build_dependencies.sh
-          sparse-checkout-cone-mode: false
-          path: ${{ env.OPENVINO_REPO }}
 
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@v4

@@ -1,0 +1,191 @@
+CPU:
+  revalidate:
+    - C_API
+    - Python_API
+    - samples
+  build:
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - AUTO
+    - IR_FE
+
+GPU:
+  build:
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - AUTO
+    - IR_FE
+
+GNA:
+  build:
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - AUTO
+    - IR_FE
+
+HETERO:
+  revalidate:
+    - CPU
+    - GPU
+    - GNA
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - C_API
+    - Python_API
+  build:
+    - IR_FE
+
+AUTO_BATCH:
+  revalidate:
+    - CPU
+    - GPU
+    - GNA
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - C_API
+    - Python_API
+  build:
+    - IR_FE
+
+TEMPLATE:
+  revalidate:
+    - CPU
+    - GPU
+    - GNA
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - AUTO
+    - C_API
+    - Python_API
+  build:
+    - IR_FE
+
+AUTO:
+  revalidate:
+    - TEMPLATE
+    - AUTO
+    - C_API
+    - Python_API
+  build:
+    - IR_FE
+
+IR_FE:
+  revalidate:
+    - C_API
+    - Python_API
+    - samples
+  build:
+    - CPU
+
+ONNX_FE:
+  revalidate:
+    - MO
+  build:
+    - CPU
+    - Python_API
+
+PDPD_FE:
+  revalidate:
+    - MO
+  build:
+    - CPU
+    - Python_API
+
+TF_FE:
+  revalidate:
+    - MO
+  build:
+    - CPU
+    - Python_API
+
+TFL_FE:
+  revalidate:
+    - MO
+  build:
+    - CPU
+    - Python_API
+
+PyTorch_FE:
+  revalidate:
+    - MO
+  build:
+    - CPU
+    - Python_API
+
+C_API:
+  build:
+    - CPU
+    - HETERO
+    - AUTO_BATCH
+    - AUTO
+    - IR_FE
+
+Python_API:
+  revalidate:
+    - samples
+    - MO
+    - POT
+    - tools
+  build:
+    - CPU
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - AUTO
+    - IR_FE
+    - ONNX_FE
+    - PDPD_FE
+    - TF_FE
+    - TFL_FE
+    - PyTorch_FE
+
+samples:
+  build:
+    - CPU
+    - AUTO_BATCH
+    - AUTO
+    - IR_FE
+    - C_API
+    - Python_API
+
+IE_Tests:
+  revalidate:
+    - CPU
+    - GPU
+    - GNA
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - AUTO
+  build:
+    - IR_FE
+
+MO:
+  revalidate:
+    - POT
+  build:
+    - Python_API
+
+POT:
+  build:
+    - CPU
+    - Python_API
+
+tools:
+  build:
+    - CPU
+    - Python_API
+
+docs:
+  revalidate: []
+  build: []
+
+licensing:
+  revalidate: []
+  build: []

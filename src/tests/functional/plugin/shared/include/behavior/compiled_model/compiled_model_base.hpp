@@ -5,6 +5,8 @@
 #include <exec_graph_info.hpp>
 #include <fstream>
 #include <openvino/pass/serialize.hpp>
+#include <openvino/core/preprocess/pre_post_process.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 #include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
@@ -265,6 +267,42 @@ TEST_P(OVCompiledModelBaseTest, canCreateTwoCompiledModel) {
 TEST_P(OVCompiledModelBaseTest, CanGetInputsInfo) {
     auto execNet = core->compile_model(function, target_device, configuration);
     EXPECT_NO_THROW(auto inInfo = execNet.inputs());
+}
+
+TEST_P(OVCompiledModelBaseTest, CanCreateTwoCompiledModelsAndCheckRuntimeModel) {
+    std::vector<ov::CompiledModel> vec;
+    for (size_t i = 0; i < 2; i++) {
+        EXPECT_NO_THROW(vec.push_back(core->compile_model(function, target_device, configuration)));
+        EXPECT_NE(nullptr, vec[i].get_runtime_model());
+        EXPECT_NE(vec.begin()->get_runtime_model(), vec[i].get_runtime_model());
+    }
+}
+
+TEST_P(OVCompiledModelBaseTest, pluginDoesNotChangeOriginalNetwork) {
+    // compare 2 networks
+    auto referenceNetwork = ngraph::builder::subgraph::makeConvPoolRelu();
+    compare_functions(function, referenceNetwork);
+}
+
+TEST_P(OVCompiledModelBaseTest, CanSetInputPrecisionForNetwork) {
+    std::shared_ptr<ov::Model> model = ngraph::builder::subgraph::makeSingleConcatWithConstant();
+    ov::Core core = createCoreWithTemplate();
+    auto ppp = ov::preprocess::PrePostProcessor(model);
+    ov::preprocess::InputInfo& input = ppp.input();
+    input.model().set_layout("??HW");
+    input.preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
+    model = ppp.build();
+    ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
+}
+
+TEST_P(OVCompiledModelBaseTest, CanSetOutputPrecisionForNetwork) {
+    std::shared_ptr<ov::Model> model = ngraph::builder::subgraph::makeSingleConcatWithConstant();
+    ov::Core core = createCoreWithTemplate();
+    auto ppp = ov::preprocess::PrePostProcessor(model);
+    ov::preprocess::OutputInfo& output = ppp.output();
+    output.postprocess().convert_element_type(ov::element::u8);
+    model = ppp.build();
+    ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
 }
 
 TEST_P(OVCompiledModelBaseTest, CanGetOutputsInfo) {

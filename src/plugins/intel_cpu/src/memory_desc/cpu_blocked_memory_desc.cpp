@@ -15,10 +15,10 @@ static VectorDims makeRange(size_t size) {
     return retVec;
 }
 
-CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape) :
+CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(ov::element::Type prc, const Shape& shape) :
     CpuBlockedMemoryDesc(prc, shape, shape.getDims(), makeRange(shape.getDims().size())) {}
 
-CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& blockedDims,
+CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(ov::element::Type prc, const Shape& shape, const VectorDims& blockedDims,
                   const VectorDims& order, size_t offsetPadding, const VectorDims& offsetPaddingToData,
                   const VectorDims& strides) : MemoryDesc(shape, Blocked), precision(prc) {
     if (std::any_of(order.begin(), order.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
@@ -124,7 +124,7 @@ size_t CpuBlockedMemoryDesc::getCurrentMemSizeImp() const {
             e_size += (getBlockDims()[j] - 1) * getStrides()[j];
     }
 
-    e_size *= getPrecision() == InferenceEngine::Precision::BIN ? 1 : getPrecision().size();
+    e_size *= getPrecision() == ov::element::u1 ? 1 : getPrecision().size();
 
     return e_size;
 }
@@ -143,14 +143,14 @@ size_t CpuBlockedMemoryDesc::getMaxMemSize() const {
     return maxDimsDesc->getCurrentMemSize();
 }
 
-size_t CpuBlockedMemoryDesc::getOffset(const InferenceEngine::SizeVector& v) const {
-    InferenceEngine::SizeVector off_v = v;
+size_t CpuBlockedMemoryDesc::getOffset(const VectorDims& v) const {
+    VectorDims off_v = v;
 
     size_t n_blocked_dims = order.size();
     if (blockedDims.size() != n_blocked_dims || strides.size() != n_blocked_dims) {
         IE_THROW() << "Cannot calculate offset. Incorrect primitive descriptor!";
     }
-    InferenceEngine::SizeVector blockedShift(n_blocked_dims);
+    VectorDims blockedShift(n_blocked_dims);
     for (size_t i = 1; i <= n_blocked_dims; i++) {
         blockedShift[n_blocked_dims - i] = off_v[order[n_blocked_dims - i]] % blockedDims[n_blocked_dims - i];
         off_v[order[n_blocked_dims - i]] /= blockedDims[n_blocked_dims - i];
@@ -167,7 +167,7 @@ size_t CpuBlockedMemoryDesc::getElementOffset(size_t elemNumber) const {
     // TODO [DS]: rewrite to support dynamic shapes
     auto& dims = shape.getStaticDims();
     size_t n_dims = dims.size();
-    InferenceEngine::SizeVector pos(n_dims);
+    VectorDims pos(n_dims);
     for (size_t rd = 1; rd <= n_dims; ++rd) {
         const size_t d = n_dims - rd;
         const size_t cur_dim = dims[d];
@@ -303,7 +303,7 @@ size_t CpuBlockedMemoryDesc::getPaddedElementsCount() const {
     return std::accumulate(blockedDims.begin(), blockedDims.end(), size_t{1}, std::multiplies<size_t>());
 }
 
-MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewPrecision(const InferenceEngine::Precision prec) const {
+MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewPrecision(const ov::element::Type prec) const {
     auto newDesc = std::make_shared<CpuBlockedMemoryDesc>(*this);
     newDesc->setPrecision(prec);
     return newDesc;

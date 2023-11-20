@@ -221,7 +221,7 @@ protected:
                                                                transpose_weights,
                                                                add_subtract,
                                                                reshape_on_decompression);
-        auto matMul = builder::makeMatMul(params[0], weights_subgraph);
+        auto matMul = std::make_shared<ov::op::v0::MatMul>(params[0], weights_subgraph);
         return makeNgraphFunction(data_precision, params, matMul, "MatmulWeightsDecompression");
     }
 
@@ -331,9 +331,10 @@ const std::vector<ShapeParams> input_shapes_amx = {
     {{{}, {{11, 339, 577}}}, {577, 335}},
     {{{}, {{1, 1, 256}}}, {256, 128}, 64ul},
 };
-const std::vector<fusingSpecificParams> fusingParamsSet {
+const std::vector<fusingSpecificParams> fusing_params {
     emptyFusingSpec,
     fusingBias,
+    fusingFakeQuantizePerTensorRelu
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
@@ -345,7 +346,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
                                             ::testing::Values(true),
                                             ::testing::Values(true),
                                             ::testing::ValuesIn(filterAdditionalConfigBasic()),
-                                            ::testing::ValuesIn(fusingParamsSet),
+                                            ::testing::ValuesIn(fusing_params),
                                             ::testing::Values(true)),
                          MatmulWeightsDecompression::getTestCaseName);
 
@@ -358,7 +359,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_amx,
                                             ::testing::Values(true),
                                             ::testing::Values(true),
                                             ::testing::ValuesIn(filterAdditionalConfigAMX()),
-                                            ::testing::ValuesIn(fusingParamsSet),
+                                            ::testing::ValuesIn(fusing_params),
                                             ::testing::Values(true)),
                          MatmulWeightsDecompression::getTestCaseName);
 
