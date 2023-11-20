@@ -1256,7 +1256,8 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                         OPENVINO_ASSERT(!bin.empty(), "Failure loading binary from OV_GPU_LoadDumpRawBinary : " + dump_file);
 
                         auto output_mem = get_primitive(layer_name)->output_memory_ptr(i);
-                        OPENVINO_ASSERT(output_mem->size() == bin.size(), "memory size mis-match for OV_GPU_LoadDumpRawBinary : " + layer_name);
+                        OPENVINO_ASSERT(output_mem->size() == bin.size(), "memory size mis-match for OV_GPU_LoadDumpRawBinary : " + layer_name
+                                        + "\n Expected size : " + to_string(output_mem->size()) + ", Binary : " + to_string(bin.size()));
 
                         output_mem->copy_from(get_stream(), static_cast<void *>(&bin[0]), true);
                     }
