@@ -57,17 +57,12 @@ bool SoftPlus::evaluate(TensorVector& outputs, const TensorVector& inputs) const
     const auto count = shape_size(input_shape);
     outputs[0].set_shape(input_shape);
     using namespace ov::element;
-    return IfTypeOf<bf16, f16, f32>::apply<softplus::Evaluate>(inputs[0].get_element_type(),
-                                                               inputs[0],
-                                                               outputs[0],
-                                                               count);
+    return IfTypeOf<f32>::apply<softplus::Evaluate>(inputs[0].get_element_type(), inputs[0], outputs[0], count);
 }
 
 bool SoftPlus::has_evaluate() const {
     OV_OP_SCOPE(v4_SoftPlus_has_evaluate);
     switch (get_input_element_type(0)) {
-    case element::bf16:
-    case element::f16:
     case element::f32:
         return true;
     default:

@@ -39,7 +39,7 @@ target_compile_definitions(${TARGET_NAME}
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
         SHARED_LIB_SUFFIX="${OV_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
 )
-target_link_libraries(${TARGET_NAME} PRIVATE openvino::builders openvino::reference openvino::util openvino::runtime::dev openvino::shape_inference)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::builders openvino::reference openvino::util openvino::runtime::dev openvino::shape_inference openvino::core::dev)
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
                                                  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/ops/>

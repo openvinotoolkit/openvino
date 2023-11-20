@@ -68,18 +68,16 @@ bool Softmax::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
     const auto& input_shape = inputs[0].get_shape();
     outputs[0].set_shape(input_shape);
     using namespace ov::element;
-    return IfTypeOf<bf16, f16, f32, f64>::apply<softmax::Evaluate>(inputs[0].get_element_type(),
-                                                                   inputs[0],
-                                                                   outputs[0],
-                                                                   input_shape,
-                                                                   AxisSet{m_axis});
+    return IfTypeOf<f32, f64>::apply<softmax::Evaluate>(inputs[0].get_element_type(),
+                                                        inputs[0],
+                                                        outputs[0],
+                                                        input_shape,
+                                                        AxisSet{m_axis});
 }
 
 bool Softmax::has_evaluate() const {
     OV_OP_SCOPE(v1_Softmax_has_evaluate);
     switch (get_input_element_type(0)) {
-    case element::bf16:
-    case element::f16:
     case element::f32:
     case element::f64:
         return true;
@@ -140,18 +138,16 @@ bool Softmax::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
 
     outputs[0].set_shape(input_shape);
     using namespace ov::element;
-    return IfTypeOf<bf16, f16, f32, f64>::apply<softmax::Evaluate>(inputs[0].get_element_type(),
-                                                                   inputs[0],
-                                                                   outputs[0],
-                                                                   input_shape,
-                                                                   AxisSet{axis});
+    return IfTypeOf<f32, f64>::apply<softmax::Evaluate>(inputs[0].get_element_type(),
+                                                        inputs[0],
+                                                        outputs[0],
+                                                        input_shape,
+                                                        AxisSet{axis});
 }
 
 bool Softmax::has_evaluate() const {
     OV_OP_SCOPE(v8_Softmax_has_evaluate);
     switch (get_input_element_type(0)) {
-    case element::bf16:
-    case element::f16:
     case element::f32:
     case element::f64:
         return true;

@@ -68,7 +68,6 @@ bool evaluate_scatter(const HostTensorPtr& arg0,
         OPENVINO_TYPE_CASE(evaluate_scatter, i64, arg0, arg1, arg2, out);
         OPENVINO_TYPE_CASE(evaluate_scatter, u32, arg0, arg1, arg2, out);
         OPENVINO_TYPE_CASE(evaluate_scatter, u64, arg0, arg1, arg2, out);
-        OPENVINO_TYPE_CASE(evaluate_scatter, f16, arg0, arg1, arg2, out);
         OPENVINO_TYPE_CASE(evaluate_scatter, f32, arg0, arg1, arg2, out);
         OPENVINO_TYPE_CASE(evaluate_scatter, boolean, arg0, arg1, arg2, out);
     default:
@@ -99,7 +98,6 @@ bool op::v3::ScatterNDUpdate::has_evaluate() const {
     case ngraph::element::i64:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
     case ngraph::element::f32:
     case ngraph::element::boolean:
         break;

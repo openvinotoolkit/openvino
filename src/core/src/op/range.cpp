@@ -101,12 +101,6 @@ shared_ptr<Node> op::v4::Range::clone_with_new_inputs(const OutputVector& new_ar
 template <typename T>
 bool get_casted_value(const HostTensorPtr& tensor, T* val) {
     switch (tensor->get_element_type()) {
-    case element::Type_t::bf16:
-        *val = static_cast<T>(*tensor->get_data_ptr<element::Type_t::bf16>());
-        break;
-    case element::Type_t::f16:
-        *val = static_cast<T>(*tensor->get_data_ptr<element::Type_t::f16>());
-        break;
     case element::Type_t::f32:
         *val = static_cast<T>(*tensor->get_data_ptr<element::Type_t::f32>());
         break;
@@ -396,8 +390,6 @@ bool op::v0::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
 bool op::v0::Range::has_evaluate() const {
     OV_OP_SCOPE(v0_Range_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
     case ngraph::element::f32:
     case ngraph::element::f64:
     case ngraph::element::i8:

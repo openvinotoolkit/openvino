@@ -68,21 +68,20 @@ bool MatMul::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     outputs[0].set_shape(out_shape);
 
     using namespace ov::element;
-    return IfTypeOf<f16, f32, i32, i64, u32, u64>::apply<matmul::Evaluate>(inputs[0].get_element_type(),
-                                                                           inputs[0],
-                                                                           inputs[1],
-                                                                           outputs[0],
-                                                                           inputs[0].get_shape(),
-                                                                           inputs[1].get_shape(),
-                                                                           out_shape,
-                                                                           m_transpose_a,
-                                                                           m_transpose_b);
+    return IfTypeOf<f32, i32, i64, u32, u64>::apply<matmul::Evaluate>(inputs[0].get_element_type(),
+                                                                      inputs[0],
+                                                                      inputs[1],
+                                                                      outputs[0],
+                                                                      inputs[0].get_shape(),
+                                                                      inputs[1].get_shape(),
+                                                                      out_shape,
+                                                                      m_transpose_a,
+                                                                      m_transpose_b);
 }
 
 bool MatMul::has_evaluate() const {
     OV_OP_SCOPE(v0_MatMul_has_evaluate);
     switch (get_input_element_type(0)) {
-    case element::f16:
     case element::f32:
     case element::i32:
     case element::i64:

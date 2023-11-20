@@ -48,14 +48,13 @@ bool Add::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) co
 
     outputs[0].set_shape(infer_broadcast_shape(this, inputs));
     using namespace ov::element;
-    return IfTypeOf<bf16, f16, f32, i8, i16, i32, i64, u8, u16, u32, u64>::apply<add::Evaluate>(
-        inputs[0].get_element_type(),
-        inputs[0],
-        inputs[1],
-        outputs[0],
-        inputs[0].get_shape(),
-        inputs[1].get_shape(),
-        get_autob());
+    return IfTypeOf<f32, i8, i16, i32, i64, u8, u16, u32, u64>::apply<add::Evaluate>(inputs[0].get_element_type(),
+                                                                                     inputs[0],
+                                                                                     inputs[1],
+                                                                                     outputs[0],
+                                                                                     inputs[0].get_shape(),
+                                                                                     inputs[1].get_shape(),
+                                                                                     get_autob());
 }
 
 bool Add::has_evaluate() const {
@@ -69,8 +68,6 @@ bool Add::has_evaluate() const {
     case element::u16:
     case element::u32:
     case element::u64:
-    case element::bf16:
-    case element::f16:
     case element::f32:
         return true;
     default:

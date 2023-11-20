@@ -5,9 +5,11 @@
 #include "openvino/pass/constant_folding.hpp"
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
@@ -48,19 +50,100 @@ const auto friendly_name_from = [](const ov::Node& node, const size_t output_cou
     }
 };
 
+class SavedPrecision : public ov::RuntimeAttribute {
+public:
+    OPENVINO_RTTI("SavedPrecision");
+
+    SavedPrecision(const ov::element::Type& type) : m_type(type) {}
+
+    bool is_copyable() const override {
+        return true;
+    }
+
+    const ov::element::Type& get_type() const {
+        return m_type;
+    }
+
+    ov::Any merge(const ov::NodeVector& nodes) const override {
+        for (auto& node : nodes) {
+            const auto& rt_info = node->get_rt_info();
+            auto it = rt_info.find(SavedPrecision::get_type_info_static());
+            if (it != rt_info.end()) {
+                OPENVINO_ASSERT(it->second.as<SavedPrecision>().get_type() == m_type);
+            }
+        }
+        return *this;
+    }
+
+private:
+    ov::element::Type m_type;
+};
+
+static const ov::element::Type& get_saved_precision(const std::shared_ptr<ov::Node>& node) {
+    return node->get_rt_info().at(SavedPrecision::get_type_info_static()).as<SavedPrecision>().get_type();
+}
+
+static void set_saved_precision(const std::shared_ptr<ov::Node>& node, const ov::element::Type& type) {
+    node->get_rt_info().emplace(SavedPrecision::get_type_info_static(), SavedPrecision{type});
+}
+
+static bool has_saved_precision(const std::shared_ptr<ov::Node>& node) {
+    const auto& rt_info = node->get_rt_info();
+    return rt_info.find(SavedPrecision::get_type_info_static()) != rt_info.end();
+}
+
+static void remove_saved_precision(const std::shared_ptr<ov::Node>& node) {
+    auto& rt_info = node->get_rt_info();
+    auto it = rt_info.find(SavedPrecision::get_type_info_static());
+    if (it != rt_info.end())
+        node->get_rt_info().erase(it);
+}
+
+static bool try_finish_subgraph_folding_with_saved_precision(const std::shared_ptr<ov::Node>& node) {
+    // constant inputs with saved precision
+    std::vector<ov::Input<ov::Node>> const_inputs;
+
+    for (size_t i = 0; i < node->get_input_size(); i++) {
+        auto input = node->get_input_node_shared_ptr(i);
+        if (ov::is_type<ov::op::v0::Constant>(input) && has_saved_precision(input)) {
+            const_inputs.push_back(node->input(i));
+        }
+    }
+
+    // TODO: why a better way to handle ConvertLike like nodes
+    if (const_inputs.size() == 0 ||
+        (const_inputs.size() == node->get_input_size() && !ov::is_type<ov::op::v1::ConvertLike>(node)))
+        return false;
+
+    for (auto& input : const_inputs) {
+        auto input_ptr = input.get_source_output().get_node_shared_ptr();
+        auto type = get_saved_precision(input_ptr);
+        auto convert = std::make_shared<ov::op::v0::Convert>(input_ptr, type);
+        ov::OutputVector outputs(1);
+        OPENVINO_ASSERT(convert->constant_fold(outputs, convert->input_values()));
+        remove_saved_precision(outputs[0].get_node_shared_ptr());
+        input.replace_source_output(outputs[0]);
+    }
+
+    return true;
+}
+
 bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(ConstantFolding);
 
     bool rewritten = pre_calculated_values_folding(model);
 
     for (const auto& node : model->get_ordered_ops()) {
+        rewritten |= try_finish_subgraph_folding_with_saved_precision(node);
+
         if (rewritten) {
             node->validate_and_infer_types();
         }
 
-        OutputVector replacements(node->get_output_size());
+        auto cloned = util::try_clone_and_convert_inputs(node);
 
-        if (node->constant_fold(replacements, node->input_values())) {
+        OutputVector replacements(cloned->get_output_size());
+        if (cloned->constant_fold(replacements, cloned->input_values())) {
             OPENVINO_ASSERT(!constant_folding_is_disabled(node),
                             "Node folded but constant folding disabled. Check constant_fold implementation for ",
                             node);
@@ -68,29 +151,36 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                             "constant_fold_default returned incorrect number of replacements for ",
                             node);
 
+            bool node_is_convert = util::is_convert(node);
+
             for (size_t i = 0; i < replacements.size(); ++i) {
                 auto node_output = node->output(i);
                 auto replacement = replacements.at(i);
-                if (replacement.get_node_shared_ptr() && (node_output != replacement)) {
-                    replacement.get_node()->set_friendly_name(friendly_name_from(*node, replacements.size(), i));
+                auto replacement_ptr = replacement.get_node_shared_ptr();
+                if (node_is_convert) {
+                    // explicit Convert in the model - remove saved precision
+                    remove_saved_precision(replacement_ptr);
+                } else if (replacement.get_element_type() != node_output.get_element_type()) {
+                    set_saved_precision(replacement_ptr, node_output.get_element_type());
+                }
+                if (replacement_ptr && (node_output != replacement)) {
+                    replacement_ptr->set_friendly_name(friendly_name_from(*node, replacements.size(), i));
 
                     node_output.replace(replacement);
                     // Copy runtime info from source nodes
                     // when it was not propogated during pre-calculation
                     copy_runtime_info_from_input_values(node);
                     // Propagate runtime info attributes to replacement
-                    copy_runtime_info(node, replacement.get_node_shared_ptr());
+                    copy_runtime_info(node, replacement_ptr);
 
                     rewritten = true;
                 }
             }
-        } else {
+        } else if (auto sub_graph_node = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(cloned)) {
             // recursively constant fold operators containing subgraphs (ie: TensorIterator, Loop)
-            if (auto sub_graph_node = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node)) {
-                size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
-                for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
-                    rewritten |= run_on_model(sub_graph_node->get_function(static_cast<int>(sub_graph_ind)));
-                }
+            size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
+            for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
+                rewritten |= run_on_model(sub_graph_node->get_function(static_cast<int>(sub_graph_ind)));
             }
         }
     }

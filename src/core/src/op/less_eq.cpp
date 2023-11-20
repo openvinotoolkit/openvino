@@ -53,20 +53,19 @@ bool LessEqual::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
 
     outputs[0].set_shape(infer_broadcast_shape(this, inputs));
     using namespace ov::element;
-    return IfTypeOf<boolean, f16, f32, i32, i64, u32, u64>::apply<less_equal::Evaluate>(inputs[0].get_element_type(),
-                                                                                        inputs[0],
-                                                                                        inputs[1],
-                                                                                        outputs[0],
-                                                                                        inputs[0].get_shape(),
-                                                                                        inputs[1].get_shape(),
-                                                                                        get_autob());
+    return IfTypeOf<boolean, f32, i32, i64, u32, u64>::apply<less_equal::Evaluate>(inputs[0].get_element_type(),
+                                                                                   inputs[0],
+                                                                                   inputs[1],
+                                                                                   outputs[0],
+                                                                                   inputs[0].get_shape(),
+                                                                                   inputs[1].get_shape(),
+                                                                                   get_autob());
 }
 
 bool LessEqual::has_evaluate() const {
     OV_OP_SCOPE(v1_LessEqual_has_evaluate);
     switch (get_input_element_type(0)) {
     case element::boolean:
-    case element::f16:
     case element::f32:
     case element::i32:
     case element::i64:

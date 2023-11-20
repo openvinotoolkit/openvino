@@ -48,10 +48,10 @@ bool ReduceL1::evaluate(TensorVector& outputs, const TensorVector& inputs) const
     outputs[0].set_shape(ov::util::reduce(inputs[0].get_shape(), reduction_axes, get_keep_dims()));
 
     using namespace ov::element;
-    return IfTypeOf<bf16, f16, f32, i32, i64>::apply<reduce_l1::Evaluate>(inputs[0].get_element_type(),
-                                                                          inputs[0],
-                                                                          outputs[0],
-                                                                          reduction_axes);
+    return IfTypeOf<f32, i32, i64>::apply<reduce_l1::Evaluate>(inputs[0].get_element_type(),
+                                                               inputs[0],
+                                                               outputs[0],
+                                                               reduction_axes);
 }
 
 bool ReduceL1::has_evaluate() const {
@@ -59,8 +59,6 @@ bool ReduceL1::has_evaluate() const {
     switch (get_input_element_type(0)) {
     case element::i32:
     case element::i64:
-    case element::bf16:
-    case element::f16:
     case element::f32:
         return true;
     default:

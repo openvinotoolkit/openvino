@@ -42,16 +42,15 @@ bool Relu::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     outputs[0].set_shape(in_shape);
 
     using namespace ov::element;
-    return IfTypeOf<f16, f32, i32, i64, u32, u64>::apply<relu::Evaluate>(inputs[0].get_element_type(),
-                                                                         inputs[0],
-                                                                         outputs[0],
-                                                                         shape_size(in_shape));
+    return IfTypeOf<f32, i32, i64, u32, u64>::apply<relu::Evaluate>(inputs[0].get_element_type(),
+                                                                    inputs[0],
+                                                                    outputs[0],
+                                                                    shape_size(in_shape));
 }
 
 bool Relu::has_evaluate() const {
     OV_OP_SCOPE(v0_Relu_has_evaluate);
     switch (get_input_element_type(0)) {
-    case element::f16:
     case element::f32:
     case element::i32:
     case element::i64:

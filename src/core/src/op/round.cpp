@@ -59,7 +59,7 @@ bool Round::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     auto& out = outputs.front();
 
     using namespace ov::element;
-    return IfTypeOf<boolean, i8, i16, i32, i64, u8, u16, u32, u64, bf16, f16, f32>::apply<round::Evaluate>(
+    return IfTypeOf<boolean, i8, i16, i32, i64, u8, u16, u32, u64, f32>::apply<round::Evaluate>(
         arg0.get_element_type(),
         arg0,
         out,
@@ -69,9 +69,22 @@ bool Round::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
 bool Round::has_evaluate() const {
     OV_OP_SCOPE(v5_Round_has_evaluate);
-    const auto& et = get_input_element_type(0);
 
-    return et.is_static() && (et != element::f64) && (et.is_real() || et.is_integral());
+    switch (get_input_element_type(0)) {
+    case element::boolean:
+    case element::i8:
+    case element::i16:
+    case element::i32:
+    case element::i64:
+    case element::u8:
+    case element::u16:
+    case element::u32:
+    case element::u64:
+    case element::f32:
+        return true;
+    default:
+        return false;
+    }
 }
 }  // namespace v5
 }  // namespace op

@@ -261,32 +261,6 @@ bool evaluate(const TensorVector& args,
     bool rc;
     switch (feature_maps.get_element_type()) {
         OPENVINO_TYPE_CASE(evaluate_roi_align,
-                           bf16,
-                           feature_maps,
-                           rois,
-                           batch_indices_vec_scaled_up,
-                           out,
-                           pooled_height,
-                           pooled_width,
-                           sampling_ratio,
-                           spatial_scale,
-                           pooling_mode,
-                           batch_indices.get_shape(),
-                           aligned_mode);
-        OPENVINO_TYPE_CASE(evaluate_roi_align,
-                           f16,
-                           feature_maps,
-                           rois,
-                           batch_indices_vec_scaled_up,
-                           out,
-                           pooled_height,
-                           pooled_width,
-                           sampling_ratio,
-                           spatial_scale,
-                           pooling_mode,
-                           batch_indices.get_shape(),
-                           aligned_mode);
-        OPENVINO_TYPE_CASE(evaluate_roi_align,
                            f32,
                            feature_maps,
                            rois,
@@ -317,8 +291,6 @@ bool v3::ROIAlign::evaluate(TensorVector& outputs, const TensorVector& inputs) c
 bool v3::ROIAlign::has_evaluate() const {
     OV_OP_SCOPE(v3_ROIAlign_has_evaluate);
     switch (get_input_element_type(0)) {
-    case element::bf16:
-    case element::f16:
     case element::f32:
         return true;
     default:

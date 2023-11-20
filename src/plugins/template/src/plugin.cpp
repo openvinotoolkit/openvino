@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -14,6 +15,7 @@
 #include "template/properties.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
+#include "transformations/convert_precision.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
@@ -62,6 +64,19 @@ ov::SoPtr<ov::IRemoteContext> ov::template_plugin::Plugin::get_default_context(
 void transform_model(const std::shared_ptr<ov::Model>& model) {
     // Perform common optimizations and device-specific transformations
     ov::pass::Manager passManager;
+
+    // Convert model precision
+    auto types = ov::util::unsupported_types();
+    precisions_map precisions_to_convert;
+    for (const auto& type : types)
+        precisions_to_convert[type] = ov::element::f32;
+    bool keep_precision_sensitive_in_fp32 = true;
+    bool convert_input_output_precision = false;
+    passManager.register_pass<ov::pass::ConvertPrecision>(precisions_to_convert,
+                                                          type_to_fuse_map{},
+                                                          keep_precision_sensitive_in_fp32,
+                                                          convert_input_output_precision);
+
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ov::pass::CommonOptimizations>();
     // Disable some transformations

@@ -58,16 +58,15 @@ bool Mish::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     outputs[0].set_shape(in_shape);
 
     using namespace ov::element;
-    return IfTypeOf<f16, f32>::apply<mish::Evaluate>(inputs[0].get_element_type(),
-                                                     inputs[0],
-                                                     outputs[0],
-                                                     shape_size(in_shape));
+    return IfTypeOf<f32>::apply<mish::Evaluate>(inputs[0].get_element_type(),
+                                                inputs[0],
+                                                outputs[0],
+                                                shape_size(in_shape));
 }
 
 bool Mish::has_evaluate() const {
     OV_OP_SCOPE(v4_Mish_has_evaluate);
     switch (get_input_element_type(0)) {
-    case element::f16:
     case element::f32:
         return true;
     default:

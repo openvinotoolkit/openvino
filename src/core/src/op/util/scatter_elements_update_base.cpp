@@ -62,7 +62,6 @@ bool op::util::ScatterElementsUpdateBase::has_evaluate() const {
     case element::i64:
     case element::u32:
     case element::u64:
-    case element::f16:
     case element::f32:
         break;
     default:

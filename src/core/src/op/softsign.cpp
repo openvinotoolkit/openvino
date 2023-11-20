@@ -50,8 +50,6 @@ std::shared_ptr<Node> SoftSign::clone_with_new_inputs(const OutputVector& new_ar
 bool SoftSign::has_evaluate() const {
     OV_OP_SCOPE(v9_SoftSign_has_evaluate);
     switch (get_input_element_type(0)) {
-    case element::bf16:
-    case element::f16:
     case element::f32:
     case element::f64:
         return true;
@@ -75,10 +73,10 @@ bool SoftSign::evaluate(TensorVector& outputs,
     const auto& input_shape = inputs[0].get_shape();
     outputs[0].set_shape(input_shape);
     using namespace ov::element;
-    return IfTypeOf<bf16, f16, f32, f64>::apply<softsign::Evaluate>(inputs[0].get_element_type(),
-                                                                    inputs[0],
-                                                                    outputs[0],
-                                                                    shape_size(input_shape));
+    return IfTypeOf<f32, f64>::apply<softsign::Evaluate>(inputs[0].get_element_type(),
+                                                         inputs[0],
+                                                         outputs[0],
+                                                         shape_size(input_shape));
 }
 }  // namespace v9
 }  // namespace op

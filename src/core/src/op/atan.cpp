@@ -43,10 +43,10 @@ bool Atan::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     outputs[0].set_shape(inputs[0].get_shape());
 
     using namespace ov::element;
-    return IfTypeOf<i32, i64, u32, u64, f16, f32>::apply<atan::Evaluate>(inputs[0].get_element_type(),
-                                                                         inputs[0],
-                                                                         outputs[0],
-                                                                         shape_size(inputs[0].get_shape()));
+    return IfTypeOf<i32, i64, u32, u64, f32>::apply<atan::Evaluate>(inputs[0].get_element_type(),
+                                                                    inputs[0],
+                                                                    outputs[0],
+                                                                    shape_size(inputs[0].get_shape()));
 }
 
 bool Atan::has_evaluate() const {
@@ -56,7 +56,6 @@ bool Atan::has_evaluate() const {
     case element::i64:
     case element::u32:
     case element::u64:
-    case element::f16:
     case element::f32:
         return true;
     default:

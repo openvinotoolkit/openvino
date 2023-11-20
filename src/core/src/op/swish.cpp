@@ -88,17 +88,16 @@ bool Swish::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     const auto& arg1 = inputs.size() == 2 ? inputs[1] : Tensor();
 
     using namespace ov::element;
-    return IfTypeOf<f16, f32>::apply<swish::Evaluate>(inputs[0].get_element_type(),
-                                                      inputs[0],
-                                                      arg1,
-                                                      outputs[0],
-                                                      shape_size(inputs[0].get_shape()));
+    return IfTypeOf<f32>::apply<swish::Evaluate>(inputs[0].get_element_type(),
+                                                 inputs[0],
+                                                 arg1,
+                                                 outputs[0],
+                                                 shape_size(inputs[0].get_shape()));
 }
 
 bool Swish::has_evaluate() const {
     OV_OP_SCOPE(v4_Swish_has_evaluate);
     switch (get_input_element_type(0)) {
-    case element::f16:
     case element::f32:
         return true;
     default:

@@ -46,10 +46,10 @@ std::tuple<Shape, Shape, Shape> calculate_static_output_shapes(const Tensor& inp
     const auto et = op.get_input_element_type(0);
     using namespace ov::element;
     auto unique_elements =
-        IfTypeOf<boolean, i8, i16, i32, i64, u8, u16, u32, u64, bf16, f16, f32, f64>::apply<Evaluate>(et,
-                                                                                                      input_data,
-                                                                                                      std::move(axis),
-                                                                                                      op.get_sorted());
+        IfTypeOf<boolean, i8, i16, i32, i64, u8, u16, u32, u64, f32, f64>::apply<Evaluate>(et,
+                                                                                           input_data,
+                                                                                           std::move(axis),
+                                                                                           op.get_sorted());
 
     return ov::reference::make_tensor_shapes(unique_elements, input_data.get_shape(), maybe_extract_axis());
 }

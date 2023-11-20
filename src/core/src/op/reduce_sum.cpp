@@ -45,10 +45,10 @@ bool ReduceSum::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
     outputs[0].set_shape(ov::util::reduce(inputs[0].get_shape(), reduction_axes, get_keep_dims()));
 
     using namespace ov::element;
-    return IfTypeOf<f16, f32, i32, i64, u32, u64>::apply<reduce_sum::Evaluate>(inputs[0].get_element_type(),
-                                                                               inputs[0],
-                                                                               outputs[0],
-                                                                               reduction_axes);
+    return IfTypeOf<f32, i32, i64, u32, u64>::apply<reduce_sum::Evaluate>(inputs[0].get_element_type(),
+                                                                          inputs[0],
+                                                                          outputs[0],
+                                                                          reduction_axes);
 }
 
 bool ReduceSum::has_evaluate() const {
@@ -58,7 +58,6 @@ bool ReduceSum::has_evaluate() const {
     case element::i64:
     case element::u32:
     case element::u64:
-    case element::f16:
     case element::f32:
         return true;
     default:

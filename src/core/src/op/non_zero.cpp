@@ -139,8 +139,6 @@ bool evaluate_nonzero(const HostTensorPtr& input, const HostTensorPtr& output) {
         OPENVINO_TYPE_CASE(evaluate_nonzero, u16, input, output);
         OPENVINO_TYPE_CASE(evaluate_nonzero, u32, input, output);
         OPENVINO_TYPE_CASE(evaluate_nonzero, u64, input, output);
-        OPENVINO_TYPE_CASE(evaluate_nonzero, bf16, input, output);
-        OPENVINO_TYPE_CASE(evaluate_nonzero, f16, input, output);
         OPENVINO_TYPE_CASE(evaluate_nonzero, f32, input, output);
         OPENVINO_TYPE_CASE(evaluate_nonzero, f64, input, output);
     default:
@@ -168,8 +166,6 @@ bool op::v3::NonZero::has_evaluate() const {
     case ngraph::element::u16:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
     case ngraph::element::f32:
     case ngraph::element::f64:
         return true;

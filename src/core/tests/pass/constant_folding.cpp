@@ -30,10 +30,6 @@ std::vector<T> get_result_constant_data(std::shared_ptr<Model> m, size_t pos) {
     return new_const->cast_vector<T>();
 }
 
-void range_test_check(const vector<double>& values_out, const vector<double>& values_expected) {
-    ASSERT_TRUE(ov::test::utils::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
-}
-
 void range_test_check(const vector<float>& values_out, const vector<float>& values_expected) {
     ASSERT_TRUE(ov::test::utils::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
 }
@@ -425,14 +421,10 @@ TEST(constant_folding, constant_unary_binary) {
     logical_or_autob_numpy->set_friendly_name("logical_or_autob_numpy");
     auto logical_xor_autob_numpy = make_shared<op::v0::Xor>(h, i, op::AutoBroadcastType::NUMPY);
     logical_xor_autob_numpy->set_friendly_name("logical_xor_autob_numpy");
-    auto doubles_sqrt = make_shared<op::v0::Sqrt>(doubles);
-    doubles_sqrt->set_friendly_name("doubles_sqrt");
     auto sub_int8 = make_shared<op::v1::Subtract>(j, j);
     sub_int8->set_friendly_name("sub_int8");
     auto sub_uint8 = make_shared<op::v1::Subtract>(k, k);
     sub_uint8->set_friendly_name("sub_uint8");
-    auto equal_doubles = make_shared<op::v1::Equal>(doubles, doubles2, op::AutoBroadcastType::NUMPY);
-    equal_doubles->set_friendly_name("equal_doubles");
     auto equal_shorts = make_shared<op::v1::Equal>(shorts, shorts2, op::AutoBroadcastType::NUMPY);
     equal_shorts->set_friendly_name("equal_shorts");
     auto equal_unsigned_shorts =
@@ -466,10 +458,8 @@ TEST(constant_folding, constant_unary_binary) {
                                               less_eq_autob_numpy,
                                               logical_or_autob_numpy,
                                               logical_xor_autob_numpy,
-                                              doubles_sqrt,
                                               sub_int8,
                                               sub_uint8,
-                                              equal_doubles,
                                               equal_shorts,
                                               equal_unsigned_shorts},
                                    ParameterVector{});
@@ -502,10 +492,8 @@ TEST(constant_folding, constant_unary_binary) {
     vector<char> less_eq_autob_numpy_expected{1, 1, 0, 1};
     vector<char> logical_or_autob_numpy_expected{0, 1, 1, 1};
     vector<char> logical_xor_autob_numpy_expected{0, 1, 1, 0};
-    vector<double> doubles_sqrt_expected{2.0, 3.0};
     vector<int8_t> sub_int8_expected{0, 0};
     vector<uint8_t> sub_uint8_expected{0, 0};
-    vector<char> equal_doubles_expected{1, 0};
     vector<char> equal_shorts_expected{0, 1, 1};
     vector<char> equal_unsigned_shorts_expected{0, 1, 0};
 
@@ -560,14 +548,10 @@ TEST(constant_folding, constant_unary_binary) {
     check_names(get_result_constant(func, index++), {"h", "i", "logical_or_autob_numpy"}, "logical_or_autob_numpy");
     ASSERT_EQ(get_result_constant_data<char>(func, index), logical_xor_autob_numpy_expected);
     check_names(get_result_constant(func, index++), {"h", "i", "logical_xor_autob_numpy"}, "logical_xor_autob_numpy");
-    ASSERT_EQ(get_result_constant_data<double>(func, index), doubles_sqrt_expected);
-    check_names(get_result_constant(func, index++), {"doubles", "doubles_sqrt"}, "doubles_sqrt");
     ASSERT_EQ(get_result_constant_data<int8_t>(func, index), sub_int8_expected);
     check_names(get_result_constant(func, index++), {"j", "sub_int8"}, "sub_int8");
     ASSERT_EQ(get_result_constant_data<uint8_t>(func, index), sub_uint8_expected);
     check_names(get_result_constant(func, index++), {"k", "sub_uint8"}, "sub_uint8");
-    ASSERT_EQ(get_result_constant_data<char>(func, index), equal_doubles_expected);
-    check_names(get_result_constant(func, index++), {"doubles", "doubles2", "equal_doubles"}, "equal_doubles");
     ASSERT_EQ(get_result_constant_data<char>(func, index), equal_shorts_expected);
     check_names(get_result_constant(func, index++), {"shorts", "shorts2", "equal_shorts"}, "equal_shorts");
     ASSERT_EQ(get_result_constant_data<char>(func, index), equal_unsigned_shorts_expected);
@@ -2697,7 +2681,6 @@ TEST(constant_folding, constant_range) {
     range_test<int32_t>(5, 12, 2, {5, 7, 9, 11});
     range_test<int64_t>(5, 12, 2, {5, 7, 9, 11});
     range_test<uint64_t>(5, 12, 2, {5, 7, 9, 11});
-    range_test<double>(5, 12, 2, {5, 7, 9, 11});
     range_test<float>(5, 12, 2, {5, 7, 9, 11});
 
     range_test<int32_t>(5, 12, -2, {});
@@ -3617,15 +3600,15 @@ TEST(constant_folding, constant_dyn_reshape_v1_pattern_with_zero_dims) {
 }
 
 TEST(constant_folding, disable_constant_folding) {
-    auto data = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{1, 3, 22, 22});
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 22, 22});
 
     // In this test case following sub-graph will be consumed by Interpolate, so during shape inference Interpolate
     // will request values from this sub-graph and ConstantFolding pass will try to use this pre-calculated values
     // to fold it. But in our case we are disabling CF for this sub-graph first and then enable CF to check that all
     // checks inside ConstantFolding transformation are working and doesn't cache anytihng.
     auto gather = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(data, {2, 3});
-    auto convert = std::make_shared<op::v0::Convert>(gather, element::f16);
-    auto divide_constant = ov::op::v0::Constant::create(element::f16, Shape{1}, {0.5});
+    auto convert = std::make_shared<op::v0::Convert>(gather, element::f32);
+    auto divide_constant = ov::op::v0::Constant::create(element::f32, Shape{1}, {0.5});
     auto divide = std::make_shared<op::v1::Divide>(convert, divide_constant);
     auto convert_after = std::make_shared<op::v0::Convert>(divide, element::i32);
 
