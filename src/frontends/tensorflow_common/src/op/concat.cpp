@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/concat.hpp"
+
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
 using namespace ov;
-using namespace opset8;
+using namespace ov::op;
 using namespace ov::frontend;
 using namespace ov::frontend::tensorflow;
 
@@ -67,7 +68,7 @@ OutputVector translate_concat_op(const NodeContext& node) {
         axis += input_rank.get_length();
     }
 
-    auto concat = make_shared<Concat>(inputs, axis);
+    auto concat = make_shared<v0::Concat>(inputs, axis);
     set_node_name(node.get_name(), concat);
     return {concat};
 }
