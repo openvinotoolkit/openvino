@@ -15,6 +15,7 @@
 #include <algorithm>
 #include "openvino/reference/concat.hpp"
 #include "openvino/reference/split.hpp"
+#include "openvino/reference/utils/coordinate_range.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(loop)
@@ -809,13 +810,59 @@ void loop_inst::concatenated_memory_mapping::slice_mem(const int64_t num_iterati
         auto mem = sliced_mems[i];
         pointers_to_data[stride > 0 ? i : (num_iters - i - 1)] = reinterpret_cast<char*>(mem->lock(stream));
     }
+
     char* concat_data = reinterpret_cast<char*>(concatenated_mem->lock(stream, cldnn::mem_lock_type::read));
-    ov::reference::split(concat_data, concat_mem_shape, elem_size, axis, num_iters, pointers_to_data.data());
+
+    auto concate_layout = concatenated_mem->get_layout();
+    auto trait = format::traits(concate_layout.format);
+    if (format::is_blocked(concate_layout.format) || concate_layout.data_padding) {
+        // BE CAREFUL: ov::reference::split is extremely slow.
+        // If we encounter any case where this code path is executed, we need to optimize it
+        ov::reference::split(concat_data, concat_mem_shape, elem_size, axis, num_iters, pointers_to_data.data());
+    } else {
+        const size_t part_length = concat_mem_shape.at(axis) / num_iters;
+        auto output_shape = concat_mem_shape;
+        auto out_data = pointers_to_data.data();
+        output_shape[axis] = part_length;
+
+        ov::Coordinate lower_bounds(concat_mem_shape.size(), 0);
+        ov::Coordinate upper_bounds = output_shape;
+        auto& lb_at_axis = lower_bounds[axis];
+        auto& ub_at_axis = upper_bounds[axis];
+
+        size_t continuous_size = 1;
+        auto dims_order = trait._order;
+        auto target_axis = std::find(dims_order.begin(), dims_order.end(), axis);
+        for (auto iter = target_axis + 1 ; iter != dims_order.end() ; ++iter) {
+            continuous_size *= ((output_shape.size() > *iter) ? output_shape[*iter] : 1);
+        }
+        auto strides = ov::Strides(lower_bounds.size(), 1);
+        strides[*(target_axis+1)] = continuous_size;
+
+        const auto strides_copy_size = elem_size * continuous_size;
+        const auto out_last = std::next(out_data, num_iters);
+        for (auto out_iter = out_data; out_iter != out_last; ++out_iter) {
+            auto dst_mem = *out_iter;
+            auto slice_ranges = ov::coordinates::slice(concat_mem_shape, lower_bounds, upper_bounds, strides);
+            for (const auto& range : slice_ranges) {
+                auto src_index = range.begin_index;
+                for (size_t i = 0; i < range.element_number; src_index += range.step, ++i) {
+                    const auto src_mem = concat_data + src_index * elem_size;
+                    std::memcpy(dst_mem, src_mem, strides_copy_size);
+                    std::advance(dst_mem, strides_copy_size);
+                }
+            }
+
+            lb_at_axis += part_length;
+            ub_at_axis += part_length;
+        }
+    }
 
     for (size_t i = 0; i < num_iters; i++) {
         sliced_mems[i]->unlock(stream);
     }
     concatenated_mem->unlock(stream);
+
     GPU_DEBUG_LOG << "slice memory [" << io_prim_map.to_short_string() << "] from concat_mem["
                     << concatenated_mem->get_layout().to_short_string()
                     << "], current_iteration: " << num_iterations << ", stride: " << stride

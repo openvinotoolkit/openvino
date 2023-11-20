@@ -24,8 +24,8 @@ The quantization and pre-post-processing API are not included here as
 they change the precision (quantization) or processing graph
 (prepostprocessor). You can find examples of how to apply them to
 optimize performance on OpenVINO IR files in
-`111-detection-quantization <../111-detection-quantization>`__ and
-`118-optimize-preprocessing <../118-optimize-preprocessing>`__.
+`111-detection-quantization <111-detection-quantization-with-output.html>`__ and
+`118-optimize-preprocessing <otebooks/118-optimize-preprocessing-with-output.html>`__.
 
 |image0|
 
@@ -41,7 +41,7 @@ optimize performance on OpenVINO IR files in
    result in different performance.
 
 A similar notebook focused on the latency mode is available
-`here <109-latency-tricks.ipynb>`__.
+`here <109-latency-tricks-with-output.html>`__.
 
 **Table of contents:**
 
@@ -642,9 +642,9 @@ options, quantization and pre-post-processing or dedicated to latency
 mode. To get even more from your model, please visit `advanced
 throughput
 options <https://docs.openvino.ai/2023.0/openvino_docs_deployment_optimization_guide_tput_advanced.html>`__,
-`109-latency-tricks <109-latency-tricks.ipynb>`__,
-`111-detection-quantization <../111-detection-quantization>`__, and
-`118-optimize-preprocessing <../118-optimize-preprocessing>`__.
+`109-latency-tricks <109-latency-tricks-with-output.html>`__,
+`111-detection-quantization <111-detection-quantization-with-output.html>`__, and
+`118-optimize-preprocessing <118-optimize-preprocessing-with-output.html>`__.
 
 Performance comparison 
 ----------------------------------------------------------------

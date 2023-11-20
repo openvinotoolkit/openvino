@@ -1,32 +1,26 @@
 // =================== GENERAL OUTPUT CONFIG =========================
 
 const chartDisclaimers = {
-    Value: 'Value: Performance/(No_of_sockets * Price_of_CPU_dGPU), where prices are in USD as of May 2023.',
-    Efficiency: 'Efficiency: Performance/(No_of_sockets * TDP_of_CPU_dGPU), where total power dissipation (TDP) is in Watt as of May 2023.'
+    Value: 'Value: Performance/(No_of_sockets * Price_of_CPU_dGPU), where prices are in USD as of November 2023.',
+    Efficiency: 'Efficiency: Performance/(No_of_sockets * TDP_of_CPU_dGPU), where total power dissipation (TDP) is in Watt as of November 2023.'
 }
 
 const OVdefaultSelections = {
     platformTypes: {name: 'ietype', data: ['core']},
     platforms: {name: 'platform',
         data: [
-            'Intel® Core™  i9-12900K CPU-only',
-            'Intel® Core™  i9-13900K CPU-only',
-            'Intel® Core™  i5-10500TE CPU-only',
-            'Intel® Core™  i5-13600K CPU-only',
-            'Intel® Core™  i5-8500 CPU-only',
-            'Intel® Core™  i7-8700T CPU-only',
-            'Intel® Core™  i9-10900TE CPU-only',
-            'Intel® Core™  i7-1165G7 CPU-only'
+            'Intel® Core™ i5-10500TE ',
+            'Intel® Core™ i7-1185G7 CPU',
+            'Intel® Core™ i9-10900TE ',
         ]
     },
     platformFilters: {name: 'coretype', data: ['CPU']},
     models: {name: 'networkmodel',
         data: [
             'bert-base-cased',
-            'yolo-v3-tiny',
+            'yolo_v3_tiny',
             'yolo_v8n',
             'resnet-50',
-            
         ]
     },
     parameters: {name: 'kpi', data: ['Throughput']},
