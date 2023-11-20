@@ -28,16 +28,11 @@ public:
                           const Output<Node>& updates,
                           const Output<Node>& axis);
 
-    bool visit_attributes(AttributeVisitor& visitor) override;
-
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
-
-private:
-    bool evaluate_scatter_elements_update(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
 };
 }  // namespace v3
 namespace v12 {
@@ -92,7 +87,6 @@ public:
     OPENVINO_SUPPRESS_DEPRECATED_END
 
 private:
-    bool evaluate_scatter_elements_update(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
     Reduction m_reduction = Reduction::NONE;
     bool m_use_init_val = true;
 };

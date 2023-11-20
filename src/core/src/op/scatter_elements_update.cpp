@@ -4,13 +4,10 @@
 
 #include "openvino/op/scatter_elements_update.hpp"
 
-#include <scatter_elements_update_shape_inference.hpp>
-
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/reference/scatter_elements_update.hpp"
-
-using namespace std;
+#include "scatter_elements_update_shape_inference.hpp"
 
 namespace ov {
 op::v3::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
@@ -21,12 +18,7 @@ op::v3::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
     constructor_validate_and_infer_types();
 }
 
-bool op::v3::ScatterElementsUpdate::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v3_ScatterElementsUpdate_visit_attributes);
-    return true;
-}
-
-shared_ptr<Node> op::v3::ScatterElementsUpdate::clone_with_new_inputs(const OutputVector& inputs) const {
+std::shared_ptr<Node> op::v3::ScatterElementsUpdate::clone_with_new_inputs(const OutputVector& inputs) const {
     OV_OP_SCOPE(v3_ScatterElementsUpdate_clone_with_new_inputs);
     NODE_VALIDATION_CHECK(this,
                           inputs.size() == get_input_size(),
@@ -35,7 +27,7 @@ shared_ptr<Node> op::v3::ScatterElementsUpdate::clone_with_new_inputs(const Outp
                           "Got: ",
                           inputs.size());
 
-    return make_shared<v3::ScatterElementsUpdate>(inputs.at(0), inputs.at(1), inputs.at(2), inputs.at(3));
+    return std::make_shared<v3::ScatterElementsUpdate>(inputs.at(0), inputs.at(1), inputs.at(2), inputs.at(3));
 }
 
 op::v12::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
@@ -69,7 +61,7 @@ void op::v12::ScatterElementsUpdate::validate_and_infer_types() {
     ScatterElementsUpdateBase::validate_and_infer_types();
 }
 
-shared_ptr<Node> op::v12::ScatterElementsUpdate::clone_with_new_inputs(const OutputVector& inputs) const {
+std::shared_ptr<Node> op::v12::ScatterElementsUpdate::clone_with_new_inputs(const OutputVector& inputs) const {
     OV_OP_SCOPE(v12_ScatterElementsUpdate_clone_with_new_inputs);
     NODE_VALIDATION_CHECK(this,
                           inputs.size() == get_input_size(),
@@ -78,12 +70,12 @@ shared_ptr<Node> op::v12::ScatterElementsUpdate::clone_with_new_inputs(const Out
                           "Got: ",
                           inputs.size());
 
-    return make_shared<v12::ScatterElementsUpdate>(inputs.at(0),
-                                                   inputs.at(1),
-                                                   inputs.at(2),
-                                                   inputs.at(3),
-                                                   m_reduction,
-                                                   m_use_init_val);
+    return std::make_shared<v12::ScatterElementsUpdate>(inputs.at(0),
+                                                        inputs.at(1),
+                                                        inputs.at(2),
+                                                        inputs.at(3),
+                                                        m_reduction,
+                                                        m_use_init_val);
 }
 
 bool op::v12::ScatterElementsUpdate::has_evaluate() const {
@@ -294,40 +286,26 @@ bool evaluate_scatter_elements_update(
 }  // namespace
 }  // namespace scatter_elements_update
 
-bool op::v3::ScatterElementsUpdate::evaluate_scatter_elements_update(const HostTensorVector& outputs,
-                                                                     const HostTensorVector& inputs) const {
-    const auto normalized_axis = get_normalized_axis(inputs);
-
-    return scatter_elements_update::evaluate_scatter_elements_update(inputs[0],
-                                                                     inputs[1],
-                                                                     inputs[2],
-                                                                     inputs[3],
-                                                                     outputs[0],
-                                                                     normalized_axis);
-}
-
-bool op::v12::ScatterElementsUpdate::evaluate_scatter_elements_update(const HostTensorVector& outputs,
-                                                                      const HostTensorVector& inputs) const {
-    const auto normalized_axis = get_normalized_axis(inputs);
-
-    return scatter_elements_update::evaluate_scatter_elements_update(inputs[0],
-                                                                     inputs[1],
-                                                                     inputs[2],
-                                                                     inputs[3],
-                                                                     outputs[0],
-                                                                     normalized_axis,
-                                                                     m_reduction,
-                                                                     m_use_init_val);
-}
-
 bool op::v3::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v3_ScatterElementsUpdate_evaluate);
-    return evaluate_scatter_elements_update(outputs, inputs);
+    return scatter_elements_update::evaluate_scatter_elements_update(inputs[0],
+                                                                     inputs[1],
+                                                                     inputs[2],
+                                                                     inputs[3],
+                                                                     outputs[0],
+                                                                     get_normalized_axis(inputs));
 }
 
 bool op::v12::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v12_ScatterElementsUpdate_evaluate);
-    return evaluate_scatter_elements_update(outputs, inputs);
+    return scatter_elements_update::evaluate_scatter_elements_update(inputs[0],
+                                                                     inputs[1],
+                                                                     inputs[2],
+                                                                     inputs[3],
+                                                                     outputs[0],
+                                                                     get_normalized_axis(inputs),
+                                                                     m_reduction,
+                                                                     m_use_init_val);
 }
 
 template <>
