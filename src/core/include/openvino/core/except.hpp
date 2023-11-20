@@ -13,12 +13,6 @@
 
 namespace ov {
 
-struct CheckLocInfo {
-    const char* file;
-    int line;
-    const char* check_string;
-};
-
 /// Base error for ov runtime errors.
 class OPENVINO_API Exception : public std::runtime_error {
 public:
@@ -31,7 +25,9 @@ public:
     static const std::string default_msg;
 
 protected:
-    static std::string make_what(const CheckLocInfo& check_loc_info,
+    static std::string make_what(const char* file,
+                                 int line,
+                                 const char* check_string,
                                  const std::string& context_info,
                                  const std::string& explanation);
 };

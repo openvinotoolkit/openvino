@@ -163,7 +163,9 @@ void NodeValidationFailure::create(const char* file,
                                    const char* check_string,
                                    std::pair<const Node*, const std::vector<intel_cpu::StaticShape>*>&& ctx,
                                    const std::string& explanation) {
-    throw ov::NodeValidationFailure(make_what({file, line, check_string},
+    throw ov::NodeValidationFailure(make_what(file,
+                                              line,
+                                              check_string,
                                               node_validation_failure_loc_string(ctx.first),
                                               ov::op::validate::shape_infer_explanation_str(*ctx.second, explanation)));
 }
@@ -174,7 +176,9 @@ void NodeValidationFailure::create(const char* file,
                                    const char* check_string,
                                    std::pair<const Node*, const std::vector<intel_cpu::StaticShapeRef>*>&& ctx,
                                    const std::string& explanation) {
-    throw ov::NodeValidationFailure(make_what({file, line, check_string},
+    throw ov::NodeValidationFailure(make_what(file,
+                                              line,
+                                              check_string,
                                               node_validation_failure_loc_string(ctx.first),
                                               ov::op::validate::shape_infer_explanation_str(*ctx.second, explanation)));
 }

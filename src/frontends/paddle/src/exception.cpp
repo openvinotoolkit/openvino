@@ -20,7 +20,7 @@ void OpValidationFailure::create(const char* file,
                                  const char* check_string,
                                  const NodeContext& node,
                                  const std::string& explanation) {
-    throw OpValidationFailure(make_what({file, line, check_string}, get_error_msg_prefix_paddle(node), explanation));
+    throw OpValidationFailure(make_what(file, line, check_string, get_error_msg_prefix_paddle(node), explanation));
 }
 }  // namespace paddle
 }  // namespace frontend

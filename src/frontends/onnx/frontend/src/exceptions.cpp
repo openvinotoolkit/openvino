@@ -26,7 +26,7 @@ void OnnxNodeValidationFailure::create(const char* file,
                                        const Node& node,
                                        const std::string& explanation) {
     throw OnnxNodeValidationFailure(
-        make_what({file, line, check_string}, detail::get_error_msg_prefix(node), explanation));
+        make_what(file, line, check_string, detail::get_error_msg_prefix(node), explanation));
 }
 OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace error

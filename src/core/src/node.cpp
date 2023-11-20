@@ -35,7 +35,7 @@ void ov::NodeValidationFailure::create(const char* file,
                                        const Node* node,
                                        const std::string& explanation) {
     throw ov::NodeValidationFailure(
-        make_what({file, line, check_string}, node_validation_failure_loc_string(node), explanation));
+        make_what(file, line, check_string, node_validation_failure_loc_string(node), explanation));
 }
 
 template <>
@@ -44,7 +44,9 @@ void ov::NodeValidationFailure::create(const char* file,
                                        const char* check_string,
                                        std::pair<const Node*, const std::vector<PartialShape>*>&& ctx,
                                        const std::string& explanation) {
-    throw ov::NodeValidationFailure(make_what({file, line, check_string},
+    throw ov::NodeValidationFailure(make_what(file,
+                                              line,
+                                              check_string,
                                               node_validation_failure_loc_string(ctx.first),
                                               op::validate::shape_infer_explanation_str(*ctx.second, explanation)));
 }
