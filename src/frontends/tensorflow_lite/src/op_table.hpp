@@ -34,7 +34,6 @@ TFL_OP_CONVERTER(cast);
 TFL_OP_CONVERTER(complex_abs);
 TFL_OP_CONVERTER(concatenation);
 TFL_OP_CONVERTER(conv2d);
-TFL_OP_CONVERTER(densify);
 TFL_OP_CONVERTER(depth_to_space);
 TFL_OP_CONVERTER(depthwise_conv2d);
 TFL_OP_CONVERTER(dequantize);
