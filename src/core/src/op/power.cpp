@@ -2,88 +2,77 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/power.hpp"
+#include "openvino/op/power.hpp"
 
+#include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/op/divide.hpp"
-#include "ngraph/op/log.hpp"
-#include "ngraph/op/multiply.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 #include "openvino/reference/power.hpp"
+#include "utils.hpp"
 
-using namespace std;
-using namespace ngraph;
-
-OPENVINO_SUPPRESS_DEPRECATED_START
+namespace ov {
+namespace op {
 namespace power {
-namespace {
-template <element::Type_t ET>
-bool evaluate(const HostTensorPtr& arg0,
-              const HostTensorPtr& arg1,
-              const HostTensorPtr& out,
-              const op::AutoBroadcastSpec& broadcast_spec) {
-    ov::reference::power(arg0->get_data_ptr<ET>(),
-                         arg1->get_data_ptr<ET>(),
-                         out->get_data_ptr<ET>(),
-                         arg0->get_shape(),
-                         arg1->get_shape(),
-                         broadcast_spec);
-    return true;
-}
+struct Evaluate : public element::NoAction<bool> {
+    using element::NoAction<bool>::visit;
 
-bool evaluate_power(const HostTensorPtr& arg0,
-                    const HostTensorPtr& arg1,
-                    const HostTensorPtr& out,
-                    const op::AutoBroadcastSpec& broadcast_spec) {
-    bool rc = true;
-    out->set_broadcast(broadcast_spec, arg0, arg1);
-    switch (arg0->get_element_type()) {
-        OPENVINO_TYPE_CASE(evaluate_power, i32, arg0, arg1, out, broadcast_spec);
-        OPENVINO_TYPE_CASE(evaluate_power, i64, arg0, arg1, out, broadcast_spec);
-        OPENVINO_TYPE_CASE(evaluate_power, u32, arg0, arg1, out, broadcast_spec);
-        OPENVINO_TYPE_CASE(evaluate_power, u64, arg0, arg1, out, broadcast_spec);
-        OPENVINO_TYPE_CASE(evaluate_power, f16, arg0, arg1, out, broadcast_spec);
-        OPENVINO_TYPE_CASE(evaluate_power, f32, arg0, arg1, out, broadcast_spec);
-        OPENVINO_TYPE_CASE(evaluate_power, bf16, arg0, arg1, out, broadcast_spec);
-    default:
-        rc = false;
-        break;
+    template <element::Type_t ET, class T = fundamental_type_for<ET>>
+    static result_type visit(const Tensor& arg0,
+                             const Tensor& arg1,
+                             Tensor& out,
+                             const Shape& shape0,
+                             const Shape& shape1,
+                             const AutoBroadcastSpec& b_spec) {
+        reference::power(arg0.data<const T>(), arg1.data<const T>(), out.data<T>(), shape0, shape1, b_spec);
+        return true;
     }
-    return rc;
-}
-}  // namespace
+};
 }  // namespace power
 
 // ------------------------------ v1 -------------------------------------------
-op::v1::Power::Power(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
+namespace v1 {
+Power::Power(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::v1::Power::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> Power::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_Power_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::v1::Power>(new_args.at(0), new_args.at(1), this->get_autob());
+    return std::make_shared<Power>(new_args.at(0), new_args.at(1), get_autob());
 }
 
-bool op::v1::Power::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool Power::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v1_Power_evaluate);
-    return power::evaluate_power(inputs[0], inputs[1], outputs[0], get_autob());
+    OPENVINO_ASSERT(outputs.size() == 1);
+
+    auto& out = outputs[0];
+    out.set_shape(infer_broadcast_shape(this, inputs));
+
+    using namespace ov::element;
+    return IfTypeOf<bf16, f16, f32, i32, i64, u32, u64>::apply<power::Evaluate>(inputs[0].get_element_type(),
+                                                                                inputs[0],
+                                                                                inputs[1],
+                                                                                out,
+                                                                                inputs[0].get_shape(),
+                                                                                inputs[1].get_shape(),
+                                                                                get_autob());
 }
 
-bool op::v1::Power::has_evaluate() const {
+bool Power::has_evaluate() const {
     OV_OP_SCOPE(v1_Power_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::bf16:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
+    case element::bf16:
+    case element::f16:
+    case element::f32:
+    case element::i32:
+    case element::i64:
+    case element::u32:
+    case element::u64:
         return true;
     default:
-        break;
+        return false;
     }
-    return false;
 }
+}  // namespace v1
+}  // namespace op
+}  // namespace ov
