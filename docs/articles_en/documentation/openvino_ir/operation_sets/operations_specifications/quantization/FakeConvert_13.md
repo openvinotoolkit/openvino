@@ -13,14 +13,14 @@
 
 **Short description**: *FakeConvert* is element-wise quantization of floating-point input values into a set of values corresponding to a target low-precision floating-point type.
 
-**Detailed description**: *FakeConvert* operation converts the input tensor to a specified target low-precision floating-point type and performs backward conversion to the source precision. It also applies affine transformation defined by scale and shift parameters before the conversion step and its reverse form after the backward conversion.
+**Detailed description**: *FakeConvert* operation converts the input tensor to a specified target low-precision floating-point type and performs backward conversion to the source precision. It also applies affine transformation defined by ``scale`` and ``shift`` parameters before the conversion step and its reverse form after the backward conversion.
 
 It emulates types defined by the ``destination_type`` attribute, on the original type of the ``data`` input.
 
-Possible destination types are: "f8e4m3", "f8e5m2". The "f8e4m3" is an 8-bit floating-point type, where 1 bit for the sign, 4 bits for the exponents and 3 bits for the mantissa. The "f8e5m2" is also 8-bit floating-point type, where 1 bit is for the sign, 5 bits for the exponents and 2 for the mantissa.
-The types were introduced in the following paper: `FP8 Formats for Deep Learning <https://arxiv.org/abs/2209.05433>`__ .
+Possible destination types are: "f8e4m3", "f8e5m2". The "f8e4m3" is an 8-bit floating-point format, where 1 bit for the sign, 4 bits for the exponents and 3 bits for the mantissa. The "f8e5m2" is an 8-bit floating-point format, where 1 bit is for the sign, 5 bits for the exponents and 2 for the mantissa.
+The FP8 types were introduced in the following paper: `FP8 Formats for Deep Learning <https://arxiv.org/abs/2209.05433>`__ .
 
-*Fake* in *FakeConvert* means that the output tensor preserve the same element type as an original type of the input tensor, not the type of ``destination_type``.
+*Fake* in *FakeConvert* means that the output tensor preserve the same element type as an original type of the input tensor, not the ``destination_type``.
 
 
 **Attributes**
@@ -36,8 +36,8 @@ The types were introduced in the following paper: `FP8 Formats for Deep Learning
 **Inputs**:
 
 * **1**: `data` - tensor of type *T_F* and arbitrary shape. **Required.**
-* **2**: `scale` - tensor of type *T_F* with a scale factor for the *data* input value. The shape must be broadcastable to the shape of *data*. **Required.**
-* **3**: `shift` - tensor of type *T_F* with value to subtract before and add after conversion of the *data* input value. The shape must be broadcastable to the shape of *data*. **Optional.**
+* **2**: `scale` - tensor of type *T_F* with a scale factor for the *data* input value. The shape must be numpy-broadcastable to the shape of *data*. **Required.**
+* **3**: `shift` - tensor of type *T_F* with value to subtract before and add after conversion of the *data* input value. The shape must be numpy-broadcastable to the shape of *data*, and match the shape of the ``scale`` input. **Optional.**
 
 
 **Outputs**:
