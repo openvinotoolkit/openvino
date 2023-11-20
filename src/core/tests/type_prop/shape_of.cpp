@@ -137,3 +137,18 @@ TEST(type_prop, shape_of_3_dynamic_value_and_label_propagation) {
     const auto& output_shape = bc->get_output_partial_shape(0);
     ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
 }
+
+TEST(type_prop, shape_of_3_dynamic_value_propagation_out_i32) {
+    constexpr auto i32_max = static_cast<int64_t>(std::numeric_limits<int32_t>::max());
+    constexpr auto bound = static_cast<int64_t>(std::numeric_limits<int32_t>::max()) + 10;
+
+    auto param = std::make_shared<ov::op::v0::Parameter>(
+        element::f32,
+        PartialShape{{2, bound}, {3, -1}, {i32_max + 1, bound}, {i32_max, -1}, {1, 1021}});
+    auto op = std::make_shared<op::v3::ShapeOf>(param, element::i32);
+
+    auto bc_param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    auto bc = std::make_shared<op::v1::Broadcast>(bc_param, op);
+
+    EXPECT_EQ(bc->get_output_partial_shape(0), PartialShape({{2, -1}, {3, -1}, -1, -1, {1, 1021}}));
+}

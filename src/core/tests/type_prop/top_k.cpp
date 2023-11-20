@@ -303,7 +303,7 @@ TYPED_TEST_P(topk_type_prop, preserve_partial_values_and_labels_k_is_interval) {
 }
 
 TYPED_TEST_P(topk_type_prop, preserve_partial_values_and_labels_k_is_interval_with_no_upper_bound) {
-    auto shape = PartialShape{{10, -1}};
+    auto shape = PartialShape{{0, -1}};
     set_shape_labels(shape, 20);
 
     const auto p_k = std::make_shared<Parameter>(element::i64, shape);

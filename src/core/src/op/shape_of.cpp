@@ -12,6 +12,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/reference/shape_of.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace op {
@@ -52,59 +53,57 @@ bool constant_fold_shape_of(Node* shape_of_node, Output<Node>& replacement, cons
     return false;
 }
 
-bool evaluate_bound_shape(const Node* shape_of_node, TensorVector& output_values, bool is_upper) {
-    OPENVINO_ASSERT(shape_of_node, output_values.size() == 1);
-    const auto& input_partial_shape = shape_of_node->get_input_partial_shape(0);
-    if (input_partial_shape.rank().is_dynamic())
-        return false;
-    const auto rank = input_partial_shape.rank().get_length();
-    auto pshape_low = PartialShape::dynamic(rank), pshape_up = PartialShape::dynamic(rank);
-    for (Dimension::value_type i = 0; i < rank; ++i) {
-        Interval interval = input_partial_shape[i].get_interval();
-        pshape_low[i] = interval.get_min_val();
-        pshape_up[i] = Dimension(interval.get_max_val()).is_dynamic() ? Dimension(interval.get_max_val() - 1)
-                                                                      : interval.get_max_val();
-    }
-    OPENVINO_ASSERT(pshape_up.is_static() && pshape_low.is_static());
-    const auto output_et = output_values[0].get_element_type();
+bool evaluate_bound(const Node* const node, ov::TensorVector& outputs, const bool is_upper) {
+    OPENVINO_ASSERT(outputs.size() == 1);
+    const auto& in_shape = node->get_input_partial_shape(0);
 
-    if (pshape_low.to_shape() == pshape_up.to_shape()) {
-        shape_of::evaluate_shape_of(output_values[0], pshape_low.to_shape());
+    if (in_shape.rank().is_static()) {
+        const auto& out_et = outputs[0].get_element_type();
+        auto eval_status =
+            shape_of::evaluate_shape_of(outputs[0], is_upper ? in_shape.get_max_shape() : in_shape.get_min_shape());
+
+        // use node output type as it can be different than output tensor type
+        // e.g. when v3::ShapeOf is converted to v0::ShapeOf then the output tensor will have always i64
+        // but node output type is transferred from v3 and can be i32 (dimension inf bound is i32 max)
+        if (node->get_output_element_type(0) == element::i32) {
+            const auto in_shape_rank = in_shape.size();
+            constexpr auto max_et_val = static_cast<int64_t>(std::numeric_limits<int32_t>::max());
+
+            const auto get_val = is_upper ? &Interval::get_max_val : &Interval::get_min_val;
+            auto limit_val = is_upper ? max_et_val : static_cast<decltype(max_et_val)>(0);
+
+            auto dynamic_mask = std::vector<char>(in_shape_rank);
+            std::transform(in_shape.begin(),
+                           in_shape.end(),
+                           dynamic_mask.begin(),
+                           [max_et_val, get_val](const Dimension& d) {
+                               return static_cast<char>((d.get_interval().*get_val)() >= max_et_val);
+                           });
+
+            const auto limit = Tensor(out_et, Shape{}, &limit_val);
+            const auto mask = Tensor(element::boolean, Shape{in_shape_rank}, dynamic_mask.data());
+            eval_status = v1::Select().evaluate(outputs, {mask, limit, outputs[0]});
+        }
+        return eval_status;
     } else {
-        auto&& upper = is_upper ? output_values : TensorVector{{output_et, Shape{pshape_up.to_shape().size()}}};
-        shape_of::evaluate_shape_of(upper[0], pshape_up.to_shape());
-
-        auto&& lower = is_upper ? TensorVector{{output_et, Shape{pshape_low.to_shape().size()}}} : output_values;
-        shape_of::evaluate_shape_of(lower[0], pshape_low.to_shape());
-
-        std::vector<char> dynamic_mask;  // true if dimension is dynamic
-        for (const auto& i : input_partial_shape)
-            dynamic_mask.push_back(static_cast<char>(Dimension(i.get_interval().get_max_val()).is_dynamic()));
-
-        const auto mask_const = Tensor(element::boolean, Shape{dynamic_mask.size()}, dynamic_mask.data());
-
-        auto&& min = output_et == element::i64 ? static_cast<int64_t>(0) : static_cast<int32_t>(0);
-        auto&& max =
-            output_et == element::i64 ? std::numeric_limits<int64_t>::max() : std::numeric_limits<int32_t>::max();
-
-        v1::Select().evaluate(lower, {mask_const, {output_et, Shape{}, &min}, lower.front()});
-        v1::Select().evaluate(upper, {mask_const, {output_et, Shape{}, &max}, upper.front()});
+        return false;
     }
-    return true;
 }
 
 bool evaluate_label(const Node* shape_of_node, TensorLabelVector& output_labels) {
     const auto& shape = shape_of_node->get_input_partial_shape(0);
     OPENVINO_ASSERT(shape.rank().is_static());  // sanity check. at this point value propagation was successful
-    output_labels[0].reserve(shape.size());
-    bool label_is_set = false;
+
+    auto common_label = ov::no_label;
+    auto& labels = output_labels[0];
+    labels.reserve(shape.size());
+
     for (const auto& d : shape) {
-        const auto& label = DimensionTracker::get_label(d);
-        if (label)
-            label_is_set = true;
-        output_labels[0].push_back(label);
+        const auto label = ov::DimensionTracker::get_label(d);
+        labels.emplace_back(label);
+        common_label |= label;
     }
-    return label_is_set;
+    return common_label != ov::no_label;
 }
 }  // namespace
 }  // namespace shape_of
@@ -157,12 +156,12 @@ bool ShapeOf::has_evaluate() const {
     }
 }
 
-bool ShapeOf::evaluate_lower(TensorVector& output_values) const {
-    return shape_of::evaluate_bound_shape(this, output_values, false);
+bool ShapeOf::evaluate_lower(ov::TensorVector& output_values) const {
+    return shape_of::evaluate_bound(this, output_values, false);
 }
 
-bool ShapeOf::evaluate_upper(TensorVector& output_values) const {
-    return shape_of::evaluate_bound_shape(this, output_values, true);
+bool ShapeOf::evaluate_upper(ov::TensorVector& output_values) const {
+    return shape_of::evaluate_bound(this, output_values, true);
 }
 
 bool ShapeOf::evaluate_label(TensorLabelVector& output_labels) const {
@@ -231,12 +230,12 @@ bool ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& inp
     return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0]);
 }
 
-bool ShapeOf::evaluate_lower(TensorVector& output_values) const {
-    return shape_of::evaluate_bound_shape(this, output_values, false);
+bool ShapeOf::evaluate_lower(ov::TensorVector& output_values) const {
+    return shape_of::evaluate_bound(this, output_values, false);
 }
 
-bool ShapeOf::evaluate_upper(TensorVector& output_values) const {
-    return shape_of::evaluate_bound_shape(this, output_values, true);
+bool ShapeOf::evaluate_upper(ov::TensorVector& output_values) const {
+    return shape_of::evaluate_bound(this, output_values, true);
 }
 
 bool ShapeOf::evaluate_label(TensorLabelVector& output_labels) const {
