@@ -508,14 +508,7 @@ std::shared_ptr<InputModel> InputModel::InputModelTFImpl::get_body_input_model(
     if (!body_graph_iterator) {
         return nullptr;
     }
-    return std::make_shared<InputModel>(body_graph_iterator,
-                                        m_telemetry,
-                                        std::shared_ptr<ov::frontend::tensorflow::VariablesIndex>{},
-                                        nullptr,
-                                        nullptr,
-                                        nullptr,
-                                        false,
-                                        m_graph_iterator->tensor_names_need_indices());
+    return std::make_shared<InputModel>(body_graph_iterator, m_telemetry);
 }
 
 InputModel::InputModelTFImpl::InputModelTFImpl(
