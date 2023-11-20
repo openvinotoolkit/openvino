@@ -148,7 +148,7 @@ program::program(engine& engine_ref,
       _task_executor(std::move(task_executor)),
       processing_order(),
       is_internal(is_internal),
-      is_body_program(is_body_program),
+      _is_body_program(is_body_program),
       _compilation_context(compilation_context) {
     _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
@@ -161,6 +161,25 @@ program::program(engine& engine_ref,
         init_graph();
     } else {
         build_program(is_internal);
+        if (_is_body_program) {
+            // To skip empty if (condition) subgraph
+            bool can_be_optimized = true;
+            for (auto& node : processing_order) {
+                if (node->is_type<input_layout>()) {
+                    continue;
+                } else if (node->is_type<data>()) {
+                    continue;
+                } else if (node->is_output() && node->is_type<reorder>() && !node->has_fused_primitives() &&
+                      node->get_input_layout(0).data_type == node->get_output_layouts(false)[0].data_type &&
+                      node->get_input_layout(0).format == node->get_output_layouts(false)[0].format &&
+                      node->get_input_layout(0).get_partial_shape().size() == node->get_output_layouts(false)[0].get_partial_shape().size()) {
+                    continue;
+                }
+                can_be_optimized = false;
+                break;
+            }
+            this->_can_be_optimized = can_be_optimized;
+        }
     }
 }
 
@@ -850,7 +869,8 @@ void program::add_intermediate(program_node& node,
 
 void program::add_connection(program_node& prev, program_node& next) {
     prev.users.push_back(&next);
-    next.dependencies.push_back({&prev, 0});
+    auto port_idx = next.get_port_from_deps(prev.id());
+    next.dependencies.push_back({&prev, port_idx});
 }
 
 void program::remove_connection(program_node& prev, program_node& next) {
@@ -1131,7 +1151,9 @@ void program::fuse_nodes(program_node &fused_node,
                     continue;
             }
         }
-        fused_node.dependencies.push_back({&dep, 0});
+
+        auto port_idx = fused_node.get_port_from_deps(dep.id());
+        fused_node.dependencies.push_back({&dep, port_idx});
         local_desc.deps.emplace_back(dep.id(), deps_idx++);
         dep.users.push_back(&fused_node);
     }

@@ -45,7 +45,7 @@ TransposeExecutorPtr TransposeExecutorFactory::makeExecutor(const TransposeParam
         }
     }
 
-    IE_THROW() << "Supported executor is not found";
+    OPENVINO_THROW("Supported executor is not found");
 }
 
 }   // namespace intel_cpu
