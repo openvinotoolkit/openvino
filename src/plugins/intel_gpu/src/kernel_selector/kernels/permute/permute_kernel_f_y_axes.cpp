@@ -128,14 +128,16 @@ JitConstants PermuteKernel_f_y_axes::GetJitConstants(const permute_params& param
         }
     }
 
+    const auto layout = params.inputs.front().GetLayout();
+    std::size_t vector_size;
     if (IsSimpleMemCopyOperation(params)) {
-        auto vector_size = GetDivisor(params.inputs[0].X().v);
+        vector_size = GetDivisor(params.inputs[0].X().v);
         auto j_times = params.inputs[0].X().v / vector_size;
         jit.AddConstant(MakeJitConstant("VEC_SIZE", vector_size));
         jit.AddConstant(MakeJitConstant("J_TIMES", j_times));
     } else {
         const size_t tile_width = GetTileWidth(params);
-        const size_t vector_size = std::min(tile_width, static_cast<size_t>(4));
+        vector_size = std::min(tile_width, static_cast<size_t>(4));
         const size_t tile_size = GetTileSize(params);
         const size_t j_times = tile_size / vector_size;
         const size_t feature_block_size = GetFeatureBlockSize(params);
@@ -143,14 +145,23 @@ JitConstants PermuteKernel_f_y_axes::GetJitConstants(const permute_params& param
         jit.AddConstant(MakeJitConstant("J_TIMES", j_times));
         jit.AddConstant(MakeJitConstant("TILE_SIZE", tile_size));
         jit.AddConstant(MakeJitConstant("FEATURE_BLOCK_SIZE", feature_block_size));
-        const auto layout = params.inputs.front().GetLayout();
         if (!SimpleLayout(layout)) {
             const auto subgroup_size = Is3DTranspose(params) ? feature_block_size : tile_size;
             jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));
         }
+    }
 
-        if (!params.fused_ops.empty()) {
-            const std::vector<std::string> original_output_order = {"b_idx", "f_idx", "y_idx", "x_idx"};
+    if (!params.fused_ops.empty()) {
+        if (IsSimpleMemCopyOperation(params)) {
+            const std::vector<std::string> original_output_order = {"b_idx", "y_idx", "f_idx", "(x_idx+i)"};
+            const FusedOpsConfiguration conf_scalar = {"", original_output_order, "res", params.inputs[0].GetDType(), 1};
+            jit.Merge(MakeFusedOpsJitConstants(params, {conf_scalar}));
+        } else if (SimpleLayout(layout)) {
+            const std::vector<std::string> original_output_order = {"b_idx", "(y_idx+k)", "f_idx", "x_idx"};
+            const FusedOpsConfiguration conf_scalar = {"", original_output_order, "res", params.inputs[0].GetDType(), 1};
+            jit.Merge(MakeFusedOpsJitConstants(params, {conf_scalar}));
+        } else {
+            const std::vector<std::string> original_output_order = {"b_idx", "y_idx", "f_idx", "x_idx"};
             const FusedOpsConfiguration conf_scalar = {"", original_output_order, "res", params.inputs[0].GetDType(), 1};
             const FusedOpsConfiguration conf_vec = {"_VEC", original_output_order, "res", params.inputs[0].GetDType(), vector_size};
             jit.Merge(MakeFusedOpsJitConstants(params, {conf_scalar, conf_vec}));
