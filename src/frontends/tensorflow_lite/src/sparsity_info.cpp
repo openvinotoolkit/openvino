@@ -17,14 +17,14 @@ static void read_sparse_data(uint8_t* dest,
                              const size_t row_size,
                              const ::flatbuffers::Vector<T>* indices,
                              const ::flatbuffers::Vector<U>* segments) {
-    U* data = reinterpret_cast<U*>(dest - row_size);  // row size will be increased at first step
+    uint8_t* data = dest - row_size;  // row size will be increased at first step
     T last_idx = ~static_cast<T>(0);
     for (auto idx = indices->begin(); idx != indices->end(); ++idx) {
         if (*idx <= last_idx) {
-            data = reinterpret_cast<U*>(reinterpret_cast<uint8_t*>(data) + row_size);
-            FRONT_END_GENERAL_CHECK(reinterpret_cast<uint8_t*>(data) < dest_end, "Dense data is out of bounds");
+            data += row_size;
         }
-        data[*idx] = segments->Get(*idx);
+        FRONT_END_GENERAL_CHECK(data + *idx < dest_end, "Dense data is out of bounds");
+        static_cast<U*>(static_cast<void*>(data))[*idx] = segments->Get(*idx);
         last_idx = *idx;
     }
 }
