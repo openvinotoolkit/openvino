@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <ie_ngraph_utils.hpp>
 #include "cpu_memory_desc.h"
-#include "ie_ngraph_utils.hpp"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "openvino/runtime/itensor.hpp"
@@ -49,16 +49,25 @@ DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const Memo
     }
 }
 
-CpuBlockedMemoryDesc MemoryDescUtils::createCpuBlockedMemoryDesc(const ov::SoPtr<ITensor>& tensor) {
-    auto element_type = tensor->get_element_type();
-    auto shape = tensor->get_shape();
-    if (shape.empty())
-        shape = {tensor->get_size()};
-    std::vector<size_t> blk_order(shape.size());
+BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDescPtr &desc) {
+    if (desc->getType() & MemoryDescType::Blocked) {
+        return std::dynamic_pointer_cast<BlockedMemoryDesc>(desc);
+    } else {
+        OPENVINO_THROW("Can not convert unsupported memory descriptor");
+    }
+}
+
+CpuBlockedMemoryDescPtr MemoryDescUtils::generateCpuBlockedMemoryDesc(const ov::SoPtr<ov::ITensor>& tensor) {
+    const auto& shape = tensor->get_shape().empty() ?  ov::Shape{tensor->get_size()} : tensor->get_shape();
+
+    VectorDims blk_order(shape.size());
     std::iota(blk_order.begin(), blk_order.end(), 0);
-    std::vector<size_t> dim_offset(shape.size(), 0);
-    std::vector<size_t> blk_strides;
-    auto byte_strides = element_type.bitwidth() >= 8 ? tensor->get_strides() : Strides{};
+
+    auto element_type = tensor->get_element_type();
+    const auto& byte_strides = element_type.bitwidth() >= 8 ? tensor->get_strides() : Strides{};
+
+    VectorDims blk_strides;
+
     if (byte_strides.empty()) {
         blk_strides = ov::row_major_strides(shape);
     } else if (tensor->get_size() == 0) {
@@ -73,26 +82,20 @@ CpuBlockedMemoryDesc MemoryDescUtils::createCpuBlockedMemoryDesc(const ov::SoPtr
                            OPENVINO_ASSERT(byte_stride % element_type.size() == 0,
                                            "Limitation: Stride in bytes ",
                                            byte_stride,
-                                           " should be divisible by size of element ",
+                                           " must be divisible by size of element ",
                                            element_type.size());
                            return byte_stride / element_type.size();
                        });
     }
-    return CpuBlockedMemoryDesc(element_type,
-                                Shape(shape),
-                                shape,
-                                blk_order,
-                                0,
-                                dim_offset,
-                                blk_strides);
-}
 
-BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDescPtr &desc) {
-    if (desc->getType() & MemoryDescType::Blocked) {
-        return std::dynamic_pointer_cast<BlockedMemoryDesc>(desc);
-    } else {
-        OPENVINO_THROW("Can not convert unsupported memory descriptor");
-    }
+    return std::make_shared<CpuBlockedMemoryDesc>(
+        element_type,
+        Shape{shape},
+        shape,
+        blk_order,
+        0UL,
+        VectorDims{},
+        blk_strides);
 }
 
 OPENVINO_SUPPRESS_DEPRECATED_START

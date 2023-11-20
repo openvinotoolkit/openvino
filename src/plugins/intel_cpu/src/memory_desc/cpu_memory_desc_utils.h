@@ -11,6 +11,8 @@
 #include "openvino/runtime/so_ptr.hpp"
 #include <ie_layouts.h>
 #include <ie_blob.h>
+#include <openvino/runtime/so_ptr.hpp>
+#include <openvino/runtime/itensor.hpp>
 
 namespace ov {
 namespace intel_cpu {
@@ -48,11 +50,11 @@ public:
     static std::shared_ptr<BlockedMemoryDesc> convertToBlockedMemoryDesc(const std::shared_ptr<MemoryDesc> &desc);
 
     /**
-     * @brief Create CpuBlockedMemoryDesc from ov::tensor
-     * @param tensor input tensor
-     * @return converted CpuBlockedMemoryDesc
+     * @brief Builds CpuBlockedMemoryDesc for given ov::ITensor
+     * @param tensor is a pointer to ov::ITensor object
+     * @return created CpuBlockedMemoryDesc
      */
-    static CpuBlockedMemoryDesc createCpuBlockedMemoryDesc(const ov::SoPtr<ITensor>& tensor);
+    static std::shared_ptr<CpuBlockedMemoryDesc> generateCpuBlockedMemoryDesc(const ov::SoPtr<ov::ITensor>& tensor);
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     /**

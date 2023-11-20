@@ -26,6 +26,9 @@ namespace ov {
 namespace intel_cpu {
 
 class SyncInferRequest;
+namespace node {
+class MemoryNode;
+} // namespace node
 
 class Graph {
 public:
@@ -146,7 +149,7 @@ public:
     /**
      * @brief Insert Node at the edge-specified location.
      * This method supports two regimes. First, the node is inserted without initialization (i.e. supported descriptors initialization,
-     * supported primitive descriptors selection, etc.), which can be useful after the InitEdges() completes. The second is just inserting the
+     * supported primitive descriptors selection, etc.), which can be useful after the ResolveEdgeConflicts() completes. The second is just inserting the
      * node without initialization.
      * @param edge
      * pointer to the edge in the graph where the node will be inserted
@@ -162,7 +165,7 @@ public:
      * @brief Insert Node between two specified nodes.
      * This procedure creates two edges that link the parent and child nodes to the inserted one and adds all created objects to the graph.
      * This method supports two regimes. First, the node is inserted without initialization (i.e. supported descriptors initialization,
-     * supported primitive descriptors selection, etc.), which can be useful after the InitEdges() completes. The second is just inserting the
+     * supported primitive descriptors selection, etc.), which can be useful after the ResolveEdgeConflicts() completes. The second is just inserting the
      * node without initialization.
      * @param parent
      * pointer to the parent node
@@ -189,6 +192,10 @@ public:
     }
 
     Status getStatus() const {return status;}
+    const std::unordered_map<std::string, std::shared_ptr<node::MemoryNode>>&
+    getInternalStateNodes() const {
+        return internalStateNodes;
+    }
 
 protected:
     void VisitNode(NodePtr node, std::vector<NodePtr>& sortedNodes);
@@ -225,11 +232,12 @@ protected:
     void InitDescriptors();
     void ResolveInplaceDirections();
     void InitOptimalPrimitiveDescriptors();
-    void InitEdges();
+    void ResolveEdgeConflicts();
     bool ProcessDynNodes();
     void Allocate();
     void AllocateWithReuse();
     void ExtractExecutableNodes();
+    void SearchInternalStateNodes();
     void ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const;
     void CreatePrimitivesAndExecConstants() const;
     void InferStatic(SyncInferRequest* request);
@@ -244,6 +252,7 @@ private:
     std::map<std::string, NodePtr> outputNodesMap;
 
     std::unordered_map<std::string, ProxyMemoryMngrPtr> outputNodesMemMngrMap;
+    std::unordered_map<std::string, std::shared_ptr<node::MemoryNode>> internalStateNodes;
 
     // these node pointers (from graphNodes) are to avoid regular checking for
     // constantness of nodes in Infer methods and calls of
