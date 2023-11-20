@@ -94,7 +94,6 @@
 #include "nodes/unique.hpp"
 #include "nodes/ngram.h"
 #include "nodes/scaled_attn.h"
-#include "nodes/rope.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -182,7 +181,6 @@ Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(Eye, Type::Eye);
     INTEL_CPU_NODE(Unique, Type::Unique);
     INTEL_CPU_NODE(Ngram, Type::Ngram);
-    INTEL_CPU_NODE(RoPE, Type::RoPE);
     INTEL_CPU_NODE(Interpolate, Type::Interpolate);
     INTEL_CPU_NODE(RandomUniform, Type::RandomUniform);
     INTEL_CPU_NODE(Reduce, Type::Reduce);
