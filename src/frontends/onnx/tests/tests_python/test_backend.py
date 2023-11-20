@@ -678,6 +678,10 @@ tests_expected_to_fail = [
         xfail_issue_119922,
         "OnnxBackendNodeModelTest.test_ai_onnx_ml_array_feature_extractor_cpu",
         "OnnxBackendNodeModelTest.test_ai_onnx_ml_binarizer_cpu",
+        "OnnxBackendNodeModelTest.test_ai_onnx_ml_label_encoder_string_int_cpu",
+        "OnnxBackendNodeModelTest.test_ai_onnx_ml_label_encoder_string_int_no_default_cpu",
+        "OnnxBackendNodeModelTest.test_ai_onnx_ml_label_encoder_tensor_mapping_cpu",
+        "OnnxBackendNodeModelTest.test_ai_onnx_ml_label_encoder_tensor_value_only_mapping_cpu",
     ),
     (
         xfail_issue_119925,
