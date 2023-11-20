@@ -32,7 +32,6 @@ OutputVector translate_multinomial(const NodeContext& context) {
 
     // Torch multinomial accept input of [class_probs] or [bs, class_probs], convert always to [bs, class_probs] for OV.
     auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
-    ;
     auto class_probs_shape = context.mark_node(std::make_shared<v8::Gather>(input_shape, const_neg_1, const_0));
     auto inp_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{const_neg_1, class_probs_shape}, 0));
     input = context.mark_node(std::make_shared<v1::Reshape>(input, inp_shape, false));
