@@ -95,7 +95,7 @@ struct ReorderCustomImplTestParamSet {
 };
 
 struct ReorderCPUTestParamSet {
-    ngraph::PartialShape inputPartialShape;
+    ov::PartialShape inputPartialShape;
     // logical dimension vector  of input
     std::vector<std::vector<size_t>> inputShapes;
     LayoutType srcLayout;
