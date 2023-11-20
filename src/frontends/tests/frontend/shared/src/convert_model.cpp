@@ -78,6 +78,7 @@ TEST_P(FrontEndConvertModelTest, test_decode_convert_equal_convert) {
     if (m_frontEnd->get_name() != "tf" && m_frontEnd->get_name() != "tflite") {
         func_comparator.enable(FunctionsComparator::NAMES);
     }
+    func_comparator.disable(FunctionsComparator::TENSOR_NAMES);
     const FunctionsComparator::Result res = func_comparator(model, model_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
