@@ -26,11 +26,14 @@ class ComponentConfig:
         jsonschema.validate(self.config, schema)
 
         for component_name, data in self.config.items():
-            dependent_components = set(data.get('dependent_components', dict()).keys()) if data else set()
+            dependent_components = set()
+            for key in self.ScopeKeys:
+                scope = data.get(key)
+                dependent_components = dependent_components.union(set(scope) if isinstance(scope, list) else set())
 
             invalid_dependents = dependent_components.difference(self.all_possible_components)
             if invalid_dependents:
-                error_msg = f"dependent_components of {component_name} are invalid: " \
+                error_msg = f"dependent components of {component_name} are invalid: " \
                             f"{invalid_dependents} are not listed in components config: {self.all_possible_components}"
                 raise jsonschema.exceptions.ValidationError(error_msg)
 
