@@ -46,7 +46,7 @@ The types were introduced in the following paper: `FP8 Formats for Deep Learning
 
 **Types**
 
-* *T_F*: supported floating-point type (`FP16` or `FP32`).
+* *T_F*: supported floating-point type (`FP16`, `BF16`, `FP32`).
 
 **Example**
 
