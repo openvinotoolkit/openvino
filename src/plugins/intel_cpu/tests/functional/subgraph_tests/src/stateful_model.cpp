@@ -376,6 +376,9 @@ public:
             float_compare(vec_state.data(), actual_state, vec_state.size());
         }
     }
+
+private:
+    using StatefulModelTest::TestsCommon::Test::SetUp;
 };
 
 class DynamicShapeStatefulModelDefault : public DynamicShapeStatefulModel {
