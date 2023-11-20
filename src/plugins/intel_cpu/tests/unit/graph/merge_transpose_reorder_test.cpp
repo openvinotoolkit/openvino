@@ -9,7 +9,6 @@
 #include "nodes/transpose.h"
 
 #include "ov_models/builders.hpp"
-#include "ie_ngraph_utils.hpp"
 
 using namespace ov::intel_cpu;
 
