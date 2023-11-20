@@ -76,7 +76,7 @@ protected:
                 ngraph::Shape{shape1[1], shape1[1]},
                 ov::test::utils::generate_float_numbers(shape2[1], 0.0f, maxInputValue));
         } else {
-            input2 = ngraph::builder::makeInputLayer(ngPrc, ngraph::helpers::InputLayerType::PARAMETER, shape2);
+            input2 = std::make_shared<ov::op::v0::Parameter>(ngPrc, shape2);
             params.push_back(std::dynamic_pointer_cast<ngraph::opset8::Parameter>(input2));
         }
 

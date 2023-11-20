@@ -106,7 +106,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op,
 
         bool isScalar = shape.rank().get_length() == 0;
         inputShapes.emplace_back(isScalar ? ov::PartialShape{1} : shape);
-        originalInputPrecisions.emplace_back(details::convertPrecision(op->get_input_element_type(i)));
+        originalInputPrecisions.emplace_back(op->get_input_element_type(i));
     }
 
     if (typeStr != "Result" && typeStr != "Assign") {
@@ -124,7 +124,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op,
 
             bool isScalar = shape.rank().get_length() == 0;
             outputShapes.emplace_back(isScalar ? ov::PartialShape{1} : shape);
-            originalOutputPrecisions.emplace_back(details::convertPrecision(op->get_output_element_type(i)));
+            originalOutputPrecisions.emplace_back(op->get_output_element_type(i));
         }
     }
 
@@ -512,14 +512,14 @@ std::string Node::getPrimitiveDescriptorType() const {
     // it is mixed precision.
     if (selectedPrimitiveDesc) {
         if (!selectedPrimitiveDesc->getConfig().inConfs.empty()) {
-            if (selectedPrimitiveDesc->getConfig().inConfs[0].getMemDesc()->getPrecision() != InferenceEngine::Precision::U8) {
-                str_type += "_" + std::string(selectedPrimitiveDesc->getConfig().inConfs[0].getMemDesc()->getPrecision().name());
+            if (selectedPrimitiveDesc->getConfig().inConfs[0].getMemDesc()->getPrecision() != ov::element::u8) {
+                str_type += "_" + std::string(selectedPrimitiveDesc->getConfig().inConfs[0].getMemDesc()->getPrecision().get_type_name());
             } else {
                 str_type += "_I8";
             }
         } else {
-            if (selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision() != InferenceEngine::Precision::U8) {
-                str_type += "_" + std::string(selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision().name());
+            if (selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision() != ov::element::u8) {
+                str_type += "_" + std::string(selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision().get_type_name());
             } else {
                 str_type += "_I8";
             }
@@ -735,7 +735,7 @@ void Node::filterSupportedPrimitiveDescriptors() {
     // Compare by format tag
     auto areCompatible = [](const MemoryDesc& desc, dnnl::memory::format_tag fmt) -> bool {
         auto fmt_tdesc = DnnlBlockedMemoryDesc(desc.getShape(),
-                                               DnnlExtensionUtils::IEPrecisionToDataType(desc.getPrecision()),
+                                               DnnlExtensionUtils::ElementTypeToDataType(desc.getPrecision()),
                                                fmt);
         return desc.isCompatible(fmt_tdesc);
     };
@@ -1281,8 +1281,8 @@ void Node::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std:
     OPENVINO_THROW("Fusing of ", NameFromType(this->getType()), " operation is not implemented");
 }
 
-std::vector<InferenceEngine::Precision> Node::getInputPrecisions() const {
-    std::vector<InferenceEngine::Precision> inputPrecisions;
+std::vector<ov::element::Type> Node::getInputPrecisions() const {
+    std::vector<ov::element::Type> inputPrecisions;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated) {
@@ -1292,8 +1292,8 @@ std::vector<InferenceEngine::Precision> Node::getInputPrecisions() const {
     return inputPrecisions;
 }
 
-std::vector<InferenceEngine::Precision> Node::getOutputPrecisions() const {
-    std::vector<InferenceEngine::Precision> outputPrecisions;
+std::vector<ov::element::Type> Node::getOutputPrecisions() const {
+    std::vector<ov::element::Type> outputPrecisions;
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto childEdge = getChildEdgeAt(i);
         if (childEdge && childEdge->getStatus() == Edge::Status::Validated) {
@@ -1303,10 +1303,10 @@ std::vector<InferenceEngine::Precision> Node::getOutputPrecisions() const {
     return outputPrecisions;
 }
 
-InferenceEngine::Precision Node::getRuntimePrecision() const {
+ov::element::Type Node::getRuntimePrecision() const {
     // Base implementation consider precision only on data path and
     // assumes it is placed on 0-th port (which is true for almost all layers)
-    InferenceEngine::Precision runtimePrecision = Precision::UNSPECIFIED;
+    ov::element::Type runtimePrecision = ov::element::undefined;
     auto inputPrecisions = getInputPrecisions();
     if (!inputPrecisions.empty()) {
         runtimePrecision = inputPrecisions[0];
@@ -1466,8 +1466,8 @@ std::pair<std::vector<float>, std::vector<float>> Node::getScalesAndShifts(const
         buffer.resize(elementsCount);
         cpu_convert(constBlob->getData(),
                     &buffer[0],
-                    DnnlExtensionUtils::DataTypeToIEPrecision(constBlob->getDataType()),
-                    Precision::FP32,
+                    DnnlExtensionUtils::DataTypeToElementType(constBlob->getDataType()),
+                    ov::element::f32,
                     elementsCount);
     };
 
@@ -1696,7 +1696,7 @@ void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfi
                                 const std::vector<PortConfigurator>& outPortConfigs,
                                 impl_desc_type implType) {
     auto fill_port = [] (const PortConfigurator& portConfigurator, const Shape& shape,
-                         InferenceEngine::Precision prc, std::vector<PortConfig>& port) -> bool {
+                         ov::element::Type prc, std::vector<PortConfig>& port) -> bool {
         // In order to simplify particular node initialization logic we just don't add config in case target shape is not supported by blockedDescCreator.
         // This should be suitable for major of scenarios since almost all nodes add `ncsp` blockedDescCreator which supports any shape rank.
         if (shape.getRank() < portConfigurator.blockedDescCreator->getMinimalRank())
@@ -1715,14 +1715,14 @@ void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfi
     NodeConfig config;
     for (size_t i = 0; i < inPortConfigs.size(); i++) {
         auto shape = inPortConfigs[i].shape.getRank() == 0 ? getInputShapeAtPort(i) : inPortConfigs[i].shape;
-        auto prc = inPortConfigs[i].prc == InferenceEngine::Precision::UNSPECIFIED ? getOriginalInputPrecisionAtPort(i) : inPortConfigs[i].prc;
+        auto prc = inPortConfigs[i].prc == ov::element::undefined ? getOriginalInputPrecisionAtPort(i) : inPortConfigs[i].prc;
         if (!fill_port(inPortConfigs[i], shape, prc, config.inConfs))
             return;
     }
 
     for (size_t i = 0; i < outPortConfigs.size(); i++) {
         auto dims = outPortConfigs[i].shape.getRank() == 0 ? getOutputShapeAtPort(i) : outPortConfigs[i].shape;
-        auto prc = outPortConfigs[i].prc == InferenceEngine::Precision::UNSPECIFIED ? getOriginalOutputPrecisionAtPort(i) : outPortConfigs[i].prc;
+        auto prc = outPortConfigs[i].prc == ov::element::undefined ? getOriginalOutputPrecisionAtPort(i) : outPortConfigs[i].prc;
         if (!fill_port(outPortConfigs[i], dims, prc, config.outConfs))
             return;
     }
@@ -1754,6 +1754,11 @@ void Node::fuseDQScales(const float* scaleData, const size_t scaleSize) {
 }
 
 int Node::inPlaceInputPort(int portIdx) const {
+    if (inputShapes.empty()) {
+        //special case - a dead end node
+        return -1;
+    }
+
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (!selected_pd)
         OPENVINO_THROW("Cannot find selected primitive descriptor for node: ", getName());
@@ -1769,7 +1774,13 @@ int Node::inPlaceInputPort(int portIdx) const {
 
     return conf.inConfs[portIdx].inPlace();
 }
+
 int Node::inPlaceOutPort(int portIdx) const {
+    if (outputShapes.empty()) {
+        //special case - a dead end node
+        return -1;
+    }
+
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (!selected_pd)
         OPENVINO_THROW("Cannot find selected primitive descriptor for node: ", getName());

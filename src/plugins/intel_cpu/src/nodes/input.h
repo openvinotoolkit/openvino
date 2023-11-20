@@ -17,7 +17,7 @@ class Input : public Node {
 public:
     Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
     Input(const Shape& shape,
-          const InferenceEngine::Precision& prc,
+          const ov::element::Type& prc,
           const std::string& name,
           const std::string& type,
           const GraphContext::CPtr context);
@@ -39,6 +39,9 @@ public:
 
     bool needShapeInfer() const override { return false; }
     bool needPrepareParams() const override { return false; }
+
+protected:
+    void resetMemoryPtr(const MemoryCPtr& mem);
 
 private:
     void cloneBlobIfRequired();

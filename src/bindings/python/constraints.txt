@@ -11,6 +11,7 @@ pytest-timeout==2.2.0
 py>=1.9.0
 pygments>=2.8.1
 setuptools>=65.6.1
+sympy>=1.10
 wheel>=0.38.1
 patchelf<=0.17.2.1
 
