@@ -1102,7 +1102,7 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
         // check whether the Auto-Batching is disabled explicitly
         const auto& batch_mode = config.find(ov::hint::allow_auto_batching.name());
         if (batch_mode != config.end()) {
-            const auto disabled = batch_mode->second.as<bool>();
+            const auto disabled = !batch_mode->second.as<bool>();
             // virtual plugins like AUTO/MULTI will need the config
             // e.g. to deduce the #requests correctly
             // proxy plugin should also keep the config
@@ -1119,17 +1119,17 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
         if (is_proxy_device(parsed._deviceName))
             return model;
         deviceNameWithoutBatch = deviceName;
-        std::vector<std::string> metrics = get_plugin(parsed._deviceName)
-                                               .get_property(ov::supported_properties.name(), parsed._config)
-                                               .as<std::vector<std::string>>();
+        auto metrics = get_plugin(parsed._deviceName)
+                           .get_property(ov::supported_properties.name(), parsed._config)
+                           .as<std::vector<ov::PropertyName>>();
         auto it = std::find(metrics.begin(), metrics.end(), ov::optimal_batch_size.name());
         if (metrics.end() == it)
             return model;
 
         // if applicable, the Auto-Batching is implicitly enabled via the performance hints
-        bool bTputInPlg =
-            GetConfig(parsed._deviceName, ov::hint::performance_mode.name()).as<ov::hint::PerformanceMode>() ==
-            ov::hint::PerformanceMode::THROUGHPUT;
+        bool bTputInPlg = get_plugin(parsed._deviceName)
+                              .get_property(ov::hint::performance_mode.name(), parsed._config)
+                              .as<ov::hint::PerformanceMode>() == ov::hint::PerformanceMode::THROUGHPUT;
         const auto& mode = config.find(ov::hint::performance_mode.name());
         bool bTputInLoadCfg = (mode != config.end() &&
                                mode->second.as<ov::hint::PerformanceMode>() == ov::hint::PerformanceMode::THROUGHPUT);
@@ -1148,9 +1148,7 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
         break;
     case ov::details::NetworkBatchAbility::WITH_HETERO:
         deviceName = "HETERO:BATCH," + deviceNameWithoutBatch;
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        config[CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)] = batchConfig;
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        config[ov::device::priorities.name()] = batchConfig;
         break;
     }
     return ov::details::apply_batch_affinity(model, deviceNameWithoutBatch);
