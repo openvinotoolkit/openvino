@@ -226,7 +226,7 @@ void inline fill_data_random(float16* pointer,
     for (size_t i = 0; i < size; i++) {
         auto value = static_cast<float>(distribution(random));
         value /= static_cast<float>(k);
-            pointer[i] = static_cast<float16>(ov::float16(value).to_bits());
+        pointer[i] = static_cast<float16>(ov::float16(value).to_bits());
     }
 }
 
@@ -244,7 +244,7 @@ void inline fill_data_random(bfloat16* pointer,
     for (size_t i = 0; i < size; i++) {
         auto value = static_cast<float>(distribution(random));
         value /= static_cast<float>(k);
-            pointer[i] = static_cast<bfloat16>(ov::bfloat16(value).to_bits());
+        pointer[i] = static_cast<bfloat16>(ov::bfloat16(value).to_bits());
     }
 }
 
