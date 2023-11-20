@@ -81,6 +81,7 @@ jit_load_emitter::jit_load_emitter(dnnl::impl::cpu::x64::jit_generator *host, dn
     prepare_table();
     load_size_ = load_num * src_prc.size();
     v_len_elt_ = get_vec_length() / exec_prc.size();
+    snippets_direct_emitter = false;
 }
 
 size_t jit_load_emitter::get_inputs_num() const { return 1; }
@@ -651,6 +652,7 @@ jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::x64::jit_generator *host, 
     v_len_elt_ = get_vec_length() / exec_prc.size();
     store_size_ = store_num * dst_prc.size();
     uni_vcvtneps2bf16_.reset(new jit_uni_vcvtneps2bf16(host, host_isa));
+    snippets_direct_emitter = false;
 }
 
 inline bool jit_store_emitter::is_saturation() const {

@@ -273,6 +273,7 @@ public:
                  const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 1;}
+    void print_debug_info() const override;
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -284,6 +285,7 @@ private:
 
 private:
     std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
+    std::shared_ptr<snippets::op::Store> store_node = nullptr;
 };
 
 class LoadEmitter : public MemoryEmitter {
@@ -293,6 +295,7 @@ public:
                 const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 0;}
+    void print_debug_info() const override;
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -304,6 +307,7 @@ private:
 
 private:
     std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
+    std::shared_ptr<snippets::op::Load> load_node = nullptr;
 };
 
 class BroadcastLoadEmitter : public MemoryEmitter {
@@ -329,6 +333,7 @@ public:
                        const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 0;}
+    void print_debug_info() const override;
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -340,6 +345,7 @@ private:
 
 private:
     std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
+    std::shared_ptr<snippets::op::Load> load_convert_node = nullptr;
 };
 
 class StoreConvertEmitter : public MemoryEmitter {
@@ -349,6 +355,7 @@ public:
                         const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 1;}
+    void print_debug_info() const override;
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -360,6 +367,7 @@ private:
 
 private:
     std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
+    std::shared_ptr<snippets::op::Store> store_convert_node = nullptr;
 };
 
 class BrgemmEmitter : public jit_emitter {

@@ -52,6 +52,7 @@ namespace node {
 namespace {
 
 std::mutex err_print_lock;
+Snippet* g_subgraph_ptr = nullptr;
 
 struct SnippetKey {
     Snippet::SnippetAttrs attrs;
@@ -469,6 +470,7 @@ void Snippet::execute(dnnl::stream strm) {
     for (size_t i = 0; i < outputNum; i++)
         dstMemPtrs[i] = getChildEdgeAt(i)->getMemoryPtr();
 
+    g_subgraph_ptr = this;
     execPtr->exec(srcMemPtrs, dstMemPtrs);
 }
 
@@ -524,9 +526,10 @@ void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMe
         __sighandler_t signal_handler = [](int signal) {
             std::lock_guard<std::mutex> guard(err_print_lock);
             if (auto err_emitter = ov::intel_cpu::g_snippets_err_handler->local())
-            err_emitter->print_debug_info();
+                err_emitter->print_debug_info();
             auto tid = parallel_get_thread_num();
-            OPENVINO_THROW("Segfault was caught by the signal handler in snippets node execution on thread " + std::to_string(tid));
+            OPENVINO_THROW("Segfault was caught by the signal handler on thread ", std::to_string(tid),
+                " during execution of Snippets node with name ", g_subgraph_ptr->getName());
         };
         struct sigaction new_handler{};
         new_handler.sa_handler = signal_handler;
@@ -551,7 +554,8 @@ void Snippet::SnippetJitExecutor::schedule_nt(const std::vector<MemoryPtr>& inMe
             if (auto err_emitter = ov::intel_cpu::g_snippets_err_handler->local())
                 err_emitter->print_debug_info();
             auto tid = parallel_get_thread_num();
-            OPENVINO_THROW("Segfault was caught by the signal handler in snippets node execution on thread " + std::to_string(tid));
+            OPENVINO_THROW("Segfault was caught by the signal handler on thread ", std::to_string(tid),
+                " during execution of Snippets node with name ", g_subgraph_ptr->getName());
         };
         struct sigaction new_handler{};
         new_handler.sa_handler = signal_handler;

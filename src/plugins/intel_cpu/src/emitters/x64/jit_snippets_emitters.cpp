@@ -580,9 +580,11 @@ StoreEmitter::StoreEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr&
                        " and ",
                        dst_prc.get_type_name());
 
-    const auto store = ov::as_type_ptr<snippets::op::Store>(expr->get_node());
-    count = store->get_count();
-    byte_offset = store->get_offset();
+    store_node = ov::as_type_ptr<snippets::op::Store>(expr->get_node());
+    if (store_node == nullptr)
+        OPENVINO_THROW("Node in expression is not snippets::op::Store in constructor of StoreEmitter!");
+    count = store_node->get_count();
+    byte_offset = store_node->get_offset();
     in_out_type_ = emitter_in_out_map::vec_to_gpr;
     store_emitter.reset(new jit_store_emitter(h, isa, src_prc, dst_prc, count));
 }
@@ -611,6 +613,15 @@ void StoreEmitter::emit_data() const {
     store_emitter->emit_data();
 }
 
+void StoreEmitter::print_debug_info() const {
+    std::cerr << "Node name:" << store_node->get_friendly_name() << std::endl;
+    std::cerr << "Emitter type name:" << get_type_name(this) << std::endl;
+    if (store_emitter) {
+        std::cerr << "underlying jit_store_emitter status is:" << std::endl;
+        store_emitter->print_debug_info();
+    }
+}
+
 LoadEmitter::LoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : MemoryEmitter(h, isa, expr) {
     if (src_prc != dst_prc)
         OPENVINO_THROW("LoadEmitter supports only equal input and output types but gets: ",
@@ -618,9 +629,11 @@ LoadEmitter::LoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& e
                        " and ",
                        dst_prc.get_type_name());
 
-    const auto load = std::dynamic_pointer_cast<snippets::op::Load>(expr->get_node());
-    count = load->get_count();
-    byte_offset = load->get_offset();
+    load_node = std::dynamic_pointer_cast<snippets::op::Load>(expr->get_node());
+    if (load_node == nullptr)
+        OPENVINO_THROW("Node in expression is not snippets::op::Load in constructor of LoadEmitter!");
+    count = load_node->get_count();
+    byte_offset = load_node->get_offset();
     in_out_type_ = emitter_in_out_map::gpr_to_vec;
     load_emitter.reset(new jit_load_emitter(h, isa, src_prc, dst_prc, count));
 }
@@ -647,6 +660,15 @@ void LoadEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size
 
 void LoadEmitter::emit_data() const {
     load_emitter->emit_data();
+}
+
+void LoadEmitter::print_debug_info() const {
+    std::cerr << "Node name:" << load_node->get_friendly_name() << std::endl;
+    std::cerr << "Emitter type name:" << get_type_name(this) << std::endl;
+    if (load_emitter) {
+        std::cerr << "underlying jit_load_emitter status is:" << std::endl;
+        load_emitter->print_debug_info();
+    }
 }
 
 BroadcastLoadEmitter::BroadcastLoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
@@ -694,9 +716,11 @@ void BroadcastLoadEmitter::emit_isa(const std::vector<size_t> &in, const std::ve
 
 LoadConvertEmitter::LoadConvertEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : MemoryEmitter(h, isa, expr) {
-    const auto load = ov::as_type_ptr<snippets::op::Load>(expr->get_node());
-    count = load->get_count();
-    byte_offset = load->get_offset();
+    load_convert_node = ov::as_type_ptr<snippets::op::Load>(expr->get_node());
+    if (load_convert_node == nullptr)
+        OPENVINO_THROW("Node in expression can not dynamic cast to snippets::op::Load in constructor of LoadConvertEmitter!");
+    count = load_convert_node->get_count();
+    byte_offset = load_convert_node->get_offset();
     in_out_type_ = emitter_in_out_map::gpr_to_vec;
     load_emitter.reset(new jit_load_emitter(h, isa, src_prc, dst_prc, count));
 }
@@ -725,11 +749,22 @@ void LoadConvertEmitter::emit_data() const {
     load_emitter->emit_data();
 }
 
+void LoadConvertEmitter::print_debug_info() const {
+    std::cerr << "Node name:" << load_convert_node->get_friendly_name() << std::endl;
+    std::cerr << "Emitter type name:" << get_type_name(this) << std::endl;
+    if (load_emitter) {
+        std::cerr << "underlying jit_load_emitter status is:" << std::endl;
+        load_emitter->print_debug_info();
+    }
+}
+
 StoreConvertEmitter::StoreConvertEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : MemoryEmitter(h, isa, expr) {
-    const auto store = ov::as_type_ptr<snippets::op::Store>(expr->get_node());
-    count = store->get_count();
-    byte_offset = store->get_offset();
+    store_convert_node = ov::as_type_ptr<snippets::op::Store>(expr->get_node());
+    if (store_convert_node == nullptr)
+        OPENVINO_THROW("Node in expression can not dynamic cast to snippets::op::Store in constructor of StoreConvertEmitter!");
+    count = store_convert_node->get_count();
+    byte_offset = store_convert_node->get_offset();
     in_out_type_ = emitter_in_out_map::vec_to_gpr;
 
     if (ov::is_type<ov::intel_cpu::StoreConvertTruncation>(expr->get_node())) {
@@ -761,6 +796,15 @@ void StoreConvertEmitter::emit_isa(const std::vector<size_t> &in, const std::vec
 
 void StoreConvertEmitter::emit_data() const {
     store_emitter->emit_data();
+}
+
+void StoreConvertEmitter::print_debug_info() const {
+    std::cerr << "Node name:" << store_convert_node->get_friendly_name() << std::endl;
+    std::cerr << "Emitter type name:" << get_type_name(this) << std::endl;
+    if (store_emitter) {
+        std::cerr << "underlying jit_store_emitter status is:" << std::endl;
+        store_emitter->print_debug_info();
+    }
 }
 
 
