@@ -28,7 +28,7 @@ from openvino.runtime.opset1.ops import ceiling
 from openvino.runtime.opset1.ops import ceiling as ceil
 from openvino.runtime.opset1.ops import clamp
 from openvino.runtime.opset1.ops import concat
-from openvino.runtime.opset1.ops import constant
+from openvino.runtime.opset13.ops import constant
 from openvino.runtime.opset1.ops import convert
 from openvino.runtime.opset1.ops import convert_like
 from openvino.runtime.opset1.ops import convolution
