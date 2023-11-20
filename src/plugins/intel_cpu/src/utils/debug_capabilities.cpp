@@ -310,28 +310,28 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
         comma = ",";
     }
 
-    if (node.getType() == intel_cpu::Type::Input && node.isConstant()) {
-        if (auto input_node = reinterpret_cast<intel_cpu::node::Input *>(&node)) {
-            auto pmem = input_node->getMemoryPtr();
-            void * data = pmem->getData();
-            auto shape = pmem->getDesc().getShape().getDims();
+    // if (node.getType() == intel_cpu::Type::Input && node.isConstant()) {
+    //     if (auto input_node = reinterpret_cast<intel_cpu::node::Input *>(&node)) {
+    //         auto pmem = input_node->getMemoryPtr();
+    //         void * data = pmem->getData();
+    //         auto shape = pmem->getDesc().getShape().getDims();
 
-            if (shape_size(shape) <= 8) {
-                auto type = pmem->getDesc().getPrecision();
-                auto tensor = ov::Tensor(type, shape, data);
-                auto constop = std::make_shared<ov::op::v0::Constant>(tensor);
-                comma = "";
-                for (auto & v : constop->get_value_strings()) {
-                    os << comma << v;
-                    comma = ",";
-                }
-            } else {
-                os << "...";
-            }
-        } else {
-            os << "?";
-        }
-    }
+    //         if (shape_size(shape) <= 8) {
+    //             auto type = pmem->getDesc().getPrecision();
+    //             auto tensor = std::make_shared<ngraph::runtime::HostTensor>(type, shape, data);
+    //             auto constop = std::make_shared<ov::op::v0::Constant>(tensor);
+    //             comma = "";
+    //             for (auto & v : constop->get_value_strings()) {
+    //                 os << comma << v;
+    //                 comma = ",";
+    //             }
+    //         } else {
+    //             os << "...";
+    //         }
+    //     } else {
+    //         os << "?";
+    //     }
+    // }
 
     // additional properties
     if (node.getType() == intel_cpu::Type::Eltwise) {

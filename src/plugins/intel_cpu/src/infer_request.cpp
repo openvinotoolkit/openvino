@@ -18,6 +18,7 @@
 #include "proxy_mem_mgr.h"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
+#include "utils/profiler.hpp"
 
 using OvString = ov::element_type_traits<ov::element::string>::value_type;
 
@@ -108,6 +109,8 @@ void SyncInferRequest::infer() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, m_profiling_task);
     auto graphLock = m_compiled_model->get_graph();
     m_graph = &(graphLock._graph);
+
+    PROFILE(_prof, "SyncInferRequest::infer");
 
     throw_if_canceled();
     convert_batched_tensors();
