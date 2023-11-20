@@ -479,7 +479,6 @@ std::shared_ptr<ov::Model> FrontEnd::decode(const ov::frontend::InputModel::Ptr&
 }
 
 void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) const {
-    std::cout << "convert part m" << std::endl;
     std::map<std::string, std::unordered_set<std::string>> names;
 
     for (const auto& result : partiallyConverted->get_results()) {
