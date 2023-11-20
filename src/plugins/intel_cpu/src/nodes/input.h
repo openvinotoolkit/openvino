@@ -40,6 +40,9 @@ public:
     bool needShapeInfer() const override { return false; }
     bool needPrepareParams() const override { return false; }
 
+protected:
+    void resetMemoryPtr(const MemoryCPtr& mem);
+
 private:
     void cloneBlobIfRequired();
     void initSupportedPdDefault();

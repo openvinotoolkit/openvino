@@ -14,6 +14,16 @@ void ProxyMemoryMngr::setMemMngr(std::shared_ptr<IMemoryMngr> pMngr) {
     }
 
     m_pMngr = pMngr;
+    notifyUpdate();
+}
+
+void ProxyMemoryMngr::setMemMngrResize(std::shared_ptr<IMemoryMngr> pMngr) {
+    OPENVINO_ASSERT(pMngr, "Attempt to set null memory manager to a ProxyMemoryMngr object");
+    if (m_pMngr == pMngr) {
+        return;
+    }
+
+    m_pMngr = pMngr;
     m_pMngr->resize(m_size);
     notifyUpdate();
 }
