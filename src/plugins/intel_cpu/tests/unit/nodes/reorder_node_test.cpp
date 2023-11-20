@@ -19,7 +19,6 @@
 #include "cache/multi_cache.h"
 #include "nodes/input.h"
 
-using namespace InferenceEngine;
 using namespace ov::intel_cpu;
 namespace ReorderCPUTest {
 inline void checkReorder(const ov::intel_cpu::IMemory& inputMemory,
@@ -96,7 +95,7 @@ struct ReorderCustomImplTestParamSet {
 };
 
 struct ReorderCPUTestParamSet {
-    ngraph::PartialShape inputPartialShape;
+    ov::PartialShape inputPartialShape;
     // logical dimension vector  of input
     std::vector<std::vector<size_t>> inputShapes;
     LayoutType srcLayout;

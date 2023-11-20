@@ -4,7 +4,6 @@
 #include <gtest/gtest.h>
 
 #include "custom_shape_infer.hpp"
-#include "ie_ngraph_utils.hpp"
 #include "openvino/cc/factory.h"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type.hpp"

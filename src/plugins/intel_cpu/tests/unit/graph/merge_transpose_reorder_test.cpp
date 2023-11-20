@@ -9,7 +9,6 @@
 #include "nodes/transpose.h"
 
 #include "ov_models/builders.hpp"
-#include "ie_ngraph_utils.hpp"
 
 using namespace ov::intel_cpu;
 
@@ -69,9 +68,9 @@ protected:
         // ov::Model with only a transpose node
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(testPrec, ov::Shape(testShape))};
         auto order = std::vector<int32_t>{0, 3, 1, 2};
-        auto constOrder = ngraph::builder::makeConstant(ngraph::element::i32, {order.size()}, order);
-        auto transpose = std::make_shared<ngraph::opset5::Transpose>(params[0], constOrder);
-        ov::ResultVector results{std::make_shared<ngraph::opset5::Result>(transpose)};
+        auto constOrder = ngraph::builder::makeConstant(ov::element::i32, {order.size()}, order);
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(params[0], constOrder);
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose)};
 
         // Replicate
         auto replicate = [&](std::vector<NodePtr> &nodes, std::vector<EdgePtr> &edges) -> void {

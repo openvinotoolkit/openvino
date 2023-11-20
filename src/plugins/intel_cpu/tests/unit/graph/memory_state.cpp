@@ -6,7 +6,6 @@
 #include "dummy_node.hpp"
 
 #include "ov_models/builders.hpp"
-#include "ie_ngraph_utils.hpp"
 #include "nodes/memory.hpp"
 #include "nodes/softmax.h"
 
