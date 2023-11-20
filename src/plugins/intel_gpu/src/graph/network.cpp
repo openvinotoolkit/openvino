@@ -684,7 +684,7 @@ void network::set_arguments() {
                 // In that case some_op is static and we may want to set arguments once,
                 // but dynamic optimized out reshape means that output buffer of reshape is unavailable
                 // and attempt to set args will fail.
-                if (dep.first->can_be_optimized() && dep.first->is_dynamic())
+                if (dep.first->can_be_optimized() && (dep.first->is_dynamic() || dep.first->get_node().is_type<read_value>()))
                     can_set_args = false;
             }
 
@@ -1649,10 +1649,14 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
 void network::set_variable(const std::string& name, const std::shared_ptr<ov::intel_gpu::VariableState>& variable) {
     GPU_DEBUG_TRACE_DETAIL << "Set variable " << name << " " << variable->get_layout().to_short_string() << std::endl;
     _variables_states[name] = variable;
-    for (auto& inst : _variable_state_primitives.at(name)) {
-        if (variable->get_layout().is_static())
-            inst->set_output_memory(variable->get_memory(), false, 0);
-    }
+    // for (auto& inst : _variable_state_primitives.at(name)) {
+    //     if (variable->get_layout().is_static())
+    //         inst->set_output_memory(variable->get_memory(), false, 0);
+    // }
+}
+
+bool network::has_variable(const std::string &variable_id) const {
+    return _variables_states.find(variable_id) != _variables_states.end();
 }
 
 ov::intel_gpu::VariableState& network::get_variable(const std::string &variable_id) const {

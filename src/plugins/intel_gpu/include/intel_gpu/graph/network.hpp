@@ -220,6 +220,7 @@ public:
     }
 
     void set_variable(const std::string& name, const std::shared_ptr<ov::intel_gpu::VariableState>& variable);
+    bool has_variable(const std::string &variable_id) const;
     ov::intel_gpu::VariableState& get_variable(const std::string &variable_id) const;
     const ov::intel_gpu::VariableStateInfo& get_variable_info(const std::string &variable_id) const;
     const ov::intel_gpu::VariablesMap& get_variables() const;

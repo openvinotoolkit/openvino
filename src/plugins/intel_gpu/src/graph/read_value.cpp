@@ -11,7 +11,7 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(read_value)
 
 read_value_inst::typed_primitive_inst(network& network, const read_value_node& node) :
-    parent(network, node, false),
+    parent(network, node, !node.can_be_optimized() && (node.get_output_layout().is_static() || node.get_output_layout().has_upper_bound())),
     memory_state::variable{node.get_primitive()->variable_id} {
 }
 
@@ -29,6 +29,18 @@ std::string read_value_inst::to_string(const read_value_node& node) {
     std::stringstream primitive_description;
     node_info->dump(primitive_description);
     return primitive_description.str();
+}
+
+void read_value_inst::on_execute() {
+    update_output_memory();
+}
+
+void read_value_inst::update_output_memory() {
+    if (!can_be_optimized() || !get_network().has_variable(variable_id()))
+        return;
+
+    const auto& variable = get_network().get_variable(variable_id());
+    set_output_memory(variable.get_memory(), false, 0);
 }
 
 void read_value_inst::save(cldnn::BinaryOutputBuffer& ob) const {

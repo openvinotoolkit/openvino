@@ -22,7 +22,7 @@ struct VariableStateInfo {
 
 class VariableState : public ov::IVariableState {
 public:
-    VariableState(const VariableStateInfo& info, cldnn::engine& engine, cldnn::ShapePredictor& shape_predictor);
+    VariableState(const VariableStateInfo& info, cldnn::engine& engine, std::shared_ptr<cldnn::ShapePredictor> shape_predictor);
     using Ptr = std::shared_ptr<VariableState>;
 
     void reset() override;
@@ -38,7 +38,7 @@ public:
 private:
     cldnn::layout m_layout;
     cldnn::engine& m_engine;
-    cldnn::ShapePredictor& m_shape_predictor;
+    std::shared_ptr<cldnn::ShapePredictor> m_shape_predictor;
     bool m_is_set = false;
     cldnn::memory::ptr m_memory = nullptr;
     size_t actual_size = 0;

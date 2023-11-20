@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "prepare_buffer_fusing.h"
+#include "intel_gpu/primitives/read_value.hpp"
 #include "pooling_inst.h"
 #include "primitive_inst.h"
 #include "activation_inst.h"
 #include "concatenation_inst.h"
 #include "crop_inst.h"
 #include "eltwise_inst.h"
+#include "read_value_inst.h"
 #include "reshape_inst.h"
 #include "depth_to_space_inst.h"
 #include "resample_inst.h"
@@ -601,6 +603,37 @@ void prepare_buffer_fusing::run(program& p) {
                 node.adjust_output_padding();
 
             node.can_be_optimized(can_reshape_be_optimized(node));
+        });
+        program_helpers::do_for_types<read_value>(*node, [](read_value_node& node) {
+            // Current implementation allows to avoid copy on read_value primitive
+            // only in cases when it has single user
+            // Otherwise we may face an issue with exeuction of read_value users and assign to the same variable
+            // Graph below is an example of unsupported case
+            //     ┌────────┐     ┌───────┐
+            //     │ Param1 │     │ Const │
+            //     └───┬────┘     └───┬───┘
+            //         │              │
+            //         │         ┌────┴──────┐
+            //  .......│.........│ ReadValue │
+            //  .      │         └────┬─────┬┘
+            //  .      │              │     │
+            //  .      │   ┌─────┐    │     │
+            //  .      └───┤ Add ├────┘     │
+            //  .          └──┬──┘          │
+            //  .             │             │
+            //  .             │             │
+            //  . ┌────────┐  │    ┌─────┐  │
+            //  ..│ Assign ├──┴────┤ Add ├──┘
+            //    └────────┘       └──┬──┘
+            //                        │
+            //                        │
+            //                   ┌────┴──────┐
+            //                   │  Result   │
+            //                   └───────────┘
+            // If read_value here returns virable memory w/o copy, then based on Add-s and Assign execution order we may have different results
+            // TODO: Allow optimizations for the case above too. Looks like it can be achieved by more careful
+            // topological sort (i.e. if we ensure that all read_value users are completed before assign is run)
+            node.can_be_optimized(node.get_users().size() == 1);
         });
     }
 }

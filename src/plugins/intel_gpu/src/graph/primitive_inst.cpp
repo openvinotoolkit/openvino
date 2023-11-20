@@ -451,7 +451,6 @@ event::ptr primitive_inst::realloc_if_needed() {
         std::string variable_id = stateful_prim->variable_id();
         auto variable = get_network().get_variable(variable_id);
         variable.set_layout(actual_layout);
-        return ev;
     }
 
     bool can_reuse_buffer = _outputs[0] && actual_layout.count() <= max_output_layout_size;

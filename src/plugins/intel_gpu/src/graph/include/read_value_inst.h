@@ -37,6 +37,11 @@ public:
 
     void save(cldnn::BinaryOutputBuffer& ob) const override;
     void load(cldnn::BinaryInputBuffer& ib) override;
+
+    void update_output_memory() override;
+
+protected:
+    void on_execute() override;
 };
 
 using read_value_inst = typed_primitive_inst<read_value>;
