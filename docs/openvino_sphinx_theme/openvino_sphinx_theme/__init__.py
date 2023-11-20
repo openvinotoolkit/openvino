@@ -9,7 +9,7 @@ from pathlib import Path
 from bs4 import BeautifulSoup
 from sphinx.util import logging
 from pydata_sphinx_theme import index_toctree
-from .directives.code import DoxygenSnippet, Scrollbox, Nodescrollbox, visit_scrollbox, depart_scrollbox
+from .directives.code import DoxygenSnippet, Scrollbox, Nodescrollbox, visit_scrollbox, depart_scrollbox, Showcase, Nodeshowcase, visit_showcase, depart_showcase
 
 SPHINX_LOGGER = logging.getLogger(__name__)
 
@@ -220,9 +220,15 @@ def setup(app):
     app.add_html_theme('openvino_sphinx_theme', theme_path)
     rst.directives.register_directive('doxygensnippet', DoxygenSnippet)
     rst.directives.register_directive('scrollbox', Scrollbox)
+    rst.directives.register_directive('showcase', Showcase)
     app.add_node(
         Nodescrollbox,
         html=(visit_scrollbox, depart_scrollbox),
         latex=(visit_scrollbox, depart_scrollbox)
+    )
+    app.add_node(
+    Nodeshowcase,
+    html=(visit_showcase, depart_showcase),
+    latex=(visit_showcase, depart_showcase)
     )
     return {'parallel_read_safe': True, 'parallel_write_safe': True}

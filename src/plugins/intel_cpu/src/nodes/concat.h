@@ -7,7 +7,6 @@
 #include <ie_common.h>
 #include <node.h>
 #include <string>
-#include <ie_precision.hpp>
 #include <graph_context.h>
 
 namespace ov {
@@ -28,7 +27,7 @@ public:
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
-    InferenceEngine::Precision getRuntimePrecision() const override;
+    ov::element::Type getRuntimePrecision() const override;
 
     bool isExecutable() const override;
     bool needPrepareParams() const override;
@@ -47,8 +46,8 @@ private:
     std::vector<size_t> dstOffset; // dst offset for each input
     std::vector<const uint8_t*> srcPtrs;
     bool hasOuterLoop = false;
-    InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
-    InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
+    ov::element::Type inputPrecision = ov::element::f32;
+    ov::element::Type outputPrecision = ov::element::f32;
     bool canExecRef = false;
     static constexpr size_t MAX_RANK_REF = 6;
     dnnl::primitive prim;

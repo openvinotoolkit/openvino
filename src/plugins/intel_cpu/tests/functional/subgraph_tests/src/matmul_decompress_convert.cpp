@@ -216,7 +216,7 @@ protected:
         }
         expectedWeiConstElemType = weiConstElemType;
 
-        auto matMul = builder::makeMatMul(params[0], inputB, transpA, transpB);
+        auto matMul = std::make_shared<ov::op::v0::MatMul>(params[0], inputB, transpA, transpB);
 
         function = CPUTestsBase::makeNgraphFunction(netType, params, matMul, cpuNodeType);
     }
@@ -501,10 +501,10 @@ protected:
         // In this test, convert must be folded on the ngraph side, so the constant with fp32 precision is expected
         expectedWeiConstElemType = ElementType::f32;
 
-        auto matMul0 = builder::makeMatMul(params[0], inputWeights, transpA, transpB);
-        auto matMul1 = builder::makeMatMul(params[1], inputWeights, transpA, transpB);
+        auto matMul0 = std::make_shared<ov::op::v0::MatMul>(params[0], inputWeights, transpA, transpB);
+        auto matMul1 = std::make_shared<ov::op::v0::MatMul>(params[1], inputWeights, transpA, transpB);
 
-        auto concat = builder::makeConcat({matMul0, matMul1}, 0);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{matMul0, matMul1}, 0);
 
         function = CPUTestsBase::makeNgraphFunction(netType, params, concat, cpuNodeType);
     }
