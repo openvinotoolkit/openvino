@@ -120,8 +120,8 @@ def fake_convert(
 ) -> Node:
     """Return a node which performs FakeConvert.
 
-    FakeConvert is in experimental and subject to future changes.
-    .. warning:: FakeConvert is in experimental and subject to future changes.
+    FakeConvert is experimental and may change in the future.
+    .. warning:: FakeConvert is experimental and may change in the future.
 
     :param data: The node with data tensor with FP16 or FP32 datatype.
     :param scale: Tensor with a scale factor for the data input value,
