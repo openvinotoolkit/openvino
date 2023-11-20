@@ -1703,7 +1703,7 @@ void Graph::EnforceInferencePrecision() {
         if (nodesToSkip.count(node) && !node->enforceBF16evenForGraphTail)
             continue;
 
-        if (one_of(node->getType(), Type::Input, Type::Output))
+        if (one_of(node->getType(), Type::Input, Type::Output, Type::MemoryInput, Type::MemoryOutput))
             continue;
 
 #ifdef CPU_DEBUG_CAPS
