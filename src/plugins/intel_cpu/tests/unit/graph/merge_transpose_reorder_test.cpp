@@ -3,81 +3,15 @@
 //
 #include <gtest/gtest.h>
 
-#include "node.h"
+#include "dummy_node.hpp"
 #include "nodes/reorder.h"
 #include "nodes/input.h"
 #include "nodes/transpose.h"
-#include "graph.h"
-#include "edge.h"
 
 #include "ov_models/builders.hpp"
-#include <shape_inference/shape_inference_pass_through.hpp>
 #include "ie_ngraph_utils.hpp"
 
 using namespace ov::intel_cpu;
-
-namespace MergeTransposeReorderCPUTest {
-class DummyNode : public Node {
-public:
-    DummyNode(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
-            Node(op, context, PassThroughShapeInferFactory()) {
-        OPENVINO_THROW("Can't create DummyNode from ngraph node");
-    }
-    DummyNode(const ov::Shape& shape,
-            const ov::element::Type_t& prc,
-            const std::string& name,
-            const std::string& type,
-            const GraphContext::CPtr context) :
-        Node(type, name, context) {
-        // dummy node of the same shape and precision to both input and output.
-        outputShapes.emplace_back(shape);
-        inputShapes.emplace_back(shape);
-        addOriginalOutputPrecision(InferenceEngine::details::convertPrecision(prc));
-        addOriginalInputPrecision(InferenceEngine::details::convertPrecision(prc));
-    }
-
-    void getSupportedDescriptors() override {
-        if (getParentEdges().size() != 1)
-            OPENVINO_THROW("Incorrect number of input edges for layer " + getName());
-        if (getChildEdges().empty())
-            OPENVINO_THROW("Incorrect number of output edges for layer " + getName());
-    }
-
-    void initSupportedPrimitiveDescriptors() override {
-        if (!supportedPrimitiveDescriptors.empty())
-            return;
-
-        NodeConfig config;
-        config.inConfs.resize(1);
-        config.outConfs.resize(1);
-
-        config.inConfs[0].inPlace(m_inplace & Edge::LOOK::LOOK_DOWN ? 0 : -1);
-        config.inConfs[0].constant(false);
-        config.outConfs[0].inPlace(m_inplace & Edge::LOOK::LOOK_UP ? 0 : -1);
-        config.outConfs[0].constant(false);
-
-        auto layoutCreator = BlockedDescCreator::getCommonCreators().at(m_layout);
-        auto& originInputPrecisions = getOriginalInputPrecisions();
-        config.inConfs[0].setMemDesc(layoutCreator->createSharedDesc(originInputPrecisions[0], getInputShapeAtPort(0)));
-        config.outConfs[0].setMemDesc(layoutCreator->createSharedDesc(originInputPrecisions[0], getOutputShapeAtPort(0)));
-
-        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::undef);
-    };
-
-    void setLayout(LayoutType layout) {m_layout = layout;}
-    void setInplaceDirection(Edge::LOOK look) {m_inplace = look;}
-
-    bool isExecutable() const override {return false;}
-    void execute(dnnl::stream strm) override {};
-    bool created() const override {return true;}
-
-private:
-    LayoutType m_layout = LayoutType::ncsp;
-    Edge::LOOK m_inplace = Edge::LOOK::LOOK_UP;
-};
-} // namespace MergeTransposeReorderCPUTest
-
-using namespace MergeTransposeReorderCPUTest;
 
 /*
  * MergeTransposeReorderIsOptimizedCPUTest to test the CPU plugin-in MergeTransposeReorder graph optimizer
@@ -154,9 +88,8 @@ protected:
             auto inputNode = std::make_shared<node::Input>(params[0], context);
 
             // dummy ncsp + inPlace LOOK_UP
-            auto dummyNode1 = std::make_shared<MergeTransposeReorderCPUTest::DummyNode>(testShape, testPrec, "reshape", "DummyNode", context);
-            dummyNode1->setLayout(LayoutType::ncsp);
-            dummyNode1->setInplaceDirection(Edge::LOOK::LOOK_UP);
+            auto dummyNode1 = std::make_shared<cpu_unit_test::DummyNode>(
+                testShape, testPrec, "reshape", "DummyNode", context, LayoutType::ncsp, Edge::LOOK::LOOK_UP);
 
             auto orderNode = std::make_shared<node::Input>(constOrder, context); // const order
             auto transposeNode = std::make_shared<node::Transpose>(transpose, context);
@@ -164,9 +97,8 @@ protected:
 
             // dummy nspc + inPlace LOOK_DOWN
             const ov::Shape shape_tranpose{testShape[0], testShape[3], testShape[1], testShape[2]};  // shape after transpose
-            auto dummyNode2 = std::make_shared<MergeTransposeReorderCPUTest::DummyNode>(shape_tranpose, testPrec, "multiply", "DummyNode", context);
-            dummyNode2->setLayout(LayoutType::nspc);
-            dummyNode2->setInplaceDirection(Edge::LOOK::LOOK_DOWN);
+            auto dummyNode2 = std::make_shared<cpu_unit_test::DummyNode>(
+                shape_tranpose, testPrec, "multiply", "DummyNode", context, LayoutType::nspc, Edge::LOOK::LOOK_DOWN);
 
             auto outputNode = std::make_shared<node::Input>(results[0], context);
 

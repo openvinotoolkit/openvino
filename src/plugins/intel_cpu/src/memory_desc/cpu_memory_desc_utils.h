@@ -10,6 +10,8 @@
 
 #include <ie_layouts.h>
 #include <ie_blob.h>
+#include <openvino/runtime/so_ptr.hpp>
+#include <openvino/runtime/itensor.hpp>
 
 namespace ov {
 namespace intel_cpu {
@@ -45,6 +47,13 @@ public:
      * @return converted CpuBlockedMemoryDesc
      */
     static CpuBlockedMemoryDesc convertToCpuBlockedMemoryDesc(const InferenceEngine::TensorDesc& desc);
+
+    /**
+     * @brief Builds CpuBlockedMemoryDesc for given ov::ITensor
+     * @param tensor is a pointer to ov::ITensor object
+     * @return created CpuBlockedMemoryDesc
+     */
+    static std::shared_ptr<CpuBlockedMemoryDesc> generateCpuBlockedMemoryDesc(const ov::SoPtr<ov::ITensor>& tensor);
 
     /**
      * @brief Converts InferenceEngine::TensorDesc to DnnlBlockedMemoryDesc

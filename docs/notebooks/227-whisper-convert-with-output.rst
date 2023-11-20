@@ -26,7 +26,6 @@ Whisper pipeline with OpenVINO models.
 
 **Table of contents:**
 
-
 -  `Prerequisites <#prerequisites>`__
 -  `Instantiate model <#instantiate-model>`__
 
@@ -45,21 +44,25 @@ Whisper pipeline with OpenVINO models.
    pipeline <#run-video-transcription-pipeline>`__
 -  `Interactive demo <#interactive-demo>`__
 
-Prerequisites 
--------------------------------------------------------
+Prerequisites
+-------------
+
+
 
 Install dependencies.
 
 .. code:: ipython3
 
     %pip install -q "openvino>=2023.1.0"
-    %pip install -q "python-ffmpeg<=1.0.16" moviepy transformers onnx
+    %pip install -q "python-ffmpeg<=1.0.16" moviepy transformers
     %pip install -q -I "git+https://github.com/garywu007/pytube.git"
     %pip install -q -U gradio
-    %pip install -q -I "git+https://github.com/openai/whisper.git@e8622f9afc4eba139bf796c210f5c01081000472"
+    %pip install -q -I "git+https://github.com/openai/whisper.git@fcfeaf1b61994c071bba62da47d7846933576ac9"
 
-Instantiate model 
------------------------------------------------------------
+Instantiate model
+-----------------
+
+
 
 Whisper is a Transformer based encoder-decoder model, also referred to
 as a sequence-to-sequence model. It maps a sequence of audio spectrogram
@@ -84,16 +87,39 @@ Whisper family.
 
 .. code:: ipython3
 
+    from whisper import _MODELS
+    import ipywidgets as widgets
+    
+    model_id = widgets.Dropdown(
+        options=list(_MODELS),
+        value='large-v2',
+        description='Model:',
+        disabled=False,
+    )
+    
+    model_id
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Model:', index=9, options=('tiny.en', 'tiny', 'base.en', 'base', 'small.en', 'small', 'm…
+
+
+
+.. code:: ipython3
+
     import whisper
     
-    model_id = "base"
-    model = whisper.load_model("base")
-    model.to("cpu")
+    model = whisper.load_model(model_id.value, "cpu")
     model.eval()
     pass
 
-Convert model to OpenVINO Intermediate Representation (IR) format. 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Convert model to OpenVINO Intermediate Representation (IR) format.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. We need to provide initialized model object and
@@ -103,35 +129,33 @@ function returns an OpenVINO model ready to load on device and start
 making predictions. We can save it on disk for next usage with
 ``ov.save_model``.
 
-Convert Whisper Encoder to OpenVINO IR 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Convert Whisper Encoder to OpenVINO IR
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
     from pathlib import Path
     
-    WHISPER_ENCODER_OV = Path("whisper_encoder.xml")
-    WHISPER_DECODER_OV = Path("whisper_decoder.xml")
+    WHISPER_ENCODER_OV = Path(f"whisper_{model_id.value}_encoder.xml")
+    WHISPER_DECODER_OV = Path(f"whisper_{model_id.value}_decoder.xml")
 
 .. code:: ipython3
 
     import torch
     import openvino as ov
     
-    mel = torch.zeros((1, 80, 3000))
+    mel = torch.zeros((1, 80 if 'v3' not in model_id.value else 128, 3000))
     audio_features = model.encoder(mel)
-    encoder_model = ov.convert_model(model.encoder, example_input=mel)
-    ov.save_model(encoder_model, WHISPER_ENCODER_OV)
+    if not WHISPER_ENCODER_OV.exists():
+        encoder_model = ov.convert_model(model.encoder, example_input=mel)
+        ov.save_model(encoder_model, WHISPER_ENCODER_OV)
+
+Convert Whisper decoder to OpenVINO IR
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
-.. parsed-literal::
-
-    /home/ea/work/ov_venv/lib/python3.8/site-packages/whisper/model.py:166: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      assert x.shape[1:] == self.positional_embedding.shape, "incorrect audio shape"
-
-
-Convert Whisper decoder to OpenVINO IR 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To reduce computational complexity, the decoder uses cached key/value
 projections in attention modules from the previous steps. We need to
@@ -265,16 +289,10 @@ modify this process for correct tracing.
     logits, kv_cache = model.decoder(tokens, audio_features, kv_cache=None)
     
     tokens = torch.ones((5, 1), dtype=torch.int64)
-    decoder_model = ov.convert_model(model.decoder, example_input=(tokens, audio_features, kv_cache))
     
-    ov.save_model(decoder_model, WHISPER_DECODER_OV)
-
-
-.. parsed-literal::
-
-    /home/ea/work/ov_venv/lib/python3.8/site-packages/torch/jit/_trace.py:154: UserWarning: The .grad attribute of a Tensor that is not a leaf Tensor is being accessed. Its .grad attribute won't be populated during autograd.backward(). If you indeed want the .grad field to be populated for a non-leaf Tensor, use .retain_grad() on the non-leaf Tensor. If you access the non-leaf Tensor by mistake, make sure you access the leaf Tensor instead. See github.com/pytorch/pytorch/pull/30531 for more informations. (Triggered internally at aten/src/ATen/core/TensorBody.h:486.)
-      if a.grad is not None:
-
+    if not WHISPER_DECODER_OV.exists():
+        decoder_model = ov.convert_model(model.decoder, example_input=(tokens, audio_features, kv_cache))
+        ov.save_model(decoder_model, WHISPER_DECODER_OV)
 
 The decoder model autoregressively predicts the next token guided by
 encoder hidden states and previously predicted sequence. This means that
@@ -283,8 +301,10 @@ tokens and attention hidden states from previous step) are dynamic. For
 efficient utilization of memory, you define an upper bound for dynamic
 input shapes.
 
-Prepare inference pipeline 
---------------------------------------------------------------------
+Prepare inference pipeline
+--------------------------
+
+
 
 The image below illustrates the pipeline of video transcribing using the
 Whisper model.
@@ -338,8 +358,10 @@ select device from dropdown list for running inference using OpenVINO
     model.encoder = OpenVINOAudioEncoder(core, WHISPER_ENCODER_OV, device=device.value)
     model.decoder = OpenVINOTextDecoder(core, WHISPER_DECODER_OV, device=device.value)
 
-Run video transcription pipeline 
---------------------------------------------------------------------------
+Run video transcription pipeline
+--------------------------------
+
+
 
 Now, we are ready to start transcription. We select a video from YouTube
 that we want to transcribe. Be patient, as downloading the video may
@@ -389,7 +411,7 @@ take some time.
 
     from utils import get_audio
     
-    audio = get_audio(output_file)
+    audio, duration = get_audio(output_file)
 
 Select the task for the model:
 
@@ -431,7 +453,7 @@ into video files using ``ffmpeg``.
 
     from utils import prepare_srt
     
-    srt_lines = prepare_srt(transcription)
+    srt_lines = prepare_srt(transcription, filter_duration=duration)
     # save transcription
     with output_file.with_suffix(".srt").open("w") as f:
         f.writelines(srt_lines)
@@ -464,45 +486,39 @@ Now let us see the results.
     
     2
     00:00:05,000 --> 00:00:07,000
-     Oh wow.
+     Wow.
     
     3
-    00:00:07,000 --> 00:00:09,000
-     Excuse me.
+    00:00:07,000 --> 00:00:10,000
+     Hello, humans.
     
     4
-    00:00:09,000 --> 00:00:11,000
-     Hello humans.
-    
-    5
-    00:00:13,000 --> 00:00:15,000
+    00:00:10,000 --> 00:00:15,000
      Focus on me.
     
-    6
-    00:00:15,000 --> 00:00:17,000
+    5
+    00:00:15,000 --> 00:00:16,000
      Focus on the guard.
     
-    7
-    00:00:17,000 --> 00:00:20,000
+    6
+    00:00:16,000 --> 00:00:20,000
      Don't tell anyone what you've seen in here.
     
-    8
-    00:00:22,000 --> 00:00:24,000
+    7
+    00:00:20,000 --> 00:00:24,000
      Have you seen what's in there?
     
-    9
-    00:00:24,000 --> 00:00:25,000
-     They have.
-    
-    10
-    00:00:25,000 --> 00:00:27,000
+    8
+    00:00:24,000 --> 00:00:30,000
      Intel. This is where it all changes.
     
     
 
 
-Interactive demo 
-----------------------------------------------------------
+Interactive demo
+----------------
+
+
 
 .. code:: ipython3
 
@@ -513,9 +529,9 @@ Interactive demo
         output_file = Path("downloaded_video.mp4")
         yt = YouTube(url)
         yt.streams.get_highest_resolution().download(filename=output_file)
-        audio = get_audio(output_file)
+        audio, duration = get_audio(output_file)
         transcription = model.transcribe(audio, task=task.lower())
-        srt_lines = prepare_srt(transcription)
+        srt_lines = prepare_srt(transcription, duration)
         with output_file.with_suffix(".srt").open("w") as f:
             f.writelines(srt_lines)
         return [str(output_file), str(output_file.with_suffix(".srt"))]
@@ -535,3 +551,22 @@ Interactive demo
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
+
+
+.. parsed-literal::
+
+    Running on local URL:  http://127.0.0.1:7862
+    
+    To create a public link, set `share=True` in `launch()`.
+
+
+
+.. .. raw:: html
+
+..     <div><iframe src="http://127.0.0.1:7862/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
+.. parsed-literal::
+
+    Keyboard interruption in main thread... closing server.
+

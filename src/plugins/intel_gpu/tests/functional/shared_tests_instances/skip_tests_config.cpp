@@ -121,5 +121,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*ReverseLayerTest.*mask.*f16.*)",
             // Issue: 123516
             R"(.*RandomUniformLayerTest.*f16.*)",
+            // Issue: 125165
+            R"(smoke_Nms9LayerTest.*)",
     };
 }

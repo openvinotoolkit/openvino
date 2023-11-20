@@ -26,7 +26,8 @@ def parse_and_check_command_line():
     def arg_not_empty(arg_value,empty_value):
         return not arg_value is None and not arg_value == empty_value
 
-    args, parser = parse_args()
+    parser = parse_args()
+    args = parser.parse_args()
 
     if args.latency_percentile < 1 or args.latency_percentile > 100:
         parser.print_help()
@@ -328,7 +329,7 @@ def main():
         topology_name = ""
         load_from_file_enabled = is_flag_set_in_command_line('load_from_file') or is_flag_set_in_command_line('lfile')
         if load_from_file_enabled and not is_network_compiled:
-            if not args.mean_values or not args.scale_values:
+            if args.mean_values or args.scale_values:
                 raise RuntimeError("--mean_values and --scale_values aren't supported with --load_from_file. "
                     "The values can be set via model_optimizer while generating xml")
             next_step()
@@ -414,7 +415,7 @@ def main():
                                               ('compile model time (ms)', duration_ms)
                                           ])
         else:
-            if not args.mean_values or not args.scale_values:
+            if args.mean_values or args.scale_values:
                 raise RuntimeError("--mean_values and --scale_values aren't supported for compiled model. "
                     "The values can be set via model_optimizer while generating xml")
             next_step()

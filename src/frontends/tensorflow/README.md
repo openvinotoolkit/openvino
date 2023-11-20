@@ -140,15 +140,15 @@ The main rules for loaders implementation:
 
 In rare cases, TensorFlow operation conversion requires two transformations (`Loader` and `Internal Transformation`).
 In the first step, `Loader` must convert a TF operation into [Internal Operation](../tensorflow_common/helper_ops) that is used temporarily by the conversion pipeline.
-The internal operation implementation must also contain the `validate_and_infer_types()` method as similar to [OpenVINO Core](https://docs.openvino.ai/2023.0/groupov_ops_cpp_api.html) operations.
+The internal operation implementation must also contain the `validate_and_infer_types()` method as similar to [OpenVINO Core](https://docs.openvino.ai/2023.2/groupov_ops_cpp_api.html) operations.
 
 Here is an example of an implementation for the internal operation `SparseFillEmptyRows` used to convert Wide and Deep models.
 
 https://github.com/openvinotoolkit/openvino/blob/7f3c95c161bc78ab2aefa6eab8b008142fb945bc/src/frontends/tensorflow/src/helper_ops/sparse_fill_empty_rows.hpp#L17-L55
 
 In the second step, `Internal Transformation` based on `ov::pass::MatcherPass` must convert sub-graphs with internal operations into sub-graphs consisting only of the OpenVINO opset.
-For more information about `ov::pass::MatcherPass` based transformations and their development, read [Overview of Transformations API](https://docs.openvino.ai/2023.0/openvino_docs_transformations.html)
-and [OpenVINO Matcher Pass](https://docs.openvino.ai/2023.0/openvino_docs_Extensibility_UG_matcher_pass.html) documentation.
+For more information about `ov::pass::MatcherPass` based transformations and their development, read [Overview of Transformations API](https://docs.openvino.ai/2023.2/openvino_docs_transformations.html)
+and [OpenVINO Matcher Pass](https://docs.openvino.ai/2023.2/openvino_docs_Extensibility_UG_matcher_pass.html) documentation.
 The internal transformation must be called in the `ov::frontend::tensorflow::FrontEnd::normalize()` method.
 It is important to check the order of applying internal transformations to avoid situations when some internal operation
 breaks a graph pattern with an internal operation for another internal transformation.

@@ -3,7 +3,7 @@
 //
 
 #include "gather_uni_kernel.hpp"
-#include <ie_common.h>
+#include "openvino/core/except.hpp"
 
 using namespace dnnl::impl::cpu;
 
