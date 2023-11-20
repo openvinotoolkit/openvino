@@ -3,10 +3,12 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -42,11 +44,12 @@ OutputVector translate_bias_add_op(const NodeContext& node) {
                 axes_unsqueeze.push_back(dim_ind);
             }
         }
-        auto axes_unsqueeze_node = make_shared<Constant>(element::i64, Shape{axes_unsqueeze.size()}, axes_unsqueeze);
-        bias_reshaped = make_shared<Unsqueeze>(bias, axes_unsqueeze_node);
+        auto axes_unsqueeze_node =
+            make_shared<v0::Constant>(element::i64, Shape{axes_unsqueeze.size()}, axes_unsqueeze);
+        bias_reshaped = make_shared<v0::Unsqueeze>(bias, axes_unsqueeze_node);
     }
 
-    auto res = make_shared<Add>(value, bias_reshaped);
+    auto res = make_shared<v1::Add>(value, bias_reshaped);
     set_node_name(node.get_name(), res);
     return res->outputs();
 }

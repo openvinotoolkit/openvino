@@ -1,5 +1,5 @@
 # System Requirements {#system_requirements}
-
+ 
 @sphinxdirective
 
 
@@ -70,14 +70,14 @@ GPU
         Distribution of OpenVINO™ toolkit package.
       * A chipset that supports processor graphics is required for Intel® Xeon®
         processors. Processor graphics are not included in all processors. See
-       `Product Specifications  <https://ark.intel.com/>`__ 
-       for information about your processor.  
+        `Product Specifications  <https://ark.intel.com/>`__ 
+        for information about your processor.  
       * Although this release works with Ubuntu 20.04 for discrete graphic cards,
         Ubuntu 20.04 is not POR for discrete graphics drivers, so OpenVINO support
         is limited.  
       * The following minimum (i.e., used for old hardware) OpenCL™ driver's versions
         were used during OpenVINO internal validation: 22.43 for Ubuntu 22.04, 21.48
-        for Ubuntu 20.04 and 21.49 for Red Hat Enterprise Linux 8.  
+        for Ubuntu 20.04 and 21.49 for Red Hat Enterprise Linux 8. 
 
 NPU and GNA 
 #############################
@@ -118,11 +118,12 @@ Operating systems and developer environment
       Build environment components:
 
       * Python* 3.8-3.11
-      * Intel® HD Graphics Driver. Required for inference on GPU.
+      * `Intel® HD Graphics Driver <https://downloadcenter.intel.com/product/80939/Graphics-Drivers>`__
+        required for inference on GPU
       * GNU Compiler Collection and CMake are needed for building from source:
 
-        * GNU Compiler Collection (GCC)  7.5 and above
-        * CMake* 3.10 or higher
+        * `GNU Compiler Collection (GCC) <https://www.gnu.org/software/gcc/>`__ 7.5 and above
+        * `CMake <https://cmake.org/download/>`__ 3.10 or higher
 
       Higher versions of kernel might be required for 10th Gen Intel® Core™ Processors,
       11th Gen Intel® Core™ Processors, 11th Gen Intel® Core™ Processors S-Series Processors,
@@ -137,10 +138,11 @@ Operating systems and developer environment
 
       Build environment components:
 
-      * Microsoft Visual Studio* 2019
-      * CMake 3.10 or higher
-      * Python* 3.8-3.11
-      * Intel® HD Graphics Driver (Required only for GPU). 
+      * `Microsoft Visual Studio 2019 <https://visualstudio.microsoft.com/vs/older-downloads/>`__
+      * `CMake <https://cmake.org/download/>`__ 3.10 or higher
+      * `Python* 3.8-3.11 <http://www.python.org/downloads/>`__
+      * `Intel® HD Graphics Driver <https://downloadcenter.intel.com/product/80939/Graphics-Drivers>`__
+        required for inference on GPU
 
    .. tab-item:: macOS
 
@@ -148,9 +150,9 @@ Operating systems and developer environment
 
       Build environment components:
 
-      * Xcode* 10.3
-      * Python 3.8-3.11
-      * CMake 3.10 or higher 
+      * `Xcode* 10.3 <https://developer.apple.com/xcode/>`__
+      * `Python* 3.8-3.11 <http://www.python.org/downloads/>`__
+      * `CMake <https://cmake.org/download/>`__ 3.10 or higher
 
    .. tab-item:: DL frameworks versions:
 

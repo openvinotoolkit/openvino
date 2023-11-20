@@ -142,7 +142,9 @@ public:
 
         {
             auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, input_shape);
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto split = ngraph::builder::makeSplit(params, ngraph::element::i64, m_inputs_num, m_axis);
+            OPENVINO_SUPPRESS_DEPRECATED_END
 
             ngraph::OutputVector concat_inputs;
             for (int i = 0; i < m_inputs_num; ++i) {
@@ -157,7 +159,9 @@ public:
 
         {
             auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, input_shape);
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto split = ngraph::builder::makeSplit(params, ngraph::element::i64, m_inputs_num, m_axis);
+            OPENVINO_SUPPRESS_DEPRECATED_END
 
             ngraph::OutputVector concat_inputs;
             int copy_layer_interval =
@@ -1184,7 +1188,9 @@ TEST_P(InsertCopyLayerSplitMemoryTest, CompareWithRefs) {
         auto variable = std::make_shared<ngraph::Variable>(
             ov::op::util::VariableInfo{allowed_shape, ngraph::element::i64, variable_name});
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto split = ngraph::builder::makeSplit(input, ngraph::element::i64, 1, axis);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         auto init_value = ngraph::builder::makeConstant(ngraph::element::i64, out_shape, std::vector<size_t>{0});
         auto read_value = std::make_shared<ngraph::opset8::ReadValue>(init_value, variable);
         auto assign = std::make_shared<ngraph::opset8::Assign>(split, variable);
@@ -1202,7 +1208,9 @@ TEST_P(InsertCopyLayerSplitMemoryTest, CompareWithRefs) {
         auto variable = std::make_shared<ngraph::Variable>(
             ov::op::util::VariableInfo{allowed_shape, ngraph::element::i64, variable_name});
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto split = ngraph::builder::makeSplit(input, ngraph::element::i64, 1, axis);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         auto copy = std::make_shared<ov::intel_gna::op::Copy>(split);
         auto init_value = ngraph::builder::makeConstant(ngraph::element::i64, out_shape, std::vector<size_t>{0});
         auto read_value = std::make_shared<ngraph::opset8::ReadValue>(init_value, variable);
@@ -1253,7 +1261,9 @@ TEST_P(InsertCopyLayerSplitNFLMemoryTest, CompareWithRefs) {
         auto variable = std::make_shared<ngraph::Variable>(
             ov::op::util::VariableInfo{allowed_shape, ngraph::element::i64, variable_name});
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto split = ngraph::builder::makeSplit(input, ngraph::element::i64, 2, axis);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         auto reshape = ov::op::util::reshapeTo(split, shape);
         auto init_value = ngraph::builder::makeConstant(ngraph::element::i64, out_shape, std::vector<size_t>{0});
         auto read_value = std::make_shared<ngraph::opset8::ReadValue>(init_value, variable);
@@ -1272,7 +1282,9 @@ TEST_P(InsertCopyLayerSplitNFLMemoryTest, CompareWithRefs) {
         auto variable = std::make_shared<ngraph::Variable>(
             ov::op::util::VariableInfo{allowed_shape, ngraph::element::i64, variable_name});
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto split = ngraph::builder::makeSplit(input, ngraph::element::i64, 2, axis);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         auto reshape = ov::op::util::reshapeTo(split, shape);
         auto copy = std::make_shared<ov::intel_gna::op::Copy>(reshape);
         auto init_value = ngraph::builder::makeConstant(ngraph::element::i64, out_shape, std::vector<size_t>{0});
@@ -1648,7 +1660,9 @@ TEST_P(InsertCopyLayerSplitNFLConcatTest, CompareWithRefs) {
 
     {
         auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, input_shape);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto split = ngraph::builder::makeSplit(params, ngraph::element::i64, 1, axis);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         auto reshape = ov::op::util::reshapeTo(split->output(0), shape);
         auto const_value = ngraph::builder::makeConstant(ngraph::element::i64, shape, std::vector<size_t>{1});
         auto concat = std::make_shared<ngraph::opset8::Concat>(ngraph::OutputVector{reshape, const_value}, axis);
@@ -1658,7 +1672,9 @@ TEST_P(InsertCopyLayerSplitNFLConcatTest, CompareWithRefs) {
     }
     {
         auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, input_shape);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto split = ngraph::builder::makeSplit(params, ngraph::element::i64, 1, axis);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         auto reshape = ov::op::util::reshapeTo(split->output(0), shape);
         auto copy = std::make_shared<ov::intel_gna::op::Copy>(reshape);
         auto const_value = ngraph::builder::makeConstant(ngraph::element::i64, shape, std::vector<size_t>{1});
