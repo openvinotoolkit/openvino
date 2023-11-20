@@ -93,7 +93,7 @@ if(ENABLE_FASTER_BUILD)
     set_target_properties(${TARGET_NAME} PROPERTIES UNITY_BUILD ON UNITY_BUILD_MODE GROUP)
     group_source_file(unit_src_nodes ${CMAKE_CURRENT_SOURCE_DIR}/nodes)
     group_source_file(unit_src_snippets_transformations ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations)
-    group_source_file(unit_src_ngrah_transformation ${CMAKE_CURRENT_SOURCE_DIR}/transformations)
+    group_source_file(unit_src_transformations ${CMAKE_CURRENT_SOURCE_DIR}/transformations)
     group_source_file(unit_src_custom_shape_infer ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer)
 endif()
 
