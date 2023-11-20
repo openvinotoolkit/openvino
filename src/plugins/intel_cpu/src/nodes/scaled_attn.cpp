@@ -32,8 +32,11 @@
 #include "kernels/scaled_attn/acc_value.hpp"
 #include "kernels/scaled_attn/reduce.hpp"
 
+#include "common/cpu_convert.h"
+
 using namespace InferenceEngine;
 using namespace InferenceEngine::Extensions::Cpu::XARCH;
+using namespace dnnl::impl::cpu::x64;
 
 namespace ov {
 namespace intel_cpu {
@@ -446,7 +449,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
 #endif
 
 // 2nd token case : only 1 token in query
-template <typename RT>
+template <typename RT, typename T2>
 struct MHASingleToken {
     PlainTensor<float> m_attn_w;
     PlainTensor<float> m_temp;
@@ -468,8 +471,8 @@ struct MHASingleToken {
     // alibi
     // output_emb    [B, L1, H*S]
     void operator()(PlainTensor<RT>& query,
-                    PlainTensor<RT>& present_key,
-                    PlainTensor<RT>& present_value,
+                    PlainTensor<T2>& present_key,
+                    PlainTensor<T2>& present_value,
                     const PlainTensor<float>& alibi_mask,
                     const PlainTensor<float>& attention_mask,
                     PlainTensor<RT>& output_emb,
@@ -493,8 +496,10 @@ struct MHASingleToken {
         parallel_for3d(B, H, kv_len, [&](size_t b, size_t h, size_t pk) {
             // which batch item should be used at postion pk?
             auto b_kv = beams ? beams.at({b, pk}) : b;
-            std::vector<RT*> as(q_len), bs(q_len);
+            std::vector<RT*> as(q_len);
+            std::vector<T2*> bs(q_len);
             std::vector<float*> cs(q_len);
+
             for (size_t pq = 0; pq < q_len; pq++) {
                 as[pq] = &query.at({b, h, pq, 0});
                 bs[pq] = &present_key.at({b_kv, h, pk, 0}, true);
@@ -505,7 +510,8 @@ struct MHASingleToken {
                               reinterpret_cast<void**>(cs.data()),
                               q_len,
                               S,
-                              precision_of<RT>::value);
+                              precision_of<RT>::value,
+                              precision_of<T2>::value);
         });
 
         parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
@@ -539,7 +545,7 @@ struct MHASingleToken {
             size_t b, h, pv;
             if (start < end) {
                 parallel_it_init(start, b, B, h, H, pv, kv_len);
-                std::vector<RT*> vs(q_len * (end - start));
+                std::vector<T2*> vs(q_len * (end - start));
                 std::vector<float> weights(q_len * (end - start));
                 std::vector<float*> outs(q_len * (end - start));
                 size_t idx = 0;
@@ -559,7 +565,7 @@ struct MHASingleToken {
                                 reinterpret_cast<void**>(vs.data()),
                                 q_len * (end - start),
                                 S,
-                                precision_of<RT>::value);
+                                precision_of<T2>::value);
             }
         });
 
@@ -572,7 +578,27 @@ struct MHASingleToken {
     }
 };
 
-template <ScaledDotProductAttention::KernelTypes KType, typename T>
+// tag dispatch
+template <typename T, typename T2>
+void Function(std::true_type,
+            const PlainTensor<T>& k_input,
+            const PlainTensor<T>& v_input,
+            PlainTensor<T2>& past_k_output,
+            PlainTensor<T2>& past_v_output) {
+    past_k_output = k_input;
+    past_v_output = v_input;
+}
+
+template <typename T, typename T2>
+void Function(std::false_type,
+            const PlainTensor<T>& k_input,
+            const PlainTensor<T>& v_input,
+            PlainTensor<T2>& past_k_output,
+            PlainTensor<T2>& past_v_output) {
+    OPENVINO_THROW("The program shouldn't go here!");
+}
+
+template <ScaledDotProductAttention::KernelTypes KType, typename T, typename T2>
 struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAttention::Executor {
     PlainTensor<T> q_input;           // f32[B, H, L1, S]
     PlainTensor<T> k_input;           // f32[B, H|1, L1, S] / [B, H|1, L0+L1, S]
@@ -582,7 +608,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
     float scale_input = 0.0f;
 
     MHAKernel<KType, T> kernel;
-    MHASingleToken<T> kernel_single_token;
+    MHASingleToken<T, T2> kernel_single_token;
 
     size_t B, H, L1, L0, S;
 
@@ -600,51 +626,49 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                        const std::vector<MemoryPtr>& outputs,
                        const PlainTensor<T>& k_input,
                        const PlainTensor<T>& v_input,
-                       PlainTensor<T>& past_k_output,
-                       PlainTensor<T>& past_v_output) {
+                       PlainTensor<T2>& past_k_output,
+                       PlainTensor<T2>& past_v_output) {
         if (config.config.fuse_concat) {
             k_input.assert_dims({B, 0, L1, S}, true);
             v_input.assert_dims({B, 0, L1, S}, true);
+
             auto past_k_idx = inputs.size() - 2;
             auto past_k_mem = inputs[past_k_idx + 0];
             L0 = past_k_mem->getStaticDims()[2];
             // k,v may support multiquery
             auto Hk = past_k_mem->getStaticDims()[1];
             // [S, B, L0, S]
-            past_k_output.resize({L0 + L1, B, Hk, S}, static_cast<T*>(outputs[1]->getData()));
-            past_v_output.resize({L0 + L1, B, Hk, S}, static_cast<T*>(outputs[2]->getData()));
+            past_k_output.resize({L0 + L1, B, Hk, S}, static_cast<T2*>(outputs[1]->getData()));
+            past_v_output.resize({L0 + L1, B, Hk, S}, static_cast<T2*>(outputs[2]->getData()));
             past_k_output = past_k_output.permute({1, 2, 0, 3});
             past_v_output = past_v_output.permute({1, 2, 0, 3});
             parallel_for3d(B, Hk, L1, [&](size_t b, size_t h, size_t m) {
-                std::memcpy(&past_k_output.at({b, h, m + L0, 0}),
-                            &k_input.at({b, h, m, 0}),
-                            S * sizeof(T));
-                std::memcpy(&past_v_output.at({b, h, m + L0, 0}),
-                            &v_input.at({b, h, m, 0}),
-                            S * sizeof(T));
+                cpu_convert(&k_input.at({b, h, m, 0}), &past_k_output.at({b, h, m + L0, 0}), precision_of<T>::value, precision_of<T2>::value, S);
+                cpu_convert(&v_input.at({b, h, m, 0}), &past_v_output.at({b, h, m + L0, 0}), precision_of<T>::value, precision_of<T2>::value, S);
             });
             if (!config.skipPastKVCopy) {
-                PlainTensor<T> past_k_input, past_v_input;
-                past_k_input.resize({L0, B, Hk, S}, static_cast<T*>(past_k_mem->getData()));
-                past_v_input.resize({L0, B, Hk, S}, static_cast<T*>(inputs[past_k_idx + 1]->getData()));
+                PlainTensor<T2> past_k_input, past_v_input;
+                past_k_input.resize({L0, B, Hk, S}, static_cast<T2*>(past_k_mem->getData()));
+                past_v_input.resize({L0, B, Hk, S}, static_cast<T2*>(inputs[past_k_idx + 1]->getData()));
                 past_k_input = past_k_input.permute({1, 2, 0, 3});
                 past_v_input = past_v_input.permute({1, 2, 0, 3});
                 parallel_for3d(B, Hk, L0, [&](size_t b, size_t h, size_t m) {
                     std::memcpy(&past_k_output.at({b, h, m, 0}),
                                 &past_k_input.at({b, h, m, 0}),
-                                S * sizeof(T));
+                                S * sizeof(T2));
                     std::memcpy(&past_v_output.at({b, h, m, 0}),
                                 &past_v_input.at({b, h, m, 0}),
-                                S * sizeof(T));
+                                S * sizeof(T2));
                 });
             }
         } else {
             // k,v inputs are already concatenated
+            OPENVINO_ASSERT(precision_of<T>::value == precision_of<T2>::value);
             L0 = k_input.size(2) - L1;
             k_input.assert_dims({B, 0, L0 + L1, S}, true);
             v_input.assert_dims({B, 0, L0 + L1, S}, true);
-            past_k_output = k_input;
-            past_v_output = v_input;
+            // tag dispatch: assign k/v_input to past_k/v_output only when T==T2.
+            Function<T, T2>(std::integral_constant<bool, std::is_same<T, T2>::value>{}, k_input, v_input, past_k_output, past_v_output);
         }
     }
 
@@ -678,7 +702,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         L1 = q_input.size(2);
         S = q_input.size(-1);
 
-        PlainTensor<T> present_key, present_value;
+        PlainTensor<T2> present_key, present_value;
         concat_pastkv(inputs, outputs, k_input, v_input, present_key, present_value);
 
         ov::intel_cpu::PlainTensor<T> output_emb(outputs[0]);
@@ -748,21 +772,62 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
     auto rtPrecision = getOriginalInputPrecisionAtPort(0);
+    auto orginSDPInputNumber = getOriginalInputsNumber() - (m_config.config.fuse_concat ? 2 : 0);
+
+    auto fp16_kvcache_applicable = [&]() -> bool {
+        bool enable_fp16_kvcache = true;
+        const char* disable = std::getenv("OV_DISABLE_SDPA_KVCACHE_FP16");
+        if (disable && std::atoi(disable) > 0) {
+            enable_fp16_kvcache = false;
+        }
+        if (!enable_fp16_kvcache) return false;
+
+        if (!m_config.config.fuse_concat || !mayiuse(cpu_isa_t::avx2) || rtPrecision== ov::element::bf16) return false;
+
+        // applicable only in case of stateful model.
+        for (size_t idx = 1; idx <= 2; idx++) { // check outputs
+            auto&& childEdges = getChildEdgesAtPort(idx);
+            auto itr =
+                std::find_if(childEdges.begin(), childEdges.end(), [=](const EdgePtr& e){ return Type::MemoryOutput == e->getChild()->getType(); });
+            if (itr == childEdges.end()) {
+                return false;
+            }
+        }
+
+        for (size_t idx = orginSDPInputNumber + 0; idx <= orginSDPInputNumber + 1; idx++) { // check inputs
+            auto&& parentEdges = getParentEdgesAtPort(idx);
+            auto itr =
+                std::find_if(parentEdges.begin(), parentEdges.end(), [=](const EdgePtr& e){ return Type::MemoryInput == e->getParent()->getType(); });
+            if (itr == parentEdges.end()) {
+                return false;
+            }
+        }
+
+        return true;
+    };
+
+    auto kvCachePrecision = fp16_kvcache_applicable() ? ov::element::f16 : rtPrecision;
+    std::cout << "===================== kvPrecision = " << kvCachePrecision << ", rtPrecision = " << rtPrecision << std::endl;
 
     if (rtPrecision == ov::element::bf16) {
-        m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(m_config);
+        m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16, ov::bfloat16>>(m_config);
     } else {
         // only support bf16/f32
         rtPrecision = ov::element::f32;
 #ifdef OV_CPU_WITH_MLAS
-        m_executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(m_config);
+        if (kvCachePrecision == ov::element::f16)
+            m_executor = std::make_shared<AttentionExecutor<KT_MLAS, float, ov::float16>>(m_config);
+        else
+            m_executor = std::make_shared<AttentionExecutor<KT_MLAS, float, float>>(m_config);
 #else
-        m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float>>(m_config);
+        if (kvCachePrecision == ov::element::f16)
+            m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float, ov::float16>>(m_config);
+        else
+            m_executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float, float>>(m_config);
 #endif
     }
     NodeConfig config;
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-    auto orginSDPInputNumber = getOriginalInputsNumber() - (m_config.config.fuse_concat ? 2 : 0);
     config.inConfs.resize(getOriginalInputsNumber());
     config.outConfs.resize(getOriginalOutputsNumber());
     config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
@@ -792,15 +857,15 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
         ArbitraryOrderDescCreator cabdDescCreator({2, 0, 1, 3});
 
         config.inConfs[orginSDPInputNumber + 0].setMemDesc(cabdDescCreator.createSharedDesc(
-            rtPrecision, getInputShapeAtPort(orginSDPInputNumber + 0)));
+            kvCachePrecision, getInputShapeAtPort(orginSDPInputNumber + 0)));
         config.inConfs[orginSDPInputNumber + 1].setMemDesc(cabdDescCreator.createSharedDesc(
-            rtPrecision, getInputShapeAtPort(orginSDPInputNumber + 1)));
+            kvCachePrecision, getInputShapeAtPort(orginSDPInputNumber + 1)));
 
         config.outConfs[1].setMemDesc(cabdDescCreator.createSharedDesc(
-            rtPrecision, getOutputShapeAtPort(1)));
+            kvCachePrecision, getOutputShapeAtPort(1)));
         config.outConfs[1].inPlace(orginSDPInputNumber + 0);
         config.outConfs[2].setMemDesc(cabdDescCreator.createSharedDesc(
-            rtPrecision, getOutputShapeAtPort(2)));
+            kvCachePrecision, getOutputShapeAtPort(2)));
         config.outConfs[2].inPlace(orginSDPInputNumber + 1);
     }
 
@@ -811,14 +876,14 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     // may fallback to abcd without inplace
     if (m_config.config.fuse_concat) {
         config.inConfs[orginSDPInputNumber + 0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-            rtPrecision, getInputShapeAtPort(orginSDPInputNumber + 0)));
+            kvCachePrecision, getInputShapeAtPort(orginSDPInputNumber + 0)));
         config.inConfs[orginSDPInputNumber + 1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-            rtPrecision, getInputShapeAtPort(orginSDPInputNumber + 1)));
+            kvCachePrecision, getInputShapeAtPort(orginSDPInputNumber + 1)));
         config.outConfs[1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-            rtPrecision, getOutputShapeAtPort(1)));
+            kvCachePrecision, getOutputShapeAtPort(1)));
         config.outConfs[1].inPlace(-1);
         config.outConfs[2].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-            rtPrecision, getOutputShapeAtPort(2)));
+            kvCachePrecision, getOutputShapeAtPort(2)));
         config.outConfs[2].inPlace(-1);
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
     }

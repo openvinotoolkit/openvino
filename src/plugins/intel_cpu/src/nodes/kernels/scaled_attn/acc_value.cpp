@@ -55,11 +55,17 @@ void attn_acc_values(float** outs, float* weights, void** vs, size_t vec_num, si
             auto v_ptr = static_cast<float*>(vs[i]);
             attn_acc_value_inner(out_ptr, weights[i], v_ptr, vec_len);
         }
-    } else {
-        assert(input_precision == ov::element::bf16);
+    } else if (input_precision == ov::element::bf16) {
         for (size_t i = 0; i < vec_num; i++) {
             auto out_ptr = outs[i];
             auto v_ptr = static_cast<ov::bfloat16*>(vs[i]);
+            attn_acc_value_inner(out_ptr, weights[i], v_ptr, vec_len);
+        }
+    } else {
+        assert(input_precision == ov::element::f16);
+        for (size_t i = 0; i < vec_num; i++) {
+            auto out_ptr = outs[i];
+            auto v_ptr = static_cast<ov::float16*>(vs[i]);
             attn_acc_value_inner(out_ptr, weights[i], v_ptr, vec_len);
         }
     }
