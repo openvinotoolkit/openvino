@@ -46,6 +46,7 @@ GPU:
     - AUTO_BATCH
     - TEMPLATE
     - IR_FE
+    - PROXY
 
 GNA:
   build:
@@ -103,6 +104,12 @@ AUTO:
     - Python_API
   build:
     - IR_FE
+
+PROXY:
+  revalidate:
+    - inference
+    - GPU
+  build: []
 
 IR_FE:
   revalidate:
