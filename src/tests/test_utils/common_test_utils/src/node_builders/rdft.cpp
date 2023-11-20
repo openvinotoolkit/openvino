@@ -13,7 +13,7 @@ namespace test {
 namespace utils {
 namespace {
 template <typename... Args>
-std::shared_ptr<ov::Node> CallDftCtorWithArgs(const ov::test::utils::DFTOpType op_type, Args&&... args) {
+std::shared_ptr<ov::Node> CallRdftCtorWithArgs(const ov::test::utils::DFTOpType op_type, Args&&... args) {
     switch (op_type) {
     case ov::test::utils::DFTOpType::FORWARD:
         return std::make_shared<ov::op::v9::RDFT>(std::forward<Args>(args)...);
@@ -35,9 +35,9 @@ std::shared_ptr<ov::Node> make_rdft(const ov::Output<Node>& data_node,
         auto signal_size_node = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64,
                                                                        ov::Shape{signal_size.size()},
                                                                        signal_size);
-        return CallDftCtorWithArgs(op_type, data_node, axesNode, signal_size_node);
+        return CallRdftCtorWithArgs(op_type, data_node, axesNode, signal_size_node);
     }
-    return CallDftCtorWithArgs(op_type, data_node, axesNode);
+    return CallRdftCtorWithArgs(op_type, data_node, axesNode);
 }
 }  // namespace utils
 }  // namespace test
