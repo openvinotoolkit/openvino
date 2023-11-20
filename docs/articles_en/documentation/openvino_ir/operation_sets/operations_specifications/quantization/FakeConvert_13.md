@@ -11,7 +11,7 @@
 
 **Category**: *Quantization*
 
-**Short description**: *FakeConvert* is element-wise emulation of float8 type on the original type of the data input.
+**Short description**: *FakeConvert* is element-wise quantization of floating-point input values into a set of values corresponding to a target low-precision floating-point type.
 
 **Detailed description**: *FakeConvert* operation emulates 8 bit floating-point type defined by the ``destination_type`` attribute, on the original type of the ``data`` input.
 Possible destination types are: "f8e4m3", "f8e5m2". The "f8e4m3" is an fp8 type, where 1 bit for the sign, 4 bits for the exponents and 3 bits for the mantissa. In the "f8e5m2" format of fp8 type, there is 1 bit for the sign, 5 bits for the exponents and 2 for the mantissa.
