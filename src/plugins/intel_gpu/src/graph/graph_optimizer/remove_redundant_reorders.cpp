@@ -418,7 +418,7 @@ void remove_redundant_reorders::run(program& p) {
                 continue;
 
             // Do not opt out result reorder of Loop body network
-            bool is_loop_body_network_output = (node.get_program().is_body_program && node.is_output() && node.can_share_buffer());
+            bool is_loop_body_network_output = (node.get_program().is_body_program && node.is_output());
             if (is_loop_body_network_output)
                 continue;
 

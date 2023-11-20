@@ -581,7 +581,12 @@ void loop_inst::preprocess_backedge_memory() {
 }
 
 void loop_inst::update_backedge_exec_deps(const cldnn::program_node& node, const cldnn::primitive_id& backedge_from_prim_id) {
-    // Add _exec_deps for backedge primitives
+    // Add _exec_deps for backedge primitives to prevent early execution in body network
+    // In below topology, input and result has shared memory as they are backedge_to/from.
+    // When op2 executes earlier thant op1, input is updated with op2 result and op1 has wrong input value if there is no proper _exec_deps.
+    // input(backedge_to) ------> op1 ----->
+    //                    |
+    //                    L-----> op2 -----> result (backedge_from)
     for (auto& user : node.get_users()) {
         if (user->can_be_optimized()) {
             // Run until non opt out user
