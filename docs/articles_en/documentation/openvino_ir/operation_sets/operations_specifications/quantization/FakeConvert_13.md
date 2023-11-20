@@ -13,8 +13,11 @@
 
 **Short description**: *FakeConvert* is element-wise quantization of floating-point input values into a set of values corresponding to a target low-precision floating-point type.
 
-**Detailed description**: *FakeConvert* operation emulates 8 bit floating-point type defined by the ``destination_type`` attribute, on the original type of the ``data`` input.
-Possible destination types are: "f8e4m3", "f8e5m2". The "f8e4m3" is an fp8 type, where 1 bit for the sign, 4 bits for the exponents and 3 bits for the mantissa. In the "f8e5m2" format of fp8 type, there is 1 bit for the sign, 5 bits for the exponents and 2 for the mantissa.
+**Detailed description**: *FakeConvert* operation converts the input tensor to a specified target low-precision floating-point type and performs backward conversion to the source precision. It also applies affine transformation defined by scale and shift parameters before the conversion step and its reverse form after the backward conversion.
+
+It emulates types defined by the ``destination_type`` attribute, on the original type of the ``data`` input.
+
+Possible destination types are: "f8e4m3", "f8e5m2". The "f8e4m3" is an 8-bit floating-point type, where 1 bit for the sign, 4 bits for the exponents and 3 bits for the mantissa. The "f8e5m2" is also 8-bit floating-point type, where 1 bit is for the sign, 5 bits for the exponents and 2 for the mantissa.
 The types were introduced in the following paper: `FP8 Formats for Deep Learning <https://arxiv.org/abs/2209.05433>`__ .
 
 *Fake* in *FakeConvert* means the output tensor is of the same floating point type as an input tensor, not float8 type.
