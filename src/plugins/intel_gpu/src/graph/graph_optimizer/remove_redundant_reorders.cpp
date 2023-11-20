@@ -136,7 +136,7 @@ void remove_redundant_reorders::run(program& p) {
         auto& r_node = node->as<reorder>();
 
         // Do not opt out result reorder of Loop body network
-        bool is_loop_body_network_output = (r_node.get_program().is_body_program() && r_node.is_output() && r_node.can_share_buffer());
+        bool is_loop_body_network_output = (r_node.get_program().is_body_program() && r_node.is_output());
         if (is_loop_body_network_output)
             continue;
 
@@ -266,7 +266,7 @@ void remove_redundant_reorders::run(program& p) {
                 r_node.get_dependency(0).can_be_optimized() || r_node.get_dependency(0).get_users().size() != 1) : r_node.is_output();
 
         // Do not opt out result reorder of Loop body network
-        no_output_optimization |= (r_node.get_program().is_body_program() && r_node.is_output() && r_node.can_share_buffer());
+        no_output_optimization |= (r_node.get_program().is_body_program() && r_node.is_output());
 
         if (!r_node.is_simple_reorder() ||
             no_output_optimization ||
