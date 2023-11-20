@@ -162,7 +162,7 @@ class TestTFPerformanceModel(TestPerformanceModel):
         gc.collect()
 
     @pytest.mark.parametrize("model_name,model_link,mark,reason",
-                             get_models_list(get_model_list_path("precommit_models")))
+                             get_models_list(os.path.join(os.path.dirname(__file__), "precommit_models")))
     @pytest.mark.precommit
     def test_convert_model_precommit(self, model_name, model_link, mark, reason, ie_device):
         assert mark is None or mark == 'skip', "Incorrect test case: {}, {}".format(model_name, model_link)
