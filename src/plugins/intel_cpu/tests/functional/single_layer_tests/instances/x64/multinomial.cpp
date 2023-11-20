@@ -12,7 +12,7 @@ namespace {
 using ov::test::MultinomialLayerTest;
 
 const int GLOBAL_SEED = 1;
-const int OP_SEED = 1;
+const int OP_SEED = 2;
 
 std::vector<float> probs_4x4_f32 = {0.00001f,
                                     0.001f,
