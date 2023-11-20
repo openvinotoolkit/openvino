@@ -1,20 +1,20 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import os
+import tempfile
 import unittest
+from pathlib import Path
 
 import numpy as np
 import openvino.runtime as ov
 import pytest
+import tensorflow as tf
 from openvino.runtime import PartialShape, Model, Dimension
 
-from common.mo_convert_test_class import CommonMOConvertTest
-from common.layer_test_class import CommonLayerTest
-import tensorflow as tf
-from common.tf_layer_test_class import save_to_pb
-import tempfile
 from common import constants
-from pathlib import Path
+from common.layer_test_class import CommonLayerTest
+from common.mo_convert_test_class import CommonMOConvertTest
+from common.tf_layer_test_class import save_to_pb
 
 
 def create_tf_graph_def(tmp_dir):
