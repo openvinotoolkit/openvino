@@ -193,6 +193,22 @@ class TestComponentConfig(unittest.TestCase):
         }
         self.validate(config_data, changed_components, expected_result)
 
+    def test_all_as_dependents(self):
+        config_data = {
+            'comp1': {'build': 'all', 'revalidate': {}},
+            'comp2': {'build': {}, 'revalidate': {}},
+            'comp3': {'build': {}, 'revalidate': {}},
+            'comp4': {'build': {}, 'revalidate': {}},
+        }
+        changed_components = {'comp1'}
+        expected_result = {
+            'comp1': ComponentConfig.FullScope,
+            'comp2': {'build'},
+            'comp3': {'build'},
+            'comp4': {'build'},
+        }
+        self.validate(config_data, changed_components, expected_result)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
