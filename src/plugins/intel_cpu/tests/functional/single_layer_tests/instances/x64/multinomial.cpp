@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_layer_tests/classes/multinomial.hpp"
+#include "single_op_tests/multinomial.hpp"
 
 #include <openvino/core/type/element_type.hpp>
 #include <openvino/runtime/tensor.hpp>
 
-using namespace CPUTestUtils;
-using namespace ov::test;
+namespace {
 
-namespace CPULayerTestsDefinitions {
-namespace Multinomial {
+using ov::test::MultinomialLayerTest;
 
 const int GLOBAL_SEED = 1;
 const int OP_SEED = 1;
@@ -82,8 +80,7 @@ const auto params_static = ::testing::Combine(::testing::Values("static"),
                                               ::testing::Values(false),        // log_probs
                                               ::testing::Values(GLOBAL_SEED),  // global_seed
                                               ::testing::Values(OP_SEED),      // op_seed
-                                              ::testing::Values(emptyCPUSpec),
-                                              ::testing::Values(empty_plugin_config));
+                                              ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 const auto params_static_log = ::testing::Combine(::testing::Values("static"),
                                                   ::testing::ValuesIn(probs_log),
@@ -93,8 +90,7 @@ const auto params_static_log = ::testing::Combine(::testing::Values("static"),
                                                   ::testing::Values(true),         // log_probs
                                                   ::testing::Values(GLOBAL_SEED),  // global_seed
                                                   ::testing::Values(OP_SEED),      // op_seed
-                                                  ::testing::Values(emptyCPUSpec),
-                                                  ::testing::Values(empty_plugin_config));
+                                                  ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 const auto params_dynamic = ::testing::Combine(::testing::Values("dynamic"),
                                                ::testing::ValuesIn(probs),
@@ -104,8 +100,7 @@ const auto params_dynamic = ::testing::Combine(::testing::Values("dynamic"),
                                                ::testing::Values(false),        // log_probs
                                                ::testing::Values(GLOBAL_SEED),  // global_seed
                                                ::testing::Values(OP_SEED),      // op_seed
-                                               ::testing::Values(emptyCPUSpec),
-                                               ::testing::Values(empty_plugin_config));
+                                               ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 const auto params_dynamic_log = ::testing::Combine(::testing::Values("dynamic"),
                                                    ::testing::ValuesIn(probs_log),
@@ -115,28 +110,25 @@ const auto params_dynamic_log = ::testing::Combine(::testing::Values("dynamic"),
                                                    ::testing::Values(true),         // log_probs
                                                    ::testing::Values(GLOBAL_SEED),  // global_seed
                                                    ::testing::Values(OP_SEED),      // op_seed
-                                                   ::testing::Values(emptyCPUSpec),
-                                                   ::testing::Values(empty_plugin_config));
+                                                   ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MultinomialStatic,
-                         MultinomialLayerTestCPU,
+                         MultinomialLayerTest,
                          params_static,
-                         MultinomialLayerTestCPU::getTestCaseName);
+                         MultinomialLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MultinomialStaticLog,
-                         MultinomialLayerTestCPU,
+                         MultinomialLayerTest,
                          params_static_log,
-                         MultinomialLayerTestCPU::getTestCaseName);
+                         MultinomialLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MultinomialDynamic,
-                         MultinomialLayerTestCPU,
+                         MultinomialLayerTest,
                          params_dynamic,
-                         MultinomialLayerTestCPU::getTestCaseName);
+                         MultinomialLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MultinomialDynamicLog,
-                         MultinomialLayerTestCPU,
+                         MultinomialLayerTest,
                          params_dynamic_log,
-                         MultinomialLayerTestCPU::getTestCaseName);
-
-}  // namespace Multinomial
-}  // namespace CPULayerTestsDefinitions
+                         MultinomialLayerTest::getTestCaseName);
+}  // namespace
