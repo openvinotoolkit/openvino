@@ -692,7 +692,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         k_input.assert_dims({B, H, L0 + L1, S});
         v_input.assert_dims({B, H, L0 + L1, S});
         m_query_emb = q_input;
-        if (!fuse_concat || L0 > 1) {
+        if (!fuse_concat || L1 > 1) {
             present_key = k_input;
             present_value = v_input;
         }
