@@ -8,6 +8,7 @@
 #include "cpu_tensor.h"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
+#include "memory_state.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -81,7 +82,7 @@ private:
         }
 
         void update() {
-            m_proxyMemMngr->setMemMngr(currentMemMngr());
+            m_proxyMemMngr->setMemMngrResize(currentMemMngr());
         }
 
     private:
@@ -90,34 +91,36 @@ private:
         std::array<MemMngrPtr, 2> m_buffers;
         int m_buffIndx = 0;
     };
-    std::unordered_map<std::string, OutputControlBlock> outputControlBlocks;
 
+private:
     void create_infer_request();
-
     void init_tensor(const std::string& name);
+
     void push_input_data();
-
-    Graph* graph = nullptr;
-    std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> external_ptr;
-
-    void push_states();
-    void pull_states();
     void redefine_memory_for_input_nodes();
-
+    void assign_states();
+    void commit_states();
     void update_external_tensor_ptrs();
+    void change_default_ptr();
+
     const ov::Output<const ov::Node>& get_internal_port(const ov::Output<const ov::Node>& port) const;
+
+private:
+    std::unordered_map<std::string, OutputControlBlock> m_outputControlBlocks;
+
+    Graph* m_graph = nullptr;
+    std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_external_ptr;
+
     bool m_is_legacy_api = false;
 
     std::shared_ptr<const CompiledModel> m_compiled_model;
     openvino::itt::handle_t m_profiling_task;
-    std::vector<ov::SoPtr<ov::IVariableState>> m_memory_states;
+    std::vector<MemStatePtr> m_memory_states;
     AsyncInferRequest* m_asyncRequest = nullptr;
 
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_input_ports_map;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_output_ports_map;
     std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_outputs;
-
-    void change_default_ptr();
 };
 
 }  // namespace intel_cpu

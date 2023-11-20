@@ -40,7 +40,9 @@ void SplitConcatMultiInputsTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-    auto split = ngraph::builder::makeSplit(params[0], ngPrc, splitsNum, 1);
+    auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+    auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, splitsNum);
+
     ngraph::OutputVector concatInputs = split->outputs();
 
     auto concat = std::make_shared<ngraph::opset7::Concat>(concatInputs, 1);
