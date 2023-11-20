@@ -3,10 +3,13 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -48,18 +51,18 @@ OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
 
     // prepare filter to have a number of groups equal to CIN
     auto unsqueeze_filter =
-        make_shared<Unsqueeze>(filter, make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{3}));
-    auto transposed_filter =
-        make_shared<Transpose>(unsqueeze_filter,
-                               make_shared<Constant>(element::i64, Shape{5}, std::vector<int64_t>{2, 4, 3, 0, 1}));
+        make_shared<v0::Unsqueeze>(filter, make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{3}));
+    auto transposed_filter = make_shared<v1::Transpose>(
+        unsqueeze_filter,
+        make_shared<v0::Constant>(element::i64, Shape{5}, std::vector<int64_t>{2, 4, 3, 0, 1}));
 
-    ov::Output<ov::Node> group_conv = make_shared<GroupConvolution>(input,
-                                                                    transposed_filter,
-                                                                    strides,
-                                                                    CoordinateDiff({}),
-                                                                    CoordinateDiff({}),
-                                                                    dilations,
-                                                                    auto_pad);
+    ov::Output<ov::Node> group_conv = make_shared<v1::GroupConvolution>(input,
+                                                                        transposed_filter,
+                                                                        strides,
+                                                                        CoordinateDiff({}),
+                                                                        CoordinateDiff({}),
+                                                                        dilations,
+                                                                        auto_pad);
     ov::frontend::tensorflow::convert_nchw_to_nhwc(is_nhwc, group_conv, ov::Rank(4));
     ov::frontend::tensorflow::set_node_name(node.get_name(), group_conv.get_node_shared_ptr());
     return {group_conv};
