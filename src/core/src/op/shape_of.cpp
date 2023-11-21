@@ -73,7 +73,7 @@ bool evaluate_bound(const Node* const node, ov::TensorVector& outputs, const boo
             auto limit_val = is_upper ? max_et_val : static_cast<decltype(max_et_val)>(0);
 
             auto dynamic_mask = std::vector<char>(in_shape_rank);
-            std::transform(in_shape.begin(), in_shape.end(), dynamic_mask.begin(), [get_val](const Dimension& d) {
+            std::transform(in_shape.begin(), in_shape.end(), dynamic_mask.begin(), [&](const Dimension& d) {
                 return static_cast<char>((d.get_interval().*get_val)() >= max_et_val);
             });
 
