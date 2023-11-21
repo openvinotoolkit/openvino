@@ -171,3 +171,7 @@
 'category: licensing':
 - 'licensing/**/*'
 - 'LICENSE'
+
+'category: conformance':
+- '**/layer_tests_summary/**'
+- '**/conformance/**'
