@@ -4,6 +4,7 @@
 
 #include "openvino/op/scatter_elements_update.hpp"
 
+#include "element_visitor.hpp"
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/reference/scatter_elements_update.hpp"
@@ -83,8 +84,64 @@ bool op::v12::ScatterElementsUpdate::has_evaluate() const {
            (get_output_element_type(0) == element::boolean && is_supported_index_input_element_type());
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace scatter_elements_update {
+struct Evaluate : public element::NoAction<bool> {
+    using element::NoAction<bool>::visit;
+
+    template <element::Type_t DATA_ET, class DT = fundamental_type_for<DATA_ET>>
+    static result_type visit(const Tensor& data,
+                             const Tensor& indices,
+                             const Tensor& updates,
+                             Tensor& output,
+                             const Shape& data_shape,
+                             const Shape& indices_shape,
+                             const int64_t normalized_axis,
+                             const op::v12::ScatterElementsUpdate::Reduction
+                                 reduction_type,        //= op::v12::ScatterElementsUpdate::Reduction::NONE,
+                             const bool use_init_value  // = false
+
+    ) {
+        using namespace ov::element;
+        return IfTypeOf<i8, i16, i32, i64, u8, u16, u32, u64>::apply<EvalByIdxType>(indices.get_element_type(),
+                                                                                    data.data<const DT>(),
+                                                                                    indices,
+                                                                                    updates.data<const DT>(),
+                                                                                    output.data<DT>(),
+                                                                                    data_shape,
+                                                                                    indices_shape,
+                                                                                    normalized_axis,
+                                                                                    reduction_type,
+                                                                                    use_init_value);
+    }
+
+private:
+    struct EvalByIdxType : public element::NoAction<bool> {
+        using element::NoAction<bool>::visit;
+
+        template <element::Type_t IDX_ET, class DT, class IT = fundamental_type_for<IDX_ET>>
+        static result_type visit(const DT* const data,
+                                 const Tensor& indices,
+                                 const DT* const updates,
+                                 DT* const output,
+                                 const Shape& data_shape,
+                                 const Shape& indices_shape,
+                                 const int64_t normalized_axis,
+                                 const op::v12::ScatterElementsUpdate::Reduction reduction_type,
+                                 const bool use_init_value) {
+            reference::scatter_elem_update<DT, IT>(data,
+                                                   indices.data<IT>(),
+                                                   updates,
+                                                   normalized_axis,
+                                                   output,
+                                                   data_shape,
+                                                   indices_shape,
+                                                   reduction_type,
+                                                   use_init_value);
+            return true;
+        }
+    };
+};
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 template <element::Type_t DT, element::Type_t IT, element::Type_t AT>
 bool evaluate(const ngraph::HostTensorPtr& data,
@@ -296,16 +353,28 @@ bool op::v3::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs, co
                                                                      get_normalized_axis(inputs));
 }
 
-bool op::v12::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool op::v12::ScatterElementsUpdate::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v12_ScatterElementsUpdate_evaluate);
-    return scatter_elements_update::evaluate_scatter_elements_update(inputs[0],
-                                                                     inputs[1],
-                                                                     inputs[2],
-                                                                     inputs[3],
-                                                                     outputs[0],
-                                                                     get_normalized_axis(inputs),
-                                                                     m_reduction,
-                                                                     m_use_init_val);
+
+    const auto& data = inputs[0];
+    const auto& indices = inputs[1];
+    const auto& updates = inputs[2];
+    auto& output = outputs[0];
+    const auto& data_shape = data.get_shape();
+    const auto& indices_shape = indices.get_shape();
+    output.set_shape(data_shape);
+    using namespace ov::element;
+    return IfTypeOf<boolean, f16, f32, i16, i32, i64, u32, u64>::apply<scatter_elements_update::Evaluate>(
+        data.get_element_type(),
+        data,
+        indices,
+        updates,
+        output,
+        data_shape,
+        indices_shape,
+        get_normalized_axis(inputs),
+        m_reduction,
+        m_use_init_val);
 }
 
 template <>
