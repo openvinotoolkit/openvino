@@ -51,7 +51,7 @@ protected:
         size_t port;
 
         std::tie(nonConstShape, constShape, prc, nodeType, port, constNodeNum) = this->GetParam();
-        IE_ASSERT(shape_size(constShape) == 1);
+        OPENVINO_ASSERT(shape_size(constShape) == 1);
 
         const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(prc);
         const auto param = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape(nonConstShape));

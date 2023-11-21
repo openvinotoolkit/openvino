@@ -33,7 +33,7 @@ void InferenceEngine::ICompiledModelWrapper::export_model(std::ostream& model) c
     try {
         m_model->Export(model);
     } catch (const InferenceEngine::NotImplemented& ex) {
-        OPENVINO_ASSERT_HELPER(ov::NotImplemented, "", false, ex.what());
+        OPENVINO_THROW_NOT_IMPLEMENTED(ex.what());
     }
 }
 

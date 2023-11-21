@@ -135,7 +135,7 @@ protected:
                                     [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor> &params) {
                                         return params.first->get_friendly_name() == "ParamSecondInput";
                                     });
-            IE_ASSERT(pos != inputs.end());
+            OPENVINO_ASSERT(pos != inputs.end());
             inputs.erase(pos);
         }
         auto expectedOutputs = calculate_refs();

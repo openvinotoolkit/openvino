@@ -144,13 +144,13 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
         const auto & rtInfo = node->get_rt_info();
         auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
             auto it = rtInfo.find(paramName);
-            IE_ASSERT(rtInfo.end() != it);
+            OPENVINO_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
         };
         auto getExecValueOutputsLayout = [] (const std::shared_ptr<ngraph::Node>& node) -> std::string {
             auto rtInfo = node->get_rt_info();
             auto it = rtInfo.find(ExecGraphInfoSerialization::OUTPUT_LAYOUTS);
-            IE_ASSERT(rtInfo.end() != it);
+            OPENVINO_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
         };
         // skip policy
@@ -434,7 +434,7 @@ inline void CheckNumberOfNodesWithTypeImpl(std::shared_ptr<const ov::Model> func
         const auto & rtInfo = node->get_rt_info();
         auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
             auto it = rtInfo.find(paramName);
-            IE_ASSERT(rtInfo.end() != it);
+            OPENVINO_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
         };
 

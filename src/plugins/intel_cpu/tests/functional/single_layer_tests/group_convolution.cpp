@@ -100,7 +100,7 @@ protected:
             const auto & rtInfo = node->get_rt_info();
             auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
                 auto it = rtInfo.find(paramName);
-                IE_ASSERT(rtInfo.end() != it);
+                OPENVINO_ASSERT(rtInfo.end() != it);
                 return it->second.as<std::string>();
             };
 
@@ -217,7 +217,7 @@ TEST_P(ExpectFallbackGroupConvolutionLayerCPUTest, CompareWithRefs) {
         const auto & rtInfo = node->get_rt_info();
         auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
             auto it = rtInfo.find(paramName);
-            IE_ASSERT(rtInfo.end() != it);
+            OPENVINO_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
         };
         if ("Convolution" == getExecValue(ExecGraphInfoSerialization::LAYER_TYPE)) {

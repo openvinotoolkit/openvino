@@ -1850,7 +1850,8 @@ public:
                         *dst_ptr_f = src_f[0] ^ src_f[1];
                         break;
                     }
-                    default: IE_THROW() << "Unsupported operation type for Eltwise executor";
+                    default:
+                        OPENVINO_THROW("Unsupported operation type for Eltwise executor");
                 }
             }
         });
@@ -2153,7 +2154,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     auto filterPrecision = [&](const ov::element::Type& prc, const ov::element::Type& forcedPrec) {
         if (isBitwise(algorithm)) {
             if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), prc) == supportedPrecisions.end()) {
-                IE_THROW() << "Eltwise node with name `" << getName() << "` doesn't support " << prc << " precision.";
+                OPENVINO_THROW("Eltwise node with name `", getName(), "` doesn't support ", prc, " precision.");
             }
             return prc;
         }
@@ -2185,7 +2186,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         if (implType == EltwiseImplType::reference) {
             if (isBitwise(algorithm)) {
                 if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), prc) == supportedPrecisions.end()) {
-                    IE_THROW() << "Eltwise node with name `" << getName() << "` doesn't support " << prc << " precision.";
+                    OPENVINO_THROW("Eltwise node with name `", getName(), "` doesn't support ", prc, " precision.");
                 }
                 return prc;
             }

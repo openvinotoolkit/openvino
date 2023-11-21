@@ -28,7 +28,7 @@ public:
     Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        IE_THROW(Unexpected) << "Generic operations doesn't support shape inference.";
+        OPENVINO_THROW("Unexpected: Generic operations doesn't support shape inference.");
         return {{}, ShapeInferStatus::skip};
     }
 
@@ -49,7 +49,7 @@ Generic::Generic(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CP
 
 void Generic::getSupportedDescriptors() {
     if (impls.empty()) {
-        IE_THROW() << "Cannot get generic primitive for layer: " << getName() << " with type: " << getTypeStr();
+        OPENVINO_THROW("Cannot get generic primitive for layer: ", getName(), " with type: ", getTypeStr());
     }
 }
 
@@ -96,7 +96,7 @@ void Generic::initSupportedPrimitiveDescriptors() {
         std::vector<InferenceEngine::LayerConfig> configs;
         auto rc = impl->getSupportedConfigurations(configs, &resp);
         if (rc != InferenceEngine::OK) {
-            IE_THROW() << resp.msg;
+            OPENVINO_THROW(resp.msg);
         }
 
         for (auto& config : configs) {
@@ -104,7 +104,7 @@ void Generic::initSupportedPrimitiveDescriptors() {
         }
     }
     if (impls.empty()) {
-        IE_THROW() << "Layer " << getName() << " hasn't available configurations!";
+        OPENVINO_THROW("Layer ", getName(), " hasn't available configurations!");
     }
 }
 
@@ -115,7 +115,7 @@ void Generic::execute(dnnl::stream strm) {
     if (!impls.empty()) {
         execLayer();
     } else {
-        IE_THROW() << "Descriptor for generic primitive doesn't exist";
+        OPENVINO_THROW("Descriptor for generic primitive doesn't exist");
     }
 }
 
@@ -163,7 +163,7 @@ void Generic::execLayer() {
     InferenceEngine::ResponseDesc resp;
     InferenceEngine::StatusCode rc = impls[0]->execute(inputs, outputs, &resp);
     if (rc != InferenceEngine::OK) {
-        IE_THROW() << this->getTypeStr() << ":" << this->getName() << ": " << resp.msg;
+        OPENVINO_THROW(this->getTypeStr(), ":", this->getName(), ": ", resp.msg);
     }
 }
 
@@ -177,7 +177,7 @@ void Generic::initDescriptor(const NodeConfig &config) {
         std::vector<InferenceEngine::LayerConfig> configs;
         rc = impls[k]->getSupportedConfigurations(configs, &resp);
         if (rc != InferenceEngine::OK) {
-            IE_THROW() << resp.msg;
+            OPENVINO_THROW(resp.msg);
         }
         for (size_t j = 0; j < configs.size(); j++, t++) {
             if (t == static_cast<size_t>(selectedPrimitiveDescriptorIndex)) {
@@ -206,7 +206,7 @@ void Generic::initDescriptor(const NodeConfig &config) {
     auto ieConfig = convertNodeToLayerConfig(rightConfig);
     rc = impls[0]->init(ieConfig, &resp);
     if (rc != InferenceEngine::OK) {
-        IE_THROW() << resp.msg;
+        OPENVINO_THROW(resp.msg);
     }
     rightConfig = convertLayerToNodeConfig(ieConfig);
     auto descriptor = getSelectedPrimitiveDescriptor();

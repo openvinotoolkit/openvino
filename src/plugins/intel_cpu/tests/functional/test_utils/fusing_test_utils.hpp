@@ -114,9 +114,9 @@ static int getFusingAxis(const std::shared_ptr<ngraph::Node>& node) {
 static ngraph::Shape generatePerChannelShape(const std::shared_ptr<ngraph::Node>& node) {
     const auto shape = node->get_output_partial_shape(0);
     if (shape.size() == 0)
-        IE_THROW() << "If shape.size() == 0 then PerTensor fusing tests are N/A";
+        OPENVINO_THROW("If shape.size() == 0 then PerTensor fusing tests are N/A");
     if (shape.size() == 1)
-        IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
+        OPENVINO_THROW("If shape.size() == 1 then Granularity can be PerTensor only");
     ngraph::Shape perChannelShape(shape.size(), 1);
     const auto channelAxis = getFusingAxis(node);
     if (channelAxis >= 0)
@@ -307,7 +307,7 @@ const auto fusingFQPerChannelSigmoidFQPerChannel = fusingSpecificParams{std::mak
             auto localPrc = cfg.input->get_element_type();
             auto shape = cfg.input->get_output_partial_shape(0);
             if (shape.size() == 1)
-                IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
+                OPENVINO_THROW("If shape.size() == 1 then Granularity can be PerTensor only");
             ngraph::Shape newShape(shape.size(), 1);
             newShape[1] = shape[1].get_length();
             return ngraph::builder::makeFakeQuantize(cfg.input, localPrc, 256, newShape);
@@ -319,7 +319,7 @@ const auto fusingFQPerChannelSigmoidFQPerChannel = fusingSpecificParams{std::mak
             auto localPrc = cfg.input->get_element_type();
             auto shape = cfg.input->get_output_partial_shape(0);
             if (shape.size() == 1)
-                IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
+                OPENVINO_THROW("If shape.size() == 1 then Granularity can be PerTensor only");
             ngraph::Shape newShape(shape.size(), 1);
             newShape[1] = shape[1].get_length();
             return ngraph::builder::makeFakeQuantize(cfg.input, localPrc, 256, newShape);
@@ -330,7 +330,7 @@ const auto fusingFQPerChannelSigmoidFQPerTensor = fusingSpecificParams{std::make
             auto localPrc = cfg.input->get_element_type();
             auto shape = cfg.input->get_output_partial_shape(0);
             if (shape.size() == 1)
-                IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
+                OPENVINO_THROW("If shape.size() == 1 then Granularity can be PerTensor only");
             ngraph::Shape newShape(shape.size(), 1);
             newShape[1] = shape[1].get_length();
             return ngraph::builder::makeFakeQuantize(cfg.input, localPrc, 256, newShape);
@@ -342,7 +342,7 @@ const auto fusingFQPerChannelSigmoidFQPerTensor = fusingSpecificParams{std::make
             auto localPrc = cfg.input->get_element_type();
             auto shape = cfg.input->get_output_partial_shape(0);
             if (shape.size() == 1)
-                IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
+                OPENVINO_THROW("If shape.size() == 1 then Granularity can be PerTensor only");
             ngraph::Shape newShape(shape.size(), 1);
             return ngraph::builder::makeFakeQuantize(cfg.input, localPrc, 256, newShape);
         }, "FakeQuantize(PerTensor)"}}), {"FakeQuantize", "Sigmoid", "FakeQuantize"}};

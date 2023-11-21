@@ -126,7 +126,8 @@ protected:
             sliceNode = ngraph::builder::makeSlice(params[0], sliceParams.start, sliceParams.stop, sliceParams.step, sliceParams.axes, netPrecision);;
         } else {
             // Not supported others.
-            IE_THROW() << "Slice8LayerCPUTest: Unsupported ngraph::helpers::InputLayerType , value: " << secondaryInputType;
+            OPENVINO_THROW("Slice8LayerCPUTest: Unsupported ngraph::helpers::InputLayerType , value: ",
+                           secondaryInputType);
         }
 
         function = makeNgraphFunction(netPrecision, params, sliceNode, "Slice8");

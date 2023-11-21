@@ -1196,11 +1196,11 @@ bool Convolution::isNspcAvailable() const {
 InferenceEngine::Blob::Ptr Convolution::createInternalBlob(InferenceEngine::SizeVector dims, size_t edgeNum, bool isGrouped) {
     const auto constNode = std::dynamic_pointer_cast<Input>(getParentEdgeAt(edgeNum)->getParent());
     if (!constNode) {
-        IE_THROW() << "Cannot cast " << edgeNum << " input to Input node for " << getName() << ".";
+        OPENVINO_THROW("Cannot cast ", edgeNum, " input to Input node for ", getName(), ".");
     }
     auto blb = constNode->getMemoryPtr();
     if (blb == nullptr)
-        IE_THROW() << "Cannot get const blob for node " << getName() << ".";
+        OPENVINO_THROW("Cannot get const blob for node ", getName(), ".");
 
     auto const elementsCount = blb->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
 
@@ -1210,7 +1210,7 @@ InferenceEngine::Blob::Ptr Convolution::createInternalBlob(InferenceEngine::Size
     internalBlob->allocate();
 
     if (internalBlob->size() != elementsCount) {
-        IE_THROW() << "Created internal blob and const blob has different size for node: " << getName() << ".";
+        OPENVINO_THROW("Created internal blob and const blob has different size for node: ", getName(), ".");
     }
 
     cpu_convert(blb->getData(),

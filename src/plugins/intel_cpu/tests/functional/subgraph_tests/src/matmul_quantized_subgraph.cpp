@@ -112,7 +112,7 @@ protected:
             const auto & rtInfo = node->get_rt_info();
             auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
                 auto it = rtInfo.find(paramName);
-                IE_ASSERT(rtInfo.end() != it);
+                OPENVINO_ASSERT(rtInfo.end() != it);
                 return it->second.as<std::string>();
             };
             if (node->get_friendly_name() == nodeName) {
