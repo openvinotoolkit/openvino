@@ -92,6 +92,7 @@
 #include "op/is_nan.hpp"
 #include "op/leaky_relu.hpp"
 #include "op/less.hpp"
+#include "op/less_or_equal.hpp"
 #include "op/log.hpp"
 #include "op/log_softmax.hpp"
 #include "op/loop.hpp"
@@ -416,6 +417,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("IsNaN", 1, is_nan)
     REGISTER_OPERATOR("LeakyRelu", 1, leaky_relu);
     REGISTER_OPERATOR("Less", 1, less);
+    REGISTER_OPERATOR("LessOrEqual", 1, less_or_equal);
+    REGISTER_OPERATOR("LessOrEqual", 16, less_or_equal);
     REGISTER_OPERATOR("Log", 1, log);
     REGISTER_OPERATOR("LogSoftmax", 1, log_softmax);
     REGISTER_OPERATOR("LogSoftmax", 13, log_softmax);
