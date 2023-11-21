@@ -77,7 +77,8 @@ Generator::opRegType Generator::get_op_reg_type(const std::shared_ptr<Node>& op)
         std::dynamic_pointer_cast<op::LoopBegin>(op) ||
         std::dynamic_pointer_cast<op::LoopEnd>(op) ||
         std::dynamic_pointer_cast<op::Brgemm>(op) ||
-        std::dynamic_pointer_cast<op::Buffer>(op) ||
+        std::dynamic_pointer_cast<op::IntermediateMemoryBuffer>(op) ||
+        std::dynamic_pointer_cast<op::NewMemoryBuffer>(op) ||
         std::dynamic_pointer_cast<op::RankNormalization>(op) ||
         std::dynamic_pointer_cast<op::PerfCountBeginBase>(op) ||
         std::dynamic_pointer_cast<op::PerfCountEndBase>(op))
