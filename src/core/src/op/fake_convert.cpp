@@ -43,8 +43,8 @@ void FakeConvert::validate_and_infer_types() {
     for (size_t i = 0; i < get_input_size(); i++) {
         const auto& input_type = get_input_element_type(i);
         NODE_VALIDATION_CHECK(this,
-                              input_type == element::f16 || input_type == element::bf16 ||
-                                  input_type == element::f32 || input_type.is_dynamic(),
+                              input_type == element::f16 || input_type == element::bf16 || input_type == element::f32 ||
+                                  input_type.is_dynamic(),
                               "The element type of the input tensor on index ",
                               i,
                               " must be a bf16, f16, f32 or dynamic (got ",
