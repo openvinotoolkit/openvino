@@ -28,7 +28,8 @@ std::shared_ptr<op::LoopEnd> InsertTailLoop::create_tail_loop(LinearIR& linear_i
     // tail loop is fake loop because for tail we should calculate only
     // finalization offsets which are supported by LoopEnd.
     if (need_vector_loop) {
-        auto vector_loop_deep_copy = LinearIR::deep_copy_range(vector_begin, vector_end);
+        ExressionMap expression_map;
+        auto vector_loop_deep_copy = LinearIR::deep_copy_range(vector_begin, vector_end, expression_map);
         tail_begin = linear_ir.insert(vector_end, vector_loop_deep_copy.begin(), vector_loop_deep_copy.end());
         tail_end = vector_end;
     } else {

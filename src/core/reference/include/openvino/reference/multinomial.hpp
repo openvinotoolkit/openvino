@@ -94,9 +94,9 @@ void multinomial(const T* probs,
     divide(cdf.data(), max_value_per_batch_divisor.data(), cdf.data(), total_inputs_elements_count, false);
 
     // Generate random probability samples
-    std::vector<double> uniform_samples(total_output_elements_count);
-    const double zero = 0;
-    const double one = 1;
+    std::vector<T> uniform_samples(total_output_elements_count);
+    const T zero = 0;
+    const T one = 1;
     const ov::Shape output_shape_shape{output_shape.size()};
     const std::vector<uint64_t> output_shape_u64(output_shape.begin(), output_shape.end());
     const std::pair<uint64_t, uint64_t> initial_state(0, 0);
@@ -105,7 +105,7 @@ void multinomial(const T* probs,
                    reinterpret_cast<const char*>(&one),
                    reinterpret_cast<char*>(uniform_samples.data()),
                    output_shape_shape,
-                   ov::element::f64,
+                   ov::element::from<T>(),
                    global_seed,
                    op_seed,
                    initial_state);

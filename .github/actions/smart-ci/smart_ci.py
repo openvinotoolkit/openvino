@@ -17,27 +17,24 @@ class ComponentConfig:
         self.config = config
         self.log = logging.getLogger(self.__class__.__name__)
         self.all_defined_components = set(self.config.keys())  # already defined in components.yml
-        self.all_possible_components = all_possible_components  # can be added to components.yml (based on labeler.yml)
+        # can be added to components.yml (based on labeler.yml)
+        self.all_possible_components = all_possible_components.union(self.all_defined_components)
+        self.validate(schema)
 
-        self.validate(schema, all_possible_components)
-
-    def validate(self, schema: dict, all_possible_components: set) -> None:
+    def validate(self, schema: dict) -> None:
         """Validates syntax of configuration file"""
         jsonschema.validate(self.config, schema)
 
-        invalid_components = self.all_defined_components.difference(all_possible_components)
-        if invalid_components:
-            error_msg = f"components are invalid: " \
-                        f"{invalid_components} are not listed in labeler config: {all_possible_components}"
-            raise jsonschema.exceptions.ValidationError(error_msg)
-
         for component_name, data in self.config.items():
-            dependent_components = set(data.get('dependent_components', dict()).keys()) if data else set()
+            dependent_components = set()
+            for key in self.ScopeKeys:
+                scope = data.get(key)
+                dependent_components = dependent_components.union(set(scope) if isinstance(scope, list) else set())
 
-            invalid_dependents = dependent_components.difference(all_possible_components)
+            invalid_dependents = dependent_components.difference(self.all_possible_components)
             if invalid_dependents:
-                error_msg = f"dependent_components of {component_name} are invalid: " \
-                            f"{invalid_dependents} are not listed in components config: {all_possible_components}"
+                error_msg = f"dependent components of {component_name} are invalid: " \
+                            f"{invalid_dependents} are not listed in components config: {self.all_possible_components}"
                 raise jsonschema.exceptions.ValidationError(error_msg)
 
     def get_affected_components(self, changed_components_names: set) -> dict:
@@ -57,6 +54,8 @@ class ComponentConfig:
         for name in changed_components_names:
             component_scopes = {k: v for k, v in self.config.get(name, dict()).items() if k in self.ScopeKeys}
             for key, dependents in component_scopes.items():
+                if dependents == 'all':
+                    dependents = self.all_possible_components
                 for dep_name in dependents:
                     affected_components[dep_name] = affected_components.get(dep_name, set())
                     scope = self.FullScope if key == 'revalidate' else {key}
@@ -184,10 +183,31 @@ def main():
     all_defined_components = components_config.keys()
     changed_component_names = set(all_defined_components) if run_full_scope else \
         get_changed_component_names(pr, all_possible_components, args.pattern)
+
     logger.info(f"changed_component_names: {changed_component_names}")
 
     cfg = ComponentConfig(components_config, schema, all_possible_components)
     affected_components = cfg.get_affected_components(changed_component_names)
+
+    # We don't need to run workflow if changes were only in documentation
+    # This is the case when we have no product labels set except "docs"
+    # or only if md files were matched (the latter covers cases where *.md is outside docs directory)
+    only_docs_changes = False
+    if args.pr and not run_full_scope:
+        # We don't want to add helper labels to labeler config for now, so handling it manually
+        docs_label_only = changed_component_names - {'docs'} == set()
+        if docs_label_only:
+            only_docs_changes = True
+        else:
+            # To avoid spending extra API requests running step below only if necessary
+            changed_files = gh_api.pulls.list_files(args.pr)
+            doc_suffixes = ['.md', '.rst', '.png', '.jpg', '.svg']
+            only_docs_changes = all([Path(f.filename).suffix in doc_suffixes for f in changed_files])
+            logger.debug(f"doc files only: {only_docs_changes}")
+
+    if only_docs_changes:
+        logger.info(f"Changes are documentation only, workflow may be skipped")
+        affected_components['docs_only'] = ComponentConfig.FullScope
 
     # Syntactic sugar for easier use in GHA pipeline
     affected_components_output = {name: {s: True for s in scope} for name, scope in affected_components.items()}
