@@ -104,24 +104,6 @@ bool util::ScatterElementsUpdateBase::evaluate_label(TensorLabelVector& output_l
     return ov::default_label_evaluator(this, {0, 2}, output_labels);
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-int64_t util::ScatterElementsUpdateBase::get_normalized_axis(const HostTensorVector& inputs) const {
-    OPENVINO_ASSERT(inputs[3]->get_element_type().is_integral_number(), "axis element type is not integral data type");
-
-    int64_t axis = host_tensor_2_vector<int64_t>(inputs[3])[0];
-    const auto& input_rank = get_input_partial_shape(0).rank();
-    int64_t normalized_axis = axis;
-
-    if (normalized_axis < 0) {
-        if (input_rank.is_static()) {
-            normalized_axis = ov::normalize_axis(this, axis, input_rank);
-        } else {
-            normalized_axis = ov::normalize_axis(this, axis, static_cast<int64_t>(inputs[0]->get_shape().size()));
-        }
-    }
-    return normalized_axis;
-}
-OPENVINO_SUPPRESS_DEPRECATED_END
 int64_t util::ScatterElementsUpdateBase::get_normalized_axis(const TensorVector& inputs) const {
     const auto& axis_input = inputs[3];
     OPENVINO_ASSERT(axis_input.get_element_type().is_integral_number(), "axis element type is not integral data type");

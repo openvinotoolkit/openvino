@@ -30,9 +30,7 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
 };
 }  // namespace v3
 namespace v12 {
