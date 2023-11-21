@@ -52,7 +52,7 @@ protected:
             { "repeat_pattern", RepeatPatternExtractor::Ptr(new RepeatPatternExtractor) },
         };
         try {
-            matchers.insert({ "fused_names", FusedNamesExtractor::Ptr(new FusedNamesExtractor(device)) });
+            // matchers.insert({ "fused_names", FusedNamesExtractor::Ptr(new FusedNamesExtractor(device)) });
         } catch(const std::exception& e) {
             std::cout << "[ GRAPH CACHE ][ WARNING ] Fused names extractor is disabled according: " << e.what() << std::endl;
         }
