@@ -116,17 +116,29 @@ protected:
                 // With axes parameter
                 auto axesNode = std::make_shared<ngraph::opset1::Parameter>(ov::element::i64, ov::Shape{sliceParams.axes.size()});
                 params.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(axesNode));
-                sliceNode = ngraph::builder::makeSlice(params[0], startNode, stopdNode, stepNode, axesNode);
+                sliceNode = std::make_shared<ov::op::v8::Slice>(params[0], startNode, stopdNode, stepNode, axesNode);
             } else {
                 //without axes parameter
-                sliceNode = ngraph::builder::makeSlice(params[0], startNode, stopdNode, stepNode);
+                sliceNode = std::make_shared<ov::op::v8::Slice>(params[0], startNode, stopdNode, stepNode);
             }
         } else if (secondaryInputType == ngraph::helpers::InputLayerType::CONSTANT) {
             // Slice start, stop, step, axes are const.
-            sliceNode = ngraph::builder::makeSlice(params[0], sliceParams.start, sliceParams.stop, sliceParams.step, sliceParams.axes, netPrecision);;
+            ov::Shape constShape = {sliceParams.start.size()};
+            auto beginNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, sliceParams.start.data());
+            auto endNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, sliceParams.stop.data());
+            auto strideNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, sliceParams.step.data());
+            if (!sliceParams.axes.empty()) {
+                // With axes parameter
+                auto axesNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, sliceParams.axes.data());
+                sliceNode = std::make_shared<ov::op::v8::Slice>(params[0], beginNode, endNode, strideNode, axesNode);
+            } else {
+                //without axes parameter
+                sliceNode = std::make_shared<ov::op::v8::Slice>(params[0], beginNode, endNode, strideNode);
+            }
         } else {
             // Not supported others.
-            IE_THROW() << "Slice8LayerCPUTest: Unsupported ngraph::helpers::InputLayerType , value: " << secondaryInputType;
+            OPENVINO_THROW("Slice8LayerCPUTest: Unsupported ngraph::helpers::InputLayerType , value: ",
+                           secondaryInputType);
         }
 
         function = makeNgraphFunction(netPrecision, params, sliceNode, "Slice8");
