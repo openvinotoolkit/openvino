@@ -58,8 +58,6 @@ public:
 
 private:
     void on_execute() override;
-
-    void reuse_input();
 };
 
 using crop_inst = typed_primitive_inst<crop>;

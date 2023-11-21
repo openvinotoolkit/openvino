@@ -59,11 +59,7 @@ void scatter_elements_update_inst::on_execute() {
     auto input2_shape = _impl_params->input_layouts[2].get_partial_shape();
 
     if ((ov::shape_size(input1_shape.to_shape()) == 0) || (ov::shape_size(input2_shape.to_shape()) == 0))
-        reuse_input();
-}
-
-void scatter_elements_update_inst::reuse_input() {
-    update_output_memory();
+        update_output_memory();
 }
 
 void scatter_elements_update_inst::update_output_memory() {

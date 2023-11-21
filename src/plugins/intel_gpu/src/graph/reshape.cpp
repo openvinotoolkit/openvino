@@ -182,25 +182,15 @@ reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
             _outputs = allocate_outputs();
             _mem_allocated = true;
         } else {
-            reuse_input();
+            update_output_memory();
         }
     } else {
         if (_exec_deps.size() > 0 && input_memory_ptr())
-            reuse_input();
+            update_output_memory();
     }
 }
 
 void reshape_inst::on_execute() {
-    if (!can_be_optimized())
-        return;
-
-    if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
-        return;
-
-    reuse_input();
-}
-
-void reshape_inst::reuse_input() {
     update_output_memory();
 }
 

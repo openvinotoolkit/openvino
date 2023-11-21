@@ -240,21 +240,11 @@ crop_inst::typed_primitive_inst(network& network, crop_node const& node) : paren
 
     if (node.can_be_optimized()) {
         build_deps();
-        reuse_input();
+        update_output_memory();
     }
 }
 
 void crop_inst::on_execute() {
-    if (!can_be_optimized())
-        return;
-
-    if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
-        return;
-
-    reuse_input();
-}
-
-void crop_inst::reuse_input() {
     update_output_memory();
 }
 

@@ -108,7 +108,6 @@ public:
 
 private:
     void on_execute() override;
-    void reuse_input();
 
     bool _req_reinterpr = false;
 };
