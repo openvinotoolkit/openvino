@@ -41,15 +41,19 @@ void FakeConvert::validate_and_infer_types() {
     OV_OP_SCOPE(v13_FakeConvert_validate_and_infer_types);
     validate_type();
     for (size_t i = 0; i < get_input_size(); i++) {
-        const auto& input_type = get_input_element_type(i);
-        NODE_VALIDATION_CHECK(this,
-                              input_type == element::f16 || input_type == element::bf16 || input_type == element::f32 ||
-                                  input_type.is_dynamic(),
-                              "The element type of the input tensor on index ",
-                              i,
-                              " must be a bf16, f16, f32 or dynamic (got ",
-                              input_type,
-                              ").");
+        switch (get_input_element_type(i)) {
+        case element::bf16:
+        case element::f16:
+        case element::f32:
+        case element::dynamic:
+            break;
+        default:
+            OPENVINO_THROW("The element type of the input tensor on index ",
+                           i,
+                           " must be a bf16, f16, f32 or dynamic (got ",
+                           get_input_element_type(i),
+                           ").");
+        }
     }
     if (inputs().size() == 3) {
         OPENVINO_ASSERT(get_input_partial_shape(1).compatible(get_input_partial_shape(2)),

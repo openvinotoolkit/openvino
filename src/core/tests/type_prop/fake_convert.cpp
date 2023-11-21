@@ -51,6 +51,16 @@ TEST(type_prop, fake_convert_basic_bf16) {
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 8, 6}));
 }
 
+TEST(type_prop, fake_convert_basic_dynamic) {
+    const auto data = std::make_shared<Parameter>(element::dynamic, PartialShape{2, 3, 8, 6});
+    const auto scale = std::make_shared<Parameter>(element::dynamic, PartialShape{});
+    const auto shift = std::make_shared<Parameter>(element::dynamic, PartialShape{});
+
+    const auto op = std::make_shared<op::v13::FakeConvert>(data, scale, shift);
+    EXPECT_EQ(op->get_output_element_type(0), element::dynamic);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 8, 6}));
+}
+
 TEST(type_prop, fake_convert_dynamic_shape) {
     const auto data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
     const auto scale = std::make_shared<Parameter>(element::f32, PartialShape{});
@@ -68,7 +78,7 @@ TEST(type_prop, fake_convert_basic_unsupported_type) {
 
     OV_EXPECT_THROW(
         const auto op = std::make_shared<op::v13::FakeConvert>(data, scale, shift),
-        AssertFailure,
+        Exception,
         testing::HasSubstr(
             "The element type of the input tensor on index 0 must be a bf16, f16, f32 or dynamic (got f64)."));
 }
