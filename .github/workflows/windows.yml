@@ -740,7 +740,7 @@ jobs:
         shell: cmd
         run: |
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}\ov_cpu_func_tests.exe -c ${{ env.PARALLEL_TEST_CACHE }} -w ${{ env.INSTALL_TEST_DIR }} -s suite -- --gtest_filter=*smoke*"
-        timeout-minutes: 25
+        timeout-minutes: 35
 
       - name: Save tests execution time
         uses: actions/cache/save@v3
