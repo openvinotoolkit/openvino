@@ -46,16 +46,16 @@ TEST(type_prop, assign_set_new_shape_allowed_range) {
     auto read_value = make_shared<ov::op::v6::ReadValue>(input, variable);
     auto assign = make_shared<ov::op::v6::Assign>(read_value, variable);
 
-    ASSERT_EQ(assign->get_element_type(), ov::element::dynamic);
-    ASSERT_EQ(assign->get_output_partial_shape(0), (ov::PartialShape::dynamic()));
+    ASSERT_EQ(assign->get_element_type(), ov::element::f16);
+    ASSERT_EQ(assign->get_output_partial_shape(0), (ov::PartialShape{4, 3, 2, 1}));
 
     auto m = std::make_shared<ov::Model>(ov::ResultVector{}, ov::SinkVector{assign}, ov::ParameterVector{input});
 
     input->set_partial_shape({3, {4, 5}, 8});
     m->validate_nodes_and_infer_types();
 
-    ASSERT_EQ(assign->get_element_type(), ov::element::dynamic);
-    ASSERT_EQ(assign->get_output_partial_shape(0), (ov::PartialShape::dynamic()));
+    ASSERT_EQ(assign->get_element_type(), ov::element::f16);
+    ASSERT_EQ(assign->get_output_partial_shape(0), (ov::PartialShape{3, {4, 5}, 8}));
     ASSERT_EQ(variable->get_info().data_type, ov::element::dynamic);
     ASSERT_EQ(variable->get_info().data_shape, (ov::PartialShape::dynamic()));
 }
