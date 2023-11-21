@@ -266,7 +266,7 @@ InferenceEngine::Blob::Ptr Deconvolution::createWeiBlobAsIO(InferenceEngine::Siz
     internalBlob->allocate();
     char *data = internalBlob->buffer();
     if (data == nullptr)
-        IE_THROW(NotAllocated) << "Internal blob was not allocated for node " << getName() << ".";
+        OPENVINO_THROW("NotAllocated: Internal blob was not allocated for node ", getName(), ".");
     size_t intBuffSize = internalBlob->byteSize();
 
     size_t offset = blbSize;
