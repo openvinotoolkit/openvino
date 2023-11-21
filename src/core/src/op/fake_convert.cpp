@@ -40,6 +40,31 @@ const std::string& FakeConvert::get_destination_type() const {
 void FakeConvert::validate_and_infer_types() {
     OV_OP_SCOPE(v13_FakeConvert_validate_and_infer_types);
     validate_type();
+    for (size_t i = 0; i < get_input_size(); i++) {
+        const auto& input_type = get_input_element_type(i);
+        NODE_VALIDATION_CHECK(this,
+                              input_type == element::f16 || input_type == element::bf16 ||
+                                  input_type == element::f32 || input_type.is_dynamic(),
+                              "The element type of the input tensor on index ",
+                              i,
+                              " must be a bf16, f16, f32 or dynamic (got ",
+                              input_type,
+                              ").");
+    }
+    if (inputs().size() == 3) {
+        OPENVINO_ASSERT(get_input_partial_shape(1).compatible(get_input_partial_shape(2)),
+                        "FakeConvert scale shape: ",
+                        get_input_partial_shape(1),
+                        " is not compatible with shift shape: ",
+                        get_input_partial_shape(2));
+    }
+    auto data_pshape = get_input_partial_shape(0);
+    NODE_VALIDATION_CHECK(
+        this,
+        PartialShape::broadcast_merge_into(data_pshape, get_input_partial_shape(1), op::AutoBroadcastType::NUMPY),
+        "Argument shapes are inconsistent.");
+    OPENVINO_ASSERT(get_input_partial_shape(0).compatible(data_pshape),
+                    "FakeConvert support only unidirectional broadcasting, inputs cannot be broadcastd into data.");
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
