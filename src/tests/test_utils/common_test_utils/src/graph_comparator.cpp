@@ -4,8 +4,8 @@
 
 #include "common_test_utils/graph_comparator.hpp"
 
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "gtest/gtest.h"
 #include "ie_common.h"
 #include "openvino/op/constant.hpp"
