@@ -175,5 +175,9 @@ MemoryDescPtr VariableStateSingleBuffer::internal_desc() const {
     return m_internal_desc;
 }
 
+void VariableStateSingleBuffer::commit() {
+    //nothing to do
+}
+
 }  // namespace intel_cpu
 }  // namespace ov

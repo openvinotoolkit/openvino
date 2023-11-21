@@ -49,6 +49,7 @@ private:
     void MergeTransposeAndReorder(Graph &graph);
     void reshapeRnnSeq(Graph &graph);
     void RemoveSameConvert(Graph &graph);
+    void MatchSdpaKvCache(Graph &graph);
 };
 
 }   // namespace intel_cpu

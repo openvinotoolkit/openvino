@@ -9,6 +9,7 @@
 #include "ie_algorithm.hpp"
 #include "input.h"
 #include <node.h>
+#include <ov_optional.hpp>
 #include <memory_state.h>
 #include <proxy_mem_mgr.h>
 #include <string>
@@ -33,6 +34,13 @@ class MemoryNode {
 
 private:
     std::string m_id;
+};
+
+class MemoryStateNode : public MemoryNode {
+public:
+    using MemoryNode::MemoryNode;
+    virtual void assignState(MemStatePtr newState) = 0;
+    virtual MemStatePtr makeState() const = 0;
 };
 
 /**
@@ -100,15 +108,17 @@ private:
     ProxyMemoryMngrPtr memMngr = nullptr;
 };
 
-class MemoryInputBase : public Input, public MemoryNode {
+class MemoryInputBase : public Input, public MemoryStateNode {
 public:
     MemoryInputBase(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
     MemoryInputBase(const std::string id,
-                    const Shape& shape,
-                    const ov::element::Type& prc,
                     const std::string& name,
                     const std::string& type,
-                    const GraphContext::CPtr context);
+                    const Shape& output_shape,
+                    const ov::element::Type& output_prc,
+                    const GraphContext::CPtr context,
+                    const ov::optional<Shape>& input_shape,
+                    const ov::optional<ov::element::Type>& input_prc);
 
     ~MemoryInputBase() override;
 
@@ -128,10 +138,7 @@ public:
     void deregisterSibling(MemoryOutput* node);
 
     // May be extracted to some interface when necessary
-    virtual void assignState(MemStatePtr newState);
-    virtual MemStatePtr makeState() const = 0;
-
-protected:
+    void assignState(MemStatePtr newState) override;
     MemoryOutput& getOutputNode();
 
 private:

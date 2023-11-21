@@ -22,6 +22,7 @@
 #include "nodes/reduce.h"
 #include "nodes/input.h"
 #include "nodes/rnn.h"
+#include "nodes/memory.hpp"
 #include "nodes/common/cpu_convert.h"
 
 #include "onednn/dnnl.h"
@@ -180,6 +181,10 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "RemoveSameConvert");
     RemoveSameConvert(graph);
+    graph.RemoveDroppedNodes();
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "MatchSdpaKvCache");
+    MatchSdpaKvCache(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "RemoveDroppedEdges");
@@ -2707,6 +2712,100 @@ void GraphOptimizer::RemoveSameConvert(Graph& graph) {
             continue;
         }
         graph.DropNode(parentNode);
+    }
+}
+
+void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSuitableMemInput = [](const NodePtr& node) -> bool {
+        if (Type::MemoryInput != node->getType()) {
+            return false;
+        }
+        NodePtr childSdpa = nullptr;
+        auto&& childEdges = node->getChildEdgesAtPort(0);
+        for (auto&& item : childEdges) {
+            auto childNode = item->getChild();
+            if (!one_of(childNode->getType(), Type::ScaledDotProductAttention, Type::ShapeOf)) {
+                return false;
+            }
+
+            if (Type::ScaledDotProductAttention == childNode->getType()) {
+                if (childSdpa && childSdpa != childNode) {
+                    //only one child SDPA supported
+                    return false;
+                }
+                childSdpa = childNode;
+            }
+        }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(MatchSdpaKvCache_isSuitableMemInput);
+
+        auto memInputNode = std::dynamic_pointer_cast<node::MemoryInputBase>(node);
+        OPENVINO_ASSERT(memInputNode, "MemoryInput node ", node->getName(), " has unexpected dynamic type");
+        auto& memOutputNode = memInputNode->getOutputNode();
+        auto memOutputParent = memOutputNode.getParentEdgeAt(0)->getParent();
+        if (memOutputParent != childSdpa) {
+            return false;
+        }
+        return true;
+    };
+
+    for (size_t i = 0; i < graphNodes.size(); i++) {
+        auto node = graphNodes[i];
+        if (!isSuitableMemInput(node)) {
+            continue;
+        }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(MatchSdpaKvCache_Node);
+
+        // Node is already modified
+        if (auto sdpaMemInput = std::dynamic_pointer_cast<node::MemoryInputSDPA>(node)) {
+            continue;
+        }
+
+        auto memInputNode = std::dynamic_pointer_cast<node::MemoryInputBase>(node);
+        OPENVINO_ASSERT(memInputNode, "MemoryInput node ", node->getName(), " has unexpected dynamic type");
+
+        ov::optional<Shape> input_shape;
+        ov::optional<ov::element::Type> input_prc;
+
+        if (!node->getParentEdges().empty()) {
+            input_shape = ov::optional<Shape>(node->getInputShapeAtPort(0));
+            input_prc = ov::optional<ov::element::Type>(node->getOriginalInputPrecisionAtPort(0));
+        }
+
+        auto memInputSdpa = std::make_shared<MemoryInputSDPA>(
+            memInputNode->getId(),
+            memInputNode->getName(),
+            memInputNode->getTypeStr(),
+            memInputNode->getOutputShapeAtPort(0),
+            memInputNode->getOriginalOutputPrecisionAtPort(0),
+            graph.getGraphContext(),
+            input_shape,
+            input_prc);
+
+        if (!memInputNode->getParentEdges().empty()) {
+            auto parentEdge = memInputNode->getParentEdgeAt(0);
+            auto newEdge = std::make_shared<Edge>(parentEdge->getParent(), memInputSdpa, parentEdge->getInputNum(), 0);
+            memInputSdpa->addEdge(newEdge);
+            graph.GetEdges().push_back(newEdge);
+            graph.RemoveEdge(parentEdge);
+        }
+
+        for (auto&& edge : memInputNode->getChildEdgesAtPort(0)) {
+            auto newEdge = std::make_shared<Edge>(memInputSdpa, edge->getChild(), 0, edge->getOutputNum());
+            memInputSdpa->addEdge(newEdge);
+            graph.GetEdges().push_back(newEdge);
+            graph.RemoveEdge(edge);
+        }
+
+        //link with memory output
+        auto& memOutput = memInputNode->getOutputNode();
+        memInputSdpa->registerOutputNode(&memOutput);
+
+        graph.GetNodes().push_back(memInputSdpa);
+        graph.DropNode(memInputNode);
     }
 }
 

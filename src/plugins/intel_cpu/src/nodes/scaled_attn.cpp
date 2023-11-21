@@ -812,10 +812,10 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     if (m_config.fuse_concat) {
         config.outConfs[1].setMemDesc(creatorsMap.at(LayoutType::cabd)->createSharedDesc(
             rtPrecision, getOutputShapeAtPort(1)));
-        //config.outConfs[1].inPlace(orginSDPInputNumber + 0);
+        config.outConfs[1].inPlace(orginSDPInputNumber + 0);
         config.outConfs[2].setMemDesc(creatorsMap.at(LayoutType::cabd)->createSharedDesc(
             rtPrecision, getOutputShapeAtPort(2)));
-        //config.outConfs[2].inPlace(orginSDPInputNumber + 1);
+        config.outConfs[2].inPlace(orginSDPInputNumber + 1);
     }
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }

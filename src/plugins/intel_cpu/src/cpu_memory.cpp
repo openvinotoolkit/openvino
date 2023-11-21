@@ -280,6 +280,12 @@ bool MemoryMngrRealloc::hasExtBuffer() const noexcept {
     return m_useExternalStorage;
 }
 
+void MemoryMngrRealloc::release(void *ptr) {}
+
+void MemoryMngrRealloc::destroy(void *ptr) {
+    dnnl::impl::free(ptr);
+}
+
 void* DnnlMemoryMngr::getRawPtr() const noexcept {
     return m_pMemMngr->getRawPtr();
 }

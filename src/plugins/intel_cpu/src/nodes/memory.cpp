@@ -11,6 +11,7 @@
 #include "utils/general_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/ngraph_utils.hpp"
+#include "shape_inference/shape_inference_pass_through.hpp"
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -223,7 +224,7 @@ bool MemoryInputBase::isSupportedOperation(const std::shared_ptr<const ov::Node>
 }
 
 MemoryInputBase::MemoryInputBase(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr ctx)
-        : Input(op, ctx), MemoryNode(op) {
+        : Input(op, ctx), MemoryStateNode(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -234,17 +235,28 @@ MemoryInputBase::MemoryInputBase(const std::shared_ptr<ov::Node>& op, const Grap
 }
 
 MemoryInputBase::MemoryInputBase(const std::string id,
-                                 const Shape& shape,
-                                 const ov::element::Type& prc,
                                  const std::string& name,
                                  const std::string& type,
-                                 const GraphContext::CPtr context) :
-    Input(shape, prc, name, type, context), MemoryNode(id) {
-    outputShapes.emplace_back(shape);
-    addOriginalOutputPrecision(prc);
-    if (created()) {
-        holder = MemoryNodeVirtualEdge::registerInput(this);
+                                 const Shape& output_shape,
+                                 const ov::element::Type& output_prc,
+                                 const GraphContext::CPtr context,
+                                 const ov::optional<Shape>& input_shape,
+                                 const ov::optional<ov::element::Type>& input_prc) :
+    Input(output_shape, output_prc, name, type, context), MemoryStateNode(id) {
+    outputShapes.emplace_back(output_shape);
+    addOriginalOutputPrecision(output_prc);
+    if (input_shape) {
+        inputShapes.push_back(*input_shape);
+        isDynamic = isDynamic || input_shape->isDynamic();
+        if (isDynamic && !shapeInference) {
+            shapeInference = PassThroughShapeInferFactory().makeShapeInfer();
+        }
     }
+    if (input_prc) {
+        addOriginalInputPrecision(*input_prc);
+    }
+    // We don't need to use a virtual edge since this constructor is used in transformations and
+    // this is their responsibility to link the input/output nodes properly
 }
 
 void MemoryInputBase::createPrimitive() {
