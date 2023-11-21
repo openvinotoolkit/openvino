@@ -271,7 +271,8 @@ private:
 
 private:
         void validate_backedge_memory() {
-            if (from_mem) {
+            bool is_dynamic = (from_primitive->is_dynamic() || to_primitive->is_dynamic());
+            if (!is_dynamic && from_mem) {
                 const size_t from_mem_bytes = from_mem->get_layout().bytes_count();
                 OPENVINO_ASSERT((from_mem_bytes == total_bytes), "Invalid backedge memory layout: size(",
                         from_mem_bytes, ",", from_mem->get_layout().to_short_string(),
@@ -326,6 +327,8 @@ public:
 
     // num_iteration is used for slicing input memory
     int64_t get_num_iterations();
+
+    void update_backedge_exec_deps(const cldnn::program_node& node, const cldnn::primitive_id& backedge_from_prim_id);
 
     std::vector<event::ptr> preprocess_memory_for_body_network(int64_t current_iteration_idx);
     std::vector<event::ptr> postprocess_memory_for_body_network(int64_t current_iteration_idx);
