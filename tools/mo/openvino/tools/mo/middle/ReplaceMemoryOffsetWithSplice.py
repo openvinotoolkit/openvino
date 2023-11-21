@@ -141,7 +141,11 @@ class ReplaceMemoryOffsetWithMemoryNodePattern(MiddleReplacementPattern):
         init_value_memory_out = Const(graph, {'name': 'init_value_' + pair_name,
                                               'value': np.zeros(int64_array([in_shape[0], in_shape[1]*node_t]), dtype=np.float32),
                                               'shape': int64_array([in_shape[0], in_shape[1]*node_t])}).create_node()
-        memory_out = ReadValue(graph, {'name': pair_name, 'variable_id': node_name+pair_name}).create_node()
+        memory_out = ReadValue(graph, {'name': pair_name,
+                                       'variable_id': node_name+pair_name,
+                                       'variable_shape': None,
+                                       'variable_type': None
+                                       }).create_node()
         init_value_memory_out.out_port(0).connect(memory_out.in_port(0))
 
         if node_t > 1:

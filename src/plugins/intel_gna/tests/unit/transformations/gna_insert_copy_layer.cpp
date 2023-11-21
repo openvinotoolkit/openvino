@@ -736,12 +736,13 @@ TEST_P(InsertCopyLayerMultiParamNFLConcatMemoryTest, CompareWithRefs) {
     ngraph::Shape in_shape = {1, 2, 4};
     ngraph::Shape shape1 = {1, 1, 2, 4};
     ngraph::Shape shape2 = {2, 4};
+    ngraph::PartialShape allowed_shape = ngraph::PartialShape::dynamic();
     size_t axis = 0;
     const std::string variable_name("variable_id");
 
     {
-        auto variable =
-            std::make_shared<ngraph::Variable>(ov::op::util::VariableInfo{shape2, ngraph::element::i64, variable_name});
+        auto variable = std::make_shared<ngraph::Variable>(
+            ov::op::util::VariableInfo{allowed_shape, ngraph::element::i64, variable_name});
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
         auto reshape1 = ov::op::util::reshapeTo(input, shape1);
         auto reshape2 = ov::op::util::reshapeTo(input, shape2);
@@ -761,8 +762,8 @@ TEST_P(InsertCopyLayerMultiParamNFLConcatMemoryTest, CompareWithRefs) {
     }
 
     {
-        auto variable =
-            std::make_shared<ngraph::Variable>(ov::op::util::VariableInfo{shape2, ngraph::element::i64, variable_name});
+        auto variable = std::make_shared<ngraph::Variable>(
+            ov::op::util::VariableInfo{allowed_shape, ngraph::element::i64, variable_name});
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
         auto reshape1 = ov::op::util::reshapeTo(input, shape1);
         auto reshape2 = ov::op::util::reshapeTo(input, shape2);
@@ -1107,6 +1108,7 @@ TEST_P(InsertCopyLayerConcatNFLMemoryTest, CompareWithRefs) {
     std::shared_ptr<ngraph::Function> ref_func;
     ngraph::Shape shape = {1, 2, 2, 4};
     ngraph::Shape in_shape = {1, 2, 4};
+    ngraph::PartialShape allowed_shape = {};
     size_t axis = 0;
     const std::string variable_name("variable_id");
 
@@ -1178,12 +1180,13 @@ TEST_P(InsertCopyLayerSplitMemoryTest, CompareWithRefs) {
     std::shared_ptr<ngraph::Function> ref_func;
     ngraph::Shape in_shape{10};
     ngraph::Shape out_shape{5};
+    ngraph::PartialShape allowed_shape = {{5, 10}};
     size_t axis = 0;
     const std::string variable_name("variable_id");
 
     {
         auto variable = std::make_shared<ngraph::Variable>(
-            ov::op::util::VariableInfo{out_shape, ngraph::element::i64, variable_name});
+            ov::op::util::VariableInfo{allowed_shape, ngraph::element::i64, variable_name});
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
         OPENVINO_SUPPRESS_DEPRECATED_START
         auto split = ngraph::builder::makeSplit(input, ngraph::element::i64, 1, axis);
@@ -1203,7 +1206,7 @@ TEST_P(InsertCopyLayerSplitMemoryTest, CompareWithRefs) {
 
     {
         auto variable = std::make_shared<ngraph::Variable>(
-            ov::op::util::VariableInfo{out_shape, ngraph::element::i64, variable_name});
+            ov::op::util::VariableInfo{allowed_shape, ngraph::element::i64, variable_name});
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
         OPENVINO_SUPPRESS_DEPRECATED_START
         auto split = ngraph::builder::makeSplit(input, ngraph::element::i64, 1, axis);
@@ -1250,12 +1253,13 @@ TEST_P(InsertCopyLayerSplitNFLMemoryTest, CompareWithRefs) {
     ngraph::Shape in_shape{10};
     ngraph::Shape shape{1, 5};
     ngraph::Shape out_shape{5};
+    ngraph::PartialShape allowed_shape = ngraph::PartialShape::dynamic();
     size_t axis = 0;
     const std::string variable_name("variable_id");
 
     {
         auto variable = std::make_shared<ngraph::Variable>(
-            ov::op::util::VariableInfo{out_shape, ngraph::element::i64, variable_name});
+            ov::op::util::VariableInfo{allowed_shape, ngraph::element::i64, variable_name});
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
         OPENVINO_SUPPRESS_DEPRECATED_START
         auto split = ngraph::builder::makeSplit(input, ngraph::element::i64, 2, axis);
@@ -1276,7 +1280,7 @@ TEST_P(InsertCopyLayerSplitNFLMemoryTest, CompareWithRefs) {
 
     {
         auto variable = std::make_shared<ngraph::Variable>(
-            ov::op::util::VariableInfo{out_shape, ngraph::element::i64, variable_name});
+            ov::op::util::VariableInfo{allowed_shape, ngraph::element::i64, variable_name});
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
         OPENVINO_SUPPRESS_DEPRECATED_START
         auto split = ngraph::builder::makeSplit(input, ngraph::element::i64, 2, axis);

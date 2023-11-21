@@ -22,7 +22,7 @@ int main(int argc, char* argv[]) {
         // For each such a pair, its own variable object must be created.
         const std::string variable_name("variable0");
         auto variable = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, variable_name});
+            ov::op::util::VariableInfo{ov::PartialShape{1, 1}, ov::element::f32, variable_name});
 
         // Creating ov::Model
         auto read = std::make_shared<ov::opset11::ReadValue>(init_const, variable);

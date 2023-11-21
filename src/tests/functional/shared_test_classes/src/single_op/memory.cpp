@@ -55,9 +55,7 @@ void MemoryLayerTest::SetUp() {
 
 void MemoryLayerTest::CreateCommonFunc(ov::element::Type model_type, ov::Shape input_shape) {
     ov::ParameterVector param {std::make_shared<ov::op::v0::Parameter>(model_type, input_shape)};
-    const auto variable_info = targetDevice == ov::test::utils::DEVICE_GPU ?
-                               ov::op::util::VariableInfo{input_shape, model_type, "v0"} :
-                               ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"};
+    const auto variable_info = ov::op::util::VariableInfo{input_shape, model_type, "v0"};
     auto variable = std::make_shared<ov::op::util::Variable>(variable_info);
 
     std::shared_ptr<ov::op::util::ReadValueBase> read_value;

@@ -97,8 +97,8 @@ private:
                                                  const element::Type& input_type,
                                                  const std::string variable_id) {
         auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
-        auto variable = std::make_shared<op::util::Variable>(
-            op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, variable_id});
+        auto variable =
+            std::make_shared<op::util::Variable>(op::util::VariableInfo{input_shape, input_type, variable_id});
         auto assign = std::make_shared<op::v6::Assign>(in, variable);
         auto read_value = std::make_shared<op::v6::ReadValue>(assign, variable);
         return std::make_shared<Model>(OutputVector{read_value},
@@ -312,8 +312,8 @@ std::shared_ptr<ov::Model> CreateFunction_ReadValueAssingAdd(const ov::Shape& in
                                                              const std::vector<std::string>& variable_id) {
     auto in = std::make_shared<ov::op::v0::Parameter>(input_type, input_shape);
     auto c = std::make_shared<ov::op::v0::Constant>(input_type, input_shape, 0);
-    auto variable = std::make_shared<ov::op::util::Variable>(
-        ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, variable_id[0]});
+    auto variable =
+        std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{input_shape, input_type, variable_id[0]});
     auto read_value = std::make_shared<ov::op::v6::ReadValue>(c, variable);
     auto add = std::make_shared<ov::op::v1::Add>(in, read_value);
     auto assign = std::make_shared<ov::op::v6::Assign>(add, variable);
@@ -326,10 +326,10 @@ std::shared_ptr<ov::Model> CreateFunction_ReadValueAssingAddMultiVariable(const 
                                                                           const ov::element::Type& input_type,
                                                                           const std::vector<std::string>& variable_id) {
     auto in = std::make_shared<ov::op::v0::Parameter>(input_type, input_shape);
-    auto variable1 = std::make_shared<ov::op::util::Variable>(
-        ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, variable_id[0]});
-    auto variable2 = std::make_shared<ov::op::util::Variable>(
-        ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, variable_id[1]});
+    auto variable1 =
+        std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{input_shape, input_type, variable_id[0]});
+    auto variable2 =
+        std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{input_shape, input_type, variable_id[1]});
     auto read_value1 = std::make_shared<ov::op::v6::ReadValue>(in, variable1);
     auto read_value2 = std::make_shared<ov::op::v6::ReadValue>(in, variable2);
     auto add1 = std::make_shared<ov::op::v1::Add>(read_value1, read_value2);
