@@ -3,11 +3,8 @@
 //
 
 #include "mock_mo_frontend.hpp"
-#include "ngraph/visibility.hpp"
 #include "openvino/frontend/manager.hpp"
-#include "openvino/frontend/visibility.hpp"
 
-using namespace ngraph;
 using namespace ov::frontend;
 
 FeStat FrontEndMockPy::m_stat = {};
@@ -19,7 +16,7 @@ std::string MockSetup::m_equal_data_node2 = {};
 int MockSetup::m_max_input_port_index = 0;
 int MockSetup::m_max_output_port_index = 0;
 
-PartialShape InputModelMockPy::m_returnShape = {};
+ov::PartialShape InputModelMockPy::m_returnShape = {};
 
 extern "C" MOCK_API FrontEndVersion get_api_version()
 {
