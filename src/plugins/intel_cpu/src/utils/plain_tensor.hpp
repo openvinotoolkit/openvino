@@ -25,37 +25,37 @@ namespace intel_cpu {
 
 template <typename T>
 inline void assert_dt(ov::element::Type dt) {
-    IE_ASSERT(false);
+    OPENVINO_ASSERT(false);
 }
 
 template <>
 inline void assert_dt<float>(ov::element::Type dt) {
-    IE_ASSERT(dt == ov::element::f32);
+    OPENVINO_ASSERT(dt == ov::element::f32);
 }
 
 template <>
 inline void assert_dt<ov::bfloat16>(ov::element::Type dt) {
-    IE_ASSERT(dt == ov::element::bf16);
+    OPENVINO_ASSERT(dt == ov::element::bf16);
 }
 
 template <>
 inline void assert_dt<uint8_t>(ov::element::Type dt) {
-    IE_ASSERT(dt == ov::element::u8);
+    OPENVINO_ASSERT(dt == ov::element::u8);
 }
 
 template <>
 inline void assert_dt<int8_t>(ov::element::Type dt) {
-    IE_ASSERT(dt == ov::element::i8);
+    OPENVINO_ASSERT(dt == ov::element::i8);
 }
 
 template <>
 inline void assert_dt<int32_t>(ov::element::Type dt) {
-    IE_ASSERT(dt == ov::element::i32);
+    OPENVINO_ASSERT(dt == ov::element::i32);
 }
 
 template <>
 inline void assert_dt<float16>(ov::element::Type dt) {
-    IE_ASSERT(dt == ov::element::f16);
+    OPENVINO_ASSERT(dt == ov::element::f16);
 }
 
 template <typename T>
@@ -150,7 +150,7 @@ struct PlainTensor {
 
     // copy construct (always not take ownership)
     PlainTensor<DT> operator=(const PlainTensor<DT>& other) {
-        IE_ASSERT(!with_storage);
+        OPENVINO_ASSERT(!with_storage);
         memcpy(&m_strides, &other.m_strides, sizeof(m_strides));
         memcpy(&m_dims, &other.m_dims, sizeof(m_dims));
         m_rank = other.m_rank;
@@ -432,7 +432,7 @@ struct PlainTensor {
                 ss << i << ",";
             ss << "]";
             // asm("int3");
-            IE_ASSERT(false) << ss.str();
+            OPENVINO_THROW(ss.str());
         }
     }
 
