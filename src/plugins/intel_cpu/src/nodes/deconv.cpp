@@ -329,7 +329,7 @@ bool Deconvolution::canFuse(const NodePtr& node) const {
     if (canBeExecutedInInt8())
         return canFuseSimpleOperation(node);
 
-    return (fusedWith.empty() && node->canBePerformedAsScaleShift(this));
+    return (fusedWith.empty() && node->canBePerformedAsScaleShift(this)) && node->getOriginalOutputPrecisionAtPort(0) == ov::element::f32;
 }
 
 std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
