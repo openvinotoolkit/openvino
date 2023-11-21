@@ -621,15 +621,6 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             past_v_input = past_v_input.permute({1, 2, 0, 3});
             past_k_output = past_k_output.permute({1, 2, 0, 3});
             past_v_output = past_v_output.permute({1, 2, 0, 3});
-            // TODO: remove after redefineOutputMemory can grow memory while keeping original content
-            parallel_for3d(B, H, L0, [&](size_t b, size_t h, size_t m) {
-                memcpy(&past_k_output.at({b, h, m, 0}),
-                       &past_k_input.at({b, h, m, 0}),
-                       S * sizeof(T));
-                memcpy(&past_v_output.at({b, h, m, 0}),
-                       &past_v_input.at({b, h, m, 0}),
-                       S * sizeof(T));
-            });
             parallel_for3d(B, H, L1, [&](size_t b, size_t h, size_t m) {
                 memcpy(&past_k_output.at({b, h, m + L0, 0}),
                        &k_input.at({b, h, m, 0}),
