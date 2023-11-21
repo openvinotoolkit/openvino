@@ -4,13 +4,13 @@
 
 #include "shared_test_classes/single_op/comparison.hpp"
 
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/comparison.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 
 namespace ov {
 namespace test {
-using ngraph::helpers::ComparisonTypes;
-using ngraph::helpers::InputLayerType;
+using ov::test::utils::ComparisonTypes;
+using ov::test::utils::InputLayerType;
 
 std::string ComparisonLayerTest::getTestCaseName(const testing::TestParamInfo<ComparisonTestParams> &obj) {
     std::vector<InputShape> shapes;
@@ -51,7 +51,7 @@ void ComparisonLayerTest::SetUp() {
     InputLayerType second_input_type;
     std::map<std::string, std::string> additional_config;
     ov::element::Type model_type;
-    ngraph::helpers::ComparisonTypes comparison_op_type;
+    ov::test::utils::ComparisonTypes comparison_op_type;
     std::tie(shapes,
              comparison_op_type,
              second_input_type,
@@ -72,7 +72,7 @@ void ComparisonLayerTest::SetUp() {
         second_input = std::make_shared<ov::op::v0::Constant>(tensor);
     }
 
-    auto comparisonNode = ngraph::builder::makeComparison(inputs[0], second_input, comparison_op_type);
+    auto comparisonNode = ov::test::utils::make_comparison(inputs[0], second_input, comparison_op_type);
     function = std::make_shared<ov::Model>(comparisonNode, inputs, "Comparison");
 }
 } // namespace test
