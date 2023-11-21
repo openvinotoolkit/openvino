@@ -215,7 +215,7 @@ void Multinomial::execute_convert_type() {
 
     const auto gen_max = gen.max();
     std::generate(m_random_samples.begin(), m_random_samples.end(), [&]() {
-        return static_cast<P>(static_cast<float>(gen)/gen_max);
+        return static_cast<P>(static_cast<float>(gen())/gen_max);
     });
 
     // max & divide
