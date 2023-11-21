@@ -17,26 +17,6 @@
         {
             "language": "javascript",
             "source": [
-                "const { addon: ov } = require('openvinojs-node');\nconst core = new ov.Core();\n\ntry {\n  const model = core.readModelSync('../../assets/models/classification.xml');\n\n  console.log(ov.preprocess.resizeAlgorithm.RESIZE_CUBIC);\n  console.log(new ov.preprocess.PrePostProcessor(model));\n} catch(e) {\n  console.log(e);\n}\n"
-            ],
-            "outputs": [
-                {
-                    "items": [
-                        {
-                            "mime": "application/vnd.code.notebook.stdout",
-                            "value": [
-                                "RESIZE_CUBIC",
-                                "PrePostProcessorWrap {}",
-                                ""
-                            ]
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "language": "javascript",
-            "source": [
                 "const { cv } = require('opencv-wasm');\nconst { display } = require('node-kernel');\nconst { getImageData, displayImage, downloadFile } = require('../helpers.js');\n\nconst { addon: ov } = require('openvinojs-node');\n"
             ],
             "outputs": []
