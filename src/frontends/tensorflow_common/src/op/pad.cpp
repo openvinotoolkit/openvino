@@ -2,13 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/pad.hpp"
+
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/gather.hpp"
 #include "utils.hpp"
 
 using namespace std;
 using namespace ov;
-using namespace ov::opset9;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -18,12 +22,12 @@ static void slice_pads_begin_end(const Output<Node>& paddings,
                                  shared_ptr<Node>& pads_begin,
                                  shared_ptr<Node>& pads_end) {
     // TODO: fix IR reader to accept padding of i32 type
-    auto paddings_i64 = make_shared<Convert>(paddings, element::i64);
-    auto axis = make_shared<Constant>(element::i32, Shape{}, 1);
-    auto index_zero = make_shared<Constant>(element::i32, Shape{}, 0);
-    auto index_one = make_shared<Constant>(element::i32, Shape{}, 1);
-    pads_begin = make_shared<Gather>(paddings_i64, index_zero, axis);
-    pads_end = make_shared<Gather>(paddings_i64, index_one, axis);
+    auto paddings_i64 = make_shared<v0::Convert>(paddings, element::i64);
+    auto axis = make_shared<v0::Constant>(element::i32, Shape{}, 1);
+    auto index_zero = make_shared<v0::Constant>(element::i32, Shape{}, 0);
+    auto index_one = make_shared<v0::Constant>(element::i32, Shape{}, 1);
+    pads_begin = make_shared<v8::Gather>(paddings_i64, index_zero, axis);
+    pads_end = make_shared<v8::Gather>(paddings_i64, index_one, axis);
 }
 
 static OutputVector translate_pad_base_op(const NodeContext& node,
@@ -36,7 +40,7 @@ static OutputVector translate_pad_base_op(const NodeContext& node,
     shared_ptr<Node> pads_begin, pads_end;
     slice_pads_begin_end(paddings, pads_begin, pads_end);
 
-    auto pad = make_shared<Pad>(input, pads_begin, pads_end, constant_value, pad_mode);
+    auto pad = make_shared<v1::Pad>(input, pads_begin, pads_end, constant_value, pad_mode);
     set_node_name(node.get_name(), pad);
     return {pad};
 }
@@ -72,7 +76,7 @@ OutputVector translate_mirror_pad_op(const NodeContext& node) {
     shared_ptr<Node> pads_begin, pads_end;
     slice_pads_begin_end(paddings, pads_begin, pads_end);
 
-    auto pad = make_shared<Pad>(input, pads_begin, pads_end, pad_mode);
+    auto pad = make_shared<v1::Pad>(input, pads_begin, pads_end, pad_mode);
     set_node_name(node.get_name(), pad);
     return {pad};
 }
