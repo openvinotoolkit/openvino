@@ -209,8 +209,8 @@ void Multinomial::execute_convert_type() {
     if (m_global_seed == 0 && m_op_seed == 0) {
         gen.seed(std::time(NULL));
     } else {
-        gen.seed(m_global_seed);
-        gen.seed(m_op_seed + gen());
+        std::seed_seq seed{m_global_seed, m_op_seed};
+        gen.seed(seed);
     }
 
     const auto gen_max = static_cast<float>(gen.max());
