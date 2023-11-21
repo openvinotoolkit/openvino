@@ -325,8 +325,9 @@ bool ov::CoreImpl::is_proxy_device(const ov::Plugin& plugin) const {
 }
 bool ov::CoreImpl::is_proxy_device(const std::string& dev_name) const {
 #ifdef PROXY_PLUGIN_ENABLED
-    return pluginRegistry.find(dev_name) != pluginRegistry.end() &&
-           pluginRegistry.at(dev_name).pluginCreateFunc == ov::proxy::create_plugin;
+    auto parsed = ov::parseDeviceNameIntoConfig(dev_name);
+    return pluginRegistry.find(parsed._deviceName) != pluginRegistry.end() &&
+           pluginRegistry.at(parsed._deviceName).pluginCreateFunc == ov::proxy::create_plugin;
 #else
     return false;
 #endif
@@ -471,6 +472,10 @@ void ov::CoreImpl::register_compile_time_plugins() {
         const auto& pluginPath = ov::util::get_compiled_plugin_path(plugin.second.m_plugin_path);
         if (pluginRegistry.find(deviceName) == pluginRegistry.end() && ov::util::file_exists(pluginPath)) {
             ov::AnyMap config = any_copy(plugin.second.m_default_config);
+            std::cout << "========[WY] Default config for device: " << deviceName << std::endl;
+            for(auto& item : config) {
+                std::cout << "key: " << item.first << "\tvalue: " << item.second.as<std::string>() << std::endl;
+            }
             PluginDescriptor desc{pluginPath, config};
             register_plugin_in_registry_unsafe(deviceName, desc);
         }
