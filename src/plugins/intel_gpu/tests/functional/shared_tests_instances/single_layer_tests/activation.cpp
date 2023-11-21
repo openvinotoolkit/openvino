@@ -12,7 +12,7 @@ using ov::test::utils::ActivationTypes;
 
 // Common params
 const std::vector<ov::element::Type> netPrecisions = {
-        //ov::element::f32,
+        ov::element::f32,
         ov::element::f16
 };
 

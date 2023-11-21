@@ -63,7 +63,7 @@ std::shared_ptr<ov::Node> makeActivation(const ov::Output<Node>& in,
     case ov::test::utils::ActivationTypes::Relu:
         return std::make_shared<ov::op::v0::Relu>(in);
     case ov::test::utils::ActivationTypes::LeakyRelu: {
-        auto leaky_slope = std::make_shared<ov::op::v0::Constant>(ov::element::f32, inShape, constantsValue);
+        auto leaky_slope = std::make_shared<ov::op::v0::Constant>(type, inShape, constantsValue);
         return std::make_shared<ov::op::v0::PRelu>(in, leaky_slope);
     }
     case ov::test::utils::ActivationTypes::Exp:
@@ -123,7 +123,7 @@ std::shared_ptr<ov::Node> makeActivation(const ov::Output<Node>& in,
     case ov::test::utils::ActivationTypes::Ceiling:
         return std::make_shared<ov::op::v0::Ceiling>(in);
     case ov::test::utils::ActivationTypes::PReLu: {
-        auto negative_slope = std::make_shared<ov::op::v0::Constant>(ov::element::f32, inShape, constantsValue);
+        auto negative_slope = std::make_shared<ov::op::v0::Constant>(type, inShape, constantsValue);
         return std::make_shared<ov::op::v0::PRelu>(in, negative_slope);
     }
     case ov::test::utils::ActivationTypes::Mish:
