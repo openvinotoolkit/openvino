@@ -117,9 +117,15 @@ function update_onnx_models() {
             write("The proper github repository detected: $git_remote_url")
         } else {
             write("The ONNX Model Zoo repository doesn't exist then will be cloned")
-            git --progress clone "https://github.com/onnx/models.git" "$ONNX_MODELS_DIR"
+            git clone --progress "https://github.com/onnx/models.git" "$ONNX_MODELS_DIR"
         }
     }
+
+    if(Test-Path -Path "$ONNX_MODELS_DIR\tmpdir" -PathType Container) {
+        Remove-Item -Path "$ONNX_MODELS_DIR\tmpdir" -Recurse
+    }
+    New-Item -Path "$ONNX_MODELS_DIR\tmpdir" -ItemType Directory
+
     pull_and_postprocess_onnx_model_zoo
 }
 
@@ -145,11 +151,6 @@ if(-not(Test-Path -Path "$MODEL_ZOO_DIR" -PathType Container)) {
 } else {
     write("The general model directory: $MODEL_ZOO_DIR found")
 }
-
-if(Test-Path -Path "$ONNX_MODELS_DIR\tmpdir" -PathType Container) {
-    Remove-Item -Path "$ONNX_MODELS_DIR\tmpdir" -Recurse
-}
-New-Item -Path "$ONNX_MODELS_DIR\tmpdir" -ItemType Directory
 
 if($ENABLE_ONNX_MODELS_ZOO -eq $false -and $ENABLE_MSFT_MODELS -eq $false) {
     write("Please choose an option to update chosen model:")
