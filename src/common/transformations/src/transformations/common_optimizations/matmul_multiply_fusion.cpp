@@ -5,7 +5,6 @@
 #include "transformations/common_optimizations/matmul_multiply_fusion.hpp"
 
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
@@ -13,6 +12,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "validation_util.hpp"
 
 using namespace ov;
 
@@ -133,9 +133,7 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
         auto transpose = std::make_shared<ov::op::v1::Transpose>(
             new_const,
             ov::op::v0::Constant::create(element::i64, Shape{perm.size()}, perm));
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        return get_constant_from_source(transpose);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        return ov::util::constantfold_subgraph(transpose);
     };
 
     // If weights meant to be transposed - we need to also transpose constant
@@ -173,9 +171,7 @@ pass::MatMulMultiplyFusion::MatMulMultiplyFusion() {
         // Constantfold new weights, only if old weights is a constant node.
         // To make sure that subgraphs with e.g. FakeQuantize don't get constant folded here.
         if (ov::is_type<ov::op::v0::Constant>(weights.get_node())) {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            if (auto constant = get_constant_from_source(new_weights)) {
-                OPENVINO_SUPPRESS_DEPRECATED_END
+            if (auto constant = util::constantfold_subgraph(new_weights)) {
                 new_weights = constant;
             }
         }

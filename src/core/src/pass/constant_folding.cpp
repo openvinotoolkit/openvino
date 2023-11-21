@@ -140,7 +140,7 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
             node->validate_and_infer_types();
         }
 
-        auto cloned = util::try_clone_and_convert_inputs(node);
+        auto cloned = util::try_convert_inputs(node);
 
         OutputVector replacements(cloned->get_output_size());
         if (cloned->constant_fold(replacements, cloned->input_values())) {

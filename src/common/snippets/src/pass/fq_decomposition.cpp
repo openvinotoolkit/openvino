@@ -7,6 +7,7 @@
 #include <numeric>
 
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
@@ -350,7 +351,7 @@ bool ov::snippets::pass::CommonFakeQuantizeDecomposition::is_supported_fq(const 
         const auto greater_equal = std::make_shared<ov::op::v1::Greater>(il, ih);
 
         ov::OutputVector result(1);
-        if (!greater_equal->constant_fold(result, greater_equal->input_values()))
+        if (!ov::util::constant_fold_node(greater_equal, result))
             return false;
 
         const auto res_node = std::dynamic_pointer_cast<const ov::op::v0::Constant>(result[0].get_node_shared_ptr());

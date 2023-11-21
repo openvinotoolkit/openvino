@@ -191,7 +191,7 @@ std::shared_ptr<Node> try_fold_unary_output(const std::shared_ptr<Node>& node) {
     const auto& num_outputs = node->get_output_size();
     OPENVINO_ASSERT(num_outputs == 1, "Unary has unexpected number of outputs:" + std::to_string(num_outputs));
     OutputVector output(num_outputs);
-    return node->constant_fold(output, node->input_values()) ? output[0].get_node_shared_ptr() : node;
+    return ov::util::constant_fold_node(node, output) ? output[0].get_node_shared_ptr() : node;
 }
 
 std::shared_ptr<Node> clone_try_fold(const std::shared_ptr<Node>& node, const OutputVector& inputs) {

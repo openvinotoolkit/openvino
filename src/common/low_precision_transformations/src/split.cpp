@@ -65,9 +65,8 @@ bool SplitTransformation::transform(TransformationContext& context, ov::pass::pa
             OutputVector inputs = newSplit->input_values();
             inputs[0] = normalizedConstant;
             const auto foldSplit = newSplit->clone_with_new_inputs(inputs);
-
             // fold and fill results
-            foldSplit->constant_fold(results, inputs);
+            ov::util::constant_fold_node(foldSplit, results);
         }
 
         for (auto& result : results) {

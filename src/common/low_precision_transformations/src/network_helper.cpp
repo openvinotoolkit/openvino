@@ -22,7 +22,7 @@
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
-#include "openvino/core/validation_util.hpp"
+#include "validation_util.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "transformations/utils/utils.hpp"
@@ -114,8 +114,7 @@ std::shared_ptr<ov::opset1::Constant> NetworkHelper::foldDequantizationConstant(
             setOutDataPrecisionForTypeRelaxed(op, inputs[0].get_element_type());
         }
 
-        // constant folding of constant
-        op->constant_fold(outputs, inputs);
+        ov::util::constant_fold_node(op, outputs);
 
         const auto result = ov::as_type_ptr<ov::opset1::Constant>(outputs[outIdx].get_node_shared_ptr());
         if (result == nullptr) {
@@ -741,9 +740,7 @@ std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(
             subgraph = std::make_shared<ov::opset6::Round>(subgraph, ov::opset6::Round::RoundMode::HALF_TO_EVEN);
         }
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto result = ov::get_constant_from_source(subgraph);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto result = ov::util::get_constant_from_source(subgraph);
         if (result != nullptr) {
             return foldConvert(result, original_et);
         }
@@ -1678,7 +1675,7 @@ std::vector<std::vector<std::shared_ptr<ov::opset1::Constant>>> NetworkHelper::s
             ov::opset1::Constant::create(element::i64, Shape{}, { concat_axis }),
             ov::opset1::Constant::create(element::i64, Shape{ number_of_concat_inputs }, shape_axis));
         OutputVector outputResults(split->get_output_size());
-        auto foldResult = split->constant_fold(outputResults, split->input_values());
+        auto foldResult = ov::util::constant_fold_node(split, outputResults);
         if (!foldResult) {
             THROW_IE_LPT_EXCEPTION(*concat) << "error when splitting constants before concat " <<
                 concat->get_friendly_name();

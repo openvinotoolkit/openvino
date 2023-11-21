@@ -20,6 +20,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "validation_util.hpp"
 
 using namespace ov;
 
@@ -99,9 +100,7 @@ ov::pass::TransposeEltwise::TransposeEltwise() {
         if (ov::shape_size(shape) != 1) {
             eltwise_const_input =
                 std::make_shared<ov::op::v1::Transpose>(eltwise_const_input, transpose->input_value(1));
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            if (auto const_node = ov::get_constant_from_source(eltwise_const_input)) {
-                OPENVINO_SUPPRESS_DEPRECATED_END
+            if (auto const_node = ov::util::constantfold_subgraph(eltwise_const_input)) {
                 eltwise_const_input = const_node;
             }
         }

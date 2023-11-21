@@ -19,6 +19,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/strides_property.hpp"
 #include "transformations/utils/utils.hpp"
+#include "validation_util.hpp"
 
 using namespace std;
 using namespace ov;
@@ -75,9 +76,7 @@ static void insert_pooling(const Output<Node>& first, Input<Node>& second, const
         new_node =
             rg.make<ov::op::v0::Squeeze>(new_node, rg.make<ov::op::v0::Constant>(element::u64, Shape{diff}, axes));
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (const auto constant_new_node = get_constant_from_source(new_node)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (const auto constant_new_node = ov::util::constantfold_subgraph(new_node)) {
         rg.add(constant_new_node);
         new_node = constant_new_node;
     }

@@ -11,6 +11,7 @@
 #include <memory>
 #include <vector>
 
+#include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset4.hpp"
 #include "openvino/opsets/opset8.hpp"
@@ -206,7 +207,7 @@ template <class T>
 Output<Node> eltwise_fold(const Output<Node>& input0, const Output<Node>& input1) {
     auto eltwise = std::make_shared<T>(input0, input1);
     OutputVector output(eltwise->get_output_size());
-    OPENVINO_ASSERT(eltwise->constant_fold(output, {input0, input1}), "Can not constant fold eltwise node");
+    OPENVINO_ASSERT(ov::util::constant_fold_node(eltwise, output), "Can not constant fold eltwise node");
     OPENVINO_ASSERT(output.size() == 1, "Eltwise constant fold has unexpected number of outputs: ", output.size());
     return output[0];
 }

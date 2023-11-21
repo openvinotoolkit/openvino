@@ -9,7 +9,6 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
@@ -18,6 +17,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "validation_util.hpp"
 
 ov::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
     MATCHER_SCOPE(MulFakeQuantizeFusion);
@@ -105,13 +105,13 @@ ov::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
 
         auto input_low_div = std::make_shared<ov::op::v1::Divide>(fq->input_value(1), new_const);
         OPENVINO_SUPPRESS_DEPRECATED_START
-        std::shared_ptr<Node> new_input_low = get_constant_from_source(input_low_div);
+        std::shared_ptr<Node> new_input_low = ov::util::constantfold_subgraph(input_low_div);
         OPENVINO_SUPPRESS_DEPRECATED_END
         if (!new_input_low)
             new_input_low = input_low_div;
         auto input_high_div = std::make_shared<ov::op::v1::Divide>(fq->input_value(2), new_const);
         OPENVINO_SUPPRESS_DEPRECATED_START
-        std::shared_ptr<Node> new_input_high = get_constant_from_source(input_high_div);
+        std::shared_ptr<Node> new_input_high = ov::util::constantfold_subgraph(input_high_div);
         OPENVINO_SUPPRESS_DEPRECATED_END
         if (!new_input_high)
             new_input_high = input_high_div;

@@ -9,13 +9,13 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "validation_util.hpp"
 
 ov::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
     MATCHER_SCOPE(PullTransposeThroughFQUp);
@@ -66,7 +66,7 @@ ov::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
             }
             fq_input = std::make_shared<ov::op::v1::Transpose>(fq_input, transpose->input_value(1));
             OPENVINO_SUPPRESS_DEPRECATED_START
-            if (auto constant = get_constant_from_source(fq_input)) {
+            if (auto constant = ov::util::constantfold_subgraph(fq_input)) {
                 OPENVINO_SUPPRESS_DEPRECATED_END
                 fq_input = constant;
             }

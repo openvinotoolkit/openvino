@@ -9,7 +9,6 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
@@ -18,6 +17,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "validation_util.hpp"
 
 ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
     MATCHER_SCOPE(MultiplyConvolutionFusion);
@@ -51,9 +51,7 @@ ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
         }
 
         auto weights_multiply = std::make_shared<ov::op::v1::Multiply>(weights, mul_const);
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        std::shared_ptr<Node> new_weights = get_constant_from_source(weights_multiply);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        std::shared_ptr<Node> new_weights = ov::util::constantfold_subgraph(weights_multiply);
         if (!new_weights)
             new_weights = weights_multiply;
 
@@ -119,7 +117,7 @@ ov::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
 
         auto weights_multiply = std::make_shared<ov::op::v1::Multiply>(weights, mul_const);
         OPENVINO_SUPPRESS_DEPRECATED_START
-        std::shared_ptr<Node> new_weights = get_constant_from_source(weights_multiply);
+        std::shared_ptr<Node> new_weights = ov::util::constantfold_subgraph(weights_multiply);
         OPENVINO_SUPPRESS_DEPRECATED_END
         if (!new_weights)
             new_weights = weights_multiply;
@@ -189,7 +187,7 @@ ov::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropData
 
         auto weights_multiply = std::make_shared<ov::op::v1::Multiply>(weights, mul_const);
         OPENVINO_SUPPRESS_DEPRECATED_START
-        std::shared_ptr<Node> new_weights = get_constant_from_source(weights_multiply);
+        std::shared_ptr<Node> new_weights = ov::util::constantfold_subgraph(weights_multiply);
         OPENVINO_SUPPRESS_DEPRECATED_END
         if (!new_weights)
             new_weights = weights_multiply;
@@ -261,7 +259,7 @@ ov::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBa
 
         auto weights_multiply = std::make_shared<ov::op::v1::Multiply>(weights, mul_const);
         OPENVINO_SUPPRESS_DEPRECATED_START
-        std::shared_ptr<Node> new_weights = get_constant_from_source(weights_multiply);
+        std::shared_ptr<Node> new_weights = ov::util::constantfold_subgraph(weights_multiply);
         OPENVINO_SUPPRESS_DEPRECATED_END
         if (!new_weights)
             new_weights = weights_multiply;

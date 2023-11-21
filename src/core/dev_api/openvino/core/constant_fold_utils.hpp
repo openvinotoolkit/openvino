@@ -25,7 +25,24 @@ bool is_convert(const std::shared_ptr<Node>& node);
 /// \param node
 ///
 /// \return New node with f32 inputs if the inputs require conversion or the input node otherwise
-OPENVINO_API std::shared_ptr<Node> try_clone_and_convert_inputs(const std::shared_ptr<Node>& node);
+OPENVINO_API std::shared_ptr<Node> try_convert_inputs(const std::shared_ptr<Node>& node);
+
+/// \brief Constantfolds a single node. Convert its inputs before and outputs after constant folding if necessary.
+///
+/// \param node              - node to be constant_folded
+/// \param output_constants  - output parameter. A vector with constant_folded nodes. Can be empty - see example below.
+///
+/// Usage example:
+///     ```
+///         auto abs = std::make_shared<ov::op::v0::Abs>(ov::op::v0::Constant::create(element::f32, Shape{}, {-2}));
+///         OutputVector output_constants;
+///         bool status = ov::util::constant_fold_node(abs, output_constants);
+///         assert(status);
+///         assert(output_constants.size() == 1);
+///     ```
+///
+/// \return true if node was successfully constant_folded, false otherwise
+OPENVINO_API bool constant_fold_node(const std::shared_ptr<Node>& node, OutputVector& output_constants);
 
 }  // namespace util
 }  // namespace ov

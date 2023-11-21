@@ -40,10 +40,7 @@ bool ov::util::is_convert(const std::shared_ptr<Node>& node) {
     return ov::is_type<op::v0::Convert>(node) || ov::is_type<op::v1::ConvertLike>(node);
 }
 
-std::shared_ptr<ov::Node> ov::util::try_clone_and_convert_inputs(const std::shared_ptr<ov::Node>& node) {
-    if (ov::pass::constant_folding_is_disabled(node))
-        return node;
-
+std::shared_ptr<ov::Node> ov::util::try_convert_inputs(const std::shared_ptr<ov::Node>& node) {
     if (is_convert(node))
         return node;
 
@@ -92,4 +89,26 @@ std::shared_ptr<ov::Node> ov::util::try_clone_and_convert_inputs(const std::shar
     }
 
     return cloned_node;
+}
+
+bool ov::util::constant_fold_node(const std::shared_ptr<Node>& node, OutputVector& output_constants) {
+    auto cloned = try_convert_inputs(node);
+
+    auto num_outputs = cloned->get_output_size();
+    if (output_constants.size() < num_outputs)
+        output_constants.resize(num_outputs);
+
+    bool status = cloned->constant_fold(output_constants, cloned->input_values());
+    if (!status)
+        return status;
+
+    for (size_t i = 0; i < num_outputs; i++) {
+        if (output_constants[i].get_element_type() == node->get_output_element_type(i))
+            continue;
+        auto convert = std::make_shared<ov::op::v0::Convert>(output_constants[i], node->get_output_element_type(i));
+        OutputVector convert_output(1);
+        OPENVINO_ASSERT(convert->constant_fold(convert_output, convert->input_values()));
+        output_constants[i] = convert_output[0];
+    }
+    return true;
 }

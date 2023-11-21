@@ -9,9 +9,9 @@
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/reference/if.hpp"
+#include "validation_util.hpp"
 
 ov::op::v8::If::If() : MultiSubGraphOp(2) {}
 
@@ -94,9 +94,7 @@ void ov::op::v8::If::validate_and_infer_types() {
     }
 
     // Trying to get cond as const value
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (const auto& cond_value = get_constant_from_source(if_condition)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (const auto& cond_value = ov::util::constantfold_subgraph(if_condition)) {
         // If cond is const shape and inference is run for one of bodies another body is skipped
         auto val = cond_value->cast_vector<bool>();
         NODE_VALIDATION_CHECK(this,

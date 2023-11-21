@@ -11,6 +11,7 @@
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/reference/loop.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "validation_util.hpp"
 
 ov::op::v5::Loop::Loop(const Output<Node>& trip_count, const Output<Node>& execution_condition) : SubGraphOp() {
     set_argument(0, trip_count);
@@ -57,9 +58,7 @@ void ov::op::v5::Loop::validate_and_infer_types() {
                               loop_condition_rank.compatible(1) || loop_condition_rank.compatible(0),
                               "Rank of ExecutionCondition input must be equal to 0 or 1");
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (const auto& cond_value = ov::get_constant_from_source(loop_execution_condition)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (const auto& cond_value = ov::util::constantfold_subgraph(loop_execution_condition)) {
         auto val = cond_value->cast_vector<bool>();
         NODE_VALIDATION_CHECK(this,
                               val.size() == 1,
@@ -83,9 +82,7 @@ void ov::op::v5::Loop::validate_and_infer_types() {
                               body_condition_rank.compatible(0) || body_condition_rank.compatible(1),
                               "Rank of BodyExecutionCondition output must be equal to 0 or 1");
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (const auto& cond_value = get_constant_from_source(body_execution_condition)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (const auto& cond_value = ov::util::constantfold_subgraph(body_execution_condition)) {
         auto val = cond_value->cast_vector<bool>();
         NODE_VALIDATION_CHECK(this,
                               val.size() == 1,
@@ -102,7 +99,7 @@ void ov::op::v5::Loop::validate_and_infer_types() {
         for (const auto& desc : get_input_descriptions()) {
             if (m_bodies[0]->get_parameters().at(desc->m_body_parameter_index) == cond_param) {
                 OPENVINO_SUPPRESS_DEPRECATED_START
-                if (const auto& cond_value = get_constant_from_source(input_value(desc->m_input_index))) {
+                if (const auto& cond_value = ov::util::constantfold_subgraph(input_value(desc->m_input_index))) {
                     OPENVINO_SUPPRESS_DEPRECATED_END
                     auto val = cond_value->cast_vector<bool>();
                     NODE_VALIDATION_CHECK(this,
@@ -126,9 +123,7 @@ void ov::op::v5::Loop::validate_and_infer_types() {
                               trip_count_rank.compatible(1) || trip_count_rank.compatible(0),
                               "Rank of TripCount input must be equal to 0 or 1");
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (const auto& trip_count_val = get_constant_from_source(trip_count)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (const auto& trip_count_val = ov::util::constantfold_subgraph(trip_count)) {
         auto val = trip_count_val->cast_vector<int64_t>();
         NODE_VALIDATION_CHECK(this,
                               val.size() == 1,

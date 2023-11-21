@@ -290,9 +290,7 @@ public:
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& output = pattern_map.at(pattern_root);
 
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            auto axis = ov::get_constant_from_source(pattern_map.at(axis_p));
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            auto axis = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(axis_p).get_node_shared_ptr());
             if (!axis)
                 return false;
 

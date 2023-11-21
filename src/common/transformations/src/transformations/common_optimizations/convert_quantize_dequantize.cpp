@@ -9,7 +9,6 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
@@ -17,6 +16,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "validation_util.hpp"
 
 // ConvertQuantizeDequantize converts Quantize/Dequantize pair to a single FakeQuantize.
 // Since Quantize is decomposed to FakeQuantize and Dequantize is decomposed to Subtract->Multiply,
@@ -158,12 +158,12 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
             return false;
 
         OPENVINO_SUPPRESS_DEPRECATED_START
-        std::shared_ptr<Node> const_out_low = get_constant_from_source(new_out_low);
+        std::shared_ptr<Node> const_out_low = util::constantfold_subgraph(new_out_low);
         OPENVINO_SUPPRESS_DEPRECATED_END
         if (const_out_low)
             new_out_low = const_out_low;
         OPENVINO_SUPPRESS_DEPRECATED_START
-        std::shared_ptr<Node> const_out_high = get_constant_from_source(new_out_high);
+        std::shared_ptr<Node> const_out_high = util::constantfold_subgraph(new_out_high);
         OPENVINO_SUPPRESS_DEPRECATED_END
         if (const_out_high)
             new_out_high = const_out_high;

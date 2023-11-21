@@ -6,13 +6,13 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
+#include "validation_util.hpp"
 
 using namespace ov;
 
@@ -35,7 +35,7 @@ static bool convert_subtract(const std::shared_ptr<Node>& node) {
         ov::op::v0::Constant::create(sub->get_input_element_type(1), Shape{}, {-1}));
     NodeVector new_nodes;
     OPENVINO_SUPPRESS_DEPRECATED_START
-    if (auto constant = ov::get_constant_from_source(neg)) {
+    if (auto constant = ov::util::constantfold_subgraph(neg)) {
         OPENVINO_SUPPRESS_DEPRECATED_END
         neg = constant;
     } else {

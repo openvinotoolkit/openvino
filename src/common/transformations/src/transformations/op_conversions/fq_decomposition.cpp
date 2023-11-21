@@ -7,6 +7,7 @@
 #include <numeric>
 
 #include "itt.hpp"
+#include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -29,7 +30,7 @@ bool isValidRangesInputs(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) {
     auto greater_equal = std::make_shared<ov::op::v1::GreaterEqual>(il, ih);
 
     ov::OutputVector result(1);
-    if (!greater_equal->constant_fold(result, greater_equal->input_values()))
+    if (!ov::util::constant_fold_node(greater_equal, result))
         return false;
 
     auto res_node = std::dynamic_pointer_cast<const ov::op::v0::Constant>(result[0].get_node_shared_ptr());
