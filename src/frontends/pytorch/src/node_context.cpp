@@ -150,7 +150,7 @@ std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) const {
 }
 
 namespace {
-std::shared_ptr<v0::Constant> get_constant_at_input(const NodeContext& ctx, size_t index, bool allow_empty=true) {
+std::shared_ptr<v0::Constant> get_constant_at_input(const NodeContext& ctx, size_t index, bool allow_empty = true) {
     FRONT_END_GENERAL_CHECK(!ctx.input_is_none(index), "Input with index: ", index, " is none.");
     auto input_val = ctx.get_input_from_visible_context(index);
     if (ctx.get_input_type(index).is<type::List>()) {
