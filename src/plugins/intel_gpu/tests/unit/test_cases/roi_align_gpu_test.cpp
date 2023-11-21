@@ -22,8 +22,8 @@ template <typename Types>
 struct roi_align_test : public testing::Test {
     using TD = typename Types::DataType;
     using TI = typename Types::IndexType;
-    const data_types device_data_type = type_to_data_type<TD>::value;
-    const data_types device_ind_type = type_to_data_type<TI>::value;
+    const data_types device_data_type = ov::element::from<TD>();
+    const data_types device_ind_type = ov::element::from<TI>();
     const cldnn::format::type blocked_format = Types::format;
     const cldnn::format::type plain_format = format::bfyx;
 
@@ -113,26 +113,26 @@ struct roi_align_test : public testing::Test {
 // it's a bit overloaded with the cartesian product of types and formats, but that's the lesser evil
 // since we have specific type for expected values that are tied to specific input modes
 // so that Combine approach could avoid manual combinations but it would be much more complicated
-using roi_align_test_types = testing::Types<TypesWithFormat<half_t, uint8_t, format::bfyx>,
-                                            TypesWithFormat<half_t, uint8_t, format::b_fs_yx_fsv16>,
-                                            TypesWithFormat<half_t, uint8_t, format::b_fs_yx_fsv32>,
-                                            TypesWithFormat<half_t, uint8_t, format::bs_fs_yx_bsv16_fsv16>,
-                                            TypesWithFormat<half_t, uint8_t, format::bs_fs_yx_bsv32_fsv16>,
-                                            TypesWithFormat<half_t, uint8_t, format::bs_fs_yx_bsv32_fsv32>,
+using roi_align_test_types = testing::Types<TypesWithFormat<ov::float16, uint8_t, format::bfyx>,
+                                            TypesWithFormat<ov::float16, uint8_t, format::b_fs_yx_fsv16>,
+                                            TypesWithFormat<ov::float16, uint8_t, format::b_fs_yx_fsv32>,
+                                            TypesWithFormat<ov::float16, uint8_t, format::bs_fs_yx_bsv16_fsv16>,
+                                            TypesWithFormat<ov::float16, uint8_t, format::bs_fs_yx_bsv32_fsv16>,
+                                            TypesWithFormat<ov::float16, uint8_t, format::bs_fs_yx_bsv32_fsv32>,
 
-                                            TypesWithFormat<half_t, int8_t, format::bfyx>,
-                                            TypesWithFormat<half_t, int8_t, format::b_fs_yx_fsv16>,
-                                            TypesWithFormat<half_t, int8_t, format::b_fs_yx_fsv32>,
-                                            TypesWithFormat<half_t, int8_t, format::bs_fs_yx_bsv16_fsv16>,
-                                            TypesWithFormat<half_t, int8_t, format::bs_fs_yx_bsv32_fsv16>,
-                                            TypesWithFormat<half_t, int8_t, format::bs_fs_yx_bsv32_fsv32>,
+                                            TypesWithFormat<ov::float16, int8_t, format::bfyx>,
+                                            TypesWithFormat<ov::float16, int8_t, format::b_fs_yx_fsv16>,
+                                            TypesWithFormat<ov::float16, int8_t, format::b_fs_yx_fsv32>,
+                                            TypesWithFormat<ov::float16, int8_t, format::bs_fs_yx_bsv16_fsv16>,
+                                            TypesWithFormat<ov::float16, int8_t, format::bs_fs_yx_bsv32_fsv16>,
+                                            TypesWithFormat<ov::float16, int8_t, format::bs_fs_yx_bsv32_fsv32>,
 
-                                            TypesWithFormat<half_t, int32_t, format::bfyx>,
-                                            TypesWithFormat<half_t, int32_t, format::b_fs_yx_fsv16>,
-                                            TypesWithFormat<half_t, int32_t, format::b_fs_yx_fsv32>,
-                                            TypesWithFormat<half_t, int32_t, format::bs_fs_yx_bsv16_fsv16>,
-                                            TypesWithFormat<half_t, int32_t, format::bs_fs_yx_bsv32_fsv16>,
-                                            TypesWithFormat<half_t, int32_t, format::bs_fs_yx_bsv32_fsv32>,
+                                            TypesWithFormat<ov::float16, int32_t, format::bfyx>,
+                                            TypesWithFormat<ov::float16, int32_t, format::b_fs_yx_fsv16>,
+                                            TypesWithFormat<ov::float16, int32_t, format::b_fs_yx_fsv32>,
+                                            TypesWithFormat<ov::float16, int32_t, format::bs_fs_yx_bsv16_fsv16>,
+                                            TypesWithFormat<ov::float16, int32_t, format::bs_fs_yx_bsv32_fsv16>,
+                                            TypesWithFormat<ov::float16, int32_t, format::bs_fs_yx_bsv32_fsv32>,
 
                                             TypesWithFormat<float, uint8_t, format::bfyx>,
                                             TypesWithFormat<float, uint8_t, format::b_fs_yx_fsv16>,

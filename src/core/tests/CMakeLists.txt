@@ -47,9 +47,7 @@ ov_add_test_target(
             openvino::runtime::dev
         ADD_CLANG_FORMAT
         LABELS
-            OV
-            IE
-            CORE
+            OV UNIT CORE
 )
 
 get_target_property(OV_CORE_SRC_DIR ngraph_obj SOURCE_DIR)
@@ -59,11 +57,16 @@ target_include_directories(${TARGET_NAME} PRIVATE ${OV_CORE_SRC_DIR}/src
 target_compile_definitions(${TARGET_NAME}
     PRIVATE
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
-        SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
+        SHARED_LIB_SUFFIX="${OV_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
         FRONTEND_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}${FRONTEND_NAME_PREFIX}"
         # Assume <lib>.so is an existed symlink to <lib><version>.so (or <lib>.so<version>
-        FRONTEND_LIB_SUFFIX="${FRONTEND_NAME_SUFFIX}${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
+        FRONTEND_LIB_SUFFIX="${FRONTEND_NAME_SUFFIX}${OV_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
         )
+
+if(RISCV64)
+    # for std::atomic_bool
+    target_link_libraries(${TARGET_NAME} PRIVATE atomic)
+endif()
 
 add_dependencies(${TARGET_NAME} ${UNIT_TESTS_DEPENDENCIES})
 

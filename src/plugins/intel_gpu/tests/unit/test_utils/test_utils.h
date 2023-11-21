@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "openvino/core/type/float16.hpp"
+
 #include <intel_gpu/runtime/memory.hpp>
 #include <intel_gpu/runtime/tensor.hpp>
 #include <intel_gpu/runtime/engine.hpp>
@@ -30,7 +32,6 @@
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include "float16.h"
 #include "random_gen.h"
 #include "uniform_quantized_real_distribution.hpp"
 #include "to_string_utils.h"
@@ -44,13 +45,6 @@
 #include <chrono>
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
-
-namespace cldnn {
-template <>
-struct type_to_data_type<FLOAT16> {
-    static constexpr data_types value = data_types::f16;
-};
-}  // namespace cldnn
 
 namespace tests {
 
@@ -137,6 +131,11 @@ inline VF<T> flatten_2d(cldnn::format input_format, VVF<T> &data) {
             assert(0);
     }
     return vec;
+}
+
+inline float half_to_float(uint16_t val) {
+    auto half = ov::float16::from_bits(val);
+    return static_cast<float>(half);
 }
 
 template<typename T>
@@ -280,7 +279,7 @@ void set_values_per_batch_and_feature(cldnn::memory::ptr mem, std::vector<T> arg
 }
 
 template<typename T, typename std::enable_if<std::is_floating_point<T>::value ||
-                                             std::is_same<T, FLOAT16>::value>::type* = nullptr>
+                                             std::is_same<T, ov::float16>::value>::type* = nullptr>
 void set_random_values(cldnn::memory::ptr mem, bool sign = false, unsigned significand_bit = 8, unsigned scale = 1)
 {
     cldnn::mem_lock<T> ptr(mem, get_test_stream());
@@ -349,10 +348,10 @@ inline bool are_equal(
         return true;
 }
 
-inline bool floating_point_equal(FLOAT16 x, FLOAT16 y, int max_ulps_diff = 4) {
+inline bool floating_point_equal(ov::float16 x, ov::float16 y, int max_ulps_diff = 4) {
     int16_t sign_bit_mask = 1;
     sign_bit_mask <<= 15;
-    int16_t a = x.v, b = y.v;
+    int16_t a = reinterpret_cast<int16_t&>(x), b = reinterpret_cast<int16_t&>(y);;
     if ((a & sign_bit_mask) != (b & sign_bit_mask)) {
         a &= ~sign_bit_mask;
         b &= ~sign_bit_mask;
@@ -512,7 +511,7 @@ inline void PrintTupleTo(const std::tuple<std::shared_ptr<test_params>, std::sha
         (void)sm;
     } else if (primitive->type == cldnn::reorder::type_id()) {
         auto reorder = std::static_pointer_cast<cldnn::reorder>(primitive);
-        str << "Output data type: " << cldnn::data_type_traits::name(*reorder->output_data_types[0]) << " Mean: " << reorder->mean << "Subtract per feature: " << "TODO" /*std::vector<float> subtract_per_feature*/;
+        str << "Output data type: " << ov::element::Type(*reorder->output_data_types[0]) << " Mean: " << reorder->mean << "Subtract per feature: " << "TODO" /*std::vector<float> subtract_per_feature*/;
     } else if (primitive->type == cldnn::normalize::type_id()) {
         auto normalize = std::static_pointer_cast<cldnn::normalize>(primitive);
         std::string norm_region = normalize->across_spatial ? "across_spatial" : "within_spatial";
@@ -551,9 +550,9 @@ std::vector<float> get_output_values_to_float(cldnn::network& net, const cldnn::
     std::vector<float> ret;
     auto ptr = output.get_memory();
     cldnn::mem_lock<T, cldnn::mem_lock_type::read> mem(ptr, net.get_stream());
-    if (ptr->get_layout().data_type != cldnn::type_to_data_type<T>::value)
-        OPENVINO_THROW("target type ", cldnn::data_type_traits::name(cldnn::type_to_data_type<T>::value),
-                       " mismatched with actual type ", cldnn::data_type_traits::name(ptr->get_layout().data_type));
+    if (ptr->get_layout().data_type != ov::element::from<T>())
+        OPENVINO_THROW("target type ", ov::element::from<T>().get_type_name(),
+                       " mismatched with actual type ", ov::element::Type(ptr->get_layout().data_type).get_type_name());
     for (size_t i = 0; i < std::min(max_cnt, ptr->get_layout().count()); i++)
         ret.push_back(mem[i]);
     return ret;
@@ -562,7 +561,7 @@ std::vector<float> get_output_values_to_float(cldnn::network& net, const cldnn::
 inline std::vector<float> get_output_values_to_float(cldnn::network& net, const cldnn::network_output& output, size_t max_cnt = std::numeric_limits<size_t>::max()) {
     switch(output.get_layout().data_type){
         case cldnn::data_types::f16:
-            return get_output_values_to_float<FLOAT16>(net, output, max_cnt);
+            return get_output_values_to_float<ov::float16>(net, output, max_cnt);
         case cldnn::data_types::f32:
             return get_output_values_to_float<float>(net, output, max_cnt);
         case cldnn::data_types::i8:
@@ -579,131 +578,6 @@ inline std::vector<float> get_output_values_to_float(cldnn::network& net, const 
 }
 
 double default_tolerance(cldnn::data_types dt);
-// inline void print_bin_blob(cldnn::memory& mem, std::string name)
-// {
-//     auto&& size = mem.get_layout().get_tensor();
-
-//     std::cerr << name;
-//     std::cerr << " shape: ";
-//     std::cerr << size.batch[0] << " ";
-//     std::cerr << size.feature[0] << " ";
-//     std::cerr << size.spatial[1] << " ";
-//     std::cerr << size.spatial[0] << " ";
-//     std::cerr << "(" << size.batch[0] * size.feature[0] * size.spatial[1] * size.spatial[0] << ")" << std::endl;
-
-//     auto mem_ptr = mem.pointer<uint32_t>();
-
-//     bool packed_ic = mem.get_layout().format == cldnn::format::b_fs_yx_32fp ? 1 : 0;
-//     int B = size.batch[0];
-//     int C = size.feature[0];
-//     int H = size.spatial[1];
-//     int W = size.spatial[0];
-
-//     for (cldnn::tensor::value_type b = 0; b < B; ++b)
-//     {
-//         for (cldnn::tensor::value_type f = 0; f < C; ++f)
-//         {
-//             for (cldnn::tensor::value_type y = 0; y < H; ++y)
-//             {
-//                 for (cldnn::tensor::value_type x = 0; x < W; ++x)
-//                 {
-//                     if (!packed_ic)
-//                     {
-//                         size_t input_it = b * C*H*W + f * W*H + y * W + x;
-//                         size_t elem = input_it / 32;
-//                         size_t bit = input_it % 32;
-//                         std::cerr << ((mem_ptr[elem] & (1 << bit)) >> bit) << " ";
-//                     }
-//                     else
-//                     {
-//                         size_t input_it = b * (C / 32)*W*H + (f / 32)*W*H + y * W + x;
-//                         size_t bit = f % 32;
-//                         std::cerr << ((mem_ptr[input_it] & (1 << bit)) >> bit) << " ";
-//                     }
-//                 }
-//                 std::cerr << std::endl;
-//             }
-//             std::cerr << std::endl;
-//         }
-//         std::cerr << "==============" << std::endl;
-//     }
-// }
-
-// inline void print_bin_blob_packed(cldnn::memory& mem, std::string name)
-// {
-//     auto&& size = mem.get_layout().get_tensor();
-
-//     std::cerr << name;
-//     std::cerr << " shape: ";
-//     std::cerr << size.batch[0] << " ";
-//     std::cerr << size.feature[0] << " ";
-//     std::cerr << size.spatial[1] << " ";
-//     std::cerr << size.spatial[0] << " ";
-//     std::cerr << "(" << size.batch[0] * size.feature[0] * size.spatial[1] * size.spatial[0] << ")" << std::endl;
-
-//     auto mem_ptr = mem.pointer<uint32_t>();
-
-//     int B = size.batch[0];
-//     int C = size.feature[0];
-//     int H = size.spatial[1];
-//     int W = size.spatial[0];
-
-//     for (cldnn::tensor::value_type b = 0; b < B; ++b)
-//     {
-//         for (cldnn::tensor::value_type f = 0; f < div_up(C, 32); ++f)
-//         {
-//             for (cldnn::tensor::value_type y = 0; y < H; ++y)
-//             {
-//                 for (cldnn::tensor::value_type x = 0; x < W; ++x)
-//                 {
-//                     size_t input_it = b * div_up(C, 32)*W*H + f * W*H + y * W + x;
-//                     std::cerr << mem_ptr[input_it] << " ";
-//                 }
-//                 std::cerr << std::endl;
-//             }
-//             std::cerr << std::endl;
-//         }
-//         std::cerr << "==============" << std::endl;
-//     }
-// }
-
-// inline void print_blob(cldnn::memory& mem, std::string name)
-// {
-//     auto&& size = mem.get_layout().get_tensor();
-
-//     std::cerr << name;
-//     std::cerr << " shape: ";
-//     std::cerr << size.batch[0] << " ";
-//     std::cerr << size.feature[0] << " ";
-//     std::cerr << size.spatial[1] << " ";
-//     std::cerr << size.spatial[0] << " ";
-//     std::cerr << "(" << size.batch[0] * size.feature[0] * size.spatial[1] * size.spatial[0] << ")" << std::endl;
-
-//     auto mem_ptr = mem.pointer<float>();
-
-//     int B = size.batch[0];
-//     int C = size.feature[0];
-//     int H = size.spatial[1];
-//     int W = size.spatial[0];
-
-//     for (cldnn::tensor::value_type b = 0; b < B; ++b)
-//     {
-//         for (cldnn::tensor::value_type f = 0; f < C; ++f)
-//         {
-//             for (cldnn::tensor::value_type y = 0; y < H; ++y)
-//             {
-//                 for (cldnn::tensor::value_type x = 0; x < W; ++x)
-//                 {
-//                     size_t input_it = b * C*W*H + f * W*H + y * W + x;
-//                     std::cerr << std::setw(4) << mem_ptr[input_it] << " ";
-//                 }
-//                 std::cerr << std::endl;
-//             }
-//             std::cerr << std::endl;
-//         }
-//         std::cerr << "==============" << std::endl;
-//     }
-// }
 
 inline cldnn::network::ptr get_network(cldnn::engine& engine,
                                 cldnn::topology& topology,
@@ -730,5 +604,9 @@ inline cldnn::network::ptr get_network(cldnn::engine& engine,
 
     return network;
 }
+
+double get_profiling_exectime(const std::map<cldnn::primitive_id, cldnn::network_output>& outputs,
+                    const std::string& primitive_id);
+void print_profiling_all_exectimes(const std::map<cldnn::primitive_id, cldnn::network_output>& outputs);
 
 } // namespace tests

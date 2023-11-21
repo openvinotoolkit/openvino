@@ -7,8 +7,8 @@
 #include <mutex>
 
 #include <onednn/dnnl.h>
-#include <ngraph/op/detection_output.hpp>
-#include "ie_parallel.hpp"
+#include "openvino/op/detection_output.hpp"
+#include "openvino/core/parallel.hpp"
 #include "detection_output.h"
 
 using namespace dnnl;
@@ -51,7 +51,7 @@ bool DetectionOutput::isSupportedOperation(const std::shared_ptr<const ov::Node>
     return true;
 }
 
-DetectionOutput::DetectionOutput(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+DetectionOutput::DetectionOutput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -84,6 +84,7 @@ DetectionOutput::DetectionOutput(const std::shared_ptr<ngraph::Node>& op, const 
     imgWidth = attributes.input_width;
     priorSize = normalized ? 4 : 5;
     coordOffset = normalized ? 0 : 1;
+    cacheSizeL3 = utils::get_cache_size(3, true);
 
     withAddBoxPred = getOriginalInputsNumber() == 5;
     objScore = attributes.objectness_score;
@@ -123,14 +124,13 @@ void DetectionOutput::prepareParams() {
         confInfoForPrior.resize(imgNum * priorsNum);
 
     // confs...count...indices for caffe style and sparsity case.
-    // caffe: conf_info for sparsity or indices for dense --> topk(buffer) --> nms(indices)
+    // caffe: filter(conf_info for sparsity or indices for dense) --> topk(buffer) --> nms(indices)
     //        --> g_topk(vector<>(all detections) --> indices per class))
     // MXNet: max conf for prior within img, filter(indices) --> topk_img(buffer) --> nms_cls(indices)
     //        --> g_topk(vector<>(all detections) --> indices per class))
-    unsigned cacheSizeL3 = utils::get_cache_size(3, true);
     isSparsityWorthwhile =
         (confidenceThreshold > sparsityThreshold) &&
-        ((classesNum * priorsNum * sizeof(float) * 2) > cacheSizeL3);
+        ((classesNum * priorsNum * sizeof(float) * 2) > static_cast<size_t>(cacheSizeL3));
     confInfoLen = (!decreaseClassId && isSparsityWorthwhile) ? (2 * priorsNum + 1) : priorsNum;
     reorderedConf.resize(imgNum * classesNum * confInfoLen);
 
@@ -202,12 +202,6 @@ void DetectionOutput::execute(dnnl::stream strm) {
 
     if (!isSparsityWorthwhile) {
         confReorderDense(confData, ARMConfData, reorderedConfData);
-
-        if (!decreaseClassId) {
-            confFilterCF(reorderedConfData, indicesData, indicesBufData, detectionsData);
-        } else {
-            confFilterMX(confData, ARMConfData, reorderedConfData, indicesData, indicesBufData, detectionsData);
-        }
     } else { // sparsity
         if (!decreaseClassId) {
             confReorderAndFilterSparsityCF(confData, ARMConfData, reorderedConfData, indicesData, indicesBufData, detectionsData);
@@ -270,9 +264,14 @@ void DetectionOutput::execute(dnnl::stream strm) {
             // Caffe style
             parallel_for(classesNum, [&](int c) {
                 if (c != backgroundClassId) {  // Ignore background class
-                    int *pindices    = indicesData + n * classesNum * priorsNum + c * priorsNum;
-                    int *pbuffer     = indicesBufData + n * classesNum * priorsNum + c * priorsNum;
+                    const int off = n * priorsNum * classesNum + c * priorsNum;
+                    const float *pconfReorder = reorderedConfData + off;
+                    int *pindices = indicesData + off;
+                    int *pbuffer = indicesBufData + off;
                     int *pdetections = detectionsData + n * classesNum + c;
+
+                    if (!isSparsityWorthwhile)
+                        confFilterCF(pconfReorder, pindices, pbuffer, pdetections, n);
 
                     const float *pboxes;
                     const float *psizes;
@@ -289,9 +288,16 @@ void DetectionOutput::execute(dnnl::stream strm) {
             });
         } else {
             // MXNet style
-            int *pbuffer = indicesBufData + n * classesNum * priorsNum;
+            const int offImg = n * priorsNum * classesNum;
+            const float *pconf = confData + offImg;
+            float *pconfReorder = reorderedConfData + offImg;
+            int *pbuffer = indicesBufData + offImg;
+            int *pindices = indicesData + offImg;
             int *pdetections = detectionsData + n * classesNum;
-            int *pindices = indicesData + n * classesNum * priorsNum;
+
+            if (!isSparsityWorthwhile)
+                confFilterMX(pconf, ARMConfData, pconfReorder, pindices, pbuffer, pdetections, n);
+
             const float *pboxes = decodedBboxesData + n * 4 * locNumForClasses * priorsNum;
             const float *psizes = bboxSizesData + n * locNumForClasses * priorsNum;
 
@@ -309,7 +315,7 @@ void DetectionOutput::execute(dnnl::stream strm) {
 
             std::mutex mtx;
             parallel_for(classesNum, [&](int c) {
-                int detections = detectionsData[n * classesNum + c];
+                const int detections = detectionsData[n * classesNum + c];
                 int *pindices = indicesData + n * classesNum * priorsNum + c * priorsNum;
 
                 float *pconf  = reorderedConfData + n * classesNum * confInfoLen + c * confInfoLen;
@@ -330,8 +336,8 @@ void DetectionOutput::execute(dnnl::stream strm) {
             memset(detectionsData + n * classesNum, 0, classesNum * sizeof(int));
 
             for (size_t j = 0; j < confIndicesClassMap.size(); ++j) {
-                int cls = confIndicesClassMap[j].second.first;
-                int pr = confIndicesClassMap[j].second.second;
+                const int cls = confIndicesClassMap[j].second.first;
+                const int pr = confIndicesClassMap[j].second.second;
                 int *pindices = indicesData + n * classesNum * priorsNum + cls * priorsNum;
                 pindices[detectionsData[n * classesNum + cls]] = pr;
                 detectionsData[n * classesNum + cls]++;
@@ -341,6 +347,85 @@ void DetectionOutput::execute(dnnl::stream strm) {
 
     // get final output
     generateOutput(reorderedConfData, indicesData, detectionsData, decodedBboxesData, dstData);
+}
+
+inline void DetectionOutput::confFilterCF(const float* pconf, int* pindices, int* pbuffer, int* detectionsData, const int& n) {
+    // in:  reorderedConf
+    // out: pindices count
+    int count = 0;
+    for (int i = 0; i < numPriorsActual[n]; ++i) {
+        if (pconf[i] > confidenceThreshold) {
+            pindices[count] = i;
+            count++;
+        }
+    }
+
+    // in:  pindices count
+    // out: buffer detectionCount
+    int k = (topK == -1 ? count : (std::min)(topK, count));
+    topk(pindices, pbuffer, pconf, count, k);
+    detectionsData[0] = k;
+}
+
+// MX filter is per image filter, max output is prior num(select max for all class within this prior)
+// NMS is per class, keep topk is per image, final output is per class
+inline void DetectionOutput::confFilterMX(const float* confData, const float* ARMConfData, float* reorderedConfData,
+    int* indicesData, int* indicesBufData, int* detectionsData, const int& n) {
+    std::mutex mtx;
+    parallel_for(numPriorsActual[n], [&](size_t p) {
+        // in:  origin conf
+        // out: pindices, detectionCount
+        // intentionally code branch from higher level
+        if (withAddBoxPred) {
+            const bool isARMPrior = ARMConfData[n*priorsNum*2 + p * 2 + 1] < objScore;
+            float maxConf = -1;
+            int maxCIdx = 0;
+            for (int c = 1; c < classesNum; ++c) {
+                float conf = confData[p * classesNum + c];
+                if (isARMPrior)
+                    conf = (c == backgroundClassId) ? 1.0f : 0.0f;  // still need refresh conf due to read from origin conf
+                if (conf >= confidenceThreshold && conf > maxConf) {
+                    maxConf = conf;
+                    maxCIdx = c;
+                }
+            }
+            if (maxCIdx > 0) {
+                // include this prior
+                mtx.lock();
+                indicesData[detectionsData[0]] = maxCIdx*priorsNum + p;  // de-refer to get prior and class id.
+                detectionsData[0]++;
+                mtx.unlock();
+            }
+        } else {
+            float maxConf = -1;
+            int maxCIdx = 0;
+            for (int c = 1; c < classesNum; ++c) {
+                float conf = confData[p * classesNum + c];
+                if (conf >= confidenceThreshold && conf > maxConf) {
+                    maxConf = conf;
+                    maxCIdx = c;
+                }
+            }
+            if (maxCIdx > 0) {
+                // include this prior and class with max conf
+                mtx.lock();
+                indicesData[detectionsData[0]] = maxCIdx*priorsNum + p;  // de-refer to get prior and class id.
+                detectionsData[0]++;
+                mtx.unlock();
+            }
+        }
+    });
+
+    // in:  pindices, detectionCount(filtered num)
+    // out: buffer, detectionCount(k)
+    int count = detectionsData[0];
+    int k = (topK == -1 ? count : (std::min)(topK, count));
+
+    const float *pconf = reorderedConfData;
+    // int *indices = indicesData;
+    // int *pbuffer = indicesBufData;
+    topk(indicesData, indicesBufData, pconf, count, k);
+    detectionsData[0] = k;
 }
 
 inline void DetectionOutput::getActualPriorNum(const float *priorData, int* numPriorsActual, int n) {
@@ -374,7 +459,7 @@ inline void DetectionOutput::confReorderDense(const float *confData, const float
     }
     // withAddBoxPred is false
     parallel_for2d(imgNum, classesNum, [&](size_t n, size_t c) {
-        int offset = n * priorsNum * classesNum;
+        const int offset = n * priorsNum * classesNum;
         for (int p = 0; p < priorsNum; ++p) {
             reorderedConfData[offset + c * priorsNum + p] =
             confData[offset + p * classesNum + c];
@@ -382,108 +467,17 @@ inline void DetectionOutput::confReorderDense(const float *confData, const float
     });
 }
 
-inline void DetectionOutput::confFilterCF(float* reorderedConfData, int* indicesData, int* indicesBufData, int* detectionsData) {
-    parallel_for2d(imgNum, classesNum, [&](size_t n, size_t c) {
-        // in:  reorderedConf
-        // out: pindices count
-        if (c == static_cast<size_t>(backgroundClassId))
-            return;
-        int off = n * priorsNum * classesNum + c * priorsNum;
-        const float *pconf = reorderedConfData + off;
-        int *pindices = indicesData + off;
-        int *pbuffer = indicesBufData + off;
-
-        int count = 0;
-        for (int i = 0; i < numPriorsActual[n]; ++i) {
-            if (pconf[i] > confidenceThreshold) {
-                pindices[count] = i;
-                count++;
-            }
-        }
-
-        // in:  pindices count
-        // out: buffer detectionCount
-        int k = (topK == -1 ? count : (std::min)(topK, count));
-        topk(pindices, pbuffer, pconf, count, k);
-        detectionsData[n*classesNum + c] = k;
-    });
-}
-
-// MX filter is per image filter, max output is prior num(select max for all class within this prior)
-// NMS is per class, keep topk is per image, final output is per class
-inline void DetectionOutput::confFilterMX(const float* confData, const float* ARMConfData, float* reorderedConfData,
-    int* indicesData, int* indicesBufData, int* detectionsData) {
-    for (int n = 0; n < imgNum; ++n) {
-        int offB = n * priorsNum * classesNum;
-        std::mutex mtx;
-        parallel_for(numPriorsActual[n], [&](size_t p) {
-            // in:  origin conf
-            // out: pindices, detectionCount
-            // intentionally code branch from higher level
-            if (withAddBoxPred) {
-                bool isARMPrior = ARMConfData[n*priorsNum*2 + p * 2 + 1] < objScore;
-                float maxConf = -1;
-                int maxCIdx = 0;
-                for (int c = 1; c < classesNum; ++c) {
-                    float conf = confData[offB + p * classesNum + c];
-                    if (isARMPrior)
-                        conf = (c == backgroundClassId) ? 1.0f : 0.0f;  // still need refresh conf due to read from origin conf
-                    if (conf >= confidenceThreshold && conf > maxConf) {
-                        maxConf = conf;
-                        maxCIdx = c;
-                    }
-                }
-                if (maxCIdx > 0) {
-                    // include this prior
-                    mtx.lock();
-                    indicesData[offB + detectionsData[n*classesNum]] = maxCIdx*priorsNum + p;  // de-refer to get prior and class id.
-                    detectionsData[n*classesNum]++;
-                    mtx.unlock();
-                }
-            } else {
-                float maxConf = -1;
-                int maxCIdx = 0;
-                for (int c = 1; c < classesNum; ++c) {
-                    float conf = confData[offB + p * classesNum + c];
-                    if (conf >= confidenceThreshold && conf > maxConf) {
-                        maxConf = conf;
-                        maxCIdx = c;
-                    }
-                }
-                if (maxCIdx > 0) {
-                    // include this prior and class with max conf
-                    mtx.lock();
-                    indicesData[offB + detectionsData[n*classesNum]] = maxCIdx*priorsNum + p;  // de-refer to get prior and class id.
-                    detectionsData[n*classesNum]++;
-                    mtx.unlock();
-                }
-            }
-        });
-
-        // in:  pindices, detectionCount(filtered num)
-        // out: buffer, detectionCount(k)
-        int count = detectionsData[n*classesNum];
-        int k = (topK == -1 ? count : (std::min)(topK, count));
-
-        const float *pconf = reorderedConfData + offB;
-        int *indices = indicesData + offB;
-        int *pbuffer = indicesBufData + offB;
-        topk(indices, pbuffer, pconf, count, k);
-        detectionsData[n * classesNum] = k;
-    }
-}
-
 inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confData, const float* ARMConfData, float* reorderedConfData,
     int* indicesData, int* indicesBufData, int* detectionsData) {
     int* reorderedConfDataIndices = reinterpret_cast<int*>(reorderedConfData);
     for (int n = 0; n < imgNum; ++n) {
-        int off = n * priorsNum * classesNum;
-        int offV = n * priorsNum;  // vertical info
+        const int off = n * priorsNum * classesNum;
+        const int offV = n * priorsNum;  // vertical info
 
-        int offH = n * confInfoLen * classesNum; // horizontal info
+        const int offH = n * confInfoLen * classesNum; // horizontal info
         // reset count
         parallel_for(classesNum, [&](size_t c) {
-            int countIdx = offH + c * confInfoLen + priorsNum;
+            const int countIdx = offH + c * confInfoLen + priorsNum;
             reorderedConfDataIndices[countIdx] = 0;
         });
 
@@ -491,7 +485,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
         parallel_for(numPriorsActual[n], [&](size_t p) {
             // intentionally code branch from higher level
             if (withAddBoxPred) {
-                bool isARMPrior = ARMConfData[n * priorsNum * 2 + p * 2 + 1] < objScore;
+                const bool isARMPrior = ARMConfData[n * priorsNum * 2 + p * 2 + 1] < objScore;
                 bool priorStatusSet = false;
                 if (isShareLoc)
                     confInfoForPrior[offV + p] = -1;
@@ -501,7 +495,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
                     if (isARMPrior)
                         conf = (c == backgroundClassId) ? 1.0f : 0.0f;
                     if (conf > confidenceThreshold) {
-                        int idx = offH + c * confInfoLen;
+                        const int idx = offH + c * confInfoLen;
                         reorderedConfData[idx + p] = conf;
                         mtx.lock();
                         reorderedConfDataIndices[idx + priorsNum]++;
@@ -522,7 +516,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
                 for (int c = 0; c < classesNum; ++c) {
                     float conf = confData[confIdxPrior + c];
                     if (conf > confidenceThreshold) {
-                        int idx = offH + c * confInfoLen;
+                        const int idx = offH + c * confInfoLen;
                         reorderedConfData[idx + p] = conf;
                         mtx.lock();
                         reorderedConfDataIndices[idx + priorsNum]++;
@@ -542,9 +536,9 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
             // out: buffer, detectionCount(k)
             if (c == static_cast<size_t>(backgroundClassId))  // Ignore background class
                 return;
-            int countIdx = offH + c * confInfoLen + priorsNum;
-            int count = reorderedConfDataIndices[countIdx];
-            int k = (topK == -1 ? count : (std::min)(topK, count));
+            const int countIdx = offH + c * confInfoLen + priorsNum;
+            const int count = reorderedConfDataIndices[countIdx];
+            const int k = (topK == -1 ? count : (std::min)(topK, count));
 
             int *reorderedConfIndices = reorderedConfDataIndices + countIdx + 1;
             int *pbuffer = indicesBufData + off + c * priorsNum;
@@ -559,8 +553,8 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
 inline void DetectionOutput::confReorderAndFilterSparsityMX(const float* confData, const float* ARMConfData, float* reorderedConfData,
     int* indicesData, int* indicesBufData, int* detectionsData) {
     for (int n = 0; n < imgNum; ++n) {
-        int off = n * priorsNum * classesNum;
-        int offV = n * priorsNum;  // vertical info
+        const int off = n * priorsNum * classesNum;
+        const int offV = n * priorsNum;  // vertical info
 
         std::mutex mtx;
         parallel_for(numPriorsActual[n], [&](size_t p) {
@@ -605,8 +599,8 @@ inline void DetectionOutput::confReorderAndFilterSparsityMX(const float* confDat
         // topk
         // in:  indicesData, detection_count(filtered num)
         // out: buffer, detection_count(k)
-        int count = detectionsData[n * classesNum];
-        int k = (topK == -1 ? count : (std::min)(topK, count));
+        const int count = detectionsData[n * classesNum];
+        const int k = (topK == -1 ? count : (std::min)(topK, count));
 
         const float *pconf = reorderedConfData + off;
         int *indices = indicesData + off;
@@ -616,6 +610,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityMX(const float* confDat
     }
 }
 
+// apply locData(offset) to priordata, generate decodedBox
 inline void DetectionOutput::decodeBBoxes(const float *priorData,
                                        const float *locData,
                                        const float *varianceData,
@@ -729,15 +724,15 @@ static inline float JaccardOverlap(const float *decodedBbox,
                                    const float *bboxSizes,
                                    const int idx1,
                                    const int idx2) {
-    float xmin1 = decodedBbox[idx1 * 4 + 0];
-    float ymin1 = decodedBbox[idx1 * 4 + 1];
-    float xmax1 = decodedBbox[idx1 * 4 + 2];
-    float ymax1 = decodedBbox[idx1 * 4 + 3];
+    const float xmin1 = decodedBbox[idx1 * 4 + 0];
+    const float ymin1 = decodedBbox[idx1 * 4 + 1];
+    const float xmax1 = decodedBbox[idx1 * 4 + 2];
+    const float ymax1 = decodedBbox[idx1 * 4 + 3];
 
-    float xmin2 = decodedBbox[idx2 * 4 + 0];
-    float ymin2 = decodedBbox[idx2 * 4 + 1];
-    float xmax2 = decodedBbox[idx2 * 4 + 2];
-    float ymax2 = decodedBbox[idx2 * 4 + 3];
+    const float xmin2 = decodedBbox[idx2 * 4 + 0];
+    const float ymin2 = decodedBbox[idx2 * 4 + 1];
+    const float xmax2 = decodedBbox[idx2 * 4 + 2];
+    const float ymax2 = decodedBbox[idx2 * 4 + 3];
 
     if (xmin2 > xmax1 || xmax2 < xmin1 || ymin2 > ymax1 || ymax2 < ymin1) {
         return 0.0f;

@@ -10,19 +10,25 @@ set(TARGET_NAME unit_test_utils)
 
 add_subdirectory(mocks/mock_engine)
 
-addIeTarget(
+ov_add_target(
         NAME ${TARGET_NAME}
         TYPE STATIC
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         ADD_CLANG_FORMAT
-        DEVELOPER_PACKAGE
-            tests
         LINK_LIBRARIES
             PUBLIC
                 common_test_utils_s
                 inference_engine_s
                 gmock
+        DEPENDENCIES
+            mock_engine
         INCLUDES
             PUBLIC
-                "${CMAKE_CURRENT_SOURCE_DIR}/.."
+                "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>"
 )
+
+# install & export
+
+ov_developer_package_export_targets(TARGET ${TARGET_NAME}
+                                    INSTALL_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/../unit_test_utils"
+                                    INSTALL_DESTIONATION "developer_package/include/unit_test_utils/unit_test_utils")

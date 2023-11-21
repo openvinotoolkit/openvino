@@ -19,11 +19,11 @@ namespace node {
 
 class RNN : public Node {
 public:
-    RNN(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    RNN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
-    static bool isCell(const std::shared_ptr<const ngraph::Node>& op);
-    static bool testNativeOrder(const std::shared_ptr<const ngraph::Node>& op);
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
+    static bool isCell(const std::shared_ptr<const ov::Node>& op);
+    static bool testNativeOrder(const std::shared_ptr<const ov::Node>& op);
     void getSupportedDescriptors() override;
     std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const override;
     std::shared_ptr<MemoryDesc> getDstMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const override;

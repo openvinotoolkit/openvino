@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
@@ -106,10 +106,10 @@ protected:
             rel_threshold = 1e-4;
         }
 
-            ov::ParameterVector params;
-            for (auto&& shape : inputDynamicShapes) {
-                params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
-            }
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+        }
         const size_t batchSize = inputDynamicShapes[0][0].is_static() ? inputDynamicShapes[0][0].get_length() :
             inputDynamicShapes[1][0].is_static() ? inputDynamicShapes[1][0].get_length() :
             inputDynamicShapes.size() > 2 && inputDynamicShapes[2][0].is_static() ? inputDynamicShapes[2][0].get_length() :
@@ -124,9 +124,13 @@ protected:
             }
         }
 
+        ov::OutputVector paramsOuts;
+        for (const auto& param : params)
+          paramsOuts.push_back(param);
+
         std::vector<ov::Shape> WRB = {{numDirections, hiddenSize, inputSize}, {numDirections, hiddenSize, hiddenSize}, {numDirections, hiddenSize},
                                         {batchSize}};
-        auto rnn_sequence = ngraph::builder::makeRNN(ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
+        auto rnn_sequence = ngraph::builder::makeRNN(paramsOuts,
                                                      WRB,
                                                      hiddenSize,
                                                      activations,

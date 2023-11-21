@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/type/element_type_traits.hpp"
 #include "test_utils.h"
 #include "random_generator.hpp"
 
@@ -1904,7 +1905,7 @@ void TiledPermuteTest::compare_value(float a, float b) const {
 
 // f16 format
 template<>
-void TiledPermuteTest::compare_value(FLOAT16 a, FLOAT16 b) const {
+void TiledPermuteTest::compare_value(ov::float16 a, ov::float16 b) const {
     ASSERT_FLOAT_EQ(static_cast<float>(a), static_cast<float>(b));
 }
 
@@ -1923,9 +1924,9 @@ template<data_types Data_Type>
 void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& sizes, cldnn::format format_fsv,
                                 const std::string & permute_opt, std::vector<uint16_t> permute_order, bool is_caching_test)
 {
-    // convert half_t to FLOAT16
-    using type_ = typename data_type_to_type<Data_Type>::type;
-    using type = typename std::conditional<std::is_same<type_, half_t>::value, FLOAT16, type_>::type;
+    // convert ov::float16 to ov::float16
+    using type_ = typename ov::element_type_traits<Data_Type>::value_type;
+    using type = typename std::conditional<std::is_same<type_, ov::float16>::value, ov::float16, type_>::type;
 
     std::vector<cldnn::tensor::value_type> internal_sizes(sizes);
     std::swap(internal_sizes.at(2), internal_sizes.back());
@@ -2272,54 +2273,14 @@ TEST_P(permute_f_y_axes_tile, combined) {
 
 struct TiledPerformancePermuteTest : TiledPermuteTest
 {
-    static double get_exectime(const std::map<cldnn::primitive_id, cldnn::network_output>& outputs,
-                                const std::string& primitive_id)
-    {
-        using namespace std::chrono;
-        std::shared_ptr<event> e = outputs.at(primitive_id).get_event();
-        e->wait(); // should ensure execution completion, if not segfault will occur
-        double avg_time = 0.0;
-        auto intervals = e->get_profiling_info();
-        for (const auto& q : intervals)
-        {
-            if (q.stage != instrumentation::profiling_stage::executing) {
-                continue;
-            }
-            avg_time = duration_cast<duration<double, microseconds::period>>(q.value->value()).count();
-            break;
-        }
-        return avg_time;
-    }
-
-    static void print_all_perf(std::map<primitive_id, network_output> outputs)
-    {
-        std::cout << "Print last run time" << std::endl;
-        using namespace std::chrono;
-        for( const auto &n : outputs ) {
-            std::shared_ptr<event> e = n.second.get_event();
-            auto intervals = e->get_profiling_info();
-            double time = 0.0;
-            for (const auto& q : intervals)
-            {
-                if (q.stage == instrumentation::profiling_stage::executing) {
-                    continue;
-                }
-                time = duration_cast<duration<double, microseconds::period>>(q.value->value()).count();
-                break;
-            }
-            std::cout << n.first << ":" << time << std::endl;
-        }
-        std::cout << std::endl;
-    }
-
     template<data_types Data_Type>
     void execute_perf_test(const std::vector<cldnn::tensor::value_type>& sizes, cldnn::format format_fsv,
                             const std::string & kernel_name, std::vector<uint16_t> permute_order)
     {
         auto& engine = get_test_engine();
-        // convert half_t to FLOAT16
-        using type_ = typename data_type_to_type<Data_Type>::type;
-        using type = typename std::conditional<std::is_same<type_, half_t>::value, FLOAT16, type_>::type;
+        // convert ov::float16 to ov::float16
+        using type_ = typename ov::element_type_traits<Data_Type>::value_type;
+        using type = typename std::conditional<std::is_same<type_, ov::float16>::value, ov::float16, type_>::type;
 
         std::vector<cldnn::tensor::value_type> internal_sizes(sizes);
         std::swap(internal_sizes.at(2), internal_sizes.back());
@@ -2381,11 +2342,11 @@ struct TiledPerformancePermuteTest : TiledPermuteTest
         double exectime_opt = 0.f;
         for (int i = 0; i < r; ++i) {
             output_permute_opt = network_tile.execute();
-            auto t_opt = get_exectime(output_permute_opt, "output");
+            auto t_opt = get_profiling_exectime(output_permute_opt, "output");
             exectime_opt += t_opt;
 
             output_permute_ref = network_ref.execute();
-            auto t_ref = get_exectime(output_permute_ref, "output");
+            auto t_ref = get_profiling_exectime(output_permute_ref, "output");
             exectime_ref += t_ref;
         }
         exectime_ref /= r;
@@ -2394,7 +2355,7 @@ struct TiledPerformancePermuteTest : TiledPermuteTest
         auto output_layout_ref = network_ref.get_program()->get_node("output").get_output_layout();
         auto output_layout_opt = network_tile.get_program()->get_node("output").get_output_layout();
         std::string frm_str = cldnn::format(format).to_string();
-        std::string input_type = data_type_traits::name(Data_Type);
+        std::string input_type = ov::element::Type(Data_Type).get_type_name();
 
         std::cout << "Exectued time " << " " << "permute_ref" << " " << " input(" << tensor.to_string()
                   << ") output(" <<  output_layout_ref.to_string() << ") "
@@ -2421,4 +2382,3 @@ INSTANTIATE_TEST_SUITE_P(, TiledPerformancePermuteTest,
         {{1, 256, 128, 256}, format::bfyx},
         {{1, 256, 256, 128}, format::b_fs_yx_fsv16},
     }));
-

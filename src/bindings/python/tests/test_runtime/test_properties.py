@@ -472,7 +472,7 @@ def test_single_property_setting(device):
     core.set_property(device, streams.num(streams.Num.AUTO))
 
     assert props.streams.Num.AUTO.to_integer() == -1
-    assert type(core.get_property(device, streams.num())) == int
+    assert isinstance(core.get_property(device, streams.num()), int)
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
@@ -539,10 +539,10 @@ def test_core_cpu_properties(properties_to_set):
     assert core.get_property("CPU", streams.num) == 5
 
     # RO properties
-    assert type(core.get_property("CPU", props.supported_properties)) == dict
-    assert type(core.get_property("CPU", props.available_devices)) == list
-    assert type(core.get_property("CPU", props.optimal_number_of_infer_requests)) == int
-    assert type(core.get_property("CPU", props.range_for_streams)) == tuple
-    assert type(core.get_property("CPU", props.range_for_async_infer_requests)) == tuple
-    assert type(core.get_property("CPU", device.full_name)) == str
-    assert type(core.get_property("CPU", device.capabilities)) == list
+    assert isinstance(core.get_property("CPU", props.supported_properties), dict)
+    assert isinstance(core.get_property("CPU", props.available_devices), list)
+    assert isinstance(core.get_property("CPU", props.optimal_number_of_infer_requests), int)
+    assert isinstance(core.get_property("CPU", props.range_for_streams), tuple)
+    assert isinstance(core.get_property("CPU", props.range_for_async_infer_requests), tuple)
+    assert isinstance(core.get_property("CPU", device.full_name), str)
+    assert isinstance(core.get_property("CPU", device.capabilities), list)

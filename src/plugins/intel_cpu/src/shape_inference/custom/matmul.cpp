@@ -5,7 +5,7 @@
 #include "matmul.hpp"
 #include "utils.hpp"
 #include "ie_ngraph_utils.hpp"
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 
 namespace ov {
 namespace intel_cpu {
@@ -29,7 +29,7 @@ Result MMShapeInfer::infer(
     if (rankA == 1 && rankB == 1 && shapeA[0] == shapeB[0]) {
         return {{m_shapeY}, ShapeInferStatus::success};
     }
-
+    OPENVINO_ASSERT(m_out_rank >= 2, "The output rank should be greater or euqal to 2.");
     m_shapeY[m_out_rank-2] = m_transpose_a ? shapeA[rankA-1] : shapeA[rankA-2];
     m_shapeY[m_out_rank-1] = m_transpose_b ? shapeB[rankB-2] : shapeB[rankB-1];
 
@@ -50,11 +50,18 @@ Result MMShapeInfer::infer(
 }
 
 ShapeInferPtr MMShapeInferFactory::makeShapeInfer() const {
-    if (const auto matmul = ov::as_type_ptr<const ngraph::opset1::MatMul>(m_op)) {
+    if (const auto matmul = ov::as_type_ptr<const ov::opset1::MatMul>(m_op)) {
         const auto output_rank = matmul->get_output_partial_shape(0).rank().get_length();
         const bool transpose_a = matmul->get_transpose_a();
         const bool transpose_b = matmul->get_transpose_b();
-        return std::make_shared<MMShapeInfer>(output_rank, transpose_a, transpose_b);
+        const auto input_rank0 = matmul->get_input_partial_shape(0).rank().get_length();
+        const auto input_rank1 = matmul->get_input_partial_shape(1).rank().get_length();
+        if (input_rank0 == input_rank1) {
+            return std::make_shared<MMShapeInfer>(output_rank, transpose_a, transpose_b);
+        } else {
+            return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), EMPTY_PORT_MASK);
+        }
+
     } else {
         OPENVINO_THROW("Unexpected operation type in the MatMul shape inference factory");
     }

@@ -21,6 +21,7 @@
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/reference/convert.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "pugixml.hpp"
 #include "transformations/hash.hpp"
@@ -532,6 +533,19 @@ public:
                 m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
                 m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
             }
+        } else if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
+            if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
+                const int64_t size = a->get()->size();
+                size_t new_size;
+                int64_t offset = m_constant_write_handler.write(static_cast<const char*>(a->get()->get_ptr()),
+                                                                size,
+                                                                &new_size,
+                                                                m_compress_to_fp16,
+                                                                m_output_element_type);
+
+                m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
+                m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
+            }
         } else if (const auto& a = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
             const auto& attrs = a->get();
 
@@ -741,6 +755,8 @@ std::string get_precision_name(const ov::element::Type& elem_type) {
         return "BIN";
     case ::ov::element::Type_t::boolean:
         return "BOOL";
+    case ::ov::element::Type_t::nf4:
+        return "NF4";
     default:
         OPENVINO_THROW("Unsupported precision: ", elem_type);
     }
@@ -1192,6 +1208,14 @@ void serializeFunc(std::ostream& xml_file,
 namespace ov {
 bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(Serialize);
+
+    // TODO xxx-105807: if rt_info is set in python api as a string ['precise_0'] = '',
+    //  we need to convert value to a class in order to have rt_info in the IR. The code below will convert
+    // ['precise_0'] = '' into => rt_info['precise_0'] = DisableFP16Compression{}
+    for (auto& node : model->get_ops())
+        if (fp16_compression_is_disabled(node))
+            disable_fp16_compression(node);
+
     if (m_xmlFile && m_binFile) {
         serializeFunc(*m_xmlFile, *m_binFile, model, m_version, m_custom_opsets);
     } else {

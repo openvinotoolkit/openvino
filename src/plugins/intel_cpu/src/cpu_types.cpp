@@ -70,6 +70,10 @@ static const TypeToNameMap& get_type_to_name_tbl() {
             { "SoftSign", Type::Eltwise },
             { "Select", Type::Eltwise},
             { "Log", Type::Eltwise },
+            { "BitwiseAnd", Type::Eltwise },
+            { "BitwiseNot", Type::Eltwise },
+            { "BitwiseOr", Type::Eltwise },
+            { "BitwiseXor", Type::Eltwise },
             { "Reshape", Type::Reshape },
             { "Squeeze", Type::Reshape },
             { "Unsqueeze", Type::Reshape },
@@ -123,6 +127,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
             { "ScatterElementsUpdate", Type::ScatterElementsUpdate},
             { "ScatterNDUpdate", Type::ScatterNDUpdate},
             { "Interpolate", Type::Interpolate},
+            { "RandomUniform", Type::RandomUniform},
             { "ReduceL1", Type::Reduce},
             { "ReduceL2", Type::Reduce},
             { "ReduceLogicalAnd", Type::Reduce},
@@ -196,6 +201,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
             { "ExtractImagePatches", Type::ExtractImagePatches},
             { "NonMaxSuppression", Type::NonMaxSuppression},
             { "NonMaxSuppressionIEInternal", Type::NonMaxSuppression},
+            { "NMSRotated", Type::NonMaxSuppression},
             { "MatrixNms", Type::MatrixNms},
             { "MulticlassNms", Type::MulticlassNms},
             { "MulticlassNmsIEInternal", Type::MulticlassNms},
@@ -317,6 +323,7 @@ std::string NameFromType(const Type type) {
         CASE(PriorBox);
         CASE(PriorBoxClustered)
         CASE(MHA);
+        CASE(RandomUniform);
         CASE(Unique);
         CASE(Ngram);
         CASE(Unknown);
@@ -384,6 +391,10 @@ std::string algToString(const Algorithm alg) {
         CASE(EltwiseErf);
         CASE(EltwiseSoftSign);
         CASE(EltwiseLog);
+        CASE(EltwiseBitwiseAnd);
+        CASE(EltwiseBitwiseNot);
+        CASE(EltwiseBitwiseOr);
+        CASE(EltwiseBitwiseXor);
         CASE(FQCommon);
         CASE(FQQuantization);
         CASE(FQBinarization);

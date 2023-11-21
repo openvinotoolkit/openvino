@@ -3,7 +3,7 @@
 //
 
 #include "transpose.h"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "nodes/common/reorder_prim.h"
 
 #include <algorithm>
@@ -176,11 +176,11 @@ void Transpose::prepareParams() {
     auto builder = [&srcDesc, &dstDesc, this](const PermuteParams& key) -> std::shared_ptr<TransposeExecutor> {
         dnnl::primitive_attr attr;
         auto selectedPD = getSelectedPrimitiveDescriptor();
-        auto jitExec = selectedPD->getExecutorFactoryAs<TransposeExecutorFactory>()->makeExecutor(transposeParams,
-                                                                                                  {srcDesc},
-                                                                                                  {dstDesc},
-                                                                                                  attr);
-        return jitExec;
+        auto executor = selectedPD->getExecutorFactoryAs<TransposeExecutorFactory>()->makeExecutor(transposeParams,
+                                                                                                   {srcDesc},
+                                                                                                   {dstDesc},
+                                                                                                   attr);
+        return executor;
     };
 
     auto cache = context->getParamsCache();

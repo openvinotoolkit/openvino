@@ -35,8 +35,7 @@ struct jit_snippets_call_args {
 };
 
 struct jit_snippets_compile_args {
-    std::vector<size_t> master_shape{};
-    size_t tile_rank = 0;
+    size_t parallel_executor_ndims = 1;
 };
 ///
 /// \brief jit_container_emitter designed to wrap Emitters that contain other Emitters (for example, KernelEmitter)
@@ -94,6 +93,7 @@ private:
 
     jit_snippets_compile_args jcp;
     std::vector<size_t> gp_regs_pool;
+    std::vector<size_t> master_shape;
     size_t num_inputs;
     size_t num_outputs;
     size_t num_unique_buffers;
@@ -364,8 +364,11 @@ public:
                   const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override { return m_with_scratch ? 3 : 2; }
-    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
+    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
     size_t aux_gprs_count() const override;
+
+    static size_t get_in_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout);
+    static size_t get_out_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout);
 
 private:
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const override;
@@ -427,7 +430,7 @@ public:
                        const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 1;}
-    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr) {
+    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr) {
         return {{element::i8}, {element::bf16}};
     }
 
@@ -466,7 +469,7 @@ public:
                    const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 1;}
-    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr) {
+    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr) {
         return {{element::f32}};
     }
 

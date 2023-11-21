@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 
@@ -103,9 +103,8 @@ protected:
                                    std::make_shared<ov::op::v0::Parameter>(gridPrecision, inputDynamicShapes[1])};
         params[0]->set_friendly_name("data");
         params[1]->set_friendly_name("grid");
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
         GridSample::Attributes attributes = {alignCorners, interpolateMode, paddingMode};
-        auto gridSampleNode = std::make_shared<GridSample>(paramOuts[0], paramOuts[1], attributes);
+        auto gridSampleNode = std::make_shared<GridSample>(params[0], params[1], attributes);
 
         function = makeNgraphFunction(dataPrecision, params, gridSampleNode, "GridSampleCPU");
     }

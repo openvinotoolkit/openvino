@@ -174,30 +174,6 @@ std::vector<float> get_scales_vector(const ov::TensorVector& args,
 }
 }  // namespace
 
-static void pad_input_data(const uint8_t* data_ptr,
-                           uint8_t* padded_data_ptr,
-                           size_t type_size,
-                           const ov::Shape& input_shape,
-                           const ov::Shape& padded_input_shape,
-                           const std::vector<size_t>& pads_begin) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    ov::CoordinateTransform input_transform(input_shape);
-    ov::CoordinateTransform padded_transform(padded_input_shape);
-
-    for (const ngraph::Coordinate& input_coord : input_transform) {
-        auto padded_coord = input_coord;
-        size_t i = 0;
-        for (size_t pad : pads_begin) {
-            padded_coord[i] += pad;
-            ++i;
-        }
-        uint8_t* dst_ptr = padded_data_ptr + type_size * padded_transform.index(padded_coord);
-        const uint8_t* src_ptr = data_ptr + type_size * input_transform.index(input_coord);
-        memcpy(dst_ptr, src_ptr, type_size);
-    }
-    NGRAPH_SUPPRESS_DEPRECATED_END
-}
-
 bool ov::op::v4::Interpolate::evaluate_interpolate(TensorVector& outputs, const TensorVector& inputs) const {
     auto input_shapes = std::vector<PartialShape>();
     const auto inputs_num = inputs.size();
@@ -229,7 +205,12 @@ bool ov::op::v4::Interpolate::evaluate_interpolate(TensorVector& outputs, const 
     auto* data_ptr = static_cast<const uint8_t*>(inputs[data_port].data());
     auto* padded_data_ptr = padded_input_data.data();
 
-    pad_input_data(data_ptr, padded_data_ptr, type_size, inputs[data_port].get_shape(), padded_input_shape, pads_begin);
+    reference::pad_input_data(data_ptr,
+                              padded_data_ptr,
+                              type_size,
+                              inputs[data_port].get_shape(),
+                              padded_input_shape,
+                              pads_begin);
 
     switch (input_et) {
     case element::Type_t::f32:

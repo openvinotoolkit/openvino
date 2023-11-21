@@ -4,10 +4,6 @@
 
 #include "ngraph/runtime/tensor.hpp"
 
-#include "ngraph/log.hpp"
-#include "ngraph/runtime/aligned_buffer.hpp"
-#include "ngraph/type/element_type.hpp"
-
 using namespace ngraph;
 using namespace std;
 

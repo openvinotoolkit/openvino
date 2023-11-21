@@ -167,72 +167,6 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8) {
     }
 }
 
-TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8_binary_pack) {
-    auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 8, 2, 2}});
-    auto input_thresh = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 8, 1, 1 } });
-    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-
-    set_values(input, { -1.0f, 2.0f, 3.0f, 4.0f,
-                         5.0f, 2.0f, 2.0f, 3.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
-
-                         1.0f, 1.0f, 1.0f, 1.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
-                         1.0f, 1.0f, 1.0f, 1.0f });
-
-    set_values(input_thresh,  { 0.0f, 1.0f, 2.0f, 3.0f,
-                                4.0f, 5.0f, 6.0f, 7.0f });
-    set_values(output_low,  { -1.0f });
-    set_values(output_high, {  1.0f });
-
-    // 0 1 1 0  0 0 0 0  0 0 0 0  0 1 1 1
-    // 1 1 1 1  0 1 0 0  0 0 1 1  0 1 1 1
-    // 1 1 1 0  0 0 0 0  0 0 0 0  0 1 0 1
-    // 1 1 1 0  0 0 0 0  0 0 0 0  0 1 0 1
-    std::vector<float> ref_data = { -1,  1,  1,  1,
-                                     1,  1,  1,  1,
-                                     1,  1,  1,  1,
-                                    -1,  1, -1, -1,
-                                    -1, -1, -1, -1,
-                                    -1,  1, -1, -1,
-                                    -1, -1, -1, -1,
-                                    -1, -1, -1, -1 };
-
-    topology topology;
-    topology.add(
-        input_layout("input", input->get_layout()),
-        data("input_low", input_thresh),
-        data("input_high", input_thresh),
-        data("output_low", output_low),
-        data("output_high", output_high),
-        quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 2, data_types::bin),
-        reorder("reorder", input_info("quantize"), layout{data_types::f32, format::bfyx, tensor{1,8,2,2}})
-    );
-
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::optimize_data(true));
-    network network(engine, topology, config);
-    network.set_input_data("input", input);
-    auto outputs = network.execute();
-
-    auto output = outputs.at("reorder").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-
-    // Check that layout and memory contains logical size of tensor
-    ASSERT_EQ(output->count(), (size_t)32);
-    ASSERT_EQ(output->get_layout().count(), (size_t)32);
-
-    ASSERT_EQ(output->size(), ref_data.size() * sizeof(uint32_t));
-
-    for (size_t i = 0; i < ref_data.size(); ++i) {
-        ASSERT_EQ(output_ptr[i], ref_data[i]) << " index = " << i;
-    }
-}
-
 TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_2) {
     cldnn::engine& engine = get_test_engine();
     auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 16, 2, 2}});
@@ -760,7 +694,7 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
             fill_random_typed<float>(mem, -127, 127, 2);
             break;
         case data_types::f16:
-            fill_random_typed<FLOAT16>(mem, -127, 127, 2);
+            fill_random_typed<ov::float16>(mem, -127, 127, 2);
             break;
         case data_types::i8:
             fill_random_typed<int8_t>(mem, -127, 127, 1);
@@ -859,7 +793,7 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
         if (params.input_type == data_types::f32) {
             fill_typed<float>(input, input_opt);
         } else if (params.input_type == data_types::f16) {
-            fill_typed<FLOAT16>(input, input_opt);
+            fill_typed<ov::float16>(input, input_opt);
         } else if (params.input_type == data_types::i8) {
             fill_typed<int8_t>(input, input_opt);
         } else if (params.input_type == data_types::u8) {
@@ -896,7 +830,7 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
             if (params.output_type == data_types::f32) {
                 compare_outputs<float>(output, output_opt);
             } else if (params.output_type == data_types::f16) {
-                compare_outputs<FLOAT16>(output, output_opt);
+                compare_outputs<ov::float16>(output, output_opt);
             } else if (params.output_type == data_types::i8) {
                 compare_outputs<int8_t>(output, output_opt);
             } else if (params.output_type == data_types::u8) {

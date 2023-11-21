@@ -9,7 +9,7 @@ from openvino.tools.mo.middle.quantize_linear_resolver import QuantizeLinearReso
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
-from generator import generator, generate
+import pytest
 
 nodes1_attributes = {
     'input': {'kind': 'op', 'op': 'AnyOp'},
@@ -247,9 +247,9 @@ class TestQuantizeLinearResolver(unittest.TestCase):
         self.assertTrue(flag, resp)
 
 
-@generator
-class TestQuantizeWithAxis(unittest.TestCase):
-    @generate(*[(int64_array([1, 3, 4, 4]), np.array([2, 3, 4, 5], dtype=np.float32),
+class TestQuantizeWithAxis():
+    @pytest.mark.parametrize("input_shape, scale_param_value, zero_param_value,target_shape, in_low, in_high, out_low, out_high, axis",
+                             [(int64_array([1, 3, 4, 4]), np.array([2, 3, 4, 5], dtype=np.float32),
                  np.array([2, 3, 4, 5], dtype=np.uint8), int64_array([1, 1, 4, 1]),
                  np.array([-2., -3., -4., -5.]), np.array([253., 252., 251., 250.]),
                  0, 255, 2),
@@ -366,4 +366,4 @@ class TestQuantizeWithAxis(unittest.TestCase):
         QuantizeLinearResolver().find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp

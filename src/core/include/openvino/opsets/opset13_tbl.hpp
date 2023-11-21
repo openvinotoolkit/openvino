@@ -209,3 +209,10 @@ _OPENVINO_OP_REG(Pad, ov::op::v12)
 _OPENVINO_OP_REG(ScatterElementsUpdate, ov::op::v12)
 
 // New operations added in opset13
+_OPENVINO_OP_REG(BitwiseAnd, ov::op::v13)
+_OPENVINO_OP_REG(BitwiseNot, ov::op::v13)
+_OPENVINO_OP_REG(BitwiseOr, ov::op::v13)
+_OPENVINO_OP_REG(BitwiseXor, ov::op::v13)
+_OPENVINO_OP_REG(NMSRotated, ov::op::v13)
+_OPENVINO_OP_REG(Multinomial, ov::op::v13)
+_OPENVINO_OP_REG(ScaledDotProductAttention, ov::op::v13)

@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/depth_to_space.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include <string>
 
@@ -65,10 +65,10 @@ protected:
         init_input_shapes({shapes});
 
         ov::ParameterVector params;
-        for (auto&& shape : inputDynamicShapes) {
+        for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
-        }
-        auto d2s = ngraph::builder::makeDepthToSpace(params[0], mode, blockSize);
+
+        auto d2s = std::make_shared<ov::op::v0::DepthToSpace>(params[0], mode, blockSize);
 
         ngraph::ResultVector results;
         for (size_t i = 0; i < d2s->get_output_size(); i++)

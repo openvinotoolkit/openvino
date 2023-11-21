@@ -40,6 +40,8 @@ enum DataLayout {
     b_fs_zyx_fsv2,
     b_fs_yx_fsv4,           // reordering format for swizzled input for convolution using IMAD
     b_fs_zyx_fsv4,
+    b_fs_yx_fsv8,
+    b_fs_zyx_fsv8,
     b_fs_yx_fsv16,          // 3D+batch
     b_fs_zyx_fsv16,         // batch, feature, 3D spatial. Blocks of 16 input channels
     b_fs_yx_fsv32,          // 3D+batch
@@ -53,6 +55,8 @@ enum DataLayout {
     bs_fs_yx_bsv8_fsv2,     // batch, feature, 2D spatial. Blocks of 8 batch and 2 channels
     bs_fs_zyx_bsv8_fsv4,    // batch, feature, 3D spatial. Blocks of 8 batch and 4 channels
     bs_fs_zyx_bsv8_fsv2,    // batch, feature, 3D spatial. Blocks of 8 batch and 2 channels
+    bs_fs_yx_bsv16_fsv8,    // batch, feature, 2D spatial. Blocks of 16 batch and 8 channels
+    bs_fs_zyx_bsv16_fsv8,   // batch, feature, 3D spatial. Blocks of 16 batch and 8 channels
     bs_fs_yx_bsv16_fsv4,    // batch, feature, 2D spatial. Blocks of 16 batch and 4 channels
     bs_fs_zyx_bsv16_fsv4,   // batch, feature, 3D spatial. Blocks of 16 batch and 4 channels
     bs_fs_yx_bsv16_fsv2,    // batch, feature, 2D spatial. Blocks of 16 batch and 2 channels
@@ -68,7 +72,6 @@ enum DataLayout {
     bfzyx,                  // batch+feature+3D spatial
     bzyxf,
     fs_b_yx_fsv32,          // for FP16 kernels, 32 features to avoid partial writes
-    b_fs_yx_32fp,           // bfyx with blocks of 16 packed binary input channels
     bfwzyx,                 // batch, feature, 4D spatial
     bfuwzyx,                // batch, feature, 5D spatial
     bfvuwzyx,               // batch, feature, 6D spatial
@@ -90,7 +93,10 @@ enum WeightsLayout {
     oxiy,
     iyxo,
     yxio,
+    o_is_yx_isv2,
+    o_is_yx_isv4,
     o_is_yx_isv16,
+    o_is_zyx_isv16,
     os_yxi_osv16,
     os_iyx_osv16,
     os_iyx_osv32,
@@ -156,6 +162,7 @@ enum WeightsLayout {
     os_is_yx_isa8_osv8_isv2,
     is_os_yx_isa8_osv8_isv2,
     is_os_yx_isa8_osv8_isv4,
+    is_os_yx_osv8_isv4,
     is_os_yx_osa8_isv16_osv4,
     is_os_yx_isa2_osa8_isv8_osv2,
     g_os_is_yx_osa2_isa8_osv16_isv4,
@@ -179,9 +186,10 @@ enum WeightsLayout {
     os_is_yx_osv32_isv4_swizzled_by_2,   //  weights for bfyx -> b_fs_yx_fsv32 convolution using IMAD with swizzled ofm (0, 2, 4..), (1, 3, 5...)
     os_is_yx_osv32_isv4,                 //  weights for bfyx -> b_fs_yx_fsv{32,16} convolution using IMAD
     os_is_zyx_osv32_isv4,                //  weights for bfzyx -> b_fs_zyx_fsv16 convolution using IMAD
+    os_is_yx_osv2_isv16,
+    os_is_yx_osv4_isv16,
     oizyx,
     iozyx,
-    os_is_yx_osv32_isv32p,  // 2 blocks: 32 packed binary in channels and 32 output channels
     os_is_osv32_isv32_swizzled_by_4,     // for weights for 1x1 IMAD convolution
     os_i_yxs_osv4_yxsv4,                 // for weights for depthwise IMAD convolution
     os_y_is_x_osv8_isv2,
@@ -200,6 +208,8 @@ enum WeightsLayout {
     g_os_iyx_osv8,
     g_os_iyx_osv16,
     g_os_iyx_osv32,
+    gs_oiyx_gsv8,
+    gs_oizyx_gsv8,
     gs_oiyx_gsv16,
     gs_oizyx_gsv16,
     gs_oiyx_gsv32,
@@ -608,6 +618,10 @@ public:
         }
 
         return same;
+    }
+
+    bool operator!=(const TensorBaseT& t) const {
+        return !(*this == t);
     }
 
     bool SameDims(const TensorBaseT& t) const {

@@ -94,7 +94,7 @@ REGISTER_FACTORY(v0, Unsqueeze);
 REGISTER_FACTORY(v1, Add);
 REGISTER_FACTORY(v1, AvgPool);
 REGISTER_FACTORY(v1, BatchToSpace);
-REGISTER_FACTORY(v1, BinaryConvolution);
+// REGISTER_FACTORY(v1, BinaryConvolution); Supported via BinaryConvolution->Convolution conversion
 REGISTER_FACTORY(v1, Broadcast);
 REGISTER_FACTORY(v1, ConvertLike);
 REGISTER_FACTORY(v1, Convolution);
@@ -257,7 +257,9 @@ REGISTER_FACTORY(v11, Interpolate);
 REGISTER_FACTORY(v11, TopK);
 
 // ------------------------------ Supported v12 ops ----------------------------- //
+REGISTER_FACTORY(v12, GroupNormalization);
 REGISTER_FACTORY(v12, Pad);
+REGISTER_FACTORY(v12, ScatterElementsUpdate);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
@@ -266,3 +268,4 @@ REGISTER_FACTORY(internal, NmsStaticShapeIE8);
 REGISTER_FACTORY(internal, MulticlassNmsIEInternal);
 REGISTER_FACTORY(internal, FullyConnected);
 REGISTER_FACTORY(internal, FullyConnectedCompressed);
+REGISTER_FACTORY(internal, RMS);

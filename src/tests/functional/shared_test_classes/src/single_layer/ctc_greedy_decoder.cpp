@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/ctc_greedy_decoder.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 std::string CTCGreedyDecoderLayerTest::getTestCaseName(
@@ -45,11 +45,9 @@ void CTCGreedyDecoderLayerTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector paramsIn {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-        ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
 
     auto ctcGreedyDecoder = std::dynamic_pointer_cast<ngraph::opset1::CTCGreedyDecoder>(
-            ngraph::builder::makeCTCGreedyDecoder(paramOuts[0], mergeRepeated));
+            ngraph::builder::makeCTCGreedyDecoder(paramsIn[0], mergeRepeated));
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(ctcGreedyDecoder) };
     function = std::make_shared<ngraph::Function>(results, paramsIn, "CTCGreedyDecoder");

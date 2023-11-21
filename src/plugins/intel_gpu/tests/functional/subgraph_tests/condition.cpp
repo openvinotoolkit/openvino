@@ -6,9 +6,9 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
@@ -260,13 +260,11 @@ protected:
 class InnerBodyType06 : public InnerBodyGenerator {
 protected:
     std::shared_ptr<ngraph::Function> generate(ov::PartialShape& input_shape, ngraph::element::Type prc) override {
-        auto constant   = ngraph::opset9::Constant::create(prc, ov::Shape(input_shape.rank().get_length(), 0), {2.0f});
-        constant->set_friendly_name("body1_constant");
-        // constant->get_rt_info().emplace(ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding{});
-        // constant->get_rt_info().emplace("can_be_folded", false);
+        auto constant   = ngraph::opset9::Constant::create(prc, ov::Shape(input_shape.rank().get_length(), 1), {2.0f});
+        constant->set_friendly_name("body6_constant");
         auto result     = std::make_shared<ngraph::opset1::Result>(constant);
         auto o_layout = result->get_layout();
-        result->set_friendly_name("body1_result");
+        result->set_friendly_name("body6_result");
         auto body       = std::make_shared<ngraph::Function>(
             ngraph::OutputVector {result},
             ngraph::ParameterVector{},

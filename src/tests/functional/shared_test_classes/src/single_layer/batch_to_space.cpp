@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/batch_to_space.hpp"
 
 namespace LayerTestsDefinitions {
@@ -36,9 +36,7 @@ void BatchToSpaceLayerTest::SetUp() {
     std::tie(blockShape, cropsBegin, cropsEnd, inputShape, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto b2s = ngraph::builder::makeBatchToSpace(paramOuts[0], ngPrc, blockShape, cropsBegin, cropsEnd);
+    auto b2s = ngraph::builder::makeBatchToSpace(params[0], ngPrc, blockShape, cropsBegin, cropsEnd);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(b2s)};
     function = std::make_shared<ngraph::Function>(results, params, "BatchToSpace");
 }

@@ -70,10 +70,10 @@ bool evaluate_shape_of(const HostTensorPtr& output_value, const HostTensorPtr& i
     ov::Shape shape = input_value->get_shape();
     output_value->set_shape(ov::Shape{shape.size()});
     switch (output_value->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_shape_of, i32, shape, output_value);
-        NGRAPH_TYPE_CASE(evaluate_shape_of, i64, shape, output_value);
-        NGRAPH_TYPE_CASE(evaluate_shape_of, u32, shape, output_value);
-        NGRAPH_TYPE_CASE(evaluate_shape_of, u64, shape, output_value);
+        OPENVINO_TYPE_CASE(evaluate_shape_of, i32, shape, output_value);
+        OPENVINO_TYPE_CASE(evaluate_shape_of, i64, shape, output_value);
+        OPENVINO_TYPE_CASE(evaluate_shape_of, u32, shape, output_value);
+        OPENVINO_TYPE_CASE(evaluate_shape_of, u64, shape, output_value);
     default:
         rc = false;
         break;
@@ -85,10 +85,10 @@ bool evaluate_shape_of(ov::Tensor& output_value, const Shape& input_shape) {
     bool rc;
     output_value.set_shape(ov::Shape{input_shape.size()});
     switch (output_value.get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_shape_of, i32, input_shape, output_value);
-        NGRAPH_TYPE_CASE(evaluate_shape_of, i64, input_shape, output_value);
-        NGRAPH_TYPE_CASE(evaluate_shape_of, u32, input_shape, output_value);
-        NGRAPH_TYPE_CASE(evaluate_shape_of, u64, input_shape, output_value);
+        OPENVINO_TYPE_CASE(evaluate_shape_of, i32, input_shape, output_value);
+        OPENVINO_TYPE_CASE(evaluate_shape_of, i64, input_shape, output_value);
+        OPENVINO_TYPE_CASE(evaluate_shape_of, u32, input_shape, output_value);
+        OPENVINO_TYPE_CASE(evaluate_shape_of, u64, input_shape, output_value);
     default:
         rc = false;
         break;

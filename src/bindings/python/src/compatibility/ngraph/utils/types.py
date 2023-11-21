@@ -105,16 +105,16 @@ def get_dtype(ngraph_type: NgraphType) -> np.dtype:
 
 def get_ndarray(data: NumericData) -> np.ndarray:
     """Wrap data into a numpy ndarray."""
-    if type(data) == np.ndarray:
+    if isinstance(data, np.ndarray):
         return data
     return np.array(data)
 
 
 def get_shape(data: NumericData) -> TensorShape:
     """Return a shape of NumericData."""
-    if type(data) == np.ndarray:
+    if isinstance(data, np.ndarray):
         return data.shape  # type: ignore
-    elif type(data) == list:
+    if isinstance(data, list):
         return [len(data)]  # type: ignore
     return []
 

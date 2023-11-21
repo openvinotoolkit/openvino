@@ -17,7 +17,6 @@
 #include <vector>
 
 #include "dict_attribute_visitor.hpp"
-#include "ngraph/check.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/op_extension.hpp"
@@ -127,7 +126,7 @@ private:
         return it->second();
     }
 
-    const ov::OpSet& m_opset = ov::get_opset12();
+    const ov::OpSet& m_opset = ov::get_opset13();
     std::map<std::string, std::shared_ptr<ov::detail::SOExtension>> m_opset_so_extensions;
     std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>> m_variables;
 };

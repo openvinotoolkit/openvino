@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/roi_pooling.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include <string>
 
@@ -148,12 +148,9 @@ protected:
                     }
                 } else {
                     switch (funcInput.get_element_type()) {
-                    case ngraph::element::f32: {
-                        ov::test::utils::fill_data_roi<InferenceEngine::Precision::FP32>(tensor, feat_map_shape[0] - 1, height, width, 1.f, is_roi_max_mode);
-                        break;
-                    }
-                    case ngraph::element::bf16: {
-                        ov::test::utils::fill_data_roi<InferenceEngine::Precision::BF16>(tensor, feat_map_shape[0] - 1, height, width, 1.f, is_roi_max_mode);
+                    case ov::element::f32:
+                    case ov::element::bf16: {
+                        ov::test::utils::fill_data_roi(tensor, feat_map_shape[0] - 1, height, width, 1.f, is_roi_max_mode);
                         break;
                     }
                     default:
@@ -186,13 +183,10 @@ protected:
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::ParameterVector params;
-        for (auto&& shape : inputDynamicShapes) {
+        for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, shape));
-        }
-        auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-        auto roi_pooling = ngraph::builder::makeROIPooling(paramOuts[0], paramOuts[1], poolShape, spatial_scale, pool_method);
+        auto roi_pooling = ngraph::builder::makeROIPooling(params[0], params[1], poolShape, spatial_scale, pool_method);
 
         ngraph::ResultVector results;
         for (size_t i = 0; i < roi_pooling->get_output_size(); i++)

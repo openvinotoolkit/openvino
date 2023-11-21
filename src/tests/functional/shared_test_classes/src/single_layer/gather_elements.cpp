@@ -7,7 +7,7 @@
 #include <tuple>
 #include <vector>
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/gather_elements.hpp"
 
 namespace LayerTestsDefinitions {
@@ -41,10 +41,8 @@ void GatherElementsLayerTest::SetUp() {
     auto ngIPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iPrecision);
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngDPrc, ov::Shape(dataShape))};
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto gather = std::dynamic_pointer_cast<ngraph::op::v6::GatherElements>(
-            ngraph::builder::makeGatherElements(paramOuts[0], indicesShape, ngIPrc, axis));
+            ngraph::builder::makeGatherElements(params[0], indicesShape, ngIPrc, axis));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gather)};
     function = std::make_shared<ngraph::Function>(results, params, "gatherEl");
 }

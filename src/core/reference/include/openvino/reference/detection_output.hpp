@@ -6,12 +6,11 @@
 
 #include <cstddef>
 #include <map>
-#include <string>
 #include <vector>
 
-#include "ngraph/op/detection_output.hpp"
-#include "ngraph/op/util/detection_output_base.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/op/detection_output.hpp"
+#include "openvino/op/util/detection_output_base.hpp"
 
 namespace ov {
 namespace reference {
@@ -28,7 +27,7 @@ private:
     };
     using LabelBBox = std::map<int, std::vector<NormalizedBBox>>;
 
-    ngraph::op::util::DetectionOutputBase::AttributesBase attrs;
+    op::util::DetectionOutputBase::AttributesBase attrs;
     size_t numImages;
     size_t priorSize;
     size_t numPriors;
@@ -417,10 +416,10 @@ private:
     }
 
 public:
-    referenceDetectionOutput(const ngraph::op::DetectionOutputAttrs& _attrs,
-                             const ngraph::Shape& locShape,
-                             const ngraph::Shape& priorsShape,
-                             const ngraph::Shape& outShape)
+    referenceDetectionOutput(const op::v0::DetectionOutput::Attributes& _attrs,
+                             const Shape& locShape,
+                             const Shape& priorsShape,
+                             const Shape& outShape)
         : attrs(_attrs) {
         numImages = locShape[0];
         priorSize = _attrs.normalized ? 4 : 5;
@@ -433,11 +432,11 @@ public:
         outTotalSize = shape_size(outShape);
     }
 
-    referenceDetectionOutput(const ngraph::op::util::DetectionOutputBase::AttributesBase& _attrs,
-                             const ngraph::Shape& locShape,
-                             const ngraph::Shape& classPredShape,
-                             const ngraph::Shape& priorsShape,
-                             const ngraph::Shape& outShape)
+    referenceDetectionOutput(const op::util::DetectionOutputBase::AttributesBase& _attrs,
+                             const Shape& locShape,
+                             const Shape& classPredShape,
+                             const Shape& priorsShape,
+                             const Shape& outShape)
         : attrs(_attrs) {
         numImages = locShape[0];
         priorSize = _attrs.normalized ? 4 : 5;

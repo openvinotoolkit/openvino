@@ -3,11 +3,12 @@
 //
 
 #include "test_utils/cpu_test_utils.hpp"
+#include "test_utils/filter_cpu_info.hpp"
 #include "test_utils/convolution_params.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <shared_test_classes/single_layer/group_convolution_backprop_data.hpp>
 #include "openvino/core/preprocess/pre_post_process.hpp"
 
@@ -93,6 +94,13 @@ public:
     }
 
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+        if (function->get_parameters().size() != 1) {
+            // WA: output_shape depends on 3rd deconvolution input data
+            // but the reference implementation doesn't implement shape inference
+            // so we need to build a new ngraph function and replace the 3rd input parameter with a constant
+            // to get valid output shapes
+            functionRefs = createGraph({targetInputStaticShapes[0]}, ngraph::helpers::InputLayerType::CONSTANT);
+        }
         inputs.clear();
         const auto& funcInputs = function->inputs();
         for (size_t i = 0; i < funcInputs.size(); ++i) {
@@ -108,18 +116,6 @@ public:
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
         inferRequestNum++;
-    }
-
-    void init_ref_function(std::shared_ptr<ov::Model> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) override {
-        if (function->get_parameters().size() == 1) {
-            ngraph::helpers::resize_function(funcRef, targetInputStaticShapes);
-        } else {
-            // WA: output_shape depends on 3rd deconvolution input data
-            // but the reference implementation doesn't implement shape inference
-            // so we need to build a new ngraph function and replace the 3rd input parameter with a constant
-            // to get valid output shapes
-            funcRef = createGraph({targetInputStaticShapes[0]}, ngraph::helpers::InputLayerType::CONSTANT);
-        }
     }
 
     void validate() override {

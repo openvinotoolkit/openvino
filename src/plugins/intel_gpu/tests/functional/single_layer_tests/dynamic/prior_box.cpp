@@ -8,7 +8,7 @@
 #include "shared_test_classes/single_layer/prior_box_clustered.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include <string>
 #include <openvino/pass/constant_folding.hpp>
 
@@ -95,13 +95,11 @@ protected:
         auto strideInput = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {1});
 
         ov::ParameterVector functionParams;
-        for (auto&& shape : inputDynamicShapes) {
+        for (auto&& shape : inputDynamicShapes)
             functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
-        }
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset3::Parameter>(functionParams));
 
-        auto shapeOfOp1 = std::make_shared<opset3::ShapeOf>(paramOuts[0], element::i32);
-        auto shapeOfOp2 = std::make_shared<opset3::ShapeOf>(paramOuts[1], element::i32);
+        auto shapeOfOp1 = std::make_shared<opset3::ShapeOf>(functionParams[0], element::i32);
+        auto shapeOfOp2 = std::make_shared<opset3::ShapeOf>(functionParams[1], element::i32);
 
 
         auto stridedSliceOp1 = ngraph::builder::makeStridedSlice(shapeOfOp1, beginInput, endInput, strideInput, element::i32,

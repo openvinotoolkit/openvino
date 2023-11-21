@@ -82,8 +82,8 @@ You can use the following additional build options:
      ```
   4. After the build process finishes, export the newly built Python libraries to the user environment variables: 
      ```
-     export PYTHONPATH=PYTHONPATH:<openvino_repo>/bin/intel64/Release/python
-     export LD_LIBRARY_PATH=LD_LIBRARY_PATH:<openvino_repo>/bin/intel64/Release
+     export PYTHONPATH=<openvino_repo>/bin/intel64/Release/python:$PYTHONPATH
+     export LD_LIBRARY_PATH=<openvino_repo>/bin/intel64/Release:$LD_LIBRARY_PATH
      ```
      or install the wheel with pip:
      ```

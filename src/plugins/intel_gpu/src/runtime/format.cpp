@@ -31,10 +31,12 @@ static const std::map<format::type, format_traits> format_traits_map {
         FMT_TRAITS(bxfy,                  1, 1, 2, 0, {0, 3, 1, 2},             "bxfy",     "bfxy",     {}),
         FMT_TRAITS(b_fs_yx_fsv2,          1, 1, 2, 0, {0, 1, 2, 3},             "bfyx",     "bfxy",     {{1, 2}}),
         FMT_TRAITS(b_fs_yx_fsv4,          1, 1, 2, 0, {0, 1, 2, 3},             "bfyx",     "bfxy",     {{1, 4}}),
+        FMT_TRAITS(b_fs_yx_fsv8,          1, 1, 2, 0, {0, 1, 2, 3},             "bfyx",     "bfxy",     {{1, 8}}),
         FMT_TRAITS(b_fs_yx_fsv16,         1, 1, 2, 0, {0, 1, 2, 3},             "bfyx",     "bfxy",     {{1, 16}}),
         FMT_TRAITS(b_fs_yx_fsv32,         1, 1, 2, 0, {0, 1, 2, 3},             "bfyx",     "bfxy",     {{1, 32}}),
         FMT_TRAITS(b_fs_zyx_fsv2,         1, 1, 3, 0, {0, 1, 2, 3, 4},          "bfzyx",    "bfxyz",    {{1, 2}}),
         FMT_TRAITS(b_fs_zyx_fsv4,         1, 1, 3, 0, {0, 1, 2, 3, 4},          "bfzyx",    "bfxyz",    {{1, 4}}),
+        FMT_TRAITS(b_fs_zyx_fsv8,         1, 1, 3, 0, {0, 1, 2, 3, 4},          "bfzyx",    "bfxyz",    {{1, 8}}),
         FMT_TRAITS(b_fs_zyx_fsv32,        1, 1, 3, 0, {0, 1, 2, 3, 4},          "bfzyx",    "bfxyz",    {{1, 32}}),
         FMT_TRAITS(bs_fs_fsv8_bsv8,       1, 1, 0, 0, {0, 1},                   "bf",       "bf",       {{0, 8}, {1, 8}}),
         FMT_TRAITS(bs_fs_fsv8_bsv16,      1, 1, 0, 0, {0, 1},                   "bf",       "bf",       {{0, 16}, {1, 8}}),
@@ -46,7 +48,6 @@ static const std::map<format::type, format_traits> format_traits_map {
         FMT_TRAITS(bfuwzyx,               1, 1, 5, 0, {0, 1, 2, 3, 4, 5, 6},    "bfuwzyx",  "bfxyzwu",  {}),
         FMT_TRAITS(bfvuwzyx,              1, 1, 6, 0, {0, 1, 2, 3, 4, 5, 6, 7}, "bfvuwzyx", "bfxyzwuv", {}),
         FMT_TRAITS(fs_b_yx_fsv32,         1, 1, 2, 0, {1, 0, 2, 3},             "fbyx",     "bfxy",     {{1, 32}}),
-        FMT_TRAITS(b_fs_yx_32fp,          1, 1, 2, 0, {0, 1, 2, 3},             "bfyx",     "bfxy",     {{1, 32}}),
         FMT_TRAITS(b_fs_zyx_fsv16,        1, 1, 3, 0, {0, 1, 2, 3, 4},          "bfzyx",    "bfxyz",    {{1, 16}}),
         FMT_TRAITS(bs_fs_zyx_bsv16_fsv32, 1, 1, 3, 0, {0, 1, 2, 3, 4},          "bfzyx",    "bfxyz",    {{0, 16 }, {1, 32}}),
         FMT_TRAITS(bs_fs_zyx_bsv16_fsv16, 1, 1, 3, 0, {0, 1, 2, 3, 4},          "bfzyx",    "bfxyz",    {{0, 16 }, {1, 16}}),
@@ -55,6 +56,8 @@ static const std::map<format::type, format_traits> format_traits_map {
         FMT_TRAITS(bs_fs_yx_bsv4_fsv4,    1, 1, 2, 0, {0, 1, 2, 3},             "bfyx",     "bfxy",     {{0, 4 }, {1, 4}}),
         FMT_TRAITS(bs_fs_yx_bsv8_fsv4,    1, 1, 2, 0, {0, 1, 2, 3},             "bfyx",     "bfxy",     {{0, 8 }, {1, 4}}),
         FMT_TRAITS(bs_fs_zyx_bsv8_fsv4,   1, 1, 3, 0, {0, 1, 2, 3, 4},          "bfzyx",    "bfxyz",    {{0, 8 }, {1, 4}}),
+        FMT_TRAITS(bs_fs_yx_bsv16_fsv8,   1, 1, 2, 0, {0, 1, 2, 3},             "bfyx",     "bfxy",     {{0, 16 }, {1, 8}}),
+        FMT_TRAITS(bs_fs_zyx_bsv16_fsv8,  1, 1, 3, 0, {0, 1, 2, 3, 4},          "bfzyx",    "bfxyz",    {{0, 16 }, {1, 8}}),
         FMT_TRAITS(bs_fs_yx_bsv16_fsv4,   1, 1, 2, 0, {0, 1, 2, 3},             "bfyx",     "bfxy",     {{0, 16 }, {1, 4}}),
         FMT_TRAITS(bs_fs_zyx_bsv16_fsv4,  1, 1, 3, 0, {0, 1, 2, 3, 4},          "bfzyx",    "bfxyz",    {{0, 16 }, {1, 4}}),
         FMT_TRAITS(bs_fs_yx_bsv16_fsv2,   1, 1, 2, 0, {0, 1, 2, 3},             "bfyx",     "bfxy",     {{0, 16 }, {1, 2}}),
@@ -81,7 +84,10 @@ static const std::map<format::type, format_traits> format_traits_map {
         FMT_TRAITS(oizyx,                                        1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {}),
         FMT_TRAITS(iozyx,                                        1, 1, 3, 0, {1, 0, 2, 3, 4}, "iozyx",  "oixyz", {}),
         FMT_TRAITS(os_is_yx_isv16_osv16,                         1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{1, 16}, {0, 16}}),
+        FMT_TRAITS(o_is_yx_isv2,                                 1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{1, 2}}),
+        FMT_TRAITS(o_is_yx_isv4,                                 1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{1, 4}}),
         FMT_TRAITS(o_is_yx_isv16,                                1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{1, 16}}),
+        FMT_TRAITS(o_is_zyx_isv16,                               1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{1, 16}}),
         FMT_TRAITS(os_yxi_osv16,                                 1, 1, 2, 0, {0, 2, 3, 1},    "oyxi",   "oixy",  {{0, 16}}),
         FMT_TRAITS(os_iyx_osv16,                                 1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 16}}),
         FMT_TRAITS(os_iyx_osv32,                                 1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 32}}),
@@ -114,6 +120,8 @@ static const std::map<format::type, format_traits> format_traits_map {
         FMT_TRAITS(is_o32_yx_isv32_swizzled_by_4,                1, 1, 2, 0, {0, 1, 2, 3},    "oyxi",   "oixy",  {{0, 32}, {1, 32}}),
         FMT_TRAITS(os_is_y_x8_osv8_isv4,                         1, 1, 2, 0, {0, 1, 2, 3},    "oyxi",   "oixy",  {{0, 8}, {1, 4}, {2, 8}}),
         FMT_TRAITS(os_is_y_x8_osv8_isv4_swizzled_by_4,           1, 1, 2, 0, {0, 1, 2, 3},    "oyxi",   "oixy",  {{0, 8}, {1, 4}, {2, 8}}),
+        FMT_TRAITS(os_is_yx_osv2_isv16,                          1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 2}, {1, 16}}),
+        FMT_TRAITS(os_is_yx_osv4_isv16,                          1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 4}, {1, 16}}),
         FMT_TRAITS(os_is_yx_osv16_isv4,                          1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 16}, {1, 4}}),
         FMT_TRAITS(os_is_yx_osv8_isv4,                           1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 8}, {1, 4}}),
         FMT_TRAITS(os_is_zyx_osv8_isv4,                          1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{0, 8}, {1, 4}}),
@@ -123,9 +131,9 @@ static const std::map<format::type, format_traits> format_traits_map {
         FMT_TRAITS(os_is_yx_osv32_isv4_swizzled_by_2,            1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 32}, {1, 4}}),
         FMT_TRAITS(os_is_yx_osv32_isv4,                          1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 32}, {1, 4}}),
         FMT_TRAITS(os_is_zyx_osv32_isv4,                         1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{0, 32}, {1, 4}}),
-        FMT_TRAITS(os_is_yx_osv32_isv32p,                        1, 1, 1, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 32}, {1, 32}}),
         FMT_TRAITS(os_is_zyx_isv16_osv16,                        1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{1, 16}, {0, 16}}),
         FMT_TRAITS(is_os_zyx_isv16_osv16,                        1, 1, 3, 0, {1, 0, 2, 3, 4}, "iozyx",  "oixyz", {{1, 16}, {0, 16}}),
+        FMT_TRAITS(is_os_yx_osv8_isv4,                           1, 1, 2, 0, {1, 0, 2, 3},    "ioyx",   "oixy",  {{0, 8}, {1, 4}}),
         FMT_TRAITS(is_os_yx_isv16_osv16,                         1, 1, 2, 0, {1, 0, 2, 3},    "ioyx",   "oixy",  {{1, 16}, {0, 16}}),
         FMT_TRAITS(is_os_yx_isv16_osv8,                          1, 1, 2, 0, {1, 0, 2, 3},    "ioyx",   "oixy",  {{1, 16}, {0, 8}}),
         FMT_TRAITS(is_os_yx_isv16_osv4,                          1, 1, 2, 0, {1, 0, 2, 3},    "ioyx",   "oixy",  {{1, 16}, {0, 4}}),
@@ -174,6 +182,8 @@ static const std::map<format::type, format_traits> format_traits_map {
         FMT_TRAITS(g_os_iyx_osv8,                                1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy????g", {{0, 8}}),
         FMT_TRAITS(g_os_iyx_osv16,                               1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy????g", {{0, 16}}),
         FMT_TRAITS(g_os_iyx_osv32,                               1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy????g", {{0, 32}}),
+        FMT_TRAITS(gs_oiyx_gsv8,                                 1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy????g", {{8, 8}}),
+        FMT_TRAITS(gs_oizyx_gsv8,                                1, 1, 3, 1, {0, 1, 2, 3, 4, 5}, "goizyx", "oixyz???g", {{8, 8}}),
         FMT_TRAITS(gs_oiyx_gsv16,                                1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy????g", {{8, 16}}),
         FMT_TRAITS(gs_oizyx_gsv16,                               1, 1, 3, 1, {0, 1, 2, 3, 4, 5}, "goizyx", "oixyz???g", {{8, 16}}),
         FMT_TRAITS(gs_oiyx_gsv32,                                1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy????g", {{8, 32}}),
@@ -282,8 +292,7 @@ format format::adjust_to_rank(format fmt, size_t new_rank) {
     auto is_adjustable = [](const format& fmt) -> bool {
         return !format::is_weights_format(fmt) &&
                !format::is_image_2d(fmt) &&
-               !format::is_winograd(fmt) &&
-               fmt != format::b_fs_yx_32fp;
+               !format::is_winograd(fmt);
     };
 
     // Skip special formats as order + blocking desc may be not enough to properly match them

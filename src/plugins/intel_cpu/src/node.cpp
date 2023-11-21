@@ -52,7 +52,7 @@
 
 #include "nodes/common/cpu_memcpy.h"
 #include "utils/rt_info/memory_formats_attribute.hpp"
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 
 #include <dnnl_types.h>
 #include <dnnl_debug.h>
@@ -80,7 +80,7 @@ Node::NodesFactory & Node::factory() {
     return factoryInstance;
 }
 
-Node::Node(const std::shared_ptr<ngraph::Node>& op,
+Node::Node(const std::shared_ptr<ov::Node>& op,
            const GraphContext::CPtr ctx,
            const ShapeInferFactory& shapeInferFactory)
     : selectedPrimitiveDescriptorIndex(-1),
@@ -95,8 +95,6 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
       typeStr(op->get_type_name()),
       type(TypeFromName(op->get_type_name())),
       profiling(op->get_friendly_name()) {
-    const std::string errorPrefix = "Ngraph operation " + std::string(op->get_type_name()) + " with name " + op->get_friendly_name();
-
     for (size_t i = 0; i < op->get_input_size(); i++) {
         const auto &shape = op->get_input_partial_shape(i);
         if (shape.rank().is_dynamic()) {
@@ -104,7 +102,7 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
         }
 
         bool isScalar = shape.rank().get_length() == 0;
-        inputShapes.emplace_back(isScalar ? ngraph::PartialShape{1} : shape);
+        inputShapes.emplace_back(isScalar ? ov::PartialShape{1} : shape);
         originalInputPrecisions.emplace_back(details::convertPrecision(op->get_input_element_type(i)));
     }
 
@@ -119,7 +117,7 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
             }
 
             bool isScalar = shape.rank().get_length() == 0;
-            outputShapes.emplace_back(isScalar ? ngraph::PartialShape{1} : shape);
+            outputShapes.emplace_back(isScalar ? ov::PartialShape{1} : shape);
             originalOutputPrecisions.emplace_back(details::convertPrecision(op->get_output_element_type(i)));
         }
     }
@@ -480,6 +478,8 @@ std::string Node::getPrimitiveDescriptorType() const {
     SEARCH_TYPE(_dw);
     SEARCH_TYPE(_1x1);
 
+#undef SEARCH_TYPE
+
     if (type == impl_desc_type::unknown)
         str_type = "unknown";
     else if (str_type.empty())
@@ -615,26 +615,31 @@ bool Node::outputShapeDataDependency() const {
 
 void Node::redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) {
     if (newOutputShapes.size() != outputShapes.size()) {
-        IE_THROW() << "Number shapes mismatch with real outputs number for node with name: " << getName();
+        THROW_CPU_NODE_ERR("has shapes number mismatch with real outputs number.");
     }
-    for (size_t i = 0; i < outputShapes.size(); i++) {
-        const auto edges = getChildEdgesAtPort(i);
+    for (size_t i = 0lu; i < outputShapes.size(); i++) {
+        redefineOutputMemory(i, newOutputShapes[i]);
+    }
+}
 
-        // avoid 0D shape incompatible
-        auto newOutputShape = newOutputShapes[i];
-        if (newOutputShape.empty()) {
-            newOutputShape.push_back(1);
-        }
+void Node::redefineOutputMemory(const size_t port, const VectorDims& new_output_shape) {
+    const auto edges = getChildEdgesAtPort(port);
 
-        const auto &currDesc = edges[0]->getMemory().getDesc();
-        if (currDesc.getShape().isStatic() && currDesc.getShape().getStaticDims() == newOutputShape)
-            continue;
+    // avoid 0D shape incompatible
+    auto new_shape = new_output_shape;
+    if (new_shape.empty()) {
+        new_shape.push_back(1);
+    }
 
-        const bool hasZeroDims = std::count(std::begin(newOutputShape), std::end(newOutputShape), 0) > 0;
-        const auto memDesc = getBaseMemDescAtOutputPort(i)->cloneWithNewDims(newOutputShape, hasZeroDims);
-        for (size_t j = 0; j < edges.size(); j++) {
-            edges[j]->getMemoryPtr()->redefineDesc(memDesc);
-        }
+    const auto& curr_desc = edges[0]->getMemory().getDesc();
+    if (curr_desc.getShape().isStatic() && curr_desc.getShape().getStaticDims() == new_shape) {
+        return;
+    }
+
+    const bool has_zero_dims = std::count(std::begin(new_shape), std::end(new_shape), 0lu) > 0;
+    const auto mem_desc = getBaseMemDescAtOutputPort(port)->cloneWithNewDims(new_shape, has_zero_dims);
+    for (size_t j = 0lu; j < edges.size(); j++) {
+        edges[j]->getMemoryPtr()->redefineDesc(mem_desc);
     }
 }
 
@@ -1034,6 +1039,7 @@ const std::vector<impl_desc_type>& Node::getDefaultImplPriority() {
         impl_desc_type::gemm_avx2,
         impl_desc_type::gemm_avx,
         impl_desc_type::gemm_sse42,
+        impl_desc_type::gemm_acl,
         impl_desc_type::acl,
         impl_desc_type::jit_gemm,
         impl_desc_type::ref_any,
@@ -1242,7 +1248,7 @@ std::vector<InferenceEngine::Precision> Node::getInputPrecisions() const {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated) {
-            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->getDataType())));
+            inputPrecisions.emplace_back(parentEdge->getMemoryPtr()->getDesc().getPrecision());
         }
     }
     return inputPrecisions;
@@ -1253,7 +1259,7 @@ std::vector<InferenceEngine::Precision> Node::getOutputPrecisions() const {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto childEdge = getChildEdgeAt(i);
         if (childEdge && childEdge->getStatus() == Edge::Status::Validated) {
-            outputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((childEdge->getMemoryPtr()->getDataType())));
+            outputPrecisions.emplace_back(childEdge->getMemoryPtr()->getDesc().getPrecision());
         }
     }
     return outputPrecisions;
@@ -1276,7 +1282,7 @@ InferenceEngine::Precision Node::getRuntimePrecision() const {
     return runtimePrecision;
 }
 
-Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) {
+Node* Node::NodesFactory::create(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) {
     // getExceptionDescWithoutStatus removes redundant information from the exception message. For instance, the NotImplemented
     // exception is generated in the form: full_path_to_src_file:line_number [ NOT_IMPLEMENTED ] reason.
     // An example for gather node:

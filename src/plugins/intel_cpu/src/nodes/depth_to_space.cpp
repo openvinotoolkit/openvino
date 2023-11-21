@@ -10,7 +10,7 @@
 #include <cmath>
 #include <common/primitive_hashing_utils.hpp>
 #include <cpu/x64/jit_generator.hpp>
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <string>
 
 #include "common/blocked_desc_creator.h"
@@ -49,16 +49,16 @@ bool DepthToSpace::DepthToSpaceAttrs::operator==(const DepthToSpaceAttrs& rhs) c
     return result;
 }
 
-bool DepthToSpace::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool DepthToSpace::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto depthToSpace = ov::as_type_ptr<const ngraph::opset1::DepthToSpace>(op);
+        auto depthToSpace = ov::as_type_ptr<const ov::opset1::DepthToSpace>(op);
         if (!depthToSpace) {
             errorMessage = "Only opset1 DepthToSpace operation is supported";
             return false;
         }
         const auto mode = depthToSpace->get_mode();
-        if (!one_of(mode, ngraph::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, ngraph::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST)) {
-            errorMessage = "Does not support mode: " + ngraph::as_string(mode);
+        if (!one_of(mode, ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST)) {
+            errorMessage = "Does not support mode: " + ov::as_string(mode);
             return false;
         }
     } catch (...) {
@@ -67,7 +67,7 @@ bool DepthToSpace::isSupportedOperation(const std::shared_ptr<const ngraph::Node
     return true;
 }
 
-DepthToSpace::DepthToSpace(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+DepthToSpace::DepthToSpace(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -76,17 +76,17 @@ DepthToSpace::DepthToSpace(const std::shared_ptr<ngraph::Node>& op, const GraphC
     if (inputShapes.size() != 1 || outputShapes.size() != 1)
         THROW_ERROR << "has incorrect number of input/output edges!";
 
-    auto depthToSpace = ov::as_type_ptr<const ngraph::opset1::DepthToSpace>(op);
+    auto depthToSpace = ov::as_type_ptr<const ov::opset1::DepthToSpace>(op);
     if (!depthToSpace)
         THROW_ERROR << "supports only opset1";
 
     const auto modeNgraph = depthToSpace->get_mode();
-    if (modeNgraph == ngraph::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST) {
+    if (modeNgraph == ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST) {
         attrs.mode = Mode::BLOCKS_FIRST;
-    } else if (modeNgraph == ngraph::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST) {
+    } else if (modeNgraph == ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST) {
         attrs.mode = Mode::DEPTH_FIRST;
     } else {
-        THROW_ERROR << "doesn't support mode: " << ngraph::as_string(modeNgraph);
+        THROW_ERROR << "doesn't support mode: " << ov::as_string(modeNgraph);
     }
 
     attrs.blockSize = depthToSpace->get_block_size();

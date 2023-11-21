@@ -64,24 +64,23 @@ TEST_P(random_uniform_si_test, shape_infer) {
         auto allocated_mem = engine.allocate_memory(in_layout);
         switch (p.out_data_type) {
             case data_types::f16:
-                set_values(allocated_mem, {float_to_half(val)});
+                set_values(allocated_mem, {ov::float16(val).to_bits()});
                 break;
             case data_types::f32:
-                set_values(allocated_mem, {static_cast<data_type_to_type<data_types::f32>::type>(val)});
+                set_values(allocated_mem, {static_cast<ov::element_type_traits<data_types::f32>::value_type>(val)});
                 break;
             case data_types::i32:
-                set_values(allocated_mem, {static_cast<data_type_to_type<data_types::i32>::type>(val)});
+                set_values(allocated_mem, {static_cast<ov::element_type_traits<data_types::i32>::value_type>(val)});
                 break;
             case data_types::i64:
-                set_values(allocated_mem, {static_cast<data_type_to_type<data_types::i64>::type>(val)});
+                set_values(allocated_mem, {static_cast<ov::element_type_traits<data_types::i64>::value_type>(val)});
                 break;
             case data_types::i8:
-                set_values(allocated_mem, {static_cast<data_type_to_type<data_types::i8>::type>(val)});
+                set_values(allocated_mem, {static_cast<ov::element_type_traits<data_types::i8>::value_type>(val)});
                 break;
             case data_types::u8:
-                set_values(allocated_mem, {static_cast<data_type_to_type<data_types::u8>::type>(val)});
+                set_values(allocated_mem, {static_cast<ov::element_type_traits<data_types::u8>::value_type>(val)});
                 break;
-            case data_types::bin:
             default:
                 break;
         }

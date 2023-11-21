@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
+#include "ov_models/builders.hpp"
 #include "shared_test_classes/single_layer/scatter_update.hpp"
 
 namespace LayerTestsDefinitions {
@@ -76,8 +76,7 @@ void ScatterUpdateLayerTest::SetUp() {
     paramVector.push_back(inputParams);
     auto updateParams = std::make_shared<ngraph::opset1::Parameter>(inPrc, ngraph::Shape(updateShape));
     paramVector.push_back(updateParams);
-    auto paramVectorOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramVector));
-    auto s2d = ngraph::builder::makeScatterUpdate(paramVectorOuts[0], idxPrc, indicesShape, indicesValue, paramVectorOuts[1], axis);
+    auto s2d = ngraph::builder::makeScatterUpdate(paramVector[0], idxPrc, indicesShape, indicesValue, paramVector[1], axis);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(s2d)};
     function = std::make_shared<ngraph::Function>(results, paramVector, "ScatterUpdate");
 }

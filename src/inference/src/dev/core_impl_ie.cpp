@@ -143,7 +143,7 @@ InferenceEngine::QueryNetworkResult ov::CoreImpl::QueryNetwork(const InferenceEn
                                                                const std::string& deviceName,
                                                                const std::map<std::string, std::string>& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::QueryNetwork");
-    ie::QueryNetworkResult ret;
+    InferenceEngine::QueryNetworkResult ret;
     if (!network.getFunction()) {
         ret.rc = InferenceEngine::GENERAL_ERROR;
         return ret;

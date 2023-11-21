@@ -17,14 +17,13 @@ template <format::type layoutFormat, typename DataType>
 struct experimental_detectron_topk_rois_input_types {
     static const auto format = layoutFormat;
     using type = DataType;
-    static const data_types data_type = type_to_data_type<DataType>::value;
 };
 
 template <typename EdTopkRoisInput>
 struct experimental_detectron_topk_rois_gpu_test : public testing::Test {
     static const auto format = EdTopkRoisInput::format;
-    static const auto data_type = EdTopkRoisInput::data_type;
     using input_type = typename EdTopkRoisInput::type;
+    const ov::element::Type data_type = ov::element::from<input_type>();
 
     std::vector<input_type> getTypedVector(const std::vector<float>& input) {
         return std::vector<input_type>(input.begin(), input.end());
@@ -45,12 +44,12 @@ using format_types = testing::Types<experimental_detectron_topk_rois_input_types
                                     experimental_detectron_topk_rois_input_types<format::bs_fs_yx_bsv16_fsv16, float>,
                                     experimental_detectron_topk_rois_input_types<format::bs_fs_yx_bsv32_fsv16, float>,
                                     experimental_detectron_topk_rois_input_types<format::bs_fs_yx_bsv32_fsv32, float>,
-                                    experimental_detectron_topk_rois_input_types<format::bfyx, half_t>,
-                                    experimental_detectron_topk_rois_input_types<format::b_fs_yx_fsv16, half_t>,
-                                    experimental_detectron_topk_rois_input_types<format::b_fs_yx_fsv32, half_t>,
-                                    experimental_detectron_topk_rois_input_types<format::bs_fs_yx_bsv16_fsv16, half_t>,
-                                    experimental_detectron_topk_rois_input_types<format::bs_fs_yx_bsv32_fsv16, half_t>,
-                                    experimental_detectron_topk_rois_input_types<format::bs_fs_yx_bsv32_fsv32, half_t>>;
+                                    experimental_detectron_topk_rois_input_types<format::bfyx, ov::float16>,
+                                    experimental_detectron_topk_rois_input_types<format::b_fs_yx_fsv16, ov::float16>,
+                                    experimental_detectron_topk_rois_input_types<format::b_fs_yx_fsv32, ov::float16>,
+                                    experimental_detectron_topk_rois_input_types<format::bs_fs_yx_bsv16_fsv16, ov::float16>,
+                                    experimental_detectron_topk_rois_input_types<format::bs_fs_yx_bsv32_fsv16, ov::float16>,
+                                    experimental_detectron_topk_rois_input_types<format::bs_fs_yx_bsv32_fsv32, ov::float16>>;
 
 TYPED_TEST_SUITE(experimental_detectron_topk_rois_gpu_test, format_types);
 
@@ -133,7 +132,7 @@ TYPED_TEST(experimental_detectron_topk_rois_gpu_test, check_set_indices_layer_mo
 
 TEST(experimental_detectron_topk_rois_gpu_test, export_import) {
     const auto test_format = format::bs_fs_yx_bsv32_fsv16;
-    const data_types test_data_type = type_to_data_type<float>::value;
+    const data_types test_data_type = ov::element::from<float>();
 
     auto& engine = get_test_engine();
     // topk is more than model size

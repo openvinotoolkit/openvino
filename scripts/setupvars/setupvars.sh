@@ -6,7 +6,8 @@
 abs_path () {
     script_path=$(eval echo "$1")
     directory=$(dirname "$script_path")
-    echo "$(cd "$directory" || exit; pwd -P)";
+    builtin cd "$directory" || exit
+    pwd -P
 }
 
 SCRIPT_DIR="$(abs_path "${BASH_SOURCE[0]}")" >/dev/null 2>&1
@@ -99,7 +100,7 @@ if command -v lsb_release >/dev/null 2>&1; then
 fi
 
 PYTHON_VERSION_MAJOR="3"
-MIN_REQUIRED_PYTHON_VERSION_MINOR="7"
+MIN_REQUIRED_PYTHON_VERSION_MINOR="8"
 MAX_SUPPORTED_PYTHON_VERSION_MINOR="11"
 
 check_python_version () {
