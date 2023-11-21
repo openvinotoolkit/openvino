@@ -224,10 +224,47 @@ void Multinomial::execute_convert_type() {
     parallel_for(m_batches_count, [&](size_t idx) {
         m_max_per_batch[idx] = std::max(m_cdf[(idx + 1) * m_probs_count - 1], min_value_of_max);
     });
+
+    std::cout << "probs"
+                  << "\n";
+    for (size_t q = 0; q < m_input_elements_count; q++) {
+        std::cout << probs[q] << " ";
+    }
+    std::cout << "\n";
+    std::cout << "num_samples"
+                << "\n";
+    std::cout << m_samples_count << " ";
+    std::cout << "\n";
+    std::cout << "cdf"
+                  << "\n";
+    for (size_t q = 0; q < m_input_elements_count; q++) {
+        std::cout << m_cdf[q] << " ";
+    }
+    std::cout << "\n";
+    std::cout << "rand"
+                  << "\n";
+    for (size_t q = 0; q < m_output_elements_count; q++) {
+        std::cout << m_random_samples[q] << " ";
+    }
+    std::cout << "\n";
+    std::cout << "max"
+                  << "\n";
+    for (size_t q = 0; q < m_batches_count; q++) {
+        std::cout << m_max_per_batch[q] << " ";
+    }
+    std::cout << "\n";
+
     parallel_for(m_input_elements_count, [&](size_t idx) {
         size_t idx_max_elem = idx / m_probs_count;
         m_cdf[idx] /= m_max_per_batch[idx_max_elem];
     });
+
+    std::cout << "cdf_2"
+                << "\n";
+    for (size_t q = 0; q < m_input_elements_count; q++) {
+        std::cout << m_cdf[q] << " ";
+    }
+    std::cout << "\n";
 
     if (m_with_replacement) {
         parallel_for(m_batches_samples_probs_count, [&](size_t idx) {
