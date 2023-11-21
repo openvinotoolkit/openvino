@@ -133,7 +133,7 @@ Load model using OpenVINO TensorFlow Lite Frontend
 TensorFlow Lite models are supported via ``FrontEnd`` API. You may skip
 conversion to IR and read models directly by OpenVINO runtime API. For
 more examples supported formats reading via Frontend API, please look
-this `tutorial <../002-openvino-api>`__.
+this `tutorial <002-openvino-api-with-output.html>`__.
 
 .. code:: ipython3
 
