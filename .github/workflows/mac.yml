@@ -466,7 +466,7 @@ jobs:
       - name: Template OpImpl tests
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
-          ${{ env.INSTALL_TEST_DIR }}/conformanceTests --gtest_print_time=1 --device=TEMPLATE --gtest_filter="*OpImpl*" \
+          ${{ env.INSTALL_TEST_DIR }}/ov_op_conformance_tests --gtest_print_time=1 --device=TEMPLATE --gtest_filter="*OpImpl*" \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TemplateOpImplTests.xml
 
       - name: AUTO unit tests
