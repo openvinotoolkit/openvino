@@ -40,25 +40,53 @@ void MultiCropsToConcatTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-    auto crop1 = ngraph::builder::makeStridedSlice(params[0], std::vector<int64_t>{0, offsets[0].first}, std::vector<int64_t>{1, offsets[0].second},
-                                                std::vector<int64_t>{1, 1}, ngPrc, std::vector<int64_t>{1, 0},
-                                                std::vector<int64_t>{1, 0}, std::vector<int64_t>{0, 0},
-                                                std::vector<int64_t>{0, 0}, std::vector<int64_t>{0, 0});
+    ov::Shape const_shape_crop1 = {2};
+    auto begin_node_crop1 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, const_shape_crop1, std::vector<int64_t>{ 0, offsets[0].first });
+    auto end_node_crop1 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, const_shape_crop1, std::vector<int64_t>{ 1, offsets[0].second });
+    auto strideN_node_crop1 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, const_shape_crop1, std::vector<int64_t>{ 1, 1 });
+    auto crop1 = std::make_shared<ov::op::v1::StridedSlice>(params[0],
+                                                            begin_node_crop1,
+                                                            end_node_crop1,
+                                                            strideN_node_crop1,
+                                                            std::vector<int64_t>{ 1, 0 },
+                                                            std::vector<int64_t>{ 1, 0 },
+                                                            std::vector<int64_t>{ 0, 0 },
+                                                            std::vector<int64_t>{ 0, 0 },
+                                                            std::vector<int64_t>{ 0, 0 });
 
-    auto crop2 = ngraph::builder::makeStridedSlice(params[0], std::vector<int64_t>{0, offsets[1].first}, std::vector<int64_t>{1, offsets[1].second},
-                                                std::vector<int64_t>{1, 1}, ngPrc, std::vector<int64_t>{1, 0},
-                                                std::vector<int64_t>{1, 0}, std::vector<int64_t>{0, 0},
-                                                std::vector<int64_t>{0, 0}, std::vector<int64_t>{0, 0});
+    ov::Shape const_shape_crop2 = {2};
+    auto begin_node_crop2 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, const_shape_crop2, std::vector<int64_t>{ 0, offsets[1].first });
+    auto end_node_crop2 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, const_shape_crop2, std::vector<int64_t>{ 1, offsets[1].second });
+    auto strideN_node_crop2 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, const_shape_crop2, std::vector<int64_t>{ 1, 1 });
+    auto crop2 = std::make_shared<ov::op::v1::StridedSlice>(params[0],
+                                                            begin_node_crop2,
+                                                            end_node_crop2,
+                                                            strideN_node_crop2,
+                                                            std::vector<int64_t>{ 1, 0 },
+                                                            std::vector<int64_t>{ 1, 0 },
+                                                            std::vector<int64_t>{ 0, 0 },
+                                                            std::vector<int64_t>{ 0, 0 },
+                                                            std::vector<int64_t>{ 0, 0 });
 
     auto concat1 = std::make_shared<ngraph::opset8::Concat>(ngraph::OutputVector{crop1, crop2}, 1);
     std::shared_ptr<ov::op::v0::Result> result;
 
     // Case with 3 crops
     if (offsets.size() == 3) {
-        auto crop3 = ngraph::builder::makeStridedSlice(params[0], std::vector<int64_t>{0, offsets[2].first}, std::vector<int64_t>{1, offsets[2].second},
-                                                std::vector<int64_t>{1, 1}, ngPrc, std::vector<int64_t>{1, 0},
-                                                std::vector<int64_t>{1, 0}, std::vector<int64_t>{0, 0},
-                                                std::vector<int64_t>{0, 0}, std::vector<int64_t>{0, 0});
+        ov::Shape const_shape_crop3 = {2};
+        auto begin_node_crop3 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, const_shape_crop3, std::vector<int64_t>{ 0, offsets[2].first });
+        auto end_node_crop3 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, const_shape_crop3, std::vector<int64_t>{ 1, offsets[2].second });
+        auto strideN_node_crop3 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, const_shape_crop3, std::vector<int64_t>{ 1, 1 });
+        auto crop3 = std::make_shared<ov::op::v1::StridedSlice>(params[0],
+                                                                begin_node_crop3,
+                                                                end_node_crop3,
+                                                                strideN_node_crop3,
+                                                                std::vector<int64_t>{ 1, 0 },
+                                                                std::vector<int64_t>{ 1, 0 },
+                                                                std::vector<int64_t>{ 0, 0 },
+                                                                std::vector<int64_t>{ 0, 0 },
+                                                                std::vector<int64_t>{ 0, 0 });
+
         auto concat2 = std::make_shared<ngraph::opset8::Concat>(ngraph::OutputVector{crop1, crop2}, 1);
         result = std::make_shared<ngraph::opset8::Result>(concat2);
     } else {

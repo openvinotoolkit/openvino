@@ -278,8 +278,13 @@ protected:
         }
 
         // Body
-        const auto axis = 1;
-        auto s = ngraph::builder::makeSlice(body_params[0], {0}, {1}, {1}, {axis}, inType);
+        ov::Shape constShape = {1};
+        auto beginNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, std::vector<int64_t>{0});
+        auto endNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, std::vector<int64_t>{1});
+        auto strideNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, std::vector<int64_t>{1});
+        auto axesNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, std::vector<int64_t>{1});
+        auto s = std::make_shared<ov::op::v8::Slice>(body_params[0], beginNode, endNode, strideNode, axesNode);
+
         auto constant = ngraph::builder::makeConstant(inType, std::vector<size_t>{1}, std::vector<float>{0.5});
         auto eltwise = std::make_shared<ov::op::v1::Add>(body_params[0], constant);
 

@@ -37,7 +37,9 @@ void SpaceToBatchLayerTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto s2b = ngraph::builder::makeSpaceToBatch(params[0], ngPrc, blockShape, padsBegin, padsEnd);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(s2b)};
     function = std::make_shared<ngraph::Function>(results, params, "SpaceToBatch");
 }

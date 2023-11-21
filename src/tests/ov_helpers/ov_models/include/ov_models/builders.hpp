@@ -283,40 +283,21 @@ std::shared_ptr<ov::Node> makeEltwise(const ov::Output<Node>& in0,
                                       const ov::Output<Node>& in1,
                                       ov::test::utils::EltwiseTypes eltwiseType);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeBatchToSpace(const ov::Output<Node>& in,
                                            const element::Type& type,
                                            const std::vector<int64_t>& blockShape,
                                            const std::vector<int64_t>& cropsBegin,
                                            const std::vector<int64_t>& cropsEnd);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeSpaceToBatch(const ov::Output<Node>& in,
                                            const element::Type& type,
                                            const std::vector<int64_t>& blockShape,
                                            const std::vector<int64_t>& padsBegin,
                                            const std::vector<int64_t>& padsEnd);
 
-std::shared_ptr<ov::Node> makeStridedSlice(const ov::Output<Node>& in,
-                                           const std::vector<int64_t>& begin,
-                                           const std::vector<int64_t>& end,
-                                           const std::vector<int64_t>& stride,
-                                           const element::Type& type,
-                                           const std::vector<int64_t>& begin_mask,
-                                           const std::vector<int64_t>& end_mask,
-                                           const std::vector<int64_t>& new_axis_mask = std::vector<int64_t>{},
-                                           const std::vector<int64_t>& shrink_mask = std::vector<int64_t>{},
-                                           const std::vector<int64_t>& ellipsis_mask = std::vector<int64_t>{});
-
-std::shared_ptr<ov::Node> makeStridedSlice(const ov::Output<Node>& in,
-                                           const ov::Output<Node>& beginNode,
-                                           const ov::Output<Node>& endNode,
-                                           const ov::Output<Node>& strideNode,
-                                           const element::Type& type,
-                                           const std::vector<int64_t>& begin_mask,
-                                           const std::vector<int64_t>& end_mask,
-                                           const std::vector<int64_t>& new_axis_mask = std::vector<int64_t>{},
-                                           const std::vector<int64_t>& shrink_mask = std::vector<int64_t>{},
-                                           const std::vector<int64_t>& ellipsis_mask = std::vector<int64_t>{});
-
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeSlice(const ov::Output<Node>& in,
                                     const std::vector<int64_t>& begin,
                                     const std::vector<int64_t>& end,
@@ -324,19 +305,23 @@ std::shared_ptr<ov::Node> makeSlice(const ov::Output<Node>& in,
                                     const std::vector<int64_t>& axes,
                                     const element::Type& type);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeSlice(const ov::Output<Node>& in,
                                     const ov::Output<Node>& begin,
                                     const ov::Output<Node>& end,
                                     const ov::Output<Node>& stride,
                                     const ov::Output<Node>& axes);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeSlice(const ov::Output<Node>& in,
                                     const ov::Output<Node>& begin,
                                     const ov::Output<Node>& end,
                                     const ov::Output<Node>& stride);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeMVN(const ov::Output<Node>& in, bool acrossChannels, bool normalizeVariance, double eps);
 
+OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 std::shared_ptr<ov::Node> makeMVN(const ov::Output<Node>& in,
                                   const ov::AxisSet& axes,
                                   bool normalizeVariance,

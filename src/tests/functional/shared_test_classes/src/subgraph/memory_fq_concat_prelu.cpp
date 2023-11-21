@@ -110,13 +110,26 @@ void MemoryFqConcatPrelu::SetUp() {
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{read, fake, input[0]}, 1);
     auto prelu_constant = ngraph::op::Constant::create(ngPrc, {1}, {-2});
     auto prelu = std::make_shared<ngraph::opset1::PRelu>(concat, prelu_constant);
-    auto slice = ngraph::builder::makeStridedSlice(prelu,
-        std::get<0>(strided_slice_params),
-        std::get<1>(strided_slice_params),
-        std::get<2>(strided_slice_params),
-        ngPrc,
-        std::get<3>(strided_slice_params),
-        std::get<4>(strided_slice_params));
+
+    auto begin = std::get<0>(strided_slice_params);
+    auto end = std::get<1>(strided_slice_params);
+    auto stride = std::get<2>(strided_slice_params);
+    auto begin_mask = std::get<3>(strided_slice_params);
+    auto end_mask = std::get<4>(strided_slice_params);
+    ov::Shape constShape = {begin.size()};
+    auto beginNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, begin.data());
+    auto endNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, end.data());
+    auto strideNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, stride.data());
+    auto slice = std::make_shared<ov::op::v1::StridedSlice>(prelu,
+                                                            beginNode,
+                                                            endNode,
+                                                            strideNode,
+                                                            begin_mask,
+                                                            end_mask,
+                                                            std::vector<int64_t>{},
+                                                            std::vector<int64_t>{},
+                                                            std::vector<int64_t>{});
+
     auto assign = std::make_shared<ngraph::opset3::Assign>(slice, "variable1");
     auto result = std::make_shared<ngraph::opset1::Result>(prelu);
     assign->add_control_dependency(read);

@@ -90,22 +90,36 @@ protected:
         inType = ov::element::Type(netPrecision);
         outType = ElementType::f32;
 
-        auto beginInput = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {2});
-        auto endInput = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {4});
-        auto strideInput = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {1});
+        auto beginInput = ov::op::v0::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {2});
+        auto endInput = ov::op::v0::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {4});
+        auto strideInput = ov::op::v0::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {1});
 
         ov::ParameterVector functionParams;
         for (auto&& shape : inputDynamicShapes)
             functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
 
-        auto shapeOfOp1 = std::make_shared<opset3::ShapeOf>(functionParams[0], element::i32);
-        auto shapeOfOp2 = std::make_shared<opset3::ShapeOf>(functionParams[1], element::i32);
+        auto shapeOfOp1 = std::make_shared<ov::op::v3::ShapeOf>(functionParams[0], element::i32);
+        auto shapeOfOp2 = std::make_shared<ov::op::v3::ShapeOf>(functionParams[1], element::i32);
 
+        auto stridedSliceOp1 = std::make_shared<ov::op::v1::StridedSlice>(shapeOfOp1,
+                                                                          beginInput,
+                                                                          endInput,
+                                                                          strideInput,
+                                                                          std::vector<int64_t>{0},
+                                                                          std::vector<int64_t>{1},
+                                                                          std::vector<int64_t>{0},
+                                                                          std::vector<int64_t>{0},
+                                                                          std::vector<int64_t>{0});
 
-        auto stridedSliceOp1 = ngraph::builder::makeStridedSlice(shapeOfOp1, beginInput, endInput, strideInput, element::i32,
-                                                                {0}, {1}, {0}, {0}, {0});
-        auto stridedSliceOp2 = ngraph::builder::makeStridedSlice(shapeOfOp2, beginInput, endInput, strideInput, element::i32,
-                                                                {0}, {1}, {0}, {0}, {0});
+        auto stridedSliceOp2 = std::make_shared<ov::op::v1::StridedSlice>(shapeOfOp2,
+                                                                          beginInput,
+                                                                          endInput,
+                                                                          strideInput,
+                                                                          std::vector<int64_t>{0},
+                                                                          std::vector<int64_t>{1},
+                                                                          std::vector<int64_t>{0},
+                                                                          std::vector<int64_t>{0},
+                                                                          std::vector<int64_t>{0});
 
         switch (priorboxType) {
             case priorbox_type::Clustered: {
