@@ -1370,8 +1370,6 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
-    if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
-      fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
 
     steps:
       - name: Check sudo
