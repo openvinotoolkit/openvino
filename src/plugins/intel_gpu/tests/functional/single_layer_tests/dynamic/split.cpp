@@ -66,8 +66,9 @@ protected:
         }
         init_input_shapes({inputShape});
         ov::ParameterVector dyn_params{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
-        auto split = std::dynamic_pointer_cast<ngraph::opset5::Split>(
-                     ngraph::builder::makeSplit(dyn_params[0], netPrecision, numSplits, axis));
+        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{axis});
+        auto split = std::make_shared<ov::op::v1::Split>(dyn_params[0], split_axis_op, numSplits);
+
         ngraph::ResultVector results;
         for (size_t i = 0; i < outIndices.size(); i++) {
             results.push_back(std::make_shared<ngraph::opset1::Result>(split->output(outIndices[i])));

@@ -1,13 +1,43 @@
+Core:
+  revalidate: 'all'
+
+transformations:
+  revalidate: 'all'
+
+LP_transformations:
+  revalidate:
+    - CPU
+    - GPU
+    - PyTorch_FE
+    - TF_FE
+    - TFL_FE
+    - ONNX_FE
+    - PDPD_FE
+    - POT
+
+preprocessing:
+  revalidate:
+    - inference
+    - GNA
+    - C_API
+    - Python_API
+
+inference:
+  revalidate: 'all'
+
 CPU:
   revalidate:
     - C_API
     - Python_API
     - samples
+    - ONNX_RT
+    - PyTorch_FE
+    - TF_FE
+    - ONNX_FE
   build:
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
-    - AUTO
     - IR_FE
 
 GPU:
@@ -15,15 +45,14 @@ GPU:
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
-    - AUTO
     - IR_FE
+    - PROXY
 
 GNA:
   build:
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
-    - AUTO
     - IR_FE
 
 HETERO:
@@ -63,6 +92,7 @@ TEMPLATE:
     - AUTO
     - C_API
     - Python_API
+    - NVIDIA
   build:
     - IR_FE
 
@@ -74,6 +104,12 @@ AUTO:
     - Python_API
   build:
     - IR_FE
+
+PROXY:
+  revalidate:
+    - inference
+    - GPU
+  build: []
 
 IR_FE:
   revalidate:
@@ -163,6 +199,7 @@ IE_Tests:
     - AUTO_BATCH
     - TEMPLATE
     - AUTO
+    - NVIDIA
   build:
     - IR_FE
 
@@ -187,5 +224,13 @@ docs:
   build: []
 
 licensing:
+  revalidate: []
+  build: []
+
+NVIDIA:
+  revalidate: []
+  build: []
+
+ONNX_RT:
   revalidate: []
   build: []
