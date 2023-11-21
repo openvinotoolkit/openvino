@@ -130,11 +130,11 @@ def fake_convert(
     FakeConvert is experimental and may change in the future.
     .. warning:: FakeConvert is experimental and may change in the future.
 
-    :param data: The node with data tensor with FP16 or FP32 datatype.
+    :param data: The node with data tensor with FP16, BF16 or FP32 datatype.
     :param scale: Tensor with a scale factor for the data input value,
-                  with datatype of FP16 or FP32 and shape Numpy-broadcastable to data.
+                  of the same type as the data, and shape Numpy-broadcastable to data.
     :param shift: Optional tensor with value to subtract before and add after conversion of the data input value,
-                  with datatype of FP16 or FP32 and shape Numpy-broadcastable to data.
+                  of the same type as the data, and shape Numpy-broadcastable to data.
     :param destination_type: Type to emulate, string of either "f8e4m3" or "f8e5m2".
     :param name: The optional new name for output node.
 
