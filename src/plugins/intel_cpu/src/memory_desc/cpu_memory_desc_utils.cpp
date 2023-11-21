@@ -101,7 +101,7 @@ CpuBlockedMemoryDescPtr MemoryDescUtils::generateCpuBlockedMemoryDesc(const ov::
 OPENVINO_SUPPRESS_DEPRECATED_START
 DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const InferenceEngine::TensorDesc& desc) {
     if (desc.getLayout() == InferenceEngine::Layout::ANY)
-        IE_THROW() << "Cannot convert InferenceEngine::TensorDesc with ANY layout to DnnlBlockedMemoryDesc";
+        OPENVINO_THROW("Cannot convert InferenceEngine::TensorDesc with ANY layout to DnnlBlockedMemoryDesc");
 
     const auto& blkDesc = desc.getBlockingDesc();
     const auto& dims = desc.getDims();

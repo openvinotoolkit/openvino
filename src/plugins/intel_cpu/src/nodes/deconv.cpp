@@ -262,6 +262,8 @@ MemoryPtr Deconvolution::createWeiBlobAsIO(const VectorDims& dims) {
                                      orderForBlockedDesc);
     MemoryPtr mem_ptr = std::make_shared<Memory>(getEngine(), desc);
     char* data = static_cast<char *>(mem_ptr->getData());
+    if (data == nullptr)
+        OPENVINO_THROW("NotAllocated: Internal blob was not allocated for node ", getName(), ".");
     size_t intBuffSize = mem_ptr->getSize();
 
     size_t offset = blbSize;

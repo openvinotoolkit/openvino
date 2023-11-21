@@ -33,7 +33,7 @@ CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(ov::element::Type prc, const Shape& s
         const auto& dims = shape.getDims();
         for (size_t i = 0; i < shape.getRank(); i++) {
             if (dims[order[i]] == 0 && !dimsEqualWeak(blockedDims[i], 0)) {
-                OPENVINO_THROW("Can't create CpuBlockedMemoryDesc. Mistmatch zero dims in dims and blocked dims");
+                OPENVINO_THROW("Can't create CpuBlockedMemoryDesc. Mismatch zero dims in dims and blocked dims");
             }
         }
     }
@@ -249,7 +249,7 @@ MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims) 
             break;
 
         if (strides[i] != strides[i + 1] * blockedDims[i + 1])
-            OPENVINO_THROW("Can't clone desc with new dims for not dense tensor");
+            OPENVINO_THROW_NOT_IMPLEMENTED("Can't clone desc with new dims for not dense tensor");
     }
 
     VectorDims newBlockedDims(order.size());

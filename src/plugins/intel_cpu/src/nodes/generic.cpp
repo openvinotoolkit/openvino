@@ -177,7 +177,7 @@ void Generic::initDescriptor(const NodeConfig &config) {
         std::vector<InferenceEngine::LayerConfig> configs;
         rc = impls[k]->getSupportedConfigurations(configs, &resp);
         if (rc != InferenceEngine::OK) {
-            IE_THROW() << resp.msg;
+            OPENVINO_THROW(resp.msg);
         }
         for (size_t j = 0; j < configs.size(); j++, t++) {
             if (t == static_cast<size_t>(selectedPrimitiveDescriptorIndex)) {

@@ -723,7 +723,7 @@ def create_pytorch_module_with_compressed_int8_constant_compress_to_fp16_default
     net = Int8Model()
     example_input = (torch.rand((1, 3, 10, 10)),)
     traced_model = torch.jit.trace(net, example_input)
-    shape = [-1, -1, -1, -1]
+    shape = [-1, 3, -1, -1]
     shape = PartialShape(shape)
     param1 = ov.opset10.parameter(shape, dtype=np.float32)
     weights = ov.opset10.constant(net.weights.numpy(force=True))
@@ -758,7 +758,7 @@ def create_pytorch_module_with_compressed_int8_constant(tmp_dir):
     net = Int8Model()
     example_input = (torch.rand((1, 3, 10, 10)),)
     traced_model = torch.jit.trace(net, example_input)
-    shape = [-1, -1, -1, -1]
+    shape = [-1, 3, -1, -1]
     shape = PartialShape(shape)
     param1 = ov.opset10.parameter(shape, dtype=np.float32)
     weights = ov.opset10.constant(net.weights.numpy(force=True))

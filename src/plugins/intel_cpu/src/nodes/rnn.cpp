@@ -821,7 +821,7 @@ void RNN::fillBiases(const int *gate_map) {
     MemoryPtr w_bias_data_mem = std::make_shared<Memory>(getEngine(), w_bias_data_desc);
     auto b_ptr = static_cast<dataType*>(w_bias_data_mem->getData());
     if (b_ptr == nullptr)
-        OPENVINO_THROW("NotAllocated : Internal blob was not allocated for node ", getName(), ".");
+        OPENVINO_THROW("NotAllocated: Internal blob was not allocated for node ", getName(), ".");
 
     auto *constInputNode = dynamic_cast<Input *>(getParentEdgesAtPort(bIdx)[0]->getParent().get());
     auto constBlob = constInputNode->getMemoryPtr();
