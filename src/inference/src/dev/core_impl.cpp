@@ -1148,7 +1148,7 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
         break;
     case ov::details::NetworkBatchAbility::WITH_HETERO:
         deviceName = "HETERO:BATCH," + deviceNameWithoutBatch;
-        config[ov::device::priorities.name()] = batchConfig;
+        config.insert(ov::device::properties("BATCH", ov::device::priorities(batchConfig)));
         break;
     }
     return ov::details::apply_batch_affinity(model, deviceNameWithoutBatch);
