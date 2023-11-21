@@ -1034,6 +1034,9 @@ AccuracyCheckResult accuracy_check(const std::shared_ptr<ov::Model>& ref_functio
             if (tensor_element_type == ov::element::f32) {
                 tensor = ov::Tensor{tensor_element_type, tensor_shape};
                 ov::test::utils::fill_data_random(tensor.data<float>(), shape_size(tensor_shape));
+            } else if (tensor_element_type == ov::element::f16) {
+                tensor = ov::Tensor{tensor_element_type, tensor_shape};
+                ov::test::utils::fill_data_random(tensor.data<ov::float16>(), shape_size(tensor_shape));
             } else {
                 tensor = ov::test::utils::create_and_fill_tensor(tensor_element_type, tensor_shape);
             }
