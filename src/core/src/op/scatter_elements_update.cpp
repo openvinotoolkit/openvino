@@ -144,6 +144,8 @@ private:
 
 bool op::v3::ScatterElementsUpdate::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v3_ScatterElementsUpdate_evaluate);
+    OPENVINO_ASSERT(inputs.size() == 4);
+    OPENVINO_ASSERT(outputs.size() == 1);
 
     const auto& data = inputs[0];
     const auto& indices = inputs[1];
@@ -168,6 +170,8 @@ bool op::v3::ScatterElementsUpdate::evaluate(TensorVector& outputs, const Tensor
 
 bool op::v12::ScatterElementsUpdate::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v12_ScatterElementsUpdate_evaluate);
+    OPENVINO_ASSERT(inputs.size() == 4);
+    OPENVINO_ASSERT(outputs.size() == 1);
 
     const auto& data = inputs[0];
     const auto& indices = inputs[1];
