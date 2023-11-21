@@ -205,16 +205,15 @@ void Multinomial::execute_convert_type() {
     }
 
     // TODO RandomUniform - should use RandomUniform kernel to match other frameworks' seed results
-    uint64_t seed;
+    std::mt19937 gen;
+
     if (m_global_seed == 0 && m_op_seed == 0) {
-        seed = std::time(NULL);
+        gen.seed(std::time(NULL));
     } else {
-        std::srand(m_global_seed);
-        std::srand(m_op_seed + std::rand());
-        seed = std::rand();
+        gen.seed(m_global_seed);
+        gen.seed(m_op_seed + gen());
     }
 
-    std::mt19937 gen(seed);
     std::uniform_real_distribution<float> dist(0.0f, 1.0f);
     std::generate(m_random_samples.begin(), m_random_samples.end(), [&]() {
         return static_cast<P>(dist(gen));
