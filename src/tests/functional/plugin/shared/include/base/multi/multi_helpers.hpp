@@ -53,7 +53,7 @@ public:
 protected:
     std::string device_names;
     ov::AnyMap _properties;
-    std::shared_ptr<ngraph::Function> fn_ptr;
+    std::shared_ptr<ov::Model> fn_ptr;
 };
 
 class MultiDevice_SupportTest : public ov::test::TestsCommon, public testing::WithParamInterface<DevicesNamesAndSupportTuple> {
@@ -85,7 +85,7 @@ protected:
     std::string device_names;
     bool expected_status;
     ov::AnyMap _properties;
-    std::shared_ptr<ngraph::Function> fn_ptr;
+    std::shared_ptr<ov::Model> fn_ptr;
 };
 
 class MultiDeviceMultipleGPU_Test : public ov::test::TestsCommon, public testing::WithParamInterface<DevicesNames> {
@@ -104,7 +104,7 @@ public:
 protected:
     std::string device_names;
     std::vector<std::string> device_lists;
-    std::shared_ptr<ngraph::Function> fn_ptr;
+    std::shared_ptr<ov::Model> fn_ptr;
 };
 #define MULTI  ov::test::utils::DEVICE_MULTI
 #define CPU    ov::test::utils::DEVICE_CPU
