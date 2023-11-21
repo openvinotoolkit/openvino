@@ -521,12 +521,16 @@ using RawNodeOutputMap = std::map<RawNodeOutput, Output<Node>>;
 
 class OPENVINO_API NodeValidationFailure : public ov::AssertFailure {
 public:
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
+    [[noreturn]] static void create(const char* file,
+                                    int line,
+                                    const char* check_string,
                                     const Node* node,
                                     const std::string& explanation);
 
     template <class TShape>
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
+    [[noreturn]] static void create(const char* file,
+                                    int line,
+                                    const char* check_string,
                                     std::pair<const Node*, const std::vector<TShape>*>&& ctx,
                                     const std::string& explanation);
 
@@ -543,7 +547,9 @@ protected:
  * @param explanation    Exception explanation string.
  */
 template <>
-OPENVINO_API void NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
+OPENVINO_API void NodeValidationFailure::create(const char* file,
+                                                int line,
+                                                const char* check_string,
                                                 std::pair<const Node*, const std::vector<PartialShape>*>&& ctx,
                                                 const std::string& explanation);
 }  // namespace ov

@@ -172,7 +172,7 @@ protected:
                 hiddenSize, op::RecurrentSequenceDirection::FORWARD,
                 activations, activations_alpha, activations_beta, 0.f, true);
         } else {
-            IE_THROW() << "Unexpected offset type";
+            OPENVINO_THROW("Unexpected offset type");
         }
 
         if (maxSeqLen > 1)
