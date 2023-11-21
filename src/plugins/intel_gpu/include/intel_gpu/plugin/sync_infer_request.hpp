@@ -25,8 +25,17 @@ enum class TensorOwner : uint8_t {
 };
 
 struct TensorWrapper {
+    TensorWrapper(const std::shared_ptr<ov::ITensor>& _ptr, TensorOwner _owner)
+        : ptr(_ptr)
+        , owner(_owner)
+        , actual_size(_ptr ? _ptr->get_byte_size() : 0) {}
+
+    TensorWrapper(const TensorWrapper& other) = default;
+    TensorWrapper() = default;
+
     std::shared_ptr<ov::ITensor> ptr;
     TensorOwner owner;
+    size_t actual_size;
 };
 
 class SyncInferRequest : public ov::ISyncInferRequest {
@@ -74,6 +83,7 @@ private:
     std::shared_ptr<Graph> m_graph;
     RemoteContextImpl::Ptr m_context = nullptr;
     std::shared_ptr<ov::threading::IStreamsExecutor> m_stream_executor = nullptr;
+    std::shared_ptr<cldnn::ShapePredictor> m_shape_predictor = nullptr;
     bool m_enable_profiling = false;
     bool m_use_external_queue = false;
 

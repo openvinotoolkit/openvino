@@ -92,6 +92,7 @@ macro(ov_cpack_settings)
         2022.3.0 2022.3.1 2022.3.2 2022.3.3 2022.3.4 2022.3.5
         2023.0.0 2023.0.1 2023.0.2 2023.0.3
         2023.1.0
+        2023.2.0
         )
 
     #
@@ -347,18 +348,12 @@ macro(ov_cpack_settings)
     set(samples_build_deps "cmake, g++, gcc, libc6-dev, make, pkg-config")
     set(samples_build_deps_suggest "libopencv-core-dev, libopencv-imgproc-dev, libopencv-imgcodecs-dev")
     set(samples_opencl_suggest "ocl-icd-opencl-dev, opencl-headers")
-    # Ubuntu 18.04, Debian 9 cases have nlohmann-json-dev
-    # newer systems have nlohmann-json3-dev
-    # according to https://www.debian.org/doc/debian-policy/ch-relationships.html#syntax-of-relationship-fields
-    # we can use | (pipe) to provide alternative package names
-    set(json_library "nlohmann-json3-dev | nlohmann-json-dev")
 
     # c_samples / cpp_samples
     set(CPACK_COMPONENT_SAMPLES_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit C / C++ Samples")
     set(CPACK_COMPONENT_SAMPLES_DEPENDS "${OV_CPACK_COMP_CORE_DEV}")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_NAME "openvino-samples-${cpack_name_ver}")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_SUGGESTS "${samples_build_deps_suggest}, ${samples_opencl_suggest}, ${all_plugins_suggest}")
-    set(CPACK_DEBIAN_SAMPLES_PACKAGE_DEPENDS "libgflags-dev, zlib1g-dev, ${json_library}")
     # can be skipped with --no-install-recommends
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_RECOMMENDS "${samples_build_deps}")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_ARCHITECTURE "all")

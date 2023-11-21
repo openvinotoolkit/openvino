@@ -27,8 +27,8 @@ namespace ov {
 namespace intel_gpu {
 
 template<class DATA_TYPE>
-static DATA_TYPE CreateScalarData(ProgramBuilder &p, const cldnn::primitive_id& id, ov::Shape& shape, cldnn::data_types dtype, int64_t num) {
-    auto mem = p.get_engine().allocate_memory({ shape, dtype, cldnn::format::bfyx });
+static DATA_TYPE CreateScalarData(ProgramBuilder &p, const cldnn::primitive_id& id, ov::Shape& shape, cldnn::data_types dtype, int64_t num, int64_t rank) {
+    auto mem = p.get_engine().allocate_memory({ shape, dtype, cldnn::format::get_default_format(rank) });
     cldnn::mem_lock<int64_t> ptr{mem, p.get_engine().get_service_stream()};
     *ptr.begin() = num;
     return {id, mem};
@@ -66,19 +66,23 @@ static void SetLoopInputOutputMap(ProgramBuilder& p,
         auto& body_input = body_inputs.at(loop_input_desc->m_body_parameter_index);
         cldnn::primitive_id internal_id = layer_type_name_ID(body_input);
 
-        GPU_DEBUG_LOG << "loop_input_descs[" << layerName << "] = {m_input_index:" << loop_input_desc->m_input_index << "(external_id: "
-                    << external_id << "), m_body_parameter_index:" << loop_input_desc->m_body_parameter_index
-                    << "(internal_id: " << internal_id << ")}" << std::endl;
-
         // set input mapping
         if (const auto& sliceInfo =
             std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::SliceInputDescription>(loop_input_desc)) {
             // sliced input
             input_primitive_maps.emplace_back(external_id, internal_id, sliceInfo->m_axis,
                 sliceInfo->m_start, sliceInfo->m_end, sliceInfo->m_stride);
+            GPU_DEBUG_LOG << "loop_input_descs[" << layerName << "][SliceInputDescription] = {m_input_index:"
+                        << loop_input_desc->m_input_index << "(external_id: "
+                        << external_id << "), m_body_parameter_index:" << loop_input_desc->m_body_parameter_index
+                        << "(internal_id: " << internal_id << ")}" << std::endl;
         } else {
             // input without slicing
             input_primitive_maps.emplace_back(external_id, internal_id);
+            GPU_DEBUG_LOG << "loop_input_descs[" << layerName << "][InputDescription] = {m_input_index:"
+                        << loop_input_desc->m_input_index << "(external_id: "
+                        << external_id << "), m_body_parameter_index:" << loop_input_desc->m_body_parameter_index
+                        << "(internal_id: " << internal_id << ")}" << std::endl;
         }
 
         // set back edges
@@ -92,6 +96,7 @@ static void SetLoopInputOutputMap(ProgramBuilder& p,
             cldnn::primitive_id from_id = layer_type_name_ID(from);
 
             back_edges_maps.emplace_back(from_id, to_id);
+            GPU_DEBUG_LOG << "back_edge = {" << from_id << " => " << to_id << "}" << std::endl;
         }
     }
 
@@ -199,7 +204,6 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     bool is_dynamic = p.use_new_shape_infer() || op->is_dynamic();
 
     int64_t num_iterations = op->get_num_iterations();
-    OPENVINO_ASSERT((is_dynamic || num_iterations > 0), "loop's num_iteration should be positive on static shape model");
 
     auto num_outputs = is_dynamic? op->get_output_size() : 1;
     auto ov_model = op->get_function();
@@ -228,6 +232,9 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
         }
 
         trip_count_id = layer_type_name_ID(loop_op->get_input_node_shared_ptr(0));
+        // Update trip_count_id for cached constant primitive
+        if (trip_count_id != p.primitive_ids[trip_count_id])
+            trip_count_id = p.primitive_ids[trip_count_id];
         first_execution_condition_id = layer_type_name_ID(loop_op->get_input_node_shared_ptr(1));
     }
 
@@ -238,12 +245,17 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
 
     SetLoopInputOutputMap(p, op, inputs, input_primitive_maps, output_primitive_maps, back_edges);
 
-    auto shape = is_dynamic? ngraph::Shape{1} : ngraph::Shape{1, 1, 1, 1};
-    auto prec = ngraph::element::i64;
+    auto shape = is_dynamic? ov::Shape{} : ov::Shape{1, 1, 1, 1};
+    if (!is_dynamic) {
+        for (size_t i = 4; i < op->get_output_shape(0).size(); ++i) {
+            shape.push_back(1);
+        }
+    }
+    auto prec = ov::element::i64;
     if (current_iteration_input_op) {
-        current_iteration_input_op->set_output_type(0, prec, shape);
-        current_iteration_input_op->set_partial_shape(shape);
-        current_iteration_input_op->set_element_type(prec);
+        OPENVINO_ASSERT(current_iteration_input_op->get_partial_shape().is_static(), "current_iteration should be static layout");
+        shape = is_dynamic? current_iteration_input_op->get_partial_shape().to_shape() : shape;
+        prec = current_iteration_input_op->get_element_type();
 
         auto increment_value_id = current_iteration_input_op->get_friendly_name() + "_inc";
         auto increment_value_op = std::make_shared<op::v0::Constant>(prec, shape, 1);
@@ -261,7 +273,8 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     // set trip count, num iteration primitives
     // they should be mutable_data to prevent from being optimized out
     const cldnn::primitive_id num_iteration_id = layerName + "_numIteration";
-    cldnn::mutable_data num_iteration_data = CreateScalarData<cldnn::mutable_data>(p, num_iteration_id, shape, prec, 0);
+    cldnn::mutable_data num_iteration_data = CreateScalarData<cldnn::mutable_data>(p, num_iteration_id, shape, prec, 0,
+                                                                                   static_cast<int64_t>(op->get_output_partial_shape(0).rank().get_length()));
 
     p.add_primitive(*op, std::move(num_iteration_data));
     inputs.insert(inputs.begin(), cldnn::input_info(num_iteration_id, 0));
@@ -280,7 +293,7 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     config.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
 
     // get body program from ov::Model
-    ProgramBuilder prog(ov_model, p.get_engine(), config, false, false, p.get_task_executor(), true);
+    ProgramBuilder prog(ov_model, p.get_engine(), config, false, false, p.get_task_executor(), p.get_compilation_context(), true);
     auto body_program = prog.get_compiled_program();
 
     GPU_DEBUG_LOG << "* trip_count_id                 : " << trip_count_id << std::endl;

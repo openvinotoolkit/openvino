@@ -15,7 +15,6 @@
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 
-#include <ngraph/ngraph.hpp>
 #include <ov_ops/augru_cell.hpp>
 #include <ov_ops/augru_sequence.hpp>
 #include <ov_ops/type_relaxed.hpp>
@@ -69,51 +68,51 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         ngraph::OpSet opset;
 
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<ov::op::TypeRelaxed<NAMESPACE::NAME>>();
-        NGRAPH_OP(Add, ngraph::op::v1)
-        NGRAPH_OP(AvgPool, ngraph::op::v1)
-        NGRAPH_OP(Clamp, ngraph::op::v0)
-        NGRAPH_OP(Concat, ngraph::op::v0)
-        NGRAPH_OP(Convolution, ngraph::op::v1)
-        NGRAPH_OP(ConvolutionBackpropData, ngraph::op::v1)
-        NGRAPH_OP(DepthToSpace, ngraph::op::v0)
-        NGRAPH_OP(Equal, ngraph::op::v1)
-        NGRAPH_OP(FakeQuantize, ngraph::op::v0)
-        NGRAPH_OP(Greater, ngraph::op::v1)
-        NGRAPH_OP(GreaterEqual, ngraph::op::v1)
-        NGRAPH_OP(GroupConvolution, ngraph::op::v1)
-        NGRAPH_OP(GroupConvolutionBackpropData, ngraph::op::v1)
-        NGRAPH_OP(Interpolate, ngraph::op::v0)
-        NGRAPH_OP(Interpolate, ngraph::op::v4)
-        NGRAPH_OP(Less, ngraph::op::v1)
-        NGRAPH_OP(LessEqual, ngraph::op::v1)
-        NGRAPH_OP(LogicalAnd, ngraph::op::v1)
-        NGRAPH_OP(LogicalNot, ngraph::op::v1)
-        NGRAPH_OP(LogicalOr, ngraph::op::v1)
-        NGRAPH_OP(LogicalXor, ngraph::op::v1)
-        NGRAPH_OP(MatMul, ngraph::op::v0)
-        NGRAPH_OP(MaxPool, ngraph::op::v1)
-        NGRAPH_OP(Multiply, ngraph::op::v1)
-        NGRAPH_OP(NormalizeL2, ngraph::op::v0)
-        NGRAPH_OP(NotEqual, ngraph::op::v1)
-        NGRAPH_OP(PRelu, ngraph::op::v0)
-        NGRAPH_OP(Relu, ngraph::op::v0)
-        NGRAPH_OP(ReduceMax, ngraph::op::v1)
-        NGRAPH_OP(ReduceLogicalAnd, ngraph::op::v1)
-        NGRAPH_OP(ReduceLogicalOr, ngraph::op::v1)
-        NGRAPH_OP(ReduceMean, ngraph::op::v1)
-        NGRAPH_OP(ReduceMin, ngraph::op::v1)
-        NGRAPH_OP(ReduceSum, ngraph::op::v1)
-        NGRAPH_OP(Reshape, ngraph::op::v1)
-        NGRAPH_OP(Select, ngraph::op::v1)
-        NGRAPH_OP(ShapeOf, ngraph::op::v0)
-        NGRAPH_OP(ShuffleChannels, ngraph::op::v0)
-        NGRAPH_OP(Squeeze, ngraph::op::v0)
-        NGRAPH_OP(Subtract, ngraph::op::v1)
-        NGRAPH_OP(Unsqueeze, ngraph::op::v0)
-        NGRAPH_OP(MVN, ngraph::op::v0)
-        NGRAPH_OP(MVN, ngraph::op::v6)
-        NGRAPH_OP(Select, ngraph::op::v1)
-        NGRAPH_OP(ConvolutionBackpropData, ngraph::op::v1)
+        NGRAPH_OP(Add, ov::op::v1)
+        NGRAPH_OP(AvgPool, ov::op::v1)
+        NGRAPH_OP(Clamp, ov::op::v0)
+        NGRAPH_OP(Concat, ov::op::v0)
+        NGRAPH_OP(Convolution, ov::op::v1)
+        NGRAPH_OP(ConvolutionBackpropData, ov::op::v1)
+        NGRAPH_OP(DepthToSpace, ov::op::v0)
+        NGRAPH_OP(Equal, ov::op::v1)
+        NGRAPH_OP(FakeQuantize, ov::op::v0)
+        NGRAPH_OP(Greater, ov::op::v1)
+        NGRAPH_OP(GreaterEqual, ov::op::v1)
+        NGRAPH_OP(GroupConvolution, ov::op::v1)
+        NGRAPH_OP(GroupConvolutionBackpropData, ov::op::v1)
+        NGRAPH_OP(Interpolate, ov::op::v0)
+        NGRAPH_OP(Interpolate, ov::op::v4)
+        NGRAPH_OP(Less, ov::op::v1)
+        NGRAPH_OP(LessEqual, ov::op::v1)
+        NGRAPH_OP(LogicalAnd, ov::op::v1)
+        NGRAPH_OP(LogicalNot, ov::op::v1)
+        NGRAPH_OP(LogicalOr, ov::op::v1)
+        NGRAPH_OP(LogicalXor, ov::op::v1)
+        NGRAPH_OP(MatMul, ov::op::v0)
+        NGRAPH_OP(MaxPool, ov::op::v1)
+        NGRAPH_OP(Multiply, ov::op::v1)
+        NGRAPH_OP(NormalizeL2, ov::op::v0)
+        NGRAPH_OP(NotEqual, ov::op::v1)
+        NGRAPH_OP(PRelu, ov::op::v0)
+        NGRAPH_OP(Relu, ov::op::v0)
+        NGRAPH_OP(ReduceMax, ov::op::v1)
+        NGRAPH_OP(ReduceLogicalAnd, ov::op::v1)
+        NGRAPH_OP(ReduceLogicalOr, ov::op::v1)
+        NGRAPH_OP(ReduceMean, ov::op::v1)
+        NGRAPH_OP(ReduceMin, ov::op::v1)
+        NGRAPH_OP(ReduceSum, ov::op::v1)
+        NGRAPH_OP(Reshape, ov::op::v1)
+        NGRAPH_OP(Select, ov::op::v1)
+        NGRAPH_OP(ShapeOf, ov::op::v0)
+        NGRAPH_OP(ShuffleChannels, ov::op::v0)
+        NGRAPH_OP(Squeeze, ov::op::v0)
+        NGRAPH_OP(Subtract, ov::op::v1)
+        NGRAPH_OP(Unsqueeze, ov::op::v0)
+        NGRAPH_OP(MVN, ov::op::v0)
+        NGRAPH_OP(MVN, ov::op::v6)
+        NGRAPH_OP(Select, ov::op::v1)
+        NGRAPH_OP(ConvolutionBackpropData, ov::op::v1)
 #undef NGRAPH_OP
 
         return opset;
@@ -179,11 +178,11 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
     return opsets;
 }
 
-std::vector<std::string> Extension::getImplTypes(const std::shared_ptr<ngraph::Node>&) {
+std::vector<std::string> Extension::getImplTypes(const std::shared_ptr<ov::Node>&) {
     return {};
 }
 
-InferenceEngine::ILayerImpl::Ptr Extension::getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) {
+InferenceEngine::ILayerImpl::Ptr Extension::getImplementation(const std::shared_ptr<ov::Node>& node, const std::string& implType) {
     return nullptr;
 }
 

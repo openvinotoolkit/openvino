@@ -17,7 +17,7 @@ namespace node {
 
 class EmbeddingBagPackedSum : public Node, public EmbeddingBagSum {
 public:
-    EmbeddingBagPackedSum(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    EmbeddingBagPackedSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -25,7 +25,7 @@ public:
     bool created() const override;
 
     bool isExecutable() const override;
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 protected:
     void prepareParams() override;

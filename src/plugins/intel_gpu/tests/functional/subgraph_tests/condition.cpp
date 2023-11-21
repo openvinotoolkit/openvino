@@ -198,9 +198,24 @@ protected:
                 OPENVINO_ASSERT(false, "Not allowed other rank");
             }
         }
-        return ngraph::builder::makePooling(in, params.stride, params.pad_begin,
-                                            params.pad_end, params.kernel_size, params.rounding_type,
-                                            params.pad_type, params.exclued_pad, params.pooling_type);
+        if (ov::test::utils::PoolingTypes::MAX == params.pooling_type) {
+            return std::make_shared<ov::op::v1::MaxPool>(in,
+                                                         params.stride,
+                                                         params.pad_begin,
+                                                         params.pad_end,
+                                                         params.kernel_size,
+                                                         params.rounding_type,
+                                                         params.pad_type);
+        } else {
+            return std::make_shared<ov::op::v1::AvgPool>(in,
+                                                         params.stride,
+                                                         params.pad_begin,
+                                                         params.pad_end,
+                                                         params.kernel_size,
+                                                         params.exclued_pad,
+                                                         params.rounding_type,
+                                                         params.pad_type);
+        }
     }
 };
 
@@ -260,13 +275,11 @@ protected:
 class InnerBodyType06 : public InnerBodyGenerator {
 protected:
     std::shared_ptr<ngraph::Function> generate(ov::PartialShape& input_shape, ngraph::element::Type prc) override {
-        auto constant   = ngraph::opset9::Constant::create(prc, ov::Shape(input_shape.rank().get_length(), 0), {2.0f});
-        constant->set_friendly_name("body1_constant");
-        // constant->get_rt_info().emplace(ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding{});
-        // constant->get_rt_info().emplace("can_be_folded", false);
+        auto constant   = ngraph::opset9::Constant::create(prc, ov::Shape(input_shape.rank().get_length(), 1), {2.0f});
+        constant->set_friendly_name("body6_constant");
         auto result     = std::make_shared<ngraph::opset1::Result>(constant);
         auto o_layout = result->get_layout();
-        result->set_friendly_name("body1_result");
+        result->set_friendly_name("body6_result");
         auto body       = std::make_shared<ngraph::Function>(
             ngraph::OutputVector {result},
             ngraph::ParameterVector{},

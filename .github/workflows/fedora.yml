@@ -28,6 +28,7 @@ concurrency:
 
 jobs:
   Build:
+    timeout-minutes: 150
     defaults:
       run:
         shell: bash
@@ -57,6 +58,13 @@ jobs:
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
+
+      #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
 
       #
       # Dependencies
@@ -103,7 +111,6 @@ jobs:
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DENABLE_SYSTEM_TBB=ON \
             -DENABLE_SYSTEM_OPENCL=ON \
-            -DENABLE_SYSTEM_PUGIXML=ON \
             -DENABLE_PYTHON_PACKAGING=ON \
             -DCPACK_GENERATOR=TGZ \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
@@ -172,6 +179,7 @@ jobs:
 
   RPM_Packages:
     needs: Build
+    timeout-minutes: 10
     defaults:
       run:
         shell: bash

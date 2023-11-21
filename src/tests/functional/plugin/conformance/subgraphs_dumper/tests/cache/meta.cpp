@@ -11,13 +11,14 @@
 
 #include "common_test_utils/file_utils.hpp"
 
-#include "cache/meta/meta_info.hpp"
+#include "op_conformance_utils/meta_info/meta_info.hpp"
+#include "op_conformance_utils/utils/file.hpp"
 
 #include "base_test.hpp"
 
 namespace {
 
-using namespace ov::tools::subgraph_dumper;
+using namespace ov::conformance;
 
 // ======================== Input Info Unit tests =============================================
 
@@ -82,7 +83,7 @@ protected:
         SubgraphsDumperBaseTest::SetUp();
         test_model_path = "test_model_path.xml";
         test_extractor_name = "test_extractor";
-        test_model_name = ov::test::utils::replaceExt(test_model_path, "");
+        test_model_name = ov::util::replace_extension(test_model_path, "");
         test_in_info = {{ "test_in_0", InputInfo({10}, DEFAULT_MIN_VALUE, 1, true) }};
         test_model_info = {{ test_model_name, ModelInfo(test_model_path, 5) }};
         test_artifacts_dir = ov::util::path_join({ov::test::utils::getCurrentWorkingDir(), "test_artifacts"});

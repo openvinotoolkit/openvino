@@ -73,7 +73,7 @@ bool TSGeneral::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(TSGeneral);
     {
         Manager manager(get_pass_config());
-        manager.register_pass<DisableShapeOfConstantFolding>();
+        manager.register_pass<DisableShapeOfConstantFolding>(/* check_shape */ false);
         manager.register_pass<TSGeneralForward>();
         manager.register_pass<ConstantFolding>();
         manager.run_passes(f);
@@ -81,11 +81,11 @@ bool TSGeneral::run_on_model(const std::shared_ptr<ov::Model>& f) {
 
     {
         Manager manager(get_pass_config());
-        manager.register_pass<DisableShapeOfConstantFolding>();
+        manager.register_pass<DisableShapeOfConstantFolding>(/* check_shape */ false);
         manager.register_pass<TSGeneralBackward>();
         manager.register_pass<ConstantFolding>();
         manager.register_pass<TSResetNoSinkingAttribute>();
-        manager.register_pass<EnableShapeOfConstantFolding>();
+        manager.register_pass<EnableShapeOfConstantFolding>(/* check_shape */ false);
         manager.run_passes(f);
     }
 

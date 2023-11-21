@@ -27,9 +27,9 @@ except:
     logger.warning("Please set the above env variable to get the same conformance ir names run by run!")
     has_python_api = False
 
-API_CONFORMANCE_BIN_NAME = "apiConformanceTests"
-OP_CONFORMANCE_BIN_NAME = "conformanceTests"
-SUBGRAPH_DUMPER_BIN_NAME = "subgraphsDumper"
+API_CONFORMANCE_BIN_NAME = "ov_api_conformance_tests"
+OP_CONFORMANCE_BIN_NAME = "ov_op_conformance_tests"
+SUBGRAPH_DUMPER_BIN_NAME = "ov_subgraphs_dumper_tests"
 
 SCRIPT_DIR_PATH, SCRIPT_NAME = os.path.split(os.path.abspath(__file__))
 NO_MODEL_CONSTANT = os.path.join(SCRIPT_DIR_PATH, "data", "models.lst")
@@ -164,8 +164,7 @@ class Conformance:
             rmtree(conformance_ir_path)
         os.mkdir(conformance_ir_path)
         self._model_path = file_utils.prepare_filelist(self._model_path,
-                                                       ["*.onnx", "*.pdmodel", "*.__model__", "*.pb", "*.xml",
-                                                        "*.tflite"])
+                                                       constants.SUPPORTED_MODEL_EXTENSION)
         logger.info(f"Stating model dumping from {self._model_path}")
         cmd = f'{subgraph_dumper_path} --input_folders="{self._model_path}" --output_folder="{conformance_ir_path}"'
         process = Popen(cmd, shell=True)

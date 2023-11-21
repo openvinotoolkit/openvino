@@ -31,6 +31,7 @@ env:
 
 jobs:
   Build:
+    timeout-minutes: 150
     defaults:
       run:
         shell: bash
@@ -75,6 +76,13 @@ jobs:
           ref: 'master'
 
       #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
+      #
       # Dependencies
       #
 
@@ -92,15 +100,13 @@ jobs:
         with:
           version: "v0.5.4"
 
-      - uses: actions/setup-python@v4
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Setup pip cache dir
-        run: |
-          PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
-          echo "Using pip version: ${PIP_VER}"
-          echo "PIP_CACHE_DIR=${PIP_CACHE_PATH}/${PIP_VER}" >> $GITHUB_ENV
+          version: ${{ env.PYTHON_VERSION }}
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
 
       - name: Install python dependencies
         run: |
@@ -115,9 +121,6 @@ jobs:
 
           # For running Paddle frontend unit tests
           python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
-          # see https://github.com/PaddlePaddle/Paddle/issues/55597#issuecomment-1718131420
-          wget http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
-          apt-get install ./libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
 
       #
       # Build
@@ -201,6 +204,7 @@ jobs:
   CC_Build:
     name: Conditional Compilation
     needs: Build
+    timeout-minutes: 10
     defaults:
       run:
         shell: bash
@@ -296,6 +300,7 @@ jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
     needs: Build
+    timeout-minutes: 25
     defaults:
       run:
         shell: bash
@@ -303,6 +308,7 @@ jobs:
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
     env:
+      OPENVINO_REPO: /__w/openvino/openvino/openvino
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
       PARALLEL_TEST_SCRIPT: /__w/openvino/openvino/install/tests/src/tests/test_utils/functional_test_utils/layer_tests_summary/run_parallel.py
@@ -321,12 +327,19 @@ jobs:
       - name: Install OpenVINO dependencies
         run: bash ${INSTALL_TEST_DIR}/scripts/install_dependencies/install_openvino_dependencies.sh -c=core -c=gpu -y
 
-      - name: Install 'actions/setup-python@v4' dependencies
-        run: apt-get install -y libssl3
-
-      - uses: actions/setup-python@v4
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: ${{ env.OPENVINO_REPO }}
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
 
       - name: Install python dependencies for run_parallel.py
         run: python3 -m pip install -r ${INSTALL_TEST_DIR}/src/tests/test_utils/functional_test_utils/layer_tests_summary/requirements.txt
@@ -341,7 +354,7 @@ jobs:
 
       - name: Intel CPU plugin func tests (parallel)
         run: python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
-        timeout-minutes: 40
+        timeout-minutes: 20
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3

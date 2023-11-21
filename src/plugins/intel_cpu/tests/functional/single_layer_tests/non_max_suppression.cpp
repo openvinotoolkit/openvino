@@ -43,9 +43,9 @@ using NmsParams = std::tuple<InputShapeParams,                                  
                              int32_t,                                            // Max output boxes per class
                              ThresholdValues,                                    // IOU, Score, Soft NMS sigma
                              ngraph::helpers::InputLayerType,                    // max_output_boxes_per_class input type
-                             ngraph::op::v9::NonMaxSuppression::BoxEncodingType, // Box encoding
+                             ov::op::v9::NonMaxSuppression::BoxEncodingType,     // Box encoding
                              bool,                                               // Sort result descending
-                             ngraph::element::Type,                              // Output type
+                             ElementType,                                        // Output type
                              std::string>;                                       // Device name
 
 class NmsLayerCPUTest : public testing::WithParamInterface<NmsParams>, virtual public SubgraphBaseTest, public CPUTestsBase {
@@ -57,9 +57,9 @@ public:
         ngraph::helpers::InputLayerType maxOutBoxesType;
         ThresholdValues thrValues;
         float iouThr, scoreThr, softNmsSigma;
-        op::v9::NonMaxSuppression::BoxEncodingType boxEncoding;
+        ov::op::v9::NonMaxSuppression::BoxEncodingType boxEncoding;
         bool sortResDescend;
-        element::Type outType;
+        ElementType outType;
         std::string targetDevice;
         std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, thrValues, maxOutBoxesType, boxEncoding, sortResDescend, outType, targetDevice) = obj.param;
 
@@ -74,7 +74,7 @@ public:
 
         std::ostringstream result;
         if (!bounds.empty()) {
-            IE_ASSERT(bounds.size() == 3);
+            OPENVINO_ASSERT(bounds.size() == 3);
             result << "BatchesBounds=" << bounds[BATCHES] << "_BoxesBounds=" << bounds[BOXES] << "_ClassesBounds=" << bounds[CLASSES] << "_";
         }
         for (const auto &ts : targetShapes) {
@@ -115,12 +115,12 @@ protected:
         ThresholdValues thrValues;
         ngraph::helpers::InputLayerType maxOutBoxesType;
         float iouThr, scoreThr, softNmsSigma;
-        op::v9::NonMaxSuppression::BoxEncodingType boxEncoding;
+        ov::op::v9::NonMaxSuppression::BoxEncodingType boxEncoding;
         bool sortResDescend;
-        element::Type outType;
+        ElementType outType;
         std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, thrValues, maxOutBoxesType, boxEncoding, sortResDescend, outType,
                  targetDevice) = this->GetParam();
-        element::Type paramsPrec, maxBoxPrec, thrPrec;
+        ElementType paramsPrec, maxBoxPrec, thrPrec;
         std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
 
         std::tie(iouThr, scoreThr, softNmsSigma) = thrValues;
@@ -156,7 +156,7 @@ protected:
 
         if (maxOutBoxesType == ngraph::helpers::InputLayerType::PARAMETER) {
             inputDynamicShapes.push_back(ngraph::PartialShape{1});
-            params.push_back(std::make_shared<ngraph::opset1::Parameter>(element::Type_t::i32, inputDynamicShapes.back()));
+            params.push_back(std::make_shared<ngraph::opset1::Parameter>(ElementType::i32, inputDynamicShapes.back()));
             params[1]->set_friendly_name("param_3");
             maxOutBoxesPerClassNode = params.back();
         } else {
@@ -166,7 +166,7 @@ protected:
         auto iouThrNode = builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{iouThr})->output(0);
         auto scoreThrNode = builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{scoreThr})->output(0);
         auto softNmsSigmaNode = builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{softNmsSigma})->output(0);
-        auto nms = std::make_shared<ngraph::op::v9::NonMaxSuppression>(params[0], params[1], maxOutBoxesPerClassNode, iouThrNode, scoreThrNode,
+        auto nms = std::make_shared<ov::op::v9::NonMaxSuppression>(params[0], params[1], maxOutBoxesPerClassNode, iouThrNode, scoreThrNode,
                                                                        softNmsSigmaNode, boxEncoding, sortResDescend, outType);
 
         function = makeNgraphFunction(paramsPrec, params, nms, "NMS");
@@ -276,7 +276,7 @@ private:
 
             expectedList.resize(selected_indices_size);
 
-            if (indeces_iter->get_element_type() == ov::element::i32) {
+            if (indeces_iter->get_element_type() == ElementType::i32) {
                 auto selected_indices_data = indeces_iter->data<int32_t>();
 
                 for (size_t i = 0; i < selected_indices_size; i += 3) {
@@ -296,7 +296,7 @@ private:
                 }
             }
 
-            if (scores_iter->get_element_type() == ov::element::f32) {
+            if (scores_iter->get_element_type() == ElementType::f32) {
                 auto selected_scores_data = scores_iter->data<float>();
                 for (size_t i = 0; i < selected_scores_size; i += 3) {
                     expectedList[i/3].score = selected_scores_data[i+2];
@@ -319,7 +319,7 @@ private:
             size_t selected_indices_size = indeces_iter->get_size();
             const auto selected_scores_data = scores_iter->data<float>();
 
-            if (indeces_iter->get_element_type() == ov::element::i32) {
+            if (indeces_iter->get_element_type() == ElementType::i32) {
                 const auto selected_indices_data = indeces_iter->data<int32_t>();
                 for (size_t i = 0; i < selected_indices_size; i += 3) {
                     const int32_t batchId = selected_indices_data[i+0];
@@ -415,10 +415,10 @@ const std::vector<InputShapeParams> inShapeParams = {
 const std::vector<int32_t> maxOutBoxPerClass = {5, 20};
 const std::vector<float> threshold = {0.3f, 0.7f};
 const std::vector<float> sigmaThreshold = {0.0f, 0.5f};
-const std::vector<op::v9::NonMaxSuppression::BoxEncodingType> encodType = {op::v9::NonMaxSuppression::BoxEncodingType::CENTER,
-                                                                           op::v9::NonMaxSuppression::BoxEncodingType::CORNER};
+const std::vector<ov::op::v9::NonMaxSuppression::BoxEncodingType> encodType = {ov::op::v9::NonMaxSuppression::BoxEncodingType::CENTER,
+                                                                               ov::op::v9::NonMaxSuppression::BoxEncodingType::CORNER};
 const std::vector<bool> sortResDesc = {true, false};
-const std::vector<element::Type> outType = {element::i32, element::i64};
+const std::vector<ElementType> outType = {ElementType::i32, ElementType::i64};
 const std::vector<ngraph::helpers::InputLayerType> maxBoxInputTypes = {ngraph::helpers::InputLayerType::PARAMETER, ngraph::helpers::InputLayerType::CONSTANT};
 
 const auto nmsParams = ::testing::Combine(::testing::ValuesIn(inShapeParams),

@@ -144,13 +144,13 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
         const auto & rtInfo = node->get_rt_info();
         auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
             auto it = rtInfo.find(paramName);
-            IE_ASSERT(rtInfo.end() != it);
+            OPENVINO_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
         };
         auto getExecValueOutputsLayout = [] (const std::shared_ptr<ngraph::Node>& node) -> std::string {
             auto rtInfo = node->get_rt_info();
             auto it = rtInfo.find(ExecGraphInfoSerialization::OUTPUT_LAYOUTS);
-            IE_ASSERT(rtInfo.end() != it);
+            OPENVINO_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
         };
         // skip policy
@@ -221,13 +221,20 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
 
             auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
 
-            ASSERT_TRUE(primTypeCheck(primType)) << "primType is unexpected: " << primType << " Expected: " << selectedType;
+            ASSERT_TRUE(primTypeCheck(primType)) << "primType is unexpected : " << primType << " Expected : " << selectedType;
         }
     }
 }
 
 bool CPUTestsBase::primTypeCheck(std::string primType) const {
-    return selectedType.find(CPUTestsBase::any_type) != std::string::npos || std::regex_match(primType, std::regex(selectedType));
+    std::cout << "selectedType: " << selectedType << std::endl;
+    if (selectedType.find("FP") != std::string::npos)
+        return selectedType.find(CPUTestsBase::any_type) != std::string::npos ||
+               std::regex_match(primType,
+                                std::regex(std::regex_replace(selectedType, std::regex("FP"), "f"), std::regex::icase));
+    else
+        return selectedType.find(CPUTestsBase::any_type) != std::string::npos ||
+               std::regex_match(primType, std::regex(selectedType, std::regex::icase));
 }
 
 std::string CPUTestsBase::getTestCaseName(CPUSpecificParams params) {
@@ -350,15 +357,32 @@ CPUTestsBase::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::ParameterV
 
 std::string CPUTestsBase::makeSelectedTypeStr(std::string implString, ngraph::element::Type_t elType) {
     implString.push_back('_');
-    implString += InferenceEngine::details::convertPrecision(elType).name();
+    implString += ov::element::Type(elType).get_type_name();
     return implString;
 }
 
 void CPUTestsBase::updateSelectedType(const std::string& primitiveType, const ov::element::Type netType, const ov::AnyMap& config) {
+    if (selectedType.empty()) {
+        selectedType = primitiveType;
+    }
+
+    if (selectedType.find("$/") != std::string::npos) {
+        // like as regex
+        selectedType = selectedType.substr(0, selectedType.find("$/"));
+        return;
+    }
+
+    selectedType.push_back('_');
+
     auto getExecType = [&](){
         // inference_precision affects only floating point type networks
-        if (!netType.is_real())
+        if (!netType.is_real()) {
+            if (netType == ov::element::u8) {
+                // Node::getPrimitiveDescriptorType() returns i8 for u8
+                return ov::element::i8;
+            }
             return netType;
+        }
 
         const auto it = config.find(ov::hint::inference_precision.name());
         if (it == config.end())
@@ -374,9 +398,6 @@ void CPUTestsBase::updateSelectedType(const std::string& primitiveType, const ov
     };
 
     const auto execType = getExecType();
-
-    selectedType = primitiveType;
-    selectedType.push_back('_');
     selectedType += InferenceEngine::details::convertPrecision(execType).name();
 }
 
@@ -413,7 +434,7 @@ inline void CheckNumberOfNodesWithTypeImpl(std::shared_ptr<const ov::Model> func
         const auto & rtInfo = node->get_rt_info();
         auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
             auto it = rtInfo.find(paramName);
-            IE_ASSERT(rtInfo.end() != it);
+            OPENVINO_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
         };
 
@@ -451,29 +472,4 @@ void CheckNumberOfNodesWithType(InferenceEngine::ExecutableNetwork &execNet, con
     CheckNumberOfNodesWithTypes(execNet, {nodeType}, expectedCount);
 }
 
-std::vector<CPUSpecificParams> filterCPUInfoForDevice(const std::vector<CPUSpecificParams>& CPUParams) {
-    std::vector<CPUSpecificParams> resCPUParams;
-    const int selectedTypeIndex = 3;
-
-    for (auto param : CPUParams) {
-        auto selectedTypeStr = std::get<selectedTypeIndex>(param);
-
-        if (selectedTypeStr.find("jit") != std::string::npos && !InferenceEngine::with_cpu_x86_sse42())
-            continue;
-        if (selectedTypeStr.find("sse42") != std::string::npos && !InferenceEngine::with_cpu_x86_sse42())
-            continue;
-        if (selectedTypeStr.find("avx") != std::string::npos && !InferenceEngine::with_cpu_x86_avx())
-            continue;
-        if (selectedTypeStr.find("avx2") != std::string::npos && !InferenceEngine::with_cpu_x86_avx2())
-            continue;
-        if (selectedTypeStr.find("avx512") != std::string::npos && !InferenceEngine::with_cpu_x86_avx512f())
-            continue;
-        if (selectedTypeStr.find("amx") != std::string::npos && !InferenceEngine::with_cpu_x86_avx512_core_amx())
-            continue;
-
-        resCPUParams.push_back(param);
-    }
-
-    return resCPUParams;
-}
 } // namespace CPUTestUtils

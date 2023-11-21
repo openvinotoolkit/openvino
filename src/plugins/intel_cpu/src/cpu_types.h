@@ -112,7 +112,8 @@ enum class Type {
     MHA,
     RandomUniform,
     Unique,
-    Ngram
+    Ngram,
+    ScaledDotProductAttention,
 };
 
 enum class Algorithm {
@@ -182,6 +183,10 @@ enum class Algorithm {
     EltwiseErf,
     EltwiseSoftSign,
     EltwiseLog,
+    EltwiseBitwiseAnd,
+    EltwiseBitwiseNot,
+    EltwiseBitwiseOr,
+    EltwiseBitwiseXor,
 
     // FakeQuantize algorithms
     FQCommon,

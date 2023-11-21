@@ -3,6 +3,7 @@
 //
 
 #include "test_utils/cpu_test_utils.hpp"
+#include "test_utils/filter_cpu_info.hpp"
 #include "test_utils/convolution_params.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -124,7 +125,7 @@ public:
                 [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor> &params) {
                     return params.first->get_friendly_name() == "param_1";
                 });
-            IE_ASSERT(pos != inputs.end());
+            OPENVINO_ASSERT(pos != inputs.end());
             inputs.erase(pos);
         }
         auto expectedOutputs = calculate_refs();
@@ -166,7 +167,7 @@ public:
         std::shared_ptr<ov::Node> outShapeNode;
         if (!outShapeData.empty()) {
             if (outShapeType == ngraph::helpers::InputLayerType::PARAMETER) {
-                IE_ASSERT(inputDynamicShapes.size() == 2);
+                OPENVINO_ASSERT(inputDynamicShapes.size() == 2);
                 auto outShapeParam = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, inputDynamicShapes.back());
                 params.push_back(outShapeParam);
                 outShapeNode = outShapeParam;
@@ -181,7 +182,7 @@ public:
 
         std::shared_ptr<ov::Node> deconv;
         if (!outShapeData.empty()) {
-            IE_ASSERT(outShapeNode != nullptr);
+            OPENVINO_ASSERT(outShapeNode != nullptr);
             deconv = ngraph::builder::makeGroupConvolutionBackpropData(params[0], outShapeNode, prec, kernel, stride, padBegin,
                                                                        padEnd, dilation, padType, convOutChannels, groupNum);
         } else {

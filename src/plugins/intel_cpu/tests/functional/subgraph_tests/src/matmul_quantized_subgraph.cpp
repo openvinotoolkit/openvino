@@ -85,7 +85,7 @@ protected:
             matMul = std::make_shared<ngraph::opset1::Add>(fc, biasWeightsNode);
         } else {
             auto fq2 = ngraph::builder::makeFakeQuantize(inputParams[0], ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
-            matMul = builder::makeMatMul(fq1, fq2, false, true);
+            matMul = std::make_shared<ov::op::v0::MatMul>(fq1, fq2, false, true);
             matMul->get_rt_info() = getCPUInfo();
             matMul->set_friendly_name(nameMatmul);
         }
@@ -101,7 +101,7 @@ protected:
         auto filterWeightsNode = ngraph::builder::makeConstant(element::f32, filterWeightsShape, std::vector<float>{}, true);
         auto fq3 = ngraph::builder::makeFakeQuantize(filterWeightsNode, ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
         // only matmul avx2 support s8*s8 input
-        auto matMul2 = builder::makeMatMul(nodeBeforeConv, fq3, false, false);
+        auto matMul2 = std::make_shared<ov::op::v0::MatMul>(nodeBeforeConv, fq3, false, false);
 
         function = makeNgraphFunction(ngPrec, inputParams, matMul2, "MatmulBrgemmInt8");
     }
@@ -112,7 +112,7 @@ protected:
             const auto & rtInfo = node->get_rt_info();
             auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
                 auto it = rtInfo.find(paramName);
-                IE_ASSERT(rtInfo.end() != it);
+                OPENVINO_ASSERT(rtInfo.end() != it);
                 return it->second.as<std::string>();
             };
             if (node->get_friendly_name() == nodeName) {

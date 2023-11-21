@@ -19,23 +19,33 @@
 
    .. tab-item:: System Requirements
       :sync: system-requirements
-   
+
       | Full requirement listing is available in:
       | :doc:`System Requirements Page <system_requirements>`
-   
+
       .. note::
-   
-         Installing OpenVINO from YUM is only supported on RHEL 8.2 and higher versions. CentOS 7 is not supported for this installation method.
-   
+
+         OpenVINO RPM packages are compatible with and can be run on the following operating systems:
+
+         - RHEL 8.2 and higher
+         - Amazon Linux 2022 and 2023
+         - Rocky Linux 8.7, 8.8 and 9.2
+         - Alma Linux 8.7, 8.8 and 9.2
+         - Oracle Linux 8.7, 8.8 and 9.2
+         - Fedora 29 and higher up to 40
+         - OpenEuler 20.03 and 22.03
+         - Anolis OS 8.6 and 8.8
+         - CentOS Stream 8 and 9
+
    .. tab-item:: Processor Notes
       :sync: processor-notes
-   
+
       | To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
       | `Product Specifications <https://ark.intel.com/>`__
-   
+
    .. tab-item:: Software
       :sync: software
-   
+
       * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
       * GCC 8.2.0
       * `Python 3.8 - 3.11, 64-bit <https://www.python.org/downloads/>`_
@@ -115,7 +125,7 @@ Install OpenVINO Runtime
    
       .. code-block:: sh
    
-         sudo yum install openvino-2023.1.0
+         sudo yum install openvino-2023.2.0
 
 
 
@@ -186,7 +196,7 @@ To uninstall OpenVINO Runtime via YUM, run the following command based on your n
    
       .. code-block:: sh
    
-         sudo yum autoremove openvino-2023.1.0
+         sudo yum autoremove openvino-2023.2.0
 
 
 

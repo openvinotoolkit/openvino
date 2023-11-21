@@ -95,11 +95,8 @@ void ReduceCPULayerTest::SetUp() {
     init_input_shapes(inputShapes);
 
     ov::ParameterVector params;
-    for (auto&& shape : inputDynamicShapes) {
+    for (auto&& shape : inputDynamicShapes)
         params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
-    }
-    auto paramOuts =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     std::vector<size_t> shapeAxes;
     switch (opType) {
@@ -116,7 +113,7 @@ void ReduceCPULayerTest::SetUp() {
     auto reductionAxesNode = std::dynamic_pointer_cast<ngraph::Node>(
         std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape(shapeAxes), axes));
 
-    const auto reduce = ngraph::builder::makeReduce(paramOuts[0], reductionAxesNode, keepDims, reductionType);
+    const auto reduce = ngraph::builder::makeReduce(params[0], reductionAxesNode, keepDims, reductionType);
 
     // hybrid layouts
     if (inFmts.size() != 0 && outFmts.size() == 0) {
