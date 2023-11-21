@@ -22,7 +22,7 @@ typedef std::tuple<ov::test::utils::MemoryTransformation,  // Apply Memory trans
 class MultipleLSTMCellTest : virtual public ov::test::SubgraphBaseStaticTest,
                              public testing::WithParamInterface<multipleLSTMCellParams> {
 private:
-    // you have to Unroll TI manually and remove memory untill ngraph supports it
+    // you have to Unroll TI manually and remove memory until ngraph supports it
     // since we switching models we need to generate and save weights biases and inputs in SetUp
     void switch_to_friendly_model();
     void create_pure_tensor_iterator_model();

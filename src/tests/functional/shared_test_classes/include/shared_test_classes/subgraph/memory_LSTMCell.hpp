@@ -10,7 +10,7 @@
 
 namespace ov {
 namespace test {
-typedef std::tuple<ngraph::helpers::MemoryTransformation,  // Apply Memory transformation
+typedef std::tuple<ov::test::utils::MemoryTransformation,  // Apply Memory transformation
                    std::string,                            // Target device name
                    ov::element::Type,                      // Input element type
                    size_t,                                 // Input size
@@ -22,14 +22,14 @@ typedef std::tuple<ngraph::helpers::MemoryTransformation,  // Apply Memory trans
 class MemoryLSTMCellTest : virtual public ov::test::SubgraphBaseStaticTest,
                            public testing::WithParamInterface<memoryLSTMCellParams> {
 private:
-    // you have to Unroll TI manually and remove memory untill ngraph supports it
+    // you have to Unroll TI manually and remove memory until ngraph supports it
     // since we switching models we need to generate and save weights biases and inputs in SetUp
     void switch_to_friendly_model();
     void create_pure_tensor_iterator_model();
     void init_memory();
     void apply_low_latency();
 
-    ngraph::helpers::MemoryTransformation transformation;
+    ov::test::utils::MemoryTransformation transformation;
     std::vector<float> input_bias;
     std::vector<float> input_weights;
     std::vector<float> hidden_memory_init;
