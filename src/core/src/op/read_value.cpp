@@ -94,6 +94,7 @@ void op::v6::ReadValue::validate_and_infer_types() {
         if (get_input_size() > 0 && variable_info.data_shape.rank().is_dynamic() &&
             variable_info.data_type.is_dynamic()) {
             set_output_type(0, initial_type, initial_shape);
+            return;
         }
     }
 
