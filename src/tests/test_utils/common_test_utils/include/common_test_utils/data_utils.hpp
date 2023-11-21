@@ -194,60 +194,6 @@ void inline fill_data_random(T* pointer,
     }
 }
 
-template <>
-void inline fill_data_random(float* pointer,
-                             std::size_t size,
-                             const uint32_t range,
-                             double_t start_from,
-                             const int32_t k,
-                             const int seed) {
-    std::default_random_engine random(seed);
-    // 1/k is the resolution of the floating point numbers
-    std::uniform_int_distribution<int32_t> distribution(k * start_from, k * (start_from + range));
-
-    for (size_t i = 0; i < size; i++) {
-        auto value = static_cast<float>(distribution(random));
-        value /= static_cast<float>(k);
-        pointer[i] = static_cast<float>(value);
-    }
-}
-
-template <>
-void inline fill_data_random(float16* pointer,
-                             std::size_t size,
-                             const uint32_t range,
-                             double_t start_from,
-                             const int32_t k,
-                             const int seed) {
-    std::default_random_engine random(seed);
-    // 1/k is the resolution of the floating point numbers
-    std::uniform_int_distribution<int32_t> distribution(k * start_from, k * (start_from + range));
-
-    for (size_t i = 0; i < size; i++) {
-        auto value = static_cast<float>(distribution(random));
-        value /= static_cast<float>(k);
-        pointer[i] = static_cast<float16>(ov::float16(value).to_bits());
-    }
-}
-
-template <>
-void inline fill_data_random(bfloat16* pointer,
-                             std::size_t size,
-                             const uint32_t range,
-                             double_t start_from,
-                             const int32_t k,
-                             const int seed) {
-    std::default_random_engine random(seed);
-    // 1/k is the resolution of the floating point numbers
-    std::uniform_int_distribution<int32_t> distribution(k * start_from, k * (start_from + range));
-
-    for (size_t i = 0; i < size; i++) {
-        auto value = static_cast<float>(distribution(random));
-        value /= static_cast<float>(k);
-        pointer[i] = static_cast<bfloat16>(ov::bfloat16(value).to_bits());
-    }
-}
-
 /** @brief Fill a memory area with a sorted sequence of unique elements randomly generated.
  *
  *  This function generates and fills a blob of a certain precision, with a

@@ -5,6 +5,7 @@
 #include "common_test_utils/graph_comparator.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/data_utils.hpp"
 #include "gtest/gtest.h"
 #include "ie_common.h"
 #include "openvino/op/constant.hpp"
@@ -1027,9 +1028,15 @@ AccuracyCheckResult accuracy_check(const std::shared_ptr<ov::Model>& ref_functio
         std::map<std::shared_ptr<ov::Node>, ov::Tensor> ref_input_data;
         std::map<std::shared_ptr<ov::Node>, ov::Tensor> cur_input_data;
         for (size_t i = 0; i < ref_function->get_parameters().size(); i++) {
-            const auto& tensor =
-                ov::test::utils::create_and_fill_tensor(ref_function->get_parameters()[i]->get_element_type(),
-                                                        ref_function->get_parameters()[i]->get_shape());
+            auto tensor_element_type = ref_function->get_parameters()[i]->get_element_type();
+            auto tensor_shape = ref_function->get_parameters()[i]->get_shape();
+            ov::Tensor tensor;
+            if (tensor_element_type == ov::element::f32) {
+                tensor = ov::Tensor{tensor_element_type, tensor_shape};
+                ov::test::utils::fill_data_random(tensor.data<float>(), shape_size(tensor_shape));
+            } else {
+                tensor = ov::test::utils::create_and_fill_tensor(tensor_element_type, tensor_shape);
+            }
             ref_input_data[ref_function->get_parameters()[i]] = tensor;
             cur_input_data[cur_function->get_parameters()[i]] = tensor;
         }

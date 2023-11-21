@@ -18,14 +18,13 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
                                   const int32_t resolution,
                                   const int seed) {
     auto tensor = ov::Tensor{element_type, shape};
-#define CASE(X)                                                             \
-    case X:                                                                 \
-        fill_data_random(tensor.data<element_type_traits<X>::value_type>(), \
-                         shape_size(shape),                                 \
-                         range,                                             \
-                         start_from,                                        \
-                         resolution,                                        \
-                         seed);                                             \
+#define CASE(X)                        \
+    case X:                            \
+        fill_tensor_random(tensor,     \
+                           range,      \
+                           start_from, \
+                           resolution, \
+                           seed);      \
         break;
     switch (element_type) {
         CASE(ov::element::Type_t::boolean)
