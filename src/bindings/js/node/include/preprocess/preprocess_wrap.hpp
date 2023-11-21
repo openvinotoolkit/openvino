@@ -7,7 +7,7 @@
 
 #include <openvino/openvino.hpp>
 
-#include "resize_algorithm.hpp"
+#include "preprocess/resize_algorithm.hpp"
 #include "preprocess/pre_post_process_wrap.hpp"
 
 class PreProcessWrap : public Napi::ObjectWrap<PreProcessWrap> {

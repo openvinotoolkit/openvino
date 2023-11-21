@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "resize_algorithm.hpp"
+#include "preprocess/resize_algorithm.hpp"
 
 #include <iostream>
 #include <openvino/runtime/core.hpp>

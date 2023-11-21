@@ -17,6 +17,7 @@
         "src/preprocess/output_tensor_info.cpp",
         "src/preprocess/input_model_info.cpp",
         "src/preprocess/preprocess_wrap.cpp",
+        "src/preprocess/resize_algorithm.cpp",
         "src/errors.cpp",
         "src/helper.cpp",
         "src/tensor.cpp",
@@ -26,7 +27,6 @@
         "src/model_wrap.cpp",
         "src/addon.cpp",
         "src/element_type.cpp",
-        "src/resize_algorithm.cpp",
         "src/partial_shape_wrap.cpp",
       ],
 

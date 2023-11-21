@@ -10,7 +10,6 @@
 #include "model_wrap.hpp"
 #include "node_output.hpp"
 #include "openvino/openvino.hpp"
-#include "resize_algorithm.hpp"
 #include "tensor.hpp"
 #include "partial_shape_wrap.hpp"
 #include "preprocess/preprocess_wrap.hpp"
