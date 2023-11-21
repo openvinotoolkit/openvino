@@ -74,7 +74,7 @@ public:
 
         std::ostringstream result;
         if (!bounds.empty()) {
-            IE_ASSERT(bounds.size() == 3);
+            OPENVINO_ASSERT(bounds.size() == 3);
             result << "BatchesBounds=" << bounds[BATCHES] << "_BoxesBounds=" << bounds[BOXES] << "_ClassesBounds=" << bounds[CLASSES] << "_";
         }
         for (const auto &ts : targetShapes) {
