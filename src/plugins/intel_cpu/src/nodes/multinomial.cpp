@@ -206,7 +206,6 @@ void Multinomial::execute_convert_type() {
 
     // TODO RandomUniform - should use RandomUniform kernel to match other frameworks' seed results
     std::mt19937 gen;
-
     if (m_global_seed == 0 && m_op_seed == 0) {
         gen.seed(std::time(NULL));
     } else {
@@ -214,9 +213,9 @@ void Multinomial::execute_convert_type() {
         gen.seed(m_op_seed + gen());
     }
 
-    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+    const auto gen_max = gen.max();
     std::generate(m_random_samples.begin(), m_random_samples.end(), [&]() {
-        return static_cast<P>(dist(gen));
+        return static_cast<P>(float(gen)/gen_max);
     });
 
     // max & divide
