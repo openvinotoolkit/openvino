@@ -5,3 +5,4 @@ pytest-html
 tensorflow
 tensorflow-hub
 tensorflow-text
+py.xml
