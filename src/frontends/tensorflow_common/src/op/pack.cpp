@@ -3,10 +3,12 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -18,15 +20,15 @@ OutputVector translate_pack_op(const NodeContext& node) {
     auto num_size = static_cast<int>(node.get_input_size());
 
     auto axis = node.get_attribute<int64_t>("axis", 0);
-    auto axis_const = make_shared<Constant>(element::i64, Shape{}, axis);
+    auto axis_const = make_shared<v0::Constant>(element::i64, Shape{}, axis);
 
     OutputVector concat_inputs;
     for (int ind = 0; ind < num_size; ++ind) {
         auto in = node.get_input(ind);
-        concat_inputs.push_back(make_shared<Unsqueeze>(in, axis_const));
+        concat_inputs.push_back(make_shared<v0::Unsqueeze>(in, axis_const));
     }
 
-    auto pack = make_shared<Concat>(concat_inputs, axis);
+    auto pack = make_shared<v0::Concat>(concat_inputs, axis);
     set_node_name(node.get_name(), pack);
     return {pack};
 }
