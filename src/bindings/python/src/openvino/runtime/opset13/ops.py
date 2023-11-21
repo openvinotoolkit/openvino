@@ -146,7 +146,7 @@ def fake_convert(
     return _get_node_factory_opset13().create(
         "FakeConvert",
         as_nodes(*nodes),
-        {"destination_type": destination_type.lower()},
+        {"destination_type": destination_type},
     )
 
 

@@ -13,7 +13,7 @@ from openvino.runtime import PartialShape, Type
     ("data_shape", "scale_shape", "shift_shape", "input_type", "destination_type"),
     [
         ([2, 3, 8, 6], [], None, np.float32, None),
-        ([2, 3, -1, 6], [2], [], np.float16, "f8e4m3".capitalize()),
+        ([2, 3, -1, 6], [], [], np.float16, "f8e4m3"),
         ([4, 4], [4], [4], np.float16, "f8e5m2"),
     ],
 )
@@ -37,7 +37,7 @@ def test_fake_convert_param_inputs(data_shape, scale_shape, shift_shape, input_t
     ("data_array", "scale_array", "shift_array", "input_type", "destination_type"),
     [
         (np.random.random([2, 3, 8, 6]), np.random.random([]), None, np.float32, None),
-        (np.random.random([2, 3, 1, 6]), np.random.random([2]), np.random.random([]), np.float16, "f8e4m3".capitalize()),
+        (np.random.random([2, 3, 1, 6]), np.random.random([]), np.random.random([]), np.float16, "f8e4m3"),
         (np.random.random([4, 4]), np.random.random([4]), np.random.random([4]), np.float16, "f8e5m2"),
     ],
 )
