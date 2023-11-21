@@ -35,7 +35,7 @@ OpenVINO IR provides by far the best first-inference latency scores.
 .. note::
 
    For more detailed information on how to convert, read, and compile supported model formats
-   see the :doc:`Supported Formats article <Supported_Model_Formats_MO_DG>`.
+   see the :doc:`Supported Formats article <Supported_Model_Formats>`.
    
    Note that TensorFlow models can be run using the
    :doc:`torch.compile feature <pytorch_2_0_torch_compile>`, as well as the standard ways of
