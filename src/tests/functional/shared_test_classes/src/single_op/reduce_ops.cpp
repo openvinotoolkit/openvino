@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/single_op/reduce_ops.hpp"
 #include "common_test_utils/data_utils.hpp"
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/reduce.hpp"
 
 namespace ov {
 namespace test {
@@ -55,7 +55,7 @@ void ReduceOpsLayerTest::SetUp() {
     }
     auto reduction_axes_node = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape(shape_axes), axes);
 
-    const auto reduce = ngraph::builder::makeReduce(param, reduction_axes_node, keep_dims, reduction_type);
+    const auto reduce = ov::test::utils::make_reduce(param, reduction_axes_node, keep_dims, reduction_type);
     function = std::make_shared<ov::Model>(reduce->outputs(), ov::ParameterVector{param}, "Reduce");
 }
 

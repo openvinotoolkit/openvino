@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/augru_cell.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
@@ -136,7 +136,7 @@ protected:
 
         std::vector<ov::Shape> WRB = {{numDirections, 3 * hiddenSize, inputSize}, {numDirections, 3 * hiddenSize, hiddenSize},
                 {numDirections, (linearBeforeReset ? 4 : 3) * hiddenSize}, {batchSize}};
-        auto augruSequenceOp = ngraph::builder::makeAUGRU(paramsOuts,
+        auto augruSequenceOp = ov::test::utils::make_augru(paramsOuts,
                                                      WRB,
                                                      hiddenSize,
                                                      true,
