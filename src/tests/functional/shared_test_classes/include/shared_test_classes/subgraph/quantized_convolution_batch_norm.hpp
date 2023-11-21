@@ -29,7 +29,7 @@ enum class IntervalsType {
 using QuantizedConvolutionBatchNormParams = std::tuple<ConvType, QuantizeType, IntervalsType, bool, std::string>;
 
 class QuantizedConvolutionBatchNorm : public testing::WithParamInterface<QuantizedConvolutionBatchNormParams>,
-                                            virtual public SubgraphBaseStaticTest {
+                                      virtual public SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<QuantizedConvolutionBatchNormParams>& obj);
 
