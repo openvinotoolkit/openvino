@@ -64,7 +64,7 @@ def wrap_timer(func, args):
     return retval, t1 - t0
 
 
-class TestPerformanceModel:
+class TestModelPerformance:
     infer_timeout = 600
     threshold_ratio = 0.1
     num_heat_runs = 100
@@ -110,11 +110,11 @@ class TestPerformanceModel:
     def infer_model(self, ov_model, inputs):
         infer_step_t0 = time.time()
         # heat run
-        for _ in range(0, TestPerformanceModel.num_heat_runs):
+        for _ in range(0, TestModelPerformance.num_heat_runs):
             ov_model(inputs)
         # measure
         results = []
-        for _ in range(0, TestPerformanceModel.num_measure_runs):
+        for _ in range(0, TestModelPerformance.num_measure_runs):
             t0 = time.time()
             out_data = ov_model(inputs)
             t1 = time.time()
@@ -169,9 +169,9 @@ class TestPerformanceModel:
             results.read_model_infer_time_variance = read_model_time_variance
             results.infer_time_ratio = infer_time_ratio
 
-            if abs(infer_time_ratio - 1) > TestPerformanceModel.threshold_ratio:
-                if (read_model_time_variance > TestPerformanceModel.threshold_var
-                        or converted_model_time_variance > TestPerformanceModel.threshold_var):
+            if abs(infer_time_ratio - 1) > TestModelPerformance.threshold_ratio:
+                if (read_model_time_variance > TestModelPerformance.threshold_var
+                        or converted_model_time_variance > TestModelPerformance.threshold_var):
                     results.status = Status.LARGE_INFER_TIME_DIFF_WITH_LARGE_VAR
                     results.error_message = "too large ratio {} with large variance".format(infer_time_ratio)
                 else:

@@ -17,7 +17,7 @@ import tensorflow_text  # do not delete, needed for text models
 import numpy as np
 import json
 
-from models_hub_common.test_performance_model import TestPerformanceModel
+from models_hub_common.test_performance_model import TestModelPerformance
 from models_hub_common.utils import get_models_list
 from models_hub_common.constants import tf_hub_cache_dir
 from models_hub_common.constants import no_clean_cache_dir
@@ -90,16 +90,6 @@ def save_model_download_info(new_download_info):
 
 
 def download_model_from_tf_hub(model_name: str, model_link: str):
-    load = hub.load(model_link)
-    if 'serving_default' in list(load.signatures.keys()):
-        concrete_func = load.signatures['serving_default']
-    elif 'default' in list(load.signatures.keys()):
-        concrete_func = load.signatures['default']
-    else:
-        signature_keys = sorted(list(load.signatures.keys()))
-        assert len(signature_keys) > 0, "No signatures for a model {}, url {}".format(model_name, model_link)
-        concrete_func = load.signatures[signature_keys[0]]
-    concrete_func._backref_to_saved_model = load
     return hub.resolve(model_link)
 
 
@@ -108,7 +98,7 @@ def get_model_list_path(filename: str) -> str:
     return os.path.join(parent_dir, 'tf_hub_tests', filename)
 
 
-class TestTFPerformanceModel(TestPerformanceModel):
+class TestTFPerformanceModel(TestModelPerformance):
     def load_model(self, model_name, model_link):
         downloaded_item = get_model_downloaded_info(model_link)
         model_path = None
