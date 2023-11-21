@@ -308,6 +308,7 @@ jobs:
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
     env:
+      OPENVINO_REPO: /__w/openvino/openvino/openvino
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
       PARALLEL_TEST_SCRIPT: /__w/openvino/openvino/install/tests/src/tests/test_utils/functional_test_utils/layer_tests_summary/run_parallel.py
@@ -326,12 +327,19 @@ jobs:
       - name: Install OpenVINO dependencies
         run: bash ${INSTALL_TEST_DIR}/scripts/install_dependencies/install_openvino_dependencies.sh -c=core -c=gpu -y
 
-      - name: Install 'actions/setup-python@v4' dependencies
-        run: apt-get install -y libssl3
-
-      - uses: actions/setup-python@v4
+      - name: Fetch setup_python action
+        uses: actions/checkout@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: ${{ env.OPENVINO_REPO }}
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
 
       - name: Install python dependencies for run_parallel.py
         run: python3 -m pip install -r ${INSTALL_TEST_DIR}/src/tests/test_utils/functional_test_utils/layer_tests_summary/requirements.txt

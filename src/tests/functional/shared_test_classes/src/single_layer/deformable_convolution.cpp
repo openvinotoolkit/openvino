@@ -76,8 +76,6 @@ void DeformableConvolutionLayerTest::SetUp() {
     for (auto&& shape : {inputShape, offsets, filter}) {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape)));
     }
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto data = std::make_shared<ngraph::op::Parameter>(ngPrc, ngraph::Shape(inputShape));
     data->set_friendly_name("a_data");
     auto offset_vals = std::make_shared<ngraph::op::Parameter>(ngPrc, ngraph::Shape(offsets));

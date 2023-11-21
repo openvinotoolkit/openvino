@@ -88,20 +88,11 @@ protected:
         size_t convOutChannels;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
 
-        // WA: check data when input shape is dynamic and pad is exist.
-        //     If 1d conv, 1d pad should be applied to y axis. But there was a bug what it applied to x axis.
-        if (inputShape.first.is_dynamic() && padBegin.size() == 1 && padBegin[0] == 1 && padEnd.size() == 1 && padEnd[0] == 1) {
-            abs_threshold = 9;
-            rel_threshold = 0.002;
-        }
-
         ov::ParameterVector inputParams;
-        for (auto&& shape : inputDynamicShapes) {
+        for (auto&& shape : inputDynamicShapes)
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
-        }
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
 
-        auto convolutionNode = ngraph::builder::makeConvolution(paramOuts.front(), netType, kernel, stride, padBegin,
+        auto convolutionNode = ngraph::builder::makeConvolution(inputParams.front(), netType, kernel, stride, padBegin,
                                                                 padEnd, dilation, padType, convOutChannels);
         if (activationFusing) {
                 auto activationNode = ngraph::builder::makeActivation(convolutionNode, netType, ngraph::helpers::ActivationTypes::Relu);

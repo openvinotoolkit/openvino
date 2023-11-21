@@ -46,7 +46,15 @@ public:
         auto axes = builder::makeConstant(element::i64, {1}, std::vector<int64_t>{0});
         auto shapeOf = std::make_shared<opset9::ShapeOf>(inputParams[1]);
         auto gather = std::make_shared<opset9::Gather>(shapeOf, indices, axes);
-        auto strided_slice = builder::makeStridedSlice(inputParams.front(), gather, end, stride, element::f32, {0}, {0});
+        auto strided_slice = std::make_shared<ov::op::v1::StridedSlice>(inputParams.front(),
+                                                                        gather,
+                                                                        end,
+                                                                        stride,
+                                                                        std::vector<int64_t>{0},
+                                                                        std::vector<int64_t>{0},
+                                                                        std::vector<int64_t>{},
+                                                                        std::vector<int64_t>{},
+                                                                        std::vector<int64_t>{});
         NodeVector results{strided_slice};
         function = std::make_shared<Function>(results, inputParams, "StridedSliceStaticShape");
     }
