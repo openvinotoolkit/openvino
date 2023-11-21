@@ -4,10 +4,8 @@ imagenet/resnet_v2_50/feature_vector,https://www.kaggle.com/models/google/resnet
 movenet/singlepose/thunder,https://www.kaggle.com/models/google/movenet/frameworks/tensorFlow2/variations/singlepose-thunder/versions/4
 movenet/multipose/lightning,https://www.kaggle.com/models/google/movenet/frameworks/tensorFlow2/variations/multipose-lightning/versions/1
 imagenet/efficientnet_v2_imagenet1k_b0/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet1k-b0-feature-vector/versions/2
-magenta/arbitrary-image-stylization-v1-256,https://www.kaggle.com/models/google/arbitrary-image-stylization-v1/frameworks/tensorFlow1/variations/256/versions/2
 small_bert/bert_en_uncased_L-4_H-256_A-4,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-4-h-256-a-4/versions/2
 movinet/a5/base/kinetics-600/classification,https://www.kaggle.com/models/google/movinet/frameworks/tensorFlow2/variations/a5-base-kinetics-600-classification/versions/3
 # secure notebook models
 unet/industrial/class_1,https://tfhub.dev/nvidia/unet/industrial/class_1/1?tf-hub-format=compressed,skip,Model is not available
 movenet/singlepose/thunder,https://www.kaggle.com/models/google/movenet/frameworks/tensorFlow2/variations/singlepose-thunder/versions/4
-planet/vision/classifier/planet_v2,https://www.kaggle.com/models/google/planet-v2/frameworks/tensorFlow1/variations/planet-vision-classifier-planet-v2/versions/1
