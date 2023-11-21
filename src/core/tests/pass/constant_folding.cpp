@@ -10,8 +10,11 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "openvino/op/acosh.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/loop.hpp"
+#include "openvino/op/multiply.hpp"
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -3913,3 +3916,59 @@ TEST(constant_folding, parameter_with_unspecified_type_from_host_tensor) {
     auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param});
     EXPECT_NO_THROW(run_constant_folding(model));
 }
+
+class unsupported_types : public testing::TestWithParam<element::Type> {};
+
+TEST_P(unsupported_types, add_multiply) {
+    Shape shape_in{2, 4, 1};
+
+    const auto& type = GetParam();
+    auto param = make_shared<op::v0::Parameter>(type, shape_in);
+    auto c1 = op::v0::Constant::create(type, shape_in, {1});
+    auto c2 = op::v0::Constant::create(type, shape_in, {1});
+    auto add = make_shared<op::v1::Add>(c1, c2);
+    auto mul = make_shared<op::v1::Multiply>(param, add);
+    auto m = make_shared<Model>(mul, ParameterVector{param});
+
+    run_constant_folding(m);
+
+    EXPECT_EQ(m->get_ops().size(), 4);
+    EXPECT_EQ(count_ops_of_type<op::v1::Add>(m), 0);
+    EXPECT_EQ(count_ops_of_type<op::v1::Multiply>(m), 1);
+    EXPECT_EQ(count_ops_of_type<op::v0::Constant>(m), 1);
+    ASSERT_EQ(m->get_results().size(), 1);
+}
+
+TEST_P(unsupported_types, convert_like) {
+    Shape shape_in{2, 4, 1};
+
+    const auto& type = GetParam();
+    auto param = make_shared<op::v0::Parameter>(type, shape_in);
+    auto param2 = make_shared<op::v0::Parameter>(element::f32, shape_in);
+    auto c1 = op::v0::Constant::create(type, shape_in, {1});
+    auto c2 = op::v0::Constant::create(type, shape_in, {1});
+    auto c3 = op::v0::Constant::create(element::i32, shape_in, {1});
+    auto add = make_shared<op::v1::Add>(c1, c2);
+    auto convert_like = make_shared<op::v1::ConvertLike>(c3, add);
+    auto convert_like2 = make_shared<op::v1::ConvertLike>(param2, add);
+    auto mul = make_shared<op::v1::Multiply>(convert_like, convert_like2);
+    auto m = make_shared<Model>(mul, ParameterVector{param, param2});
+
+    run_constant_folding(m);
+
+    EXPECT_EQ(m->get_ops().size(), 7);
+    EXPECT_EQ(count_ops_of_type<op::v1::Add>(m), 0);
+    EXPECT_EQ(count_ops_of_type<op::v1::ConvertLike>(m), 1);
+    EXPECT_EQ(count_ops_of_type<op::v1::Multiply>(m), 1);
+    EXPECT_EQ(count_ops_of_type<op::v0::Constant>(m), 2);
+    ASSERT_EQ(m->get_results().size(), 1);
+}
+
+static std::string unsupported_types_test_case_name(const testing::TestParamInfo<element::Type>& info) {
+    return info.param.get_type_name();
+}
+
+INSTANTIATE_TEST_SUITE_P(constant_folding,
+                         unsupported_types,
+                         testing::Values(element::bf16, element::f16),
+                         unsupported_types_test_case_name);
