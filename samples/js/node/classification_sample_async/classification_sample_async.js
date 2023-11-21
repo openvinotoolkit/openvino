@@ -70,10 +70,10 @@ async function main(modelPath, images, deviceName) {
   });
 
   //----------- Step 4. Apply preprocessing ------------------------------------
-  const _ppp = new ov.PrePostProcessor(model);
+  const _ppp = new ov.preprocess.PrePostProcessor(model);
   _ppp.input().tensor().setLayout('NHWC').setElementType(ov.element.u8);
   _ppp.input().model().setLayout('NCHW');
-  _ppp.output().tensor().setElementType(ov.element.f32)
+  _ppp.output().tensor().setElementType(ov.element.f32);
   _ppp.build();
 
   //----------------- Step 5. Loading model to the device ----------------------
@@ -88,7 +88,9 @@ async function main(modelPath, images, deviceName) {
   const inferRequest = compiledModel.createInferRequest();
 
   const promises = preprocessedImages.map((tensorData, i) => {
-    const inferPromise = inferRequest.inferAsync([new ov.Tensor(ov.element.u8, tensorShape, tensorData)]);
+    const inferPromise = inferRequest.inferAsync([
+      new ov.Tensor(ov.element.u8, tensorShape, tensorData)
+    ]);
 
     inferPromise.then(result =>
       completionCallback(result[outputName], images[i]));
