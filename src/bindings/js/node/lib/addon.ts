@@ -98,31 +98,31 @@ interface Output {
 }
 
 interface InputTensorInfo {
-    setElementType(elementType: element | elementTypeString ): InputTensorInfo;
-    setLayout(layout: string): InputTensorInfo;
-    setShape(shape: number[]): InputTensorInfo;
+  setElementType(elementType: element | elementTypeString ): InputTensorInfo;
+  setLayout(layout: string): InputTensorInfo;
+  setShape(shape: number[]): InputTensorInfo;
 }
 
 interface OutputTensorInfo {
-    setElementType(elementType: element | elementTypeString ): InputTensorInfo;
-    setLayout(layout: string): InputTensorInfo;
+  setElementType(elementType: element | elementTypeString ): InputTensorInfo;
+  setLayout(layout: string): InputTensorInfo;
 }
 interface PreProcessSteps {
-    resize(algorithm: resizeAlgorithm | string): PreProcessSteps;
+  resize(algorithm: resizeAlgorithm | string): PreProcessSteps;
 }
 
 interface InputModelInfo {
-    setLayout(layout: string): InputModelInfo;
+  setLayout(layout: string): InputModelInfo;
 }
 
 interface InputInfo {
-    tensor(): InputTensorInfo;
-    preprocess(): PreProcessSteps;
-    model(): InputModelInfo;
+  tensor(): InputTensorInfo;
+  preprocess(): PreProcessSteps;
+  model(): InputModelInfo;
 }
 
 interface OutputInfo {
-    tensor(): OutputTensorInfo;
+  tensor(): OutputTensorInfo;
 }
 
 interface PrePostProcessor {
@@ -166,11 +166,13 @@ declare enum resizeAlgorithm {
 export interface NodeAddon {
   Core: CoreConstructor,
   Tensor: TensorConstructor,
-  PrePostProcessor: PrePostProcessorConstructor,
   PartialShape: PartialShapeConstructor,
 
+  preprocess: {
+    resizeAlgorithm: typeof resizeAlgorithm,
+    PrePostProcessor: PrePostProcessorConstructor,
+  },
   element: typeof element,
-  resizeAlgorithm: typeof resizeAlgorithm,
 }
 
 setPath();

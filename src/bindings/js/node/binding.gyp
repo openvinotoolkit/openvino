@@ -16,6 +16,7 @@
         "src/preprocess/input_tensor_info.cpp",
         "src/preprocess/output_tensor_info.cpp",
         "src/preprocess/input_model_info.cpp",
+        "src/preprocess/preprocess_wrap.cpp",
         "src/errors.cpp",
         "src/helper.cpp",
         "src/tensor.cpp",
