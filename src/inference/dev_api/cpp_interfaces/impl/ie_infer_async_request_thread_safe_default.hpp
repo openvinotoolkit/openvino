@@ -20,9 +20,10 @@
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "openvino/runtime/threading/itask_executor.hpp"
 
-using namespace ov::threading;
+using namespace InferenceEngine;
 
-namespace InferenceEngine {
+namespace ov {
+namespace threading {
 IE_SUPPRESS_DEPRECATED_START
 
 /**
@@ -451,4 +452,5 @@ private:
     InferState _state = InferState::Idle;
 };
 IE_SUPPRESS_DEPRECATED_END
-}  // namespace InferenceEngine
+}  // namespace threading
+}  // namespace ov

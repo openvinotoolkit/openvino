@@ -11,7 +11,7 @@
 
 #include "cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp"
 
-using namespace InferenceEngine;
+using namespace ov::threading;
 
 class MockAsyncInferRequestDefault : public AsyncInferRequestThreadSafeDefault {
 public:
