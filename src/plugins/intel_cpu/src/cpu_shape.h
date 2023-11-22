@@ -137,6 +137,10 @@ public:
         return dims;
     }
 
+    void setDimAtPosition(size_t pos, const Dim dim) {
+        dims[pos] = dim;
+    }
+
     bool isStatic() const {
         return type == ShapeType::Static;
     }

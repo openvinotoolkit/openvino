@@ -247,22 +247,24 @@ public:
             IE_THROW() << "Cannot determine fusing port between nodes: " << parentNode->getName() << " and " << getName();
         }
 
-        // // we need to be sure, that during fusing we keep dimension conformance
-        // // between parent and child in dynamic case when dimensions
-        // // are defined in backward direction
-        // const int childInPort = getFusingPort();
-        // const int childOutPort = 0; // outPorts have equal dims
-        // const int parentPort = 0; // single parent fuse port
-        // auto &parOutDims = parentNode->getOutputShapeAtPort(parentPort).getDims();
-        // auto childOutDims = this->getOutputShapeAtPort(childOutPort).getDims();
+        // we need to be sure, that during fusing we keep dimension conformance
+        // between parent and child in dynamic case when dimensions
+        // are defined in backward direction
+        const int childInPort = getFusingPort();
+        const int childOutPort = 0; // outPorts have equal dims
+        const int parentPort = 0; // single parent fuse port
+        auto &parOutDims = parentNode->getOutputShapeAtPort(parentPort).getDims();
+        auto childOutDims = this->getOutputShapeAtPort(childOutPort).getDims();
         // VectorDims newDims(parOutDims.size());
-        // for (size_t i = 0; i < parOutDims.size(); i++) {
-        //     if (parOutDims[i] == Shape::UNDEFINED_DIM) {
-        //         newDims[i] = childOutDims[i];
-        //     } else {
-        //         newDims[i] = parOutDims[i];
-        //     }
-        // }
+        for (size_t i = 0; i < parOutDims.size(); i++) {
+            if (parOutDims[i] == Shape::UNDEFINED_DIM &&
+                childOutDims[i] != Shape::UNDEFINED_DIM) {
+                this->setInputDimAtPort(childInPort, i, childOutDims[i]);
+                parentNode->setOutputDimAtPort(parentPort, i, childOutDims[i]);
+                // parOutDims[i] = childOutDims[i];
+                // newDims[i] = childOutDims[i];
+            }
+        }
         // Shape newShape = Shape(newDims);
         // this->setInputShapeAtPort(childInPort, newShape);
         // parentNode->setOutputShapeAtPort(parentPort, newShape);
@@ -548,6 +550,10 @@ public:
         inputShapes[port] = shape;
     }
 
+    void setInputDimAtPort(size_t port, const size_t pos, const Dim dim) {
+        inputShapes[port].setDimAtPosition(pos, dim);
+    }
+
     const Shape& getOutputShapeAtPort(size_t port) const {
         if (outputShapes.size() <= port) {
             IE_THROW() << "Incorrect output port number for node " << getName();
@@ -560,6 +566,10 @@ public:
             IE_THROW() << "Incorrect output port number for node " << getName();
         }
         outputShapes[port] = shape;
+    }
+
+    void setOutputDimAtPort(size_t port, const size_t pos, const Dim dim) {
+        outputShapes[port].setDimAtPosition(pos, dim);
     }
 
     const std::vector<InferenceEngine::Blob::Ptr>& getInternalBlobs() const {

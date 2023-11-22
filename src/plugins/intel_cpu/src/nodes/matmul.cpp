@@ -331,6 +331,9 @@ void MatMul::getSupportedDescriptors() {
     if (inDims0.size() > 2 && inDims0[0] != Shape::UNDEFINED_DIM) {
         oDims[0] = inDims0[0];
     }
+    if (inDims1.size() > 2 && inDims1[0] != Shape::UNDEFINED_DIM) {
+        oDims[0] = inDims1[0];
+    }
     // m, n - dims
     auto mDim = inDims0[inDims0.size() - 2];
     auto nDim = inDims1[inDims1.size() - 1];
@@ -341,7 +344,7 @@ void MatMul::getSupportedDescriptors() {
         oDims[oDims.size() - 1] = nDim;
     }
     staticOutputShape = Shape(oDims);
-    // staticOutputShape = makeDummyOutputShape(staticOutputShape);
+    staticOutputShape = makeDummyOutputShape(staticOutputShape);
 
     const VectorDims inStrides0 = getStridesAndModifyShape(staticInputShapes[0], transposeIn[0]);
     const VectorDims inStrides1 = getStridesAndModifyShape(staticInputShapes[1], transposeIn[1]);
@@ -438,6 +441,7 @@ Shape MatMul::makeDummyOutputShape(const Shape& out) const {
     auto outDims = out.getDims();
     auto minDims = out.getMinDims();
     auto maxDims = out.getMaxDims();
+
     for (size_t i = 0; i < outDims.size(); i++) {
         if (outDims[i] == Shape::UNDEFINED_DIM)
             outDims[i] = std::min(outDims[i], static_cast<Dim>(
