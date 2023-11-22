@@ -8,6 +8,7 @@
 
    OpenVINO Development Tools package <openvino_docs_install_guides_install_dev_tools>
    Model Optimizer / Conversion API <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>
+   Deploy Application with Deployment Manager <openvino_docs_install_guides_deployment_manager_tool>
    OpenVINO API 2.0 transition <openvino_2_0_transition_guide>
    Open Model ZOO <model_zoo>
    Apache MXNet, Caffe, and Kaldi <mxnet_caffe_kaldi>
@@ -45,9 +46,16 @@ offering.
     when all major model frameworks became supported directly. For converting model
     files explicitly, it has been replaced with a more light-weight and efficient 
     solution, the OpenVINO Converter (launched with OpenVINO 2023.1).
-
 |   :doc:`See how to use OVC <openvino_docs_model_processing_introduction>`
 |   :doc:`See how to transition from the legacy solution <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`
+
+| **OpenVINO Deployment Manager**
+|   *New solution:* the tool is no longer needed
+|   *Old solution:* discontinuation planned for OpenVINO 2024.0 
+|
+|   It is recommended to explore alternative deployment solutions available in OpenVINO.
+|   :doc:`See how to deploy locally <openvino_deployment_guide>`
+
 
 
 | **Open Model ZOO**
@@ -86,6 +94,7 @@ offering.
 |   :doc:`See how to use NNCF for model optimization <openvino_docs_model_optimization_guide>`
 |   `Check the NNCF GitHub project, including documentation <https://github.com/openvinotoolkit/nncf>`__
 
+
 | **Old Inference API 1.0**
 |   *New solution:* API 2.0 launched in OpenVINO 2022.1
 |   *Old solution:* discontinuation planned for OpenVINO 2024.0
@@ -94,6 +103,7 @@ offering.
     used but is not recommended. Its discontinuation is planned for 2024.
 |   :doc:`See how to transition to API 2.0 <openvino_2_0_transition_guide>`
 
+
 | **Compile tool**
 |   *New solution:* the tool is no longer needed
 |   *Old solution:* deprecated in OpenVINO 2023.0
@@ -101,21 +111,21 @@ offering.
 |   Compile tool is now deprecated. If you need to compile a model for inference on 
     a specific device, use the following script:
 
-    .. tab-set::
-
-        .. tab-item:: Python
+       .. tab-set::
+       
+         .. tab-item:: Python
             :sync: py
-
+       
             .. doxygensnippet:: docs/snippets/export_compiled_model.py
-                :language: python
-                :fragment: [export_compiled_model]
-
-        .. tab-item:: C++
+               :language: python
+               :fragment: [export_compiled_model]
+   
+         .. tab-item:: C++
             :sync: cpp
-
+           
             .. doxygensnippet:: docs/snippets/export_compiled_model.cpp
-                :language: cpp
-                :fragment: [export_compiled_model]
+               :language: cpp
+               :fragment: [export_compiled_model]
 
 |   :doc:`see which devices support import / export <openvino_docs_OV_UG_Working_with_devices>`
 |   :doc:`Learn more on preprocessing steps <openvino_docs_OV_UG_Preprocessing_Overview>`

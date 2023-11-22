@@ -55,17 +55,17 @@ void CTCGreedyDecoder::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    Precision inDataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
-    if (!one_of(inDataPrecision, Precision::FP32, Precision::BF16, Precision::FP16))
+    ov::element::Type inDataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
+    if (!one_of(inDataPrecision, ov::element::f32, ov::element::bf16, ov::element::f16))
         OPENVINO_THROW(errorPrefix, "has unsupported 'data' input precision: ", inDataPrecision);
 
-    Precision seqLenPrecision = getOriginalInputPrecisionAtPort(SEQUENCE_LENGTH_INDEX);
-    if (!one_of(inDataPrecision, Precision::FP32, Precision::BF16, Precision::FP16))
+    ov::element::Type seqLenPrecision = getOriginalInputPrecisionAtPort(SEQUENCE_LENGTH_INDEX);
+    if (!one_of(seqLenPrecision, ov::element::f32, ov::element::bf16, ov::element::f16))
         OPENVINO_THROW(errorPrefix, "has unsupported 'sequence_length' input precision: ", seqLenPrecision);
 
-    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
-                          {LayoutType::ncsp, Precision::FP32}},
-                         {{LayoutType::ncsp, Precision::FP32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
+                          {LayoutType::ncsp, ov::element::f32}},
+                         {{LayoutType::ncsp, ov::element::f32}},
                          impl_desc_type::ref_any);
 }
 
