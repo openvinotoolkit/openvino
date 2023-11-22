@@ -64,7 +64,7 @@ static void emulate_f8e5m2_on_fp16(const float16* const arg_f, float16* out_f, s
             // 101, 110, 111 - round up > 0x0080
             val_bit_repr += (((rnmask > 0x0080) || (rnmask_tie == rne_tie)) << lshift);
         }
-        val_bit_repr = (val_bit_repr & mask_mant); /* truncation */
+        val_bit_repr &= mask_mant; /* truncation */
         out_u[i] = val_bit_repr;
     }
 }
@@ -172,11 +172,11 @@ void apply_scale_shift(T* out,
         T s = scale[0];
         T o = shift[0];
         if (invert) {
-            for (size_t j = 0; j < data_size; j++) {
+            for (size_t j = 0; j < data_size; ++j) {
                 out[j] = (data[j] + o) / s;
             }
         } else {
-            for (size_t j = 0; j < data_size; j++) {
+            for (size_t j = 0; j < data_size; ++j) {
                 out[j] = data[j] * s - o;  // o = quntized(o * s)
             }
         }
@@ -190,16 +190,16 @@ void apply_scale_shift(T* out,
             step *= data_shape[i];
         }
 
-        for (size_t bs = 0; bs < data_shape[0]; bs++) {
+        for (size_t bs = 0; bs < data_shape[0]; ++bs) {
             for (size_t i = 0; i < scale_size; i++) {
                 T s = scale[i];
                 T o = shift[i];
                 if (invert) {
-                    for (size_t j = 0; j < step; j++) {
+                    for (size_t j = 0; j < step; ++j) {
                         out[j] = (data[j] + o) / s;
                     }
                 } else {
-                    for (size_t j = 0; j < step; j++) {
+                    for (size_t j = 0; j < step; ++j) {
                         out[j] = data[j] * s - o;  // o = quntized(o * s)
                     }
                 }
