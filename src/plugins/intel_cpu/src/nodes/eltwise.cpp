@@ -767,11 +767,7 @@ private:
                     break;
                 case 1:
                     mov(reg_tmp_8, op);
-                    if (src_prc.is_signed()) {
-                        movsx(reg_tmp_32, reg_tmp_8);
-                    } else {
-                        movzx(reg_tmp_32, reg_tmp_8);
-                    }
+                    movzx(reg_tmp_32, reg_tmp_8);
                     uni_vmovd(xmm_src, reg_tmp_32);
                     break;
                 default:
