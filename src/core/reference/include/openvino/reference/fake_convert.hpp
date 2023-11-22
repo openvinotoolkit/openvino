@@ -231,7 +231,7 @@ void apply_scale_shift(T* out,
 }
 }  // namespace func
 
-static bool apply_conversion(const float16* data,
+static void apply_conversion(const float16* data,
                              float16* out,
                              size_t element_count,
                              const std::string& destination_type) {
@@ -242,7 +242,6 @@ static bool apply_conversion(const float16* data,
     } else {
         OPENVINO_THROW("Unsupported destination type.");
     }
-    return true;
 }
 
 template <typename T, typename std::enable_if<std::is_same<T, float16>::value, bool>::type = true>
