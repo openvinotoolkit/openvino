@@ -243,6 +243,29 @@ def test_constant_get_data_unsigned_integer(data_type):
     assert np.allclose(input_data, retrieved_data)
 
 
+@pytest.mark.parametrize(
+    "shared_flag",
+    [
+        (True),
+        (False),
+    ],
+)
+@pytest.mark.parametrize(
+    "init_value",
+    [
+        (np.array([])),
+        (np.array([], dtype=np.int32)),
+        (np.empty(shape=(0))),
+    ],
+)
+def test_constant_from_empty_array(shared_flag, init_value):
+    const = ov.op.Constant(init_value, shared_memory=shared_flag)
+    assert tuple(const.shape) == init_value.shape
+    assert const.get_element_type().to_dtype() == init_value.dtype
+    assert const.get_byte_size() == init_value.nbytes
+    assert np.allclose(const.data, init_value)
+
+
 def test_set_argument():
     data1 = np.array([1, 2, 3])
     data2 = np.array([4, 5, 6])
@@ -531,7 +554,32 @@ def test_multiple_outputs():
 
 def test_sink_model_ctor():
     input_data = ops.parameter([2, 2], name="input_data", dtype=np.float32)
-    rv = ops.read_value(input_data, "var_id_667")
+    rv = ops.read_value(input_data, "var_id_667", np.float32, [2, 2])
+    add = ops.add(rv, input_data, name="MemoryAdd")
+    node = ops.assign(add, "var_id_667")
+    res = ops.result(add, "res")
+    model = Model(results=[res], sinks=[node], parameters=[input_data], name="TestModel")
+
+    ordered_ops = model.get_ordered_ops()
+    op_types = [op.get_type_name() for op in ordered_ops]
+    sinks = model.get_sinks()
+    assert ["Assign"] == [sink.get_type_name() for sink in sinks]
+    assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
+    assert op_types == ["Parameter", "ReadValue", "Add", "Assign", "Result"]
+    assert len(model.get_ops()) == 5
+    assert model.get_output_size() == 1
+    assert model.get_output_op(0).get_type_name() == "Result"
+    assert model.get_output_element_type(0) == input_data.get_element_type()
+    assert list(model.get_output_shape(0)) == [2, 2]
+    assert (model.get_parameters()[0].get_partial_shape()) == PartialShape([2, 2])
+    assert len(model.get_parameters()) == 1
+    assert len(model.get_results()) == 1
+    assert model.get_friendly_name() == "TestModel"
+
+
+def test_sink_model_ctor_without_init_subgraph():
+    input_data = ops.parameter([2, 2], name="input_data", dtype=np.float32)
+    rv = ops.read_value("var_id_667", np.float32, [2, 2])
     add = ops.add(rv, input_data, name="MemoryAdd")
     node = ops.assign(add, "var_id_667")
     res = ops.result(add, "res")

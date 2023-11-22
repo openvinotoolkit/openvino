@@ -110,7 +110,7 @@ class OVClassCompiledModelGetPropertyTest_Priority : public ::testing::WithParam
                                                        public OVCompiledNetworkTestBase {
 protected:
     ov::AnyMap configuration;
-    std::shared_ptr<ngraph::Function> simpleNetwork;
+    std::shared_ptr<ov::Model> simpleNetwork;
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<PriorityParams> obj);

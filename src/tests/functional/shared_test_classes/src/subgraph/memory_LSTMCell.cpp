@@ -73,9 +73,9 @@ namespace SubgraphTestsDefinitions {
 
         auto cell_memory_constant = builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
         auto var_cell =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "cell_state_1"});
+                std::make_shared<Variable>(VariableInfo{PartialShape(cell_memory_dims), ngPrc, "cell_state_1"});
         auto var_hidden =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "hidden_state_1"});
+                std::make_shared<Variable>(VariableInfo{PartialShape(cell_memory_dims), ngPrc, "hidden_state_1"});
         auto cell_memory_read = std::make_shared<ReadValue>(cell_memory_constant, var_cell);
 
         auto hidden_memory_constant = builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
