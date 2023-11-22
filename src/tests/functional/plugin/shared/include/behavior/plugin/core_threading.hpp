@@ -16,6 +16,7 @@
 #include <common_test_utils/test_assertions.hpp>
 #include <common_test_utils/test_constants.hpp>
 #include "base/behavior_test_utils.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
 #include <gtest/gtest.h>
 #include <thread>
@@ -225,7 +226,7 @@ protected:
     void SetupNetworks() {
         if (modelClass == ModelClass::ConvPoolRelu) {
             for (unsigned i = 0; i < numThreads; i++) {
-                networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeConvPoolRelu()));
+                networks.emplace_back(InferenceEngine::CNNNetwork(ov::test::utils::make_conv_pool_relu()));
             }
         } else {
             networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::make2InputSubtract()));

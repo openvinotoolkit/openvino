@@ -14,6 +14,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
 namespace ov {
 namespace test {
@@ -280,7 +281,7 @@ TEST_P(OVCompiledModelBaseTest, CanCreateTwoCompiledModelsAndCheckRuntimeModel) 
 
 TEST_P(OVCompiledModelBaseTest, pluginDoesNotChangeOriginalNetwork) {
     // compare 2 networks
-    auto referenceNetwork = ngraph::builder::subgraph::makeConvPoolRelu();
+    auto referenceNetwork = ov::test::utils::make_conv_pool_relu();
     compare_functions(function, referenceNetwork);
 }
 

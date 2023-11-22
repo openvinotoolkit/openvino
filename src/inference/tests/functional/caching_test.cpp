@@ -32,7 +32,7 @@
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "ov_models/subgraph_builders.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_iasync_infer_request.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icompiled_model.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_iplugin.hpp"
@@ -220,7 +220,7 @@ public:
 
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::Serialize>(modelName, weightsName);
-        manager.run_passes(ngraph::builder::subgraph::makeConvPoolRelu({1, 3, 227, 227}, ov::element::Type_t::f32));
+        manager.run_passes(ov::test::utils::make_conv_pool_relu({1, 3, 227, 227}, ov::element::Type_t::f32));
     }
 
     void TearDown() override {

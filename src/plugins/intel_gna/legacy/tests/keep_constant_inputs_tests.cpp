@@ -23,6 +23,7 @@
 
 #include "ov_models/subgraph_builders.hpp"
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
 using namespace testing;
 using namespace InferenceEngine;
@@ -60,7 +61,7 @@ void transformNetwork(InferenceEngine::CNNNetwork& clonedNetwork, bool keep_cons
 
 TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithTrue) {
     std::shared_ptr<ov::Model> f_ptr;
-    f_ptr = ngraph::builder::subgraph::makeConvPoolRelu();
+    f_ptr = ov::test::utils::make_conv_pool_relu();
     InferenceEngine::CNNNetwork network(f_ptr), originalNetwork = network;
     transformNetwork(originalNetwork, true);
     ASSERT_EQ(numberOfInputsForLayerInCNNNetwork(originalNetwork, "Convolution"), 2);
@@ -68,7 +69,7 @@ TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithTrue) {
 
 TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithFalse) {
     std::shared_ptr<ov::Model> f_ptr;
-    f_ptr = ngraph::builder::subgraph::makeConvPoolRelu();
+    f_ptr = ov::test::utils::make_conv_pool_relu();
     InferenceEngine::CNNNetwork network(f_ptr), originalNetwork = network;
     transformNetwork(originalNetwork, false);
     ASSERT_EQ(numberOfInputsForLayerInCNNNetwork(originalNetwork, "Convolution"), 1);

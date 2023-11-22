@@ -13,6 +13,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
 #include "ov_models/builders.hpp"
 #include "ov_models/subgraph_builders.hpp"
@@ -77,7 +78,7 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getNumericTypeOnlyFuncti
     res.push_back(ovModelWithName { simple_function_multiply, "SimpleFunctionMultiply"});
     res.push_back(ovModelWithName { simple_function_relu, "SimpleFunctionRelu"});
     res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeConvPoolRelu, {1, 1, 32, 32}),
+        inputShapeWrapper(ov::test::utils::make_conv_pool_relu, {1, 1, 32, 32}),
         "ConvPoolRelu"});
     res.push_back(ovModelWithName {
         inputShapeWrapper(ngraph::builder::subgraph::makeSplitConvConcat, {1, 4, 20, 20}),
@@ -293,8 +294,7 @@ void CompileModelLoadFromFileTestBase::SetUp() {
     core->set_property(ov::cache_dir());
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
-    manager.run_passes(ngraph::builder::subgraph::makeConvPoolRelu(
-            {1, 3, 227, 227}, InferenceEngine::details::convertPrecision(InferenceEngine::Precision::FP32)));
+    manager.run_passes(ov::test::utils::make_conv_pool_relu({1, 3, 227, 227}, ov::element::f32));
 }
 
 void CompileModelLoadFromFileTestBase::TearDown() {
@@ -376,9 +376,7 @@ void CompileModelLoadFromMemoryTestBase::SetUp() {
     core->set_property(ov::cache_dir());
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
-    manager.run_passes(ngraph::builder::subgraph::makeConvPoolRelu(
-        {1, 3, 227, 227},
-        InferenceEngine::details::convertPrecision(InferenceEngine::Precision::FP32)));
+    manager.run_passes(ov::test::utils::make_conv_pool_relu({1, 3, 227, 227}, ov::element::f32));
 
     try {
         std::ifstream model_file(m_modelName, std::ios::binary);
@@ -500,7 +498,7 @@ std::string CompiledKernelsCacheTest::getTestCaseName(testing::TestParamInfo<com
 }
 
 void CompiledKernelsCacheTest::SetUp() {
-    function = ngraph::builder::subgraph::makeConvPoolRelu();
+    function = ov::test::utils::make_conv_pool_relu();
     std::pair<ov::AnyMap, std::string> userConfig;
     std::tie(targetDevice, userConfig) = GetParam();
     target_device = targetDevice;
