@@ -38,6 +38,10 @@ public:
         m_info = variable_info;
     }
 
+    void update_partial_shape(const PartialShape& new_pshape) {
+        m_info.data_shape = new_pshape;
+    }
+
 private:
     VariableInfo m_info;
 };

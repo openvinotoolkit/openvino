@@ -9,7 +9,6 @@
 namespace {
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;
-using namespace ngraph;
 
 static const std::vector<ov::element::Type> ovElemTypesTemplate = {
         ov::element::f64,

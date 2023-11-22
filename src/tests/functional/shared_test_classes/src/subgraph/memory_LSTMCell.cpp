@@ -3,13 +3,16 @@
 //
 
 #include "shared_test_classes/subgraph/memory_LSTMCell.hpp"
-
+#include "functional_test_utils/core_config.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_models/builders.hpp"
+
+using namespace ngraph;
+using namespace opset7;
 
 namespace ov {
 namespace test {
@@ -71,10 +74,10 @@ void MemoryLSTMCellTest::SetUp() {
     auto permute_in = std::make_shared<ov::op::v1::Transpose>(unsqueeze_input, permute_in_params);
 
     auto cell_memory_constant = ngraph::builder::makeConstant<float>(element_type, cell_memory_dims, cell_memory_init);
-    auto var_cell = std::make_shared<ov::op::util::Variable>(
-        ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, "cell_state_1"});
-    auto var_hidden = std::make_shared<ov::op::util::Variable>(
-        ov::op::util::VariableInfo{PartialShape::dynamic(), element::dynamic, "hidden_state_1"});
+    auto var_cell =
+        std::make_shared<Variable>(VariableInfo{PartialShape(cell_memory_dims), element_type, "cell_state_1"});
+    auto var_hidden =
+        std::make_shared<Variable>(VariableInfo{PartialShape(cell_memory_dims), element_type, "hidden_state_1"});
     auto cell_memory_read = std::make_shared<ov::op::v6::ReadValue>(cell_memory_constant, var_cell);
 
     auto hidden_memory_constant =

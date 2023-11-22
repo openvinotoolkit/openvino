@@ -1154,7 +1154,7 @@ def test_assign_opset5():
 def test_read_value():
     init_value = ov.parameter([2, 2], name="init_value", dtype=np.int32)
 
-    node = ov.read_value(init_value, "var_id_667")
+    node = ov.read_value(init_value, "var_id_667", np.int32, [2, 2])
 
     assert node.get_type_name() == "ReadValue"
     assert node.get_output_size() == 1
@@ -1162,9 +1162,20 @@ def test_read_value():
     assert node.get_output_element_type(0) == Type.i32
 
 
+def test_read_value_dyn_variable_pshape():
+    init_value = ov.parameter([2, 2], name="init_value", dtype=np.int32)
+
+    node = ov.read_value(init_value, "var_id_667", np.int32, [Dimension(1, 10), -1])
+
+    assert node.get_type_name() == "ReadValue"
+    assert node.get_output_size() == 1
+    assert node.get_output_partial_shape(0) == PartialShape([Dimension(1, 10), -1])
+    assert node.get_output_element_type(0) == Type.i32
+
+
 def test_assign():
     input_data = ov.parameter([5, 7], name="input_data", dtype=np.int32)
-    rv = ov.read_value(input_data, "var_id_667")
+    rv = ov.read_value(input_data, "var_id_667", np.int32, [5, 7])
     node = ov.assign(rv, "var_id_667")
 
     assert node.get_type_name() == "Assign"
