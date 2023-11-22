@@ -40,6 +40,8 @@ def generate_ir_ovc(coverage=False, **kwargs):
         # if we omit this argument for FP32, it will be set implicitly to True as the default
         elif key == 'compress_to_fp16':
             params.append("--{}={}".format(key, value))
+        elif key == 'verbose':
+            params.append("--{}".format(key))
         elif isinstance(value, bool) and value:
             params.append("--{}".format(key))
         elif isinstance(value, bool) and not value:
@@ -174,5 +176,19 @@ class TestOVCTool(unittest.TestCase):
         assert not exit_code
 
         ov_model = core.read_model(os.path.join(self.tmp_dir, "dir", "test_model.xml"))
+        flag, msg = compare_functions(ov_model, ref_model, False)
+        assert flag, msg
+
+
+    def test_ovc_tool_verbose(self):
+        from openvino.runtime import Core
+        core = Core()
+
+        model_dir, ref_model = self.create_tf_saved_model_dir(self.tmp_dir)
+
+        exit_code, stderr = generate_ir_ovc(coverage=False, **{"input_model": model_dir, "output_model": self.tmp_dir, "verbose": ""})
+        assert not exit_code
+
+        ov_model = core.read_model(os.path.join(self.tmp_dir, "test_model.xml"))
         flag, msg = compare_functions(ov_model, ref_model, False)
         assert flag, msg

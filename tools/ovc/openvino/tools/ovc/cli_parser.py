@@ -575,9 +575,11 @@ def get_model_name_from_args(argv: argparse.Namespace):
                 raise Error('The directory "{}" is not writable'.format(argv.output_model))
             output_dir = argv.output_model
 
-    input_model = os.path.abspath(argv.input_model)
+    input_model = argv.input_model
     if isinstance(input_model, (tuple, list)) and len(input_model) > 0:
         input_model = input_model[0]
+
+    input_model = os.path.abspath(input_model)
 
     if not isinstance(input_model, (str, pathlib.Path)):
         return output_dir
