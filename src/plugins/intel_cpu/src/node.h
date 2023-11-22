@@ -584,6 +584,7 @@ protected:
     std::vector <dnnl::memory::format_tag> inputMemoryFormatsFilter;
     std::vector <dnnl::memory::format_tag> outputMemoryFormatsFilter;
     bool enforceBF16evenForGraphTail = false;
+    bool enforceFP32 = false;
 
     std::string originalLayers;  // contains names of the original layers separated by comma
 

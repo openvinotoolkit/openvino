@@ -15,6 +15,7 @@
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/force_fp32.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/nms_selected_indices.hpp"
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"

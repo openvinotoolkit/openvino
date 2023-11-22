@@ -9,6 +9,7 @@ ov::pass::Attributes::Attributes() {
     register_factory<PrimitivesPriority>();
     register_factory<DisableConstantFolding>();
     register_factory<DisableFP16Compression>();
+    register_factory<ForceFP32>();
     register_factory<NmsSelectedIndices>();
     register_factory<OldApiMapOrder>();
     register_factory<OldApiMapElementType>();
