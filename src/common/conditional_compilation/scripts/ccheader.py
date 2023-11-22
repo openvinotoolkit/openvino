@@ -15,14 +15,12 @@
 #                         IntelSEAPI statistics files in CSV format
 #   --out cc.h            C++ header file to be generated
 
-import argparse, csv
+import argparse, csv, os
 from glob import glob
 from pathlib import Path
 from abc import ABC, abstractmethod
 
-Domain = ['SIMPLE_',
-          'SWITCH_',
-          'FACTORY_']
+Domain = ["SIMPLE_", "SWITCH_", "FACTORY_", "TYPE_LIST_"]
 
 FILE_HEADER = "#pragma once\n\n"
 FILE_FOOTER = "\n"
@@ -35,6 +33,7 @@ class IScope(ABC):
     @abstractmethod
     def generate(self, f, module):
         pass
+
 
 class Scope(IScope):
     def __init__(self, name):
@@ -72,6 +71,24 @@ class Factory(IScope):
             if r:
                 f.write(ENABLED_FACTORY_INSTANCE_FMT % (module, r))
 
+
+class TypeList(IScope):
+    et_sep = ", "
+    et_namespace = "::ov::element::"
+
+    def __init__(self, name):
+        self.name = name
+        self.types = set()
+
+    def append(self, type):
+        self.types.add(type)
+
+    def generate(self, f, module):
+        type_list = self.et_sep.join([self.et_namespace + t for t in self.types])
+        f.write(f"#define {module}_enabled_{self.name} 1{os.linesep}")
+        f.write(f"#define {module}_{self.name} {type_list}{os.linesep}")
+
+
 class Module:
     def __init__(self, name):
         self.name = name
@@ -97,6 +114,10 @@ class Module:
             scope.generate(f, self.name)
         if self.scopes:
             f.write("\n")
+
+    def type_list(self, scope_name):
+        return self.scopes.setdefault(scope_name, TypeList(scope_name))
+
 
 class Stat:
     def __init__(self, files):
@@ -134,6 +155,17 @@ class Stat:
                             self.module(reg[0]).factory(reg[2]).register(reg[3], reg[4])
                         for cre in list(filter(lambda row: len(row) > 1 and row[1] == 'CREATE', factories)):
                             self.module(cre[0]).factory(cre[2]).create(cre[3])
+
+                        # Type list generator filter, returns tuple of (domain, (region, type))
+                        type_list_filter = (
+                            (domain, region.strip().split("$"))
+                            for domain, region, *_ in rows
+                            if Domain[3] in domain
+                        )
+
+                        for domain, (region, type) in type_list_filter:
+                            module = self.module(domain)
+                            module.type_list(region).append(type)
 
     def generate(self, out):
         with open(str(out), 'w') as f:

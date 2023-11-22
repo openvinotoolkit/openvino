@@ -18,6 +18,7 @@
 
 #define SELECTIVE_BUILD_ANALYZER
 
+#include "element_visitor.hpp"
 #include "itt.hpp"
 
 using namespace std;
@@ -49,6 +50,21 @@ TEST(conditional_compilation, collect_ops_in_opset) {
     EXPECT_NE(opset.create("Constant"), nullptr);
     EXPECT_NE(opset.create_insensitive("Constant"), nullptr);
 #undef ov_opset_test_opset1_Abs
+}
+
+struct TestVisitor : public ov::element::NoAction<bool> {
+    using ov::element::NoAction<bool>::visit;
+
+    template <ov::element::Type_t ET>
+    static result_type visit(int x) {
+        return true;
+    }
+};
+
+TEST(conditional_compilation, IF_TYPE_OF_collect_action_for_supported_element) {
+    using namespace ov::element;
+    const auto result = IF_TYPE_OF(test_1, OV_PP_ET_LIST(f32), TestVisitor, ov::element::f32, 10);
+    EXPECT_TRUE(result);
 }
 
 #undef SELECTIVE_BUILD_ANALYZER

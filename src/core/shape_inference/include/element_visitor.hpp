@@ -8,10 +8,17 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/itt.hpp"
 
 namespace ov {
-namespace element {
+namespace itt {
+namespace domains {
+OV_ITT_DOMAIN(ov_eval);
+}  // namespace domains
+}  // namespace itt
 
+OV_ITT_DOMAIN(OV_PP_CAT(TYPE_LIST_, ov_eval));
+namespace element {
 /**
  * @brief Primary template defines suppoted element types.
  *
@@ -44,7 +51,14 @@ struct IfTypeOf<> {
     static auto apply(Type_t et, Args&&... args) -> typename Visitor::result_type {
         return Visitor::visit();
     }
-};
+
+#if defined SELECTIVE_BUILD_ANALYZER
+    template <class Visitor, class... Args>
+    static auto apply(const std::string& region, Type_t et, Args&&... args) -> typename Visitor::result_type {
+        return Visitor::visit();
+    }
+#endif
+    };
 
 /**
  * @brief Applies visitor action for supported element type defined by template parameters.
@@ -71,6 +85,20 @@ struct IfTypeOf<ET, Others...> {
         return (et == ET) ? Visitor::template visit<ET>(std::forward<Args>(args)...)
                           : IfTypeOf<Others...>::template apply<Visitor>(et, std::forward<Args>(args)...);
     }
+
+#if defined(SELECTIVE_BUILD_ANALYZER)
+    template <class Visitor, class... Args>
+    static auto apply(const std::string& region, Type_t et, Args&&... args) -> typename Visitor::result_type {
+        return (et == ET && is_cc_enabled(region))
+                   ? Visitor::template visit<ET>(std::forward<Args>(args)...)
+                   : IfTypeOf<Others...>::template apply<Visitor>(region, et, std::forward<Args>(args)...);
+    }
+
+    static bool is_cc_enabled(const std::string& region) {
+        OV_ITT_SCOPED_TASK(OV_PP_CAT(TYPE_LIST_, ov_eval), region + "$" + Type(ET).to_string());
+        return true;
+    }
+#endif
 };
 
 /**
@@ -120,3 +148,37 @@ private:
 };
 }  // namespace element
 }  // namespace ov
+
+// Return ov::elements as parameter list e.g. OV_PP_ET_LIST(f16, i32) -> f16, i32
+#define OV_PP_ET_LIST(...) OV_PP_EMPTY __VA_ARGS__
+
+// Helpers to implement eat or expand if symbol exists
+#define OV_PP_ET_LIST_OR_EMPTY_0(...) OV_PP_EAT(__VA_ARGS__)
+#define OV_PP_ET_LIST_OR_EMPTY_1(...) OV_PP_EXP(__VA_ARGS__)
+
+// Check if ET list defined and use it for `IfTypeOf` class or make empty list
+#define OV_PP_ET_LIST_OR_EMPTY(region)                                                                                \
+    OV_PP_EXPAND(OV_PP_CAT(OV_PP_ET_LIST_OR_EMPTY_, OV_PP_IS_ENABLED(OV_PP_CAT(TYPE_LIST_ov_eval_enabled_, region)))( \
+        OV_PP_CAT(TYPE_LIST_ov_eval_, region)))
+
+/**
+ * @brief Use this macro wrapper for ov::element::IfTypeOf class to integrate it with
+ * OpenVINO conditional compilation feature.
+ *
+ * @param region  Region name for ITT which will be combined with TYPE_LIST_ prefix.
+ * @param types   List ov::element IfTypeOf class e.g. OV_PP_ET_LIST(f16, i8) to pack as one paramater.
+ * @param visitor Class name of visitor which will be used by IfTypeOf<types>::visit(_VA_ARGS_) function.
+ * @param ...     List of parameters must match parameter list of `visit` function.
+ *
+ * @return Value returned by `visit` function
+ */
+
+#if defined(SELECTIVE_BUILD_ANALYZER)
+#    define IF_TYPE_OF(region, types, visitor, ...) \
+        ::ov::element::IfTypeOf<types>::apply<visitor>(OV_PP_TOSTRING(region), __VA_ARGS__)
+#elif defined(SELECTIVE_BUILD)
+#    define IF_TYPE_OF(region, types, visitor, ...) \
+        ::ov::element::IfTypeOf<OV_PP_ET_LIST_OR_EMPTY(region)>::apply<visitor>(__VA_ARGS__)
+#else
+#    define IF_TYPE_OF(region, types, visitor, ...) ::ov::element::IfTypeOf<types>::apply<visitor>(__VA_ARGS__)
+#endif

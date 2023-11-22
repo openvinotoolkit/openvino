@@ -48,3 +48,12 @@
 
 // Return second argument from possible sequences {1, 0}, {0, 1, 0}
 #define OV_PP_IS_ENABLED2(arg1_or_junk) OV_PP_SECOND_ARG(arg1_or_junk 1, 0)
+
+// Empty symbol
+#define OV_PP_EMPTY
+
+// Eats inputs
+#define OV_PP_EAT(...)
+
+// Expand input
+#define OV_PP_EXP(...) __VA_ARGS__

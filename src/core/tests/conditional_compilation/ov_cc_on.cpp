@@ -18,6 +18,7 @@
 
 #define SELECTIVE_BUILD
 
+#include "element_visitor.hpp"
 #include "itt.hpp"
 
 using namespace std;
@@ -49,6 +50,43 @@ TEST(conditional_compilation, disabled_Constant_in_opset) {
 #undef ov_opset_test_opset3_Abs
 }
 
+struct TestVisitor : public ov::element::NoAction<bool> {
+    using ov::element::NoAction<bool>::visit;
+
+    template <ov::element::Type_t ET>
+    static result_type visit(int x) {
+        return true;
+    }
+};
+
+TEST(conditional_compilation, IF_TYPE_OF_element_type_on_cc_list) {
+#define TYPE_LIST_ov_eval_enabled_test_1 1
+#define TYPE_LIST_ov_eval_test_1         ::ov::element::f32, ::ov::element::u64
+
+    using namespace ov::element;
+    const auto result = IF_TYPE_OF(test_1, OV_PP_ET_LIST(f32), TestVisitor, ov::element::f32, 10);
+    EXPECT_TRUE(result);
+
+#undef TYPE_LIST_ov_eval_enabled_test_1
+#undef TYPE_LIST_ov_eval_test_1
+}
+
+TEST(conditional_compilation, IF_TYPE_OF_element_type_not_on_cc_list) {
+#define TYPE_LIST_ov_eval_enabled_test_1 1
+#define TYPE_LIST_ov_eval_test_1         f16
+
+    using namespace ov::element;
+    const auto result = IF_TYPE_OF(test_1, OV_PP_ET_LIST(f32), TestVisitor, ov::element::f32, 10);
+    EXPECT_FALSE(result);
+
+#undef TYPE_LIST_ov_eval_enabled_test_1
+#undef TYPE_LIST_ov_eval_test_1
+}
+
+TEST(conditional_compilation, IF_TYPE_OF_no_element_list) {
+    const auto result = IF_TYPE_OF(test_1, OV_PP_ET_LIST(f32), TestVisitor, ov::element::f32, 10);
+    EXPECT_FALSE(result);
+}
 #undef SELECTIVE_BUILD
 
 #ifdef SELECTIVE_BUILD_ANALYZER_ON
