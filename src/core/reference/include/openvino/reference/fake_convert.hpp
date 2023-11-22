@@ -170,21 +170,22 @@ void apply_scale_shift(T* out,
                        const Shape& data_shape,
                        const Shape& scale_shape,
                        const Shape& shift_shape,
-                       bool invert = false) {
+                       const bool invert = false) {
     const auto scale_size = shape_size(scale_shape);
     const auto data_size = shape_size(data_shape);
+
+    const auto scale_shift_func = invert ? [](T elem, T s, T o) -> T {
+        return static_cast<T>((elem + o) / s);
+    }
+    : [](T elem, T s, T o) -> T {
+          return static_cast<T>(elem * s - o);
+      };
 
     if (scale_size == 1) {  // per tensor scale, probably for activation
         T s = scale[0];
         T o = shift[0];
-        if (invert) {
-            for (size_t j = 0; j < data_size; j++) {
-                out[j] = (data[j] + o) / s;
-            }
-        } else {
-            for (size_t j = 0; j < data_size; j++) {
-                out[j] = data[j] * s - o;  // o = quntized(o * s)
-            }
+        for (size_t j = 0; j < data_size; j++) {
+            out[j] = scale_shift_func(data[j], s, o);
         }
         return;
     }
@@ -200,14 +201,8 @@ void apply_scale_shift(T* out,
             for (size_t i = 0; i < scale_size; i++) {
                 T s = scale[i];
                 T o = shift[i];
-                if (invert) {
-                    for (size_t j = 0; j < step; j++) {
-                        out[j] = (data[j] + o) / s;
-                    }
-                } else {
-                    for (size_t j = 0; j < step; j++) {
-                        out[j] = data[j] * s - o;  // o = quntized(o * s)
-                    }
+                for (size_t j = 0; j < step; j++) {
+                    out[j] = scale_shift_func(data[j], s, o);
                 }
                 data += step;
                 out += step;
@@ -216,6 +211,8 @@ void apply_scale_shift(T* out,
         return;
     }
 
+    // The specific cases above are optimized verions of the broadcast for specific case
+    // Autobroadcast helper is generic approach for broadcast
     autobroadcast_select(data,
                          scale,
                          shift,
@@ -224,12 +221,7 @@ void apply_scale_shift(T* out,
                          scale_shape,
                          shift_shape,
                          op::AutoBroadcastType::NUMPY,
-                         [invert](T elem, T s, T o) -> T {
-                             if (invert) {
-                                 return static_cast<T>((elem + o) / s);
-                             }
-                             return static_cast<T>(elem * s - o);
-                         });
+                         scale_shift_func);
 }
 }  // namespace fake_convert_details
 
