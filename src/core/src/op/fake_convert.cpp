@@ -92,8 +92,9 @@ bool FakeConvert::visit_attributes(ov::AttributeVisitor& visitor) {
 
 void FakeConvert::validate_type() const {
     const auto& valid_types = fake_convert_details::get_valid_types();
-    OPENVINO_ASSERT(std::find(valid_types.begin(), valid_types.end(), m_destination_type) != valid_types.end(),
-                    "Bad format for f8 conversion type: " + m_destination_type);
+    const auto is_supported_type =
+        std::find(valid_types.begin(), valid_types.end(), m_destination_type) != valid_types.end();
+    OPENVINO_ASSERT(is_supported_type, "Bad format for f8 conversion type: ", m_destination_type);
 }
 
 bool FakeConvert::has_evaluate() const {
