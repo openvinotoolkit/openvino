@@ -611,7 +611,7 @@ INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_max_reduction_use_init,
                          PrintToStringParamName());
 
 // Disabled due to bug in reference implementation - see function reduction_neutral_value()
-// in core/reference/include/ngraph/runtime/reference/scatter_elements_update.hpp.
+// in core/reference/include/openvino/reference/scatter_elements_update.hpp.
 // For MAX reduction it returns numeric_limits<T>::min() which is minimal *positive*, not truly minimal value of type T,
 // which causes wrong result on negative input/update values.
 // Enable when/if reference implementation is fixed.
