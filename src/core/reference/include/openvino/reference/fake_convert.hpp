@@ -24,8 +24,9 @@ namespace fake_convert_details {
  * @param out       Pointer to the otuput data.
  * @param count     Number of elements in the data input.
  */
-template <typename T>
-void emulate_f8e5m2_on_fp16(const T* const arg, T* out, size_t count) {
+static void emulate_f8e5m2_on_fp16(const float16* const arg_f, float16* out_f, size_t count) {
+    const auto arg_u = reinterpret_cast<const unsigned short*>(arg_f);
+    auto out_u = reinterpret_cast<unsigned short*>(out_f);
     unsigned short val_bit_repr;
 
     constexpr auto exp_bits = 5;
@@ -40,7 +41,7 @@ void emulate_f8e5m2_on_fp16(const T* const arg, T* out, size_t count) {
 
     for (size_t i = 0; i < count; ++i) {
         /// converts float number to half precision in round-to-nearest-even mode and returns half with converted value.
-        val_bit_repr = arg[i];
+        val_bit_repr = arg_u[i];
         /// 0x7c00 = 0111110000000000 - exponent mask
         /// s 11111 xxx xxxx xxxx - is nan (if some x is 1) or inf (if all x is 0)
         /// 0x7800 is 0111100000000000 and 0x400 is 0000010000000000
@@ -65,7 +66,7 @@ void emulate_f8e5m2_on_fp16(const T* const arg, T* out, size_t count) {
             val_bit_repr += (((rnmask > 0x0080) || (rnmask_tie == rne_tie)) << lshift);
         }
         val_bit_repr = (val_bit_repr & mask_mant); /* truncation */
-        out[i] = val_bit_repr;
+        out_u[i] = val_bit_repr;
     }
 }
 
@@ -81,8 +82,9 @@ void emulate_f8e5m2_on_fp16(const T* const arg, T* out, size_t count) {
  * Exponent NaN values 15 8
  *
  */
-template <typename T>
-void emulate_f8e4m3_on_fp16(const T* arg, T* out, size_t count) {
+static void emulate_f8e4m3_on_fp16(const float16* arg_f, float16* out_f, size_t count) {
+    const auto arg_u = reinterpret_cast<const unsigned short*>(arg_f);
+    auto out_u = reinterpret_cast<unsigned short*>(out_f);
     unsigned short val_bit_repr;
 
     constexpr auto use_clamp = true;
@@ -99,10 +101,9 @@ void emulate_f8e4m3_on_fp16(const T* arg, T* out, size_t count) {
     constexpr unsigned short fp16_inf = 0x7C00;
 
     for (size_t i = 0; i < count; ++i) {
-        val_bit_repr = arg[i];
-        const float inval = ov::float16(arg[i]);
+        val_bit_repr = arg_u[i];
         /* flush values below 1-4-3 (offset=4) subnormal range to zero */
-        if (fabs(inval) < 0.001953125)  // 2**-9
+        if (std::abs(static_cast<float>(arg_f[i])) < 0.001953125f)  // 2**-9
             val_bit_repr = 0;
 
         short exp_h = static_cast<short>((val_bit_repr & fp16_inf) >> 10) -
@@ -150,7 +151,7 @@ void emulate_f8e4m3_on_fp16(const T* arg, T* out, size_t count) {
         mantissa_h <<= dshift;
         mantissa_h += ((exp_h + 15) << 10);
         val_bit_repr = mantissa_h | sign_h;
-        out[i] = val_bit_repr;
+        out_u[i] = val_bit_repr;
     }
 }
 
@@ -229,14 +230,14 @@ void apply_scale_shift(T* out,
 }
 }  // namespace fake_convert_details
 
-template <typename T>
-bool apply_conversion(const T* data, T* out, size_t element_count, const std::string& destination_type) {
-    auto inPtr = reinterpret_cast<const unsigned short*>(data);
-    auto outPtr = reinterpret_cast<unsigned short*>(out);
+static bool apply_conversion(const float16* data,
+                             float16* out,
+                             size_t element_count,
+                             const std::string& destination_type) {
     if (destination_type == "f8e5m2") {
-        reference::fake_convert_details::emulate_f8e5m2_on_fp16(inPtr, outPtr, element_count);
+        reference::fake_convert_details::emulate_f8e5m2_on_fp16(data, out, element_count);
     } else if (destination_type == "f8e4m3") {
-        reference::fake_convert_details::emulate_f8e4m3_on_fp16(inPtr, outPtr, element_count);
+        reference::fake_convert_details::emulate_f8e4m3_on_fp16(data, out, element_count);
     } else {
         OPENVINO_THROW("Unsupported destination type.");
     }
