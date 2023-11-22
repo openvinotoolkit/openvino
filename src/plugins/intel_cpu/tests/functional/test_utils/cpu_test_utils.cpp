@@ -366,13 +366,15 @@ void CPUTestsBase::updateSelectedType(const std::string& primitiveType, const ov
         selectedType = primitiveType;
     }
 
-    if (selectedType.find("$/") != std::string::npos) {
-        // like as regex
-        selectedType = selectedType.substr(0, selectedType.find("$/"));
+    if (selectedType.find("*") != std::string::npos) {
+        selectedType = primitiveType + "_" + selectedType;
         return;
     }
 
-    selectedType.push_back('_');
+    if (selectedType.find("$/") != std::string::npos) {
+        selectedType = selectedType.substr(0, selectedType.find("$/"));
+        return;
+    }
 
     auto getExecType = [&](){
         // inference_precision affects only floating point type networks
@@ -398,6 +400,7 @@ void CPUTestsBase::updateSelectedType(const std::string& primitiveType, const ov
     };
 
     const auto execType = getExecType();
+    selectedType.push_back('_');
     selectedType += InferenceEngine::details::convertPrecision(execType).name();
 }
 
