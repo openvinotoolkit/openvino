@@ -362,10 +362,18 @@ TEST_P(OVCompiledGraphImportExportTest, importExportedIENetwork) {
     EXPECT_NO_THROW(importedExecNet.output("relu_op").get_node());
     EXPECT_NO_THROW(importedExecNet.output("concat_op").get_node());
 
-    const auto outputType = elementType == ov::element::i32 ||
-                            elementType == ov::element::u32 ||
-                            elementType == ov::element::i64 ||
-                            elementType == ov::element::u64 ? ov::element::i32 : ov::element::f32;
+    auto getOutputType = [](ov::element::Type_t elementType) {
+        if (elementType == ov::element::i64 || elementType == ov::element::u64 ||
+            elementType == ov::element::i32 || elementType == ov::element::u32) {
+            return ov::element::i32;
+        } else if (elementType == ov::element::i8 || elementType == ov::element::u8 ||
+                   elementType == ov::element::i16 || elementType == ov::element::u16) {
+            return ov::element::i8;
+        } else if (elementType != ov::element::f32) {
+            return ov::element::f32;
+        }
+    };
+    const auto outputType = getOutputType(elementType);
     const auto inputType = elementType == ov::element::f16 ? ov::element::Type_t::f32 : elementType;
 
     EXPECT_EQ(inputType, importedExecNet.input("param1").get_element_type());
