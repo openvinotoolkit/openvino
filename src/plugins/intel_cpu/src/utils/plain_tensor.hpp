@@ -131,11 +131,11 @@ struct PlainTensor {
     size_t size(int i) const {
         if (i < 0)
             i += m_rank;
-        assert(i < m_rank);
+        assert(static_cast<typename std::make_unsigned<decltype(i)>::type>(i) < m_rank);
         return m_dims[i];
     }
     size_t stride(int i) const {
-        assert(i < m_rank);
+        assert(i >= 0 && static_cast<typename std::make_unsigned<decltype(i)>::type>(i) < m_rank);
         return m_strides[i];
     }
     PlainTensor(MemoryPtr mem) {
