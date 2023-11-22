@@ -139,6 +139,7 @@ public:
                                                                 {test_pattern_0_1_1, test_pattern_1_1}};
             ref_borders = std::move(ref_res);
         }
+        start_ops = {test_abs_0, test_abs_0_0, test_abs_0_1, test_abs_1};
     }
 
     std::shared_ptr<ov::Model> get() {
@@ -197,8 +198,12 @@ public:
     std::vector<std::vector<PatternBorders>>
     get_ref_node_borders() { return ref_borders; }
 
+    ov::NodeVector
+    get_start_ops() { return start_ops; }
+
 protected:
     std::shared_ptr<ov::Model> model;
     std::vector<std::vector<ov::NodeVector>> ref_nodes;
     std::vector<std::vector<PatternBorders>> ref_borders;
+    ov::NodeVector start_ops;
 };

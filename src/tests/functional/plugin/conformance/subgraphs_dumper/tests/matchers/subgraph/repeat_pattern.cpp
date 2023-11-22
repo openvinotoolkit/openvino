@@ -12,14 +12,18 @@
 #include "test_models/model_0.hpp"
 #include "test_models/model_1.hpp"
 #include "test_models/model_2.hpp"
+#include "test_models/model_3.hpp"
+
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
 
 namespace {
 
 using namespace ov::tools::subgraph_dumper;
 
 
-// ======================= ExtractorsManagerTest Unit tests =======================
-class RepeatPatternExtractorTest : public SubgraphsDumperBaseTest {
+// ======================= ExtractorsManagerTest Func tests =======================
+class RepeatPatternExtractorFuncTest : public SubgraphsDumperBaseTest {
 protected:
     RepeatPatternExtractor extractor;
 
@@ -65,28 +69,28 @@ protected:
     // }
 };
 
-TEST_F(RepeatPatternExtractorTest, extract_0) {
+TEST_F(RepeatPatternExtractorFuncTest, extract_0) {
     auto test_model = Model_0();
     auto models = extractor.extract(test_model.get());
     auto ref = test_model.get_repeat_pattern_ref();
     ASSERT_TRUE(is_match(models, ref));
 }
 
-TEST_F(RepeatPatternExtractorTest, extract_1) {
+TEST_F(RepeatPatternExtractorFuncTest, extract_1) {
     auto test_model = Model_1();
     auto models = extractor.extract(test_model.get());
     auto ref = test_model.get_repeat_pattern_ref();
     ASSERT_TRUE(is_match(models, ref));
 }
 
-TEST_F(RepeatPatternExtractorTest, extract_2) {
+TEST_F(RepeatPatternExtractorFuncTest, extract_2) {
     auto test_model = Model_2();
     auto models = extractor.extract(test_model.get());
     auto ref = test_model.get_repeat_pattern_ref();
     ASSERT_TRUE(is_match(models, ref));
 }
 
-TEST_F(RepeatPatternExtractorTest, get_repeat_node_vectors_model_0) {
+TEST_F(RepeatPatternExtractorFuncTest, get_repeat_node_vectors_model_0) {
     auto test_model = Model_0();
     auto node_vector = extractor.get_repeat_node_vectors(test_model.get());
     auto ref = test_model.get_ref_node_vector();
@@ -95,7 +99,7 @@ TEST_F(RepeatPatternExtractorTest, get_repeat_node_vectors_model_0) {
     ASSERT_EQ(node_vector, ref);
 }
 
-TEST_F(RepeatPatternExtractorTest, get_repeat_node_vectors_model_1) {
+TEST_F(RepeatPatternExtractorFuncTest, get_repeat_node_vectors_model_1) {
     auto test_model = Model_1();
     auto node_vector = extractor.get_repeat_node_vectors(test_model.get());
     auto ref = test_model.get_ref_node_vector();
@@ -104,7 +108,7 @@ TEST_F(RepeatPatternExtractorTest, get_repeat_node_vectors_model_1) {
     ASSERT_EQ(node_vector, ref);
 }
 
-TEST_F(RepeatPatternExtractorTest, get_repeat_node_vectors_model_2) {
+TEST_F(RepeatPatternExtractorFuncTest, get_repeat_node_vectors_model_2) {
     auto test_model = Model_2();
     auto node_vector = extractor.get_repeat_node_vectors(test_model.get());
     auto ref = test_model.get_ref_node_vector();
@@ -113,7 +117,7 @@ TEST_F(RepeatPatternExtractorTest, get_repeat_node_vectors_model_2) {
     ASSERT_EQ(node_vector, ref);
 }
 
-TEST_F(RepeatPatternExtractorTest, get_repeat_pattern_borders_model_0) {
+TEST_F(RepeatPatternExtractorFuncTest, get_repeat_pattern_borders_model_0) {
     auto test_model = Model_0();
     auto extracted_borders = extractor.get_repeat_pattern_borders(test_model.get());
     auto ref_borders = test_model.get_ref_node_borders();
@@ -122,7 +126,7 @@ TEST_F(RepeatPatternExtractorTest, get_repeat_pattern_borders_model_0) {
     ASSERT_EQ(extracted_borders, ref_borders);
 }
 
-TEST_F(RepeatPatternExtractorTest, get_repeat_pattern_borders_model_1) {
+TEST_F(RepeatPatternExtractorFuncTest, get_repeat_pattern_borders_model_1) {
     auto test_model = Model_1();
     auto extracted_borders = extractor.get_repeat_pattern_borders(test_model.get());
     auto ref_borders = test_model.get_ref_node_borders();
@@ -131,7 +135,7 @@ TEST_F(RepeatPatternExtractorTest, get_repeat_pattern_borders_model_1) {
     ASSERT_EQ(extracted_borders, ref_borders);
 }
 
-TEST_F(RepeatPatternExtractorTest, get_repeat_pattern_borders_model_2) {
+TEST_F(RepeatPatternExtractorFuncTest, get_repeat_pattern_borders_model_2) {
     auto test_model = Model_2();
     auto extracted_borders = extractor.get_repeat_pattern_borders(test_model.get());
     auto ref_borders = test_model.get_ref_node_borders();
@@ -140,5 +144,18 @@ TEST_F(RepeatPatternExtractorTest, get_repeat_pattern_borders_model_2) {
     ASSERT_EQ(extracted_borders, ref_borders);
 }
 
+class RepeatPatternExtractorUnitTest : public SubgraphsDumperBaseTest,
+                                       public RepeatPatternExtractor {};
 
+TEST_F(RepeatPatternExtractorUnitTest, get_ordered_nodes) {
+    auto test_model = Model_3();
+    auto start_ops = test_model.get_start_ops();
+    auto ordered_pattern = this->get_ordered_nodes(start_ops);
+    auto ordered_pattern_ref = test_model.get_ordered_patterns();
+    auto s_external = ordered_pattern.size();
+    ASSERT_EQ(ordered_pattern, ordered_pattern_ref);
+    auto repeats = this->post_process_patterns(ordered_pattern);
+    auto repeats_ref = test_model.get_repeats();
+    ASSERT_EQ(repeats, repeats_ref);
+}
 }  // namespace

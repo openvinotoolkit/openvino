@@ -11,10 +11,11 @@ namespace ov {
 namespace tools {
 namespace subgraph_dumper {
 
-class RepeatPatternExtractor final : public SubgraphExtractor {
+class RepeatPatternExtractor : public SubgraphExtractor {
 private:
     using InputVector = std::vector<ov::Input<ov::Node>>;
     using OutputVector = std::vector<ov::Output<ov::Node>>;
+    using NodePair = std::pair<std::shared_ptr<ov::Node>, std::vector<size_t>>;
 
 public:
     using PatternBorders = std::pair<InputVector, OutputVector>;
@@ -45,6 +46,10 @@ protected:
                                 const std::shared_ptr<ov::Model>& pattern,
                                 const ov::NodeVector& pattern_node_vector,
                                 const std::map<std::string, ov::conformance::InputInfo>& in_info);
+    std::vector<std::vector<NodePair>>
+    get_ordered_nodes(const ov::NodeVector& start_node_vec);
+    std::vector<ov::NodeVector>
+    post_process_patterns(const std::vector<std::vector<NodePair>>& patterns);
 
 };
 
