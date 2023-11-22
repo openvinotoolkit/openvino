@@ -60,7 +60,10 @@ class ReplaceSpliceNodePattern(MiddleReplacementPattern):
         memory_pair_id = unique_id('id')
         # Memory(in)
         input_memory = ReadValue(graph, {'name': 'prev_splice_memory',
-                                         'variable_id': memory_pair_id}).create_node()
+                                         'variable_id': memory_pair_id,
+                                         'variable_shape': None,
+                                         'variable_type': None
+                                         }).create_node()
 
         # Memory(in)  \
         #             Crop
@@ -102,7 +105,10 @@ class ReplaceSpliceNodePattern(MiddleReplacementPattern):
                                                               'shape': int64_array([in_shape[0],
                                                                                     memory_size_constdim])}).create_node()
             input_memory_const_dim = ReadValue(graph, {'name': 'const_dim_in_memory',
-                                                       'variable_id': memory_pair_id}).create_node()
+                                                       'variable_id': memory_pair_id,
+                                                       'variable_shape': None,
+                                                       'variable_type': None
+                                                       }).create_node()
             init_value_input_memory_const_dim.out_port(0).connect(input_memory_const_dim.in_port(0))
 
             crop_const_dim = Crop(graph, {'name': 'const_dim_crop',

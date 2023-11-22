@@ -177,7 +177,10 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
         else:
             init_value_mem_out = create_const_with_batch_from_input(in_node_port, context_len, precision=np.int32)
             mem_out = ReadValue(graph, {'name': 'iteration_number',
-                                        'variable_id': 'iteration_' + node.name}).create_node()
+                                        'variable_id': 'iteration_' + node.name,
+                                        'variable_shape': None,
+                                        'variable_type': None
+                                        }).create_node()
             mem_out.in_port(0).connect(init_value_mem_out.out_port(0))
             cut_first = Crop(graph, {'name': 'cut_first', 'axis': int64_array([1]),
                                      'offset': int64_array([1]), 'dim': int64_array([context_len - 1])}).create_node()
