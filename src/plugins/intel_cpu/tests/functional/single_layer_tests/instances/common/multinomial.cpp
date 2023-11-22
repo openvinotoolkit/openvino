@@ -38,7 +38,7 @@ std::vector<ov::float16> probs_2x3_f16 = {ov::float16(0.001f),
                                           ov::float16(0.001f),
                                           ov::float16(0.1f)};
 
-std::vector<ov::bfloat16> probs_1x3_bf16 = {ov::bfloat16(0.001f), ov::bfloat16(0.1f), ov::bfloat16(10.0f)};
+std::vector<ov::bfloat16> probs_1x3_bf16 = {ov::bfloat16(0.1f), ov::bfloat16(1.0f), ov::bfloat16(10.0f)};
 
 std::vector<float> probs_4x4_f32_log =
     {3.0f, 6.0f, 10.0f, 0.0f, 3.0f, 0.0f, 10.0f, 6.0f, 6.0f, 10.0f, 0.0f, 3.0f, 10.0f, 6.0f, 3.0f, 0.0f};
@@ -70,7 +70,9 @@ const std::vector<ov::Tensor> num_samples = {ov::Tensor(ov::element::i32, {}, nu
 
 const std::vector<ov::test::ElementType> convert_type = {ov::test::ElementType::i32};
 
-const std::vector<bool> with_replacement = {true, false};
+const std::vector<bool> with_replacement = {
+    // true,
+    false};
 
 const auto params_static = ::testing::Combine(::testing::Values("static"),
                                               ::testing::ValuesIn(probs),

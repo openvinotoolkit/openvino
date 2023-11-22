@@ -6,6 +6,7 @@
 
 #include "ie_ngraph_utils.hpp"
 #include "openvino/op/multinomial.hpp"
+#include "utils/bfloat16.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -158,7 +159,7 @@ void Multinomial::execute(dnnl::stream strm) {
     case ov::element::f16:
         return execute_probs_type<float16>();
     case ov::element::bf16:
-        return execute_probs_type<bfloat16>();
+        return execute_probs_type<bfloat16_t>();
     default:
         THROW_CPU_NODE_ERR("Multinomial CPU implementation does not support probs element type: ", m_probs_precision);
     }
@@ -215,7 +216,7 @@ void Multinomial::execute_convert_type() {
 
     const auto gen_max = static_cast<float>(gen.max());
     std::generate(m_random_samples.begin(), m_random_samples.end(), [&]() {
-        return static_cast<P>(static_cast<float>(gen())/gen_max);
+        return static_cast<P>(static_cast<float>(gen()) / gen_max);
     });
 
     // max & divide
@@ -225,29 +226,29 @@ void Multinomial::execute_convert_type() {
     });
 
     std::cout << "probs"
-                  << "\n";
+              << "\n";
     for (size_t q = 0; q < m_input_elements_count; q++) {
         std::cout << probs[q] << " ";
     }
     std::cout << "\n";
     std::cout << "num_samples"
-                << "\n";
+              << "\n";
     std::cout << m_samples_count << " ";
     std::cout << "\n";
     std::cout << "cdf"
-                  << "\n";
+              << "\n";
     for (size_t q = 0; q < m_input_elements_count; q++) {
         std::cout << m_cdf[q] << " ";
     }
     std::cout << "\n";
     std::cout << "rand"
-                  << "\n";
+              << "\n";
     for (size_t q = 0; q < m_output_elements_count; q++) {
         std::cout << m_random_samples[q] << " ";
     }
     std::cout << "\n";
     std::cout << "max"
-                  << "\n";
+              << "\n";
     for (size_t q = 0; q < m_batches_count; q++) {
         std::cout << m_max_per_batch[q] << " ";
     }
@@ -255,11 +256,11 @@ void Multinomial::execute_convert_type() {
 
     parallel_for(m_input_elements_count, [&](size_t idx) {
         size_t idx_max_elem = idx / m_probs_count;
-        m_cdf[idx] /= m_max_per_batch[idx_max_elem];
+        m_cdf[idx] = m_cdf[idx] / m_max_per_batch[idx_max_elem];
     });
 
     std::cout << "cdf_2"
-                << "\n";
+              << "\n";
     for (size_t q = 0; q < m_input_elements_count; q++) {
         std::cout << m_cdf[q] << " ";
     }
@@ -298,15 +299,18 @@ void Multinomial::execute_convert_type() {
                 }
 
                 if (class_selected) {
-                    P class_probability =
-                        selected_class ? m_cdf[idx_input + selected_class] - m_cdf[idx_input + selected_class - 1]
-                                       : m_cdf[idx_input];
+                    P class_probability;
+                    if (selected_class) {
+                        class_probability = m_cdf[idx_input + selected_class] - m_cdf[idx_input + selected_class - 1];
+                    } else {
+                        class_probability = m_cdf[idx_input];
+                    }
                     P divisor = 1 - class_probability;
                     for (size_t idx_prob = 0LU; idx_prob < m_probs_count; ++idx_prob) {
                         if (idx_prob >= selected_class) {
-                            m_cdf[idx_input + idx_prob] -= class_probability;
+                            m_cdf[idx_input + idx_prob] = m_cdf[idx_input + idx_prob] - class_probability;
                         }
-                        m_cdf[idx_input + idx_prob] /= divisor;
+                        m_cdf[idx_input + idx_prob] = m_cdf[idx_input + idx_prob] / divisor;
                     }
                 }
             }
