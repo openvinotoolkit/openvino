@@ -23,12 +23,14 @@ namespace fake_convert_details {
  * @param count     Number of elements in the data input.
  */
 template <typename T>
-void emulate_f8e5m2_on_fp16(const T* const arg, T* out, size_t count, int exp_bits = 5, int mbits = 8) {
+void emulate_f8e5m2_on_fp16(const T* const arg, T* out, size_t count) {
     typedef union half_t {
         unsigned short u;
         T f;
     } __half_t;
 
+    constexpr auto exp_bits = 5;
+    constexpr auto mbits = 8;
     const auto non_mant_bits = exp_bits + 1;           /* exponent + sign */
     const auto lshift = 10 - (mbits - non_mant_bits);  // 10 - (8 - 6) == 8 ???
 
@@ -81,17 +83,15 @@ void emulate_f8e5m2_on_fp16(const T* const arg, T* out, size_t count, int exp_bi
  *
  */
 template <typename T>
-void emulate_f8e4m3_on_fp16(const T* arg,
-                            T* out,
-                            size_t count,
-                            int exp_bits = 5,
-                            int mbits = 9,
-                            bool use_clamp = true) {
+void emulate_f8e4m3_on_fp16(const T* arg, T* out, size_t count) {
     typedef union half_t {
         unsigned short u;
         T f;
     } __half_t;
 
+    constexpr auto use_clamp = true;
+    constexpr auto exp_bits = 5;
+    constexpr auto mbits = 9;
     const auto non_mant_bits = exp_bits + 1; /* exponent + sign */        ///  6 - ?
     const auto lshift = 10 - (mbits - non_mant_bits);                     /// 10 - (9 - 6) == 7 - ???
     const unsigned short rne_mask = 1;                                    /* round to nearest even mask */
