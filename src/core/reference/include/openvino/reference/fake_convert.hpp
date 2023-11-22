@@ -31,12 +31,13 @@ void emulate_f8e5m2_on_fp16(const T* const arg, T* out, size_t count) {
 
     constexpr auto exp_bits = 5;
     constexpr auto mbits = 8;
-    const auto non_mant_bits = exp_bits + 1;           /* exponent + sign */
-    const auto lshift = 10 - (mbits - non_mant_bits);  // 10 - (8 - 6) == 8 ???
-
-    const unsigned short mask_mant = (unsigned short)(0xffff << lshift);  // 1111111111111111 -> 1 11111 1100000000
-    constexpr unsigned short grs_bitmask = 0x00ff;  // 0 00000 0011111111 - guard, round, sticky bits
-    constexpr unsigned short rne_tie = 0x0180;      // 0 00000 0110000000
+    constexpr auto non_mant_bits = exp_bits + 1;  // exponent + sign
+    constexpr auto lshift = 10 - (mbits - non_mant_bits);
+    constexpr unsigned short mask_mant =
+        static_cast<unsigned short>(0xFFFF << lshift);  // 1111111111111111 -> 1 11111 1100000000
+    constexpr unsigned short grs_bitmask = 0x00FF;      // 0 00000 0011111111 - guard, round, sticky bits
+    constexpr unsigned short rne_tie = 0x0180;          // 0 00000 0110000000
+    constexpr unsigned short fp16_inf = 0x7C00;
 
     __half_t h;
     for (size_t i = 0; i < count; ++i) {
@@ -48,13 +49,13 @@ void emulate_f8e5m2_on_fp16(const T* const arg, T* out, size_t count) {
         /// number is not normal if all exponent is 1 or 0
         /// 0x7f00 is 0 11111 1100000000
         /// 0x7b00 is 0 11110 1100000000
-        unsigned short can_round = ((h.u & 0x7f00) < 0x7b00) ? 1 : 0;
+        const bool can_round = ((h.u & 0x7F00) < 0x7B00) ? true : false;
         /// s 11111 xxx xxxx xxxx - is nan (if some x is 1) or inf (if all x is 0)
-        unsigned short is_naninf = ((h.u & 0x7c00) == 0x7c00) ? 1 : 0;
+        const bool is_naninf = ((h.u & fp16_inf) == fp16_inf) ? true : false;
         /* nearest rounding masks */
         /// grs_bitmask - grs_bitmask is 0 00000 0011111111 or 0 00000 00grs11111
         unsigned short rnmask = (h.u & grs_bitmask);
-        /// rne_tie - 0x180 is      0 00000 0110000000 or 384.0 ???
+        /// rne_tie - 0x180 is      0 00000 0110000000 or 384.0
         unsigned short rnmask_tie = (h.u & rne_tie);
 
         if (!is_naninf && can_round) {
@@ -92,12 +93,15 @@ void emulate_f8e4m3_on_fp16(const T* arg, T* out, size_t count) {
     constexpr auto use_clamp = true;
     constexpr auto exp_bits = 5;
     constexpr auto mbits = 9;
-    const auto non_mant_bits = exp_bits + 1; /* exponent + sign */        ///  6 - ?
-    const auto lshift = 10 - (mbits - non_mant_bits);                     /// 10 - (9 - 6) == 7 - ???
-    const unsigned short rne_mask = 1;                                    /* round to nearest even mask */
-    const unsigned short mask_mant = (unsigned short)(0xFFFF << lshift);  // 1111111111111111 -> 1 11111 1111000000
-    constexpr unsigned short grs_bitmask = 0x007F;                        /// 0 00000 0001111111
-    constexpr unsigned short rne_tie = 0x00C0;                            /// 0 00000 0011000000
+    constexpr auto non_mant_bits = exp_bits + 1;  // exponent + sign
+    constexpr auto lshift = 10 - (mbits - non_mant_bits);
+    constexpr auto fp16_exp_bias = 15;
+    constexpr unsigned short rne_mask = 1;  // round to nearest even mask
+    constexpr unsigned short mask_mant =
+        static_cast<unsigned short>(0xFFFF << lshift);  /// 1111111111111111 -> 1 11111 1111000000
+    constexpr unsigned short grs_bitmask = 0x007F;      /// 0 00000 0001111111
+    constexpr unsigned short rne_tie = 0x00C0;          /// 0 00000 0011000000
+    constexpr unsigned short fp16_inf = 0x7C00;
 
     __half_t h;
     for (size_t i = 0; i < count; ++i) {
@@ -107,17 +111,17 @@ void emulate_f8e4m3_on_fp16(const T* arg, T* out, size_t count) {
         if (fabs(inval) < 0.001953125)  // 2**-9
             h.f = 0;
 
-        short exp_h = (short)((h.u & 0x7C00) >> 10) -
-                      15;                   /// 0111110000000000 -> 0000000000011111 - 15 - biased exponent for fp16
-        short sign_h = (h.u & 0x8000);      /// & 1 00000 0000000000
-        short mantissa_h = (h.u & 0x03FF);  /// & 0 00000 1111111111
-        ///(h.u && 0111111111111111) < 0 10010 1110000000 (19326) - ????
-        unsigned short can_round = ((h.u & 0x7FFF) < 0b101111110000000) ? 1 : 0;
-        unsigned short is_naninf = ((h.u & 0x7C00) == 0x7C00) ? 1 : 0;
+        short exp_h = static_cast<short>((h.u & fp16_inf) >> 10) -
+                      fp16_exp_bias;          /// 0111110000000000 -> 0000000000011111 - 15 - biased exponent for fp16
+        const short sign_h = (h.u & 0x8000);  /// & 1 00000 0000000000
+        short mantissa_h = (h.u & 0x03FF);    /// & 0 00000 1111111111
+        ///(h.u && 0111111111111111) < 0 10010 1110000000 (19326)
+        const bool can_round = ((h.u & 0x7FFF) < 0b101111110000000) ? true : false;
+        bool is_naninf = ((h.u & fp16_inf) == fp16_inf) ? true : false;
 
         int dshift = 0;
         if (exp_h > 8) {  // too large, set it to NaN or inf
-            is_naninf = 1;
+            is_naninf = true;
             if (use_clamp) {
                 exp_h = 8;
                 mantissa_h = 0b0000001100000000;
@@ -135,9 +139,9 @@ void emulate_f8e4m3_on_fp16(const T* arg, T* out, size_t count) {
             mantissa_h = 0b0000001100000000;
         }
         /* nearest rounding masks, & 0 00000 000 111 1111 - mantissa bits below f8e4m3 (grs) */
-        unsigned short rnmask = (mantissa_h & grs_bitmask);
+        const unsigned short rnmask = (mantissa_h & grs_bitmask);
         /* & 0 00000 0011000000 - edge between f8e4m3 and fp16 mantissa */
-        unsigned short rnmask_tie = (mantissa_h & rne_tie);
+        const unsigned short rnmask_tie = (mantissa_h & rne_tie);
         if (!is_naninf && can_round && rne_mask) {
             /* round to nearest even, if rne_mask is enabled */
             /// rnmask > 0 00000 0001000000(64) or 0 00000 0011000000 - edge bits is 1
@@ -165,7 +169,6 @@ void apply_scale_shift(T* out,
                        const Shape& scale_shape,
                        const Shape& shift_shape,
                        bool invert = false) {
-    OPENVINO_ASSERT(scale_shape == shift_shape, "Mismatch of `scale` and `shift` input shapes.");
     const auto scale_size = shape_size(scale_shape);
     const auto data_size = shape_size(data_shape);
 
