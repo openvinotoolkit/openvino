@@ -2,32 +2,33 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/scatter_update.hpp"
+#include "openvino/op/scatter_update.hpp"
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/type/element_type.hpp"
-#include "ngraph/type/element_type_traits.hpp"
-#include "ngraph/validation_util.hpp"
+#include "ngraph/validation_util.hpp"  // tbr
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/reference/scatter_update.hpp"
 
-using namespace std;
 using namespace ngraph;
 
-op::v3::ScatterUpdate::ScatterUpdate(const Output<Node>& data,
-                                     const Output<Node>& indices,
-                                     const Output<Node>& updates,
-                                     const Output<Node>& axis)
+namespace ov {
+namespace op {
+namespace v3 {
+ScatterUpdate::ScatterUpdate(const Output<Node>& data,
+                             const Output<Node>& indices,
+                             const Output<Node>& updates,
+                             const Output<Node>& axis)
     : util::ScatterBase(data, indices, updates, axis) {}
 
-shared_ptr<Node> op::v3::ScatterUpdate::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> ScatterUpdate::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v3_ScatterUpdate_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v3::ScatterUpdate>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
+    return std::make_shared<ScatterUpdate>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace scatter_update {
 namespace {
 template <element::Type_t ET>
@@ -44,8 +45,7 @@ std::vector<int64_t> get_indices(const HostTensorPtr& in) {
         indices_casted_vector = scatter_update::get_indices<element::Type_t::a>(__VA_ARGS__); \
     } break;
 
-bool op::v3::ScatterUpdate::evaluate_scatter_update(const HostTensorVector& outputs,
-                                                    const HostTensorVector& inputs) const {
+bool ScatterUpdate::evaluate_scatter_update(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     const auto& data = inputs[0];
     const auto& indices = inputs[1];
     const auto& updates = inputs[2];
@@ -78,58 +78,58 @@ bool op::v3::ScatterUpdate::evaluate_scatter_update(const HostTensorVector& outp
         return false;
     }
 
-    ov::reference::scatter_update(data->get_data_ptr<char>(),
-                                  indices_casted_vector.data(),
-                                  updates->get_data_ptr<char>(),
-                                  axis_val,
-                                  out->get_data_ptr<char>(),
-                                  elem_size,
-                                  data->get_shape(),
-                                  indices->get_shape(),
-                                  updates->get_shape());
+    reference::scatter_update(data->get_data_ptr<char>(),
+                              indices_casted_vector.data(),
+                              updates->get_data_ptr<char>(),
+                              axis_val,
+                              out->get_data_ptr<char>(),
+                              elem_size,
+                              data->get_shape(),
+                              indices->get_shape(),
+                              updates->get_shape());
 
     return true;
 }
 
-bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ScatterUpdate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v3_ScatterUpdate_evaluate);
     return evaluate_scatter_update(outputs, inputs);
 }
 
-bool op::v3::ScatterUpdate::evaluate_lower(ov::TensorVector& outputs) const {
+bool ScatterUpdate::evaluate_lower(TensorVector& outputs) const {
     OV_OP_SCOPE(v3_ScatterUpdate_evaluate_lower);
     return get_input_tensor(1).has_and_set_bound() && get_input_tensor(3).has_and_set_bound() &&
            default_lower_bound_evaluator(this, outputs);
 }
 
-bool op::v3::ScatterUpdate::evaluate_upper(ov::TensorVector& outputs) const {
+bool ScatterUpdate::evaluate_upper(TensorVector& outputs) const {
     OV_OP_SCOPE(v3_ScatterUpdate_evaluate_upper);
     return get_input_tensor(1).has_and_set_bound() && get_input_tensor(3).has_and_set_bound() &&
            default_upper_bound_evaluator(this, outputs);
 }
 
-bool op::v3::ScatterUpdate::has_evaluate() const {
+bool ScatterUpdate::has_evaluate() const {
     OV_OP_SCOPE(v3_ScatterUpdate_has_evaluate);
 
     switch (get_input_element_type(1)) {
-    case ngraph::element::i8:
-    case ngraph::element::i16:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u8:
-    case ngraph::element::u16:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
+    case element::i8:
+    case element::i16:
+    case element::i32:
+    case element::i64:
+    case element::u8:
+    case element::u16:
+    case element::u32:
+    case element::u64:
         return true;
     default:
-        break;
+        return false;
     }
-    return false;
 }
 
-bool op::v3::ScatterUpdate::evaluate_label(TensorLabelVector& output_labels) const {
+bool ScatterUpdate::evaluate_label(TensorLabelVector& output_labels) const {
     OV_OP_SCOPE(v3_ScatterUpdate_evaluate_label);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return ov::default_label_evaluator(this, {0, 2}, output_labels);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return default_label_evaluator(this, {0, 2}, output_labels);
 }
+}  // namespace v3
+}  // namespace op
+}  // namespace ov
