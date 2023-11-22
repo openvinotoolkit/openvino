@@ -266,7 +266,9 @@ bool MemoryMngrRealloc::resize(size_t size) {
             OPENVINO_THROW("Failed to allocate ", size, " bytes of memory");
         }
 
-        std::memcpy(ptr, m_data.get(), m_memUpperBound);
+        if (auto src = m_data.get()) {
+            std::memcpy(ptr, src, m_memUpperBound);
+        }
 
         m_memUpperBound = size;
         m_useExternalStorage = false;
