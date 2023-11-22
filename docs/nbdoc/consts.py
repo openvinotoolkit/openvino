@@ -10,6 +10,8 @@ blacklisted_extensions = ['.xml', '.bin']
 notebooks_repo = "https://github.com/openvinotoolkit/openvino_notebooks/blob/main/"
 notebooks_binder = "https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath="
 notebooks_colab = "https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/"
+file_with_binder_notebooks = Path('../../docs/notebooks/notebooks_with_binder_buttons.txt').resolve(strict=True)
+file_with_colab_notebooks = Path('../../docs/notebooks/notebooks_with_colab_buttons.txt').resolve(strict=True)
 openvino_notebooks_ipynb_list = Path('../../docs/notebooks/all_notebooks_paths.txt').resolve(strict=True)
 
 
