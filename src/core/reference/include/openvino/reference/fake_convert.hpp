@@ -93,6 +93,8 @@ static void emulate_f8e4m3_on_fp16(const float16* arg_f, float16* out_f, size_t 
     constexpr auto non_mant_bits = exp_bits + 1;  // exponent + sign
     constexpr auto lshift = 10 - (mbits - non_mant_bits);
     constexpr auto fp16_exp_bias = 15;
+    constexpr auto f8e4m3_min_val = 0.001953125f;  /// 2**-9
+
     constexpr unsigned short rne_mask = 1;  // round to nearest even mask
     constexpr unsigned short mask_mant =
         static_cast<unsigned short>(0xFFFF << lshift);  /// 1111111111111111 -> 1 11111 1111000000
@@ -103,8 +105,9 @@ static void emulate_f8e4m3_on_fp16(const float16* arg_f, float16* out_f, size_t 
     for (size_t i = 0; i < count; ++i) {
         val_bit_repr = arg_u[i];
         /* flush values below 1-4-3 (offset=4) subnormal range to zero */
-        if (std::abs(static_cast<float>(arg_f[i])) < 0.001953125f)  // 2**-9
+        if (std::abs(static_cast<float>(arg_f[i])) < f8e4m3_min_val) {
             val_bit_repr = 0;
+        }
 
         short exp_h = static_cast<short>((val_bit_repr & fp16_inf) >> 10) -
                       fp16_exp_bias;  /// 0111110000000000 -> 0000000000011111 - 15 - biased exponent for fp16
