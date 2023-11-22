@@ -171,24 +171,10 @@ Engine::Engine() :
     deviceFullName(getDeviceFullName()),
     specialSetup(new CPUSpecialSetup) {
     set_device_name("CPU");
-    auto proc_type_table = get_proc_type_table();
-    ov::threading::IStreamsExecutor::Config streamsConfig;
-    streamsConfig._name = "CPUStreamsExecutor";
-    streamsConfig._streams = 1;
-    streamsConfig._threads = 1;
-    //Initialize Xbyak::util::Cpu object on Pcore for hybrid cores machine
-    if (proc_type_table[0][MAIN_CORE_PROC] > 0 && proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
-        streamsConfig._streams_info_table.push_back({1, MAIN_CORE_PROC, 1, 0, 0});
-    }
-    if (!streamsConfig._streams_info_table.empty()) {
-        std::shared_ptr<ov::threading::ITaskExecutor> taskExecutor =
-            std::make_shared<ov::threading::CPUStreamsExecutor>(streamsConfig);
-        std::vector<Task> tasks;
-        tasks.emplace_back([&] {
-            dnnl::impl::cpu::x64::cpu();
-        });
-        taskExecutor->run_and_wait(tasks);
-    }
+    // Initialize Xbyak::util::Cpu object on Pcore for hybrid cores machine
+    get_executor_manager()->execute_task_by_streams_executor(IStreamsExecutor::Config::PreferredCoreType::BIG, [] {
+        dnnl::impl::cpu::x64::cpu();
+    });
     extensionManager->AddExtension(std::make_shared<Extension>());
 #if defined(OV_CPU_WITH_ACL)
     scheduler_guard = SchedulerGuard::instance();
