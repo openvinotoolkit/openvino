@@ -63,6 +63,7 @@
 #include "openvino/op/tan.hpp"
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/topk.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "sequnce_generator.hpp"
@@ -2751,6 +2752,97 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e4m3_scale_big) {
     EXPECT_THAT(read_vector<float>(result), Pointwise(FloatEq(), std::vector<float>{224.f, 448.f, 896.f, 1792.f}));
 }
 
+TEST(eval, evaluate_fake_convert_f32_to_f8e4m3_4x3_scale_big) {
+    using namespace testing;
+    constexpr auto et = element::f32;
+
+    std::vector<float> input_data{fp8::MAX_F8E4M3 / 4.f,
+                                  fp8::MAX_F8E4M3 / 3.f,
+                                  fp8::MAX_F8E4M3 / 2.f,
+                                  fp8::MAX_F8E4M3,
+                                  fp8::MAX_F8E4M3,
+                                  fp8::MAX_F8E4M3,
+                                  fp8::MAX_F8E4M3 * 1.2f,
+                                  fp8::MAX_F8E4M3 * 2.3f,
+                                  fp8::MAX_F8E4M3 * 3.4f,
+                                  fp8::MAX_F8E4M3 * 2.f,
+                                  fp8::MAX_F8E4M3 * 3.f,
+                                  fp8::MAX_F8E4M3 * 4.f};
+
+    std::vector<float> output_data{112, 144, 224, 448, 448, 448, 560, 1008, 1568, 896, 1280, 1792};
+
+    const auto data_shape = Shape{4, 3};
+    auto data = make_shared<ov::op::v0::Parameter>(et, data_shape);
+    auto scale = op::v0::Constant::create(et,
+                                          Shape{4, 1},
+                                          {fp8::MAX_F8E4M3 / (fp8::MAX_F8E4M3 / 2.f),
+                                           1.0f,
+                                           fp8::MAX_F8E4M3 / (fp8::MAX_F8E4M3 * 3.5f),
+                                           fp8::MAX_F8E4M3 / (fp8::MAX_F8E4M3 * 4.f)});
+    auto shift = op::v0::Constant::create(et, Shape{4, 1}, {0.f, 0.f, 0.f, 0.f});
+
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e4m3");
+    auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
+
+    auto result = ov::Tensor();
+    auto out_vector = ov::TensorVector{result};
+    auto in_vector = ov::TensorVector{make_tensor<et>(data_shape, input_data)};
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
+
+    EXPECT_EQ(result.get_element_type(), et);
+    EXPECT_EQ(result.get_shape(), data_shape);
+    EXPECT_THAT(read_vector<float>(result), Pointwise(FloatEq(), output_data));
+}
+
+TEST(eval, evaluate_fake_convert_f32_to_f8e4m3_3x4_scale_big) {
+    using namespace testing;
+    constexpr auto et = element::f32;
+
+    std::vector<float> input_data{fp8::MAX_F8E4M3 / 4.f,
+                                  fp8::MAX_F8E4M3 / 3.f,
+                                  fp8::MAX_F8E4M3 / 2.f,
+                                  fp8::MAX_F8E4M3,
+                                  fp8::MAX_F8E4M3,
+                                  fp8::MAX_F8E4M3,
+                                  fp8::MAX_F8E4M3 * 1.2f,
+                                  fp8::MAX_F8E4M3 * 2.3f,
+                                  fp8::MAX_F8E4M3 * 3.4f,
+                                  fp8::MAX_F8E4M3 * 2.f,
+                                  fp8::MAX_F8E4M3 * 3.f,
+                                  fp8::MAX_F8E4M3 * 4.f};
+
+    std::vector<float> output_data{112, 448, 560, 896, 144, 448, 1008, 1280, 224, 448, 1568, 1792};
+
+    const auto data_shape = Shape{4, 3};  // To be transposed to 3x4
+    auto data = make_shared<ov::op::v0::Parameter>(et, data_shape);
+    std::vector<int32_t> order{1, 0};
+    auto transpose_order = make_shared<ov::op::v0::Constant>(element::i32, Shape{order.size()}, order);
+    auto transposed_data = make_shared<ov::op::v1::Transpose>(data, transpose_order);
+    const auto transposed_data_shape = Shape{3, 4};
+
+    auto scale = op::v0::Constant::create(et,
+                                          Shape{1, 4},
+                                          {fp8::MAX_F8E4M3 / (fp8::MAX_F8E4M3 / 2.f),
+                                           1.0f,
+                                           fp8::MAX_F8E4M3 / (fp8::MAX_F8E4M3 * 3.5f),
+                                           fp8::MAX_F8E4M3 / (fp8::MAX_F8E4M3 * 4.f)});
+    auto shift = op::v0::Constant::create(et, Shape{1, 4}, {0.f, 0.f, 0.f, 0.f});
+
+    auto op = make_shared<op::v13::FakeConvert>(transposed_data, scale, shift, "f8e4m3");
+    auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
+
+    auto result = ov::Tensor();
+    auto out_vector = ov::TensorVector{result};
+    auto in_vector = ov::TensorVector{make_tensor<et>(data_shape, input_data)};
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
+
+    EXPECT_EQ(result.get_element_type(), et);
+    EXPECT_EQ(result.get_shape(), transposed_data_shape);
+    EXPECT_THAT(read_vector<float>(result), Pointwise(FloatEq(), output_data));
+}
+
 TEST(eval, evaluate_fake_convert_f32_to_f8e4m3_scale_shift_big) {
     using namespace testing;
     constexpr auto et = element::f32;
@@ -3864,6 +3956,99 @@ TEST(eval, evaluate_fake_convert_f32_seq_to_f8e5m2_scale_shift) {
                                              5.10276556015015f,
                                              6.12319421768188f,
                                              7.14362287521362f}));
+}
+
+TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_4x3_scale_big) {
+    using namespace testing;
+    constexpr auto et = element::f32;
+
+    std::vector<float> input_data{fp8::MAX_F8E5M2 / 4.f,
+                                  fp8::MAX_F8E5M2 / 3.f,
+                                  fp8::MAX_F8E5M2 / 2.f,
+                                  fp8::MAX_F8E5M2,
+                                  fp8::MAX_F8E5M2,
+                                  fp8::MAX_F8E5M2,
+                                  fp8::MAX_F8E5M2 * 1.2f,
+                                  fp8::MAX_F8E5M2 * 2.3f,
+                                  fp8::MAX_F8E5M2 * 3.4f,
+                                  fp8::MAX_F8E5M2 * 2.f,
+                                  fp8::MAX_F8E5M2 * 3.f,
+                                  fp8::MAX_F8E5M2 * 4.f};
+
+    std::vector<float>
+        output_data{14336.f, 20480.f, 28672.f, 57344.f, 57344.f, 57344.f, 71680.f, 143360.f, 200704.f, 114688.f, 163840.f, 229376.f};
+
+    const auto data_shape = Shape{4, 3};
+    auto data = make_shared<ov::op::v0::Parameter>(et, data_shape);
+    auto scale = op::v0::Constant::create(et,
+                                          Shape{4, 1},
+                                          {fp8::MAX_F8E5M2 / (fp8::MAX_F8E5M2 / 2.f),
+                                           1.0f,
+                                           fp8::MAX_F8E5M2 / (fp8::MAX_F8E5M2 * 3.5f),
+                                           fp8::MAX_F8E5M2 / (fp8::MAX_F8E5M2 * 4.f)});
+    auto shift = op::v0::Constant::create(et, Shape{4, 1}, {0.f, 0.f, 0.f, 0.f});
+
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
+
+    auto result = ov::Tensor();
+    auto out_vector = ov::TensorVector{result};
+    auto in_vector = ov::TensorVector{make_tensor<et>(data_shape, input_data)};
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
+
+    EXPECT_EQ(result.get_element_type(), et);
+    EXPECT_EQ(result.get_shape(), data_shape);
+    EXPECT_THAT(read_vector<float>(result), Pointwise(FloatEq(), output_data));
+}
+
+TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_3x4_scale_big) {
+    using namespace testing;
+    constexpr auto et = element::f32;
+
+    std::vector<float> input_data{fp8::MAX_F8E5M2 / 4.f,
+                                  fp8::MAX_F8E5M2 / 3.f,
+                                  fp8::MAX_F8E5M2 / 2.f,
+                                  fp8::MAX_F8E5M2,
+                                  fp8::MAX_F8E5M2,
+                                  fp8::MAX_F8E5M2,
+                                  fp8::MAX_F8E5M2 * 1.2f,
+                                  fp8::MAX_F8E5M2 * 2.3f,
+                                  fp8::MAX_F8E5M2 * 3.4f,
+                                  fp8::MAX_F8E5M2 * 2.f,
+                                  fp8::MAX_F8E5M2 * 3.f,
+                                  fp8::MAX_F8E5M2 * 4.f};
+
+    std::vector<float>
+        output_data{14336.f, 57344.f, 71680.f, 114688.f, 20480.f, 57344.f, 143360.f, 163840.f, 28672.f, 57344.f, 200704.f, 229376.f};
+
+    const auto data_shape = Shape{4, 3};  // To be transposed to 3x4
+    auto data = make_shared<ov::op::v0::Parameter>(et, data_shape);
+    std::vector<int32_t> order{1, 0};
+    auto transpose_order = make_shared<ov::op::v0::Constant>(element::i32, Shape{order.size()}, order);
+    auto transposed_data = make_shared<ov::op::v1::Transpose>(data, transpose_order);
+    const auto transposed_data_shape = Shape{3, 4};
+
+    auto scale = op::v0::Constant::create(et,
+                                          Shape{1, 4},
+                                          {fp8::MAX_F8E5M2 / (fp8::MAX_F8E5M2 / 2.f),
+                                           1.0f,
+                                           fp8::MAX_F8E5M2 / (fp8::MAX_F8E5M2 * 3.5f),
+                                           fp8::MAX_F8E5M2 / (fp8::MAX_F8E5M2 * 4.f)});
+    auto shift = op::v0::Constant::create(et, Shape{1, 4}, {0.f, 0.f, 0.f, 0.f});
+
+    auto op = make_shared<op::v13::FakeConvert>(transposed_data, scale, shift, "f8e5m2");
+    auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
+
+    auto result = ov::Tensor();
+    auto out_vector = ov::TensorVector{result};
+    auto in_vector = ov::TensorVector{make_tensor<et>(data_shape, input_data)};
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
+
+    EXPECT_EQ(result.get_element_type(), et);
+    EXPECT_EQ(result.get_shape(), transposed_data_shape);
+    EXPECT_THAT(read_vector<float>(result), Pointwise(FloatEq(), output_data));
 }
 
 TEST(eval, evaluate_cum_sum_v0) {
