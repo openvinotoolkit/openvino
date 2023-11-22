@@ -16,9 +16,6 @@ namespace subgraph {
 std::shared_ptr<ov::Model> makeConvPoolRelu(std::vector<size_t> inputShape = {1, 1, 32, 32},
                                             ov::element::Type_t ngPrc = ov::element::Type_t::f32);
 
-std::shared_ptr<ov::Model> makeConvPoolReluNoReshapes(std::vector<size_t> inputShape = {1, 1, 32, 32},
-                                                      ov::element::Type_t ngPrc = ov::element::Type_t::f32);
-
 std::shared_ptr<ov::Model> makeConvPool2Relu2(std::vector<size_t> inputShape = {1, 1, 32, 32},
                                               ov::element::Type_t ngPrc = ov::element::Type_t::f32);
 

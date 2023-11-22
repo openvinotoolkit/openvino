@@ -21,6 +21,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/util/file_util.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu_no_reshapes.hpp"
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    include <iostream>
@@ -221,7 +222,7 @@ TEST(OVClassBasicTest, smoke_createMockEngineConfigThrows) {
 inline void generateModelFile() {
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>("test_model.xml", "test_model.bin");
-    auto function = ngraph::builder::subgraph::makeConvPoolReluNoReshapes({1, 3, 227, 227});
+    auto function = ov::test::utils::make_conv_pool_relu_no_reshapes({1, 3, 227, 227});
     manager.run_passes(function);
 }
 
