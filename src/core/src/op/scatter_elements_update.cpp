@@ -101,23 +101,23 @@ struct Evaluate : public element::NoAction<bool> {
 
     ) {
         using namespace ov::element;
-        return IfTypeOf<i8, i16, i32, i64, u8, u16, u32, u64>::apply<EvalByIdxType>(indices.get_element_type(),
-                                                                                    data.data<const DT>(),
-                                                                                    indices,
-                                                                                    updates.data<const DT>(),
-                                                                                    output.data<DT>(),
-                                                                                    data_shape,
-                                                                                    indices_shape,
-                                                                                    normalized_axis,
-                                                                                    reduction_type,
-                                                                                    use_init_value);
+        return IfTypeOf<i8, i16, i32, i64, u8, u16, u32, u64>::apply<EvaluateByIndicesType>(indices.get_element_type(),
+                                                                                            data.data<const DT>(),
+                                                                                            indices,
+                                                                                            updates.data<const DT>(),
+                                                                                            output.data<DT>(),
+                                                                                            data_shape,
+                                                                                            indices_shape,
+                                                                                            normalized_axis,
+                                                                                            reduction_type,
+                                                                                            use_init_value);
     }
 
 private:
-    struct EvalByIdxType : public element::NoAction<bool> {
+    struct EvaluateByIndicesType : public element::NoAction<bool> {
         using element::NoAction<bool>::visit;
 
-        template <element::Type_t IDX_ET, class DT, class IT = fundamental_type_for<IDX_ET>>
+        template <element::Type_t INDEX_ET, class DT, class IT = fundamental_type_for<INDEX_ET>>
         static result_type visit(const DT* const data,
                                  const Tensor& indices,
                                  const DT* const updates,
@@ -127,15 +127,15 @@ private:
                                  const int64_t normalized_axis,
                                  const op::v12::ScatterElementsUpdate::Reduction reduction_type,
                                  const bool use_init_value) {
-            reference::scatter_elem_update<DT, IT>(data,
-                                                   indices.data<IT>(),
-                                                   updates,
-                                                   normalized_axis,
-                                                   output,
-                                                   data_shape,
-                                                   indices_shape,
-                                                   reduction_type,
-                                                   use_init_value);
+            reference::scatter_elem_update(data,
+                                           indices.data<IT>(),
+                                           updates,
+                                           normalized_axis,
+                                           output,
+                                           data_shape,
+                                           indices_shape,
+                                           reduction_type,
+                                           use_init_value);
             return true;
         }
     };
