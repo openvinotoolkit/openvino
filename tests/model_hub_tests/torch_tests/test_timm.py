@@ -55,9 +55,6 @@ class TestTimmConvertModel(TestConvertModel):
 
     def convert_model(self, model_obj):
         ov_model = convert_model(model_obj, example_input=self.example)
-        for op in ov_model.get_ops():
-            if op.get_type_name() == 'ScaledDotProductAttention':
-                print('===========================', op)
         return ov_model
 
     def infer_fw_model(self, model_obj, inputs):
@@ -76,7 +73,11 @@ class TestTimmConvertModel(TestConvertModel):
         cleanup_dir(hf_hub_cache_dir)
         super().teardown_method()
 
-    @pytest.mark.parametrize("name", ["beit_base_patch16_224.in22k_ft_in22k",
+    @pytest.mark.parametrize("name", ["mobilevitv2_050.cvnets_in1k",
+                                      "poolformerv2_s12.sail_in1k",
+                                      "vit_base_patch8_224.augreg_in21k",
+                                      # TODO: will revert
+                                      "beit_base_patch16_224.in22k_ft_in22k",
                                       "beitv2_base_patch16_224.in1k_ft_in1k",
                                       "coatnet_0_rw_224.sw_in1k",
                                       "coatnet_bn_0_rw_224.sw_in1k",
