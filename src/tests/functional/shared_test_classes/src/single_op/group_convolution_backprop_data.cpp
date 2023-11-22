@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/single_op/group_convolution_backprop_data.hpp"
 
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/group_convolution_backprop_data.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/constant.hpp"
@@ -71,11 +71,11 @@ void GroupConvBackpropLayerTest::SetUp() {
     std::shared_ptr<ov::Node> group_conv;
     if (!output_shape.empty()) {
         auto outShape = ov::op::v0::Constant::create(ov::element::i64, {output_shape.size()}, output_shape);
-        group_conv = ngraph::builder::makeGroupConvolutionBackpropData(param, outShape, model_type, kernel, stride, pad_begin,
-                                            pad_end, dilation, pad_type, conv_out_channels, num_groups, false, out_padding);
+        group_conv = ov::test::utils::make_group_convolution_backprop_data(
+            param, outShape, model_type, kernel, stride, pad_begin, pad_end, dilation, pad_type, conv_out_channels, num_groups, false, out_padding);
     } else {
-        group_conv = ngraph::builder::makeGroupConvolutionBackpropData(param, model_type, kernel, stride, pad_begin,
-                                            pad_end, dilation, pad_type, conv_out_channels, num_groups, false, out_padding);
+        group_conv = ov::test::utils::make_group_convolution_backprop_data(
+            param, model_type, kernel, stride, pad_begin, pad_end, dilation, pad_type, conv_out_channels, num_groups, false, out_padding);
     }
 
     auto result = std::make_shared<ov::op::v0::Result>(group_conv);

@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/single_op/group_convolution.hpp"
 
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/group_convolution.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/constant.hpp"
@@ -64,8 +64,8 @@ void GroupConvolutionLayerTest::SetUp() {
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 
-    auto group_conv = ngraph::builder::makeGroupConvolution(param, model_type, kernel, stride, pad_begin,
-                                             pad_end, dilation, pad_type, conv_out_channels, num_groups);
+    auto group_conv = ov::test::utils::make_group_convolution(
+        param, model_type, kernel, stride, pad_begin, pad_end, dilation, pad_type, conv_out_channels, num_groups);
 
     auto result = std::make_shared<ov::op::v0::Result>(group_conv);
     function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "groupConvolution");
