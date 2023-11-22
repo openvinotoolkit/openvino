@@ -76,30 +76,7 @@ class TestTimmConvertModel(TestConvertModel):
     @pytest.mark.parametrize("name", ["mobilevitv2_050.cvnets_in1k",
                                       "poolformerv2_s12.sail_in1k",
                                       "vit_base_patch8_224.augreg_in21k",
-                                      # TODO: will revert
-                                      "beit_base_patch16_224.in22k_ft_in22k",
-                                      "beitv2_base_patch16_224.in1k_ft_in1k",
-                                      "coatnet_0_rw_224.sw_in1k",
-                                      "coatnet_bn_0_rw_224.sw_in1k",
-                                      "coatnet_rmlp_1_rw2_224.sw_in12k",
-                                      "coatnet_rmlp_1_rw_224.sw_in1k",
-                                      "coatnext_nano_rw_224.sw_in1k",
-                                      "maxvit_base_tf_224.in1k",
-                                      "maxvit_nano_rw_256.sw_in1k",
-                                      "maxvit_rmlp_base_rw_224.sw_in12k",
-                                      "maxxvit_rmlp_nano_rw_256.sw_in1k",
-                                      "maxxvitv2_nano_rw_256.sw_in1k",
-                                      "maxxvitv2_rmlp_base_rw_224.sw_in12k",
-                                      "tiny_vit_5m_224.dist_in22k",
-                                      "tiny_vit_11m_224.dist_in22k",
-                                      "tiny_vit_21m_224.dist_in22k",
-                                      "vit_base_r50_s16_224.orig_in21k",
-                                      "vit_relpos_base_patch16_224.sw_in1k",
-                                      "vit_relpos_base_patch16_clsgap_224.sw_in1k",
-                                      "vit_relpos_base_patch32_plus_rpn_256.sw_in1k",
-                                      "vit_relpos_medium_patch16_cls_224.sw_in1k",
-                                      "vit_relpos_medium_patch16_rpn_224.sw_in1k",
-                                      "vit_srelpos_medium_patch16_224.sw_in1k"])
+                                      "beit_base_patch16_224.in22k_ft_in22k"])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, ie_device):
         self.run(name, None, ie_device)

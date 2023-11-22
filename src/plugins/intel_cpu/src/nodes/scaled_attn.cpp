@@ -773,11 +773,6 @@ bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const
                 errorMessage = "Doesn't support 'attention mask' with rank: " + std::to_string(inRank);
                 return false;
             }
-            // // from spec, attn mask must be >= 3 or scalar
-            // if (!one_of(inRank, 0, 1, 3, 4)) {
-            //     errorMessage = "Doesn't support 'attention mask' with rank: " + std::to_string(inRank);
-            //     return false;
-            // }
         }
         // using mha should be better for static shapes
         if (!op->is_dynamic()) {
