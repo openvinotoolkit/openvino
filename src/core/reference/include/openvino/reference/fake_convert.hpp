@@ -25,19 +25,18 @@ namespace fake_convert_details {
  * @param count     Number of elements in the data input.
  */
 static void emulate_f8e5m2_on_fp16(const float16* const arg_f, float16* out_f, size_t count) {
-    const auto arg_u = reinterpret_cast<const unsigned short*>(arg_f);
-    auto out_u = reinterpret_cast<unsigned short*>(out_f);
-    unsigned short val_bit_repr;
+    const auto arg_u = reinterpret_cast<const uint16_t*>(arg_f);
+    auto out_u = reinterpret_cast<uint16_t*>(out_f);
+    uint16_t val_bit_repr;
 
     constexpr auto exp_bits = 5;
     constexpr auto mbits = 8;
     constexpr auto non_mant_bits = exp_bits + 1;  // exponent + sign
     constexpr auto lshift = 10 - (mbits - non_mant_bits);
-    constexpr unsigned short mask_mant =
-        static_cast<unsigned short>(0xFFFF << lshift);  // 1111111111111111 -> 1 11111 1100000000
-    constexpr unsigned short grs_bitmask = 0x00FF;      // 0 00000 0011111111 - guard, round, sticky bits
-    constexpr unsigned short rne_tie = 0x0180;          // 0 00000 0110000000
-    constexpr unsigned short fp16_inf = 0x7C00;
+    constexpr uint16_t mask_mant = static_cast<uint16_t>(0xFFFF << lshift);  // 1111111111111111 -> 1 11111 1100000000
+    constexpr uint16_t grs_bitmask = 0x00FF;  // 0 00000 0011111111 - guard, round, sticky bits
+    constexpr uint16_t rne_tie = 0x0180;      // 0 00000 0110000000
+    constexpr uint16_t fp16_inf = 0x7C00;
 
     for (size_t i = 0; i < count; ++i) {
         /// converts float number to half precision in round-to-nearest-even mode and returns half with converted value.
@@ -53,9 +52,9 @@ static void emulate_f8e5m2_on_fp16(const float16* const arg_f, float16* out_f, s
         const bool is_naninf = ((val_bit_repr & fp16_inf) == fp16_inf) ? true : false;
         /* nearest rounding masks */
         /// grs_bitmask - grs_bitmask is 0 00000 0011111111 or 0 00000 00grs11111
-        unsigned short rnmask = (val_bit_repr & grs_bitmask);
+        uint16_t rnmask = (val_bit_repr & grs_bitmask);
         /// rne_tie - 0x180 is      0 00000 0110000000 or 384.0
-        unsigned short rnmask_tie = (val_bit_repr & rne_tie);
+        uint16_t rnmask_tie = (val_bit_repr & rne_tie);
 
         if (!is_naninf && can_round) {
             /* round to nearest even, if rne_mask is enabled */
@@ -83,9 +82,9 @@ static void emulate_f8e5m2_on_fp16(const float16* const arg_f, float16* out_f, s
  *
  */
 static void emulate_f8e4m3_on_fp16(const float16* arg_f, float16* out_f, size_t count) {
-    const auto arg_u = reinterpret_cast<const unsigned short*>(arg_f);
-    auto out_u = reinterpret_cast<unsigned short*>(out_f);
-    unsigned short val_bit_repr;
+    const auto arg_u = reinterpret_cast<const uint16_t*>(arg_f);
+    auto out_u = reinterpret_cast<uint16_t*>(out_f);
+    uint16_t val_bit_repr;
 
     constexpr auto use_clamp = true;
     constexpr auto exp_bits = 5;
@@ -95,12 +94,11 @@ static void emulate_f8e4m3_on_fp16(const float16* arg_f, float16* out_f, size_t 
     constexpr auto fp16_exp_bias = 15;
     constexpr auto f8e4m3_min_val = 0.001953125f;  /// 2**-9
 
-    constexpr unsigned short rne_mask = 1;  // round to nearest even mask
-    constexpr unsigned short mask_mant =
-        static_cast<unsigned short>(0xFFFF << lshift);  /// 1111111111111111 -> 1 11111 1111000000
-    constexpr unsigned short grs_bitmask = 0x007F;      /// 0 00000 0001111111
-    constexpr unsigned short rne_tie = 0x00C0;          /// 0 00000 0011000000
-    constexpr unsigned short fp16_inf = 0x7C00;
+    constexpr uint16_t rne_mask = 1;                                         // round to nearest even mask
+    constexpr uint16_t mask_mant = static_cast<uint16_t>(0xFFFF << lshift);  /// 1111111111111111 -> 1 11111 1111000000
+    constexpr uint16_t grs_bitmask = 0x007F;                                 /// 0 00000 0001111111
+    constexpr uint16_t rne_tie = 0x00C0;                                     /// 0 00000 0011000000
+    constexpr uint16_t fp16_inf = 0x7C00;
 
     for (size_t i = 0; i < count; ++i) {
         val_bit_repr = arg_u[i];
@@ -137,9 +135,9 @@ static void emulate_f8e4m3_on_fp16(const float16* arg_f, float16* out_f, size_t 
             mantissa_h = 0b0000001100000000;
         }
         /* nearest rounding masks, & 0 00000 000 111 1111 - mantissa bits below f8e4m3 (grs) */
-        const unsigned short rnmask = (mantissa_h & grs_bitmask);
+        const uint16_t rnmask = (mantissa_h & grs_bitmask);
         /* & 0 00000 0011000000 - edge between f8e4m3 and fp16 mantissa */
-        const unsigned short rnmask_tie = (mantissa_h & rne_tie);
+        const uint16_t rnmask_tie = (mantissa_h & rne_tie);
         if (!is_naninf && can_round && rne_mask) {
             /* round to nearest even, if rne_mask is enabled */
             /// rnmask > 0 00000 0001000000(64) or 0 00000 0011000000 - edge bits is 1
