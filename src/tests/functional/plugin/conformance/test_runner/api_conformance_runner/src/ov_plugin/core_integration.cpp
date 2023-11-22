@@ -9,7 +9,6 @@
 
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;
-using namespace InferenceEngine::PluginConfigParams;
 
 namespace {
 //
