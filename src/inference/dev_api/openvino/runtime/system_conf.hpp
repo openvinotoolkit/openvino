@@ -139,7 +139,7 @@ OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx_int8();
 OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx_bf16();
 
 /**
- * @brief      Checks whether CPU supports AMX Float16 capability
+ * @brief      Checks whether CPU supports AMX fp16 capability
  * @ingroup    ov_dev_api_system_conf
  * @return     `True` is tAMX_FP16 instructions are available, `false` otherwise
  */
