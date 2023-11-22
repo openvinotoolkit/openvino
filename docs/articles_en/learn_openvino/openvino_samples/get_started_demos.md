@@ -61,7 +61,7 @@ Instructions below show how to build sample applications with CMake. If you are 
          .. tab-item:: Python
             :sync: python
    
-            <Python instruction placeholder> 
+            Python samples do not require building. You can run the code samples in your development environment.
    
          .. tab-item:: C and C++
             :sync: cpp
@@ -140,7 +140,7 @@ Instructions below show how to build sample applications with CMake. If you are 
          .. tab-item:: Python
             :sync: python
    
-            <Python instruction placeholder> 
+            Python samples do not require building. You can run the code samples in your development environment.
    
          .. tab-item:: C and C++
             :sync: c-cpp
@@ -178,7 +178,7 @@ Instructions below show how to build sample applications with CMake. If you are 
          .. tab-item:: Python
             :sync: python
    
-            <Python instruction placeholder> 
+            Python samples do not require building. You can run the code samples in your development environment.
    
          .. tab-item:: C and C++
             :sync: c-cpp
@@ -327,12 +327,64 @@ Run Inference on a Sample
 
 To run the code sample with an input image using the IR model:
 
-.. tab-set::
 
-   .. tab-item:: Python
-      :sync: python
+1. Set up the OpenVINO environment variables:
 
-      1. Set up the OpenVINO environment variables:
+   .. tab-set::
+
+      .. tab-item:: Linux
+         :sync: linux
+
+         .. code-block:: sh
+
+            source  <INSTALL_DIR>/setupvars.sh
+
+      .. tab-item:: Windows
+         :sync: windows
+
+         .. code-block:: bat
+
+            <INSTALL_DIR>\setupvars.bat
+
+      .. tab-item:: macOS
+         :sync: macos
+
+         .. code-block:: sh
+
+            source <INSTALL_DIR>/setupvars.sh
+
+2. Go to the code samples release directory created when you built the samples earlier:
+
+   .. tab-set::
+
+      .. tab-item:: Linux
+         :sync: linux
+
+         .. code-block:: sh
+
+            cd ~/openvino_cpp_samples_build/intel64/Release
+
+      .. tab-item:: Windows
+         :sync: windows
+
+         .. code-block:: bat
+
+            cd  %USERPROFILE%\Documents\Intel\OpenVINO\openvino_samples_build\intel64\Release
+
+      .. tab-item:: macOS
+         :sync: macos
+
+         .. code-block:: sh
+
+            cd ~/openvino_cpp_samples_build/intel64/Release
+
+3. Run the code sample executable, specifying the input media file, the IR for your model, and a target device for performing inference:
+
+
+   .. tab-set::
+      
+      .. tab-item:: Python
+         :sync: python
       
          .. tab-set::
       
@@ -341,126 +393,24 @@ To run the code sample with an input image using the IR model:
       
                .. code-block:: sh
       
-                  <Python code placeholder> 
+                  python <sample.py file> -m <path_to_model> -i <path_to_media> -d <target_device>
       
             .. tab-item:: Windows
                :sync: windows
       
                .. code-block:: bat
       
-                  <Python code placeholder> 
-
+                  python <sample.py file> -m <path_to_model> -i <path_to_media> -d <target_device>
+      
             .. tab-item:: macOS
                :sync: macos
       
                .. code-block:: sh
       
-                  <Python code placeholder> 
+                  python <sample.py file> -m <path_to_model> -i <path_to_media> -d <target_device>
       
-      2. Go to the code samples release directory created when you built the samples earlier:
-      
-         .. tab-set::
-      
-            .. tab-item:: Linux
-               :sync: linux
-      
-               .. code-block:: sh
-      
-                  <Python code placeholder> 
-
-            .. tab-item:: Windows
-               :sync: windows
-      
-               .. code-block:: bat
-      
-                  <Python code placeholder> 
-
-            .. tab-item:: macOS
-               :sync: macos
-      
-               .. code-block:: sh
-      
-                  <Python code placeholder> 
-      
-      3. Run the code sample executable, specifying the input media file, the IR for your model, and a target device for performing inference:
-      
-         .. tab-set::
-      
-            .. tab-item:: Linux
-               :sync: linux
-      
-               .. code-block:: sh
-      
-                  <Python code placeholder> 
-
-            .. tab-item:: Windows
-               :sync: windows
-      
-               .. code-block:: bat
-      
-                  <Python code placeholder> 
-
-            .. tab-item:: macOS
-               :sync: macos
-      
-               .. code-block:: sh
-      
-                  <Python code placeholder> 
-
-   .. tab-item:: C++
-      :sync: cpp
-
-      1. Set up the OpenVINO environment variables:
-      
-         .. tab-set::
-      
-            .. tab-item:: Linux
-               :sync: linux
-      
-               .. code-block:: sh
-      
-                  source  <INSTALL_DIR>/setupvars.sh
-
-            .. tab-item:: Windows
-               :sync: windows
-      
-               .. code-block:: bat
-      
-                  <INSTALL_DIR>\setupvars.bat
-
-            .. tab-item:: macOS
-               :sync: macos
-      
-               .. code-block:: sh
-      
-                  source <INSTALL_DIR>/setupvars.sh
-      
-      2. Go to the code samples release directory created when you built the samples earlier:
-      
-         .. tab-set::
-      
-            .. tab-item:: Linux
-               :sync: linux
-      
-               .. code-block:: sh
-      
-                  cd ~/openvino_cpp_samples_build/intel64/Release
-
-            .. tab-item:: Windows
-               :sync: windows
-      
-               .. code-block:: bat
-      
-                  cd  %USERPROFILE%\Documents\Intel\OpenVINO\openvino_samples_build\intel64\Release
-
-            .. tab-item:: macOS
-               :sync: macos
-      
-               .. code-block:: sh
-      
-                  cd ~/openvino_cpp_samples_build/intel64/Release
-      
-      3. Run the code sample executable, specifying the input media file, the IR for your model, and a target device for performing inference:
+      .. tab-item:: C++
+         :sync: cpp
       
          .. tab-set::
       
@@ -470,14 +420,14 @@ To run the code sample with an input image using the IR model:
                .. code-block:: sh
       
                   <sample.exe file> -i <path_to_media> -m <path_to_model> -d <target_device>
-
+      
             .. tab-item:: Windows
                :sync: windows
       
                .. code-block:: bat
       
                   <sample.exe file> -i <path_to_media> -m <path_to_model> -d <target_device>
-
+      
             .. tab-item:: macOS
                :sync: macos
       
@@ -511,21 +461,21 @@ The following command shows how to run the Image Classification Code Sample usin
       
             .. code-block:: sh
       
-               <Python code placeholder> 
+               python classification_sample_async.py -m ~/ir/googlenet-v1.xml -i ~/Downloads/dog.bmp -d CPU
 
          .. tab-item:: Windows
             :sync: windows
       
             .. code-block:: bat
       
-               <Python code placeholder> 
+               python classification_sample_async.py -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -i %USERPROFILE%\Downloads\dog.bmp -d CPU
 
          .. tab-item:: macOS
             :sync: macos
       
             .. code-block:: sh
       
-               <Python code placeholder> 
+               python classification_sample_async.py -m ~/ir/googlenet-v1.xml -i ~/Downloads/dog.bmp -d CPU
 
    .. tab-item:: C++
       :sync: cpp
