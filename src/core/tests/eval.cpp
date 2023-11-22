@@ -3475,7 +3475,6 @@ TEST(eval, evaluate_fake_convert_bf16_to_f8e5m2_scale_shift_big) {
     EXPECT_THAT(read_vector<bfloat16>(result), Pointwise(FloatEq(), output_data));
 }
 
-
 TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_big_scale_1) {
     using namespace testing;
     constexpr auto et = element::f32;
@@ -3787,8 +3786,18 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_4x3_scale_big) {
                                   fp8::MAX_F8E5M2 * 3.f,
                                   fp8::MAX_F8E5M2 * 4.f};
 
-    std::vector<float>
-        output_data{14336.f, 20480.f, 28672.f, 57344.f, 57344.f, 57344.f, 71680.f, 143360.f, 200704.f, 114688.f, 163840.f, 229376.f};
+    std::vector<float> output_data{14336.f,
+                                   20480.f,
+                                   28672.f,
+                                   57344.f,
+                                   57344.f,
+                                   57344.f,
+                                   71680.f,
+                                   143360.f,
+                                   200704.f,
+                                   114688.f,
+                                   163840.f,
+                                   229376.f};
 
     const auto data_shape = Shape{4, 3};
     auto data = make_shared<ov::op::v0::Parameter>(et, data_shape);
@@ -3831,8 +3840,18 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_3x4_scale_big) {
                                   fp8::MAX_F8E5M2 * 3.f,
                                   fp8::MAX_F8E5M2 * 4.f};
 
-    std::vector<float>
-        output_data{14336.f, 57344.f, 71680.f, 114688.f, 20480.f, 57344.f, 143360.f, 163840.f, 28672.f, 57344.f, 200704.f, 229376.f};
+    std::vector<float> output_data{14336.f,
+                                   57344.f,
+                                   71680.f,
+                                   114688.f,
+                                   20480.f,
+                                   57344.f,
+                                   143360.f,
+                                   163840.f,
+                                   28672.f,
+                                   57344.f,
+                                   200704.f,
+                                   229376.f};
 
     const auto data_shape = Shape{4, 3};  // To be transposed to 3x4
     auto data = make_shared<ov::op::v0::Parameter>(et, data_shape);

@@ -209,8 +209,7 @@ void fake_convert(const T* data,
     const size_t element_count = shape_size(data_shape);
     fake_convert_details::apply_scale_shift<T>(out, data, scale, shift, data_shape, scale_shape, shift_shape, false);
 
-    std::vector<ov::float16> tmp_fp16;
-    tmp_fp16.reserve(element_count);
+    std::vector<ov::float16> tmp_fp16(element_count, 0.f);
     reference::convert(out, tmp_fp16.data(), element_count);
     fake_convert_details::apply_conversion(tmp_fp16.data(), tmp_fp16.data(), element_count, destination_type);
     reference::convert(tmp_fp16.data(), out, element_count);
