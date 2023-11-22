@@ -189,7 +189,8 @@ void apply_scale_shift(T* out,
         return;
     }
 
-    if (scale_shape[0] == 1 && data_shape[1] == scale_shape[1] && scale_size == data_shape[1]) {  // per channel scale for DW activations
+    if (scale_shape[0] == 1 && data_shape[1] == scale_shape[1] &&
+        scale_size == data_shape[1]) {  // per channel scale for DW activations
         size_t step = 1;
         for (size_t i = 2; i < data_shape.size(); i++) {
             step *= data_shape[i];
@@ -215,34 +216,20 @@ void apply_scale_shift(T* out,
         return;
     }
 
-
-    if (invert) {
-        autobroadcast_select(data,
-                             scale,
-                             shift,
-                             out,
-                             data_shape,
-                             scale_shape,
-                             shift_shape,
-                             op::AutoBroadcastType::NUMPY,
-                             [](T elem, T s, T o) -> T {
+    autobroadcast_select(data,
+                         scale,
+                         shift,
+                         out,
+                         data_shape,
+                         scale_shape,
+                         shift_shape,
+                         op::AutoBroadcastType::NUMPY,
+                         [invert](T elem, T s, T o) -> T {
+                             if (invert) {
                                  return static_cast<T>((elem + o) / s);
-                             });
-        return;
-    } else {
-        autobroadcast_select(data,
-                             scale,
-                             shift,
-                             out,
-                             data_shape,
-                             scale_shape,
-                             shift_shape,
-                             op::AutoBroadcastType::NUMPY,
-                             [](T elem, T s, T o) -> T {
-                                 return static_cast<T>(elem * s - o);  // o = quntized(o * s)
-                             });
-        return;
-    }
+                             }
+                             return static_cast<T>(elem * s - o);
+                         });
 }
 }  // namespace fake_convert_details
 
