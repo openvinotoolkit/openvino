@@ -3,12 +3,12 @@
 //
 
 #include "common_op_table.hpp"
+#include "openvino/op/extractimagepatches.hpp"
 #include "openvino/op/util/attr_types.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "utils.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -41,7 +41,7 @@ OutputVector translate_extract_image_patches_op(const NodeContext& node) {
     // prepare input to ExtractImagePatches
     convert_nhwc_to_nchw(true, images);
 
-    Output<Node> extract_image_patches = make_shared<ExtractImagePatches>(images, sizes, strides, rates, auto_pad);
+    Output<Node> extract_image_patches = make_shared<v3::ExtractImagePatches>(images, sizes, strides, rates, auto_pad);
     convert_nchw_to_nhwc(true, extract_image_patches);
 
     set_node_name(node.get_name(), extract_image_patches.get_node_shared_ptr());
