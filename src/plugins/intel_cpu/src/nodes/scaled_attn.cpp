@@ -658,7 +658,10 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                 // no attn_mask but has scale, there is a 1-d fake attn_mask
                 if (input_num > 3 && attn_mask.m_rank > 1) {
                     assert(attn_mask);
-                    if (attn_mask.m_rank == 3)
+                    // spec requires at least 3, but torch sl test does use rank 2
+                    if (attn_mask.m_rank == 2)
+                        attn_mask = attn_mask.reshape({1, 1, attn_mask.m_dims[0], attn_mask.m_dims[1]});
+                    else if (attn_mask.m_rank == 3)
                         attn_mask = attn_mask.reshape({1, attn_mask.m_dims[0], attn_mask.m_dims[1], attn_mask.m_dims[2]});
                     auto_causal = false;
                     use_attn_mask = true;
@@ -770,6 +773,11 @@ bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const
                 errorMessage = "Doesn't support 'attention mask' with rank: " + std::to_string(inRank);
                 return false;
             }
+            // // from spec, attn mask must be >= 3 or scalar
+            // if (!one_of(inRank, 0, 1, 3, 4)) {
+            //     errorMessage = "Doesn't support 'attention mask' with rank: " + std::to_string(inRank);
+            //     return false;
+            // }
         }
         // using mha should be better for static shapes
         if (!op->is_dynamic()) {
