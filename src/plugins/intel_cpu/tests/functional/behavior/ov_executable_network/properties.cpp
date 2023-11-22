@@ -5,14 +5,11 @@
 #include <gtest/gtest.h>
 
 #include "test_utils/properties_test.hpp"
-#include <common_test_utils/test_assertions.hpp>
-#include "ie_system_conf.h"
-#include "ov_models/subgraph_builders.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
 
 namespace {
 
@@ -165,7 +162,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckSparseWeigthsDecompression
     ASSERT_NO_THROW(ov::CompiledModel compiledModel = core.compile_model(model, deviceName));
 }
 
-const auto bf16_if_can_be_emulated = InferenceEngine::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
+const auto bf16_if_can_be_emulated = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckExecutionModeIsAvailableInCoreAndModel) {
     ov::Core ie;
