@@ -26,10 +26,7 @@ namespace fake_convert_details {
  */
 template <typename T>
 void emulate_f8e5m2_on_fp16(const T* const arg, T* out, size_t count) {
-    typedef union half_t {
-        unsigned short u;
-        T f;
-    } __half_t;
+    unsigned short val_bit_repr;
 
     constexpr auto exp_bits = 5;
     constexpr auto mbits = 8;
@@ -41,24 +38,23 @@ void emulate_f8e5m2_on_fp16(const T* const arg, T* out, size_t count) {
     constexpr unsigned short rne_tie = 0x0180;          // 0 00000 0110000000
     constexpr unsigned short fp16_inf = 0x7C00;
 
-    __half_t h;
     for (size_t i = 0; i < count; ++i) {
         /// converts float number to half precision in round-to-nearest-even mode and returns half with converted value.
-        h.f = arg[i];
+        val_bit_repr = arg[i];
         /// 0x7c00 = 0111110000000000 - exponent mask
         /// s 11111 xxx xxxx xxxx - is nan (if some x is 1) or inf (if all x is 0)
         /// 0x7800 is 0111100000000000 and 0x400 is 0000010000000000
         /// number is not normal if all exponent is 1 or 0
         /// 0x7f00 is 0 11111 1100000000
         /// 0x7b00 is 0 11110 1100000000
-        const bool can_round = ((h.u & 0x7F00) < 0x7B00) ? true : false;
+        const bool can_round = ((val_bit_repr & 0x7F00) < 0x7B00) ? true : false;
         /// s 11111 xxx xxxx xxxx - is nan (if some x is 1) or inf (if all x is 0)
-        const bool is_naninf = ((h.u & fp16_inf) == fp16_inf) ? true : false;
+        const bool is_naninf = ((val_bit_repr & fp16_inf) == fp16_inf) ? true : false;
         /* nearest rounding masks */
         /// grs_bitmask - grs_bitmask is 0 00000 0011111111 or 0 00000 00grs11111
-        unsigned short rnmask = (h.u & grs_bitmask);
+        unsigned short rnmask = (val_bit_repr & grs_bitmask);
         /// rne_tie - 0x180 is      0 00000 0110000000 or 384.0
-        unsigned short rnmask_tie = (h.u & rne_tie);
+        unsigned short rnmask_tie = (val_bit_repr & rne_tie);
 
         if (!is_naninf && can_round) {
             /* round to nearest even, if rne_mask is enabled */
@@ -66,10 +62,10 @@ void emulate_f8e5m2_on_fp16(const T* const arg, T* out, size_t count) {
             // 0xx - do nothing
             // 100 - this is a tie : round up if the mantissa's bit just before G is 1, else do nothing
             // 101, 110, 111 - round up > 0x0080
-            h.u += (((rnmask > 0x0080) || (rnmask_tie == rne_tie)) << lshift);
+            val_bit_repr += (((rnmask > 0x0080) || (rnmask_tie == rne_tie)) << lshift);
         }
-        h.u = (h.u & mask_mant); /* truncation */
-        out[i] = h.f;
+        val_bit_repr = (val_bit_repr & mask_mant); /* truncation */
+        out[i] = val_bit_repr;
     }
 }
 
@@ -87,10 +83,7 @@ void emulate_f8e5m2_on_fp16(const T* const arg, T* out, size_t count) {
  */
 template <typename T>
 void emulate_f8e4m3_on_fp16(const T* arg, T* out, size_t count) {
-    typedef union half_t {
-        unsigned short u;
-        T f;
-    } __half_t;
+    unsigned short val_bit_repr;
 
     constexpr auto use_clamp = true;
     constexpr auto exp_bits = 5;
@@ -105,21 +98,20 @@ void emulate_f8e4m3_on_fp16(const T* arg, T* out, size_t count) {
     constexpr unsigned short rne_tie = 0x00C0;          /// 0 00000 0011000000
     constexpr unsigned short fp16_inf = 0x7C00;
 
-    __half_t h;
     for (size_t i = 0; i < count; ++i) {
-        h.f = arg[i];
-        float inval = ngraph::float16(arg[i]);
+        val_bit_repr = arg[i];
+        const float inval = ov::float16(arg[i]);
         /* flush values below 1-4-3 (offset=4) subnormal range to zero */
         if (fabs(inval) < 0.001953125)  // 2**-9
-            h.f = 0;
+            val_bit_repr = 0;
 
-        short exp_h = static_cast<short>((h.u & fp16_inf) >> 10) -
-                      fp16_exp_bias;          /// 0111110000000000 -> 0000000000011111 - 15 - biased exponent for fp16
-        const short sign_h = (h.u & 0x8000);  /// & 1 00000 0000000000
-        short mantissa_h = (h.u & 0x03FF);    /// & 0 00000 1111111111
-        ///(h.u && 0111111111111111) < 0 10010 1110000000 (19326)
-        const bool can_round = ((h.u & 0x7FFF) < 0b101111110000000) ? true : false;
-        bool is_naninf = ((h.u & fp16_inf) == fp16_inf) ? true : false;
+        short exp_h = static_cast<short>((val_bit_repr & fp16_inf) >> 10) -
+                      fp16_exp_bias;  /// 0111110000000000 -> 0000000000011111 - 15 - biased exponent for fp16
+        const short sign_h = (val_bit_repr & 0x8000);  /// & 1 00000 0000000000
+        short mantissa_h = (val_bit_repr & 0x03FF);    /// & 0 00000 1111111111
+        ///(val_bit_repr && 0111111111111111) < 0 10010 1110000000 (19326)
+        const bool can_round = ((val_bit_repr & 0x7FFF) < 0b101111110000000) ? true : false;
+        bool is_naninf = ((val_bit_repr & fp16_inf) == fp16_inf) ? true : false;
 
         int dshift = 0;
         if (exp_h > 8) {  // too large, set it to NaN or inf
@@ -157,8 +149,8 @@ void emulate_f8e4m3_on_fp16(const T* arg, T* out, size_t count) {
         mantissa_h &= mask_mant; /* truncation */
         mantissa_h <<= dshift;
         mantissa_h += ((exp_h + 15) << 10);
-        h.u = mantissa_h | sign_h;
-        out[i] = h.f;
+        val_bit_repr = mantissa_h | sign_h;
+        out[i] = val_bit_repr;
     }
 }
 
