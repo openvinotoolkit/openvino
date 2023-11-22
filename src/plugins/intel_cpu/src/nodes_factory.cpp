@@ -95,8 +95,6 @@
 #include "nodes/topk.h"
 #include "nodes/transpose.h"
 #include "nodes/unique.hpp"
-#include "nodes/ngram.h"
-#include "nodes/scaled_attn.h"
 
 namespace ov {
 namespace intel_cpu {
