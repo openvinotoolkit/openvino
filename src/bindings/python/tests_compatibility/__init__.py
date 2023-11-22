@@ -157,7 +157,7 @@ xfail_issue_82039 = xfail_test(reason="Unsupported data type Optional, RuntimeEr
 xfail_issue_90649 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations:"
                                       "BlackmanWindow, DFT, HammingWindow, HannWindow, LayerNormalization, "
                                       "MelWeightMatrix, SequenceMap, STFT")
-xfail_issue_91151 = xfail_test(reason="RuntimeError: model input (shape={3,4}) and blob (shape=(1)) are incompatible")
+skip_issue_91151 = pytest.mark.skip(reason="RuntimeError: model input (shape={3,4}) and blob (shape=(1)) are incompatible") # Need to enable after bumping to 1.15
 xfail_issue_91490 = xfail_test(reason="y has zero dimension which is not allowed")
 xfail_issue_101965 = xfail_test(reason="Mismatch with numpy-based expected results.")
 xfail_issue_113506 = xfail_test(reason="Unsupported operation of type: LSTMSequence Node expects 7 inputs. Actual: 8")

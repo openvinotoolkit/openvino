@@ -44,7 +44,7 @@ from tests_compatibility import (
     xfail_issue_82038,
     xfail_issue_82039,
     xfail_issue_90649,
-    xfail_issue_91151,
+    skip_issue_91151,
     xfail_issue_91490,
     xfail_issue_101965,
     skip_bitwise_ui64,
@@ -494,7 +494,7 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_stft_with_window_cpu",
     ),
     (
-        xfail_issue_91151,
+        skip_issue_91151,
         "OnnxBackendNodeModelTest.test_castlike_BFLOAT16_to_FLOAT_cpu",
         "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_cpu",
     ),
