@@ -26,11 +26,11 @@ struct Evaluate : public element::NoAction<bool> {
         out.set_shape(out_shape);
 
         using namespace ov::element;
-        return IfTypeOf<i32, i64>::apply<EvalByIdxType>(out.get_element_type(), in_data, out, in_shape);
+        return IfTypeOf<i32, i64>::apply<EvalByOutType>(out.get_element_type(), in_data, out, in_shape);
     }
 
 private:
-    struct EvalByIdxType : public element::NoAction<bool> {
+    struct EvalByOutType : public element::NoAction<bool> {
         using element::NoAction<bool>::visit;
 
         template <element::Type_t ET, class T, class I = fundamental_type_for<ET>>
