@@ -166,7 +166,7 @@ jobs:
             -B ${BUILD_DIR}
 
       - name: Clean sccache stats
-        run: sccache --zero-stats
+        run: ${SCCACHE_PATH} --zero-stats
 
       - name: Cmake build - OpenVINO
         run: cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
