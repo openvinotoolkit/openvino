@@ -65,13 +65,24 @@ void apply_scale_shift(T* out,
                        const Shape& scale_shape,
                        const Shape& shift_shape,
                        const bool invert = false) {
-    if (invert) {
-        reference::add<T>(data, shift, out, data_shape, shift_shape, op::AutoBroadcastType::NUMPY);
-        reference::divide<T>(out, scale, out, data_shape, shift_shape, op::AutoBroadcastType::NUMPY, false);
-    } else {
-        reference::multiply<T>(data, scale, out, data_shape, shift_shape, op::AutoBroadcastType::NUMPY);
-        reference::subtract<T>(out, shift, out, data_shape, shift_shape, op::AutoBroadcastType::NUMPY);
+    auto scale_shift_func = invert ? [](T elem, T s, T o) -> T {
+        return static_cast<T>((elem + o) / s);
     }
+    : [](T elem, T s, T o) -> T {
+          return static_cast<T>(elem * s - o);
+      };
+
+    // The specific cases above are optimized verions of the broadcast for specific case
+    // Autobroadcast helper is generic approach for broadcast
+    autobroadcast_select(data,
+                         scale,
+                         shift,
+                         out,
+                         data_shape,
+                         scale_shape,
+                         shift_shape,
+                         op::AutoBroadcastType::NUMPY,
+                         scale_shift_func);
 }
 /**
  * @brief Call conversion of fp16 value to the desired destination type
