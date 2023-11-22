@@ -11,6 +11,8 @@
 #include <utility>
 #include <vector>
 
+#include "openvino/reference/autobroadcast_binop.hpp"
+
 namespace ov {
 namespace reference {
 namespace fake_convert_details {
@@ -173,7 +175,6 @@ void apply_scale_shift(T* out,
     const auto data_size = shape_size(data_shape);
 
     if (scale_size == 1) {  // per tensor scale, probably for activation
-
         T s = scale[0];
         T o = shift[0];
         if (invert) {
@@ -188,9 +189,9 @@ void apply_scale_shift(T* out,
         return;
     }
 
-    if (scale_shape[0] == 1 && data_shape[1] == scale_shape[1]) {  // per channel scale for DW activations
+    if (scale_shape[0] == 1 && data_shape[1] == scale_shape[1] && scale_size == data_shape[1]) {  // per channel scale for DW activations
         size_t step = 1;
-        for (size_t i = 2; i < data_shape.size(); i++) {  // <batch_size, out_channels, in_channels, H, W> or
+        for (size_t i = 2; i < data_shape.size(); i++) {
             step *= data_shape[i];
         }
 
@@ -214,27 +215,33 @@ void apply_scale_shift(T* out,
         return;
     }
 
-    OPENVINO_ASSERT(data_shape[0] == scale_size, "Shape mismatch in scale ");
 
-    // per channel scale for weights
-    size_t step = 1;
-    for (size_t i = 1; i < data_shape.size(); i++) {
-        step *= data_shape[i];
-    }
-
-    for (size_t i = 0; i < scale_size; i++) {
-        T s = static_cast<T>(scale[i]);
-        if (invert) {
-            for (size_t j = 0; j < step; j++) {
-                out[j] /= s;
-            }
-        } else {
-            for (size_t j = 0; j < step; j++) {
-                out[j] *= s;
-            }
-        }
-        data += step;
-        out += step;
+    if (invert) {
+        autobroadcast_select(data,
+                             scale,
+                             shift,
+                             out,
+                             data_shape,
+                             scale_shape,
+                             shift_shape,
+                             op::AutoBroadcastType::NUMPY,
+                             [](T elem, T s, T o) -> T {
+                                 return static_cast<T>((elem + o) / s);
+                             });
+        return;
+    } else {
+        autobroadcast_select(data,
+                             scale,
+                             shift,
+                             out,
+                             data_shape,
+                             scale_shape,
+                             shift_shape,
+                             op::AutoBroadcastType::NUMPY,
+                             [](T elem, T s, T o) -> T {
+                                 return static_cast<T>(elem * s - o);  // o = quntized(o * s)
+                             });
+        return;
     }
 }
 }  // namespace fake_convert_details
