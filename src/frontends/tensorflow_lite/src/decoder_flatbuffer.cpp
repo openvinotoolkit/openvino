@@ -92,6 +92,7 @@ std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> DecoderFlatBuffe
         ov::frontend::tensorflow_lite::get_ov_type(tensor->type()),
         names,
         ov::frontend::tensorflow_lite::get_quantization(tensor->quantization()),
+        ov::frontend::tensorflow_lite::get_sparsity(tensor->shape(), tensor->sparsity()),
         (tensor_info.buffer && tensor_info.buffer->data() ? tensor_info.buffer->data()->data() : nullptr));
 }
 
