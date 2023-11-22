@@ -6,13 +6,12 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "ngraph/validation_util.hpp"  // tbr
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/reference/scatter_update.hpp"
-
-using namespace ngraph;
+#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -29,71 +28,53 @@ std::shared_ptr<Node> ScatterUpdate::clone_with_new_inputs(const OutputVector& n
     return std::make_shared<ScatterUpdate>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
 }
 
-namespace scatter_update {
-namespace {
-template <element::Type_t ET>
-std::vector<int64_t> get_indices(const HostTensorPtr& in) {
-    auto data_ptr = in->get_data_ptr<ET>();
-    return std::vector<int64_t>(data_ptr, data_ptr + in->get_element_count());
-}
-}  // namespace
-}  // namespace scatter_update
+bool ScatterUpdate::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
+    OV_OP_SCOPE(v3_ScatterUpdate_evaluate);
+    OPENVINO_ASSERT(inputs.size() == 4);
+    OPENVINO_ASSERT(outputs.size() == 1);
 
-#define GET_INDICES(a, ...)                                                                   \
-    case element::Type_t::a: {                                                                \
-        OV_OP_SCOPE(OV_PP_CAT3(get_scatter_update_indices, _, a));                            \
-        indices_casted_vector = scatter_update::get_indices<element::Type_t::a>(__VA_ARGS__); \
-    } break;
-
-bool ScatterUpdate::evaluate_scatter_update(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     const auto& data = inputs[0];
     const auto& indices = inputs[1];
     const auto& updates = inputs[2];
     const auto& axis = inputs[3];
-    const auto& out = outputs[0];
+    auto& output = outputs[0];
 
-    const auto elem_size = data->get_element_type().size();
-    out->set_shape(data->get_shape());
+    OPENVINO_ASSERT(axis.get_element_type().is_integral_number(), "axis element type is not integral data type");
 
-    OPENVINO_ASSERT(axis->get_element_type().is_integral_number(), "axis element type is not integral data type");
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    int64_t axis_val = host_tensor_2_vector<int64_t>(axis)[0];
-    if (axis_val < 0) {
-        axis_val = ngraph::normalize_axis(this, axis_val, static_cast<int64_t>(data->get_shape().size()));
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
-    std::vector<int64_t> indices_casted_vector;
-    switch (indices->get_element_type()) {
-        GET_INDICES(i8, indices);
-        GET_INDICES(i16, indices);
-        GET_INDICES(i32, indices);
-        GET_INDICES(i64, indices);
-        GET_INDICES(u8, indices);
-        GET_INDICES(u16, indices);
-        GET_INDICES(u32, indices);
-        GET_INDICES(u64, indices);
+    switch (indices.get_element_type()) {
+    case element::i8:
+    case element::i16:
+    case element::i32:
+    case element::i64:
+    case element::u8:
+    case element::u16:
+    case element::u32:
+    case element::u64:
+        break;
     default:
         return false;
     }
 
-    reference::scatter_update(data->get_data_ptr<char>(),
+    const auto& data_shape = data.get_shape();
+    output.set_shape(data_shape);
+
+    auto axis_val = v0::Constant{axis}.cast_vector<int64_t>()[0];
+    if (axis_val < 0) {
+        axis_val = ov::util::normalize(axis_val, static_cast<int64_t>(data_shape.size()));
+    }
+
+    const std::vector<int64_t> indices_casted_vector{v0::Constant{indices}.cast_vector<int64_t>()};
+
+    reference::scatter_update(static_cast<char*>(data.data()),
                               indices_casted_vector.data(),
-                              updates->get_data_ptr<char>(),
+                              static_cast<char*>(updates.data()),
                               axis_val,
-                              out->get_data_ptr<char>(),
-                              elem_size,
-                              data->get_shape(),
-                              indices->get_shape(),
-                              updates->get_shape());
-
+                              static_cast<char*>(output.data()),
+                              data.get_element_type().size(),
+                              data.get_shape(),
+                              indices.get_shape(),
+                              updates.get_shape());
     return true;
-}
-
-bool ScatterUpdate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    OV_OP_SCOPE(v3_ScatterUpdate_evaluate);
-    return evaluate_scatter_update(outputs, inputs);
 }
 
 bool ScatterUpdate::evaluate_lower(TensorVector& outputs) const {
