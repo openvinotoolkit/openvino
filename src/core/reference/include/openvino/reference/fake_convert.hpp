@@ -189,8 +189,8 @@ void apply_scale_shift(T* out,
         return;
     }
 
-    if (scale_shape[0] == 1 && scale_shape.size() > 1 && data_shape[1] == scale_shape[1] &&
-        scale_size == data_shape[1]) {  // per channel scale for DW activations
+    if (scale_shape.size() > 1 && scale_shape[0] == 1 && data_shape.size() == scale_shape.size() &&
+        data_shape[1] == scale_shape[1] && scale_size == data_shape[1]) {  // per channel scale for DW activations
         size_t step = 1;
         for (size_t i = 2; i < data_shape.size(); i++) {
             step *= data_shape[i];
