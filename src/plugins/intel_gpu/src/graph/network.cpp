@@ -1649,10 +1649,6 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
 void network::set_variable(const std::string& name, const std::shared_ptr<ov::intel_gpu::VariableState>& variable) {
     GPU_DEBUG_TRACE_DETAIL << "Set variable " << name << " " << variable->get_layout().to_short_string() << std::endl;
     _variables_states[name] = variable;
-    // for (auto& inst : _variable_state_primitives.at(name)) {
-    //     if (variable->get_layout().is_static())
-    //         inst->set_output_memory(variable->get_memory(), false, 0);
-    // }
 }
 
 bool network::has_variable(const std::string &variable_id) const {
@@ -1680,12 +1676,6 @@ const ov::intel_gpu::VariablesInfoMap& network::get_variables_info() const {
 
 void network::set_variables_state_info(const std::string& variable_id, const layout& variable_layout, std::shared_ptr<primitive_inst> inst) {
     _variables_state_info.emplace(variable_id, ov::intel_gpu::VariableStateInfo{variable_id, variable_layout});
-    // Update id->primitives mapping which is needed for correct memory assignment on set_variable() call
-    if (_variable_state_primitives.find(variable_id) == _variable_state_primitives.end()) {
-        _variable_state_primitives.insert({variable_id, {}});
-    }
-
-    _variable_state_primitives[variable_id].push_back(inst);
 }
 
 }  // namespace cldnn

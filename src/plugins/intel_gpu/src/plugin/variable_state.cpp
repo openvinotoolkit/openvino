@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/runtime/memory_caps.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
 #include "intel_gpu/plugin/variable_state.hpp"
+#include "intel_gpu/runtime/memory_caps.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 
 #include <memory>

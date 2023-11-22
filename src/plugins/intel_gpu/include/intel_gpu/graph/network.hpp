@@ -260,7 +260,6 @@ private:
 
     ov::intel_gpu::VariablesMap _variables_states;
     ov::intel_gpu::VariablesInfoMap _variables_state_info;
-    std::map<std::string, std::vector<std::shared_ptr<primitive_inst>>> _variable_state_primitives;
 
     program::primitives_info _prims_info;
     std::map<primitive_id, primitive_id> _ext_id_mapping;

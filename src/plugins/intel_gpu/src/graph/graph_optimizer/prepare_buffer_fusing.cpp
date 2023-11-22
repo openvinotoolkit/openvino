@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "prepare_buffer_fusing.h"
-#include "intel_gpu/primitives/read_value.hpp"
 #include "pooling_inst.h"
 #include "primitive_inst.h"
 #include "activation_inst.h"
