@@ -15,7 +15,7 @@
 
 namespace ov {
 namespace reference {
-namespace fake_convert_details {
+namespace func {
 
 /**
  * @brief Emulation of conversion fp16 value to f8e5m2 format
@@ -229,16 +229,16 @@ void apply_scale_shift(T* out,
                          op::AutoBroadcastType::NUMPY,
                          scale_shift_func);
 }
-}  // namespace fake_convert_details
+}  // namespace func
 
 static bool apply_conversion(const float16* data,
                              float16* out,
                              size_t element_count,
                              const std::string& destination_type) {
     if (destination_type == "f8e5m2") {
-        reference::fake_convert_details::emulate_f8e5m2_on_fp16(data, out, element_count);
+        reference::func::emulate_f8e5m2_on_fp16(data, out, element_count);
     } else if (destination_type == "f8e4m3") {
-        reference::fake_convert_details::emulate_f8e4m3_on_fp16(data, out, element_count);
+        reference::func::emulate_f8e4m3_on_fp16(data, out, element_count);
     } else {
         OPENVINO_THROW("Unsupported destination type.");
     }
@@ -255,7 +255,7 @@ void fake_convert(const T* data,
                   const Shape& shift_shape,
                   const std::string& destination_type) {
     const size_t element_count = shape_size(data_shape);
-    reference::fake_convert_details::apply_scale_shift<float16>(out,
+    reference::func::apply_scale_shift<float16>(out,
                                                                 data,
                                                                 scale,
                                                                 shift,
@@ -264,7 +264,7 @@ void fake_convert(const T* data,
                                                                 shift_shape,
                                                                 false);
     apply_conversion(out, out, element_count, destination_type);
-    reference::fake_convert_details::apply_scale_shift<float16>(out,
+    reference::func::apply_scale_shift<float16>(out,
                                                                 out,
                                                                 scale,
                                                                 shift,
@@ -284,7 +284,7 @@ void fake_convert(const T* data,
                   const Shape& shift_shape,
                   const std::string& destination_type) {
     const size_t element_count = shape_size(data_shape);
-    reference::fake_convert_details::apply_scale_shift<T>(out,
+    reference::func::apply_scale_shift<T>(out,
                                                           data,
                                                           scale,
                                                           shift,
@@ -299,7 +299,7 @@ void fake_convert(const T* data,
     apply_conversion(tmp_fp16.data(), tmp_fp16.data(), element_count, destination_type);
     reference::convert(tmp_fp16.data(), out, element_count);
 
-    reference::fake_convert_details::apply_scale_shift<T>(out,
+    reference::func::apply_scale_shift<T>(out,
                                                           out,
                                                           scale,
                                                           shift,
