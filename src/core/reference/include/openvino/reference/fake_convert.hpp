@@ -9,8 +9,12 @@
 #include <numeric>
 #include <vector>
 
+#include "openvino/reference/add.hpp"
 #include "openvino/reference/autobroadcast_binop.hpp"
 #include "openvino/reference/convert.hpp"
+#include "openvino/reference/divide.hpp"
+#include "openvino/reference/multiply.hpp"
+#include "openvino/reference/subtract.hpp"
 
 namespace ov {
 namespace reference {
@@ -61,69 +65,13 @@ void apply_scale_shift(T* out,
                        const Shape& scale_shape,
                        const Shape& shift_shape,
                        const bool invert = false) {
-    const auto scale_size = shape_size(scale_shape);
-    const auto data_size = shape_size(data_shape);
-
-    if (scale_size == 1) {  // per tensor scale, probably for activation
-        T s = scale[0];
-        T o = shift[0];
-        if (invert) {
-            for (size_t j = 0; j < data_size; ++j) {
-                out[j] = (data[j] + o) / s;
-            }
-        } else {
-            for (size_t j = 0; j < data_size; ++j) {
-                out[j] = data[j] * s - o;  // o = quntized(o * s)
-            }
-        }
-        return;
+    if (invert) {
+        reference::add<T>(data, shift, out, data_shape, shift_shape, op::AutoBroadcastType::NUMPY);
+        reference::divide<T>(out, scale, out, data_shape, shift_shape, op::AutoBroadcastType::NUMPY, false);
+    } else {
+        reference::multiply<T>(data, scale, out, data_shape, shift_shape, op::AutoBroadcastType::NUMPY);
+        reference::subtract<T>(out, shift, out, data_shape, shift_shape, op::AutoBroadcastType::NUMPY);
     }
-
-    if (scale_shape.size() > 1 && scale_shape[0] == 1 && data_shape.size() == scale_shape.size() &&
-        data_shape[1] == scale_shape[1] && scale_size == data_shape[1]) {  // per channel scale for DW activations
-        size_t step = 1;
-        for (size_t i = 2; i < data_shape.size(); i++) {
-            step *= data_shape[i];
-        }
-
-        for (size_t bs = 0; bs < data_shape[0]; ++bs) {
-            for (size_t i = 0; i < scale_size; i++) {
-                T s = scale[i];
-                T o = shift[i];
-                if (invert) {
-                    for (size_t j = 0; j < step; ++j) {
-                        out[j] = (data[j] + o) / s;
-                    }
-                } else {
-                    for (size_t j = 0; j < step; ++j) {
-                        out[j] = data[j] * s - o;  // o = quntized(o * s)
-                    }
-                }
-                data += step;
-                out += step;
-            }
-        }
-        return;
-    }
-
-    auto scale_shift_func = invert ? [](T elem, T s, T o) -> T {
-        return static_cast<T>((elem + o) / s);
-    }
-    : [](T elem, T s, T o) -> T {
-          return static_cast<T>(elem * s - o);
-      };
-
-    // The specific cases above are optimized verions of the broadcast for specific case
-    // Autobroadcast helper is generic approach for broadcast
-    autobroadcast_select(data,
-                         scale,
-                         shift,
-                         out,
-                         data_shape,
-                         scale_shape,
-                         shift_shape,
-                         op::AutoBroadcastType::NUMPY,
-                         scale_shift_func);
 }
 /**
  * @brief Call conversion of fp16 value to the desired destination type
