@@ -21,6 +21,24 @@ namespace test {
 namespace utils {
 
 namespace {
+struct {
+    double max = 0;
+    double min = 0;
+    bool is_defined = false;
+} const_range;
+}  // namespace
+
+void set_const_ranges(double _min, double _max) {
+    const_range.max = _max;
+    const_range.min = _min;
+    const_range.is_defined = true;
+}
+
+void reset_const_ranges() {
+    const_range.is_defined = false;
+}
+
+namespace {
 
 /**
  * Sets proper range and resolution for real numbers generation
@@ -42,6 +60,7 @@ namespace {
 
 using ov::test::utils::InputGenerateData;
 
+
 static inline void set_real_number_generation_data(InputGenerateData& inGenData) {
     inGenData.range = 8;
     inGenData.resolution = 32;
@@ -52,6 +71,17 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::Node>& node,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     InputGenerateData inGenData;
+
+    if (const_range.is_defined) {
+        auto min_orig = inGenData.start_from;
+        auto max_orig = inGenData.start_from + inGenData.range * inGenData.resolution;
+        auto min_ref = const_range.min;
+        auto max_ref = const_range.max;
+        if (min_orig < min_ref || min_orig == 0)
+            inGenData.start_from = min_ref;
+        inGenData.range = (max_orig > max_ref || max_orig == 10 ? max_ref : max_orig - inGenData.start_from) - inGenData.start_from;
+    }
+
     if (elemType.is_real()) {
         set_real_number_generation_data(inGenData);
     }

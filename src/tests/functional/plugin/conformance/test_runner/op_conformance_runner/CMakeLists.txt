@@ -15,6 +15,7 @@ ov_add_test_target(
             PUBLIC
                 conformance_shared
                 op_conformance_utils
+                sharedTestClasses
         LABELS
             OV OP_CONFORMANCE
 )
