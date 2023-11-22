@@ -31,11 +31,11 @@ static void emulate_f8e5m2_on_fp16(const float16* const arg_f, float16* out_f, s
 
     constexpr auto exp_bits = 5;
     constexpr auto mbits = 8;
-    constexpr auto non_mant_bits = exp_bits + 1;  // exponent + sign
+    constexpr auto non_mant_bits = exp_bits + 1;  /// exponent + sign
     constexpr auto lshift = 10 - (mbits - non_mant_bits);
-    constexpr uint16_t mask_mant = static_cast<uint16_t>(0xFFFF << lshift);  // 1111111111111111 -> 1 11111 1100000000
-    constexpr uint16_t grs_bitmask = 0x00FF;  // 0 00000 0011111111 - guard, round, sticky bits
-    constexpr uint16_t rne_tie = 0x0180;      // 0 00000 0110000000
+    constexpr uint16_t mask_mant = static_cast<uint16_t>(0xFFFF << lshift);  /// 1111111111111111 -> 1 11111 1100000000
+    constexpr uint16_t grs_bitmask = 0x00FF;  /// 0 00000 0011111111, grs denotes guard, round, sticky bits
+    constexpr uint16_t rne_tie = 0x0180;      /// 0 00000 0110000000, rne denotes round to nearest even
     constexpr uint16_t fp16_inf = 0x7C00;
 
     for (size_t i = 0; i < count; ++i) {
@@ -89,15 +89,15 @@ static void emulate_f8e4m3_on_fp16(const float16* arg_f, float16* out_f, size_t 
     constexpr auto use_clamp = true;
     constexpr auto exp_bits = 5;
     constexpr auto mbits = 9;
-    constexpr auto non_mant_bits = exp_bits + 1;  // exponent + sign
+    constexpr auto non_mant_bits = exp_bits + 1;  /// exponent + sign
     constexpr auto lshift = 10 - (mbits - non_mant_bits);
     constexpr auto fp16_exp_bias = 15;
     constexpr auto f8e4m3_min_val = 0.001953125f;  /// 2**-9
 
-    constexpr uint16_t rne_mask = 1;                                         // round to nearest even mask
     constexpr uint16_t mask_mant = static_cast<uint16_t>(0xFFFF << lshift);  /// 1111111111111111 -> 1 11111 1111000000
-    constexpr uint16_t grs_bitmask = 0x007F;                                 /// 0 00000 0001111111
-    constexpr uint16_t rne_tie = 0x00C0;                                     /// 0 00000 0011000000
+    constexpr uint16_t grs_bitmask = 0x007F;  /// 0 00000 0001111111, grs denotes guard, round, sticky bits
+    constexpr uint16_t rne_tie = 0x00C0;      /// 0 00000 0011000000, rne denotes round to nearest even
+    constexpr uint16_t rne_mask = 1;
     constexpr uint16_t fp16_inf = 0x7C00;
 
     for (size_t i = 0; i < count; ++i) {
@@ -108,7 +108,7 @@ static void emulate_f8e4m3_on_fp16(const float16* arg_f, float16* out_f, size_t 
         }
 
         short exp_h = static_cast<short>((val_bit_repr & fp16_inf) >> 10) -
-                      fp16_exp_bias;  /// 0111110000000000 -> 0000000000011111 - 15 - biased exponent for fp16
+                      fp16_exp_bias;  /// 0111110000000000 -> 0000000000011111 - 15, biased exponent for fp16
         const short sign_h = (val_bit_repr & 0x8000);  /// & 1 00000 0000000000
         short mantissa_h = (val_bit_repr & 0x03FF);    /// & 0 00000 1111111111
         ///(val_bit_repr && 0111111111111111) < 0 10010 1110000000 (19326)
