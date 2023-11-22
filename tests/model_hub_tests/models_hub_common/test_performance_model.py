@@ -9,6 +9,7 @@ import time
 from enum import Enum
 import traceback
 import pytest
+from openvino.runtime.utils.types import openvino_to_numpy_types_map
 
 import numpy as np
 from models_hub_common.multiprocessing_utils import multiprocessing_run
@@ -20,17 +21,17 @@ import tensorflow_text  # do not delete, needed for text models
 # to avoid sporadic issues in inference results
 rng = np.random.default_rng(seed=56190)
 
-type_map = {
-    ov.Type.f64: np.float64,
-    ov.Type.f32: np.float32,
-    ov.Type.i8: np.int8,
-    ov.Type.i16: np.int16,
-    ov.Type.i32: np.int32,
-    ov.Type.i64: np.int64,
-    ov.Type.u8: np.uint8,
-    ov.Type.u16: np.uint16,
-    ov.Type.boolean: bool,
-}
+
+def get_numpy_type(ov_type):
+    np_type = next(
+        (np_type_value for (ov_type_value, np_type_value) in openvino_to_numpy_types_map if ov_type_value == ov_type),
+        None,
+    )
+
+    if not np_type:
+        raise Exception('no numpy type for type {} found'.format(ov_type))
+
+    return np_type
 
 
 class Status(Enum):
@@ -79,13 +80,13 @@ class TestModelPerformance:
 
     def prepare_input(self, input_shape, input_type):
         if input_type in [ov.Type.f32, ov.Type.f64]:
-            return 2.0 * rng.random(size=input_shape, dtype=type_map[input_type])
+            return 2.0 * rng.random(size=input_shape, dtype=get_numpy_type(input_type))
         elif input_type in [ov.Type.u8, ov.Type.u16, ov.Type.i8, ov.Type.i16, ov.Type.i32, ov.Type.i64]:
-            return rng.integers(0, 5, size=input_shape).astype(type_map[input_type])
+            return rng.integers(0, 5, size=input_shape).astype(get_numpy_type(input_type))
         elif input_type in [str]:
             return np.broadcast_to("Some string", input_shape)
         elif input_type in [bool]:
-            return rng.integers(0, 2, size=input_shape).astype(type_map[input_type])
+            return rng.integers(0, 2, size=input_shape).astype(get_numpy_type(input_type))
         else:
             assert False, "Unsupported type {}".format(input_type)
 
