@@ -9,8 +9,7 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
-#include "ie_system_conf.h"
+#include "openvino/runtime/system_conf.hpp"
 
 #include <algorithm>
 
@@ -129,8 +128,8 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinity) {
     ov::Affinity value = ov::Affinity::NONE;
 
 #if (defined(__APPLE__) || defined(_WIN32))
-    auto numaNodes = InferenceEngine::getAvailableNUMANodes();
-    auto coreTypes = InferenceEngine::getAvailableCoresTypes();
+    auto numaNodes = ov::get_available_numa_nodes();
+    auto coreTypes = ov::get_available_cores_types();
     auto defaultBindThreadParameter = ov::Affinity::NONE;
     if (coreTypes.size() > 1) {
         defaultBindThreadParameter = ov::Affinity::HYBRID_AWARE;
@@ -139,7 +138,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinity) {
     }
 #else
     auto defaultBindThreadParameter = ov::Affinity::CORE;
-    auto coreTypes = InferenceEngine::getAvailableCoresTypes();
+    auto coreTypes = ov::get_available_cores_types();
     if (coreTypes.size() > 1) {
         defaultBindThreadParameter = ov::Affinity::HYBRID_AWARE;
     }
@@ -176,7 +175,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinityCore) {
 #if defined(OV_CPU_ARM_ENABLE_FP16)
     const auto expected_precision_for_performance_mode = ov::element::f16;
 #else
-    const auto expected_precision_for_performance_mode = InferenceEngine::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
+    const auto expected_precision_for_performance_mode = ov::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
 #endif
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigHintInferencePrecision) {
@@ -215,7 +214,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigEnableProfiling) {
     ASSERT_EQ(enableProfiling, value);
 }
 
-const auto bf16_if_can_be_emulated = InferenceEngine::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
+const auto bf16_if_can_be_emulated = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
 using ExpectedModeAndType = std::pair<ov::hint::ExecutionMode, ov::element::Type>;
 
 const std::map<ov::hint::ExecutionMode, ExpectedModeAndType> expectedTypeByMode {
