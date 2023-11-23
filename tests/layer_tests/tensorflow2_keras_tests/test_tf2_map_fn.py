@@ -97,23 +97,16 @@ class TestMapFN(CommonTF2LayerTest):
                    **params)
 
     test_multiple_inputs_outputs_int32 = [
-        dict(fn=lambda x: x[0] * x[1] + x[2],
-             input_type=tf.int32,
-             fn_output_signature=tf.int32, back_prop=True,
-             input_names=["x1", "x2", "x3"],
-             input_shapes=[[2, 1, 3], [2, 1, 3], [2, 1, 3]]),
-        pytest.param(dict(fn=lambda x: (x[0] + x[1] + x[2], x[0] - x[2] + x[1], 2 + x[2]),
-                          input_type=tf.int32,
-                          fn_output_signature=(tf.int32, tf.int32, tf.int32), back_prop=True,
-                          input_names=["x1", "x2", "x3"],
-                          input_shapes=[[2, 1, 3, 4], [2, 1, 3, 4], [2, 1, 3, 4]]),
+        (lambda x: x[0] * x[1] + x[2], tf.int32, tf.int32, True, ["x1", "x2", "x3"], [[2, 1, 3], [2, 1, 3], [2, 1, 3]]),
+        pytest.param(lambda x: (x[0] + x[1] + x[2], x[0] - x[2] + x[1], 2 + x[2]), tf.int32, (tf.int32, tf.int32, tf.int32), True, ["x1", "x2", "x3"], [[2, 1, 3, 4], [2, 1, 3, 4], [2, 1, 3, 4]],
                      marks=[pytest.mark.xfail(reason="61587"), pytest.mark.precommit_tf_fe])
     ]
 
-    @pytest.mark.parametrize("params", test_multiple_inputs_outputs_int32)
+    @pytest.mark.parametrize("fn, input_type, fn_output_signature, back_prop, input_names, input_shapes", test_multiple_inputs_outputs_int32)
     @pytest.mark.nightly
-    def test_multiple_inputs_outputs_int32(self, params, ie_device, precision, ir_version, temp_dir,
+    def test_multiple_inputs_outputs_int32(self, fn, input_type, fn_output_signature, back_prop, input_names, input_shapes, ie_device, precision, ir_version, temp_dir,
                                            use_old_api, use_new_frontend):
+        params = {"fn": fn, "input_type": input_type, "fn_output_signature": fn_output_signature, "back_prop": back_prop, "input_names": input_names, "input_shapes": input_shapes}
         self._test(*self.create_map_fn_net(**params, ir_version=ir_version), ie_device, precision,
                    temp_dir=temp_dir, ir_version=ir_version, use_old_api=use_old_api, use_new_frontend=use_new_frontend,
                    **params)

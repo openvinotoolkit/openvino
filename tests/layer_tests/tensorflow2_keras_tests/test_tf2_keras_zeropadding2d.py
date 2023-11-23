@@ -22,19 +22,17 @@ class TestKerasZeroPadding2D(CommonTF2LayerTest):
         return tf2_net, ref_net
 
     test_data_channels_last = [
-        dict(input_names=["x1"], input_shapes=[[5, 4, 8, 3]], input_type=tf.float32,
-             padding=2, data_format='channels_last'),
-        dict(input_names=["x1"], input_shapes=[[3, 2, 4, 6]], input_type=tf.float32,
-             padding=(3, 0), data_format='channels_last'),
-        pytest.param(dict(input_names=["x1"], input_shapes=[[1, 3, 8, 7]], input_type=tf.float32,
-                          padding=((5, 1), (3, 4)), data_format='channels_last'), marks=pytest.mark.precommit_tf_fe),
+        (["x1"], [[5, 4, 8, 3]], tf.float32, 2, 'channels_last'),
+        (["x1"], [[3, 2, 4, 6]], tf.float32, (3, 0), 'channels_last'),
+        pytest.param((["x1"], [[1, 3, 8, 7]], tf.float32, ((5, 1), (3, 4))), marks=pytest.mark.precommit_tf_fe),
     ]
 
-    @pytest.mark.parametrize("params", test_data_channels_last)
+    @pytest.mark.parametrize("input_names, input_shapes, input_type, padding, data_format", test_data_channels_last)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_keras_zeropadding2d_channels_last(self, params, ie_device, precision, ir_version,
+    def test_keras_zeropadding2d_channels_last(self, input_names, input_shapes, input_type, padding, data_format, ie_device, precision, ir_version,
                                                temp_dir, use_old_api):
+        params = {"input_names": input_names, "input_shapes": input_shapes, "input_type": input_type, "padding": padding, "data_format": data_format}
         self._test(*self.create_keras_zeropadding2d_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, use_old_api=use_old_api, ir_version=ir_version,
                    **params)
