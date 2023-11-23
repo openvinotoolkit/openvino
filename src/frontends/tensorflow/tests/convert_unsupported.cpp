@@ -55,13 +55,13 @@ private:
     const std::string m_op_type;
 };
 
-shared_ptr<Model> convert_model_partially(const string& model_path) {
+shared_ptr<Model> convert_model_partially(const std::string& model_path) {
     FrontEndManager fem;
     auto front_end = fem.load_by_framework(TF_FE);
     if (!front_end) {
         throw "TensorFlow Frontend is not initialized";
     }
-    auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_MODELS_DIRNAME) + model_path);
+    auto model_filename = FrontEndTestUtils::make_model_path(std::string(TEST_TENSORFLOW_MODELS_DIRNAME) + model_path);
     auto input_model = front_end->load(model_filename);
     if (!input_model) {
         throw "Input model is not read";
@@ -95,8 +95,8 @@ TEST(FrontEndConvertModelTest, test_unsupported_op) {
     InputModel::Ptr inputModel;
     ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_FE));
     ASSERT_NE(frontEnd, nullptr);
-    auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_MODELS_DIRNAME) +
-                                                             string("relu_unsupported/relu_unsupported.pb"));
+    auto model_filename = FrontEndTestUtils::make_model_path(std::string(TEST_TENSORFLOW_MODELS_DIRNAME) +
+                                                             std::string("relu_unsupported/relu_unsupported.pb"));
     ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
     ASSERT_NE(inputModel, nullptr);
     shared_ptr<ov::Model> model;
@@ -141,13 +141,13 @@ TEST(FrontEndConvertModelTest, test_unsupported_tf1_while_and_incorrect_less_tra
                   "passed without errors. "
                   "OpConversionFailure is expected.";
     } catch (const OpConversionFailure& error) {
-        string error_message = error.what();
-        string ref_message = "Less expects ten inputs.\n";
-        string not_found_message =
+        std::string error_message = error.what();
+        std::string ref_message = "Less expects ten inputs.\n";
+        std::string not_found_message =
             "[TensorFlow Frontend] Internal error, no translator found for operation(s): Enter, Exit, "
             "LoopCond, Merge, NextIteration, Switch";
-        ASSERT_TRUE(error_message.find(ref_message) != string::npos);
-        ASSERT_TRUE(error_message.find(not_found_message) == string::npos);
+        ASSERT_TRUE(error_message.find(ref_message) != std::string::npos);
+        ASSERT_TRUE(error_message.find(not_found_message) == std::string::npos);
         ASSERT_EQ(model, nullptr);
     } catch (...) {
         FAIL() << "Conversion of TensorFlow 1 While failed by wrong reason.";
@@ -164,13 +164,13 @@ TEST(FrontEndConvertModelTest, conversion_with_unknown_exception) {
                   "passed without errors. "
                   "OpConversionFailure is expected.";
     } catch (const OpConversionFailure& error) {
-        string error_message = error.what();
-        string ref_message = "Unknown exception type\n";
-        string doc_message =
+        std::string error_message = error.what();
+        std::string ref_message = "Unknown exception type\n";
+        std::string doc_message =
             "To facilitate the conversion of unsupported operations, refer to Frontend Extension documentation: "
             "https://docs.openvino.ai/latest/openvino_docs_Extensibility_UG_Frontend_Extensions.html";
-        ASSERT_TRUE(error_message.find(ref_message) != string::npos);
-        ASSERT_TRUE(error_message.find(doc_message) == string::npos);
+        ASSERT_TRUE(error_message.find(ref_message) != std::string::npos);
+        ASSERT_TRUE(error_message.find(doc_message) == std::string::npos);
         ASSERT_EQ(model, nullptr);
     } catch (...) {
         FAIL() << "Conversion of TensorFlow 1 While failed by wrong reason.";
@@ -187,11 +187,11 @@ TEST(FrontEndConvertModelTest, test_unsupported_resource_gather_translator) {
                   "ResourceGather translator. "
                   "OpConversionFailure is expected.";
     } catch (const OpConversionFailure& error) {
-        string error_message = error.what();
-        string ref_message = "Less expects ten inputs.\n";
-        string no_ref_message = "[TensorFlow Frontend] Internal error: No translator found for";
-        ASSERT_TRUE(error_message.find(ref_message) != string::npos);
-        ASSERT_TRUE(error_message.find(no_ref_message) == string::npos);
+        std::string error_message = error.what();
+        std::string ref_message = "Less expects ten inputs.\n";
+        std::string no_ref_message = "[TensorFlow Frontend] Internal error: No translator found for";
+        ASSERT_TRUE(error_message.find(ref_message) != std::string::npos);
+        ASSERT_TRUE(error_message.find(no_ref_message) == std::string::npos);
         ASSERT_EQ(model, nullptr);
     } catch (...) {
         FAIL() << "Conversion of the model with ResourceGather failed by wrong reason.";
@@ -204,10 +204,10 @@ TEST(FrontEndConvertModelTest, test_unsupported_operation_conversion_with_reason
         model = convert_model("gather_with_string_table/gather_with_string_table.pb");
         FAIL() << "The model with Const of string type must not be converted.";
     } catch (const OpConversionFailure& error) {
-        string error_message = error.what();
-        string ref_message =
+        std::string error_message = error.what();
+        std::string ref_message =
             "[TensorFlow Frontend] Internal error, no translator found for operation(s): Const of string type";
-        ASSERT_TRUE(error_message.find(ref_message) != string::npos);
+        ASSERT_TRUE(error_message.find(ref_message) != std::string::npos);
         ASSERT_EQ(model, nullptr);
     } catch (...) {
         FAIL() << "Conversion of the model with Const of string type failed by wrong reason.";
