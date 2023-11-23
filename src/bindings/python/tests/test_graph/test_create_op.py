@@ -834,8 +834,7 @@ def test_roi_pooling_deprecation():
     assert node.get_output_size() == [6, 6]
     assert list(node.get_output_shape(0)) == [150, 3, 6, 6]
     assert node.get_output_element_type(0) == Type.f32
-    # node.set_output_roi([2, 1])
-    node.set_output_size([2, 1])
+    node.set_output_size([2, 1])  # the same as: node.set_output_roi([2, 1])
     assert node.get_output_roi() == [2, 1]
     assert node.get_output_size() == [2, 1]
 

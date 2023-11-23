@@ -145,7 +145,7 @@ def roi_pooling(
     :param spatial_scale:  Ratio of input feature map over input image size (float).
     :param method:         Method of pooling - string: "max" or "bilinear". Default: "max"
     :param output_size:    (DEPRECATED!) Height/Width of ROI output features (shape).
-                           Will override `output_roi` if used and change behavior of the operator. 
+                           Will override `output_roi` if used and change behavior of the operator.
     :return:               ROIPooling node.
     """
     # Allow either one of these attributes to be passed.
@@ -155,7 +155,7 @@ def roi_pooling(
     if spatial_scale is None:
         raise AttributeError("The following arguments must be defined: `spatial_scale`!")
 
-    def _deprecated_output_size_arg(output_roi: TensorShape, output_size: TensorShape) -> bool:
+    def _deprecated_output_size_arg(output_roi: TensorShape | None, output_size: TensorShape | None) -> TensorShape | None:
         if output_size is not None:
             warnings.warn(
                 "`output_size` is deprecated and will be removed in future. "
@@ -167,7 +167,6 @@ def roi_pooling(
             )
             return output_size
         return output_roi
-
 
     method = method.lower()
     roi_shape = _deprecated_output_size_arg(output_roi, output_size)
@@ -182,7 +181,7 @@ def roi_pooling(
         },
     )
 
-    # Override behavior when deprecated value was used. 
+    # Override behavior when deprecated value was used.
     if output_size is not None:
         node.get_output_size = node.get_output_roi
         node.set_output_size = node.set_output_roi
