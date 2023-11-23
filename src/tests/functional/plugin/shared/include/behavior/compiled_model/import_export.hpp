@@ -369,9 +369,8 @@ TEST_P(OVCompiledGraphImportExportTest, importExportedIENetwork) {
         } else if (elementType == ov::element::i8 || elementType == ov::element::u8 ||
                    elementType == ov::element::i16 || elementType == ov::element::u16) {
             return ov::element::i8;
-        } else if (elementType != ov::element::f32) {
-            return ov::element::f32;
         }
+        return ov::element::f32;
     };
     const auto outputType = getOutputType(elementType);
     const auto inputType = elementType == ov::element::f16 ? ov::element::Type_t::f32 : elementType;
