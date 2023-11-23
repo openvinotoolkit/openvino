@@ -44,6 +44,13 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
         ov::intel_cpu::PlainTensor<T> t_dst(outputs[0]);
         ov::intel_cpu::PlainTensor<int32_t> gather;
 
+        if (t_cos.m_rank == 2) {
+            t_cos = t_cos.reshape({1, 1, t_cos.size(0), t_cos.size(1)});
+        }
+        if (t_sin.m_rank == 2) {
+            t_sin = t_sin.reshape({1, 1, t_sin.size(0), t_sin.size(1)});
+        }
+
         if (config.slice_stop - config.slice_start > 0) {
             t_src = t_src.slice(3, config.slice_start, config.slice_stop);
         }

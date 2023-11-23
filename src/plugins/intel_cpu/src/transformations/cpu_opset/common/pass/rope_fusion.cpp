@@ -132,7 +132,17 @@ ov::intel_cpu::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
                                                               {"ellipsis_mask", {}}});
         auto squeeze = makePattern<opset1::Reshape>({slice_Slice, {-1, head_dims}});
         auto index_Gather = makePattern<opset8::Gather>({squeeze, gather_positions_2d, 0}, {{"batch_dims", 0}});
-        auto unsqueeze = makePattern<opset1::Reshape>({index_Gather, {1, 1, -1, head_dims}});
+
+        // another simplified pattern for gathering at position_ids with 2D const_tab (max_pos, d)
+        auto slice_Slice2 = makePattern<opset1::StridedSlice>({const_tab, {0}, seq_len, {1}},
+                                                              {{"begin_mask", {0}},
+                                                               {"end_mask", {0}},
+                                                               {"new_axis_mask", {}},
+                                                               {"shrink_axis_mask", {}},
+                                                               {"ellipsis_mask", {}}});
+        auto index_Gather2 = makePattern<opset8::Gather>({slice_Slice2, gather_positions_2d, 0}, {{"batch_dims", 0}});
+
+        auto unsqueeze = makePattern<opset1::Reshape>({index_Gather | index_Gather2, {1, 1, -1, head_dims}});
         return unsqueeze;
     };
 
