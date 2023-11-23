@@ -14,7 +14,6 @@ from models_hub_common.multiprocessing_utils import multiprocessing_run
 import openvino as ov
 
 # noinspection PyUnresolvedReferences
-import tensorflow_text  # do not delete, needed for text models
 
 # set seed to have deterministic input data generation
 # to avoid sporadic issues in inference results
