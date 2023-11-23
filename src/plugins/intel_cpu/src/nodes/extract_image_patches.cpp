@@ -419,7 +419,7 @@ void ExtractImagePatches::initSupportedPrimitiveDescriptors() {
 
     const auto precision = getOriginalInputPrecisionAtPort(0);
     if (_supported_precisions_sizes.find(precision.size()) == _supported_precisions_sizes.end())
-        OPENVINO_THROW(errorPrefix, "has unsupported precision: ", precision.name());
+        OPENVINO_THROW(errorPrefix, "has unsupported precision: ", precision.get_type_name());
 
     addSupportedPrimDesc({{LayoutType::ncsp, precision}},
                          {{LayoutType::ncsp, precision}},
