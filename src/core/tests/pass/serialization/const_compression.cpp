@@ -141,8 +141,7 @@ TEST_F(SerializationConstantCompressionTest, NonIdenticalConstantsI64) {
     ASSERT_EQ(file_size(bin_1), unique_const_count * ov::shape_size(shape) * sizeof(int64_t));
 }
 
-TEST_F(SerializationConstantCompressionTest, NonIdenticalConstantsI64_CHECK_MULTIMAP)
-{
+TEST_F(SerializationConstantCompressionTest, NonIdenticalConstantsI64_CHECK_MULTIMAP) {
     constexpr int unique_const_count = 2;
     const ov::Shape shape{2};
 

@@ -130,9 +130,10 @@ public:
             // This hash is weak (but efficient). For example current hash algorithms gives
             // the same hash for {2, 2} and {0, 128} arrays.
             // But even strong hashing algorithms sometimes give collisions.
-            // Therefore we always have to compare values when finding a match in hash map.
+            // Therefore we always have to compare values when finding a match in the hash multimap.
             const HashValue hash = hash_combine(ptr_to_write, *new_size);
             auto found = m_hash_to_file_positions.find(hash);
+            // iterate over all matches of the key in the multimap
             while (found != m_hash_to_file_positions.end()) {
                 if (memcmp(ptr, found->second.second, size) == 0)
                     return found->second.first;
