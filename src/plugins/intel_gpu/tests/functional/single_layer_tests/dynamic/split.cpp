@@ -66,10 +66,9 @@ protected:
         }
         init_input_shapes({inputShape});
         ov::ParameterVector dyn_params{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
-        auto paramOuts =
-            ngraph::helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(dyn_params));
-        auto split = std::dynamic_pointer_cast<ngraph::opset5::Split>(
-                     ngraph::builder::makeSplit(paramOuts[0], netPrecision, numSplits, axis));
+        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{axis});
+        auto split = std::make_shared<ov::op::v1::Split>(dyn_params[0], split_axis_op, numSplits);
+
         ngraph::ResultVector results;
         for (size_t i = 0; i < outIndices.size(); i++) {
             results.push_back(std::make_shared<ngraph::opset1::Result>(split->output(outIndices[i])));
@@ -205,7 +204,6 @@ protected:
         init_input_shapes(inputShapes);
 
         ov::ParameterVector dyn_params{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
-        auto paramOuts = ngraph::helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(dyn_params));
 
         auto splitAxisOp = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{}, std::vector<int64_t>{static_cast<int64_t>(axis)});
 
@@ -218,7 +216,7 @@ protected:
             splitLengthOp = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{splitLength.size()}, splitLength);
         }
 
-        auto varSplit = std::make_shared<ngraph::opset3::VariadicSplit>(paramOuts[0], splitAxisOp, splitLengthOp);
+        auto varSplit = std::make_shared<ngraph::opset3::VariadicSplit>(dyn_params[0], splitAxisOp, splitLengthOp);
         ngraph::ResultVector results;
         for (size_t i = 0; i < splitLength.size(); i++) {
             results.push_back(std::make_shared<ngraph::opset1::Result>(varSplit->output(i)));

@@ -22,6 +22,6 @@ void ov::IVariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
     m_state = state;
 }
 
-const ov::SoPtr<ov::ITensor>& ov::IVariableState::get_state() const {
+ov::SoPtr<ov::ITensor> ov::IVariableState::get_state() const {
     return m_state;
 }
