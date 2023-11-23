@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/memory_LSTMCell.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 #include "functional_test_utils/core_config.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
@@ -62,10 +63,10 @@ void MemoryLSTMCellTest::SetUp() {
     input_parameter[0]->set_friendly_name("Parameter_1");
 
     auto input_add_const = ngraph::builder::makeConstant(element_type, input_dims, input_bias);
-    auto add = ngraph::builder::makeEltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
+    auto add = ov::test::utils::makeEltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
 
     auto input_mul_const = ngraph::builder::makeConstant(element_type, input_dims, input_weights);
-    auto mul = ngraph::builder::makeEltwise(add, input_mul_const, ov::test::utils::EltwiseTypes::MULTIPLY);
+    auto mul = ov::test::utils::makeEltwise(add, input_mul_const, ov::test::utils::EltwiseTypes::MULTIPLY);
 
     auto unsqueeze_input_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto unsqueeze_input = std::make_shared<ov::op::v0::Unsqueeze>(mul, unsqueeze_input_const);
@@ -159,10 +160,10 @@ void MemoryLSTMCellTest::switch_to_friendly_model() {
     input_parameter[0]->set_friendly_name("Parameter_1");
 
     auto input_add_const = ngraph::builder::makeConstant(element_type, input_dims, input_bias);
-    auto add = ngraph::builder::makeEltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
+    auto add = ov::test::utils::makeEltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
 
     auto input_mul_const = ngraph::builder::makeConstant(element_type, input_dims, input_weights);
-    auto mul = ngraph::builder::makeEltwise(add, input_mul_const, ov::test::utils::EltwiseTypes::MULTIPLY);
+    auto mul = ov::test::utils::makeEltwise(add, input_mul_const, ov::test::utils::EltwiseTypes::MULTIPLY);
 
     auto unsqueeze_input_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto unsqueeze_input = std::make_shared<ov::op::v0::Unsqueeze>(mul, unsqueeze_input_const);
@@ -215,10 +216,10 @@ void MemoryLSTMCellTest::create_pure_tensor_iterator_model() {
     input_parameter[0]->set_friendly_name("Parameter_1");
 
     auto input_add_const = ngraph::builder::makeConstant(element_type, input_dims, input_bias);
-    auto add = ngraph::builder::makeEltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
+    auto add = ov::test::utils::makeEltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
 
     auto input_mul_const = ngraph::builder::makeConstant(element_type, input_dims, input_weights);
-    auto mul = ngraph::builder::makeEltwise(add, input_mul_const, ov::test::utils::EltwiseTypes::MULTIPLY);
+    auto mul = ov::test::utils::makeEltwise(add, input_mul_const, ov::test::utils::EltwiseTypes::MULTIPLY);
 
     auto unsqueeze_input_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto unsqueeze_input = std::make_shared<ov::op::v0::Unsqueeze>(mul, unsqueeze_input_const);
