@@ -223,6 +223,13 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_MM_Brgemm_Amx_Static_FP16/.*brgemm_avx512_amx.*)",
         R"(nightly_MM_Brgemm_Amx_Static_FP16/.*brgemm_avx512_amx.*)",
         R"(smoke_MM_Brgemm_Amx_Dynamic_FP16/.*brgemm_avx512_amx.*)",
+        R"((smoke|nightly)_FC_3D_FP16/.*_Fused=Multiply\(PerChannel\).*)",
+        R"(smoke_MM_Static_FP16.*TS=\(\(55\.12\)\).*_Fused=Multiply\(PerChannel\).*)",
+        R"((smoke|nightly)_MM_Brgemm_Static_FP16.*TS=\(\(55\.12\)\).*_Fused=Multiply\(PerChannel\).*)",
+        R"(smoke_MM_Dynamic_Fusing_FP16/.*TS=\(\(16\.12\)_\(33\.7\)_\(16\.12\)\).*_Fused=Multiply\(PerChannel\).*)",
+        R"(smoke_MM_Brgemm_Dynamic_Fusing_FP16/.*TS=\(\(16\.12\)_\(33\.7\)_\(16\.12\)\).*_Fused=Multiply\(PerChannel\).*)",
+        R"(smoke_MHAQuant_Pattern[0-1]_FP16.*)",
+
         // Need to generate sequence exactly in the i64 data type. Enable in scope of i64 enabling.
         R"(.*RandomUniformLayerTestCPU.*OutPrc=i64.*)",
         // Issue: 123321

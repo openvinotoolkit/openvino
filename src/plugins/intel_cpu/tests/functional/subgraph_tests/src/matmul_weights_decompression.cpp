@@ -286,22 +286,37 @@ protected:
         CheckNumberOfNodesWithType(compiledModel, "Subgraph", 0);
     }
 };
+class MatmulWeightsDecompression_FP16 : public MatmulWeightsDecompression {
+protected:
+    void checkResults_FP16() {
+        const auto& test_param = GetParam();
+        const auto& weights_precision = std::get<1>(test_param);
+
+        bool weights_found = false;
+        for (const auto& n : compiledModel.get_runtime_model()->get_ordered_ops()) {
+            if (n->get_friendly_name() == "Compressed_weights") {
+                ASSERT_EQ(n->get_output_element_type(0), weights_precision);
+                weights_found = true;
+            }
+        }
+        ASSERT_TRUE(weights_found);
+    }
+};
 
 TEST_P(MatmulWeightsDecompression, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     checkResults();
 }
-using MatmulWeightsDecompression_FP16 = MatmulWeightsDecompression;
+
 TEST_P(MatmulWeightsDecompression_FP16, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
     configuration.insert({ov::hint::inference_precision.name(), "f16"});
-
     run();
-    checkResults();
+    checkResults_FP16();
 }
 
 namespace {
@@ -369,8 +384,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_FP16,
                          MatmulWeightsDecompression_FP16,
-                         ::testing::Combine(::testing::ValuesIn(input_shapes_basic),
-                                            ::testing::ValuesIn(weights_precisions_basic),
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_amx),
+                                            ::testing::ValuesIn(weights_precisions_amx),
                                             ::testing::ValuesIn(decompression_precisions),
                                             ::testing::Values(true),
                                             ::testing::Values(true),
@@ -426,8 +441,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_basic,
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_FP16,
                          MatmulWeightsDecompression_FP16,
-                         ::testing::Combine(::testing::ValuesIn(input_shapes_corner_cases_basic),
-                                            ::testing::ValuesIn(weights_precisions_basic),
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_corner_cases_amx),
+                                            ::testing::ValuesIn(weights_precisions_amx),
                                             ::testing::ValuesIn(decompression_precisions_corner_cases),
                                             ::testing::ValuesIn(transpose_weights),
                                             ::testing::ValuesIn(add_decompression_sub),

@@ -1729,7 +1729,7 @@ void Graph::EnforceInferencePrecision() {
             // const auto origin_precision = node->getOriginalOutputPrecisionAtPort(i);
             // if (!one_of(origin_precision, ov::element::f32, ov::element::bf16, ov::element::f16))
             //     continue;
-            if (node->getOriginalOutputPrecisionAtPort(inPort) != ov::element::f32)
+            if (node->getOriginalOutputPrecisionAtPort(i) != ov::element::f32)
                 continue;
 
             // exclude Convert before Range since it may cause precision loss when integter type to LP.
