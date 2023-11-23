@@ -80,6 +80,7 @@
 #include "nodes/roi_align.h"
 #include "nodes/roi_pooling.h"
 #include "nodes/roll.h"
+#include "nodes/rope.h"
 #include "nodes/scaled_attn.h"
 #include "nodes/scatter_update.h"
 #include "nodes/shapeof.h"
@@ -182,6 +183,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(Eye, Type::Eye);
     INTEL_CPU_NODE(Unique, Type::Unique);
     INTEL_CPU_NODE(Ngram, Type::Ngram);
+    INTEL_CPU_NODE(RoPE, Type::RoPE);
     INTEL_CPU_NODE(Interpolate, Type::Interpolate);
     INTEL_CPU_NODE(RandomUniform, Type::RandomUniform);
     INTEL_CPU_NODE(Reduce, Type::Reduce);

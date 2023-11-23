@@ -22,6 +22,14 @@ void regclass_graph_op_Assign(py::module m) {
     assign.def(py::init([](py::object& new_value, const std::string& variable_id, const std::string& name) {
                    auto node = new_value.cast<std::shared_ptr<ov::Node>>();
 
+                   // ReadValue and Assign operations have to be connected via one instance of Variable.
+                   // If Variable with the given name is already exists in the graph,
+                   // we have to pass it to constructor of Assign op here.
+                   // But we don't have access to ov::Model here, so the possible way is to traverse the graph
+                   // and find all variable. (not implemented)
+                   // Another way is to create temporary Variable here and replace it in ov::Model python
+                   // constructor. (implemented)
+                   // The best option is to create py bindings for Variable and ReadValue.
                    auto variable = std::make_shared<ov::op::util::Variable>(
                        ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, variable_id});
                    return std::make_shared<ov::op::v6::Assign>(node, variable);
