@@ -1577,7 +1577,7 @@ jobs:
         run: ${SCCACHE_PATH} --show-stats
 
   Overall_Status:
-    name: ci/gha_linux
+    name: ci/gha_overall_status
     needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests,
             CPU_Functional_Tests, TensorFlow_Hub_Models_Tests, PyTorch_Models_Tests, NVIDIA_Plugin]
     if: ${{ always() }}
