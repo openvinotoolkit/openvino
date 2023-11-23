@@ -142,6 +142,14 @@ class TestNonZero_IndexPut(PytorchLayerTest):
                 "input_shape": [3, 3],
                 "values": np.array([10, 11, 12]).astype(np.float32),
             },
+            {
+                "input_shape": [3, 3, 3],
+                "values": np.array([[10, 11, 12]]).astype(np.float32),
+            },
+                        {
+                "input_shape": [3, 3, 3],
+                "values": np.array(10).astype(np.float32),
+            },
         ),
     )
     @pytest.mark.parametrize(
