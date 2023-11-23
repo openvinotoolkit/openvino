@@ -27,7 +27,7 @@ using namespace ngraph::op;
 using namespace ngraph::opset9;
 using namespace std;
 
-using DiagonalInsertionTestParams = tuple<map<string, string>,   // Configuration
+using DiagonalInsertionTestParams = tuple<map<std::string, std::string>,   // Configuration
                                           vector<vector<float>>  // FakeQuantize min/max params
                                           >;
 
@@ -89,13 +89,13 @@ class DiagonalInsertionTest : public testing::WithParamInterface<DiagonalInserti
         return std::make_shared<Reshape>(input_node, target_shape_const, false);
     }
 
-    bool IsDebugEnabled(map<string, string>& configuration) {
+    bool IsDebugEnabled(map<std::string, std::string>& configuration) {
         return configuration.find("LOG_LEVEL") != configuration.end() && configuration["LOG_LEVEL"] == "LOG_DEBUG";
     }
 
 public:
-    static string getTestCaseName(testing::TestParamInfo<DiagonalInsertionTestParams> obj) {
-        map<string, string> configuration;
+    static std::string getTestCaseName(testing::TestParamInfo<DiagonalInsertionTestParams> obj) {
+        map<std::string, std::string> configuration;
         vector<vector<float>> fq_min_max;
 
         tie(configuration, fq_min_max) = obj.param;
@@ -156,7 +156,7 @@ TEST_P(DiagonalInsertionTest, CompareWithRefs) {
     Run();
 };
 
-const vector<map<string, string>> configs = {
+const vector<map<std::string, std::string>> configs = {
     {
         {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
         {"GNA_PRECISION", "I16"},

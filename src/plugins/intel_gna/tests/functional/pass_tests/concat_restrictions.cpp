@@ -767,7 +767,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_concat_restrictions,
                          ConvConcatConcatNHWCRestrictionsPos::getTestCaseName);
 
 const vector<SizeVector> ttc_input_shapes = {{64, 384}};
-const vector<map<string, string>> ttc_configs = {
+const vector<map<std::string, std::string>> ttc_configs = {
     {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}},
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}},
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
