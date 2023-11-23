@@ -661,7 +661,7 @@ void Transformations::PostLpt() {
     CPU_REGISTER_PASS_X64(postLPTPassManager, EliminateStridedSlice);
     CPU_REGISTER_PASS_X64(postLPTPassManager, RoPEFusion);
 
-    CPU_REGISTER_PASS_COMMON(postLPTPassManager, StatefulSDPFusion);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPFusion);
     postLPTPassManager.run_passes(model);
 }
 

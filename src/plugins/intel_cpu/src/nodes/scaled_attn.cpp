@@ -591,8 +591,8 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
     PlainTensor<T> m_query_emb;  // query with RoPE position embedding
     size_t B, H, L1, L0, S;
 
-    ScaledDotProductAttentionNode::Config config;
-    AttentionExecutor(const ScaledDotProductAttentionNode::Config& _config) : config(_config) {}
+    ScaledDotProductAttentionStub::Config config;
+    AttentionExecutor(const ScaledDotProductAttentionStub::Config& _config) : config(_config) {}
 
     void prepare_attn_mask(MemoryPtr attn_input) {
         attn_mask.resize(attn_input->getStaticDims());
@@ -609,16 +609,11 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                        PlainTensor<T>& past_v_output) {
         if (config.fuse_concat) {
             auto past_k_idx = inputs.size() - 2;
-            PlainTensor<T> past_k_input, past_v_input;
             auto past_k_mem = inputs[past_k_idx + 0];
             L0 = past_k_mem->getStaticDims()[2];
             // [S, B, L0, S]
-            past_k_input.resize({L0, B, H, S}, static_cast<T*>(past_k_mem->getData()));
-            past_v_input.resize({L0, B, H, S}, static_cast<T*>(inputs[past_k_idx + 1]->getData()));
             past_k_output.resize({L0 + L1, B, H, S}, static_cast<T*>(outputs[1]->getData()));
             past_v_output.resize({L0 + L1, B, H, S}, static_cast<T*>(outputs[2]->getData()));
-            past_k_input = past_k_input.permute({1, 2, 0, 3});
-            past_v_input = past_v_input.permute({1, 2, 0, 3});
             past_k_output = past_k_output.permute({1, 2, 0, 3});
             past_v_output = past_v_output.permute({1, 2, 0, 3});
             parallel_for3d(B, H, L1, [&](size_t b, size_t h, size_t m) {
@@ -629,14 +624,6 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                        &v_input.at({b, h, m, 0}),
                        S * sizeof(T));
             });
-            // std::cout << "\npast K:\n";
-            // std::cout << past_k_input;
-            // std::cout << "\npast V:\n";
-            // std::cout << past_v_input;
-            // std::cout << "\ncur K:\n";
-            // std::cout << k_input;
-            // std::cout << "\ncur V:\n";
-            // std::cout << v_input;
         }
     }
 
@@ -672,8 +659,6 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
 
         PlainTensor<T> present_key, present_value;
         concat_pastkv(inputs, outputs, k_input, v_input, present_key, present_value);
-        // std::cout << "\ncur Q:\n";
-        // std::cout << q_input;
 
         L0 = k_input.size(2) - L1;
 
@@ -742,7 +727,7 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ngrap
     if (node) {
         m_config.is_causal = node->get_causal();
     } else {
-        const auto node = std::dynamic_pointer_cast<const ScaledDotProductAttentionNode>(op);
+        const auto node = std::dynamic_pointer_cast<const ScaledDotProductAttentionStub>(op);
         m_config = node->get_config();
     }
 }
@@ -826,8 +811,8 @@ bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const
     try {
         const auto node = std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op);
         if (!std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op) &&
-            !std::dynamic_pointer_cast<const ScaledDotProductAttentionNode>(op)) {
-            errorMessage = "Only ScaledDotProductAttention or ScaledDotProductAttentionNode operation are supported";
+            !std::dynamic_pointer_cast<const ScaledDotProductAttentionStub>(op)) {
+            errorMessage = "Only ScaledDotProductAttention or ScaledDotProductAttentionStub operation are supported";
             return false;
         }
         // expect shape: [B, H, L, S]

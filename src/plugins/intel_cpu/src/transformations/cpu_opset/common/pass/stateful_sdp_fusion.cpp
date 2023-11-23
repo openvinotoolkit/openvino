@@ -19,8 +19,6 @@
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/cpu_opset/common/op/sdp.hpp"
 
-#define CALLBACK_LOG(m) std::cout << matcher_name << " " << m.get_match_root()->get_friendly_name() << std::endl;
-
 namespace ov {
 namespace intel_cpu {
 
@@ -42,8 +40,6 @@ StatefulSDPFusion::StatefulSDPFusion() {
     auto sdp = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{sdp0, sdp1, sdp2});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
-        CALLBACK_LOG(m);
-
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
@@ -87,13 +83,13 @@ StatefulSDPFusion::StatefulSDPFusion() {
         args[2] = concat_v_node->input_value(1);
         args.push_back(past_k_node->output(0));
         args.push_back(past_v_node->output(0));
-        ov::intel_cpu::ScaledDotProductAttentionNode::Config config;
+        ov::intel_cpu::ScaledDotProductAttentionStub::Config config;
 
         config.is_causal = sdp_node->get_causal();
         config.fuse_concat = true;
 
         auto old_node = sdp_node;
-        auto new_node = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionNode>(args, config);
+        auto new_node = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionStub>(args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
         ov::replace_node(old_node, {new_node->output(0)});
         assign_k_node->set_arguments({new_node->output(1)});

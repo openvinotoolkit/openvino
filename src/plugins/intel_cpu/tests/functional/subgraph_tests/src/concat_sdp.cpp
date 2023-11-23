@@ -19,7 +19,10 @@ using namespace InferenceEngine;
 
 namespace SubgraphTestsDefinitions {
 
-using ConcatSDPTestParams = std::tuple<ElementType, std::vector<InputShape>>;
+using ConcatSDPTestParams = std::tuple<ElementType,
+                                       std::vector<InputShape>,
+                                       bool                         // has ShapeOf
+                                       >;
 // Subgraph:
 /*                            Parameter
  *                                |
@@ -42,7 +45,8 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConcatSDPTestParams>& obj) {
         ElementType inType;
         std::vector<InputShape> inputShapes;
-        std::tie(inType, inputShapes) = obj.param;
+        bool hasShapeof;
+        std::tie(inType, inputShapes, hasShapeof) = obj.param;
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : inputShapes) {
@@ -59,16 +63,20 @@ public:
             result << ")_";
         }
         result << "Prc=" << inType;
+        result << "HasShapeOf=" << hasShapeof;
         return result.str();
     }
 
     void SetUp() override {
         ElementType inType;
         std::vector<InputShape> inputShapes;
-        std::tie(inType, inputShapes) = this->GetParam();
+        bool hasShapeOf;
+        std::tie(inType, inputShapes, hasShapeOf) = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
+        rel_threshold = 1e-4f;
         if (inType == ElementType::bf16) {
             configuration.insert({"ENFORCE_BF16", "YES"});
+            rel_threshold = 0.01f;
         }
         init_input_shapes(inputShapes);
         ov::ParameterVector inputParams;
@@ -89,6 +97,11 @@ public:
             ov::op::util::VariableInfo{inputDynamicShapes[1], inType, "pastv"});
         auto pastv = std::make_shared<ov::op::v6::ReadValue>(inputParams[3], var_v);
         pastv->set_friendly_name("pastv_r");
+        std::shared_ptr<Node> pastk_shapeof, pastv_shapeof;
+        if (hasShapeOf) {
+            pastk_shapeof = std::make_shared<ov::op::v0::ShapeOf>(pastk);
+            pastv_shapeof = std::make_shared<ov::op::v0::ShapeOf>(pastv);
+        }
         auto concatK = std::make_shared<ov::op::v0::Concat>(OutputVector{pastk, inputParams[1]}, 2);
         auto concatV = std::make_shared<ov::op::v0::Concat>(OutputVector{pastv, inputParams[2]}, 2);
         auto sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(inputParams[0], concatK, concatV, false);
@@ -100,6 +113,10 @@ public:
         pastv_assign->set_friendly_name("pastv_w");
 
         ResultVector results{std::make_shared<ov::op::v0::Result>(add)};
+        if (hasShapeOf) {
+            results.push_back(std::make_shared<ov::op::v0::Result>(pastk_shapeof));
+            results.push_back(std::make_shared<ov::op::v0::Result>(pastv_shapeof));
+        }
         SinkVector sinks{pastk_assign, pastv_assign};
         function = std::make_shared<Function>(results, sinks, inputParams, "ConcatSDP");
         targetDevice = ov::test::utils::DEVICE_CPU;
@@ -109,7 +126,6 @@ public:
         // decompose ScaledDotProductAttention
         manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
         manager.run_passes(functionRefs);
-        rel_threshold = 1e-4f;
     }
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         std::vector<ov::Shape> shapes(4);
@@ -119,16 +135,23 @@ public:
         shapes[3] = targetInputStaticShapes[1];
         SubgraphBaseTest::generate_inputs(shapes);
     }
+    template<typename IT, typename T>
+    void strided_iota(IT first, size_t n, T value, T stride) {
+        for (size_t i = 0; i < n; i++) {
+            *first++ = value;
+            value += stride;
+        }
+    }
     void generate(int idx, const std::vector<ov::Shape>& targetInputStaticShapes) {
         inputs.clear();
         auto create_input = [this] (std::shared_ptr<op::v0::Parameter> param, ov::Shape shape, float val) {
             if (param->get_element_type() == element::f32) {
                 ov::Tensor t{ov::element::f32, shape};
-                std::fill_n(static_cast<float*>(t.data()), t.get_size(), val);
+                strided_iota(static_cast<float*>(t.data()), t.get_size(), val, 0.1f);
                 inputs.insert({param, t});
             } else {
                 ov::Tensor t{ov::element::bf16, shape};
-                std::fill_n(static_cast<ov::bfloat16*>(t.data()), t.get_size(), ov::bfloat16(val));
+                strided_iota(static_cast<ov::bfloat16*>(t.data()), t.get_size(), val, 0.1f);
                 inputs.insert({param, t});
             }
         };
@@ -148,7 +171,6 @@ public:
             state.reset();
         }
         inferRequest = ov::InferRequest();
-        compiledModel = ov::CompiledModel();
     }
     std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model) {
         function = model;
@@ -174,7 +196,10 @@ public:
 
 TEST_P(ConcatSDPTest, CompareWithRefs) {
     auto actualOutputs = run_test(function);
+    CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
+    CheckNumberOfNodesWithType(compiledModel, {"Concatenation", "Reorder"}, 0);
     auto expectedOutputs = run_test(functionRefs);
+    CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 0);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
         ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
     }
@@ -193,7 +218,9 @@ const std::vector<std::vector<InputShape>> inputShapes = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTest,
                          ConcatSDPTest,
-                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16), ::testing::ValuesIn(inputShapes)),
+                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16),
+                                            ::testing::ValuesIn(inputShapes),
+                                            ::testing::Values(true, false)),
                          ConcatSDPTest::getTestCaseName);
 
 }  // namespace

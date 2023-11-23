@@ -45,7 +45,7 @@ private:
         virtual void execute(dnnl::stream strm, const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr>& outputs) = 0;
     };
 
-    ScaledDotProductAttentionNode::Config m_config;
+    ScaledDotProductAttentionStub::Config m_config;
     std::shared_ptr<Executor> m_executor;
     template <KernelTypes KType, typename T> struct AttentionExecutor;
 };

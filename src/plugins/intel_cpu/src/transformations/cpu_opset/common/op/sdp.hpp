@@ -14,11 +14,11 @@ namespace intel_cpu {
 ///
 /// \ingroup ov_ops_cpp_api
 
-class ScaledDotProductAttentionNode : public ov::op::Op {
+class ScaledDotProductAttentionStub : public ov::op::Op {
 public:
-    OPENVINO_OP("ScaledDotProductAttentionNode", "cpu_plugin_opset");
+    OPENVINO_OP("ScaledDotProductAttentionStub", "cpu_plugin_opset");
 
-    ScaledDotProductAttentionNode() = default;
+    ScaledDotProductAttentionStub() = default;
 
     struct Config {
         bool output_BLHxS = false;      // true implies that output is [B,L,H*S]
@@ -28,7 +28,7 @@ public:
         bool fuse_concat = false;       // fuse (concat->sdp) ==> sdp
     };
 
-    ScaledDotProductAttentionNode(const OutputVector& args, const Config& cfg);
+    ScaledDotProductAttentionStub(const OutputVector& args, const Config& cfg);
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool visit_attributes(AttributeVisitor& visitor) override;

@@ -60,7 +60,7 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         NGRAPH_OP(NgramNode, ov::intel_cpu)
         NGRAPH_OP_X64(MHANode, ov::intel_cpu)
         NGRAPH_OP_X64(InteractionNode, ov::intel_cpu)
-        NGRAPH_OP_X64(ScaledDotProductAttentionNode, ov::intel_cpu)
+        NGRAPH_OP_X64(ScaledDotProductAttentionStub, ov::intel_cpu)
 #undef NGRAPH_OP
 
         return opset;

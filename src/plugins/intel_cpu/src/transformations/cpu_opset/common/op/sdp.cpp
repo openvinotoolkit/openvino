@@ -8,21 +8,21 @@
 
 #include "transformations/itt.hpp"
 
-ov::intel_cpu::ScaledDotProductAttentionNode::ScaledDotProductAttentionNode(const OutputVector& args, const Config& cfg)
+ov::intel_cpu::ScaledDotProductAttentionStub::ScaledDotProductAttentionStub(const OutputVector& args, const Config& cfg)
     : Op(args),
       m_config(cfg) {
     constructor_validate_and_infer_types();
 }
 
-std::shared_ptr<ov::Node> ov::intel_cpu::ScaledDotProductAttentionNode::clone_with_new_inputs(
+std::shared_ptr<ov::Node> ov::intel_cpu::ScaledDotProductAttentionStub::clone_with_new_inputs(
     const ov::OutputVector& new_args) const {
-    INTERNAL_OP_SCOPE(ScaledDotProductAttentionNode_with_new_inputs);
+    INTERNAL_OP_SCOPE(ScaledDotProductAttentionStub_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<ov::intel_cpu::ScaledDotProductAttentionNode>(new_args, m_config);
+    return std::make_shared<ov::intel_cpu::ScaledDotProductAttentionStub>(new_args, m_config);
 }
 
-void ov::intel_cpu::ScaledDotProductAttentionNode::validate_and_infer_types() {
-    INTERNAL_OP_SCOPE(ScaledDotProductAttentionNode_validate_and_infer_types);
+void ov::intel_cpu::ScaledDotProductAttentionStub::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(ScaledDotProductAttentionStub_validate_and_infer_types);
     auto input_num = get_input_size();
     // [B, H, L1, S]
     auto q_ps = get_input_partial_shape(0);
@@ -45,8 +45,8 @@ void ov::intel_cpu::ScaledDotProductAttentionNode::validate_and_infer_types() {
     set_output_type(2, get_input_element_type(input_num - 1), past_kv_ps);
 }
 
-bool ov::intel_cpu::ScaledDotProductAttentionNode::visit_attributes(ov::AttributeVisitor& visitor) {
-    INTERNAL_OP_SCOPE(ScaledDotProductAttentionNode_visit_attributes);
+bool ov::intel_cpu::ScaledDotProductAttentionStub::visit_attributes(ov::AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(ScaledDotProductAttentionStub_visit_attributes);
     visitor.start_structure("config");
     visitor.on_attribute("output_BLHxS", m_config.output_BLHxS);
     visitor.on_attribute("fuse_causal_attn", m_config.fuse_causal_attn);
