@@ -72,7 +72,11 @@ protected:
         for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
 
-        auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(params[0], ngraph::element::i32);
+        //make a stub eltwise node to enforce layout, since ShapeOf just mimic any input layout
+        auto eltwise = ngraph::builder::makeActivation(params[0], inType, ov::test::utils::ActivationTypes::Relu);
+        eltwise->get_rt_info() = makeCPUInfo(inFmts, inFmts, {});
+
+        auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(eltwise, ngraph::element::i32);
 
         function = makeNgraphFunction(netPrecision, params, shapeOf, "ShapeOf");
     }
@@ -88,19 +92,21 @@ namespace {
 /* CPU PARAMS */
 std::vector<CPUSpecificParams> getCpuInfoForDimsCount(const size_t dimsCount = 3) {
     std::vector<CPUSpecificParams> resCPUParams;
+    const bool avx512_target = with_cpu_x86_avx512f();
+
     if (dimsCount == 5) {
-        resCPUParams.push_back(CPUSpecificParams{{nCdhw16c}, {x}, {}, {}});
-        resCPUParams.push_back(CPUSpecificParams{{nCdhw8c}, {x}, {}, {}});
+        auto blocked_format = avx512_target ? nCdhw16c : nCdhw8c;
+        resCPUParams.push_back(CPUSpecificParams{{blocked_format}, {x}, {}, {}});
         resCPUParams.push_back(CPUSpecificParams{{ncdhw}, {x}, {}, {}});
         resCPUParams.push_back(CPUSpecificParams{{ndhwc}, {x}, {}, {}});
     } else if (dimsCount == 4) {
-        resCPUParams.push_back(CPUSpecificParams{{nChw16c}, {x}, {}, {}});
-        resCPUParams.push_back(CPUSpecificParams{{nChw8c}, {x}, {}, {}});
+        auto blocked_format = avx512_target ? nChw16c : nChw8c;
+        resCPUParams.push_back(CPUSpecificParams{{blocked_format}, {x}, {}, {}});
         resCPUParams.push_back(CPUSpecificParams{{nchw}, {x}, {}, {}});
         resCPUParams.push_back(CPUSpecificParams{{nhwc}, {x}, {}, {}});
     } else {
-        resCPUParams.push_back(CPUSpecificParams{{nCw16c}, {x}, {}, {}});
-        resCPUParams.push_back(CPUSpecificParams{{nCw8c}, {x}, {}, {}});
+        auto blocked_format = avx512_target ? nCw16c : nCw8c;
+        resCPUParams.push_back(CPUSpecificParams{{blocked_format}, {x}, {}, {}});
         resCPUParams.push_back(CPUSpecificParams{{abc}, {x}, {}, {}});
         resCPUParams.push_back(CPUSpecificParams{{acb}, {x}, {}, {}});
     }
@@ -117,57 +123,33 @@ const std::vector<ElementType> netPrecisions = {
 
 std::vector<ov::test::InputShape> inShapesDynamic3d = {
         {
-            {-1, -1, -1},
+            {-1, 16, -1},
             {
-                { 8, 5, 4 },
-                { 8, 5, 3 },
-                { 8, 5, 2 }
-            }
-        },
-        {
-            {-1, -1, -1},
-            {
-                { 1, 2, 4 },
-                { 1, 2, 3 },
-                { 1, 2, 2 }
+                { 8, 16, 4 },
+                { 8, 16, 3 },
+                { 8, 16, 2 }
             }
         }
 };
 
 std::vector<ov::test::InputShape> inShapesDynamic4d = {
         {
-            {-1, -1, -1, -1},
+            {-1, 16, -1, -1},
             {
-                { 8, 5, 3, 4 },
-                { 8, 5, 3, 3 },
-                { 8, 5, 3, 2 }
+                { 8, 16, 3, 4 },
+                { 8, 16, 3, 3 },
+                { 8, 16, 3, 2 }
             }
         },
-        {
-            {-1, -1, -1, -1},
-            {
-                { 1, 2, 3, 4 },
-                { 1, 2, 3, 3 },
-                { 1, 2, 3, 2 }
-            }
-        }
 };
 
 std::vector<ov::test::InputShape> inShapesDynamic5d = {
         {
-            { -1, -1, -1, -1, -1 },
+            { -1, 16, -1, -1, -1 },
             {
-                { 8, 5, 3, 2, 4 },
-                { 8, 5, 3, 2, 3 },
-                { 8, 5, 3, 2, 2 }
-            }
-        },
-        {
-            {-1, -1, -1, -1, -1},
-            {
-                { 1, 2, 3, 4, 4 },
-                { 1, 2, 3, 4, 3 },
-                { 1, 2, 3, 4, 2 }
+                { 8, 16, 3, 2, 4 },
+                { 8, 16, 3, 2, 3 },
+                { 8, 16, 3, 2, 2 }
             }
         }
 };
