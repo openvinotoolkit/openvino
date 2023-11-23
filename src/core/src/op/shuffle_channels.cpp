@@ -7,13 +7,10 @@
 #include <numeric>
 
 #include "itt.hpp"
-#include "ngraph/runtime/host_tensor.hpp"  // tbr
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/reference/shuffle_channels.hpp"
 #include "shuffle_channels_shape_inference.hpp"
 #include "validation_util.hpp"
-
-using namespace ngraph;
 
 namespace ov {
 namespace op {
@@ -56,25 +53,27 @@ std::shared_ptr<Node> ShuffleChannels::clone_with_new_inputs(const OutputVector&
     return std::make_shared<ShuffleChannels>(new_args.at(0), m_axis, m_group);
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-bool ShuffleChannels::evaluate_shuffle_channels(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    const auto arg = inputs[0]->get_data_ptr<const char>();
-    auto out = outputs[0]->get_data_ptr<char>();
-    const auto data_shape = inputs[0]->get_shape();
-    const size_t elem_size = inputs[0]->get_element_type().size();
+bool ShuffleChannels::evaluate_shuffle_channels(TensorVector& outputs, const TensorVector& inputs) const {
+    OPENVINO_ASSERT(inputs.size() == 1);
+    OPENVINO_ASSERT(outputs.size() == 1);
 
-    outputs[0]->set_element_type(inputs[0]->get_element_type());
-    outputs[0]->set_shape(data_shape);
+    const auto& input = inputs[0];
+    const auto& data_shape = input.get_shape();
 
+    auto& output = outputs[0];
+    output.set_shape(data_shape);
+
+    const auto arg = static_cast<const char*>(input.data());
+    const auto out = static_cast<char*>(output.data());
+    const auto elem_size = input.get_element_type().size();
     reference::shuffle_channels(arg, out, data_shape, elem_size, m_axis, m_group);
 
     return true;
 }
-bool ShuffleChannels::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ShuffleChannels::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v0_ShuffleChannels_evaluate);
     return evaluate_shuffle_channels(outputs, inputs);
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool ShuffleChannels::has_evaluate() const {
     OV_OP_SCOPE(v0_ShuffleChannels_has_evaluate);
