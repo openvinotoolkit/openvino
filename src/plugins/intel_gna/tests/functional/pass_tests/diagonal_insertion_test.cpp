@@ -27,8 +27,8 @@ using namespace ngraph::op;
 using namespace ngraph::opset9;
 using namespace std;
 
-using DiagonalInsertionTestParams = tuple<map<std::string, std::string>,   // Configuration
-                                          vector<vector<float>>            // FakeQuantize min/max params
+using DiagonalInsertionTestParams = tuple<map<std::string, std::string>,  // Configuration
+                                          vector<vector<float>>           // FakeQuantize min/max params
                                           >;
 
 constexpr uint16_t fq_levels = numeric_limits<uint16_t>::max();
