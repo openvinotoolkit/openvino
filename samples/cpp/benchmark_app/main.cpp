@@ -878,7 +878,6 @@ int main(int argc, char* argv[]) {
             } else {
                 try {
                     nireq = compiledModel.get_property(ov::optimal_number_of_infer_requests);
-                    nireq = nireq == 0 ? 1 : nireq;
                 } catch (const std::exception& ex) {
                     OPENVINO_THROW("Every device used with the benchmark_app should support " +
                                    std::string(ov::optimal_number_of_infer_requests.name()) +
