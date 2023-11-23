@@ -15,13 +15,13 @@ public:
     Add();
     Add(const float value);
     Add(const std::vector<float>& values);
-    Add(const std::vector<float>& values, const ngraph::element::Type outPrecision);
-    Add(const std::vector<float>& values, const ngraph::element::Type outPrecision, const ngraph::Shape& constantShape);
+    Add(const std::vector<float>& values, const ov::element::Type outPrecision);
+    Add(const std::vector<float>& values, const ov::element::Type outPrecision, const ov::Shape& constantShape);
     bool empty() const noexcept;
 
     std::vector<float> values;
-    ngraph::element::Type outPrecision;
-    ngraph::Shape constantShape;
+    ov::element::Type outPrecision;
+    ov::Shape constantShape;
     bool constantShapeIsDefined;
 private:
     bool isEmpty;

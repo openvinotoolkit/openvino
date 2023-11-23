@@ -15,15 +15,15 @@ namespace subgraph {
 
 class SpaceToBatchFunction {
 public:
-    static std::shared_ptr<ngraph::Function> get(const ngraph::PartialShape& input_shape,
-                                                 const ngraph::element::Type input_type,
+    static std::shared_ptr<ov::Model> get(const ov::PartialShape& input_shape,
+                                                 const ov::element::Type input_type,
                                                  const FakeQuantizeOnData& fq_on_data,
                                                  const std::vector<size_t>& block_shape,
                                                  const std::vector<size_t>& pads_begin,
                                                  const std::vector<size_t>& pads_end);
 
-    static std::shared_ptr<ngraph::Function> get(const ngraph::PartialShape& input_shape,
-                                                 const ngraph::element::Type input_type,
+    static std::shared_ptr<ov::Model> get(const ov::PartialShape& input_shape,
+                                                 const ov::element::Type input_type,
                                                  const ngraph::builder::subgraph::DequantizationOperations& dequantization_before,
                                                  const std::vector<size_t>& block_shape,
                                                  const std::vector<size_t>& pads_begin,

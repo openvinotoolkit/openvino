@@ -21,18 +21,18 @@ public:
         const Shape& shape,
         const element::Type& netPrecision,
         const builder::subgraph::DequantizationOperations& dequantizationOnWeights,
-        const std::shared_ptr<opset1::Constant>& value = nullptr);
+        const std::shared_ptr<ov::opset1::Constant>& value = nullptr);
     static std::shared_ptr<Node> getWeights(
         const Shape& shape,
         const element::Type& netPrecision,
         const builder::subgraph::FakeQuantizeOnWeights& fqOnWeights,
-        const std::shared_ptr<opset1::Constant>& value = nullptr);
+        const std::shared_ptr<ov::opset1::Constant>& value = nullptr);
     static std::shared_ptr<Node> getWeights(
         const Shape& shape,
         const element::Type& netPrecision,
         const builder::subgraph::FakeQuantizeOnWeights& fqOnWeights,
         const builder::subgraph::DequantizationOperations& dequantizationOnWeights,
-        const std::shared_ptr<opset1::Constant>& value = nullptr);
+        const std::shared_ptr<ov::opset1::Constant>& value = nullptr);
     static std::shared_ptr<Function> get(
         const element::Type netPrecision,
         const PartialShape& inputShape,

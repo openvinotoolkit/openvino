@@ -19,7 +19,7 @@ namespace snippets {
  * @class BaseDummyOperation
  * @brief Base not type relaxed operation with absent validation and parameterized output.
  */
-class BaseDummyOperation : public ngraph::op::Op {
+class BaseDummyOperation : public ov::op::Op {
 public:
     BaseDummyOperation(
         const Output<Node>& arg0,
@@ -129,9 +129,9 @@ public:
 
     explicit TwoBinaryOpsFunction(
         const std::vector<PartialShape> input_shapes,
-        const ngraph::element::Type precision1,
-        const ngraph::element::Type precision2,
-        const ngraph::element::Type constant_precision,
+        const ov::element::Type precision1,
+        const ov::element::Type precision2,
+        const ov::element::Type constant_precision,
         Actual actual,
         Expected expected) :
         SnippetsFunctionBase(input_shapes),
@@ -147,9 +147,9 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
 
-    const ngraph::element::Type precision1;
-    const ngraph::element::Type precision2;
-    const ngraph::element::Type constant_precision;
+    const ov::element::Type precision1;
+    const ov::element::Type precision2;
+    const ov::element::Type constant_precision;
     const Actual actual;
     const Expected expected;
 
@@ -157,12 +157,12 @@ private:
     /*
      * Returns model implicitly via getOriginal call in initOriginal or getReference in initReference.
      */
-    static std::shared_ptr<ngraph::Function> get(
-        const ngraph::element::Type& precision1,
-        const ngraph::PartialShape& inputShape1,
-        const ngraph::element::Type& precision2,
-        const ngraph::PartialShape& inputShape2,
-        const ngraph::element::Type& constant_precision,
+    static std::shared_ptr<ov::Model> get(
+        const ov::element::Type& precision1,
+        const ov::PartialShape& inputShape1,
+        const ov::element::Type& precision2,
+        const ov::PartialShape& inputShape2,
+        const ov::element::Type& constant_precision,
         const std::pair<element::Type, element::Type>& convertion_before_op1,
         const element::Type& convertion_before_op2_1,
         const std::pair<element::Type, element::Type>& convertion_before_op2_2,

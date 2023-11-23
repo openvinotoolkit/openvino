@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+
 #include <ngraph/ngraph.hpp>
 #include <low_precision/layer_transformation.hpp>
 
@@ -17,10 +18,10 @@ namespace subgraph {
 
 class AddActualValues {
 public:
-    ngraph::element::Type precision1;
+    ov::element::Type precision1;
     std::vector<float> subtractValues1;
     std::vector<float> mutliplyValues1;
-    ngraph::element::Type precision2;
+    ov::element::Type precision2;
     std::vector<float> subtractValues2;
     std::vector<float> mutliplyValues2;
 };
@@ -37,10 +38,10 @@ inline std::ostream& operator<<(std::ostream& out, const AddActualValues& values
 
 class AddExpectedValues {
 public:
-    ngraph::element::Type precision1;
+    ov::element::Type precision1;
     std::vector<float> subtractValues1;
     std::vector<float> mutliplyValues1;
-    ngraph::element::Type precision2;
+    ov::element::Type precision2;
     std::vector<float> mutliplyValuesAfter;
 };
 
@@ -55,13 +56,13 @@ inline std::ostream& operator<<(std::ostream& out, const AddExpectedValues& valu
 
 class ElementwiseWithMultiParentDequantizationFunction {
 public:
-    static std::shared_ptr<ngraph::Function> get(
-        const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+    static std::shared_ptr<ov::Model> get(
+        const ov::element::Type precision,
+        const ov::Shape& inputShape,
         const ov::pass::low_precision::LayerTransformation::Params& params,
-        const ngraph::element::Type& precision1,
+        const ov::element::Type& precision1,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization1,
-        const ngraph::element::Type& precision2,
+        const ov::element::Type& precision2,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization2);
 };
 

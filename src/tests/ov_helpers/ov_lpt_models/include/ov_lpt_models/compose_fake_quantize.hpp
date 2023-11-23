@@ -16,9 +16,9 @@ namespace subgraph {
 
 class ComposeFakeQuantizeFunction {
 public:
-    static std::shared_ptr<ngraph::Function> get(
-        const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+    static std::shared_ptr<ov::Model> get(
+        const ov::element::Type precision,
+        const ov::Shape& inputShape,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fakeQuantizeOnData,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization1,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization2);

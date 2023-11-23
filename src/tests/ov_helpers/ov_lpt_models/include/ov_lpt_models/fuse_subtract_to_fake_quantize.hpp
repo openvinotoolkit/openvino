@@ -18,13 +18,13 @@ namespace subgraph {
 
 class FuseSubtractToFakeQuantizeFunction {
 public:
-    static std::shared_ptr<ngraph::Function> get(
-        const ngraph::PartialShape& inputShape,
+    static std::shared_ptr<ov::Model> get(
+        const ov::PartialShape& inputShape,
         const FakeQuantizeOnDataWithConstant& fqOnData,
         const DequantizationOperations& dequantization);
 
-    static std::shared_ptr<ngraph::Function> get(
-        const ngraph::PartialShape& inputShape,
+    static std::shared_ptr<ov::Model> get(
+        const ov::PartialShape& inputShape,
         const FakeQuantizeOnDataWithConstant& fqOnData,
         const DequantizationOperations& dequantization,
         const FakeQuantizeOnDataWithConstant& fqOnData2,

@@ -14,24 +14,24 @@ namespace subgraph {
 
 class SqueezeFunction {
 public:
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::PartialShape& inputShape,
+    static std::shared_ptr<ov::Model> getOriginal(
+        const ov::PartialShape& inputShape,
         const std::vector<float>& axes,
-        const ngraph::element::Type precisionBeforeDequantization,
+        const ov::element::Type precisionBeforeDequantization,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization);
 
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type originalFunctionPrecision,
-        const ngraph::PartialShape& inputShape,
+    static std::shared_ptr<ov::Model> getOriginal(
+        const ov::element::Type originalFunctionPrecision,
+        const ov::PartialShape& inputShape,
         const FakeQuantizeOnData& fakeQuantizeOnData,
         const std::vector<float>& axes);
 
-    static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::PartialShape& inputShape,
+    static std::shared_ptr<ov::Model> getReference(
+        const ov::PartialShape& inputShape,
         const std::vector<float>& axes,
-        const ngraph::element::Type precisionBeforeDequantization,
+        const ov::element::Type precisionBeforeDequantization,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
-        const ngraph::element::Type precisionAfterOperation,
+        const ov::element::Type precisionAfterOperation,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter);
 };
 

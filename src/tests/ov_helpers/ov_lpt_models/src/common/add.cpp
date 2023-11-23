@@ -3,7 +3,7 @@
 //
 
 #include "ov_lpt_models/common/add.hpp"
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 
 namespace ngraph {
 namespace builder {
@@ -11,25 +11,25 @@ namespace subgraph {
 
 Add::Add() :
     isEmpty(true),
-    outPrecision(ngraph::element::undefined),
+    outPrecision(ov::element::undefined),
     constantShapeIsDefined(false)
 {}
 
 Add::Add(const float value) :
     isEmpty(false),
     values({ value }),
-    outPrecision(ngraph::element::undefined),
+    outPrecision(ov::element::undefined),
     constantShapeIsDefined(false) {
 }
 
 Add::Add(const std::vector<float>& values) :
     isEmpty(values.empty()),
     values(values),
-    outPrecision(ngraph::element::undefined),
+    outPrecision(ov::element::undefined),
     constantShapeIsDefined(false) {
 }
 
-Add::Add(const std::vector<float>& values, const ngraph::element::Type outPrecision) :
+Add::Add(const std::vector<float>& values, const ov::element::Type outPrecision) :
     isEmpty(false),
     values(values),
     outPrecision(outPrecision),
@@ -38,8 +38,8 @@ Add::Add(const std::vector<float>& values, const ngraph::element::Type outPrecis
 
 Add::Add(
     const std::vector<float>& values,
-    const ngraph::element::Type outPrecision,
-    const ngraph::Shape& constantShape) :
+    const ov::element::Type outPrecision,
+    const ov::Shape& constantShape) :
     isEmpty(false),
     values(values),
     outPrecision(outPrecision),

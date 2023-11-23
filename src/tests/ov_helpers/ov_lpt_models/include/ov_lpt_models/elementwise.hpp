@@ -19,9 +19,9 @@ namespace subgraph {
 
 class ElementwiseFunction {
 public:
-    static std::shared_ptr<ngraph::Function> getOriginalSubgraphWithConvolutions(
-        const ngraph::element::Type precision,
-        const ngraph::PartialShape& inputShape,
+    static std::shared_ptr<ov::Model> getOriginalSubgraphWithConvolutions(
+        const ov::element::Type precision,
+        const ov::PartialShape& inputShape,
         const bool broadcast,
         const std::string& elementWiseType,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnDataBefore1,

@@ -17,9 +17,9 @@ namespace subgraph {
 
 class PrecisionPropagationFunction {
 public:
-    static std::shared_ptr<ngraph::Function> getOriginalWithNeighbors(
-        const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+    static std::shared_ptr<ov::Model> getOriginalWithNeighbors(
+        const ov::element::Type precision,
+        const ov::Shape& inputShape,
         const FakeQuantizeOnData& fqOnData1,
         const DequantizationOperations::Convert& convert1,
         const DequantizationOperations& dequantization1,
@@ -30,15 +30,15 @@ public:
         const DequantizationOperations::Convert& convert3,
         const DequantizationOperations& dequantization3);
 
-    static std::shared_ptr<ngraph::Function> getReferenceWithNeighbors(
-        const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+    static std::shared_ptr<ov::Model> getReferenceWithNeighbors(
+        const ov::element::Type precision,
+        const ov::Shape& inputShape,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2,
         const FakeQuantizeOnData& fqOnData3,
-        const ngraph::element::Type precisionBeforeOp,
+        const ov::element::Type precisionBeforeOp,
         const DequantizationOperations& dequantizationBefore,
-        const ngraph::element::Type precisionAfterOperation,
+        const ov::element::Type precisionAfterOperation,
         const DequantizationOperations& dequantizationOperations1,
         const DequantizationOperations& dequantizationOperations2);
 

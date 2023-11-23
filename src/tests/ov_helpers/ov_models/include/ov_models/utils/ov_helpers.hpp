@@ -90,30 +90,30 @@ using ov::test::utils::MemoryTransformation;
 using ov::test::utils::QuantizationGranularity;
 // clang-format on
 
-bool is_tensor_iterator_exist(const std::shared_ptr<ngraph::Function>& func);
+bool is_tensor_iterator_exist(const std::shared_ptr<ov::Model>& func);
 
-ngraph::OutputVector convert2OutputVector(const std::vector<std::shared_ptr<ngraph::Node>>& nodes);
+ov::OutputVector convert2OutputVector(const std::vector<std::shared_ptr<ov::Node>>& nodes);
 
 template <class opType>
-inline ngraph::NodeVector castOps2Nodes(const std::vector<std::shared_ptr<opType>>& ops) {
-    ngraph::NodeVector nodes;
+inline ov::NodeVector castOps2Nodes(const std::vector<std::shared_ptr<opType>>& ops) {
+    ov::NodeVector nodes;
     for (const auto& op : ops) {
-        nodes.push_back(std::dynamic_pointer_cast<ngraph::Node>(op));
+        nodes.push_back(std::dynamic_pointer_cast<ov::Node>(op));
     }
     return nodes;
 }
 
-std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> interpreterFunction(
+std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> interpreterFunction(
     const std::shared_ptr<Function>& function,
     const std::vector<std::vector<std::uint8_t>>& inputs,
-    const std::vector<ngraph::element::Type>& inputTypes = {});
+    const std::vector<ov::element::Type>& inputTypes = {});
 
 std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<Function>& function,
                                           const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs);
 
 std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function>& function,
                                        const std::vector<std::vector<std::uint8_t>>& inputs,
-                                       const std::vector<ngraph::element::Type>& inputTypes = {});
+                                       const std::vector<ov::element::Type>& inputTypes = {});
 
 std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>& output,
                                                  const element::Type_t& fromPrecision,

@@ -4,7 +4,7 @@
 
 #include "ov_lpt_models/fuse_fake_quantize.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include "ov_ops/type_relaxed.hpp"
 #include "low_precision/network_helper.hpp"
 #include "ov_models/subgraph_builders.hpp"
@@ -17,23 +17,23 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
-using namespace ngraph::pass;
+using namespace ov::pass;
 
-std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::getOriginal(
-    const ngraph::PartialShape& inputShape,
-    const ngraph::element::Type precisionBeforeAdd,
+std::shared_ptr<ov::Model> FuseFakeQuantizeFunction::getOriginal(
+    const ov::PartialShape& inputShape,
+    const ov::element::Type precisionBeforeAdd,
     const Add& add,
-    const ngraph::element::Type precisionBeforeDequantization,
+    const ov::element::Type precisionBeforeDequantization,
     const DequantizationOperations& dequantization,
-    const ngraph::element::Type precisionAfterDequantization,
-    const ngraph::element::Type precisionFqOnData,
+    const ov::element::Type precisionAfterDequantization,
+    const ov::element::Type precisionFqOnData,
     const FakeQuantizeOnDataWithConstant& fqOnData) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(add.empty() ? precisionBeforeDequantization : precisionBeforeAdd, inputShape);
+    const auto input = std::make_shared<ov::opset1::Parameter>(add.empty() ? precisionBeforeDequantization : precisionBeforeAdd, inputShape);
     input->set_friendly_name("input");
 
     std::shared_ptr<Node> parent = input;
     if (!add.empty()) {
-        parent = makeElementwise<ngraph::opset1::Add>(parent, add);
+        parent = makeElementwise<ov::opset1::Add>(parent, add);
     }
 
     const std::shared_ptr<Node> lastDequantization = makeDequantization(parent, dequantization);
@@ -43,19 +43,19 @@ std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::getOriginal(
         makeFakeQuantizeTypeRelaxed(lastDequantization, precisionFqOnData, fqOnData);
     fakeQuantize->set_friendly_name("output");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fakeQuantize) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FuseFakeQuantizeFunction");
+    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(fakeQuantize) };
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "FuseFakeQuantizeFunction");
 }
 
 namespace {
-std::shared_ptr<ngraph::opset1::Convolution> make_convolution(
-    const ngraph::PartialShape& inputShape,
-    const ngraph::element::Type precisionBefore,
+std::shared_ptr<ov::opset1::Convolution> make_convolution(
+    const ov::PartialShape& inputShape,
+    const ov::element::Type precisionBefore,
     const std::shared_ptr<Node>& parent,
     const size_t index) {
     const ov::Shape shape = inputShape.to_shape();
     const ov::Shape weightsShape({ shape[1], shape[1], 1ull, 1ull });
-    auto weightsConstant = std::make_shared<ngraph::op::Constant>(ngraph::element::f32, weightsShape, std::vector<float>(9, 1.f));
+    auto weightsConstant = std::make_shared<ov::op::v0::Constant>(ov::element::f32, weightsShape, std::vector<float>(9, 1.f));
     auto weights = makeFakeQuantize(
         weightsConstant,
         precisionBefore,
@@ -68,40 +68,40 @@ std::shared_ptr<ngraph::opset1::Convolution> make_convolution(
             { 1.28f, 1.28f, 1.28f },
             precisionBefore));
 
-    auto convolution = std::make_shared<ngraph::opset1::Convolution>(
+    auto convolution = std::make_shared<ov::opset1::Convolution>(
         parent,
         weights,
-        ngraph::Strides{ 1, 1 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::Strides{ 1, 1 });
+        ov::Strides{ 1, 1 },
+        ov::CoordinateDiff{ 0, 0 },
+        ov::CoordinateDiff{ 0, 0 },
+        ov::Strides{ 1, 1 });
     convolution->set_friendly_name("convolution" + std::to_string(index));
     return convolution;
 }
 }  // namespace
 
-    std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::getReference(
-        const ngraph::PartialShape& inputShape,
-        const ngraph::element::Type precisionBeforeAdd,
+    std::shared_ptr<ov::Model> FuseFakeQuantizeFunction::getReference(
+        const ov::PartialShape& inputShape,
+        const ov::element::Type precisionBeforeAdd,
         const Add& add,
-        const ngraph::element::Type precisionBeforeDequantization,
+        const ov::element::Type precisionBeforeDequantization,
         const DequantizationOperations& dequantization,
-        const ngraph::element::Type precisionAfterDequantization,
-        const ngraph::element::Type precisionFqOnData,
+        const ov::element::Type precisionAfterDequantization,
+        const ov::element::Type precisionFqOnData,
         const FakeQuantizeOnDataWithConstant& fqOnData) {
-        const auto input = std::make_shared<ngraph::opset1::Parameter>(add.empty() ? precisionBeforeDequantization : precisionBeforeAdd, inputShape);
+        const auto input = std::make_shared<ov::opset1::Parameter>(add.empty() ? precisionBeforeDequantization : precisionBeforeAdd, inputShape);
         input->set_friendly_name("input");
 
         std::shared_ptr<Node> parent = input;
         if (!add.empty()) {
-            parent = makeElementwise<ngraph::opset1::Add>(parent, add);
+            parent = makeElementwise<ov::opset1::Add>(parent, add);
         }
 
         const std::shared_ptr<Node> lastDequantization = makeDequantization(parent, dequantization);
 
         auto fqOnDataCopy = fqOnData;
         fqOnDataCopy.outputHighValues = {255.f};
-        fqOnDataCopy.outputPrecision = fqOnData.outputPrecision == element::undefined ? ngraph::element::u8 : fqOnData.outputPrecision;
+        fqOnDataCopy.outputPrecision = fqOnData.outputPrecision == element::undefined ? ov::element::u8 : fqOnData.outputPrecision;
 
         std::shared_ptr<Node> lastNode = makeFakeQuantizeTypeRelaxed(lastDequantization, precisionFqOnData, fqOnDataCopy);
         lastNode = makeDequantization(
@@ -116,17 +116,17 @@ std::shared_ptr<ngraph::opset1::Convolution> make_convolution(
             });
         lastNode->set_friendly_name("output");
 
-        ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(lastNode) };
-        return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FuseFakeQuantizeFunction");
+        ov::ResultVector results{ std::make_shared<ov::opset1::Result>(lastNode) };
+        return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "FuseFakeQuantizeFunction");
     }
 
-std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::get(
-    const ngraph::PartialShape& inputShape,
-    const ngraph::element::Type precisionBefore,
+std::shared_ptr<ov::Model> FuseFakeQuantizeFunction::get(
+    const ov::PartialShape& inputShape,
+    const ov::element::Type precisionBefore,
     const FakeQuantizeOnData& fqOnData1,
     const FakeQuantizeOnData& fqOnData2,
     const DequantizationOperations& dequantizationOperations2) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBefore, inputShape);
+    const auto input = std::make_shared<ov::opset1::Parameter>(precisionBefore, inputShape);
     input->set_friendly_name("input");
 
     std::shared_ptr<Node> parent = input;
@@ -142,10 +142,10 @@ std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::get(
     const std::vector<size_t> stride = { 1, 1 };
     const std::vector<size_t> padBegin = { 0, 0 };
     const std::vector<size_t> padEnd = { 0, 0 };
-    const ngraph::op::PadType padType = ngraph::op::PadType::NOTSET;
-    const ngraph::op::RoundingType roundingType = ngraph::op::RoundingType::FLOOR;
+    const ov::op::PadType padType = ov::op::PadType::NOTSET;
+    const ov::op::RoundingType roundingType = ov::op::RoundingType::FLOOR;
 
-    parent = std::make_shared<ngraph::opset1::MaxPool>(
+    parent = std::make_shared<ov::opset1::MaxPool>(
         parent,
         stride,
         padBegin,
@@ -163,17 +163,17 @@ std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::get(
         parent = makeDequantization(parent, dequantizationOperations2);
     }
 
-    ngraph::ResultVector results{
-        std::make_shared<ngraph::opset1::Result>(make_convolution(inputShape, precisionBefore, parent, 0)),
-        std::make_shared<ngraph::opset1::Result>(make_convolution(inputShape, precisionBefore, parent, 1))
+    ov::ResultVector results{
+        std::make_shared<ov::opset1::Result>(make_convolution(inputShape, precisionBefore, parent, 0)),
+        std::make_shared<ov::opset1::Result>(make_convolution(inputShape, precisionBefore, parent, 1))
     };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FuseFakeQuantizeFunction");
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "FuseFakeQuantizeFunction");
 }
 
-std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::get(
-    const ngraph::PartialShape& inputShape,
+std::shared_ptr<ov::Model> FuseFakeQuantizeFunction::get(
+    const ov::PartialShape& inputShape,
     const std::vector<Branch>& branches,
-    const ngraph::element::Type precisionFqOnData,
+    const ov::element::Type precisionFqOnData,
     const FakeQuantizeOnData& fqOnData) {
     if (branches.size() != 2ul) {
         throw std::runtime_error("unsupported branches count");
@@ -183,25 +183,25 @@ std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::get(
         throw std::runtime_error("branch precisions are not equal");
     }
 
-    ngraph::ParameterVector inputs;
+    ov::ParameterVector inputs;
     std::vector<std::shared_ptr<Node>> lastDequantizations;
     for (const Branch& branch : branches) {
-        const auto input = std::make_shared<ngraph::opset1::Parameter>(branch.precisionBeforeDequantization, inputShape);
+        const auto input = std::make_shared<ov::opset1::Parameter>(branch.precisionBeforeDequantization, inputShape);
         inputs.push_back(input);
 
         const std::shared_ptr<Node> lastDequantization = makeDequantization(input, branch.dequantization);
         lastDequantizations.push_back(lastDequantization);
     }
 
-    std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<ngraph::opset1::Multiply>(lastDequantizations[0], lastDequantizations[1]);
+    std::shared_ptr<ov::opset1::Multiply> multiply = std::make_shared<ov::opset1::Multiply>(lastDequantizations[0], lastDequantizations[1]);
 
     const std::shared_ptr<Node> fakeQuantize = branches[0].dequantization.multiply.outPrecision == precisionFqOnData ?
         makeFakeQuantize(multiply, precisionFqOnData, fqOnData) :
         makeFakeQuantizeTypeRelaxed(multiply, precisionFqOnData, fqOnData);
     fakeQuantize->set_friendly_name("output");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fakeQuantize) };
-    return std::make_shared<ngraph::Function>(results, inputs, "FuseFakeQuantizeFunction");
+    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(fakeQuantize) };
+    return std::make_shared<ov::Model>(results, inputs, "FuseFakeQuantizeFunction");
 }
 
 }  // namespace subgraph

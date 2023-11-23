@@ -17,22 +17,22 @@ namespace subgraph {
 
 class GetDequantizationFunction {
 public:
-    static std::shared_ptr<ngraph::Function> get(
-        const ngraph::element::Type& precision,
+    static std::shared_ptr<ov::Model> get(
+        const ov::element::Type& precision,
         const Shape& shape,
         const FakeQuantizeOnData& fakeQuantize,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore);
 
-    static std::shared_ptr<ngraph::Function> get(
-        const ngraph::element::Type& precision,
+    static std::shared_ptr<ov::Model> get(
+        const ov::element::Type& precision,
         const Shape& shape,
         const FakeQuantizeOnData& fakeQuantize,
         const ov::pass::low_precision::FakeQuantizeDequantization& dequantization);
 
-    static std::shared_ptr<ngraph::Function> getOriginal(
+    static std::shared_ptr<ov::Model> getOriginal(
         bool isConvert, bool isSubtract, size_t subDataInput, size_t mulDataInput);
 
-    static std::shared_ptr<ngraph::Function> getReference(
+    static std::shared_ptr<ov::Model> getReference(
         ov::pass::low_precision::FakeQuantizeDequantization dequantization);
 };
 }  // namespace subgraph

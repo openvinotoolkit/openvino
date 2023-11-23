@@ -14,9 +14,9 @@ namespace subgraph {
 
 class NormalizeDequantizationFunction {
 public:
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+    static std::shared_ptr<ov::Model> getOriginal(
+        const ov::element::Type precision,
+        const ov::Shape& inputShape,
         const ngraph::builder::subgraph::DequantizationOperations dequantization);
 };
 

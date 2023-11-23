@@ -18,21 +18,21 @@ namespace subgraph {
 
 class FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction {
 public:
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type precision,
-        const ngraph::PartialShape& inputShape,
+    static std::shared_ptr<ov::Model> getOriginal(
+        const ov::element::Type precision,
+        const ov::PartialShape& inputShape,
         const FakeQuantizeOnData& fqOnData,
         const FakeQuantizeOnWeights fqOnWeights1,
         FakeQuantizeOnWeights fqOnWeights2);
 
-    static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+    static std::shared_ptr<ov::Model> getReference(
+        const ov::element::Type precision,
+        const ov::Shape& inputShape,
         const ov::pass::low_precision::LayerTransformation::Params& params,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData,
-        const ngraph::element::Type precisionBeforeOp,
+        const ov::element::Type precisionBeforeOp,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
-        const ngraph::element::Type precisionAfterOp,
+        const ov::element::Type precisionAfterOp,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter1,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter2);
 };

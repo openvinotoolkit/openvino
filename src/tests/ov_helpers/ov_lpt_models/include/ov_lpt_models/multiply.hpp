@@ -19,7 +19,7 @@ class MultiplyBranch {
 public:
     MultiplyBranch(const PartialShape& inputShape,
                    const ngraph::builder::subgraph::Constant& constant,
-                   const ngraph::element::Type& input_precision,
+                   const ov::element::Type& input_precision,
                    const ngraph::builder::subgraph::DequantizationOperations& dequantization,
                    const ngraph::builder::subgraph::FakeQuantizeOnData& fake_quantize)
                    : inputShape(inputShape),
@@ -30,7 +30,7 @@ public:
 
     PartialShape inputShape;
     ngraph::builder::subgraph::Constant constant;
-    ngraph::element::Type input_precision;
+    ov::element::Type input_precision;
     ngraph::builder::subgraph::DequantizationOperations dequantization;
     ngraph::builder::subgraph::FakeQuantizeOnData fake_quantize;
 };
@@ -49,7 +49,7 @@ public:
 
 class MultiplyFunction : public ElementwiseFunction {
 public:
-    static std::shared_ptr<ngraph::Function> get(const element::Type model_precision, const MultiplyValues& actualValues);
+    static std::shared_ptr<ov::Model> get(const element::Type model_precision, const MultiplyValues& actualValues);
 };
 
 }  // namespace subgraph

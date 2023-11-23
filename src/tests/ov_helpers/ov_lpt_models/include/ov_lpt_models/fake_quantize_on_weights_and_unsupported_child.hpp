@@ -16,9 +16,9 @@ namespace subgraph {
 
 class FakeQuantizeOnWeightsAndUnsupportedChildFunction {
 public:
-static std::shared_ptr<ngraph::Function> get(
-    const ngraph::Shape& inputShape,
-    const ngraph::element::Type inputPrecision,
+static std::shared_ptr<ov::Model> get(
+    const ov::Shape& inputShape,
+    const ov::element::Type inputPrecision,
     const std::shared_ptr<ov::op::v0::Constant> weights,
     const ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights);
 };

@@ -231,7 +231,7 @@ std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function>& function
     NGRAPH_SUPPRESS_DEPRECATED_END;
     ov::pass::ConstantFolding().run_on_model(foldedFunc);
     for (const auto& op : foldedFunc->get_ops()) {
-        OPENVINO_ASSERT(op::is_constant(op) || op::is_output(op) || op::is_parameter(op),
+        OPENVINO_ASSERT(ov::op::util::is_constant(op) || ov::op::util::is_output(op) || ov::op::util::is_parameter(op),
                         "Function was not fully folded to constant state!\n",
                         "At least one non constant node with type ",
                         op->get_type_name(),

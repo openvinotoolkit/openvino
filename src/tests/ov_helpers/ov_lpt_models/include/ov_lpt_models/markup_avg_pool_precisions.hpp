@@ -17,10 +17,10 @@ namespace subgraph {
 
 class MarkupAvgPoolPrecisionsFunction {
 public:
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type precision,
-        const ngraph::element::Type inputPrecision,
-        const ngraph::Shape& inputShape,
+    static std::shared_ptr<ov::Model> getOriginal(
+        const ov::element::Type precision,
+        const ov::element::Type inputPrecision,
+        const ov::Shape& inputShape,
         const bool addFQ,
         const std::string additionalLayer,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
@@ -29,19 +29,19 @@ public:
         // -1 - no FakeQuantize
         const int fakeQuantizeBranch);
 
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type originalFunctionPrecision,
-        const ngraph::Shape& inputShape,
+    static std::shared_ptr<ov::Model> getOriginal(
+        const ov::element::Type originalFunctionPrecision,
+        const ov::Shape& inputShape,
         const FakeQuantizeOnData& fakeQuantizeOnData);
 
-    static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::element::Type precision,
-        const ngraph::element::Type inputPrecision,
-        const ngraph::Shape& inputShape,
+    static std::shared_ptr<ov::Model> getReference(
+        const ov::element::Type precision,
+        const ov::element::Type inputPrecision,
+        const ov::Shape& inputShape,
         const bool addFQ,
         const std::string additionalLayer,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
-        const ngraph::element::Type precisionAfterOperation,
+        const ov::element::Type precisionAfterOperation,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter);
 };
 

@@ -14,29 +14,29 @@ namespace subgraph {
 
 class MVNFunction {
 public:
-    static std::shared_ptr<ngraph::Function> getOriginal(
+    static std::shared_ptr<ov::Model> getOriginal(
         const element::Type precision,
-        const ngraph::PartialShape& inputShape,
+        const ov::PartialShape& inputShape,
         const AxisSet& reductionAxes,
         const bool& normalizeVariance,
-        const ngraph::element::Type precisionBeforeDequantization,
+        const ov::element::Type precisionBeforeDequantization,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization,
         const int opset_version);
 
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type precision,
-        const ngraph::PartialShape& inputShape,
+    static std::shared_ptr<ov::Model> getOriginal(
+        const ov::element::Type precision,
+        const ov::PartialShape& inputShape,
         const AxisSet& reductionAxes,
         const bool& normalizeVariance);
 
-    static std::shared_ptr<ngraph::Function> getReference(
+    static std::shared_ptr<ov::Model> getReference(
         const element::Type precision,
-        const ngraph::PartialShape& inputShape,
+        const ov::PartialShape& inputShape,
         const AxisSet& reductionAxes,
         const bool& normalizeVariance,
-        const ngraph::element::Type precisionBeforeDequantization,
+        const ov::element::Type precisionBeforeDequantization,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
-        const ngraph::element::Type precisionAfterOperation,
+        const ov::element::Type precisionAfterOperation,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
         const int opset_version);
 };

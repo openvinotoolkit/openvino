@@ -28,19 +28,19 @@ public:
     class ExpectedValues {
     public:
         bool operationBeforeLimitedOperationIsPrecisionTransparent;
-        ngraph::element::Type fakeQuantizeOnDataOutPrecision;
+        ov::element::Type fakeQuantizeOnDataOutPrecision;
         builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
         builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     };
 
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type precision,
-        const ngraph::PartialShape& inputShape,
+    static std::shared_ptr<ov::Model> getOriginal(
+        const ov::element::Type precision,
+        const ov::PartialShape& inputShape,
         const ActualValues& values);
 
-    static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+    static std::shared_ptr<ov::Model> getReference(
+        const ov::element::Type precision,
+        const ov::Shape& inputShape,
         const ExpectedValues& values);
 };
 

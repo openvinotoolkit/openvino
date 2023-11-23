@@ -17,27 +17,27 @@ namespace subgraph {
 
 class ShuffleChannelsFunction {
 public:
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type inputPrecision,
-        const ngraph::PartialShape& inputShape,
+    static std::shared_ptr<ov::Model> getOriginal(
+        const ov::element::Type inputPrecision,
+        const ov::PartialShape& inputShape,
         const ngraph::builder::subgraph::DequantizationOperations& deqBefore,
         const std::int64_t axis,
         const std::int64_t group);
 
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type inputPrecision,
-        const ngraph::PartialShape& inputShape,
+    static std::shared_ptr<ov::Model> getOriginal(
+        const ov::element::Type inputPrecision,
+        const ov::PartialShape& inputShape,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData,
         const std::int64_t axis,
         const std::int64_t group);
 
-    static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::element::Type inputPrecision,
-        const ngraph::PartialShape& inputShape,
+    static std::shared_ptr<ov::Model> getReference(
+        const ov::element::Type inputPrecision,
+        const ov::PartialShape& inputShape,
         const ngraph::builder::subgraph::DequantizationOperations& deqBefore,
         const std::int64_t axis,
         const std::int64_t group,
-        const ngraph::element::Type precisionAfterOperation,
+        const ov::element::Type precisionAfterOperation,
         const ngraph::builder::subgraph::DequantizationOperations& deqAfter);
 };
 

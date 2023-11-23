@@ -17,20 +17,20 @@ namespace subgraph {
 
 class MulAddToScaleshiftOrPowerFunction {
 public:
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+    static std::shared_ptr<ov::Model> getOriginal(
+        const ov::element::Type precision,
+        const ov::Shape& inputShape,
         bool isDequantization,
         const ngraph::builder::subgraph::DequantizationOperations::Multiply& mulValues,
         const ngraph::builder::subgraph::Add& addValues);
 
-    static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+    static std::shared_ptr<ov::Model> getReference(
+        const ov::element::Type precision,
+        const ov::Shape& inputShape,
         bool isDequantization,
         const ngraph::builder::subgraph::DequantizationOperations::Multiply& weightsValues,
         const ngraph::builder::subgraph::Add& biasesValues,
-        const ngraph::element::Type precisionAfterOperation);
+        const ov::element::Type precisionAfterOperation);
 };
 
 }  // namespace subgraph

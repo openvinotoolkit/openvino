@@ -23,15 +23,15 @@ namespace subgraph {
 class FakeQuantizeAndConvolutionFunction {
 public:
     // TODO: move to ConvolutionFunction
-    static std::shared_ptr<ngraph::Function> get(
-        const ngraph::element::Type precision,
-        const ngraph::PartialShape& inputShape,
+    static std::shared_ptr<ov::Model> get(
+        const ov::element::Type precision,
+        const ov::PartialShape& inputShape,
         const FakeQuantizeOnData& fakeQuantizeOnData,
         const FakeQuantizeOnWeights& fakeQuantizeOnWeights);
 
-    static std::shared_ptr<ngraph::Function> get(
-        const ngraph::element::Type precision,
-        const ngraph::PartialShape& inputShape,
+    static std::shared_ptr<ov::Model> get(
+        const ov::element::Type precision,
+        const ov::PartialShape& inputShape,
         const FakeQuantizeOnDataWithConstant& fakeQuantizeOnData,
         const DequantizationOperations::Convert& convertOnData,
         const DequantizationOperations& dequantizationOnData,
@@ -42,9 +42,9 @@ public:
         const DequantizationOperations& dequantizationAfter,
         const std::string operation = "Convolution");
 
-    static std::shared_ptr<ngraph::Function> get(
-        const ngraph::element::Type precision,
-        const ngraph::PartialShape& inputShape,
+    static std::shared_ptr<ov::Model> get(
+        const ov::element::Type precision,
+        const ov::PartialShape& inputShape,
         const FakeQuantizeOnDataWithConstant& fakeQuantizeOnData,
         const DequantizationOperations::Convert& convertOnData,
         const DequantizationOperations& dequantizationOnData,
