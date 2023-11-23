@@ -368,7 +368,7 @@ public:
             cast_vector<Type_t::u64>(rc, num_elements_to_cast);
             break;
         case Type_t::string:
-            // cast_vector<Type_t::string>(rc, num_elements_to_cast);
+            cast_vector<Type_t::string>(rc, num_elements_to_cast);
             break;
         default:
             OPENVINO_THROW("unsupported type");
@@ -518,14 +518,13 @@ private:
     }
 
     template <element::Type_t Type,
-              // typename OUT_T,  -- fixed to be std::string, TODO: investigate whether it needs to be relaxed
+              typename OUT_T,
               typename std::enable_if<Type == element::Type_t::string, bool>::type = true>
-    void cast_vector(std::vector<std::string>& output_vector) const {
-        const auto element_number = shape_size(m_shape);
-        output_vector.reserve(element_number);
-        // TODO: need to clear output_vector before copying?
-        auto p = get_data_ptr<std::string>();
-        std::copy(p, p + element_number, std::back_inserter(output_vector));
+    void cast_vector(std::vector<OUT_T>& output_vector, size_t num_elements) const {
+        auto output_size = std::min(num_elements, shape_size(m_shape));
+        output_vector.reserve(output_size);
+        const auto p = get_data_ptr<OUT_T>();
+        std::copy(p, p + output_size, std::back_inserter(output_vector));
     }
 
     template <element::Type_t Type,
