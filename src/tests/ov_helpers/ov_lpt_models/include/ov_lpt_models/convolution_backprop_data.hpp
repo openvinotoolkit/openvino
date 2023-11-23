@@ -33,20 +33,20 @@ public:
         const builder::subgraph::FakeQuantizeOnWeights& fqOnWeights,
         const builder::subgraph::DequantizationOperations& dequantizationOnWeights,
         const std::shared_ptr<ov::opset1::Constant>& value = nullptr);
-    static std::shared_ptr<Function> get(
+    static std::shared_ptr<ov::Model> get(
         const element::Type netPrecision,
         const PartialShape& inputShape,
         const Shape& outputShape,
         const builder::subgraph::FakeQuantizeOnData& fqOnData,
         const std::shared_ptr<Node>& weights);
-    static std::shared_ptr<Function> getOriginal(
+    static std::shared_ptr<ov::Model> getOriginal(
         const element::Type precision,
         const element::Type netPrecision,
         const PartialShape& inputShape,
         const Shape& outputShape,
         const builder::subgraph::DequantizationOperations& dequantization,
         const std::shared_ptr<Node>& weights);
-    static std::shared_ptr<Function> getReference(
+    static std::shared_ptr<ov::Model> getReference(
         const element::Type precision,
         const element::Type netPrecision,
         const PartialShape& inputShape,

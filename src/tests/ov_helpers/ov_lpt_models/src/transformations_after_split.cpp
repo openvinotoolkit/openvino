@@ -16,7 +16,7 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
-std::shared_ptr<Function> TransformationsAfterSplitFunction::get(const std::string transformationName) {
+std::shared_ptr<ov::Model> TransformationsAfterSplitFunction::get(const std::string transformationName) {
     const auto input = std::make_shared<ov::opset1::Parameter>(element::u8, Shape{ 1, 9, 16, 16 });
     const size_t outputSize = 2ul;
 

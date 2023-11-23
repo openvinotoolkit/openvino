@@ -21,7 +21,7 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
-std::shared_ptr<Function> ConvolutionBackpropDataFunction::get(
+std::shared_ptr<ov::Model> ConvolutionBackpropDataFunction::get(
     const element::Type netPrecision,
     const PartialShape& inputShape,
     const Shape& outputShape,
@@ -109,7 +109,7 @@ std::shared_ptr<Node> ConvolutionBackpropDataFunction::getWeights(
     return makeDequantization(fq, dequantizationStructure);
 }
 
-std::shared_ptr<Function> ConvolutionBackpropDataFunction::getOriginal(
+std::shared_ptr<ov::Model> ConvolutionBackpropDataFunction::getOriginal(
     const element::Type precision,
     const element::Type netPrecision,
     const PartialShape& inputShape,
@@ -134,7 +134,7 @@ std::shared_ptr<Function> ConvolutionBackpropDataFunction::getOriginal(
     return std::make_shared<ov::Model>(results, ParameterVector{ input }, "ConvolutionBackpropDataTransformation");
 }
 
-std::shared_ptr<Function>  ConvolutionBackpropDataFunction::getReference(
+std::shared_ptr<ov::Model>  ConvolutionBackpropDataFunction::getReference(
     const element::Type precision,
     const element::Type netPrecision,
     const PartialShape& inputShape,

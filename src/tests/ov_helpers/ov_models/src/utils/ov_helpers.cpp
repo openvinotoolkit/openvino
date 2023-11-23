@@ -112,7 +112,7 @@ std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> interpreter
     return outputs;
 }
 
-std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<Function>& function,
+std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<ov::Model>& function,
                                           const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs) {
     auto backend = ov::runtime::Backend::create();
 
@@ -173,7 +173,7 @@ std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<Function>& funct
     return outputTensors;
 }
 
-std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function>& function,
+std::shared_ptr<ov::Model> foldFunction(const std::shared_ptr<ov::Model>& function,
                                        const std::vector<std::vector<std::uint8_t>>& inputs,
                                        const std::vector<ov::element::Type>& inputTypes) {
     const auto& parameters = function->get_parameters();

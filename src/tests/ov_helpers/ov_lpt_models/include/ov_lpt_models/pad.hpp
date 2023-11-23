@@ -27,7 +27,7 @@ static std::shared_ptr<ov::Model> get(
     const element::Type precisionAfterOperation,
     const builder::subgraph::DequantizationOperations& dequantizationAfter);
 
-static std::shared_ptr<Function> get(
+static std::shared_ptr<ov::Model> get(
     const PartialShape& inputShape,
     const element::Type inputPrecision,
     const builder::subgraph::FakeQuantizeOnData& fakeQuantizeOnData,

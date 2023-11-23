@@ -104,14 +104,14 @@ inline ov::NodeVector castOps2Nodes(const std::vector<std::shared_ptr<opType>>& 
 }
 
 std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> interpreterFunction(
-    const std::shared_ptr<Function>& function,
+    const std::shared_ptr<ov::Model>& function,
     const std::vector<std::vector<std::uint8_t>>& inputs,
     const std::vector<ov::element::Type>& inputTypes = {});
 
-std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<Function>& function,
+std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<ov::Model>& function,
                                           const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs);
 
-std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function>& function,
+std::shared_ptr<ov::Model> foldFunction(const std::shared_ptr<ov::Model>& function,
                                        const std::vector<std::vector<std::uint8_t>>& inputs,
                                        const std::vector<ov::element::Type>& inputTypes = {});
 

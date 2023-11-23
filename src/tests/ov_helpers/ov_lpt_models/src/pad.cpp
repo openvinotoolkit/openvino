@@ -50,7 +50,7 @@ std::shared_ptr<ov::Model> PadFunction::get(
     return function;
 }
 
-std::shared_ptr<Function> PadFunction::get(
+std::shared_ptr<ov::Model> PadFunction::get(
     const PartialShape& inputShape,
     const element::Type inputPrecision,
     const builder::subgraph::FakeQuantizeOnData& fakeQuantize,
@@ -67,7 +67,7 @@ std::shared_ptr<Function> PadFunction::get(
     const auto pad = std::make_shared<ov::op::v12::Pad>(fqOnData, padsBeginConst, padsEndConst, padsValueConst, mode);
     pad->set_friendly_name("Pad");
 
-    const auto function = std::make_shared<Function>(
+    const auto function = std::make_shared<ov::Model>(
         ResultVector{ std::make_shared<ov::opset1::Result>(pad) },
         ParameterVector{ input }, "PadTransformation");
 
