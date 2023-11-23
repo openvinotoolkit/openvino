@@ -47,6 +47,7 @@ using ov::element::u32;
 using ov::element::u4;
 using ov::element::u64;
 using ov::element::u8;
+using ov::element::string;
 using ov::element::undefined;
 
 template <typename T>
