@@ -84,11 +84,7 @@ void apply_scale_shift(T* out,
 
     if (scale_shape.size() > 1 && scale_shape[0] == 1 && data_shape.size() == scale_shape.size() &&
         data_shape[1] == scale_shape[1] && scale_size == data_shape[1]) {  // per channel scale for DW activations
-        size_t step = 1;
-        for (size_t i = 2; i < data_shape.size(); i++) {
-            step *= data_shape[i];
-        }
-
+        const auto step = shape_size(data_shape.begin() + 2, data_shape.end());
         for (size_t bs = 0; bs < data_shape[0]; ++bs) {
             for (size_t i = 0; i < scale_size; i++) {
                 T scale_val = scale[i];
@@ -102,6 +98,7 @@ void apply_scale_shift(T* out,
         }
         return;
     }
+
     // The specific cases above are optimized verions of the broadcast for specific case
     // Autobroadcast helper is generic approach for broadcast
     autobroadcast_select(data,
