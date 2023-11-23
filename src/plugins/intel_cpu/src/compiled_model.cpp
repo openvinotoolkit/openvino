@@ -17,7 +17,7 @@
 #include "transformations/transformation_pipeline.h"
 #define FIX_62820 0
 #if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
-#    include "openvino/runtime/threading/tbb_streams_executor.hpp"
+#    include <threading/ie_tbb_streams_executor.hpp>
 #endif
 
 #include "openvino/runtime/properties.hpp"

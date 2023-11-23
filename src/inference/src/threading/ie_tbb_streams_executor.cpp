@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/runtime/threading/tbb_streams_executor.hpp"
+#include "threading/ie_tbb_streams_executor.hpp"
 
 #include <atomic>
 #include <list>
@@ -14,11 +14,11 @@
 
 #include "details/ie_exception.hpp"
 #include "ie_parallel.hpp"
+#include "ie_parallel_custom_arena.hpp"
 #include "ie_system_conf.h"
-#include "parallel_custom_arena.hpp"
-#include "thread_affinity.hpp"
+#include "threading/ie_thread_affinity.hpp"
 
-#if ((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO))
+#if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
 #    include <tbb/concurrent_queue.h>
 #    include <tbb/enumerable_thread_specific.h>
 #    ifndef TBB_PREVIEW_GLOBAL_CONTROL
@@ -28,8 +28,7 @@
 #    include <tbb/task_group.h>
 #    include <tbb/task_scheduler_observer.h>
 
-namespace ov {
-namespace threading {
+namespace InferenceEngine {
 struct TBBStreamsExecutor::Impl {
     struct Stream;
     using TaskQueue = tbb::concurrent_queue<Task>;
@@ -63,22 +62,22 @@ struct TBBStreamsExecutor::Impl {
                   _threadBindingStep{threadBindingStep},
                   _offset{streamId * threadsPerStream + threadBindingOffset} {
                 if (pinToCores) {
-                    std::tie(_mask, _ncpus) = get_process_mask();
+                    std::tie(_mask, _ncpus) = GetProcessMask();
                 }
             }
             void on_scheduler_entry(bool) override {
                 _localStream->local() = _thisStream;
                 if (nullptr != _mask) {
-                    pin_thread_to_vacant_core(_offset + tbb::this_task_arena::current_thread_index(),
-                                              _threadBindingStep,
-                                              _ncpus,
-                                              _mask);
+                    PinThreadToVacantCore(_offset + tbb::this_task_arena::current_thread_index(),
+                                          _threadBindingStep,
+                                          _ncpus,
+                                          _mask);
                 }
             }
             void on_scheduler_exit(bool) override {
                 _localStream->local() = nullptr;
                 if (nullptr != _mask) {
-                    pin_current_thread_by_mask(_ncpus, _mask);
+                    PinCurrentThreadByMask(_ncpus, _mask);
                 }
             }
             ~Observer() override = default;
@@ -177,7 +176,7 @@ struct TBBStreamsExecutor::Impl {
                 new tbb::global_control{tbb::global_control::max_allowed_parallelism,
                                         static_cast<std::size_t>(_config._streams * _config._threadsPerStream + 1)});
         }
-        auto numaNodes = get_available_numa_nodes();
+        auto numaNodes = getAvailableNUMANodes();
         if (_config._streams != 0) {
             std::copy_n(std::begin(numaNodes),
                         std::min(static_cast<std::size_t>(_config._streams), numaNodes.size()),
@@ -268,7 +267,7 @@ TBBStreamsExecutor::~TBBStreamsExecutor() {
     _impl.reset();
 }
 
-int TBBStreamsExecutor::get_stream_id() {
+int TBBStreamsExecutor::GetStreamId() {
     auto stream = _impl->_localStream.local();
     if (nullptr == stream) {
         stream = &(_impl->_externStreams.local());
@@ -276,7 +275,7 @@ int TBBStreamsExecutor::get_stream_id() {
     return stream->_streamId;
 }
 
-int TBBStreamsExecutor::get_numa_node_id() {
+int TBBStreamsExecutor::GetNumaNodeId() {
     auto stream = _impl->_localStream.local();
     if (nullptr == stream) {
         stream = &(_impl->_externStreams.local());
@@ -286,13 +285,13 @@ int TBBStreamsExecutor::get_numa_node_id() {
 
 void TBBStreamsExecutor::run(Task task) {
     if (_impl->_config._streams == 0) {
-        execute(std::move(task));
+        Execute(std::move(task));
     } else {
         Impl::Schedule(_impl->_shared, std::move(task));
     }
 }
 
-void TBBStreamsExecutor::execute(Task task) {
+void TBBStreamsExecutor::Execute(Task task) {
     auto stream = _impl->_localStream.local();
     if (nullptr == stream) {
         _impl->_externStreams.local()._arena.execute(std::move(task));
@@ -301,6 +300,5 @@ void TBBStreamsExecutor::execute(Task task) {
     }
 }
 
-}  // namespace threading
-}  // namespace ov
-#endif  //  ((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO))
+}  // namespace InferenceEngine
+#endif  //  ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
