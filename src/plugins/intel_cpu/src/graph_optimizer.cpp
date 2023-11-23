@@ -183,6 +183,14 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
     RemoveSameConvert(graph);
     graph.RemoveDroppedNodes();
 
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "RemoveMemoryInputConvert");
+    RemoveMemoryInputConvert(graph);
+    graph.RemoveDroppedNodes();
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "RemoveConvertMemoryOutput");
+    RemoveConvertMemoryOutput(graph);
+    graph.RemoveDroppedNodes();
+
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "MatchSdpaKvCache");
     MatchSdpaKvCache(graph);
     graph.RemoveDroppedNodes();
@@ -2712,6 +2720,60 @@ void GraphOptimizer::RemoveSameConvert(Graph& graph) {
             continue;
         }
         graph.DropNode(parentNode);
+    }
+}
+
+void GraphOptimizer::RemoveMemoryInputConvert(Graph &graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSuitableNode = [](const NodePtr& node) {
+        if (Type::Convert != node->getType()) {
+            return false;
+        }
+
+        auto parent = node->getParentEdgeAt(0)->getParent();
+        if (Type::MemoryInput != parent->getType()) {
+            return false;
+        }
+
+        return true;
+    };
+
+    for (size_t i = 0; i < graphNodes.size(); i++) {
+        auto node = graphNodes[i];
+
+        if (!isSuitableNode(node)) {
+            continue;
+        }
+        graph.DropNode(node);
+    }
+}
+
+void GraphOptimizer::RemoveConvertMemoryOutput(Graph &graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSuitableNode = [](const NodePtr& node) {
+        if (Type::Convert != node->getType()) {
+            return false;
+        }
+
+        auto&& childEdges = node->getChildEdgesAtPort(0);
+        for (auto&& edge : childEdges) {
+            if (Type::MemoryOutput != edge->getChild()->getType()) {
+                return false;
+            }
+        }
+
+        return true;
+    };
+
+    for (size_t i = 0; i < graphNodes.size(); i++) {
+        auto node = graphNodes[i];
+
+        if (!isSuitableNode(node)) {
+            continue;
+        }
+        graph.DropNode(node);
     }
 }
 
