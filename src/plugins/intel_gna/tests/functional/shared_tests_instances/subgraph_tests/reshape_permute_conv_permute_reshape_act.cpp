@@ -31,7 +31,6 @@ std::vector<size_t> output_channels{
 
 std::vector<ov::element::Type> model_types = {
     ov::element::f32,
-    ov::element::f16,
 };
 
 std::vector<std::map<std::string, std::string>> configs = {
