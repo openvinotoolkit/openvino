@@ -47,7 +47,6 @@ public:
 #ifdef CPU_DEBUG_CAPS
         DebugCapsConfig debugCaps;
         m_snippets_segfault_detector = !debugCaps.snippets_segfault_detector.empty();
-        snippets_direct_emitter = true;
 #endif
     }
 
@@ -151,7 +150,6 @@ protected:
         }
     }
 
-    bool snippets_direct_emitter = true;
     void build_debug_info() const;
     static void set_local_handler(jit_emitter* emitter_address);
     bool m_snippets_segfault_detector = false;

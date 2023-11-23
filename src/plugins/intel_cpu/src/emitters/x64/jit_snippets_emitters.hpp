@@ -14,6 +14,8 @@
 #include "jit_load_store_emitters.hpp"
 
 #include "transformations/snippets/x64/op/store_convert.hpp"
+#include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
+#include "transformations/snippets/x64/op//brgemm_cpu.hpp"
 // Matmul support:
 #include <cpu/x64/brgemm/brgemm.hpp>
 #include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
@@ -257,6 +259,7 @@ public:
     MemoryEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                   dnnl::impl::cpu::x64::cpu_isa_t isa,
                   const ov::snippets::lowered::ExpressionPtr& expr);
+    void print_debug_info() const override;
 
 protected:
     ov::element::Type src_prc;
@@ -264,6 +267,12 @@ protected:
 
     size_t count = 0;
     size_t byte_offset = 0;
+
+    // for segfault detector
+    mutable size_t start_address = 0;
+    mutable size_t current_address = 0;
+    mutable size_t iteration = 0;
+    void memory_track(size_t gpr_idx_for_mem_address) const;
 };
 
 class StoreEmitter : public MemoryEmitter  {
@@ -317,6 +326,7 @@ public:
                          const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {return 0;}
+    void print_debug_info() const override;
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -324,6 +334,7 @@ private:
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
+    std::shared_ptr<snippets::op::BroadcastLoad> broadcast_load_node = nullptr;
 };
 
 class LoadConvertEmitter : public MemoryEmitter {
@@ -406,6 +417,7 @@ private:
                                  size_t in0_kernel_offset = 0, size_t in1_kernel_offset = 0,
                                  size_t in2_kernel_offset = 0, size_t out0_kernel_offset = 0) const;
     static void kernel_execute(const dnnl::impl::cpu::x64::brgemm_kernel_t *brg_kernel, const void *A, const void *B, void *C, void *scratch, int with_comp);
+    std::shared_ptr<ov::intel_cpu::BrgemmCPU> brgemm_node = nullptr;
 
     brgemmCtx m_brgCtx;
     std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> m_brgKernel = nullptr;
@@ -448,6 +460,7 @@ private:
                         const void* src, const void* dst, const void* comp, size_t N, size_t K);
 
     std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t> m_kernel;
+    std::shared_ptr<ov::intel_cpu::BrgemmCopyB> brgemm_repack = nullptr;
 
     ov::element::Type m_brgemm_prc_in0, m_brgemm_prc_in1;
     size_t m_N, m_N_blk, m_N_tail;

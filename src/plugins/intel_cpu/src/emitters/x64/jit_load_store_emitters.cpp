@@ -81,7 +81,7 @@ jit_load_emitter::jit_load_emitter(dnnl::impl::cpu::x64::jit_generator *host, dn
     prepare_table();
     load_size_ = load_num * src_prc.size();
     v_len_elt_ = get_vec_length() / exec_prc.size();
-    snippets_direct_emitter = false;
+    m_snippets_segfault_detector = false;
 }
 
 size_t jit_load_emitter::get_inputs_num() const { return 1; }
@@ -98,26 +98,6 @@ size_t jit_load_emitter::aux_gprs_count() const {
 }
 
 void jit_load_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
-    if (m_snippets_segfault_detector) {
-        // save runtime debug info
-        h->push(h->r15);
-        Xbyak::Label label_set_current;
-        h->mov(h->r15, reinterpret_cast<size_t>(&start_address));
-        h->cmp(h->qword[h->r15], 0);
-        h->jne(label_set_current);
-        h->mov(h->qword[h->r15], Xbyak::Reg64(in_idxs[0]));
-        h->L(label_set_current);
-        {
-            h->mov(h->r15, reinterpret_cast<size_t>(&current_address));
-            h->mov(h->qword[h->r15], Xbyak::Reg64(in_idxs[0]));
-
-            // iteration++
-            h->mov(h->r15, reinterpret_cast<size_t>(&iteration));
-            h->add(h->qword[h->r15], 0x01);
-        }
-        h->pop(h->r15);
-    }
-
     const int offset = in_idxs.size() == 2 ? in_idxs[1] : 0;
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(Reg64(in_idxs[0]), static_cast<int>(out_idxs[0]), offset);
@@ -634,15 +614,6 @@ void jit_load_emitter::register_table_entries() {
     }
 }
 
-void jit_load_emitter::print_debug_info() const {
-    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
-    std::cerr << "where start_address:" << start_address << " current_address:" << current_address << " iteration:" << iteration << "\n";
-    std::cerr << "Emitter name:" << name_ << "\n";
-    std::cerr << "load_num_:" << load_num_ << "\n";
-    std::cerr << "src_prc_:" << src_prc_ << "\n";
-    std::cerr << "dst_prc_:" << dst_prc_ << "\n";
-}
-
 /// STORE ///
 jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                      ov::element::Type src_prc, ov::element::Type dst_prc, int store_num, arithmetic_mode mode, ov::element::Type exec_prc,
@@ -652,7 +623,7 @@ jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::x64::jit_generator *host, 
     v_len_elt_ = get_vec_length() / exec_prc.size();
     store_size_ = store_num * dst_prc.size();
     uni_vcvtneps2bf16_.reset(new jit_uni_vcvtneps2bf16(host, host_isa));
-    snippets_direct_emitter = false;
+    m_snippets_segfault_detector = false;
 }
 
 inline bool jit_store_emitter::is_saturation() const {
@@ -704,26 +675,6 @@ void jit_store_emitter::emit_data() const {
 }
 
 void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
-    if (m_snippets_segfault_detector) {
-        // save runtime debug info
-        h->push(h->r15);
-        Xbyak::Label label_set_current;
-        h->mov(h->r15, reinterpret_cast<size_t>(&start_address));
-        h->cmp(h->qword[h->r15], 0);
-        h->jne(label_set_current);
-        h->mov(h->qword[h->r15], Xbyak::Reg64(out_idxs[0]));
-        h->L(label_set_current);
-        {
-            h->mov(h->r15, reinterpret_cast<size_t>(&current_address));
-            h->mov(h->qword[h->r15], Xbyak::Reg64(out_idxs[0]));
-
-            // iteration++
-            h->mov(h->r15, reinterpret_cast<size_t>(&iteration));
-            h->add(h->qword[h->r15], 0x01);
-        }
-        h->pop(h->r15);
-    }
-
     const int offset = in_idxs.size() == 2 ? in_idxs[1] : 0;
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(static_cast<int>(in_idxs[0]), Reg64(out_idxs[0]), offset);
@@ -1340,15 +1291,6 @@ void jit_store_emitter::register_table_entries() {
         push_arg_entry_of("mask_truncation_byte", 0x000000ff, true);
         push_arg_entry_of("mask_truncation_word", 0x0000ffff, true);
     }
-}
-
-void jit_store_emitter::print_debug_info() const {
-    std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
-    std::cerr << "where start_address:" << start_address << " current_address:" << current_address << " iteration:" << iteration << "\n";
-    std::cerr << "Emitter name:" << name_ << "\n";
-    std::cerr << "store_num_:" << store_num_ << "\n";
-    std::cerr << "src_prc_:" << src_prc_ << "\n";
-    std::cerr << "dst_prc_:" << dst_prc_ << "\n";
 }
 
 }   // namespace intel_cpu

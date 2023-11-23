@@ -10,8 +10,6 @@
 #include "snippets/utils.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/port_connector.hpp"
-#include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
-#include "transformations/snippets/x64/op//brgemm_cpu.hpp"
 #include "snippets/op/rank_normalization.hpp"
 
 using namespace InferenceEngine;
@@ -204,8 +202,10 @@ KernelEmitter::KernelEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
 void KernelEmitter::emit_code(const std::vector<size_t> &in,
                               const std::vector<size_t> &out) const {
     validate_arguments(in, out);
+#ifdef CPU_DEBUG_CAPS
     if (m_snippets_segfault_detector)
         build_debug_info();
+#endif
     emit_impl(in, out);
 }
 
@@ -363,8 +363,10 @@ void LoopBeginEmitter::print_debug_info() const {
 void LoopBeginEmitter::emit_code(const std::vector<size_t> &in,
                                  const std::vector<size_t> &out) const {
     validate_arguments(in, out);
+#ifdef CPU_DEBUG_CAPS
     if (m_snippets_segfault_detector)
         build_debug_info();
+#endif
     emit_impl(in, out);
 }
 
@@ -420,8 +422,10 @@ void LoopEndEmitter::print_debug_info() const {
 void LoopEndEmitter::emit_code(const std::vector<size_t> &in,
                                  const std::vector<size_t> &out) const {
     validate_arguments(in, out);
+#ifdef CPU_DEBUG_CAPS
     if (m_snippets_segfault_detector)
         build_debug_info();
+#endif
     emit_impl(in, out);
 }
 
@@ -573,6 +577,41 @@ MemoryEmitter::MemoryEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPt
     dst_prc = n->get_output_element_type(0);
 }
 
+void MemoryEmitter::memory_track(size_t gpr_idx_for_mem_address) const {
+    h->push(h->r15);
+    h->push(h->r14);
+    Xbyak::Label label_set_address_current;
+    Xbyak::Label label_set_address_end;
+    h->mov(h->r15, reinterpret_cast<size_t>(&start_address));
+    h->cmp(h->qword[h->r15], 0);
+    h->jne(label_set_address_current);
+    h->mov(h->r14, reinterpret_cast<size_t>(&byte_offset));
+    h->mov(h->r14, h->qword[h->r14]);
+    h->add(h->r14, Xbyak::Reg64(gpr_idx_for_mem_address));
+    h->mov(h->qword[h->r15], h->r14);
+    h->jmp(label_set_address_end);
+    h->L(label_set_address_current);
+    {
+        h->mov(h->r15, reinterpret_cast<size_t>(&current_address));
+        h->mov(h->r14, reinterpret_cast<size_t>(&byte_offset));
+        h->mov(h->r14, h->qword[h->r14]);
+        h->add(h->r14, Xbyak::Reg64(gpr_idx_for_mem_address));
+        h->mov(h->qword[h->r15], h->r14);
+    }
+    h->L(label_set_address_end);
+    // iteration++, 1 means first access
+    h->mov(h->r15, reinterpret_cast<size_t>(&iteration));
+    h->add(h->qword[h->r15], 0x01);
+    h->pop(h->r14);
+    h->pop(h->r15);
+}
+
+void MemoryEmitter::print_debug_info() const {
+    std::cerr << "Emitter type name:" << get_type_name(this) << std::endl;
+    std::cerr << "src precision:" << src_prc << ", dst precision:" << dst_prc << ", load/store element number:" << count << std::endl;
+    std::cerr << "start_address:" << start_address << ", current_address:" << current_address << ", iteration:" << iteration << "\n";
+}
+
 StoreEmitter::StoreEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : MemoryEmitter(h, isa, expr) {
     if (src_prc != dst_prc)
         OPENVINO_THROW("StoreEmitter supports only equal input and output types but gets: ",
@@ -581,8 +620,7 @@ StoreEmitter::StoreEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr&
                        dst_prc.get_type_name());
 
     store_node = ov::as_type_ptr<snippets::op::Store>(expr->get_node());
-    if (store_node == nullptr)
-        OPENVINO_THROW("Node in expression is not snippets::op::Store in constructor of StoreEmitter!");
+    OPENVINO_ASSERT(store_node, "Node in expression is not snippets::op::Store in constructor of StoreEmitter!");
     count = store_node->get_count();
     byte_offset = store_node->get_offset();
     in_out_type_ = emitter_in_out_map::vec_to_gpr;
@@ -591,6 +629,10 @@ StoreEmitter::StoreEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr&
 
 void StoreEmitter::emit_impl(const std::vector<size_t>& in,
                              const std::vector<size_t>& out) const {
+#ifdef CPU_DEBUG_CAPS
+    if (m_snippets_segfault_detector)
+        memory_track(out[0]);
+#endif
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -615,11 +657,7 @@ void StoreEmitter::emit_data() const {
 
 void StoreEmitter::print_debug_info() const {
     std::cerr << "Node name:" << store_node->get_friendly_name() << std::endl;
-    std::cerr << "Emitter type name:" << get_type_name(this) << std::endl;
-    if (store_emitter) {
-        std::cerr << "underlying jit_store_emitter status is:" << std::endl;
-        store_emitter->print_debug_info();
-    }
+    MemoryEmitter::print_debug_info();
 }
 
 LoadEmitter::LoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : MemoryEmitter(h, isa, expr) {
@@ -630,8 +668,7 @@ LoadEmitter::LoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& e
                        dst_prc.get_type_name());
 
     load_node = std::dynamic_pointer_cast<snippets::op::Load>(expr->get_node());
-    if (load_node == nullptr)
-        OPENVINO_THROW("Node in expression is not snippets::op::Load in constructor of LoadEmitter!");
+    OPENVINO_ASSERT(load_node, "Node in expression is not snippets::op::Load in constructor of LoadEmitter!");
     count = load_node->get_count();
     byte_offset = load_node->get_offset();
     in_out_type_ = emitter_in_out_map::gpr_to_vec;
@@ -640,6 +677,10 @@ LoadEmitter::LoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& e
 
 void LoadEmitter::emit_impl(const std::vector<size_t>& in,
                             const std::vector<size_t>& out) const {
+#ifdef CPU_DEBUG_CAPS
+    if (m_snippets_segfault_detector)
+        memory_track(in[0]);
+#endif
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -664,11 +705,7 @@ void LoadEmitter::emit_data() const {
 
 void LoadEmitter::print_debug_info() const {
     std::cerr << "Node name:" << load_node->get_friendly_name() << std::endl;
-    std::cerr << "Emitter type name:" << get_type_name(this) << std::endl;
-    if (load_emitter) {
-        std::cerr << "underlying jit_load_emitter status is:" << std::endl;
-        load_emitter->print_debug_info();
-    }
+    MemoryEmitter::print_debug_info();
 }
 
 BroadcastLoadEmitter::BroadcastLoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
@@ -679,13 +716,18 @@ BroadcastLoadEmitter::BroadcastLoadEmitter(jit_generator* h, cpu_isa_t isa, cons
                        " and ",
                        dst_prc.get_type_name());
 
-    const auto broadcast_load = std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(expr->get_node());
-    byte_offset = broadcast_load->get_offset();
+    broadcast_load_node = std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(expr->get_node());
+    OPENVINO_ASSERT(broadcast_load_node, "Node in expression is not snippets::op::BroadcastLoad in constructor of BroadcastLoadEmitter!");
+    byte_offset = broadcast_load_node->get_offset();
     in_out_type_ = emitter_in_out_map::gpr_to_vec;
 }
 
 void BroadcastLoadEmitter::emit_impl(const std::vector<size_t>& in,
                                      const std::vector<size_t>& out) const {
+#ifdef CPU_DEBUG_CAPS
+    if (m_snippets_segfault_detector)
+        memory_track(in[0]);
+#endif
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -714,11 +756,15 @@ void BroadcastLoadEmitter::emit_isa(const std::vector<size_t> &in, const std::ve
     }
 }
 
+void BroadcastLoadEmitter::print_debug_info() const {
+    std::cerr << "Node name:" << broadcast_load_node->get_friendly_name() << std::endl;
+    MemoryEmitter::print_debug_info();
+}
+
 LoadConvertEmitter::LoadConvertEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : MemoryEmitter(h, isa, expr) {
     load_convert_node = ov::as_type_ptr<snippets::op::Load>(expr->get_node());
-    if (load_convert_node == nullptr)
-        OPENVINO_THROW("Node in expression can not dynamic cast to snippets::op::Load in constructor of LoadConvertEmitter!");
+    OPENVINO_ASSERT(load_convert_node, "Node in expression can not dynamic cast to snippets::op::Load in constructor of LoadConvertEmitter!");
     count = load_convert_node->get_count();
     byte_offset = load_convert_node->get_offset();
     in_out_type_ = emitter_in_out_map::gpr_to_vec;
@@ -727,6 +773,10 @@ LoadConvertEmitter::LoadConvertEmitter(jit_generator* h, cpu_isa_t isa, const Ex
 
 void LoadConvertEmitter::emit_impl(const std::vector<size_t>& in,
                                    const std::vector<size_t>& out) const {
+#ifdef CPU_DEBUG_CAPS
+    if (m_snippets_segfault_detector)
+        memory_track(in[0]);
+#endif
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -751,18 +801,13 @@ void LoadConvertEmitter::emit_data() const {
 
 void LoadConvertEmitter::print_debug_info() const {
     std::cerr << "Node name:" << load_convert_node->get_friendly_name() << std::endl;
-    std::cerr << "Emitter type name:" << get_type_name(this) << std::endl;
-    if (load_emitter) {
-        std::cerr << "underlying jit_load_emitter status is:" << std::endl;
-        load_emitter->print_debug_info();
-    }
+    MemoryEmitter::print_debug_info();
 }
 
 StoreConvertEmitter::StoreConvertEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : MemoryEmitter(h, isa, expr) {
     store_convert_node = ov::as_type_ptr<snippets::op::Store>(expr->get_node());
-    if (store_convert_node == nullptr)
-        OPENVINO_THROW("Node in expression can not dynamic cast to snippets::op::Store in constructor of StoreConvertEmitter!");
+    OPENVINO_ASSERT(store_convert_node, "Node in expression can not dynamic cast to snippets::op::Store in constructor of StoreConvertEmitter!");
     count = store_convert_node->get_count();
     byte_offset = store_convert_node->get_offset();
     in_out_type_ = emitter_in_out_map::vec_to_gpr;
@@ -776,6 +821,10 @@ StoreConvertEmitter::StoreConvertEmitter(jit_generator* h, cpu_isa_t isa, const 
 
 void StoreConvertEmitter::emit_impl(const std::vector<size_t>& in,
                                     const std::vector<size_t>& out) const {
+#ifdef CPU_DEBUG_CAPS
+    if (m_snippets_segfault_detector)
+        memory_track(out[0]);
+#endif
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -800,11 +849,7 @@ void StoreConvertEmitter::emit_data() const {
 
 void StoreConvertEmitter::print_debug_info() const {
     std::cerr << "Node name:" << store_convert_node->get_friendly_name() << std::endl;
-    std::cerr << "Emitter type name:" << get_type_name(this) << std::endl;
-    if (store_emitter) {
-        std::cerr << "underlying jit_store_emitter status is:" << std::endl;
-        store_emitter->print_debug_info();
-    }
+    MemoryEmitter::print_debug_info();
 }
 
 
@@ -837,7 +882,8 @@ size_t BrgemmEmitter::get_out_leading_dim(const VectorDims& shape, const std::ve
 
 BrgemmEmitter::BrgemmEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-    const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
+    brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
+    OPENVINO_ASSERT(brgemm_node, "Node in expression is not ov::intel_cpu::BrgemmCPU in constructor of BrgemmEmitter!");
     OPENVINO_ASSERT(!brgemm_node->is_dynamic(), "Snippets don't support code generation for dynamic Brgemm");
 
     std::vector<size_t> leading_dimensions;
@@ -1104,6 +1150,7 @@ void BrgemmEmitter::kernel_execute(const brgemm_kernel_t *brg_kernel,
 }
 
 void BrgemmEmitter::print_debug_info() const {
+    std::cerr << "Node name:" << brgemm_node->get_friendly_name() << std::endl;
     std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     std::cerr << "where m_M:" << m_M << " m_K:" << m_K << " m_K_blk:" << m_K_blk << " m_K_tail:" << m_K_tail
         << " m_N:" << m_N << " m_N_blk:" << m_N_blk << " m_N_tail:" << m_N_tail
@@ -1116,9 +1163,8 @@ void BrgemmEmitter::print_debug_info() const {
 BrgemmCopyBEmitter::BrgemmCopyBEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-    const auto brgemm_repack = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(expr->get_node());
-    if (!brgemm_repack)
-        OPENVINO_THROW("BrgemmCopyBEmitters expects BrgemmCopyB node");
+    brgemm_repack = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(expr->get_node());
+    OPENVINO_ASSERT(brgemm_repack, "Node in expression is not ov::intel_cpu::BrgemmCopyB in constructor of BrgemmEmitter!");
 
     m_brgemm_prc_in0 = brgemm_repack->get_src_element_type();
     m_brgemm_prc_in1 = brgemm_repack->get_input_element_type(0);
@@ -1310,6 +1356,7 @@ void BrgemmCopyBEmitter::execute(matmul::jit_brgemm_matmul_copy_b_t *kernel, con
 }
 
 void BrgemmCopyBEmitter::print_debug_info() const {
+    std::cerr << "Node name:" << brgemm_repack->get_friendly_name() << std::endl;
     std::cerr << "Emitter type name:" << get_type_name(this) << "\n";
     std::cerr << "where m_LDB:" << m_LDB << " m_K:" << m_K << " m_K_blk:" << m_K_blk << " m_K_tail:" << m_K_tail
         << " m_N:" << m_N << " m_N_blk:" << m_N_blk << " m_N_tail:" << m_N_tail

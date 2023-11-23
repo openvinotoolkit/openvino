@@ -71,8 +71,6 @@ public:
 
     size_t get_inputs_num() const override;
 
-    void print_debug_info() const override;
-
 private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const Xbyak::Reg64 &reg_src,  const int out_vec_idx, const int offset) const;
@@ -101,10 +99,6 @@ private:
     ov::element::Type dst_prc_;
     bool is_fill_;
     std::string fill_value_;
-
-    size_t start_address = 0;
-    size_t current_address = 0;
-    size_t iteration = 0;
 };
 
 class jit_store_emitter : public jit_emitter {
@@ -138,8 +132,6 @@ public:
     std::shared_ptr<jit_uni_vcvtneps2bf16> get_uni_vcvtneps2bf16() const {
         return uni_vcvtneps2bf16_;
     }
-
-    void print_debug_info() const override;
 
 private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
@@ -178,11 +170,6 @@ private:
     mutable bool data_reg_updated = false;
     mutable int data_idx = 0;
     mutable int aux_src_idx = 0;
-
-    size_t start_address = 0;
-    size_t current_address = 0;
-    size_t iteration = 0;
-    std::shared_ptr<snippets::op::Store> m_store_node;
 };
 
 }   // namespace intel_cpu

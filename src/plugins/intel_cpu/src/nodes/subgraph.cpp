@@ -52,7 +52,6 @@ namespace node {
 namespace {
 
 std::mutex err_print_lock;
-Snippet* g_subgraph_ptr = nullptr;
 
 struct SnippetKey {
     Snippet::SnippetAttrs attrs;
@@ -470,7 +469,6 @@ void Snippet::execute(dnnl::stream strm) {
     for (size_t i = 0; i < outputNum; i++)
         dstMemPtrs[i] = getChildEdgeAt(i)->getMemoryPtr();
 
-    g_subgraph_ptr = this;
     execPtr->exec(srcMemPtrs, dstMemPtrs);
 }
 
@@ -521,15 +519,14 @@ void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMe
     const auto& dom = parallel_exec_domain;
     // < N, C, H, W > < 1, 1, N, C*H*W>
     const auto& callable = schedule.get_callable<kernel>();
-#ifdef __linux__
+#if defined(__linux__) && defined(CPU_DEBUG_CAPS)
     if (enable_segfault_detector) {
         __sighandler_t signal_handler = [](int signal) {
             std::lock_guard<std::mutex> guard(err_print_lock);
             if (auto err_emitter = ov::intel_cpu::g_snippets_err_handler->local())
                 err_emitter->print_debug_info();
             auto tid = parallel_get_thread_num();
-            OPENVINO_THROW("Segfault was caught by the signal handler on thread ", std::to_string(tid),
-                " during execution of Snippets node with name ", g_subgraph_ptr->getName());
+            OPENVINO_THROW("Segfault was caught by the signal handler in subgraph node execution on thread " + std::to_string(tid));
         };
         struct sigaction new_handler{};
         new_handler.sa_handler = signal_handler;
@@ -547,15 +544,14 @@ void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMe
 
 void Snippet::SnippetJitExecutor::schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
     const auto& work_size = parallel_exec_domain;
-#ifdef __linux__
+#if defined(__linux__) && defined(CPU_DEBUG_CAPS)
     if (enable_segfault_detector) {
         __sighandler_t signal_handler = [](int signal) {
             std::lock_guard<std::mutex> guard(err_print_lock);
             if (auto err_emitter = ov::intel_cpu::g_snippets_err_handler->local())
                 err_emitter->print_debug_info();
             auto tid = parallel_get_thread_num();
-            OPENVINO_THROW("Segfault was caught by the signal handler on thread ", std::to_string(tid),
-                " during execution of Snippets node with name ", g_subgraph_ptr->getName());
+            OPENVINO_THROW("Segfault was caught by the signal handler in subgraph node execution on thread " + std::to_string(tid));
         };
         struct sigaction new_handler{};
         new_handler.sa_handler = signal_handler;
