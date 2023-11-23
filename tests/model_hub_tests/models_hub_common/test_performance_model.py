@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-import gc
 import sys
 import time
 from enum import Enum
