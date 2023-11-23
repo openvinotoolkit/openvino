@@ -7,9 +7,9 @@
 #include <string>
 #include <memory>
 
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset9.hpp>
-#include <ngraph/pass/manager.hpp>
+#include <openvino/core/model.hpp>
+#include <openvino/opsets/opset9.hpp>
+#include <openvino/pass/manager.hpp>
 #include "plugin/transformations/convert_pooling_to_reduce.hpp"
 
 using namespace testing;
@@ -37,7 +37,7 @@ static std::shared_ptr<ov::Model> CreateFunction(const ov::Shape& input_shape,
 }
 
 TEST(TransformationTests, ConvertAvgPoolToReduce) {
-    ngraph::pass::Manager manager;
+    ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
     manager.register_pass<ov::intel_gpu::ConvertAvgPoolingToReduce>();
 
