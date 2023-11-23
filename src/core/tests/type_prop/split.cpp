@@ -354,7 +354,7 @@ INSTANTIATE_TEST_SUITE_P(
            std::make_tuple(PartialShape{Dimension(2, 6), Dimension::dynamic(), Dimension(-1, 6), Dimension(7, -1)},
                            2,
                            std::vector<PartialShape>{{Dimension(2, 6), Dimension::dynamic()},
-                                                     {Dimension(-1, 6), Dimension{7, -1}}})),
+                                                     {Dimension(-1, 6), Dimension::dynamic()}})),
     PrintToStringParamName());
 
 TEST_P(SplitBoundTest, propagate_label_and_dynamic_value) {

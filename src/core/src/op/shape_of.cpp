@@ -65,16 +65,17 @@ bool evaluate_bound(const Node* const node, ov::TensorVector& outputs, const boo
         // use node output type as it can be different than output tensor type
         // e.g. when v3::ShapeOf is converted to v0::ShapeOf then the output tensor will have always i64
         // but node output type is transferred from v3 and can be i32 (dimension inf bound is i32 max)
-        if (node->get_output_element_type(0) == element::i32) {
+        const auto is_out_type_i32 = node->get_output_element_type(0) == element::i32;
+        if (is_out_type_i32 || !is_upper) {
             const auto in_shape_rank = in_shape.size();
-            constexpr auto max_et_val = static_cast<int64_t>(std::numeric_limits<int32_t>::max());
+            const auto max_et_val = is_out_type_i32 ? static_cast<int64_t>(std::numeric_limits<int32_t>::max())
+                                                    : std::numeric_limits<int64_t>::max();
 
-            const auto get_val = is_upper ? &Interval::get_max_val : &Interval::get_min_val;
             auto limit_val = is_upper ? max_et_val : static_cast<decltype(max_et_val)>(0);
 
             auto dynamic_mask = std::vector<char>(in_shape_rank);
             std::transform(in_shape.begin(), in_shape.end(), dynamic_mask.begin(), [&](const Dimension& d) {
-                return static_cast<char>((d.get_interval().*get_val)() >= max_et_val);
+                return static_cast<char>(d.get_interval().get_max_val() >= max_et_val);
             });
 
             const auto limit = Tensor(out_et, Shape{}, &limit_val);

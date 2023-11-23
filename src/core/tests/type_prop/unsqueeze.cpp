@@ -264,7 +264,7 @@ INSTANTIATE_TEST_SUITE_P(
            std::make_tuple(PartialShape{Dimension(-1)}, PartialShape{Dimension(-1)}),
            std::make_tuple(PartialShape{Dimension::dynamic(), 8}, PartialShape{Dimension::dynamic()}),
            std::make_tuple(PartialShape{Dimension(2, 5), Dimension::dynamic()}, PartialShape{Dimension(2, 5)}),
-           std::make_tuple(PartialShape{Dimension(2, -1), Dimension::dynamic()}, PartialShape{{2, -1}}),
+           std::make_tuple(PartialShape{Dimension(2, -1), Dimension::dynamic()}, PartialShape::dynamic(1)),
            std::make_tuple(PartialShape{Dimension(-1, 3), Dimension::dynamic()}, PartialShape{Dimension(-1, 3)}),
            std::make_tuple(PartialShape{5}, PartialShape{5}),
            std::make_tuple(PartialShape{2, 6}, PartialShape{2})),

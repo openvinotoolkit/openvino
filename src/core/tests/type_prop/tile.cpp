@@ -137,7 +137,7 @@ TEST_F(TypePropTileTest, preserve_partial_values_and_labels) {
 
     const auto op = make_op(data, shape_of_repeats);
 
-    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, {2, 4}, {-1, 6}, {2, -1}, -1}));
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, {2, 4}, {-1, 6}, -1, -1}));
     EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)),
                 ElementsAre(ov::no_label, ov::no_label, ov::no_label, 23, 24));
 }
