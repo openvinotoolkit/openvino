@@ -75,9 +75,6 @@ class TestModelPerformance:
     def load_model(self, model_name, model_link):
         raise "load_model is not implemented"
 
-    def get_inputs_info(self, model_obj):
-        raise "get_inputs_info is not implemented"
-
     def prepare_input(self, input_shape, input_type):
         if input_type in [ov.Type.f32, ov.Type.f64]:
             return 2.0 * rng.random(size=input_shape, dtype=get_numpy_type(input_type))
@@ -102,11 +99,33 @@ class TestModelPerformance:
                 inputs[input_name] = self.prepare_input(input_shape, input_type)
         return inputs
 
+    def get_inputs_info(self, model_path: str):
+        inputs_info = []
+        core = ov.Core()
+        model = core.read_model(model=model_path)
+        for param in model.inputs:
+            input_shape = []
+            param_shape = param.get_node().get_output_partial_shape(0)
+            shape_special_dims = [ov.Dimension(), ov.Dimension(), ov.Dimension(), ov.Dimension(3)]
+            if param_shape == ov.PartialShape(shape_special_dims) and param.get_element_type() == ov.Type.f32:
+                # image classification case, let us imitate an image
+                # that helps to avoid compute output size issue
+                input_shape = [1, 200, 200, 3]
+            else:
+                for dim in param_shape:
+                    if dim.is_dynamic:
+                        input_shape.append(1)
+                    else:
+                        input_shape.append(dim.get_length())
+            inputs_info.append((param.get_node().get_friendly_name(), input_shape, param.get_element_type()))
+        return inputs_info
+
     def get_converted_model(self, model_path: str):
-        raise "get_converted_model is not implemented"
+        return ov.convert_model(model_path)
 
     def get_read_model(self, model_path: str):
-        raise "get_read_model is not implemented"
+        core = ov.Core()
+        return core.read_model(model=model_path)
 
     def infer_model(self, ov_model, inputs):
         infer_step_t0 = time.time()
