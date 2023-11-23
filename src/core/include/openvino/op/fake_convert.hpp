@@ -32,7 +32,7 @@ public:
     const std::string& get_destination_type() const;
 
 private:
-    void validate_type() const;
+    void validate_destination_type() const;
 
     std::string m_destination_type = "f8e4m3";
 };

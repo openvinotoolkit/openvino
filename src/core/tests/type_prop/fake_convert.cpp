@@ -79,8 +79,7 @@ TEST(type_prop, fake_convert_basic_unsupported_type) {
     OV_EXPECT_THROW(
         const auto op = std::make_shared<op::v13::FakeConvert>(data, scale, shift),
         Exception,
-        testing::HasSubstr(
-            "The element type of the input tensor on index 0 must be a bf16, f16, f32 or dynamic (got f64)."));
+        testing::HasSubstr("The element type of the input tensor must be a bf16, f16, f32 or dynamic (got f64)."));
 }
 
 TEST(type_prop, fake_convert_basic_unsupported_shape_scale_shift) {
@@ -113,4 +112,13 @@ TEST(type_prop, fake_convert_basic_unsupported_shape_not_unidirectional_broadcas
         AssertFailure,
         testing::HasSubstr(
             "FakeConvert support only unidirectional broadcasting, inputs cannot be broadcastd into data."));
+}
+TEST(type_prop, fake_convert_basic_unsupported_mixed_types) {
+    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 8, 6});
+    const auto scale = std::make_shared<Parameter>(element::dynamic, PartialShape{});
+    const auto shift = std::make_shared<Parameter>(element::f16, PartialShape{});
+
+    OV_EXPECT_THROW(const auto op = std::make_shared<op::v13::FakeConvert>(data, scale, shift),
+                    AssertFailure,
+                    testing::HasSubstr("Mixed input types are not supported."));
 }
