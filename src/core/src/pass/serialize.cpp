@@ -757,6 +757,8 @@ std::string get_precision_name(const ov::element::Type& elem_type) {
         return "BOOL";
     case ::ov::element::Type_t::nf4:
         return "NF4";
+    case ::ov::element::Type_t::string:
+        return "STRING";
     default:
         OPENVINO_THROW("Unsupported precision: ", elem_type);
     }

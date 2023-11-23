@@ -178,17 +178,25 @@ public:
                      shape,
                      [&] {
                          OPENVINO_ASSERT(allocator, "Allocator was not initialized");
-                         return const_cast<Allocator&>(allocator).allocate(element_type.size() * shape_size(shape));
+                         auto num_elements = shape_size(shape);
+                         auto data = const_cast<Allocator&>(allocator).allocate(element_type.size() * num_elements);
+                         init(data, element_type, shape, allocator);
+                         return data;
                      }()},
           m_allocator{allocator} {}
 
     ~AllocatedTensor() {
+        destroy();
         m_allocator.deallocate(m_ptr, get_byte_size());
     }
 
     void set_shape(ov::Shape new_shape) override {
         if (m_shape == new_shape)
             return;
+
+        // TODO: Make it more accurately by handling the area that is begin changed during the reshape only
+        destroy();
+
         auto old_byte_size = get_byte_size();
         m_shape = std::move(new_shape);
         if (get_byte_size() > old_byte_size) {
@@ -197,9 +205,31 @@ public:
         }
         m_strides.clear();
         update_strides();
+
+        // TODO: Make it more accurately by handling the area that is begin changed during the reshape only
+        init(m_ptr, get_element_type(), get_shape(), m_allocator);
     }
 
 private:
+    void destroy() {
+        if (get_element_type() == element::Type_t::string) {
+            auto num_elements = get_byte_size() / sizeof(std::string);  // TODO: a more native way?
+            auto data = static_cast<std::string*>(m_ptr);
+            for (size_t ind = 0; ind < num_elements; ++ind) {
+                using std::string;
+                data[ind].~string();
+            }
+        }
+    }
+
+    void init(void* data, const element::Type element_type, const Shape& shape, const Allocator& allocator) {
+        if (element_type == element::Type_t::string) {
+            auto num_elements = shape_size(shape);
+            auto sdata = static_cast<std::string*>(data);
+            std::uninitialized_fill_n(sdata, num_elements, std::string());
+        }
+    }
+
     Allocator m_allocator;
 };
 

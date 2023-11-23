@@ -160,7 +160,17 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
 
     bool finish = false;
     for (size_t dst_idx = 0, src_idx = 0; !finish;) {
-        memcpy(dst_data + dst_idx, src_data + src_idx, src_strides[src_strides.size() - 1]);
+        if (get_element_type() == element::string) {
+            // in case string tensors, it needs to create new std::string objects in memory from scratch
+            // memcpy is not suitable
+            std::string* dst_string = static_cast<std::string*>(static_cast<void*>(dst_data + dst_idx));
+            const std::string* src_string =
+                static_cast<const std::string*>(static_cast<const void*>(src_data + src_idx));
+            *dst_string = *src_string;
+        } else {
+            memcpy(dst_data + dst_idx, src_data + src_idx, src_strides[src_strides.size() - 1]);
+        }
+
         // update indexes
         for (size_t i = 0; i < cur_pos.size(); i++) {
             size_t inverted_idx = cur_pos.size() - i - 1;
