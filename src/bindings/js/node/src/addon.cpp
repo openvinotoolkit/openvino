@@ -14,8 +14,6 @@
 #include "partial_shape_wrap.hpp"
 #include "preprocess/preprocess.hpp"
 
-Napi::PropertyDescriptor element = Napi::PropertyDescriptor::Accessor<enumElementType>("element");
-
 /** @brief Initialize native add-on */
 Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
     ModelWrap::Init(env, exports);
@@ -28,8 +26,7 @@ Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
     PartialShapeWrap::Init(env, exports);
     
     preprocess::init(env, exports);
-
-    exports.DefineProperty(element);
+    element::init(env, exports);
     
     return exports;
 }
