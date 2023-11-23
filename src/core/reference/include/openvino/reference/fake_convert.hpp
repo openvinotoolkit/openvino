@@ -44,6 +44,10 @@ void emulate_f8e4m3_on_fp16(const float16* arg_f, float16* out_f, size_t count);
 }  // namespace func
 
 namespace fake_convert_details {
+template <bool INVERT, typename T>
+inline T scale_shift(T val, T scale, T shift) {
+    return INVERT ? static_cast<T>((val + shift) / scale) : static_cast<T>(val * scale - shift);
+}
 /**
  * @brief Apply scale and shift for the data input.
  * The scale_shape and shift_shape should be equal and numpy-broadcastable to the data_shape.
@@ -65,20 +69,15 @@ void apply_scale_shift(T* out,
                        const Shape& scale_shape,
                        const Shape& shift_shape,
                        const bool invert = false) {
+    const auto scale_shift_func = invert ? scale_shift<true, T> : scale_shift<false, T>;
     const auto scale_size = shape_size(scale_shape);
     const auto data_size = shape_size(data_shape);
 
     if (scale_size == 1) {  // per tensor scale, probably for activation
         T s = scale[0];
         T o = shift[0];
-        if (invert) {
-            for (size_t j = 0; j < data_size; ++j) {
-                out[j] = (data[j] + o) / s;
-            }
-        } else {
-            for (size_t j = 0; j < data_size; ++j) {
-                out[j] = data[j] * s - o;  // o = quntized(o * s)
-            }
+        for (size_t j = 0; j < data_size; ++j) {
+            out[j] = scale_shift_func(data[j], s, o);
         }
         return;
     }
@@ -94,14 +93,8 @@ void apply_scale_shift(T* out,
             for (size_t i = 0; i < scale_size; i++) {
                 T s = scale[i];
                 T o = shift[i];
-                if (invert) {
-                    for (size_t j = 0; j < step; ++j) {
-                        out[j] = (data[j] + o) / s;
-                    }
-                } else {
-                    for (size_t j = 0; j < step; ++j) {
-                        out[j] = data[j] * s - o;  // o = quntized(o * s)
-                    }
+                for (size_t j = 0; j < step; ++j) {
+                    out[j] = scale_shift_func(data[j], s, o);
                 }
                 data += step;
                 out += step;
@@ -109,14 +102,6 @@ void apply_scale_shift(T* out,
         }
         return;
     }
-
-    auto scale_shift_func = invert ? [](T elem, T s, T o) -> T {
-        return static_cast<T>((elem + o) / s);
-    }
-    : [](T elem, T s, T o) -> T {
-          return static_cast<T>(elem * s - o);
-      };
-
     // The specific cases above are optimized verions of the broadcast for specific case
     // Autobroadcast helper is generic approach for broadcast
     autobroadcast_select(data,
