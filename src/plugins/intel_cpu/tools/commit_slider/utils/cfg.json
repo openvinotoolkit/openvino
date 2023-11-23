@@ -79,5 +79,11 @@
         "launchedAsJob" : false,
         "toolName" : "{e2e|ac} - specified outside tool, supposed to be downloaded by job",
         "appPath" : "path, substituted by job"
+    },
+    "cachedAppConfig": {
+        "enabled" : true,
+        "scheme" : "optional | mandatory",
+        "comment" : "'mandatory' skips lacking hash-appPath pair for given key, 'optional' tries to handle it by building",
+        "cashMap" : {}
     }
 }

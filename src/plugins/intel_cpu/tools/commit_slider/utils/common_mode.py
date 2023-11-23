@@ -169,6 +169,7 @@ class Mode(ABC):
         class CommitState(Enum):
             BREAK = 1
             SKIPPED = 2
+            IGNORED = 3
 
         class PathCommit:
             def __init__(self, cHash, state):
@@ -195,6 +196,9 @@ class Mode(ABC):
                 if be.errType == util.BuildError.BuildErrType.TO_SKIP:
                     self.skipCommit(be.commit, curList, cfg)
                     self.wrappedBypass(curList, list, cfg)
+                if be.errType == util.BuildError.BuildErrType.TO_IGNORE:
+                    self.ignoreCommit(be.commit, curList, cfg)
+                    self.wrappedBypass(curList, list, cfg)
                 elif be.errType == util.BuildError.BuildErrType.TO_REBUILD:
                     cfg["extendBuildCommand"] = True
                     self.wrappedBypass(curList, list, cfg)
@@ -211,6 +215,19 @@ class Mode(ABC):
             )
             self.mode.commonLogger.info(
                 "Skipped commit {}".format(commit)
+            )
+            self.mode.setOutputInfo(pc)
+            self.mode.commitPath.accept(self, pc)
+
+
+        def ignoreCommit(self, commit, curList, cfg):
+            curList.remove(commit)
+            pc = Mode.CommitPath.PathCommit(
+                commit,
+                Mode.CommitPath.CommitState.IGNORED
+            )
+            self.mode.commonLogger.info(
+                "Ignored commit {}".format(commit)
             )
             self.mode.setOutputInfo(pc)
             self.mode.commitPath.accept(self, pc)

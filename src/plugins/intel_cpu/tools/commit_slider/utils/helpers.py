@@ -210,6 +210,29 @@ def runCommandList(commit, cfgData, enforceClean=False):
 
 
 def fetchAppOutput(cfg, commit):
+    commitLogger = getCommitLogger(cfg, commit)
+    appPath = None
+    if cfg["cachedAppConfig"]["enable"] == True:
+        pathExists, appPath = getCashedAppPath(commit, cfg)
+        if pathExists:
+            commitLogger.info(
+                "App path, corresponding commit {c} is cashed, value:{p}".format(
+                c=commit, p=appPath))
+        else:
+            if cfg["cachedAppConfig"]["scheme"] == "mandatory":
+                commitLogger.info(
+                    "No app path for commit {}".format(commit))
+                raise BuildError(
+                    errType=BuildError.BuildErrType.WRONG_STATE,
+                    message="app path doesn't exist",
+                    commit=commit
+                    )
+            else:
+                raise BuildError(
+                    errType=BuildError.BuildErrType.UNSUPPORTED,
+                    message="optional scheme of cashedAppPath is to-be implemented",
+                    commit=commit
+                    )
     newEnv = os.environ.copy()
     if "envVars" in cfg:
         for env in cfg["envVars"]:
@@ -217,8 +240,8 @@ def fetchAppOutput(cfg, commit):
             envVal = env["val"]
             newEnv[envKey] = envVal
     appCmd = cfg["appCmd"]
-    appPath = cfg["appPath"]
-    commitLogger = getCommitLogger(cfg, commit)
+    if appPath is None:
+        appPath = cfg["appPath"]
     commitLogger.info("Run command: {command}".format(
         command=appCmd)
     )
@@ -240,6 +263,28 @@ def fetchAppOutput(cfg, commit):
 
 def handleCommit(commit, cfgData):
     commitLogger = getCommitLogger(cfgData, commit)
+    if cfgData["cachedAppConfig"]["enable"] == True:
+        pathExists, cashedPath = getCashedAppPath(commit, cfgData)
+        if pathExists:
+            commitLogger.info(
+                "App path, corresponding commit {c} is cashed, value:{p}".format(
+                c=commit, p=cashedPath))
+            return
+        else:
+            if cfgData["cachedAppConfig"]["scheme"] == "mandatory":
+                commitLogger.info("Ignore commit {}".format(commit))
+                raise BuildError(
+                    errType=BuildError.BuildErrType.TO_IGNORE,
+                    message="build error handled by skip",
+                    commit=commit
+                    )
+            else:
+                raise BuildError(
+                    errType=BuildError.BuildErrType.UNSUPPORTED,
+                    message="optional scheme of cashedAppPath is to-be implemented",
+                    commit=commit
+                    )
+
     if "skipCleanInterval" in cfgData["serviceConfig"]:
         skipCleanInterval = cfgData["serviceConfig"]["skipCleanInterval"]
         cfgData["trySkipClean"] = skipCleanInterval
@@ -285,6 +330,14 @@ def handleCommit(commit, cfgData):
                         errType = BuildError.BuildErrType.WRONG_STATE,
                         commit=commit
                         )
+
+
+def getCashedAppPath(commit, cfgData):
+    shortHash = getMeaningfullCommitTail(commit)
+    if commit in cfgData["cachedAppConfig"]["cashMap"]:
+        return True, cfgData["cachedAppConfig"]["cashMap"][commit]
+    else:
+        return False, None
 
 
 def returnToActualVersion(cfg):
@@ -364,11 +417,18 @@ class BuildError(Exception):
     class BuildErrType(Enum):
         # Undefined - unresolved behaviour, to-do ...
         UNDEFINED = 0
+        # strategies to handle unsuccessful build
         TO_REBUILD = 1
         TO_SKIP = 2
         TO_STOP = 3
+        # commit supposed to contain irrelevant change,
+        # build is unnecessary
+        TO_IGNORE = 4
         # throwed in unexpected case
-        WRONG_STATE = 4
+        WRONG_STATE = 5
+        # state handling unsupported, i.e., 'optional'
+        # scheme of cashedAppPath handling is to-be implemented
+        UNSUPPORTED = 6
     def __init__(self, commit, message, errType):
         self.message = message
         self.errType = errType
