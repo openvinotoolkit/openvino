@@ -23,8 +23,8 @@ public:
 
     virtual void commit() = 0;
 
-    virtual MemoryPtr input_mem() const = 0;
-    virtual MemoryPtr output_mem() const = 0;
+    virtual MemoryPtr input_mem() = 0;
+    virtual MemoryPtr output_mem() = 0;
     virtual MemoryDescPtr internal_desc() const = 0;
 };
 
@@ -37,6 +37,8 @@ public:
     ov::SoPtr<ov::ITensor> get_state() const override;
 
 protected:
+    virtual MemoryPtr internal_state_mem() const = 0;
+
     static MemoryDescPtr to_static(const MemoryDescPtr& desc);
     static const dnnl::engine& get_engine();
 
@@ -58,8 +60,8 @@ public:
     //ov::intel_cpu::IVariableState
     void commit() override;
 
-    MemoryPtr input_mem() const override;
-    MemoryPtr output_mem() const override;
+    MemoryPtr input_mem() override;
+    MemoryPtr output_mem() override;
     MemoryDescPtr internal_desc() const override;
 
 private:
@@ -79,6 +81,8 @@ private:
         return m_internal_mem[buffer_num ^ 0x1];
     }
 
+    MemoryPtr internal_state_mem() const override;
+
 private:
     MemoryDescPtr m_internal_desc; //mem desc required by the graph internal tensor
     std::array<MemoryPtr, 2> m_internal_mem{};
@@ -97,9 +101,12 @@ public:
     //ov::intel_cpu::IVariableState
     void commit() override;
 
-    MemoryPtr input_mem() const override;
-    MemoryPtr output_mem() const override;
+    MemoryPtr input_mem() override;
+    MemoryPtr output_mem() override;
     MemoryDescPtr internal_desc() const override;
+
+private:
+    MemoryPtr internal_state_mem() const override;
 
 private:
     MemoryDescPtr m_internal_desc; //mem desc required by the graph internal tensor

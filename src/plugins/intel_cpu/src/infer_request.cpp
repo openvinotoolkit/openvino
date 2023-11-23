@@ -61,7 +61,7 @@ void SyncInferRequest::create_infer_request() {
         init_tensor(it.first);
     }
 
-    //create states according to the list of the MemoryInput
+    //create states according to the list of the MemoryStateNodes
     for (auto&& node : m_graph->getInternalStateNodes()) {
         m_memory_states.emplace_back(node.second->makeState());
     }

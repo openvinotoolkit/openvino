@@ -440,7 +440,7 @@ void MemoryInput::initSupportedPrimitiveDescriptors() {
 
 void MemoryInput::initOptimalPrimitiveDescriptor() {
     // Mimic the child node memory desc to avoid extra reorder
-    static Type preferredTypes[] = {
+    static const Type preferredTypes[] = {
         Type::ScaledDotProductAttention,
         Type::MatMul,
         Type::FullyConnected,
@@ -450,7 +450,7 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
         Type::Subgraph
     };
 
-    static Type skipTypes[] = {
+    static const Type skipTypes[] = {
         Type::ShapeOf
     };
 
@@ -554,6 +554,37 @@ void MemoryInputSDPA::initSupportedPrimitiveDescriptors() {
     outPortConfig.setMemDesc(descCreators.at(LayoutType::cabd)->createSharedDesc(precision, shape));
     config.outConfs.push_back(std::move(outPortConfig));
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+}
+
+void MemoryInputSDPA::initOptimalPrimitiveDescriptor() {
+    auto&& childEdges = getChildEdgesAtPort(0);
+    auto itr = std::find_if(childEdges.begin(), childEdges.end(),
+        [](const EdgePtr& edge){ return Type::ScaledDotProductAttention == edge->getChild()->getType(); });
+
+    OPENVINO_ASSERT(itr != childEdges.end(), "MemoryInputSDPA isn't attached to an SDPA node");
+    auto childEdge = *itr;
+    auto child = childEdge->getChild();
+    auto childPd = child->getSelectedPrimitiveDescriptor();
+    OPENVINO_ASSERT(childPd,
+        child->getTypeStr(), " ",
+        child->getName(),
+        "failed initOptimalPrimitiveDescriptor() call, preferable primitive descriptor is not set");
+
+    const auto& childConfig = childPd->getConfig();
+    auto childPrecision = childConfig.inConfs[childEdge->getOutputNum()].getMemDesc()->getPrecision();
+
+    auto selectedPd = getSelectedPrimitiveDescriptor();
+    OPENVINO_ASSERT(selectedPd,
+        "MemoryInputSDPA ",
+        getName(),
+        " failed initOptimalPrimitiveDescriptor() call, preferable primitive descriptor is not set");
+
+    auto config = selectedPd->getConfig();
+    auto memDesc = config.outConfs.front().getMemDesc();
+    auto newMemDesc = memDesc->cloneWithNewPrecision(childPrecision);
+    config.outConfs.front().setMemDesc(newMemDesc);
+    //bypass any checks, we enforce the child descriptor precision
+    selectedPd->setConfig(config);
 }
 
 MemStatePtr MemoryInputSDPA::makeState() const {

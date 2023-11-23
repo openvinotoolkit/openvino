@@ -62,7 +62,7 @@ public:
             }
             result << ")_";
         }
-        result << "Prc=" << inType;
+        result << "Prc=" << inType << "_";
         result << "HasShapeOf=" << hasShapeof;
         return result.str();
     }
@@ -197,7 +197,8 @@ public:
 TEST_P(ConcatSDPTest, CompareWithRefs) {
     auto actualOutputs = run_test(function);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
-    CheckNumberOfNodesWithType(compiledModel, {"Concatenation", "Reorder"}, 0);
+    CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
+    CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
     auto expectedOutputs = run_test(functionRefs);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 0);
     for (size_t i = 0; i < actualOutputs.size(); i++) {

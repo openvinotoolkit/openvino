@@ -15,7 +15,7 @@
 #include <shape_inference/shape_inference_internal_dyn.hpp>
 #include <vector>
 
-#include "common/cpu_memcpy.h"
+#include "openvino/core/parallel.hpp"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/plain_tensor.hpp"
@@ -617,12 +617,12 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             past_k_output = past_k_output.permute({1, 2, 0, 3});
             past_v_output = past_v_output.permute({1, 2, 0, 3});
             parallel_for3d(B, H, L1, [&](size_t b, size_t h, size_t m) {
-                memcpy(&past_k_output.at({b, h, m + L0, 0}),
-                       &k_input.at({b, h, m, 0}),
-                       S * sizeof(T));
-                memcpy(&past_v_output.at({b, h, m + L0, 0}),
-                       &v_input.at({b, h, m, 0}),
-                       S * sizeof(T));
+                std::memcpy(&past_k_output.at({b, h, m + L0, 0}),
+                            &k_input.at({b, h, m, 0}),
+                            S * sizeof(T));
+                std::memcpy(&past_v_output.at({b, h, m + L0, 0}),
+                            &v_input.at({b, h, m, 0}),
+                            S * sizeof(T));
             });
         }
     }

@@ -52,13 +52,12 @@ void VariableStateBase::set_state(const ov::SoPtr<ov::ITensor>& state) {
 }
 
 ov::SoPtr<ov::ITensor> VariableStateBase::get_state() const {
-    //TODO , input_mem name is rather confusing in this context
-    const auto& current_dims = input_mem()->getStaticDims();
+    const auto& current_dims = internal_state_mem()->getStaticDims();
     auto current_ext_desc = m_external_desc->cloneWithNewDims(current_dims);
-    auto current_internal_desc = input_mem()->getDescPtr();
+    auto current_internal_desc = internal_state_mem()->getDescPtr();
 
     if (current_ext_desc->isCompatible(*current_internal_desc)) {
-        return std::make_shared<Tensor>(input_mem());
+        return std::make_shared<Tensor>(internal_state_mem());
     }
 
     //test precision
@@ -67,17 +66,17 @@ ov::SoPtr<ov::ITensor> VariableStateBase::get_state() const {
         auto tmp_desc = current_ext_desc->cloneWithNewPrecision(internal_prc);
         if (tmp_desc->isCompatible(*current_internal_desc)) {
             auto mem = std::make_shared<Memory>(get_engine(), current_ext_desc);
-            size_t elements_to_convert = input_mem()->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+            size_t elements_to_convert = internal_state_mem()->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
             auto external_prc = current_ext_desc->getPrecision();
 
-            cpu_convert(input_mem()->getData(), mem->getData(), internal_prc, external_prc, elements_to_convert);
+            cpu_convert(internal_state_mem()->getData(), mem->getData(), internal_prc, external_prc, elements_to_convert);
             return std::make_shared<Tensor>(mem);
         }
     }
 
     //reorder
     auto mem = std::make_shared<Memory>(get_engine(), current_ext_desc);
-    mem->load(*(input_mem()));
+    mem->load(*(internal_state_mem()));
     return std::make_shared<Tensor>(mem);
 }
 
@@ -121,16 +120,20 @@ void VariableStateDoubleBuffer::commit() {
     buffer_num ^= 0x01;
 }
 
-MemoryPtr VariableStateDoubleBuffer::input_mem() const {
+MemoryPtr VariableStateDoubleBuffer::input_mem() {
     return prime_mem();
 }
 
-MemoryPtr VariableStateDoubleBuffer::output_mem() const {
+MemoryPtr VariableStateDoubleBuffer::output_mem() {
     return second_mem();
 }
 
 MemoryDescPtr VariableStateDoubleBuffer::internal_desc() const {
     return m_internal_desc;
+}
+
+MemoryPtr VariableStateDoubleBuffer::internal_state_mem() const {
+    return prime_mem();
 }
 
 VariableStateSingleBuffer::VariableStateSingleBuffer(const std::string& name,
@@ -163,16 +166,20 @@ void VariableStateSingleBuffer::reset() {
     m_internal_mem->nullify();
 }
 
-MemoryPtr VariableStateSingleBuffer::input_mem() const {
+MemoryPtr VariableStateSingleBuffer::input_mem() {
     return m_internal_mem;
 }
 
-MemoryPtr VariableStateSingleBuffer::output_mem() const {
+MemoryPtr VariableStateSingleBuffer::output_mem() {
     return m_internal_mem;
 }
 
 MemoryDescPtr VariableStateSingleBuffer::internal_desc() const {
     return m_internal_desc;
+}
+
+MemoryPtr VariableStateSingleBuffer::internal_state_mem() const {
+    return m_internal_mem;
 }
 
 void VariableStateSingleBuffer::commit() {
