@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <inference_engine.hpp>
 #include <openvino/openvino.hpp>
 #include <ie_plugin_config.hpp>
 

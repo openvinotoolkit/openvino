@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <inference_engine.hpp>
 #include "openvino/runtime/core.hpp"
 #include "common_utils.h"
 
