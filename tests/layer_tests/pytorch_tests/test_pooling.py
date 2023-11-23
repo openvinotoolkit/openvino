@@ -159,7 +159,7 @@ class TestPooling(PytorchLayerTest):
                        reason='Ticket - 122715')
     def test_avg_pool2d(self, params, ceil_mode, count_include_pad, ie_device, precision, ir_version):
         self._test(*self.create_model("avg_pool2d", **params, ceil_mode=ceil_mode, count_include_pad=count_include_pad),
-                   ie_device, precision, ir_version, trace_model=True, dynamic_shapes=False)
+                   ie_device, precision, ir_version, trace_model=True, freeze_model=False, dynamic_shapes=False)
 
     @pytest.mark.parametrize("params", d3_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])
