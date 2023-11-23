@@ -41,13 +41,13 @@ using ov::element::i4;
 using ov::element::i64;
 using ov::element::i8;
 using ov::element::nf4;
+using ov::element::string;
 using ov::element::u1;
 using ov::element::u16;
 using ov::element::u32;
 using ov::element::u4;
 using ov::element::u64;
 using ov::element::u8;
-using ov::element::string;
 using ov::element::undefined;
 
 template <typename T>
