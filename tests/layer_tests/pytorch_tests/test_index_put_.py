@@ -146,9 +146,13 @@ class TestNonZero_IndexPut(PytorchLayerTest):
                 "input_shape": [3, 3, 3],
                 "values": np.array([[10, 11, 12]]).astype(np.float32),
             },
-                        {
+            {
                 "input_shape": [3, 3, 3],
                 "values": np.array(10).astype(np.float32),
+            },
+            {
+                "input_shape": [3, 3, 3],
+                "values": np.zeros((1, 1, 3)).astype(np.float32),
             },
         ),
     )
@@ -174,6 +178,18 @@ class TestNonZero_IndexPut(PytorchLayerTest):
         self.indices_0 = indices[0]
         self.indices_1 = indices[1]
         self._test(*self.create_model(accumulate), ie_device, precision, ir_version, trace_model=True, use_convert_model=True)
+    
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_nonzero_index_put_different_ranks(self, ie_device, precision, ir_version):
+        self.input_tensor = np.random.randn(1, 10, 2).astype(np.float32)
+        self.values = np.zeros((10, 2), dtype=np.float32)
+        self.indices_0 = np.array([[0, 0, 1, 1, 1, 1, 1, 1, 0, 0]]).astype(np.float32)
+        self.indices_1 = np.zeros((1, 10), dtype=np.float32)
+        self._test(*self.create_model(False), ie_device, precision, ir_version, trace_model=True, use_convert_model=True)
+
+
 
 class TestMask_IndexPut(PytorchLayerTest):
     def _prepare_input(self):
