@@ -7,7 +7,6 @@ import shutil
 
 import gc
 import tarfile
-import tempfile
 import pytest
 import tensorflow as tf
 import openvino as ov
