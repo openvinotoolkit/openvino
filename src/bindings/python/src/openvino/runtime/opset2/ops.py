@@ -7,6 +7,7 @@ from typing import Callable, Iterable, List, Optional, Set, Union
 
 import numpy as np
 from functools import partial
+import warnings
 
 from openvino.runtime import Node, Shape
 from openvino.runtime.op import Constant, Parameter
@@ -129,30 +130,64 @@ def reorg_yolo(input: Node, stride: List[int], name: Optional[str] = None) -> No
 def roi_pooling(
     input: NodeInput,
     coords: NodeInput,
-    output_size: TensorShape,
-    spatial_scale: NumericData,
-    method: str,
+    output_roi: Optional[TensorShape] = None,
+    spatial_scale: Optional[NumericData] = None,
+    method: str = "max",
     name: Optional[str] = None,
+    *,
+    output_size: Optional[TensorShape] = None,
 ) -> Node:
     """Return a node which produces an ROIPooling operation.
 
     :param input:          Input feature map `{N, C, ...}`.
     :param coords:         Coordinates of bounding boxes.
-    :param output_size:    Height/Width of ROI output features (shape).
+    :param output_roi:     Height/Width of ROI output features (shape).
     :param spatial_scale:  Ratio of input feature map over input image size (float).
-    :param method:         Method of pooling - string: "max" or "bilinear".
+    :param method:         Method of pooling - string: "max" or "bilinear". Default: "max"
+    :param output_size:    (DEPRECATED!) Height/Width of ROI output features (shape).
+                           Will override `output_roi` if used and change behavior of the operator. 
     :return:               ROIPooling node.
     """
+    # Allow either one of these attributes to be passed.
+    if output_roi is None and output_size is None:
+        raise AttributeError("One of the following arguments must be defined: `output_roi`, `output_size`!")
+    # Force checking of spatial_scale.
+    if spatial_scale is None:
+        raise AttributeError("The following arguments must be defined: `spatial_scale`!")
+
+    def _deprecated_output_size_arg(output_roi: TensorShape, output_size: TensorShape) -> bool:
+        if output_size is not None:
+            warnings.warn(
+                "`output_size` is deprecated and will be removed in future. "
+                "Value of `output_size` is going to override `output_roi` value and "
+                "`get_output_size` will behave like `get_output_roi` function."
+                "Please use only `output_roi` explicitly.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+            return output_size
+        return output_roi
+
+
     method = method.lower()
-    return _get_node_factory_opset2().create(
+    roi_shape = _deprecated_output_size_arg(output_roi, output_size)
+    node = _get_node_factory_opset2().create(
         "ROIPooling",
         as_nodes(input, coords),
         {
-            "output_size": Shape(output_size),
+            "output_size": Shape(roi_shape),
+            "output_roi": Shape(roi_shape),
             "spatial_scale": spatial_scale,
             "method": method,
         },
     )
+
+    # Override behavior when deprecated value was used. 
+    if output_size is not None:
+        node.get_output_size = node.get_output_roi
+        node.set_output_size = node.set_output_roi
+
+    return node
 
 
 @nameable_op
