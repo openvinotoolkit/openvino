@@ -163,13 +163,16 @@ public:
 
 class Limitations {
 public:
-    ~Limitations() {}
     /**
-     * @brief Create instance of the Limitations class. Due to Limitations being a singleton, multiple instances of the
-     * plugin with different compilation targets cannot exist at the same time
+     * @brief Create an instance of the Limitations class. Since Limitations is designed as a singleton, multiple
+     * instances of the plugin with different compilation targets cannot coexist simultaneously for the same thread.
      * @param compile_target GNA compile target
      */
     static void init(const target::DeviceVersion& compile_target);
+
+    /**
+     * @brief Delete the instance of the Limitations class for the currently running thread.
+     */
     static void deinit();
 
     /**
