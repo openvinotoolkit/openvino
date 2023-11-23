@@ -22,6 +22,7 @@
 #include "ngraph/opsets/opset9.hpp"
 #include "ops/gna_convolution.hpp"
 #include "ops/gna_max_pool.hpp"
+#include "threading/ie_thread_local.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -164,11 +165,16 @@ public:
 class Limitations {
 public:
     /**
-     * @brief Create instance of the Limitations class. Due to Limitations being a singleton, multiple instances of the
-     * plugin with different compilation targets cannot exist at the same time
+     * @brief Create an instance of the Limitations class. Since Limitations is designed as a singleton, multiple
+     * instances of the plugin with different compilation targets cannot coexist simultaneously for the same thread.
      * @param compile_target GNA compile target
      */
     static void init(const target::DeviceVersion& compile_target);
+
+    /**
+     * @brief Delete the instance of the Limitations class for the currently running thread.
+     */
+    static void deinit();
 
     /**
      * @brief Returns the instance of Limitations object. Requires an Init call before the first usage
@@ -309,14 +315,16 @@ private:
     bool m_use_only_16bit_conv_weights = false;
     size_t m_mem_alignment = 0;
     std::shared_ptr<cnn2d::AbstractValidator> m_cnn_validator;
-    static thread_local std::shared_ptr<Limitations> k_instance;
+
+    static InferenceEngine::ThreadLocal<std::shared_ptr<Limitations>> kInstance;
 };
 
 inline std::shared_ptr<Limitations> Limitations::get_instance() {
-    if (!k_instance) {
+    auto& instance = kInstance.local();
+    if (!instance) {
         THROW_GNA_EXCEPTION << "Limitations instance is not initialized.\n";
     }
-    return k_instance;
+    return instance;
 }
 
 inline bool Limitations::is_crop_affined_offset(size_t numberOfElements) const {
