@@ -135,7 +135,7 @@ class TestModelPerformance:
         results = []
         for _ in range(0, TestModelPerformance.num_measure_runs):
             t0 = time.time()
-            out_data = ov_model(inputs)
+            ov_model(inputs)
             t1 = time.time()
             results.append(t1 - t0)
         mean = np.mean(results)

@@ -6,12 +6,9 @@ import os
 import shutil
 
 import gc
-import tempfile
 import pytest
-import openvino as ov
 import tensorflow_hub as hub
 # noinspection PyUnresolvedReferences
-import numpy as np
 
 from models_hub_common.test_performance_model import TestModelPerformance
 from models_hub_common.utils import get_models_list
@@ -29,7 +26,7 @@ def clean_cache():
                 os.unlink(file_path)
             elif os.path.isdir(file_path):
                 shutil.rmtree(file_path)
-        except Exception as e:
+        except Exception:
             pass
 
 
@@ -52,4 +49,3 @@ class TestTFPerformanceModel(TestModelPerformance):
         if mark == 'skip':
             pytest.skip(reason)
         self.run(model_name, model_link, ie_device)
-

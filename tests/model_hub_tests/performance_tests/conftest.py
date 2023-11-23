@@ -2,8 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import inspect
-import os.path
-import shutil
 import pytest
 from py.xml import html
 
