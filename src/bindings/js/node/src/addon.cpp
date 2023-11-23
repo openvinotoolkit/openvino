@@ -12,7 +12,7 @@
 #include "openvino/openvino.hpp"
 #include "tensor.hpp"
 #include "partial_shape_wrap.hpp"
-#include "preprocess/preprocess_wrap.hpp"
+#include "preprocess/preprocess.hpp"
 
 Napi::PropertyDescriptor element = Napi::PropertyDescriptor::Accessor<enumElementType>("element");
 
@@ -26,7 +26,8 @@ Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
     Output<const ov::Node>::Init(env, exports);
     Output<ov::Node>::Init(env, exports);
     PartialShapeWrap::Init(env, exports);
-    PreProcessWrap::Init(env, exports);
+    
+    preprocess::init(env, exports);
 
     exports.DefineProperty(element);
     

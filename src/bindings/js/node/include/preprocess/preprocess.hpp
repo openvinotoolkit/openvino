@@ -10,12 +10,11 @@
 #include "preprocess/resize_algorithm.hpp"
 #include "preprocess/pre_post_process_wrap.hpp"
 
-class PreProcessWrap {
-public:
+namespace preprocess {
     /** @brief This method is called during initialization of OpenVINO native add-on.
      * It exports JavaScript preprocess property.
      */
-    static Napi::Object Init(Napi::Env env, Napi::Object exports);
+    Napi::Object init(Napi::Env env, Napi::Object exports);
 
-    static Napi::Value PreProcessProperty(const Napi::CallbackInfo& info);
+    Napi::Value add_preprocess_namespace(const Napi::CallbackInfo& info);
 };
