@@ -3,7 +3,6 @@
 
 
 import gc
-import os
 import sys
 import time
 from enum import Enum
