@@ -11,16 +11,17 @@ import openvino.runtime as ov
 
 from openvino import (
     Model,
+    Layout,
     PartialShape,
     Shape,
+    Strides,
     Tensor,
     Type,
-    OVAny,
     layout_helpers,
 )
 
-from openvino.runtime.op import Parameter
-from openvino.runtime import Strides, AxisVector, Coordinate, CoordinateDiff
+from openvino.runtime.op import Parameter, Constant
+from openvino.runtime import AxisVector, Coordinate, CoordinateDiff
 from openvino._pyopenvino import DescriptorTensor
 
 from openvino.runtime.utils.types import get_element_type
@@ -36,8 +37,8 @@ def test_graph_function_api():
     assert parameter_a.element_type == Type.f32
     assert parameter_b.element_type == Type.f32
     assert parameter_a.partial_shape == PartialShape([2, 2])
-    parameter_a.layout = ov.Layout("NC")
-    assert parameter_a.layout == ov.Layout("NC")
+    parameter_a.layout = Layout("NC")
+    assert parameter_a.layout == Layout("NC")
     function = Model(model, [parameter_a, parameter_b, parameter_c], "TestModel")
 
     function.get_parameters()[1].set_partial_shape(PartialShape([3, 4, 5]))
@@ -62,8 +63,8 @@ def test_graph_function_api():
     assert len(results) == 1
     assert results[0].get_output_element_type(0) == Type.f32
     assert results[0].get_output_partial_shape(0) == PartialShape([2, 2])
-    results[0].layout = ov.Layout("NC")
-    assert results[0].layout.to_string() == ov.Layout("NC")
+    results[0].layout = Layout("NC")
+    assert results[0].layout.to_string() == Layout("NC")
     assert function.get_friendly_name() == "TestModel"
 
 
@@ -259,7 +260,7 @@ def test_constant_get_data_unsigned_integer(data_type):
     ],
 )
 def test_constant_from_empty_array(shared_flag, init_value):
-    const = ov.op.Constant(init_value, shared_memory=shared_flag)
+    const = Constant(init_value, shared_memory=shared_flag)
     assert tuple(const.shape) == init_value.shape
     assert const.get_element_type().to_dtype() == init_value.dtype
     assert const.get_byte_size() == init_value.nbytes
@@ -310,8 +311,8 @@ def test_clone_model():
     shape = [2, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ops.parameter(shape, dtype=np.float32, name="B")
-    model_original = ov.Model(parameter_a + parameter_b, [parameter_a, parameter_b])
-    assert isinstance(model_original, ov.Model)
+    model_original = Model(parameter_a + parameter_b, [parameter_a, parameter_b])
+    assert isinstance(model_original, Model)
 
     # Make copies of it
     with pytest.deprecated_call():
@@ -319,9 +320,9 @@ def test_clone_model():
     model_copy2 = model_original.clone()
     model_copy3 = deepcopy(model_original)
 
-    assert isinstance(model_copy1, ov.Model)
-    assert isinstance(model_copy2, ov.Model)
-    assert isinstance(model_copy3, ov.Model)
+    assert isinstance(model_copy1, Model)
+    assert isinstance(model_copy2, Model)
+    assert isinstance(model_copy3, Model)
 
     # Make changes to the copied models' inputs
     model_copy1.reshape({"A": [3, 3], "B": [3, 3]})
@@ -669,21 +670,21 @@ def test_get_and_set_layout():
 
     model = Model(parameter_a + parameter_b, [parameter_a, parameter_b])
 
-    assert layout_helpers.get_layout(model.input(0)) == ov.Layout()
-    assert layout_helpers.get_layout(model.input(1)) == ov.Layout()
+    assert layout_helpers.get_layout(model.input(0)) == Layout()
+    assert layout_helpers.get_layout(model.input(1)) == Layout()
 
-    layout_helpers.set_layout(model.input(0), ov.Layout("CH"))
-    layout_helpers.set_layout(model.input(1), ov.Layout("HW"))
+    layout_helpers.set_layout(model.input(0), Layout("CH"))
+    layout_helpers.set_layout(model.input(1), Layout("HW"))
 
-    assert layout_helpers.get_layout(model.input(0)) == ov.Layout("CH")
-    assert layout_helpers.get_layout(model.input(1)) == ov.Layout("HW")
+    assert layout_helpers.get_layout(model.input(0)) == Layout("CH")
+    assert layout_helpers.get_layout(model.input(1)) == Layout("HW")
 
 
 def test_layout():
-    layout = ov.Layout("NCWH")
-    layout2 = ov.Layout("NCWH")
-    scalar = ov.Layout.scalar()
-    scalar2 = ov.Layout.scalar()
+    layout = Layout("NCWH")
+    layout2 = Layout("NCWH")
+    scalar = Layout.scalar()
+    scalar2 = Layout.scalar()
 
     assert layout == layout2
     assert layout != scalar
@@ -708,8 +709,8 @@ def test_layout():
     assert layout.get_index_by_name("W") == 2
     assert layout.get_index_by_name("H") == 3
 
-    layout = ov.Layout("NC?")
-    layout2 = ov.Layout("N")
+    layout = Layout("NC?")
+    layout2 = Layout("N")
     assert layout != layout2
     assert str(layout) != str(layout2)
     assert layout.has_name("N")
@@ -720,7 +721,7 @@ def test_layout():
     assert layout.get_index_by_name("N") == 0
     assert layout.get_index_by_name("C") == 1
 
-    layout = ov.Layout("N...C")
+    layout = Layout("N...C")
     assert layout.has_name("N")
     assert not (layout.has_name("W"))
     assert not (layout.has_name("H"))
@@ -728,19 +729,19 @@ def test_layout():
     assert layout.has_name("C")
     assert layout.get_index_by_name("C") == -1
 
-    layout = ov.Layout()
+    layout = Layout()
     assert not (layout.has_name("W"))
     assert not (layout.has_name("H"))
     assert not (layout.has_name("D"))
     assert not (layout.has_name("C"))
 
-    layout = ov.Layout("N...C")
+    layout = Layout("N...C")
     assert layout == "N...C"
     assert layout != "NC?"
 
 
 def test_layout_helpers():
-    layout = ov.Layout("NCHWD")
+    layout = Layout("NCHWD")
     assert (layout_helpers.has_batch(layout))
     assert (layout_helpers.has_channels(layout))
     assert (layout_helpers.has_depth(layout))
@@ -753,7 +754,7 @@ def test_layout_helpers():
     assert layout_helpers.width_idx(layout) == 3
     assert layout_helpers.depth_idx(layout) == 4
 
-    layout = ov.Layout("N...C")
+    layout = Layout("N...C")
     assert (layout_helpers.has_batch(layout))
     assert (layout_helpers.has_channels(layout))
     assert not (layout_helpers.has_depth(layout))
@@ -772,7 +773,7 @@ def test_layout_helpers():
     with pytest.raises(RuntimeError):
         layout_helpers.depth_idx(layout)
 
-    layout = ov.Layout("NC?")
+    layout = Layout("NC?")
     assert (layout_helpers.has_batch(layout))
     assert (layout_helpers.has_channels(layout))
     assert not (layout_helpers.has_depth(layout))
