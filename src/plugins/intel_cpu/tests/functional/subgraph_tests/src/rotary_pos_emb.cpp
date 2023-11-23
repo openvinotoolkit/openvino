@@ -149,8 +149,11 @@ public:
         auto& input_shape = targetInputStaticShapes[0];
         auto seq_length = input_shape[1];
 
-        ov::Tensor t_input =
-            utils::create_and_fill_tensor(funcInputs[0].get_element_type(), input_shape, ov::test::utils::InputGenerateData(-1, 2, 32768));
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = -1;
+        in_data.range = 2;
+        in_data.resolution = 32768;
+        ov::Tensor t_input = utils::create_and_fill_tensor(funcInputs[0].get_element_type(), input_shape, in_data);
         ov::Tensor t_position_id_end = create_i32_tensor(ov::Shape({}), position_id_start + seq_length);
         ov::Tensor t_position_ids = create_i32_tensor(ov::Shape({1, seq_length}), position_id_start);
 

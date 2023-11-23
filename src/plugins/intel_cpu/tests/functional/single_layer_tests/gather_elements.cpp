@@ -68,10 +68,12 @@ public:
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = 0;
+            in_data.range = 15;
+            in_data.resolution = 32768;
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
 
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                             targetInputStaticShapes[i],
-                                                             ov::test::utils::InputGenerateData(0, 15, 32768));
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }

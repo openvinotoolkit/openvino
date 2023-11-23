@@ -109,9 +109,11 @@ public:
                                     targetInputStaticShapes[i],
                                     outShapeData[inferRequestNum].data());
             } else {
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                                 targetInputStaticShapes[i],
-                                                                 ov::test::utils::InputGenerateData(0, 2560, 256));
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = 0;
+                in_data.range = 2560;
+                in_data.resolution = 256;
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
             }
 
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});

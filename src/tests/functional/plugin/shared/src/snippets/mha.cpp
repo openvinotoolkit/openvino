@@ -82,8 +82,12 @@ void MHA::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticSha
         const auto& model_input = model_inputs[i];
         ov::Tensor tensor;
         ov::test::utils::InputGenerateData in_data;
+<<<<<<< HEAD
         // To avoid big relative errors in the vicinity of zero, only positive values are generated for bf16 precision
         in_data.start_from = model_input.get_element_type() == ov::element::bf16 ? 0 : -1;
+=======
+        in_data.start_from = -1;
+>>>>>>> d89271e8c1 (Apply comments)
         in_data.range = 2;
         in_data.resolution = 256;
         tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), in_data);
@@ -104,12 +108,19 @@ void MHASelect::generate_inputs(const std::vector<ngraph::Shape>& targetInputSta
         ov::Tensor tensor;
         int seed = 0;
         if (name.find("less") != std::string::npos) {
-            tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(),
-                                                            ov::test::utils::InputGenerateData(-2, 5 + seed, 10, seed));
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = -2;
+            in_data.range = 5 + seed;
+            in_data.resolution = 10;
+            in_data.seed = seed;
+            tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), in_data);
             seed++;
         } else {
-            tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(),
-                                                            ov::test::utils::InputGenerateData(-1, 2, 256));
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = -1;
+            in_data.range = 2;
+            in_data.resolution = 256;
+            tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), in_data);
         }
         inputs.insert({node_input, tensor});
     }

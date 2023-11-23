@@ -117,10 +117,16 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::HardSigmoid>&
                              const ov::Shape& targetShape) {
     switch (port) {
         case 1: {
-            return ov::test::utils::create_and_fill_tensor(elemType, targetShape, ov::test::utils::InputGenerateData(0.2f, 0));
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = 0.2;
+            in_data.range = 0;
+            return ov::test::utils::create_and_fill_tensor(elemType, targetShape, in_data);
         }
         case 2: {
-            return ov::test::utils::create_and_fill_tensor(elemType, targetShape, ov::test::utils::InputGenerateData(0.5f, 0));
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = 0.5;
+            in_data.range = 0;
+            return ov::test::utils::create_and_fill_tensor(elemType, targetShape, in_data);
         }
         default: {
             return Activation::generate(elemType, targetShape);
@@ -138,9 +144,15 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v0::PRelu>& node,
         case 1: {
             auto name = node->input(1).get_node()->get_friendly_name();
             if (0 == name.compare("leakySlope")) {
-                return ov::test::utils::create_and_fill_tensor(elemType, targetShape, ov::test::utils::InputGenerateData(0.01f, 0));
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = 0.01;
+                in_data.range = 0;
+                return ov::test::utils::create_and_fill_tensor(elemType, targetShape, in_data);
             } else if (0 == name.compare("negativeSlope")) {
-                return ov::test::utils::create_and_fill_tensor(elemType, targetShape, ov::test::utils::InputGenerateData(-0.01f, 0));
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = -0.01;
+                in_data.range = 0;
+                return ov::test::utils::create_and_fill_tensor(elemType, targetShape, in_data);
             } else {
                 return Activation::generate(elemType, targetShape);
             }
@@ -347,7 +359,10 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::GatherTree>& 
 namespace LogicalOp {
 ov::runtime::Tensor generate(const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    return create_and_fill_tensor(elemType, targetShape, ov::test::utils::InputGenerateData(0, 2));
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = 0;
+    in_data.range = 2;
+    return create_and_fill_tensor(elemType, targetShape, in_data);
 }
 }
 
@@ -401,7 +416,12 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v3::Bucketize>& n
     switch (port) {
         case 0: {
             auto data_size = shape_size(targetShape);
-            return create_and_fill_tensor(elemType, targetShape, ov::test::utils::InputGenerateData(0, data_size * 5, 10, 7235346));
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = 0;
+            in_data.range = data_size * 5;
+            in_data.resolution = 10;
+            in_data.seed = 7235346;
+            return create_and_fill_tensor(elemType, targetShape, in_data);
         }
         case 1: {
             return  create_and_fill_tensor_unique_sequence(elemType, targetShape, 0, 10, 8234231);
@@ -474,8 +494,10 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::GRUSequence>&
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     if (port == 2) {
-        unsigned int m_max_seq_len = 10;
-        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, ov::test::utils::InputGenerateData(0, m_max_seq_len));
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = 0;
+        in_data.range = 10; // max_seq_len
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, in_data);
     }
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
@@ -485,12 +507,16 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v5::LSTMSequence>& no
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     if (port == 2) {
-        unsigned int m_max_seq_len = 10;
-        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, ov::test::utils::InputGenerateData(0, m_max_seq_len));
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = 0;
+        in_data.range = 10; // max_seq_len
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, in_data);
     }
     if (port == 3 && node->input(0).get_partial_shape().is_static()) {
-        auto seq_len = node->input(0).get_shape()[1];
-        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, ov::test::utils::InputGenerateData(0, seq_len));
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = 0;
+        in_data.range = node->input(0).get_shape()[1]; // seq_len
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, in_data);
     }
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
@@ -621,8 +647,10 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::RNNSequence>&
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
     if (port == 2) {
-        unsigned int m_max_seq_len = 10;
-        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, ov::test::utils::InputGenerateData(0, m_max_seq_len));
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = 0;
+        in_data.range = 10; // max_seq_len
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, in_data);
     }
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }

@@ -66,9 +66,10 @@ protected:
         size_t i = 0;
         if (funcInputs[i].get_node_shared_ptr()->get_friendly_name() == "trip_count") {
             const auto& funcInput = funcInputs[i];
-            ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                                        funcInput.get_shape(),
-                                                                        ov::test::utils::InputGenerateData(1, 10));
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = 1;
+            in_data.range = 10;
+            ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), funcInput.get_shape(), in_data);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
             i++;
         }
@@ -76,9 +77,11 @@ protected:
         // parameters for body
         for (; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                                        targetInputStaticShapes[i],
-                                                                        ov::test::utils::InputGenerateData(0, 15, 32768));
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = 0;
+            in_data.range = 15;
+            in_data.resolution = 32768;
+            ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
@@ -427,9 +430,11 @@ class StaticLoopDynamicSubgraphCPUTest : public SubgraphBaseTest {
                 auto* dataPtr = tensor.data<bool>();
                 *dataPtr = true;
             } else {
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                                 targetInputStaticShapes[i],
-                                                                 ov::test::utils::InputGenerateData(0, 2560, 256));
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = 0;
+                in_data.range = 2560;
+                in_data.resolution = 256;
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }

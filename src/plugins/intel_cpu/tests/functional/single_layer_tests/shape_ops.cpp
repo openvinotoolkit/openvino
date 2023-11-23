@@ -103,13 +103,18 @@ protected:
 #undef RESHAPE_TEST_CASE
                 }
             } else {
+                ov::test::utils::InputGenerateData in_data;
                 if (isWithNonZero) {
                     // fill tensor with all zero, so the NonZero op will create 0 shape as the input of reshape op
-                    tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], ov::test::utils::InputGenerateData(0, 1));
+                    in_data.start_from = 0;
+                    in_data.range = 1;
+                    tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
                 } else {
                     if (funcInput.get_element_type().is_real()) {
-                        tensor = utils::create_and_fill_tensor(
-                                funcInput.get_element_type(), targetInputStaticShapes[i], ov::test::utils::InputGenerateData(0, 10, 1000));
+                        in_data.start_from = 0;
+                        in_data.range = 10;
+                        in_data.resolution = 1000;
+                        tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
                     } else {
                         tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
                     }

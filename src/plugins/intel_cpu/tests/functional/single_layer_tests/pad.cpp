@@ -67,7 +67,10 @@ protected:
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             if (i == 0) {
-                tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], ov::test::utils::InputGenerateData(1, 10));
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = 1;
+                in_data.range = 10;
+                tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
             } else {
                 if (funcInput.get_node()->get_friendly_name() == "pad_value")
                     tensor = ov::Tensor{funcInput.get_element_type(), ov::Shape{}, &padValue};

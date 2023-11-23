@@ -189,6 +189,7 @@ public:
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
+<<<<<<< HEAD
             if (funcInput.get_element_type() == ov::element::bf16)
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
                                                                  targetInputStaticShapes[i], ov::test::utils::InputGenerateData(-1, 2, 256));
@@ -197,6 +198,17 @@ public:
                                                                                  targetInputStaticShapes[i],
                                                                                  -1,
                                                                                  5);
+=======
+            if (funcInput.get_element_type() == ov::element::bf16) {
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = -1;
+                in_data.range = 2;
+                in_data.resolution = 256;
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+            } else {
+                tensor = ov::test::utils::create_and_fill_tensor_unique_sequence(funcInput.get_element_type(), targetInputStaticShapes[i], -1, 5);
+            }
+>>>>>>> 6e89e08114 (Apply comments)
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
@@ -573,6 +585,7 @@ public:
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
+<<<<<<< HEAD
             if (funcInput.get_element_type().is_real())
                 tensor = ov::test::utils::create_and_fill_tensor_normal_distribution(funcInput.get_element_type(),
                                                                                      targetInputStaticShapes[i],
@@ -583,6 +596,17 @@ public:
                                                                  targetInputStaticShapes[i],
                                                                  ov::test::utils::InputGenerateData(0, 255, 1));
 
+=======
+            if (funcInput.get_element_type().is_real()) {
+                tensor = ov::test::utils::create_and_fill_tensor_normal_distribution(funcInput.get_element_type(), targetInputStaticShapes[i], 0.0f, 1.5f);
+            } else {
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = 0;
+                in_data.range = 255;
+                in_data.resolution = 1;
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+            }
+>>>>>>> 6e89e08114 (Apply comments)
 
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
