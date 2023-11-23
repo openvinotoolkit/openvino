@@ -12,7 +12,7 @@
 using namespace ov;
 using namespace testing;
 
-TEST(type_prop, scale_dot_product_attention_static_5_inputs) {
+TEST(type_prop, scaled_dot_product_attention_static_5_inputs) {
     const auto query = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 3, 4});
     const auto key = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 5, 4});
     const auto value = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 5, 6});
@@ -26,7 +26,7 @@ TEST(type_prop, scale_dot_product_attention_static_5_inputs) {
     EXPECT_EQ(gn->get_shape(), (Shape{2, 3, 6}));
 }
 
-TEST(type_prop, scale_dot_product_attention_static_4_inputs) {
+TEST(type_prop, scaled_dot_product_attention_static_4_inputs) {
     const auto query = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 3, 4});
     const auto key = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 5, 4});
     const auto value = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 5, 6});
@@ -38,7 +38,7 @@ TEST(type_prop, scale_dot_product_attention_static_4_inputs) {
     EXPECT_EQ(gn->get_shape(), (Shape{2, 3, 6}));
 }
 
-TEST(type_prop, scale_dot_product_attention_static_3_inputs) {
+TEST(type_prop, scaled_dot_product_attention_static_3_inputs) {
     const auto query = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 3, 4});
     const auto key = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 5, 4});
     const auto value = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 5, 6});
@@ -49,7 +49,7 @@ TEST(type_prop, scale_dot_product_attention_static_3_inputs) {
     EXPECT_EQ(gn->get_shape(), (Shape{2, 3, 6}));
 }
 
-TEST(type_prop, scale_dot_product_attention_static_3_inputs_causal) {
+TEST(type_prop, scaled_dot_product_attention_static_3_inputs_causal) {
     const auto query = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 3, 4});
     const auto key = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 5, 4});
     const auto value = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 5, 6});
@@ -60,7 +60,7 @@ TEST(type_prop, scale_dot_product_attention_static_3_inputs_causal) {
     EXPECT_EQ(gn->get_shape(), (Shape{2, 3, 6}));
 }
 
-TEST(type_prop, scale_dot_product_attention_static_ignored_attention_mask) {
+TEST(type_prop, scaled_dot_product_attention_static_ignored_attention_mask) {
     const auto query = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 3, 4});
     const auto key = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 5, 4});
     const auto value = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 5, 6});
@@ -74,7 +74,7 @@ TEST(type_prop, scale_dot_product_attention_static_ignored_attention_mask) {
     EXPECT_EQ(gn->get_shape(), (Shape{2, 3, 6}));
 }
 
-TEST(type_prop, scale_dot_product_attention_static_5_inputs_extra_batch) {
+TEST(type_prop, scaled_dot_product_attention_static_5_inputs_extra_batch) {
     const auto query = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 7, 3, 4});
     const auto key = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 7, 5, 4});
     const auto value = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 7, 5, 6});
@@ -88,7 +88,7 @@ TEST(type_prop, scale_dot_product_attention_static_5_inputs_extra_batch) {
     EXPECT_EQ(gn->get_shape(), (Shape{2, 7, 3, 6}));
 }
 
-TEST(type_prop, scale_dot_product_attention_static_4_inputs_extra_batch) {
+TEST(type_prop, scaled_dot_product_attention_static_4_inputs_extra_batch) {
     const auto query = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 7, 3, 4});
     const auto key = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 7, 5, 4});
     const auto value = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 7, 5, 6});
@@ -100,7 +100,7 @@ TEST(type_prop, scale_dot_product_attention_static_4_inputs_extra_batch) {
     EXPECT_EQ(gn->get_shape(), (Shape{2, 7, 3, 6}));
 }
 
-TEST(type_prop, scale_dot_product_attention_static_3_inputs_extra_batch) {
+TEST(type_prop, scaled_dot_product_attention_static_3_inputs_extra_batch) {
     const auto query = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 7, 3, 4});
     const auto key = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 7, 5, 4});
     const auto value = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 7, 5, 6});
@@ -111,7 +111,7 @@ TEST(type_prop, scale_dot_product_attention_static_3_inputs_extra_batch) {
     EXPECT_EQ(gn->get_shape(), (Shape{2, 7, 3, 6}));
 }
 
-TEST(type_prop, scale_dot_product_attention_static_3_inputs_extra_batch_causal_true) {
+TEST(type_prop, scaled_dot_product_attention_static_3_inputs_extra_batch_causal_true) {
     const auto query = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 7, 3, 4});
     const auto key = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 7, 5, 4});
     const auto value = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 7, 5, 6});
@@ -122,7 +122,7 @@ TEST(type_prop, scale_dot_product_attention_static_3_inputs_extra_batch_causal_t
     EXPECT_EQ(gn->get_shape(), (Shape{2, 7, 3, 6}));
 }
 
-TEST(type_prop, scale_dot_product_attention_static_ignored_attention_mask_extra_batch) {
+TEST(type_prop, scaled_dot_product_attention_static_ignored_attention_mask_extra_batch) {
     const auto query = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 7, 3, 4});
     const auto key = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 7, 5, 4});
     const auto value = std::make_shared<opset13::Parameter>(element::f32, Shape{2, 7, 5, 6});
@@ -136,7 +136,7 @@ TEST(type_prop, scale_dot_product_attention_static_ignored_attention_mask_extra_
     EXPECT_EQ(gn->get_shape(), (Shape{2, 7, 3, 6}));
 }
 
-TEST(type_prop, scale_dot_product_attention_dynamic_3d) {
+TEST(type_prop, scaled_dot_product_attention_dynamic_3d) {
     const auto dynamic = PartialShape{-1, -1, -1};
     const auto query = std::make_shared<opset13::Parameter>(element::f32, dynamic);
     const auto key = std::make_shared<opset13::Parameter>(element::f32, dynamic);
@@ -151,7 +151,7 @@ TEST(type_prop, scale_dot_product_attention_dynamic_3d) {
     EXPECT_EQ(gn->get_output_partial_shape(0), (dynamic));
 }
 
-TEST(type_prop, scale_dot_product_attention_dynamic_4d) {
+TEST(type_prop, scaled_dot_product_attention_dynamic_4d) {
     const auto dynamic = PartialShape{-1, -1, -1, -1};
     const auto query = std::make_shared<opset13::Parameter>(element::f32, dynamic);
     const auto key = std::make_shared<opset13::Parameter>(element::f32, dynamic);
