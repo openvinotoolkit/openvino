@@ -199,12 +199,13 @@ TEST_P(StatefulModelSupportedTest, CanFilterOutCorrectTargetDeviceWithStatefulMo
 
 const std::vector<StatefulModelConfigParams> testConfigs = {
     // test cases for dynamic model
-    StatefulModelConfigParams{"CPU",
-                              true,
-                              true,
-                              std::map<std::string, bool>{{"CPU", true}},
-                              true,
-                              std::vector<std::pair<std::string, int>>{{"CPU", 1}}},
+    StatefulModelConfigParams{
+        "CPU",                                                  // device candidate list is CPU
+        true,                                                   // model is dynamic model
+        true,                                                   // model is stateful model
+        std::map<std::string, bool>{{"CPU", true}},             // device CPU supports stateful model
+        true,                                                   // performance mode is cumulative mode
+        std::vector<std::pair<std::string, int>>{{"CPU", 1}}},  // expected compiling model count is 1 on device CPU
     StatefulModelConfigParams{"CPU",
                               true,
                               false,

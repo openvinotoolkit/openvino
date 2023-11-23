@@ -935,8 +935,8 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
     // dynamic model or not
 
     for (auto& op : model->get_ops()) {
-        if (std::dynamic_pointer_cast<ngraph::op::AssignBase>(op) ||
-            std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(op)) {
+        if (std::dynamic_pointer_cast<ov::op::util::AssignBase>(op) ||
+            std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(op)) {
             LOG_INFO_TAG("stateful mode, try deployed to CPU");
             stateful_node_names.push_back(op->get_friendly_name());
         }
@@ -964,9 +964,11 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
         if (is_supported_stateful(item.device_name, item.config))
             filter_device.push_back(item);
     }
-    if (get_device_name() == "MULTI") {
+    bool isCumulative = (get_device_name() == "MULTI") || (load_config.get_property(ov::hint::performance_mode) ==
+                                                           ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT);
+    if (isCumulative) {
         if (filter_device.empty() || filter_device.size() > 1)
-            OPENVINO_THROW("AUTO cumulative model didn't support stateful model.");
+            OPENVINO_THROW("AUTO cumulative model doesn't support stateful model.");
         else
             return filter_device;
     }
