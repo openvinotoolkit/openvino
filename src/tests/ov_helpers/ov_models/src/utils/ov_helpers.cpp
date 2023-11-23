@@ -174,8 +174,8 @@ std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<ov::Model>& func
 }
 
 std::shared_ptr<ov::Model> foldFunction(const std::shared_ptr<ov::Model>& function,
-                                       const std::vector<std::vector<std::uint8_t>>& inputs,
-                                       const std::vector<ov::element::Type>& inputTypes) {
+                                        const std::vector<std::vector<std::uint8_t>>& inputs,
+                                        const std::vector<ov::element::Type>& inputTypes) {
     const auto& parameters = function->get_parameters();
     const auto& parametersNumber = parameters.size();
     const auto& inputsNumber = inputs.size();

@@ -112,8 +112,8 @@ std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<ov::Model>& func
                                           const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs);
 
 std::shared_ptr<ov::Model> foldFunction(const std::shared_ptr<ov::Model>& function,
-                                       const std::vector<std::vector<std::uint8_t>>& inputs,
-                                       const std::vector<ov::element::Type>& inputTypes = {});
+                                        const std::vector<std::vector<std::uint8_t>>& inputs,
+                                        const std::vector<ov::element::Type>& inputTypes = {});
 
 std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>& output,
                                                  const element::Type_t& fromPrecision,
