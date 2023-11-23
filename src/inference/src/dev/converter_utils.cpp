@@ -42,6 +42,7 @@
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/variable_state.hpp"
 #include "remote_context_wrapper.hpp"
+#include "threading/ie_executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
 #ifdef PROXY_PLUGIN_ENABLED
@@ -231,7 +232,7 @@ public:
         version.description = ver.description;
         SetVersion(version);
         _isNewAPI = plugin->is_new_api();
-        _executorManager = plugin->get_executor_manager();
+        _executorManager = InferenceEngine::create_old_manager(plugin->get_executor_manager());
     }
 
     virtual ~IInferencePluginWrapper() = default;

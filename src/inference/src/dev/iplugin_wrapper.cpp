@@ -10,7 +10,7 @@
 #include "dev/converter_utils.hpp"
 #include "ie_icore.hpp"
 #include "openvino/runtime/iremote_context.hpp"
-#include "openvino/runtime/threading/executor_manager.hpp"
+#include "threading/ie_executor_manager.hpp"
 
 namespace InferenceEngine {
 
@@ -22,7 +22,7 @@ IPluginWrapper::IPluginWrapper(const std::shared_ptr<InferenceEngine::IInference
     m_plugin_name = m_old_plugin->GetName();
     m_is_new_api = m_old_plugin->IsNewAPI();
     m_core = m_old_plugin->GetCore();
-    m_executor_manager = m_old_plugin->executorManager();
+    m_executor_manager = m_old_plugin->executorManager()->get_ov_manager();
 }
 
 const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& IPluginWrapper::update_exec_network(
