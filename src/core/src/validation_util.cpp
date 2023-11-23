@@ -1181,77 +1181,100 @@ int64_t ov::util::clip(const int64_t& value, const int64_t& min, const int64_t& 
     return std::min(std::max(value, min), max);
 };
 
+static bool requires_conversion(const ov::Output<ov::Node>& input) {
+    static const auto unsupp_types = ov::util::unsupported_types();
+    return std::find(unsupp_types.begin(), unsupp_types.end(), input.get_element_type()) != unsupp_types.end();
+}
+
+static std::tuple<ov::OutputVector, bool> get_inputs(const std::shared_ptr<ov::Node>& node, const std::map<ov::Output<ov::Node>, std::shared_ptr<ov::Node>>& node_map) {
+    bool all_constants = true;
+    bool inputs_converted = false;
+    size_t num_inputs = node->get_input_size();
+
+    ov::OutputVector inputs;
+    inputs.reserve(num_inputs);
+
+    for (size_t i = 0; i < num_inputs; i++) {
+        all_constants = all_constants && ov::op::util::is_constant(node->get_input_node_ptr(i));
+        auto input = node->input_value(i);
+        if (node_map.count(input) > 0) {
+            input = node_map.at(input);
+        }
+        if (!node->has_evaluate() && requires_conversion(input)) {
+            auto convert = std::make_shared<ov::op::v0::Convert>(input, ov::element::f32);
+            ov::OutputVector replacements(1);
+            OPENVINO_ASSERT(convert->constant_fold(replacements, {input}));
+            input = replacements[0];
+            inputs_converted = true;
+        }
+        inputs.push_back(input);
+    }
+
+    return {inputs, inputs_converted};
+}
+
 std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const Output<Node>& subgraph_sink) {
     if (const auto& c = ov::as_type_ptr<op::v0::Constant>(subgraph_sink.get_node_shared_ptr()))
         return c;
 
-    OutputVector nodes_visited{subgraph_sink};
-    size_t node_counter = 0;
+    std::map<Output<Node>, std::shared_ptr<Node>> node_map;
+    std::stack<std::shared_ptr<Node>> stack;
+    stack.push(subgraph_sink.get_node_shared_ptr());
 
-    do {
-        const auto& node_output = nodes_visited[node_counter++];
-        const auto node = node_output.get_node_shared_ptr();
-        if (ov::pass::constant_folding_is_disabled(node))
-            return nullptr;
+    while (!stack.empty()) {
+        auto node = stack.top();
         size_t num_inputs = node->get_input_size();
         if (num_inputs == 0)
             return nullptr;
-        const auto inputs = node->input_values();
-        for (size_t i = 0; i < num_inputs; i++) {
-            if (ov::is_type<op::v0::Constant>(node->get_input_node_ptr(i)))
-                continue;
-            nodes_visited.push_back(node->input_value(i));
-        }
-    } while (node_counter < nodes_visited.size());
 
-    std::map<Output<Node>, std::shared_ptr<Node>> node_map;
-
-    auto unsupp_types = util::unsupported_types();
-
-    for (auto it = nodes_visited.rbegin(); it != nodes_visited.rend(); it++) {
-        const auto& node_output = *it;
-        auto node = node_output.get_node_shared_ptr();
-        size_t num_inputs = node->get_input_size();
-        OutputVector constant_inputs;
-        constant_inputs.reserve(num_inputs);
-        bool needs_convert = false;
-        for (size_t i = 0; i < num_inputs; i++) {
-            const auto& input = node->input_value(i);
-            Output<Node> constant;
-            if (node_map.count(input)) {
-                constant = node_map.at(input);
-                if (input.get_target_inputs().size() == 1)
-                    node_map.erase(input);
-            } else if (ov::is_type<op::v0::Constant>(input.get_node())) {
-                constant = input;
-            } else {
-                return nullptr;
-            }
-
-            const auto& type = node->get_input_element_type(i);
-            if (!util::is_convert(node) && !node->has_evaluate() &&
-                (std::find(unsupp_types.begin(), unsupp_types.end(), type) != unsupp_types.end())) {
-                needs_convert = true;
-                OutputVector output(1);
-                auto convert = std::make_shared<op::v0::Convert>(constant, element::f32);
-                bool ret = convert->constant_fold(output, OutputVector{constant});
-                if (!ret)
-                    return nullptr;
-                constant = output[0];
-            }
-            constant_inputs.push_back(constant);
-        }
-        size_t num_outputs = node->get_output_size();
-        OutputVector outputs(num_outputs);
-        if (needs_convert)
-            node = node->clone_with_new_inputs(constant_inputs);
-        bool status = node->constant_fold(outputs, constant_inputs);
-        if (!status)
+        if (ov::pass::constant_folding_is_disabled(node))
             return nullptr;
-        for (size_t i = 0; i < num_outputs; i++) {
-            node_map[node_output] = outputs[i].get_node_shared_ptr();
+
+        bool node_has_bounds_set = true;
+        for (size_t i = 0; i < node->get_output_size(); i++) {
+            const auto& tensor = node->get_output_tensor(i);
+            bool tensor_has_bounds_set = tensor.has_and_set_bound();
+            node_has_bounds_set = node_has_bounds_set && tensor_has_bounds_set;
+            if (tensor_has_bounds_set) {
+                const auto& lower = node->get_output_tensor(i).get_lower_value();
+                auto constant = std::make_shared<ov::op::v0::Constant>(lower.get_element_type(), lower.get_shape(), lower.data());
+                node_map[node->output(i)] = constant;
+            }
+        }
+
+        if (node_has_bounds_set) {
+            stack.pop();
+            continue;
+        }
+
+        if (ov::is_type<op::util::ShapeOfBase>(node) && node->get_input_partial_shape(0).is_dynamic()) {
+            return nullptr;
+        }
+
+        OutputVector inputs;
+        bool inputs_converted = false;
+        std::tie(inputs, inputs_converted) = get_inputs(node, node_map);
+        if (inputs_converted) {
+            node->clone_with_new_inputs(inputs);
+        }
+
+
+        OutputVector outputs(node->get_output_size());
+        if (node->constant_fold(outputs, inputs)) {
+            stack.pop();
+            for (size_t i = 0; i < outputs.size(); i++) {
+                node_map[node->output(i)] = outputs[i].get_node_shared_ptr();
+            }
+        } else {
+            for (size_t i = node->get_input_size(); i > 0; i--) {
+                auto input = node->input_value(i - 1);
+                if (node_map.count(input) == 0 && !ov::op::util::is_constant(input.get_node())) {
+                    stack.push(input.get_node_shared_ptr());
+                }
+            }
         }
     }
+
     auto constant = node_map.at(subgraph_sink);
     if (constant->get_element_type() != subgraph_sink.get_element_type()) {
         auto convert = std::make_shared<op::v0::Convert>(constant, subgraph_sink.get_element_type());
