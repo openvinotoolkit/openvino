@@ -657,7 +657,7 @@ void compare_data(const ov::Tensor& src, const ov::Tensor& dst) {
 };
 
 template <ov::element::Type_t T,
-          typename std_t = ov::element_type_traits<T>::value_type,
+          typename std_t = typename ov::element_type_traits<T>::value_type,
           typename std::enable_if<T != ov::element::Type_t::string, bool>::type = true>
 void init_tensor(const ov::Tensor& tensor, bool input) {
     const auto origPtr = tensor.data<std_t>();
@@ -668,7 +668,7 @@ void init_tensor(const ov::Tensor& tensor, bool input) {
 }
 
 template <ov::element::Type_t T,
-          typename std_t = ov::element_type_traits<T>::value_type,
+          typename std_t = typename ov::element_type_traits<T>::value_type,
           typename std::enable_if<T == ov::element::Type_t::string, bool>::type = true>
 void init_tensor(const ov::Tensor& tensor, bool input) {
     const auto origPtr = tensor.data<std_t>();
