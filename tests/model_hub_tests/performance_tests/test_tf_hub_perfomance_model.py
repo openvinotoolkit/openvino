@@ -8,7 +8,6 @@ import shutil
 import gc
 import tarfile
 import pytest
-import tensorflow as tf
 import openvino as ov
 import tensorflow_hub as hub
 # noinspection PyUnresolvedReferences
