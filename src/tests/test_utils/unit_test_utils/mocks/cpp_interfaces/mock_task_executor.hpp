@@ -7,7 +7,8 @@
 #include <gmock/gmock.h>
 
 #include <memory>
-#include <openvino/runtime/threading/itask_executor.hpp>
+
+#include "openvino/runtime/threading/itask_executor.hpp"
 
 class MockTaskExecutor : public ov::threading::ITaskExecutor {
 public:

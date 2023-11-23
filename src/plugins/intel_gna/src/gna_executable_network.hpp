@@ -13,7 +13,6 @@
 
 #include "gna_infer_request.hpp"
 #include "gna_plugin.hpp"
-// #include "openvino/runtime/threading/executor_manager.hpp"
 
 namespace ov {
 namespace intel_gna {

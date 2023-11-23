@@ -7,10 +7,10 @@
 
 #include <future>
 #include <ie_parallel.hpp>
-#include <openvino/runtime/threading/immediate_executor.hpp>
 #include <thread>
 
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
+#include "openvino/runtime/threading/immediate_executor.hpp"
 
 using namespace ::testing;
 using namespace std;

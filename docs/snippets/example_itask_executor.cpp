@@ -6,16 +6,16 @@
 #    define IN_OV_COMPONENT
 #    define WAS_OV_LIBRARY_DEFINED
 #endif
-#include <openvino/runtime/threading/cpu_streams_executor.hpp>
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 
 #ifdef WAS_OV_LIBRARY_DEFINED
 #    undef IN_OV_COMPONENT
 #    undef WAS_OV_LIBRARY_DEFINED
 #endif
 
-#include <memory>
 #include <future>
 #include <iostream>
+#include <memory>
 
 void example1() {
 // ! [itask_executor:define_pipeline]
