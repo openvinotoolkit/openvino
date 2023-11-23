@@ -41,7 +41,7 @@ const std::string& FakeConvert::get_destination_type() const {
 void FakeConvert::validate_and_infer_types() {
     OV_OP_SCOPE(v13_FakeConvert_validate_and_infer_types);
     validate_destination_type();
-    auto out_type =  get_input_element_type(0);
+    auto out_type = get_input_element_type(0);
     for (size_t i = 1; i < get_input_size(); i++) {
         OPENVINO_ASSERT(element::Type::merge(out_type, out_type, get_input_element_type(i)),
                         "Mixed input types are not supported.");
