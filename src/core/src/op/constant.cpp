@@ -93,7 +93,33 @@ Constant::Constant(const Tensor& tensor)
 }
 
 Constant::Constant(const element::Type& type, const Shape& shape, const std::vector<std::string>& values)
-    : Constant(type, shape, from_string_vector(values)) {
+    : Constant(false, type, shape) {
+    // TODO: Rework code as this is a modified duplicate of another templated ctor
+    NODE_VALIDATION_CHECK(this,
+                          values.size() == 1 || values.size() == shape_size(m_shape),
+                          "Did not get the expected number of literals for a constant of shape ",
+                          m_shape,
+                          " (got ",
+                          values.size(),
+                          ", expected ",
+                          (shape_size(m_shape) == 1 ? "" : "1 or "),
+                          shape_size(m_shape),
+                          ").");
+
+    if (type == element::string) {
+        if (values.size() == 1) {
+            fill_data(type, values.front());
+        } else {
+            write_values(values);
+        }
+    } else {
+        auto parsed_values = from_string_vector(values);
+        if (parsed_values.size() == 1) {
+            fill_data(type, parsed_values.front());
+        } else {
+            write_values(parsed_values);
+        }
+    }
     const auto is_checked_and_identical = (values.size() == 1) && (shape_size(m_shape) != 1);
     update_identical_flags(is_checked_and_identical, is_checked_and_identical);
 }
