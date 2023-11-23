@@ -114,7 +114,7 @@ class TorchScriptPythonDecoder (Decoder):
                     if gptq_patched:
                         gptq.unpatch_model(pt_module)
 
-            if not freeze_by_default and graph_has_ops(scripted.inlined_graph, ["prim::Uninitialized", "prim::unchecked_cast"]):
+            if not freeze_by_default and graph_has_ops(scripted.inlined_graph, ["prim::Uninitialized", "prim::unchecked_cast", "aten::append"]):
                 # freeze models with unsupported ops
                 freeze_by_default = True
             if freeze_by_default and graph_has_ops(scripted.inlined_graph, ["quantized", "aten::as_strided"]):
