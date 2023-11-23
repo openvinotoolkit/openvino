@@ -38,7 +38,13 @@ void BroadcastLayerTest::SetUp() {
     auto target_shape_const = ov::op::v0::Constant::create(ov::element::i64, {targetShape.size()}, targetShape);
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
-    auto broadcast = ngraph::builder::makeBroadcast(params[0], target_shape_const, mode, axesMapping);
+    std::shared_ptr<ov::Node> broadcast;
+    if (mode == ov::op::BroadcastType::NONE) {
+        auto axisSetConst = ov::op::v0::Constant::create(ov::element::i64, {axesMapping.size()}, axesMapping.to_vector());
+        broadcast = std::make_shared<ov::op::v3::Broadcast>(params[0], target_shape_const, axisSetConst, mode);
+    } else {  // numpy/bidirectional modes
+        broadcast = std::make_shared<ov::op::v3::Broadcast>(params[0], target_shape_const, mode);
+    }
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(broadcast)};
     function = std::make_shared<ov::Model>(results, params, "BroadcastInference");
 }
