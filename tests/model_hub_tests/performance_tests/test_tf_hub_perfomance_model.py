@@ -38,34 +38,6 @@ class TestTFPerformanceModel(TestModelPerformance):
         hub.load(model_link)
         return hub.resolve(model_link)
 
-    def get_inputs_info(self, model_path: str):
-        inputs_info = []
-        core = ov.Core()
-        model = core.read_model(model=model_path)
-        for param in model.inputs:
-            input_shape = []
-            param_shape = param.get_node().get_output_partial_shape(0)
-            shape_special_dims = [ov.Dimension(), ov.Dimension(), ov.Dimension(), ov.Dimension(3)]
-            if param_shape == ov.PartialShape(shape_special_dims) and param.get_element_type() == ov.Type.f32:
-                # image classification case, let us imitate an image
-                # that helps to avoid compute output size issue
-                input_shape = [1, 200, 200, 3]
-            else:
-                for dim in param_shape:
-                    if dim.is_dynamic:
-                        input_shape.append(1)
-                    else:
-                        input_shape.append(dim.get_length())
-            inputs_info.append((param.get_node().get_friendly_name(), input_shape, param.get_element_type()))
-        return inputs_info
-
-    def get_converted_model(self, model_path: str):
-        return ov.convert_model(model_path)
-
-    def get_read_model(self, model_path: str):
-        core = ov.Core()
-        return core.read_model(model=model_path)
-
     def teardown_method(self):
         if not no_clean_cache_dir:
             clean_cache()
