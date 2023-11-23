@@ -141,6 +141,27 @@ TEST_F(SerializationConstantCompressionTest, NonIdenticalConstantsI64) {
     ASSERT_EQ(file_size(bin_1), unique_const_count * ov::shape_size(shape) * sizeof(int64_t));
 }
 
+TEST_F(SerializationConstantCompressionTest, NonIdenticalConstantsI64_CHECK_MULTIMAP)
+{
+    constexpr int unique_const_count = 2;
+    const ov::Shape shape{2};
+
+    // hash_combine returns the same hash for this two constants so we also check the content of arrays
+    auto A = ov::opset8::Constant::create(ov::element::i64, shape, {2, 2});
+    auto B = ov::opset8::Constant::create(ov::element::i64, shape, {0, 128});
+    auto C = ov::opset8::Constant::create(ov::element::i64, shape, {2, 2});
+    auto D = ov::opset8::Constant::create(ov::element::i64, shape, {0, 128});
+
+    auto model = std::make_shared<ov::Model>(ov::NodeVector{A, B, C, D}, ov::ParameterVector{});
+
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(model);
+
+    std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
+    std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
+
+    ASSERT_EQ(file_size(bin_1), unique_const_count * ov::shape_size(shape) * sizeof(int64_t));
+}
+
 TEST_F(SerializationConstantCompressionTest, IdenticalConstantsTimesTwo) {
     constexpr int unique_const_count = 2;
     const ov::Shape shape{2, 2, 2};

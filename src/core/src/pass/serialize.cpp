@@ -89,7 +89,7 @@ class ConstantWriter {
 public:
     using FilePosition = int64_t;
     using HashValue = size_t;
-    using ConstWritePositions = std::unordered_map<HashValue, std::pair<FilePosition, void const*>>;
+    using ConstWritePositions = std::multimap<HashValue, std::pair<FilePosition, void const*>>;
 
     ConstantWriter(std::ostream& bin_data, bool enable_compression = true)
         : m_binary_output(bin_data),
@@ -132,9 +132,11 @@ public:
             // But even strong hashing algorithms sometimes give collisions.
             // Therefore we always have to compare values when finding a match in hash map.
             const HashValue hash = hash_combine(ptr_to_write, *new_size);
-            const auto found = m_hash_to_file_positions.find(hash);
-            if (found != end(m_hash_to_file_positions) && memcmp(ptr, found->second.second, size) == 0) {
-                return found->second.first;
+            auto found = m_hash_to_file_positions.find(hash);
+            while (found != m_hash_to_file_positions.end()) {
+                if (memcmp(ptr, found->second.second, size) == 0)
+                    return found->second.first;
+                found++;
             }
             // Since fp16_compressed data will be disposed at exit point and since we cannot reread it from the ostream,
             // we store pointer to the original uncompressed blob.
